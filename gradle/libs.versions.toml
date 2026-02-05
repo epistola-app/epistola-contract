@@ -1,0 +1,22 @@
+[versions]
+kotlin = "2.3.10"
+spring-boot = "4.0.2"
+spring-dependency-management = "1.1.7"
+graalvm-native = "0.11.4"
+ktlint = "14.0.1"
+cyclonedx = "3.1.0"
+kover = "0.9.6"
+
+[libraries]
+# Add your dependencies here
+# example-lib = { module = "com.example:library", version = "1.0.0" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+graalvm-native = { id = "org.graalvm.buildtools.native", version.ref = "graalvm-native" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
+cyclonedx = { id = "org.cyclonedx.bom", version.ref = "cyclonedx" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
