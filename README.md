@@ -1,26 +1,32 @@
-# Kotlin Gradle Template
+# Epistola API Clients
 
-A modern Kotlin + Spring Boot project template with best practices for tooling, CI/CD, and development workflow.
+Official API client libraries for [Epistola](https://github.com/sdegroot/epistola) in multiple programming languages.
 
-## Features
+## Available Clients
 
-- **Kotlin 2.3** with Spring Boot 4.0
-- **JDK 25** via mise version management
-- **Gradle 9.3** with Kotlin DSL and version catalogs
-- **ktlint** for code formatting
-- **Kover** for test coverage
-- **Conventional Commits** enforced via commitlint
-- **SSH commit signing** auto-configured
-- **GitHub Actions** CI/CD with:
-  - Build and test
-  - Coverage badges
-  - SBOM generation
-  - Vulnerability scanning (Trivy)
-  - Automatic PR labeling
-  - Label sync from config
-- **Renovate** for automated dependency updates
-- **Issue templates** for bugs and features
-- **PR template** with checklist
+| Client | Language | Status | Directory |
+|--------|----------|--------|-----------|
+| Kotlin | Kotlin/JVM | In Development | [`epistola-client-kotlin/`](./epistola-client-kotlin/) |
+
+More clients (TypeScript, Python, Go, etc.) may be added in the future.
+
+## Repository Structure
+
+```
+├── epistola-client-kotlin/     # Kotlin/JVM client
+│   ├── lib/                    # Client library
+│   ├── app/                    # Example application
+│   └── gradle/                 # Gradle build configuration
+├── .github/
+│   └── workflows/              # CI/CD pipelines (parallel builds)
+├── scripts/
+│   └── init.sh                 # Developer setup script
+└── .mise.toml                  # Tool versions
+```
+
+Each client is a self-contained project with its own build system:
+- **Kotlin**: Gradle with Kotlin DSL
+- Future clients will use their language's standard build tools
 
 ## Quick Start
 
@@ -37,162 +43,69 @@ brew install mise
 
 ### Setup
 
-1. **Use this template** - Click "Use this template" on GitHub or clone manually
+1. **Clone the repository**
 
-2. **Initialize the project:**
+2. **Initialize the development environment:**
    ```bash
    ./scripts/init.sh
    ```
-   This will:
-   - Install Java, Gradle, Node.js via mise
-   - Set up Git hooks for commit validation
-   - Configure SSH commit signing
 
 3. **Restart your shell** to activate mise
 
-4. **Build and test:**
-   ```bash
-   gradle build
-   ```
+### Building a Client
 
-5. **Run the application:**
-   ```bash
-   gradle :app:bootRun
-   ```
+Each client has its own build commands. Navigate to the client directory and use its build system.
 
-## Project Structure
-
-```
-├── app/                    # Main application module (Spring Boot)
-│   ├── src/main/kotlin/    # Application code
-│   └── src/test/kotlin/    # Tests
-├── lib/                    # Library module (shared code)
-│   ├── src/main/kotlin/    # Library code
-│   └── src/test/kotlin/    # Tests
-├── gradle/
-│   └── libs.versions.toml  # Dependency version catalog
-├── .github/
-│   ├── workflows/          # CI/CD pipelines
-│   ├── ISSUE_TEMPLATE/     # Issue templates
-│   └── labels.yml          # Label definitions
-├── .husky/                 # Git hooks (commitlint)
-├── scripts/
-│   └── init.sh             # Developer setup script
-├── .mise.toml              # Tool versions
-├── build.gradle.kts        # Root build config
-└── settings.gradle.kts     # Module includes
-```
-
-## Development
-
-### Build Commands
+#### Kotlin Client
 
 ```bash
-# Build everything
-gradle build
+cd epistola-client-kotlin
 
-# Run tests
-gradle test
+# Build and test
+./gradlew build
+
+# Run tests only
+./gradlew test
 
 # Check code style
-gradle ktlintCheck
+./gradlew ktlintCheck
 
 # Fix code style
-gradle ktlintFormat
-
-# Generate coverage report
-gradle koverHtmlReport
-# View at: build/reports/kover/html/index.html
-
-# Generate SBOM
-gradle :app:cyclonedxBom
+./gradlew ktlintFormat
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ### Commit Conventions
 
 This project uses [Conventional Commits](https://www.conventionalcommits.org/). Commits are validated by a Git hook.
 
 ```bash
-feat: add new feature
-fix: resolve bug
+feat(kotlin): add new feature
+fix(kotlin): resolve bug
 docs: update documentation
 chore: maintenance task
-refactor: code restructuring
-test: add tests
 ```
 
-**Breaking changes:** Use `feat!:` or `fix!:` or add `BREAKING CHANGE:` in footer.
+Use scope to indicate which client is affected (e.g., `feat(kotlin):`, `fix(typescript):`).
 
-### Adding Dependencies
+### Adding a New Client
 
-Edit `gradle/libs.versions.toml`:
+1. Create a new directory: `epistola-client-<language>/`
+2. Set up the language's standard build system
+3. Add a job to `.github/workflows/build.yml`
+4. Update this README
 
-```toml
-[versions]
-my-lib = "1.0.0"
+## CI/CD
 
-[libraries]
-my-lib = { module = "com.example:my-lib", version.ref = "my-lib" }
-```
-
-Then use in `build.gradle.kts`:
-
-```kotlin
-dependencies {
-    implementation(libs.my.lib)
-}
-```
-
-## Customization
-
-### Rename the Project
-
-1. Update `settings.gradle.kts`:
-   ```kotlin
-   rootProject.name = "your-project-name"
-   ```
-
-2. Update `build.gradle.kts`:
-   ```kotlin
-   group = "com.yourcompany"
-   description = "Your Project Description"
-   ```
-
-3. Update `package.json`:
-   ```json
-   { "name": "your-project-name" }
-   ```
-
-4. Rename packages in `app/` and `lib/` modules
-
-### Add More Modules
-
-1. Create module directory with `build.gradle.kts`
-2. Add to `settings.gradle.kts`:
-   ```kotlin
-   include(":your-module")
-   ```
-
-### Enable Docker Builds
-
-Uncomment the `docker` job in `.github/workflows/build.yml` and configure as needed.
-
-## Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `.mise.toml` | Tool versions (Java, Gradle, Node) |
-| `.editorconfig` | Editor formatting rules |
-| `gradle/libs.versions.toml` | Dependency versions |
-| `.husky/commitlint.config.js` | Commit message rules |
-| `renovate.json` | Dependency update settings |
-| `.github/labels.yml` | Issue/PR label definitions |
-| `.github/labeler.yml` | Auto-labeling rules |
+All clients are built and tested in parallel via GitHub Actions. Each client:
+- Runs its own test suite
+- Generates coverage reports
+- Produces SBOM (Software Bill of Materials)
+- Undergoes vulnerability scanning
 
 ## License
 
 This project is licensed under the [European Union Public License 1.2](LICENSE) (EUPL-1.2).
-
----
-
-Created from [kotlin-gradle-template](https://github.com/sdegroot/kotlin-gradle-template)

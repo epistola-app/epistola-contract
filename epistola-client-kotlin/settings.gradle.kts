@@ -1,5 +1,4 @@
-rootProject.name = "my-project"
+rootProject.name = "epistola-client-kotlin"
 
-// Example module structure - customize for your project
 include(":app")
 include(":lib")

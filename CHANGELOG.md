@@ -7,14 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Restructured repository as multi-language API client monorepo for Epistola
+- Moved Kotlin client to `epistola-client-kotlin/` subdirectory
+- Updated GitHub Actions workflow for parallel client builds
+- Rewrote README to reflect multi-client architecture
+
 ### Added
-- Initial project structure
-- Spring Boot 4.0 with Kotlin 2.3
-- Gradle build with version catalogs
-- ktlint code formatting
-- Kover test coverage
-- GitHub Actions CI/CD
-- Conventional Commits with commitlint
-- SSH commit signing
-- Renovate dependency updates
-- Issue and PR templates
+- Initial Kotlin client structure with Gradle build
+- Support for parallel CI builds of multiple clients
+- Build summary job to aggregate client build results

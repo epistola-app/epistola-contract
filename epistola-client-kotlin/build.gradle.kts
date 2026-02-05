@@ -9,9 +9,9 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-group = "com.example"
+group = "io.epistola"
 version = "0.0.1-SNAPSHOT"
-description = "My Project"
+description = "Epistola API Client for Kotlin/JVM"
 
 allprojects {
     group = rootProject.group
