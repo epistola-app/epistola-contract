@@ -1,12 +1,13 @@
 plugins {
     alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.kotlin.spring) apply false
     alias(libs.plugins.ktlint)
     alias(libs.plugins.kover)
 }
 
 group = "io.epistola"
 version = "0.0.1-SNAPSHOT"
-description = "Epistola API Client for Kotlin/JVM"
+description = "Epistola API Server Interfaces for Kotlin/Spring"
 
 allprojects {
     group = rootProject.group
@@ -38,7 +39,7 @@ subprojects {
 }
 
 dependencies {
-    kover(project(":client"))
+    kover(project(":server"))
 }
 
 kover {

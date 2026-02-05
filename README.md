@@ -1,32 +1,40 @@
-# Epistola API Clients
+# Epistola Contract
 
-Official API client libraries for [Epistola](https://github.com/sdegroot/epistola) in multiple programming languages.
+Contract-first API repository for [Epistola](https://github.com/sdegroot/epistola). This repository owns the OpenAPI specification and generates both client libraries and server stubs.
 
-## Available Clients
+## Overview
 
-| Client | Language | Status | Directory |
-|--------|----------|--------|-----------|
-| Kotlin | Kotlin/JVM | In Development | [`epistola-client-kotlin/`](./epistola-client-kotlin/) |
-
-More clients (TypeScript, Python, Go, etc.) may be added in the future.
+This repository follows the **contract-first** approach:
+1. The OpenAPI specification (`spec/`) is the single source of truth
+2. Client libraries and server stubs are generated from the spec during build
+3. Generated code is NOT committed - it's created fresh each build
 
 ## Repository Structure
 
 ```
-├── epistola-client-kotlin/     # Kotlin/JVM client
-│   ├── lib/                    # Client library
-│   ├── app/                    # Example application
-│   └── gradle/                 # Gradle build configuration
-├── .github/
-│   └── workflows/              # CI/CD pipelines (parallel builds)
-├── scripts/
-│   └── init.sh                 # Developer setup script
-└── .mise.toml                  # Tool versions
+epistola-contract/
+├── spec/                              # OpenAPI specification (source of truth)
+│   ├── epistola-api.yaml              # Main spec file
+│   ├── paths/                         # Path definitions
+│   ├── components/
+│   │   ├── schemas/                   # Data models
+│   │   └── responses/                 # Response definitions
+│   └── .redocly.yaml                  # Spec validation config
+├── epistola-client-kotlin/            # Generated Kotlin client
+│   ├── client/
+│   │   └── build.gradle.kts
+│   ├── build.gradle.kts
+│   └── settings.gradle.kts
+├── epistola-server-kotlin/            # Generated Spring server stubs
+│   ├── server/
+│   │   └── build.gradle.kts
+│   ├── build.gradle.kts
+│   └── settings.gradle.kts
+├── .github/workflows/
+│   └── build.yml                      # Build all artifacts in parallel
+├── CHANGELOG.md
+└── README.md
 ```
-
-Each client is a self-contained project with its own build system:
-- **Kotlin**: Gradle with Kotlin DSL
-- Future clients will use their language's standard build tools
 
 ## Quick Start
 
@@ -52,27 +60,83 @@ brew install mise
 
 3. **Restart your shell** to activate mise
 
-### Building a Client
+## Building
 
-Each client has its own build commands. Navigate to the client directory and use its build system.
+### Validate OpenAPI Spec
 
-#### Kotlin Client
+```bash
+npx @redocly/cli lint spec/epistola-api.yaml
+```
+
+### Build Kotlin Client
 
 ```bash
 cd epistola-client-kotlin
-
-# Build and test
 ./gradlew build
-
-# Run tests only
-./gradlew test
-
-# Check code style
-./gradlew ktlintCheck
-
-# Fix code style
-./gradlew ktlintFormat
 ```
+
+This will:
+1. Generate Kotlin client code from the OpenAPI spec
+2. Compile the generated code
+3. Run tests
+
+### Build Kotlin Server Stubs
+
+```bash
+cd epistola-server-kotlin
+./gradlew build
+```
+
+This will:
+1. Generate Spring server interfaces from the OpenAPI spec
+2. Compile the generated code
+3. Run tests
+
+## Generated Artifacts
+
+### Kotlin Client (`io.epistola:epistola-client-kotlin`)
+
+A Kotlin client library using:
+- **Ktor** with Java HttpClient engine
+- **Jackson** for JSON serialization
+- Java 8 date/time handling
+- Coroutines for async operations
+
+### Kotlin Server (`io.epistola:epistola-server-kotlin`)
+
+Spring server interfaces for implementing the API:
+- Interface-only generation (no implementations)
+- Spring Boot 3.x compatible
+- Bean validation annotations
+- Ready to implement in your Spring application
+
+## Versioning
+
+This repository uses **SemVer** versioning where the version represents the API contract version:
+
+- **Major**: Breaking API changes
+- **Minor**: New features, backwards compatible
+- **Patch**: Bug fixes, client/server-only fixes
+
+## Using in Your Project
+
+### Kotlin Client (Gradle)
+
+```kotlin
+dependencies {
+    implementation("io.epistola:epistola-client-kotlin:1.0.0")
+}
+```
+
+### Kotlin Server (Gradle)
+
+```kotlin
+dependencies {
+    implementation("io.epistola:epistola-server-kotlin:1.0.0")
+}
+```
+
+Then implement the generated interfaces in your Spring application.
 
 ## Contributing
 
@@ -83,28 +147,19 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 This project uses [Conventional Commits](https://www.conventionalcommits.org/). Commits are validated by a Git hook.
 
 ```bash
-feat(kotlin): add new feature
-fix(kotlin): resolve bug
+feat(spec): add new endpoint
+fix(client): resolve serialization issue
 docs: update documentation
 chore: maintenance task
 ```
 
-Use scope to indicate which client is affected (e.g., `feat(kotlin):`, `fix(typescript):`).
-
-### Adding a New Client
-
-1. Create a new directory: `epistola-client-<language>/`
-2. Set up the language's standard build system
-3. Add a job to `.github/workflows/build.yml`
-4. Update this README
-
 ## CI/CD
 
-All clients are built and tested in parallel via GitHub Actions. Each client:
-- Runs its own test suite
-- Generates coverage reports
-- Produces SBOM (Software Bill of Materials)
-- Undergoes vulnerability scanning
+All artifacts are built and tested in parallel via GitHub Actions:
+
+1. **Spec Validation**: Validates OpenAPI spec with Redocly CLI
+2. **Kotlin Client**: Generates and builds the Kotlin client
+3. **Kotlin Server**: Generates and builds the Spring server stubs
 
 ## License
 

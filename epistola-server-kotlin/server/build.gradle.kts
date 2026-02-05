@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.spring)
     alias(libs.plugins.openapi.generator)
     `java-library`
     `maven-publish`
@@ -8,21 +9,21 @@ plugins {
 val generatedDir = layout.buildDirectory.dir("generated")
 
 openApiGenerate {
-    generatorName.set("kotlin")
+    generatorName.set("kotlin-spring")
     inputSpec.set("$rootDir/../spec/epistola-api.yaml")
     outputDir.set(generatedDir.map { it.asFile.absolutePath })
-    packageName.set("io.epistola.client")
-    apiPackage.set("io.epistola.client.api")
-    modelPackage.set("io.epistola.client.model")
+    packageName.set("io.epistola.server")
+    apiPackage.set("io.epistola.server.api")
+    modelPackage.set("io.epistola.server.model")
     configOptions.set(
         mapOf(
-            "library" to "jvm-ktor",
-            "serializationLibrary" to "jackson",
-            "dateLibrary" to "java8",
-            "useCoroutines" to "true",
-            "omitGradleWrapper" to "true",
-            "omitGradlePluginVersions" to "true",
+            "interfaceOnly" to "true",
+            "useTags" to "true",
+            "documentationProvider" to "none",
+            "useSpringBoot3" to "true",
             "enumPropertyNaming" to "UPPERCASE",
+            "serializableModel" to "true",
+            "useBeanValidation" to "true",
         ),
     )
 }
@@ -38,12 +39,9 @@ tasks.compileKotlin {
 }
 
 dependencies {
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.java)
-    implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.serialization.jackson)
-    implementation(libs.jackson.module.kotlin)
-    implementation(libs.jackson.datatype.jsr310)
+    implementation(libs.spring.boot.starter.web)
+    implementation(libs.spring.boot.starter.validation)
+    implementation(libs.jakarta.validation.api)
 
     testImplementation(kotlin("test"))
 }
@@ -73,7 +71,7 @@ publishing {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
             groupId = rootProject.group.toString()
-            artifactId = "epistola-client-kotlin"
+            artifactId = "epistola-server-kotlin"
             version = rootProject.version.toString()
         }
     }

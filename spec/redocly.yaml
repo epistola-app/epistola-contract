@@ -1,0 +1,17 @@
+extends:
+  - recommended
+
+apis:
+  epistola:
+    root: epistola-api.yaml
+
+rules:
+  operation-operationId: error
+  operation-summary: warn
+  no-unresolved-refs: error
+  no-unused-components: warn
+  spec-components-invalid-map-name: error
+  # Disable security-defined until authentication is implemented
+  security-defined: off
+  # Disable 4xx response requirement for listing endpoints
+  operation-4xx-response: warn
