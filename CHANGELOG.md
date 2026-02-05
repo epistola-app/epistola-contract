@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Restructured repository as multi-language API client monorepo for Epistola
 - Moved Kotlin client to `epistola-client-kotlin/` subdirectory
+- Simplified Kotlin client to single `client` module (removed app/lib split)
+- Removed Spring Boot dependencies from Kotlin client (pure library)
 - Updated GitHub Actions workflow for parallel client builds
 - Rewrote README to reflect multi-client architecture
 

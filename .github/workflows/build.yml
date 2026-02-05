@@ -38,34 +38,6 @@ jobs:
           path: epistola-client-kotlin/build/reports/kover/report.xml
           retention-days: 7
 
-      - name: Generate SBOM
-        run: ./gradlew :app:generateSbom
-
-      - name: Scan SBOM for vulnerabilities
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'sbom'
-          scan-ref: 'epistola-client-kotlin/app/build/sbom/bom.json'
-          format: 'table'
-          exit-code: '1'
-          severity: 'CRITICAL'
-          output: 'kotlin-vulnerability-report.txt'
-
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: kotlin-sbom
-          path: epistola-client-kotlin/app/build/sbom/bom.json
-          retention-days: 7
-
-      - name: Upload vulnerability report
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: kotlin-vulnerability-report
-          path: kotlin-vulnerability-report.txt
-          retention-days: 7
-
   # Add more client jobs here as needed, they will run in parallel
   # Example:
   # typescript:
