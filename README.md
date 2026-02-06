@@ -131,6 +131,63 @@ This repository uses a versioning scheme tied to the OpenAPI spec version:
 - `1.0.1` - Second release (bug fix, dependency update)
 - `1.1.0` - First release after API minor version bump (spec changed to 1.1.x)
 
+## Development Workflow
+
+### Day-to-day Development
+
+1. **Create a feature branch** from `main`:
+   ```bash
+   git checkout main
+   git pull
+   git checkout -b feat/add-new-endpoint
+   ```
+
+2. **Make changes** (spec, build config, etc.)
+
+3. **Create a Pull Request** to `main`
+   - CI runs: spec validation → build client → build server
+   - Add backport labels if the fix should go to release branches (e.g., `backport:release/1.0`)
+
+4. **Merge to main**
+   - Backport PRs are automatically created for labeled branches
+   - No release happens yet (main requires manual release)
+
+5. **Release from main** (when ready)
+   - Go to Actions → Release to Maven Central → Run workflow
+   - Select module(s) to release
+
+### Workflow Diagram
+
+```
+feature/xyz ──► PR ──► main (build only)
+                         │
+                         ├──► manual release trigger ──► Maven Central
+                         │
+                         └──► backport:release/1.0 label
+                                      │
+                                      ▼
+                              backport PR created
+                                      │
+                                      ▼
+                              merge to release/1.0
+                                      │
+                                      ▼
+                              auto-release to Maven Central
+```
+
+### When to Release
+
+- **From main**: When you have new features or changes ready for users
+- **From release branches**: Automatically on merge (for backported fixes)
+
+### Branch Rules
+
+| Branch | Who commits | How | Releases |
+|--------|-------------|-----|----------|
+| `main` | Everyone via PR | Feature branches + PRs | Manual |
+| `release/*` | Maintainers only | Backport PRs or cherry-picks | Automatic |
+| `feature/*` | Anyone | Direct commits | Never |
+
 ## Release Workflow
 
 Artifacts are published to Maven Central via GitHub Actions. Releases can only be triggered from `main` or `release/*` branches.
