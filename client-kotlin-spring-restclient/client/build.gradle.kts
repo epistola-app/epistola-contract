@@ -7,10 +7,25 @@ plugins {
 }
 
 val generatedDir = layout.buildDirectory.dir("generated")
+val bundledSpec = file("$rootDir/../openapi.yaml")
+
+// Fail early if bundled spec doesn't exist
+if (!bundledSpec.exists()) {
+    throw GradleException(
+        """
+        Bundled OpenAPI spec not found at: ${bundledSpec.absolutePath}
+
+        Run from the repository root:
+            npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
+
+        Or use: make bundle
+        """.trimIndent(),
+    )
+}
 
 openApiGenerate {
     generatorName.set("kotlin")
-    inputSpec.set("$rootDir/../epistola-api.yaml")
+    inputSpec.set(bundledSpec.absolutePath)
     outputDir.set(generatedDir.map { it.asFile.absolutePath })
     packageName.set("app.epistola.client")
     apiPackage.set("app.epistola.client.api")

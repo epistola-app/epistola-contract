@@ -13,6 +13,7 @@ spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-start
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation", version.ref = "spring-boot" }
 jakarta-validation-api = { module = "jakarta.validation:jakarta.validation-api", version.ref = "jakarta-validation" }
 jackson-module-kotlin = { module = "tools.jackson.module:jackson-module-kotlin", version = "3.0.4" }
+jackson-databind = { module = "tools.jackson.core:jackson-databind", version = "3.0.4" }
 springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
 
 [plugins]

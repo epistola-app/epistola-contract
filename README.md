@@ -81,6 +81,20 @@ This will:
 2. Compile the generated code
 3. Run tests
 
+### Bundle OpenAPI Spec
+
+Before building, you must bundle the modular OpenAPI spec into a single file:
+
+```bash
+npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
+```
+
+Or use the Makefile:
+
+```bash
+make bundle
+```
+
 ### Build Kotlin Server Stubs
 
 ```bash
@@ -89,9 +103,11 @@ cd server-kotlin-springboot4
 ```
 
 This will:
-1. Generate Spring server interfaces from the OpenAPI spec
+1. Generate Spring server interfaces from the bundled OpenAPI spec
 2. Compile the generated code
 3. Run tests
+
+**Note:** The build will fail if `openapi.yaml` doesn't exist. Run the bundle step first.
 
 ## Generated Artifacts
 

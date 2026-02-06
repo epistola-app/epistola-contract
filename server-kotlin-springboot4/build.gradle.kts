@@ -44,24 +44,66 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
 }
 
 val generatedDir = layout.buildDirectory.dir("generated")
+val bundledSpec = file("$rootDir/../openapi.yaml")
+
+// Fail early if bundled spec doesn't exist
+if (!bundledSpec.exists()) {
+    throw GradleException(
+        """
+        Bundled OpenAPI spec not found at: ${bundledSpec.absolutePath}
+
+        Run from the repository root:
+            npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
+
+        Or use: make bundle
+        """.trimIndent(),
+    )
+}
 
 openApiGenerate {
     generatorName.set("kotlin-spring")
-    inputSpec.set("$rootDir/../epistola-api.yaml")
+    inputSpec.set(bundledSpec.absolutePath)
     outputDir.set(generatedDir.map { it.asFile.absolutePath })
-    packageName.set("app.epistola.api")
+
     apiPackage.set("app.epistola.api")
     modelPackage.set("app.epistola.api.model")
+    invokerPackage.set("app.epistola.api")
+
     configOptions.set(
         mapOf(
             "interfaceOnly" to "true",
-            "useTags" to "true",
-            "documentationProvider" to "none",
             "useSpringBoot3" to "true",
-            "useJakartaEe" to "true",
-            "enumPropertyNaming" to "UPPERCASE",
-            "serializableModel" to "true",
             "useBeanValidation" to "true",
+            "useTags" to "true",
+            "dateLibrary" to "java8-localdatetime",
+            "serializationLibrary" to "jackson",
+            "enumPropertyNaming" to "UPPERCASE",
+            "skipDefaultInterface" to "true",
+            "exceptionHandler" to "false",
+            "gradleBuildFile" to "false",
+            "documentationProvider" to "none",
+            "useJakartaEe" to "true",
+        ),
+    )
+
+    // Use ObjectNode for generic objects to properly handle null values
+    importMappings.set(
+        mapOf(
+            "ObjectNode" to "tools.jackson.databind.node.ObjectNode",
+        ),
+    )
+
+    typeMappings.set(
+        mapOf(
+            "object" to "ObjectNode",
+        ),
+    )
+
+    globalProperties.set(
+        mapOf(
+            "apis" to "",
+            "models" to "",
+            "supportingFiles" to "",
         ),
     )
 }
@@ -81,6 +123,7 @@ dependencies {
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.jakarta.validation.api)
     implementation(libs.jackson.module.kotlin)
+    implementation(libs.jackson.databind)
 
     testImplementation(kotlin("test"))
 }
