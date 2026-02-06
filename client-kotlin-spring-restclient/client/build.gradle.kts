@@ -12,9 +12,9 @@ openApiGenerate {
     generatorName.set("kotlin")
     inputSpec.set("$rootDir/../epistola-api.yaml")
     outputDir.set(generatedDir.map { it.asFile.absolutePath })
-    packageName.set("io.epistola.client")
-    apiPackage.set("io.epistola.client.api")
-    modelPackage.set("io.epistola.client.model")
+    packageName.set("app.epistola.client")
+    apiPackage.set("app.epistola.client.api")
+    modelPackage.set("app.epistola.client.model")
     configOptions.set(
         mapOf(
             "library" to "jvm-spring-restclient",

@@ -49,9 +49,9 @@ openApiGenerate {
     generatorName.set("kotlin-spring")
     inputSpec.set("$rootDir/../epistola-api.yaml")
     outputDir.set(generatedDir.map { it.asFile.absolutePath })
-    packageName.set("io.epistola.server")
-    apiPackage.set("io.epistola.server.api")
-    modelPackage.set("io.epistola.server.model")
+    packageName.set("app.epistola.api")
+    apiPackage.set("app.epistola.api")
+    modelPackage.set("app.epistola.api.model")
     configOptions.set(
         mapOf(
             "interfaceOnly" to "true",
