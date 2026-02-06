@@ -1,0 +1,58 @@
+name: Publish Snapshots
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  publish-snapshots:
+    name: Publish ${{ matrix.artifact_id }} Snapshot
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - module: client-kotlin-spring-restclient
+            artifact_id: client-spring3-restclient
+          - module: epistola-server-kotlin
+            artifact_id: server-spring-boot4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup tools with mise
+        uses: jdx/mise-action@v3
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Calculate snapshot version
+        id: version
+        run: |
+          # Read API version from spec (e.g., "1.0.0" -> "1.0")
+          API_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+)\.[0-9]+["'"'"']?.*/\1/')
+          SNAPSHOT_VERSION="${API_VERSION}-SNAPSHOT"
+          echo "snapshot_version=${SNAPSHOT_VERSION}" >> $GITHUB_OUTPUT
+          echo "Publishing snapshot version: ${SNAPSHOT_VERSION}"
+
+      - name: Build and test
+        working-directory: ${{ matrix.module }}
+        run: ./gradlew build -Pversion=${{ steps.version.outputs.snapshot_version }}
+
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Publish snapshot to Maven Central
+        working-directory: ${{ matrix.module }}
+        env:
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./gradlew publish \
+            -Pversion=${{ steps.version.outputs.snapshot_version }} \
+            -Psigning.gnupg.executable=gpg \
+            -Psigning.gnupg.keyName="${{ secrets.GPG_KEY_ID }}"
