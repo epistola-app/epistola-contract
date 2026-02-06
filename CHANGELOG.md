@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Maven Central publishing configuration for both modules
+  - Signing plugin with GPG support
+  - Complete POM metadata (name, description, license, developers, SCM)
+  - Sources and Javadoc JAR generation
+  - OSSRH repository configuration
+- GitHub Actions release workflow (`release.yml`)
+  - Manual dispatch with module selection
+  - Automatic patch version increment after release
+  - GitHub release creation with Maven coordinates
+- Version property files (`gradle.properties`) in both modules
+  - `apiVersion`: tracks OpenAPI spec version (1.0)
+  - `patchVersion`: auto-incremented by CI (starts at 0)
+
 ### Changed
 - **BREAKING**: Transformed repository into contract-first architecture
 - Renamed repository concept from `epistola-api-clients` to `epistola-contract`

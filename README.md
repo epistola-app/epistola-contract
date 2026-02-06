@@ -95,14 +95,14 @@ This will:
 
 ## Generated Artifacts
 
-### Kotlin Client (`io.epistola:client-kotlin-spring-restclient`)
+### Kotlin Client (`app.epistola.contract:client-spring3-restclient`)
 
 A Kotlin client library using:
 - **Spring RestClient** (Spring Boot 3.2+)
 - **Jackson** for JSON serialization
 - Java 8 date/time handling
 
-### Kotlin Server (`io.epistola:epistola-server-kotlin`)
+### Kotlin Server (`app.epistola.contract:server-spring-boot4`)
 
 Spring server interfaces for implementing the API:
 - Interface-only generation (no implementations)
@@ -112,11 +112,44 @@ Spring server interfaces for implementing the API:
 
 ## Versioning
 
-This repository uses **SemVer** versioning where the version represents the API contract version:
+This repository uses a versioning scheme tied to the OpenAPI spec version:
 
-- **Major**: Breaking API changes
-- **Minor**: New features, backwards compatible
-- **Patch**: Bug fixes, client/server-only fixes
+**Format**: `{API_MAJOR}.{API_MINOR}.{PATCH}`
+
+- **API_MAJOR.API_MINOR**: Comes from the OpenAPI spec version (currently 1.0)
+- **PATCH**: Auto-incremented by CI on each release, resets to 0 when API version changes
+
+### Version Examples
+- `1.0.0` - First release of API version 1.0
+- `1.0.1` - Patch release (bug fix, dependency update)
+- `1.1.0` - First release after API minor version bump
+
+## Publishing to Maven Central
+
+Artifacts are published to Maven Central via GitHub Actions.
+
+### Required Repository Secrets
+
+Configure these secrets in your GitHub repository settings:
+
+| Secret | Description |
+|--------|-------------|
+| `OSSRH_USERNAME` | Sonatype OSSRH username |
+| `OSSRH_PASSWORD` | Sonatype OSSRH password/token |
+| `GPG_PRIVATE_KEY` | GPG private key for signing (armor format) |
+| `GPG_PASSPHRASE` | GPG key passphrase |
+| `GPG_KEY_ID` | GPG key ID (last 8 characters) |
+
+### Manual Release
+
+1. Go to **Actions** > **Release to Maven Central**
+2. Click **Run workflow**
+3. Select the module to release
+4. The workflow will:
+   - Build and test
+   - Publish to Maven Central
+   - Increment patch version
+   - Create a GitHub release tag
 
 ## Using in Your Project
 
@@ -124,7 +157,7 @@ This repository uses **SemVer** versioning where the version represents the API 
 
 ```kotlin
 dependencies {
-    implementation("io.epistola:client-kotlin-spring-restclient:1.0.0")
+    implementation("app.epistola.contract:client-spring3-restclient:1.0.0")
 }
 ```
 
@@ -132,7 +165,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("io.epistola:epistola-server-kotlin:1.0.0")
+    implementation("app.epistola.contract:server-spring-boot4:1.0.0")
 }
 ```
 

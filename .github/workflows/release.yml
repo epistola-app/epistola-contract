@@ -1,0 +1,136 @@
+name: Release to Maven Central
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: 'Module to release'
+        required: true
+        type: choice
+        options:
+          - client-kotlin-spring-restclient
+          - epistola-server-kotlin
+          - both
+      bump_type:
+        description: 'Version bump type (patch auto-increments, api_minor/api_major require manual spec update)'
+        required: true
+        type: choice
+        default: 'patch'
+        options:
+          - patch
+
+jobs:
+  release:
+    name: Release ${{ inputs.module }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - module: client-kotlin-spring-restclient
+            artifact_id: client-spring3-restclient
+            enabled: ${{ inputs.module == 'client-kotlin-spring-restclient' || inputs.module == 'both' }}
+          - module: epistola-server-kotlin
+            artifact_id: server-spring-boot4
+            enabled: ${{ inputs.module == 'epistola-server-kotlin' || inputs.module == 'both' }}
+    steps:
+      - name: Skip if not enabled
+        if: matrix.enabled != 'true' && matrix.enabled != true
+        run: echo "Skipping ${{ matrix.module }}"
+
+      - name: Checkout
+        if: matrix.enabled == 'true' || matrix.enabled == true
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup tools with mise
+        if: matrix.enabled == 'true' || matrix.enabled == true
+        uses: jdx/mise-action@v3
+
+      - name: Setup Gradle cache
+        if: matrix.enabled == 'true' || matrix.enabled == true
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Read current version
+        if: matrix.enabled == 'true' || matrix.enabled == true
+        id: version
+        working-directory: ${{ matrix.module }}
+        run: |
+          API_VERSION=$(grep "^apiVersion=" gradle.properties | cut -d'=' -f2)
+          PATCH_VERSION=$(grep "^patchVersion=" gradle.properties | cut -d'=' -f2)
+          FULL_VERSION="${API_VERSION}.${PATCH_VERSION}"
+          echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
+          echo "patch_version=${PATCH_VERSION}" >> $GITHUB_OUTPUT
+          echo "full_version=${FULL_VERSION}" >> $GITHUB_OUTPUT
+          echo "Releasing version: ${FULL_VERSION}"
+
+      - name: Build and test
+        if: matrix.enabled == 'true' || matrix.enabled == true
+        working-directory: ${{ matrix.module }}
+        run: ./gradlew build
+
+      - name: Import GPG key
+        if: matrix.enabled == 'true' || matrix.enabled == true
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Publish to Maven Central
+        if: matrix.enabled == 'true' || matrix.enabled == true
+        working-directory: ${{ matrix.module }}
+        env:
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./gradlew publish \
+            -Psigning.gnupg.executable=gpg \
+            -Psigning.gnupg.keyName="${{ secrets.GPG_KEY_ID }}"
+
+      - name: Increment patch version
+        if: matrix.enabled == 'true' || matrix.enabled == true
+        working-directory: ${{ matrix.module }}
+        run: |
+          CURRENT_PATCH=${{ steps.version.outputs.patch_version }}
+          NEW_PATCH=$((CURRENT_PATCH + 1))
+          sed -i "s/^patchVersion=.*/patchVersion=${NEW_PATCH}/" gradle.properties
+          echo "Incremented patch version from ${CURRENT_PATCH} to ${NEW_PATCH}"
+
+      - name: Commit version bump
+        if: matrix.enabled == 'true' || matrix.enabled == true
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add ${{ matrix.module }}/gradle.properties
+          git commit -m "chore(${{ matrix.module }}): bump patch version to $((steps.version.outputs.patch_version + 1))"
+          git push
+
+      - name: Create GitHub Release
+        if: matrix.enabled == 'true' || matrix.enabled == true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ matrix.artifact_id }}-v${{ steps.version.outputs.full_version }}
+          name: ${{ matrix.artifact_id }} v${{ steps.version.outputs.full_version }}
+          body: |
+            ## ${{ matrix.artifact_id }} v${{ steps.version.outputs.full_version }}
+
+            ### Maven Coordinates
+            ```xml
+            <dependency>
+                <groupId>app.epistola.contract</groupId>
+                <artifactId>${{ matrix.artifact_id }}</artifactId>
+                <version>${{ steps.version.outputs.full_version }}</version>
+            </dependency>
+            ```
+
+            ### Gradle (Kotlin DSL)
+            ```kotlin
+            implementation("app.epistola.contract:${{ matrix.artifact_id }}:${{ steps.version.outputs.full_version }}")
+            ```
+          draft: false
+          prerelease: false
+          generate_release_notes: true

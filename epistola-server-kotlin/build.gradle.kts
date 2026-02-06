@@ -5,8 +5,11 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-group = "io.epistola"
-version = "0.0.1-SNAPSHOT"
+val apiVersion: String by project
+val patchVersion: String by project
+
+group = "app.epistola.contract"
+version = "$apiVersion.$patchVersion"
 description = "Epistola API Server Interfaces for Kotlin/Spring"
 
 allprojects {

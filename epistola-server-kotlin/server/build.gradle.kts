@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.openapi.generator)
     `java-library`
     `maven-publish`
+    signing
 }
 
 val generatedDir = layout.buildDirectory.dir("generated")
@@ -66,13 +67,72 @@ configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
     }
 }
 
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
+// sourcesJar and javadocJar need to depend on openApiGenerate since sources are generated
+tasks.named("sourcesJar") {
+    dependsOn(tasks.openApiGenerate)
+}
+
+tasks.named("javadocJar") {
+    dependsOn(tasks.openApiGenerate)
+}
+
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
             groupId = rootProject.group.toString()
-            artifactId = "epistola-server-kotlin"
+            artifactId = "server-spring-boot4"
             version = rootProject.version.toString()
+
+            pom {
+                name.set("Epistola Kotlin Server")
+                description.set("Kotlin Spring server interfaces for Epistola API")
+                url.set("https://github.com/sdegroot/epistola-contract")
+
+                licenses {
+                    license {
+                        name.set("EUPL-1.2")
+                        url.set("https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12")
+                    }
+                }
+
+                developers {
+                    developer {
+                        id.set("sdegroot")
+                        name.set("Sander de Groot")
+                    }
+                }
+
+                scm {
+                    connection.set("scm:git:git://github.com/sdegroot/epistola-contract.git")
+                    developerConnection.set("scm:git:ssh://github.com/sdegroot/epistola-contract.git")
+                    url.set("https://github.com/sdegroot/epistola-contract")
+                }
+            }
         }
     }
+
+    repositories {
+        maven {
+            name = "OSSRH"
+            val releasesUrl = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+            val snapshotsUrl = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+            url = if (version.toString().endsWith("SNAPSHOT")) snapshotsUrl else releasesUrl
+
+            credentials {
+                username = findProperty("ossrhUsername") as String? ?: System.getenv("OSSRH_USERNAME")
+                password = findProperty("ossrhPassword") as String? ?: System.getenv("OSSRH_PASSWORD")
+            }
+        }
+    }
+}
+
+signing {
+    setRequired { gradle.taskGraph.hasTask("publish") }
+    sign(publishing.publications["mavenJava"])
 }
