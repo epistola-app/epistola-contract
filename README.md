@@ -1,12 +1,44 @@
 # Epistola Contract
 
-Contract-first API repository for [Epistola](https://github.com/sdegroot/epistola). This repository owns the OpenAPI specification and generates both client libraries and server stubs.
+Contract-first API repository for [Epistola](https://github.com/epistola-app/epistola). This repository owns the OpenAPI specification and generates both client libraries and server stubs.
 
 ## API Documentation
 
-View the interactive API documentation at: https://sdegroot.github.io/epistola-contract/
+View the interactive API documentation at: https://epistola-app.github.io/epistola-contract/
 
-The documentation is automatically deployed when releases are published to Maven Central.
+### How It Works
+
+The documentation uses [Redoc](https://redocly.com/redoc) to render the OpenAPI specification as interactive API docs. Each API version gets its own documentation page that persists indefinitely.
+
+**Documentation structure:**
+```
+https://epistola-app.github.io/epistola-contract/
+├── index.html          # Landing page with version cards
+├── latest/             # Always points to newest version
+├── v1.0/               # Version 1.0 docs
+│   ├── index.html      # Redoc documentation
+│   └── openapi.yaml    # Bundled OpenAPI spec
+└── v1.1/               # Version 1.1 docs (after API version bump)
+```
+
+### Automatic Deployment
+
+Documentation is automatically deployed after a successful release to Maven Central from `release/*` branches. The workflow:
+1. Triggers when the "Release to Maven Central" workflow completes successfully
+2. Bundles the OpenAPI spec into a single file
+3. Deploys to the `gh-pages` branch with the API version (e.g., `v1.0/`)
+4. Updates the `latest/` symlink and version manifest
+
+### Manual Deployment
+
+To deploy documentation without a release:
+1. Go to **Actions** > **Deploy API Documentation**
+2. Click **Run workflow**
+3. Enter the API version (e.g., `1.0`)
+
+### Version Selector
+
+Each documentation page includes a version selector dropdown, allowing users to switch between different API versions.
 
 ## Overview
 
@@ -37,7 +69,8 @@ epistola-contract/
 │   └── settings.gradle.kts
 ├── .github/workflows/
 │   ├── build.yml                      # Build all artifacts in parallel
-│   └── release.yml                    # Release to Maven Central
+│   ├── release.yml                    # Release to Maven Central
+│   └── docs.yml                       # Deploy API docs to GitHub Pages
 ├── Makefile                           # Local build commands
 ├── CHANGELOG.md
 └── README.md
