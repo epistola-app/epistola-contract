@@ -5,7 +5,7 @@ Contract-first API repository for [Epistola](https://github.com/sdegroot/epistol
 ## Overview
 
 This repository follows the **contract-first** approach:
-1. The OpenAPI specification (`spec/`) is the single source of truth
+1. The OpenAPI specification (`epistola-api.yaml`) is the single source of truth
 2. Client libraries and server stubs are generated from the spec during build
 3. Generated code is NOT committed - it's created fresh each build
 
@@ -31,7 +31,9 @@ epistola-contract/
 │   ├── build.gradle.kts
 │   └── settings.gradle.kts
 ├── .github/workflows/
-│   └── build.yml                      # Build all artifacts in parallel
+│   ├── build.yml                      # Build all artifacts in parallel
+│   └── release.yml                    # Release to Maven Central
+├── Makefile                           # Local build commands
 ├── CHANGELOG.md
 └── README.md
 ```
@@ -129,9 +131,90 @@ This repository uses a versioning scheme tied to the OpenAPI spec version:
 - `1.0.1` - Second release (bug fix, dependency update)
 - `1.1.0` - First release after API minor version bump (spec changed to 1.1.x)
 
-## Publishing to Maven Central
+## Release Workflow
 
-Artifacts are published to Maven Central via GitHub Actions.
+Artifacts are published to Maven Central via GitHub Actions. Releases can only be triggered from `main` or `release/*` branches.
+
+### Release Process
+
+1. Go to **Actions** > **Release to Maven Central**
+2. Select the branch (`main` or `release/*`)
+3. Click **Run workflow**
+4. Select the module to release (`client-kotlin-spring-restclient`, `epistola-server-kotlin`, or `both`)
+
+The workflow will:
+1. **Validate** - Ensure branch version matches spec version (for release branches)
+2. **Calculate version** - Read API version from spec, calculate patch from existing tags
+3. **Build and test** - Run full build with calculated version
+4. **Publish** - Sign and publish to Maven Central
+5. **Create release** - Create GitHub release with:
+   - Release notes
+   - Maven coordinates
+   - Bundled `openapi.yaml` (single-file spec with all refs resolved)
+
+### Branch Strategy
+
+| Branch | Spec Version | Publishes | Purpose |
+|--------|--------------|-----------|---------|
+| `main` | Any (e.g., `2.1.0`) | `2.1.x` | Latest development |
+| `release/2.0` | Must be `2.0.x` | `2.0.x` | Maintenance for 2.0 |
+| `release/1.0` | Must be `1.0.x` | `1.0.x` | Maintenance for 1.0 |
+
+### Creating a Release Branch
+
+When bumping the API major/minor version:
+
+```bash
+# 1. Before bumping, create release branch for current version
+git checkout main
+git checkout -b release/1.0
+git push -u origin release/1.0
+
+# 2. Back on main, bump the spec version
+git checkout main
+# Edit epistola-api.yaml: version: 1.0.0 -> 2.0.0
+git commit -am "feat(spec): bump API version to 2.0.0"
+```
+
+### Backporting Fixes
+
+To release a fix across multiple API versions:
+
+```bash
+# 1. Fix on main (spec: 2.1.0)
+git checkout main
+# ... make fix, commit ...
+git push
+
+# 2. Backport to 2.0
+git checkout release/2.0
+git cherry-pick <commit-sha>
+git push
+# Run release workflow on release/2.0 branch -> publishes 2.0.x
+
+# 3. Backport to 1.0
+git checkout release/1.0
+git cherry-pick <commit-sha>
+git push
+# Run release workflow on release/1.0 branch -> publishes 1.0.x
+```
+
+### Version Calculation
+
+The patch version is automatically calculated from existing git tags:
+
+```
+Tags: client-spring3-restclient-v1.0.0, client-spring3-restclient-v1.0.1
+Next release: client-spring3-restclient-v1.0.2
+```
+
+When the API version changes (e.g., `1.0` → `2.0`), patch resets to `0`:
+
+```
+Tags: client-spring3-restclient-v1.0.5
+Spec: 2.0.0
+Next release: client-spring3-restclient-v2.0.0
+```
 
 ### Required Repository Secrets
 
@@ -145,16 +228,17 @@ Configure these secrets in your GitHub repository settings:
 | `GPG_PASSPHRASE` | GPG key passphrase |
 | `GPG_KEY_ID` | GPG key ID (last 8 characters) |
 
-### Manual Release
+### Local Testing
 
-1. Go to **Actions** > **Release to Maven Central**
-2. Click **Run workflow**
-3. Select the module to release
-4. The workflow will:
-   - Build and test
-   - Publish to Maven Central
-   - Increment patch version
-   - Create a GitHub release tag
+Use the Makefile to simulate CI locally:
+
+```bash
+make              # Run lint + build (same as CI)
+make lint         # Validate OpenAPI spec only
+make build        # Build both modules
+make bundle       # Create bundled openapi.yaml
+make publish-local  # Publish to ~/.m2 for local testing
+```
 
 ## Using in Your Project
 
