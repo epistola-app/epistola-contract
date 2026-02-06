@@ -27,6 +27,7 @@ jobs:
   # Kotlin Spring RestClient build
   kotlin-client:
     name: Kotlin Client (Spring RestClient)
+    needs: spec-validation
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -57,6 +58,7 @@ jobs:
   # Kotlin server stubs build
   kotlin-server:
     name: Kotlin Server (Spring)
+    needs: spec-validation
     runs-on: ubuntu-latest
     defaults:
       run:
