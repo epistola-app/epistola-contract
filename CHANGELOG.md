@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `useJakartaEe` configuration option
 
 ### Added
+- Manual workflow dispatch for snapshot publishing with option to skip change detection
 - Maven Central publishing configuration for both modules
   - Signing plugin with GPG support
   - Complete POM metadata (name, description, license, developers, SCM)

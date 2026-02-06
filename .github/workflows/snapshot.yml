@@ -3,6 +3,13 @@ name: Publish Snapshots
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_detection:
+        description: 'Skip change detection and publish all modules'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   # Validate and bundle OpenAPI spec first
@@ -60,7 +67,7 @@ jobs:
   publish-client:
     name: Publish client-spring3-restclient Snapshot
     needs: [spec-validation, detect-changes]
-    if: needs.detect-changes.outputs.client == 'true'
+    if: needs.detect-changes.outputs.client == 'true' || inputs.skip_detection == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -102,7 +109,7 @@ jobs:
   publish-server:
     name: Publish server-kotlin-springboot4 Snapshot
     needs: [spec-validation, detect-changes]
-    if: needs.detect-changes.outputs.server == 'true'
+    if: needs.detect-changes.outputs.server == 'true' || inputs.skip_detection == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
