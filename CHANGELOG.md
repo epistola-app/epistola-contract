@@ -15,11 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - OSSRH repository configuration
 - GitHub Actions release workflow (`release.yml`)
   - Manual dispatch with module selection
-  - Automatic patch version increment after release
+  - Automatic patch version calculation from git tags
   - GitHub release creation with Maven coordinates
-- Version property files (`gradle.properties`) in both modules
-  - `apiVersion`: tracks OpenAPI spec version (1.0)
-  - `patchVersion`: auto-incremented by CI (starts at 0)
+- Automatic version reading from OpenAPI spec
+  - API version (major.minor) read from `epistola-api.yaml`
+  - Patch version calculated from existing git tags
+  - Local builds use version `X.Y.0` (not for release)
+
+### Changed
+- Moved `epistola-api.yaml` to repository root for easier access
+- Moved `redocly.yaml` to repository root
 
 ### Changed
 - **BREAKING**: Transformed repository into contract-first architecture

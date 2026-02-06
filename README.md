@@ -13,13 +13,13 @@ This repository follows the **contract-first** approach:
 
 ```
 epistola-contract/
-├── spec/                              # OpenAPI specification (source of truth)
-│   ├── epistola-api.yaml              # Main spec file
+├── epistola-api.yaml                  # OpenAPI specification (source of truth)
+├── redocly.yaml                       # Spec validation config
+├── spec/                              # OpenAPI spec components
 │   ├── paths/                         # Path definitions
-│   ├── components/
-│   │   ├── schemas/                   # Data models
-│   │   └── responses/                 # Response definitions
-│   └── redocly.yaml                   # Spec validation config
+│   └── components/
+│       ├── schemas/                   # Data models
+│       └── responses/                 # Response definitions
 ├── client-kotlin-spring-restclient/   # Generated Kotlin client (Spring RestClient)
 │   ├── client/
 │   │   └── build.gradle.kts
@@ -65,7 +65,6 @@ brew install mise
 ### Validate OpenAPI Spec
 
 ```bash
-cd spec
 npx @redocly/cli lint epistola-api.yaml
 ```
 
@@ -116,13 +115,19 @@ This repository uses a versioning scheme tied to the OpenAPI spec version:
 
 **Format**: `{API_MAJOR}.{API_MINOR}.{PATCH}`
 
-- **API_MAJOR.API_MINOR**: Comes from the OpenAPI spec version (currently 1.0)
-- **PATCH**: Auto-incremented by CI on each release, resets to 0 when API version changes
+- **API_MAJOR.API_MINOR**: Read automatically from `epistola-api.yaml`
+- **PATCH**: Calculated from git tags (highest existing + 1)
+
+### How it works
+- The API version is the single source of truth in the OpenAPI spec
+- Gradle reads the version at build time
+- CI calculates the patch version from existing release tags
+- Local builds default to patch `0` (not for release)
 
 ### Version Examples
 - `1.0.0` - First release of API version 1.0
-- `1.0.1` - Patch release (bug fix, dependency update)
-- `1.1.0` - First release after API minor version bump
+- `1.0.1` - Second release (bug fix, dependency update)
+- `1.1.0` - First release after API minor version bump (spec changed to 1.1.x)
 
 ## Publishing to Maven Central
 

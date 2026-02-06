@@ -22,7 +22,6 @@ jobs:
           node-version: '22'
 
       - name: Validate OpenAPI spec
-        working-directory: spec
         run: npx @redocly/cli lint epistola-api.yaml
 
   # Kotlin Spring RestClient build

@@ -5,8 +5,18 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-val apiVersion: String by project
-val patchVersion: String by project
+// Read API version from OpenAPI spec (e.g., "1.0.0" -> "1.0")
+val specFile = file("$rootDir/../epistola-api.yaml")
+val apiVersion: String = if (specFile.exists()) {
+    val versionRegex = Regex("""^\s*version:\s*["']?(\d+\.\d+)\.\d+["']?\s*$""", RegexOption.MULTILINE)
+    val match = versionRegex.find(specFile.readText())
+    match?.groupValues?.get(1) ?: "0.0"
+} else {
+    "0.0"
+}
+
+// Patch version: defaults to 0 for local builds, CI passes actual value via -PpatchVersion=X
+val patchVersion: String = findProperty("patchVersion")?.toString() ?: "0"
 
 group = "app.epistola.contract"
 version = "$apiVersion.$patchVersion"

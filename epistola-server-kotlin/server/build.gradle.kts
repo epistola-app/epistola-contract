@@ -11,7 +11,7 @@ val generatedDir = layout.buildDirectory.dir("generated")
 
 openApiGenerate {
     generatorName.set("kotlin-spring")
-    inputSpec.set("$rootDir/../spec/epistola-api.yaml")
+    inputSpec.set("$rootDir/../epistola-api.yaml")
     outputDir.set(generatedDir.map { it.asFile.absolutePath })
     packageName.set("io.epistola.server")
     apiPackage.set("io.epistola.server.api")

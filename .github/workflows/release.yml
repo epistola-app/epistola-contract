@@ -11,13 +11,6 @@ on:
           - client-kotlin-spring-restclient
           - epistola-server-kotlin
           - both
-      bump_type:
-        description: 'Version bump type (patch auto-increments, api_minor/api_major require manual spec update)'
-        required: true
-        type: choice
-        default: 'patch'
-        options:
-          - patch
 
 jobs:
   release:
@@ -43,6 +36,7 @@ jobs:
         if: matrix.enabled == 'true' || matrix.enabled == true
         uses: actions/checkout@v6
         with:
+          fetch-depth: 0  # Need full history for tags
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup tools with mise
@@ -53,15 +47,26 @@ jobs:
         if: matrix.enabled == 'true' || matrix.enabled == true
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Read current version
+      - name: Calculate version
         if: matrix.enabled == 'true' || matrix.enabled == true
         id: version
-        working-directory: ${{ matrix.module }}
         run: |
-          API_VERSION=$(grep "^apiVersion=" gradle.properties | cut -d'=' -f2)
-          PATCH_VERSION=$(grep "^patchVersion=" gradle.properties | cut -d'=' -f2)
-          FULL_VERSION="${API_VERSION}.${PATCH_VERSION}"
+          # Read API version from spec (e.g., "1.0.0" -> "1.0")
+          API_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+)\.[0-9]+["'"'"']?.*/\1/')
           echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
+
+          # Find highest existing patch version for this artifact and API version
+          LATEST_TAG=$(git tag -l "${{ matrix.artifact_id }}-v${API_VERSION}.*" | sort -V | tail -1)
+
+          if [ -z "$LATEST_TAG" ]; then
+            PATCH_VERSION=0
+          else
+            # Extract patch from tag like "client-spring3-restclient-v1.0.3" -> "3"
+            LATEST_PATCH=$(echo "$LATEST_TAG" | sed -E 's/.*-v[0-9]+\.[0-9]+\.([0-9]+)/\1/')
+            PATCH_VERSION=$((LATEST_PATCH + 1))
+          fi
+
+          FULL_VERSION="${API_VERSION}.${PATCH_VERSION}"
           echo "patch_version=${PATCH_VERSION}" >> $GITHUB_OUTPUT
           echo "full_version=${FULL_VERSION}" >> $GITHUB_OUTPUT
           echo "Releasing version: ${FULL_VERSION}"
@@ -69,7 +74,7 @@ jobs:
       - name: Build and test
         if: matrix.enabled == 'true' || matrix.enabled == true
         working-directory: ${{ matrix.module }}
-        run: ./gradlew build
+        run: ./gradlew build -PpatchVersion=${{ steps.version.outputs.patch_version }}
 
       - name: Import GPG key
         if: matrix.enabled == 'true' || matrix.enabled == true
@@ -88,26 +93,9 @@ jobs:
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           ./gradlew publish \
+            -PpatchVersion=${{ steps.version.outputs.patch_version }} \
             -Psigning.gnupg.executable=gpg \
             -Psigning.gnupg.keyName="${{ secrets.GPG_KEY_ID }}"
-
-      - name: Increment patch version
-        if: matrix.enabled == 'true' || matrix.enabled == true
-        working-directory: ${{ matrix.module }}
-        run: |
-          CURRENT_PATCH=${{ steps.version.outputs.patch_version }}
-          NEW_PATCH=$((CURRENT_PATCH + 1))
-          sed -i "s/^patchVersion=.*/patchVersion=${NEW_PATCH}/" gradle.properties
-          echo "Incremented patch version from ${CURRENT_PATCH} to ${NEW_PATCH}"
-
-      - name: Commit version bump
-        if: matrix.enabled == 'true' || matrix.enabled == true
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add ${{ matrix.module }}/gradle.properties
-          git commit -m "chore(${{ matrix.module }}): bump patch version to $((steps.version.outputs.patch_version + 1))"
-          git push
 
       - name: Create GitHub Release
         if: matrix.enabled == 'true' || matrix.enabled == true
