@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 jobs:
-  # Validate OpenAPI spec first
+  # Validate and bundle OpenAPI spec first
   spec-validation:
     name: Validate OpenAPI Spec
     runs-on: ubuntu-latest
@@ -20,6 +20,16 @@ jobs:
 
       - name: Validate OpenAPI spec
         run: npx @redocly/cli lint epistola-api.yaml
+
+      - name: Bundle OpenAPI spec
+        run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
+
+      - name: Upload bundled spec
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: openapi.yaml
+          retention-days: 1
 
   # Detect which modules have changes
   detect-changes:
@@ -39,9 +49,11 @@ jobs:
           filters: |
             client:
               - 'epistola-api.yaml'
+              - 'spec/**'
               - 'client-kotlin-spring-restclient/**'
             server:
               - 'epistola-api.yaml'
+              - 'spec/**'
               - 'server-kotlin-springboot4/**'
 
   # Publish snapshots for changed modules
@@ -53,6 +65,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
 
       - name: Setup tools with mise
         uses: jdx/mise-action@v3
@@ -90,6 +107,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
 
       - name: Setup tools with mise
         uses: jdx/mise-action@v3

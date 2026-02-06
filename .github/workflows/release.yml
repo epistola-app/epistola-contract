@@ -18,8 +18,9 @@ on:
           - server-kotlin-springboot4
 
 jobs:
-  validate-branch:
-    name: Validate branch and version
+  # Validate branch and bundle spec
+  validate-and-bundle:
+    name: Validate branch and bundle spec
     runs-on: ubuntu-latest
     outputs:
       api_version: ${{ steps.validate.outputs.api_version }}
@@ -27,6 +28,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
       - name: Validate branch matches spec version
         id: validate
@@ -54,9 +60,22 @@ jobs:
             echo "Main branch - any version allowed"
           fi
 
+      - name: Validate OpenAPI spec
+        run: npx @redocly/cli lint epistola-api.yaml
+
+      - name: Bundle OpenAPI spec
+        run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
+
+      - name: Upload bundled spec
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: openapi.yaml
+          retention-days: 1
+
   release:
     name: Release ${{ matrix.artifact_id }}
-    needs: validate-branch
+    needs: validate-and-bundle
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -94,6 +113,12 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download bundled spec
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
 
       - name: Setup tools with mise
         if: steps.should_run.outputs.enabled == 'true'
@@ -142,10 +167,6 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: ./gradlew publishToMavenCentral -PpatchVersion=${{ steps.version.outputs.patch_version }}
-
-      - name: Bundle OpenAPI spec
-        if: steps.should_run.outputs.enabled == 'true'
-        run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
 
       - name: Create GitHub Release
         if: steps.should_run.outputs.enabled == 'true'

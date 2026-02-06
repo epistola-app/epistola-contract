@@ -6,7 +6,7 @@ on:
     types: [opened, synchronize, labeled]
 
 jobs:
-  # OpenAPI spec validation
+  # OpenAPI spec validation and bundling
   spec-validation:
     name: Validate OpenAPI Spec
     runs-on: ubuntu-latest
@@ -22,6 +22,16 @@ jobs:
       - name: Validate OpenAPI spec
         run: npx @redocly/cli lint epistola-api.yaml
 
+      - name: Bundle OpenAPI spec
+        run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
+
+      - name: Upload bundled spec
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: openapi.yaml
+          retention-days: 1
+
   # Kotlin Spring RestClient build
   kotlin-client:
     name: Kotlin Client (Spring RestClient)
@@ -33,6 +43,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
 
       - name: Setup tools with mise
         uses: jdx/mise-action@v3
@@ -54,6 +69,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
 
       - name: Setup tools with mise
         uses: jdx/mise-action@v3
