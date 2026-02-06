@@ -51,6 +51,10 @@ sourceSets {
 
 tasks.compileKotlin {
     dependsOn(tasks.openApiGenerate)
+    compilerOptions {
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+    }
 }
 
 dependencies {
