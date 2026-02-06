@@ -1,1 +1,12 @@
-{"latest": "", "versions": []}
+{
+  "latest": "v1.0-SNAPSHOT",
+  "versions": [
+    {
+      "version": "v1.0-SNAPSHOT",
+      "path": "/v1.0-SNAPSHOT/",
+      "label": "1.0-SNAPSHOT",
+      "releaseDate": "2026-02-06",
+      "status": "current"
+    }
+  ]
+}

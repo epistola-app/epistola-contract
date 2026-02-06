@@ -1,0 +1,2913 @@
+openapi: 3.1.0
+info:
+  title: Epistola API
+  description: |
+    Document template management API for Epistola Suite.
+
+    ## Versioning
+    This API uses header-based versioning via the Accept header.
+    Use `application/vnd.epistola.v1+json` for API version 1.
+  version: 1.0.0
+  contact:
+    name: Epistola Team
+  license:
+    name: EUPL-1.2
+    identifier: EUPL-1.2
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: Tenants
+    description: Multi-tenant management operations
+  - name: Templates
+    description: Document template operations
+  - name: Themes
+    description: Reusable style collections for templates
+  - name: Environments
+    description: Tenant environment configuration (staging, production, etc.)
+  - name: Variants
+    description: Template variant operations (language, brand variations)
+  - name: Versions
+    description: Template version lifecycle (draft, publish, archive)
+  - name: Generation
+    description: Asynchronous document generation operations
+paths:
+  /v1/tenants:
+    get:
+      operationId: listTenants
+      summary: List all tenants
+      description: Retrieve a paginated list of all tenants with optional search filtering.
+      tags:
+        - Tenants
+      parameters:
+        - name: q
+          in: query
+          description: Search term for filtering tenants by name
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number (0-based)
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: size
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: List of tenants
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/TenantListResponse'
+    post:
+      operationId: createTenant
+      summary: Create a new tenant
+      description: Create a new tenant with the given name.
+      tags:
+        - Tenants
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantRequest'
+      responses:
+        '201':
+          description: Tenant created successfully
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/TenantDto'
+        '400':
+          description: Invalid request
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /v1/tenants/{tenantId}:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+    get:
+      operationId: getTenant
+      summary: Get tenant by ID
+      description: Retrieve details of a specific tenant.
+      tags:
+        - Tenants
+      responses:
+        '200':
+          description: Tenant details
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/TenantDto'
+        '404':
+          description: Tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      operationId: updateTenant
+      summary: Update a tenant
+      description: Update the name of an existing tenant.
+      tags:
+        - Tenants
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/UpdateTenantRequest'
+      responses:
+        '200':
+          description: Tenant updated successfully
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/TenantDto'
+        '400':
+          description: Invalid request
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: Tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      operationId: deleteTenant
+      summary: Delete a tenant
+      description: Delete a tenant and all associated templates.
+      tags:
+        - Tenants
+      responses:
+        '204':
+          description: Tenant deleted successfully
+        '404':
+          description: Tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/themes:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+    get:
+      operationId: listThemes
+      summary: List themes for a tenant
+      description: Retrieve all themes configured for a specific tenant.
+      tags:
+        - Themes
+      parameters:
+        - name: q
+          in: query
+          description: Search term to filter themes by name
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of themes
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ThemeListResponse'
+        '404':
+          description: Tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: createTheme
+      summary: Create a new theme
+      description: Create a new theme for the specified tenant.
+      tags:
+        - Themes
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/CreateThemeRequest'
+      responses:
+        '201':
+          description: Theme created successfully
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ThemeDto'
+        '400':
+          description: Invalid request
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: Tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Theme with this name already exists
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/themes/{themeId}:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: themeId
+        in: path
+        required: true
+        description: Slug identifier of the theme
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 20
+    get:
+      operationId: getTheme
+      summary: Get theme by ID
+      description: Retrieve details of a specific theme.
+      tags:
+        - Themes
+      responses:
+        '200':
+          description: Theme details
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ThemeDto'
+        '404':
+          description: Theme or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      operationId: updateTheme
+      summary: Update a theme
+      description: Update an existing theme. Only provided fields will be updated.
+      tags:
+        - Themes
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/UpdateThemeRequest'
+      responses:
+        '200':
+          description: Theme updated successfully
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ThemeDto'
+        '400':
+          description: Invalid request
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: Theme or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Theme with this name already exists
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      operationId: deleteTheme
+      summary: Delete a theme
+      description: Delete a theme. Templates referencing this theme will fall back to their own styles.
+      tags:
+        - Themes
+      responses:
+        '204':
+          description: Theme deleted successfully
+        '404':
+          description: Theme or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/environments:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+    get:
+      operationId: listEnvironments
+      summary: List environments for a tenant
+      description: Retrieve all environments configured for a specific tenant.
+      tags:
+        - Environments
+      responses:
+        '200':
+          description: List of environments
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentListResponse'
+        '404':
+          description: Tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: createEnvironment
+      summary: Create a new environment
+      description: Create a new environment for the specified tenant.
+      tags:
+        - Environments
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/CreateEnvironmentRequest'
+      responses:
+        '201':
+          description: Environment created successfully
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentDto'
+        '400':
+          description: Invalid request
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: Tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Environment with this name already exists
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/environments/{environmentId}:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: environmentId
+        in: path
+        required: true
+        description: Slug identifier of the environment (e.g., "production", "staging")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 30
+    get:
+      operationId: getEnvironment
+      summary: Get environment by ID
+      description: Retrieve details of a specific environment.
+      tags:
+        - Environments
+      responses:
+        '200':
+          description: Environment details
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentDto'
+        '404':
+          description: Environment or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      operationId: updateEnvironment
+      summary: Update an environment
+      description: Update an existing environment's name.
+      tags:
+        - Environments
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/UpdateEnvironmentRequest'
+      responses:
+        '200':
+          description: Environment updated successfully
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentDto'
+        '400':
+          description: Invalid request
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: Environment or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Environment with this name already exists
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      operationId: deleteEnvironment
+      summary: Delete an environment
+      description: Delete an environment and all its activations.
+      tags:
+        - Environments
+      responses:
+        '204':
+          description: Environment deleted successfully
+        '404':
+          description: Environment or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/templates:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+    get:
+      operationId: listTemplates
+      summary: List templates for a tenant
+      description: Retrieve all document templates belonging to a specific tenant.
+      tags:
+        - Templates
+      parameters:
+        - name: q
+          in: query
+          description: Search term for filtering templates by name
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of templates
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/TemplateListResponse'
+        '404':
+          description: Tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: createTemplate
+      summary: Create a new template
+      description: Create a new document template for the specified tenant.
+      tags:
+        - Templates
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/CreateTemplateRequest'
+      responses:
+        '201':
+          description: Template created successfully
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/TemplateDto'
+        '400':
+          description: Invalid request
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: Tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/templates/{templateId}:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: templateId
+        in: path
+        required: true
+        description: Slug identifier of the template
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+    get:
+      operationId: getTemplate
+      summary: Get template by ID
+      description: Retrieve details of a specific document template including its model and data examples.
+      tags:
+        - Templates
+      responses:
+        '200':
+          description: Template details
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/TemplateDto'
+        '404':
+          description: Template or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      operationId: updateTemplate
+      summary: Update a template
+      description: Update an existing document template's properties, model, or data examples.
+      tags:
+        - Templates
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/UpdateTemplateRequest'
+      responses:
+        '200':
+          description: Template updated successfully
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/TemplateDto'
+        '400':
+          description: Invalid request
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: Template or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      operationId: deleteTemplate
+      summary: Delete a template
+      description: Delete a document template.
+      tags:
+        - Templates
+      responses:
+        '204':
+          description: Template deleted successfully
+        '404':
+          description: Template or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/templates/{templateId}/variants:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: templateId
+        in: path
+        required: true
+        description: Slug identifier of the template
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+    get:
+      operationId: listVariants
+      summary: List variants for a template
+      description: Retrieve all variants of a specific template.
+      tags:
+        - Variants
+      responses:
+        '200':
+          description: List of variants
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/VariantListResponse'
+        '404':
+          description: Template or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: createVariant
+      summary: Create a new variant
+      description: Create a new variant for the specified template with optional tags.
+      tags:
+        - Variants
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/CreateVariantRequest'
+      responses:
+        '201':
+          description: Variant created successfully
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/VariantDto'
+        '400':
+          description: Invalid request
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: Template or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: templateId
+        in: path
+        required: true
+        description: Slug identifier of the template
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+      - name: variantId
+        in: path
+        required: true
+        description: Slug identifier of the variant
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+    get:
+      operationId: getVariant
+      summary: Get variant by ID
+      description: Retrieve details of a specific variant including version summary.
+      tags:
+        - Variants
+      responses:
+        '200':
+          description: Variant details
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/VariantDto'
+        '404':
+          description: Variant, template, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      operationId: updateVariant
+      summary: Update a variant
+      description: Update a variant's tags.
+      tags:
+        - Variants
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/UpdateVariantRequest'
+      responses:
+        '200':
+          description: Variant updated successfully
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/VariantDto'
+        '400':
+          description: Invalid request
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: Variant, template, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      operationId: deleteVariant
+      summary: Delete a variant
+      description: Delete a variant and all its versions.
+      tags:
+        - Variants
+      responses:
+        '204':
+          description: Variant deleted successfully
+        '404':
+          description: Variant, template, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/draft:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: templateId
+        in: path
+        required: true
+        description: Slug identifier of the template
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+      - name: variantId
+        in: path
+        required: true
+        description: Slug identifier of the variant
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+    get:
+      operationId: getVariantDraft
+      summary: Get current draft
+      description: Retrieve the current draft version for a variant.
+      tags:
+        - Variants
+      responses:
+        '200':
+          description: Draft version
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/VersionDto'
+        '404':
+          description: Draft, variant, template, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      operationId: upsertVariantDraft
+      summary: Create or update draft
+      description: Create a new draft or update the existing draft for a variant.
+      tags:
+        - Variants
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/UpdateDraftRequest'
+      responses:
+        '200':
+          description: Draft updated
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/VersionDto'
+        '201':
+          description: Draft created
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/VersionDto'
+        '400':
+          description: Invalid request
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: Variant, template, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/activations:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: templateId
+        in: path
+        required: true
+        description: Slug identifier of the template
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+      - name: variantId
+        in: path
+        required: true
+        description: Slug identifier of the variant
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+    get:
+      operationId: listVariantActivations
+      summary: List environment activations
+      description: List which version is active in each environment for this variant.
+      tags:
+        - Variants
+      responses:
+        '200':
+          description: List of activations
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ActivationListResponse'
+        '404':
+          description: Variant, template, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/activations/{environmentId}:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: templateId
+        in: path
+        required: true
+        description: Slug identifier of the template
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+      - name: variantId
+        in: path
+        required: true
+        description: Slug identifier of the variant
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+      - name: environmentId
+        in: path
+        required: true
+        description: Slug identifier of the environment (e.g., "production", "staging")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 30
+    put:
+      operationId: setVariantActivation
+      summary: Set active version for environment
+      description: Set which published version is active for this variant in the specified environment.
+      tags:
+        - Variants
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/SetActivationRequest'
+      responses:
+        '200':
+          description: Activation set successfully
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ActivationDto'
+        '400':
+          description: Invalid request (version not published)
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: Variant, template, environment, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      operationId: removeVariantActivation
+      summary: Remove activation for environment
+      description: Remove the active version for this variant in the specified environment.
+      tags:
+        - Variants
+      responses:
+        '204':
+          description: Activation removed successfully
+        '404':
+          description: Activation, variant, template, environment, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/active:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: templateId
+        in: path
+        required: true
+        description: Slug identifier of the template
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+      - name: variantId
+        in: path
+        required: true
+        description: Slug identifier of the variant
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+    get:
+      operationId: getActiveVersion
+      summary: Get active version for environment
+      description: Retrieve the active published version for this variant in the specified environment.
+      tags:
+        - Variants
+      parameters:
+        - name: environment
+          in: query
+          required: true
+          description: Slug identifier of environment to get active version for (e.g., "production")
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+            minLength: 3
+            maxLength: 30
+      responses:
+        '200':
+          description: Active version
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/VersionDto'
+        '404':
+          description: No active version, variant, template, environment, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: templateId
+        in: path
+        required: true
+        description: Slug identifier of the template
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+      - name: variantId
+        in: path
+        required: true
+        description: Slug identifier of the variant
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+    get:
+      operationId: listVersions
+      summary: List versions for a variant
+      description: Retrieve all versions of a specific variant (draft, published, archived).
+      tags:
+        - Versions
+      parameters:
+        - name: status
+          in: query
+          description: Filter by lifecycle status
+          schema:
+            type: string
+            enum:
+              - draft
+              - published
+              - archived
+      responses:
+        '200':
+          description: List of versions
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/VersionListResponse'
+        '404':
+          description: Variant, template, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions/{versionId}:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: templateId
+        in: path
+        required: true
+        description: Slug identifier of the template
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+      - name: variantId
+        in: path
+        required: true
+        description: Slug identifier of the variant
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+      - name: versionId
+        in: path
+        required: true
+        description: Version identifier (version number, 1-200)
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+    get:
+      operationId: getVersion
+      summary: Get version by ID
+      description: Retrieve details of a specific version including its template model.
+      tags:
+        - Versions
+      responses:
+        '200':
+          description: Version details
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/VersionDto'
+        '404':
+          description: Version, variant, template, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      operationId: updateVersion
+      summary: Update a draft version
+      description: Update the template model of a draft version. Only drafts can be updated.
+      tags:
+        - Versions
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/UpdateDraftRequest'
+      responses:
+        '200':
+          description: Version updated successfully
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/VersionDto'
+        '400':
+          description: Invalid request or version is not a draft
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: Version, variant, template, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/publish:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: templateId
+        in: path
+        required: true
+        description: Slug identifier of the template
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+      - name: variantId
+        in: path
+        required: true
+        description: Slug identifier of the variant
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+      - name: versionId
+        in: path
+        required: true
+        description: Version identifier (version number, 1-200)
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+    post:
+      operationId: publishVersion
+      summary: Publish a draft version
+      description: |
+        Publish a draft version. BREAKING CHANGE: Publishing now updates the draft status to 'published'
+        instead of creating a new version. The draft is NOT preserved - it becomes the published version.
+      tags:
+        - Versions
+      responses:
+        '200':
+          description: New published version created
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/VersionDto'
+        '400':
+          description: Version is not a draft
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: Version, variant, template, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/archive:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: templateId
+        in: path
+        required: true
+        description: Slug identifier of the template
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+      - name: variantId
+        in: path
+        required: true
+        description: Slug identifier of the variant
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+      - name: versionId
+        in: path
+        required: true
+        description: Version identifier (version number, 1-200)
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+    post:
+      operationId: archiveVersion
+      summary: Archive a published version
+      description: |
+        Archive a published version. Archived versions are kept for history but cannot be
+        activated in any environment. Any active deployments using this version will need
+        to be updated to use a different version.
+      tags:
+        - Versions
+      responses:
+        '200':
+          description: Version archived successfully
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/VersionDto'
+        '400':
+          description: Version is not published (cannot archive drafts or already archived)
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: Version, variant, template, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tenants/{tenantId}/documents/generate:
+    post:
+      operationId: generateDocument
+      summary: Generate a single document asynchronously
+      description: Submit a request to generate a single PDF document. Returns immediately with a job ID for tracking progress.
+      tags:
+        - Generation
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          description: Unique slug identifier of the tenant (e.g., "acme-corp")
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+            minLength: 3
+            maxLength: 63
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/GenerateDocumentRequest'
+      responses:
+        '202':
+          description: Generation request accepted
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/GenerationJobResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /v1/tenants/{tenantId}/documents/generate/batch:
+    post:
+      operationId: generateDocumentBatch
+      summary: Generate multiple documents in a batch
+      description: Submit a batch request to generate multiple PDF documents. Returns immediately with a job ID for tracking progress.
+      tags:
+        - Generation
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          description: Unique slug identifier of the tenant (e.g., "acme-corp")
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+            minLength: 3
+            maxLength: 63
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/GenerateBatchRequest'
+      responses:
+        '202':
+          description: Batch generation request accepted
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/GenerationJobResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+  /v1/tenants/{tenantId}/documents/jobs:
+    get:
+      operationId: listGenerationJobs
+      summary: List generation jobs
+      description: List all generation jobs for a tenant with optional status filtering
+      tags:
+        - Generation
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          description: Unique slug identifier of the tenant (e.g., "acme-corp")
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+            minLength: 3
+            maxLength: 63
+        - name: status
+          in: query
+          description: Filter by job status
+          schema:
+            type: string
+            enum:
+              - PENDING
+              - IN_PROGRESS
+              - COMPLETED
+              - FAILED
+              - CANCELLED
+        - name: page
+          in: query
+          description: Page number (0-based)
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: size
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: List of generation jobs
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/GenerationJobListResponse'
+  /v1/tenants/{tenantId}/documents/jobs/{requestId}:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: requestId
+        in: path
+        required: true
+        description: Generation request ID
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getGenerationJobStatus
+      summary: Get generation job status
+      description: Get detailed status of a generation job including all items and their progress
+      tags:
+        - Generation
+      responses:
+        '200':
+          description: Job status with items
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/GenerationJobDetail'
+        '404':
+          description: Job not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+    delete:
+      operationId: cancelGenerationJob
+      summary: Cancel a generation job
+      description: Cancel a pending or in-progress generation job
+      tags:
+        - Generation
+      responses:
+        '204':
+          description: Job cancelled successfully
+        '404':
+          description: Job not found
+        '409':
+          description: Job cannot be cancelled (already completed, failed, or cancelled)
+  /v1/tenants/{tenantId}/documents:
+    get:
+      operationId: listDocuments
+      summary: List generated documents
+      description: List all generated documents for a tenant with optional filtering
+      tags:
+        - Generation
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          description: Unique slug identifier of the tenant (e.g., "acme-corp")
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+            minLength: 3
+            maxLength: 63
+        - name: templateId
+          in: query
+          description: Filter by template slug
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+            minLength: 3
+            maxLength: 50
+        - name: correlationId
+          in: query
+          description: Filter by client-provided correlation ID
+          schema:
+            type: string
+            maxLength: 255
+        - name: page
+          in: query
+          description: Page number (0-based)
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: size
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: List of documents
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/DocumentListResponse'
+  /v1/tenants/{tenantId}/documents/{documentId}:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: documentId
+        in: path
+        required: true
+        description: Document ID
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: downloadDocument
+      summary: Download a generated document
+      description: Download the PDF content of a generated document
+      tags:
+        - Generation
+      responses:
+        '200':
+          description: Document content
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              description: Attachment filename
+            Content-Length:
+              schema:
+                type: integer
+              description: File size in bytes
+        '404':
+          description: Document not found
+    delete:
+      operationId: deleteDocument
+      summary: Delete a generated document
+      description: Permanently delete a generated document
+      tags:
+        - Generation
+      responses:
+        '204':
+          description: Document deleted successfully
+        '404':
+          description: Document not found
+components:
+  schemas:
+    TenantDto:
+      type: object
+      description: Represents a tenant in the system
+      required:
+        - id
+        - name
+        - createdAt
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+          description: Unique slug identifier of the tenant (e.g., "acme-corp")
+          example: acme-corp
+        name:
+          type: string
+          description: Name of the tenant
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the tenant was created
+    CreateTenantRequest:
+      type: object
+      description: Request body for creating a new tenant
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+          description: |
+            Client-provided unique slug identifier for the tenant.
+            Must be 3-63 characters, start with a letter, contain only lowercase letters,
+            numbers, and non-consecutive hyphens, and not end with a hyphen.
+            Reserved words (admin, api, www, system, internal, null, undefined) are not allowed.
+          example: acme-corp
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Name of the tenant to create
+    UpdateTenantRequest:
+      type: object
+      description: Request body for updating a tenant
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: New name for the tenant
+    TenantListResponse:
+      type: object
+      description: Paginated list of tenants
+      required:
+        - items
+        - page
+        - size
+        - totalElements
+        - totalPages
+      properties:
+        items:
+          type: array
+          description: List of tenants on this page
+          items:
+            $ref: '#/components/schemas/TenantDto'
+        page:
+          type: integer
+          description: Current page number (0-based)
+        size:
+          type: integer
+          description: Number of items per page
+        totalElements:
+          type: integer
+          format: int64
+          description: Total number of tenants
+        totalPages:
+          type: integer
+          description: Total number of pages
+    ThemeDto:
+      type: object
+      description: A theme defines reusable styling that can be applied across multiple templates
+      required:
+        - id
+        - tenantId
+        - name
+        - documentStyles
+        - createdAt
+        - lastModified
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 20
+          description: Slug identifier of the theme (e.g., "corporate")
+        tenantId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+          description: Slug identifier of the tenant this theme belongs to
+        name:
+          type: string
+          description: Name of the theme
+        description:
+          type: string
+          description: Optional description of the theme
+        documentStyles:
+          $ref: '#/components/schemas/DocumentStylesDto'
+        pageSettings:
+          $ref: '#/components/schemas/PageSettingsDto'
+        blockStylePresets:
+          type: object
+          additionalProperties:
+            type: object
+          description: Named block style presets (like CSS classes)
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the theme was created
+        lastModified:
+          type: string
+          format: date-time
+          description: Timestamp when the theme was last modified
+    DocumentStylesDto:
+      type: object
+      description: Document-level styling defaults
+      properties:
+        fontFamily:
+          type: string
+          description: Default font family
+        fontSize:
+          type: string
+          description: Default font size (e.g., "12pt", "16px")
+        fontWeight:
+          type: string
+          description: Default font weight (e.g., "normal", "bold")
+        color:
+          type: string
+          description: Default text color (e.g., "#000000")
+        lineHeight:
+          type: string
+          description: Default line height (e.g., "1.5", "24px")
+        letterSpacing:
+          type: string
+          description: Default letter spacing
+        textAlign:
+          type: string
+          enum:
+            - left
+            - center
+            - right
+            - justify
+          description: Default text alignment
+        backgroundColor:
+          type: string
+          description: Default background color
+    PageSettingsDto:
+      type: object
+      description: Page layout settings
+      properties:
+        format:
+          type: string
+          enum:
+            - A4
+            - Letter
+            - Custom
+          description: Page format
+        orientation:
+          type: string
+          enum:
+            - portrait
+            - landscape
+          description: Page orientation
+        margins:
+          $ref: '#/components/schemas/MarginsDto'
+    MarginsDto:
+      type: object
+      description: Page margins in pixels
+      properties:
+        top:
+          type: integer
+          description: Top margin in pixels
+        right:
+          type: integer
+          description: Right margin in pixels
+        bottom:
+          type: integer
+          description: Bottom margin in pixels
+        left:
+          type: integer
+          description: Left margin in pixels
+    CreateThemeRequest:
+      type: object
+      description: Request body for creating a new theme
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 20
+          description: Client-provided slug identifier for the theme
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Name of the theme
+        description:
+          type: string
+          description: Optional description of the theme
+        documentStyles:
+          $ref: '#/components/schemas/DocumentStylesDto'
+        pageSettings:
+          $ref: '#/components/schemas/PageSettingsDto'
+        blockStylePresets:
+          type: object
+          additionalProperties:
+            type: object
+          description: Named block style presets
+    UpdateThemeRequest:
+      type: object
+      description: Request body for updating a theme (partial update)
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: New name for the theme
+        description:
+          type:
+            - string
+            - 'null'
+          description: New description for the theme (null to clear)
+        documentStyles:
+          $ref: '#/components/schemas/DocumentStylesDto'
+        pageSettings:
+          $ref: '#/components/schemas/PageSettingsDto'
+        blockStylePresets:
+          type:
+            - object
+            - 'null'
+          additionalProperties:
+            type: object
+          description: Named block style presets (null to clear)
+    ThemeListResponse:
+      type: object
+      description: List of themes
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: List of themes
+          items:
+            $ref: '#/components/schemas/ThemeDto'
+    EnvironmentDto:
+      type: object
+      description: Tenant environment for version activation (e.g., staging, production)
+      required:
+        - id
+        - tenantId
+        - name
+        - createdAt
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 30
+          description: Slug identifier of the environment
+        tenantId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+          description: Slug identifier of the tenant this environment belongs to
+        name:
+          type: string
+          description: Name of the environment (e.g., staging, production)
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the environment was created
+    CreateEnvironmentRequest:
+      type: object
+      description: Request body for creating a new environment
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 30
+          description: Slug identifier for the environment (e.g., production, staging, development)
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Name of the environment to create
+    UpdateEnvironmentRequest:
+      type: object
+      description: Request body for updating an environment
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: New name for the environment
+    EnvironmentListResponse:
+      type: object
+      description: List of environments
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: List of environments
+          items:
+            $ref: '#/components/schemas/EnvironmentDto'
+    TemplateDto:
+      type: object
+      description: Full document template with all details including variant summaries
+      required:
+        - id
+        - tenantId
+        - name
+        - variants
+        - createdAt
+        - lastModified
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of the template (e.g., "monthly-invoice")
+        tenantId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+          description: Slug identifier of the tenant this template belongs to
+        name:
+          type: string
+          description: Name of the template
+        schema:
+          type: object
+          description: JSON Schema defining the input parameters for this template
+        dataModel:
+          type: object
+          description: JSON Schema defining the expected data structure for template rendering
+        dataExamples:
+          type: array
+          description: Example data sets for testing template rendering
+          items:
+            $ref: '#/components/schemas/DataExampleDto'
+        variants:
+          type: array
+          description: Summary of all variants for this template
+          items:
+            $ref: '#/components/schemas/VariantSummaryDto'
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the template was created
+        lastModified:
+          type: string
+          format: date-time
+          description: Timestamp when the template was last modified
+    TemplateSummaryDto:
+      type: object
+      description: Summary view of a template for list displays
+      required:
+        - id
+        - tenantId
+        - name
+        - createdAt
+        - lastModified
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of the template (e.g., "monthly-invoice")
+        tenantId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+          description: Slug identifier of the tenant this template belongs to
+        name:
+          type: string
+          description: Name of the template
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the template was created
+        lastModified:
+          type: string
+          format: date-time
+          description: Timestamp when the template was last modified
+    CreateTemplateRequest:
+      type: object
+      description: Request body for creating a new template
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Client-provided slug identifier for the template
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Name of the template to create
+        schema:
+          type: object
+          description: JSON Schema defining the input parameters for this template
+    UpdateTemplateRequest:
+      type: object
+      description: Request body for updating a template's metadata (all fields optional)
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: New name for the template
+        schema:
+          type: object
+          additionalProperties: true
+          description: Updated JSON Schema for input parameters
+        dataModel:
+          type: object
+          description: Updated data model schema
+        dataExamples:
+          type: array
+          description: Updated data examples
+          items:
+            $ref: '#/components/schemas/DataExampleDto'
+        forceUpdate:
+          type: boolean
+          default: false
+          description: If true, save schema even if data examples don't match (returns warnings instead of errors)
+    TemplateListResponse:
+      type: object
+      description: List of templates
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: List of template summaries
+          items:
+            $ref: '#/components/schemas/TemplateSummaryDto'
+    DataExampleDto:
+      type: object
+      description: Named example data set for template testing
+      required:
+        - id
+        - name
+        - data
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the data example
+        name:
+          type: string
+          description: Display name of the data example
+        data:
+          type: object
+          description: The example data matching the template's data model
+    VariantDto:
+      type: object
+      description: Full template variant with version summary
+      required:
+        - id
+        - templateId
+        - tags
+        - hasDraft
+        - publishedVersions
+        - createdAt
+        - lastModified
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of the variant
+        templateId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of the template this variant belongs to
+        title:
+          type:
+            - string
+            - 'null'
+          description: Human-readable title for the variant
+        description:
+          type:
+            - string
+            - 'null'
+          description: Description of the variant
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+          description: Free-form key-value tags (e.g., locale=nl-NL, brand=acme)
+        hasDraft:
+          type: boolean
+          description: Whether this variant has an unpublished draft
+        publishedVersions:
+          type: array
+          items:
+            type: integer
+          description: List of published version numbers
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the variant was created
+        lastModified:
+          type: string
+          format: date-time
+          description: Timestamp when the variant was last modified
+    VariantSummaryDto:
+      type: object
+      description: Summary view of a variant for inclusion in template responses
+      required:
+        - id
+        - tags
+        - hasDraft
+        - publishedVersions
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of the variant
+        title:
+          type:
+            - string
+            - 'null'
+          description: Human-readable title for the variant
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+          description: Free-form key-value tags
+        hasDraft:
+          type: boolean
+          description: Whether this variant has an unpublished draft
+        publishedVersions:
+          type: array
+          items:
+            type: integer
+          description: List of published version numbers
+    CreateVariantRequest:
+      type: object
+      description: Request body for creating a new variant
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Client-provided slug identifier for the variant
+        title:
+          type:
+            - string
+            - 'null'
+          description: Human-readable title for the variant
+        description:
+          type:
+            - string
+            - 'null'
+          description: Description of the variant
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+          description: Free-form key-value tags for this variant
+    UpdateVariantRequest:
+      type: object
+      description: Request body for updating a variant
+      properties:
+        title:
+          type:
+            - string
+            - 'null'
+          description: Human-readable title for the variant
+        description:
+          type:
+            - string
+            - 'null'
+          description: Description of the variant
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+          description: Updated tags for this variant
+    VariantListResponse:
+      type: object
+      description: List of template variants
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: List of variants
+          items:
+            $ref: '#/components/schemas/VariantDto'
+    ActivationDto:
+      type: object
+      description: Environment activation for a variant. versionId IS the version number (1-200).
+      required:
+        - environmentId
+        - environmentName
+        - versionId
+        - activatedAt
+      properties:
+        environmentId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 30
+          description: Slug identifier of the environment
+        environmentName:
+          type: string
+          description: Name of the environment
+        versionId:
+          type: integer
+          minimum: 1
+          maximum: 200
+          description: ID of the active version (also the version number, 1-200)
+        activatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when this version was activated
+    SetActivationRequest:
+      type: object
+      description: Request body for setting the active version for an environment
+      required:
+        - versionId
+      properties:
+        versionId:
+          type: integer
+          minimum: 1
+          maximum: 200
+          description: ID of the version to activate (version number, 1-200)
+    ActivationListResponse:
+      type: object
+      description: List of environment activations for a variant
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: List of activations
+          items:
+            $ref: '#/components/schemas/ActivationDto'
+    VersionDto:
+      type: object
+      description: Template version with content and lifecycle state. The id field IS the version number (1-200).
+      required:
+        - id
+        - variantId
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          maximum: 200
+          description: Version identifier (also the version number, 1-200)
+        variantId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of the variant this version belongs to
+        templateModel:
+          type: object
+          description: The template model defining the document structure
+        status:
+          type: string
+          enum:
+            - draft
+            - published
+            - archived
+          description: Lifecycle status of this version
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the version was created
+        publishedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Timestamp when the version was published
+        archivedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Timestamp when the version was archived
+    VersionSummaryDto:
+      type: object
+      description: Summary view of a version for list displays. The id field IS the version number (1-200).
+      required:
+        - id
+        - variantId
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          maximum: 200
+          description: Version identifier (also the version number, 1-200)
+        variantId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of the variant this version belongs to
+        status:
+          type: string
+          enum:
+            - draft
+            - published
+            - archived
+          description: Lifecycle status of this version
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the version was created
+        publishedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Timestamp when the version was published
+        archivedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Timestamp when the version was archived
+    UpdateDraftRequest:
+      type: object
+      description: Request body for updating a draft version
+      properties:
+        templateModel:
+          type: object
+          description: Template model structure
+    VersionListResponse:
+      type: object
+      description: List of template versions
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: List of versions
+          items:
+            $ref: '#/components/schemas/VersionSummaryDto'
+    GenerateDocumentRequest:
+      type: object
+      description: Request to generate a single document
+      required:
+        - templateId
+        - variantId
+        - data
+      properties:
+        templateId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of template to use for generation
+        variantId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of the variant to use
+        versionId:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          maximum: 200
+          description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId)
+        environmentId:
+          type:
+            - string
+            - 'null'
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 30
+          description: Slug identifier of environment to determine version from (mutually exclusive with versionId)
+        data:
+          type: object
+          description: JSON data to populate the template
+        filename:
+          type:
+            - string
+            - 'null'
+          description: Optional filename for the generated document
+          maxLength: 255
+        correlationId:
+          type:
+            - string
+            - 'null'
+          description: Client-provided ID for tracking documents across systems
+          maxLength: 255
+    BatchGenerationItem:
+      type: object
+      description: Single item in a batch generation request. Both correlationId and filename must be unique within a batch (null values are excluded from uniqueness checks).
+      required:
+        - templateId
+        - variantId
+        - data
+      properties:
+        templateId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of template to use for generation
+        variantId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of the variant to use
+        versionId:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          maximum: 200
+          description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId)
+        environmentId:
+          type:
+            - string
+            - 'null'
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 30
+          description: Slug identifier of environment to determine version from (mutually exclusive with versionId)
+        data:
+          type: object
+          description: JSON data to populate the template
+        filename:
+          type:
+            - string
+            - 'null'
+          description: Optional filename for the generated document. Must be unique within a batch.
+          maxLength: 255
+        correlationId:
+          type:
+            - string
+            - 'null'
+          description: Client-provided ID for tracking documents across systems. Must be unique within a batch.
+          maxLength: 255
+    GenerateBatchRequest:
+      type: object
+      description: Request to generate multiple documents in a batch
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: List of items to generate
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/BatchGenerationItem'
+    GenerationJobResponse:
+      type: object
+      description: Response when submitting a generation request
+      required:
+        - requestId
+        - status
+        - jobType
+        - totalCount
+        - createdAt
+      properties:
+        requestId:
+          type: string
+          format: uuid
+          description: Unique identifier for tracking this generation request
+        status:
+          type: string
+          enum:
+            - PENDING
+            - IN_PROGRESS
+            - COMPLETED
+            - FAILED
+            - CANCELLED
+          description: Current status of the request
+        jobType:
+          type: string
+          enum:
+            - SINGLE
+            - BATCH
+          description: Type of generation job
+        totalCount:
+          type: integer
+          description: Total number of items to generate
+        createdAt:
+          type: string
+          format: date-time
+          description: When the request was created
+    DocumentGenerationItemDto:
+      type: object
+      description: Individual item in a generation batch
+      required:
+        - id
+        - templateId
+        - variantId
+        - data
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier of this item
+        templateId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of template used for generation
+        variantId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of the variant used for generation
+        versionId:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          maximum: 200
+          description: Explicit version ID (version number, 1-200, if specified)
+        environmentId:
+          type:
+            - string
+            - 'null'
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 30
+          description: Slug identifier of environment (if specified)
+        data:
+          type: object
+          description: JSON data used for generation
+        filename:
+          type:
+            - string
+            - 'null'
+          description: Requested filename
+        correlationId:
+          type:
+            - string
+            - 'null'
+          description: Client-provided ID for tracking documents across systems
+        status:
+          type: string
+          enum:
+            - PENDING
+            - IN_PROGRESS
+            - COMPLETED
+            - FAILED
+          description: Status of this item
+        errorMessage:
+          type:
+            - string
+            - 'null'
+          description: Error message if processing failed
+        documentId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+          description: ID of the generated document (if successful)
+        createdAt:
+          type: string
+          format: date-time
+          description: When the item was created
+        startedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: When processing started
+        completedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: When processing completed
+    DocumentGenerationJobDto:
+      type: object
+      description: Generation job summary
+      required:
+        - id
+        - jobType
+        - status
+        - totalCount
+        - completedCount
+        - failedCount
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier of the request
+        jobType:
+          type: string
+          enum:
+            - SINGLE
+            - BATCH
+          description: Type of generation job
+        status:
+          type: string
+          enum:
+            - PENDING
+            - IN_PROGRESS
+            - COMPLETED
+            - FAILED
+            - CANCELLED
+          description: Current status of the request
+        totalCount:
+          type: integer
+          description: Total number of items to generate
+        completedCount:
+          type: integer
+          description: Number of items successfully completed
+        failedCount:
+          type: integer
+          description: Number of items that failed
+        errorMessage:
+          type:
+            - string
+            - 'null'
+          description: Error message if the job failed
+        createdAt:
+          type: string
+          format: date-time
+          description: When the request was created
+        startedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: When processing started
+        completedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: When processing completed
+        progressPercentage:
+          type: number
+          format: double
+          description: Progress percentage (0-100)
+    GenerationJobDetail:
+      type: object
+      description: Detailed generation job with all items
+      required:
+        - request
+        - items
+      properties:
+        request:
+          $ref: '#/components/schemas/DocumentGenerationJobDto'
+        items:
+          type: array
+          description: List of items in this batch
+          items:
+            $ref: '#/components/schemas/DocumentGenerationItemDto'
+    GenerationJobListResponse:
+      type: object
+      description: Paginated list of generation jobs
+      required:
+        - items
+        - page
+        - size
+        - totalElements
+        - totalPages
+      properties:
+        items:
+          type: array
+          description: List of generation jobs on this page
+          items:
+            $ref: '#/components/schemas/DocumentGenerationJobDto'
+        page:
+          type: integer
+          description: Current page number (0-based)
+        size:
+          type: integer
+          description: Number of items per page
+        totalElements:
+          type: integer
+          description: Total number of items across all pages
+        totalPages:
+          type: integer
+          description: Total number of pages
+    DocumentDto:
+      type: object
+      description: Generated document metadata
+      required:
+        - id
+        - tenantId
+        - templateId
+        - variantId
+        - versionId
+        - filename
+        - contentType
+        - sizeBytes
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier of the document
+        tenantId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+          description: Slug identifier of the tenant that owns this document
+        templateId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of template used to generate this document
+        variantId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of the variant used to generate this document
+        versionId:
+          type: integer
+          minimum: 1
+          maximum: 200
+          description: Version used to generate this document (version number, 1-200)
+        filename:
+          type: string
+          description: Filename of the document
+        correlationId:
+          type:
+            - string
+            - 'null'
+          description: Client-provided ID for tracking documents across systems
+        contentType:
+          type: string
+          description: MIME type of the document
+        sizeBytes:
+          type: integer
+          format: int64
+          description: Size of the document in bytes
+        createdAt:
+          type: string
+          format: date-time
+          description: When the document was generated
+        createdBy:
+          type:
+            - string
+            - 'null'
+          description: User who generated the document (future feature)
+    DocumentListResponse:
+      type: object
+      description: Paginated list of documents
+      required:
+        - items
+        - page
+        - size
+        - totalElements
+        - totalPages
+      properties:
+        items:
+          type: array
+          description: List of documents on this page
+          items:
+            $ref: '#/components/schemas/DocumentDto'
+        page:
+          type: integer
+          description: Current page number (0-based)
+        size:
+          type: integer
+          description: Number of items per page
+        totalElements:
+          type: integer
+          description: Total number of items across all pages
+        totalPages:
+          type: integer
+          description: Total number of pages
+    ErrorResponse:
+      type: object
+      description: Standard error response
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+          example: NOT_FOUND
+        message:
+          type: string
+          description: Human-readable error message
+          example: Tenant with ID 123 not found
+    ValidationErrorResponse:
+      type: object
+      description: Validation error response with field-level details
+      required:
+        - code
+        - message
+        - errors
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          description: General error message
+          example: Validation failed
+        errors:
+          type: array
+          description: List of field-specific validation errors
+          items:
+            $ref: '#/components/schemas/FieldError'
+    FieldError:
+      type: object
+      description: A single field validation error
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          description: The field that failed validation
+          example: name
+        message:
+          type: string
+          description: Description of the validation failure
+          example: Name must not be blank
+        rejectedValue:
+          description: The value that was rejected (if applicable)
