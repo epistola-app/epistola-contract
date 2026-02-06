@@ -19,8 +19,8 @@ epistola-contract/
 │   ├── components/
 │   │   ├── schemas/                   # Data models
 │   │   └── responses/                 # Response definitions
-│   └── .redocly.yaml                  # Spec validation config
-├── epistola-client-kotlin/            # Generated Kotlin client
+│   └── redocly.yaml                   # Spec validation config
+├── client-kotlin-spring-restclient/   # Generated Kotlin client (Spring RestClient)
 │   ├── client/
 │   │   └── build.gradle.kts
 │   ├── build.gradle.kts
@@ -65,13 +65,14 @@ brew install mise
 ### Validate OpenAPI Spec
 
 ```bash
-npx @redocly/cli lint spec/epistola-api.yaml
+cd spec
+npx @redocly/cli lint epistola-api.yaml
 ```
 
 ### Build Kotlin Client
 
 ```bash
-cd epistola-client-kotlin
+cd client-kotlin-spring-restclient
 ./gradlew build
 ```
 
@@ -94,13 +95,12 @@ This will:
 
 ## Generated Artifacts
 
-### Kotlin Client (`io.epistola:epistola-client-kotlin`)
+### Kotlin Client (`io.epistola:client-kotlin-spring-restclient`)
 
 A Kotlin client library using:
-- **Ktor** with Java HttpClient engine
+- **Spring RestClient** (Spring Boot 3.2+)
 - **Jackson** for JSON serialization
 - Java 8 date/time handling
-- Coroutines for async operations
 
 ### Kotlin Server (`io.epistola:epistola-server-kotlin`)
 
@@ -124,7 +124,7 @@ This repository uses **SemVer** versioning where the version represents the API 
 
 ```kotlin
 dependencies {
-    implementation("io.epistola:epistola-client-kotlin:1.0.0")
+    implementation("io.epistola:client-kotlin-spring-restclient:1.0.0")
 }
 ```
 
@@ -158,7 +158,7 @@ chore: maintenance task
 All artifacts are built and tested in parallel via GitHub Actions:
 
 1. **Spec Validation**: Validates OpenAPI spec with Redocly CLI
-2. **Kotlin Client**: Generates and builds the Kotlin client
+2. **Kotlin Client**: Generates and builds the Spring RestClient-based client
 3. **Kotlin Server**: Generates and builds the Spring server stubs
 
 ## License

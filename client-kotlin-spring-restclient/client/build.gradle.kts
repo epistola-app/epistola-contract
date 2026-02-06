@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.spring)
     alias(libs.plugins.openapi.generator)
     `java-library`
     `maven-publish`
@@ -16,13 +17,13 @@ openApiGenerate {
     modelPackage.set("io.epistola.client.model")
     configOptions.set(
         mapOf(
-            "library" to "jvm-ktor",
+            "library" to "jvm-spring-restclient",
             "serializationLibrary" to "jackson",
             "dateLibrary" to "java8",
-            "useCoroutines" to "true",
             "omitGradleWrapper" to "true",
             "omitGradlePluginVersions" to "true",
             "enumPropertyNaming" to "UPPERCASE",
+            "useSpringBoot3" to "true",
         ),
     )
 }
@@ -38,10 +39,7 @@ tasks.compileKotlin {
 }
 
 dependencies {
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.java)
-    implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.serialization.jackson)
+    implementation(libs.spring.boot.starter.web)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.jackson.datatype.jsr310)
 
@@ -73,7 +71,7 @@ publishing {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
             groupId = rootProject.group.toString()
-            artifactId = "epistola-client-kotlin"
+            artifactId = "client-kotlin-spring-restclient"
             version = rootProject.version.toString()
         }
     }
