@@ -137,10 +137,13 @@ Artifacts are published to Maven Central via GitHub Actions. Releases can only b
 
 ### Release Process
 
+**Automatic releases:** Push to any `release/*` branch triggers a release of both modules.
+
+**Manual releases:**
 1. Go to **Actions** > **Release to Maven Central**
 2. Select the branch (`main` or `release/*`)
 3. Click **Run workflow**
-4. Select the module to release (`client-kotlin-spring-restclient`, `epistola-server-kotlin`, or `both`)
+4. Select the module to release
 
 The workflow will:
 1. **Validate** - Ensure branch version matches spec version (for release branches)
@@ -154,11 +157,11 @@ The workflow will:
 
 ### Branch Strategy
 
-| Branch | Spec Version | Publishes | Purpose |
-|--------|--------------|-----------|---------|
-| `main` | Any (e.g., `2.1.0`) | `2.1.x` | Latest development |
-| `release/2.0` | Must be `2.0.x` | `2.0.x` | Maintenance for 2.0 |
-| `release/1.0` | Must be `1.0.x` | `1.0.x` | Maintenance for 1.0 |
+| Branch | Spec Version | Auto-release | Purpose |
+|--------|--------------|--------------|---------|
+| `main` | Any (e.g., `2.1.0`) | No (manual only) | Latest development |
+| `release/2.0` | Must be `2.0.x` | Yes, on push | Maintenance for 2.0 |
+| `release/1.0` | Must be `1.0.x` | Yes, on push | Maintenance for 1.0 |
 
 ### Creating a Release Branch
 
@@ -178,7 +181,17 @@ git commit -am "feat(spec): bump API version to 2.0.0"
 
 ### Backporting Fixes
 
-To release a fix across multiple API versions:
+There are two ways to backport fixes to release branches:
+
+#### Option 1: Automated Backport (Recommended)
+
+1. Create a PR to `main` with your fix
+2. Add labels `backport:release/2.0` and/or `backport:release/1.0`
+3. Merge the PR
+4. The backport bot automatically creates PRs to the release branches
+5. Review and merge the backport PRs → auto-releases
+
+#### Option 2: Manual Cherry-pick
 
 ```bash
 # 1. Fix on main (spec: 2.1.0)
@@ -189,14 +202,12 @@ git push
 # 2. Backport to 2.0
 git checkout release/2.0
 git cherry-pick <commit-sha>
-git push
-# Run release workflow on release/2.0 branch -> publishes 2.0.x
+git push  # → auto-releases 2.0.x
 
 # 3. Backport to 1.0
 git checkout release/1.0
 git cherry-pick <commit-sha>
-git push
-# Run release workflow on release/1.0 branch -> publishes 1.0.x
+git push  # → auto-releases 1.0.x
 ```
 
 ### Version Calculation

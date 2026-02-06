@@ -1,19 +1,21 @@
 name: Release to Maven Central
 
 on:
-  workflow_dispatch:
+  # Auto-release on push to release branches
+  push:
     branches:
-      - main
       - 'release/**'
+  # Manual release from any allowed branch
+  workflow_dispatch:
     inputs:
       module:
         description: 'Module to release'
         required: true
         type: choice
         options:
+          - both
           - client-kotlin-spring-restclient
           - epistola-server-kotlin
-          - both
 
 jobs:
   validate-branch:
@@ -21,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       api_version: ${{ steps.validate.outputs.api_version }}
+      is_release_branch: ${{ steps.validate.outputs.is_release_branch }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -38,6 +41,7 @@ jobs:
 
           # For release/* branches, validate version matches
           if [[ "$BRANCH" == release/* ]]; then
+            echo "is_release_branch=true" >> $GITHUB_OUTPUT
             BRANCH_VERSION="${BRANCH#release/}"
             if [[ "$BRANCH_VERSION" != "$API_VERSION" ]]; then
               echo "::error::Branch version ($BRANCH_VERSION) does not match spec version ($API_VERSION)"
@@ -46,12 +50,12 @@ jobs:
             fi
             echo "Branch version matches spec version"
           else
+            echo "is_release_branch=false" >> $GITHUB_OUTPUT
             echo "Main branch - any version allowed"
           fi
 
-
   release:
-    name: Release ${{ inputs.module }}
+    name: Release ${{ matrix.artifact_id }}
     needs: validate-branch
     runs-on: ubuntu-latest
     permissions:
@@ -61,32 +65,46 @@ jobs:
         include:
           - module: client-kotlin-spring-restclient
             artifact_id: client-spring3-restclient
-            enabled: ${{ inputs.module == 'client-kotlin-spring-restclient' || inputs.module == 'both' }}
           - module: epistola-server-kotlin
             artifact_id: server-spring-boot4
-            enabled: ${{ inputs.module == 'epistola-server-kotlin' || inputs.module == 'both' }}
     steps:
+      - name: Check if should run
+        id: should_run
+        run: |
+          # For push events (auto-release), always release both
+          # For workflow_dispatch, check the input
+          if [ "${{ github.event_name }}" == "push" ]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+          else
+            MODULE_INPUT="${{ inputs.module }}"
+            if [ "$MODULE_INPUT" == "both" ] || [ "$MODULE_INPUT" == "${{ matrix.module }}" ]; then
+              echo "enabled=true" >> $GITHUB_OUTPUT
+            else
+              echo "enabled=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
       - name: Skip if not enabled
-        if: matrix.enabled != 'true' && matrix.enabled != true
+        if: steps.should_run.outputs.enabled != 'true'
         run: echo "Skipping ${{ matrix.module }}"
 
       - name: Checkout
-        if: matrix.enabled == 'true' || matrix.enabled == true
+        if: steps.should_run.outputs.enabled == 'true'
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # Need full history for tags
+          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup tools with mise
-        if: matrix.enabled == 'true' || matrix.enabled == true
+        if: steps.should_run.outputs.enabled == 'true'
         uses: jdx/mise-action@v3
 
       - name: Setup Gradle cache
-        if: matrix.enabled == 'true' || matrix.enabled == true
+        if: steps.should_run.outputs.enabled == 'true'
         uses: gradle/actions/setup-gradle@v5
 
       - name: Calculate version
-        if: matrix.enabled == 'true' || matrix.enabled == true
+        if: steps.should_run.outputs.enabled == 'true'
         id: version
         run: |
           # Read API version from spec (e.g., "1.0.0" -> "1.0")
@@ -110,19 +128,19 @@ jobs:
           echo "Releasing version: ${FULL_VERSION}"
 
       - name: Build and test
-        if: matrix.enabled == 'true' || matrix.enabled == true
+        if: steps.should_run.outputs.enabled == 'true'
         working-directory: ${{ matrix.module }}
         run: ./gradlew build -PpatchVersion=${{ steps.version.outputs.patch_version }}
 
       - name: Import GPG key
-        if: matrix.enabled == 'true' || matrix.enabled == true
+        if: steps.should_run.outputs.enabled == 'true'
         uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Publish to Maven Central
-        if: matrix.enabled == 'true' || matrix.enabled == true
+        if: steps.should_run.outputs.enabled == 'true'
         working-directory: ${{ matrix.module }}
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
@@ -136,11 +154,11 @@ jobs:
             -Psigning.gnupg.keyName="${{ secrets.GPG_KEY_ID }}"
 
       - name: Bundle OpenAPI spec
-        if: matrix.enabled == 'true' || matrix.enabled == true
+        if: steps.should_run.outputs.enabled == 'true'
         run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
 
       - name: Create GitHub Release
-        if: matrix.enabled == 'true' || matrix.enabled == true
+        if: steps.should_run.outputs.enabled == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ matrix.artifact_id }}-v${{ steps.version.outputs.full_version }}
