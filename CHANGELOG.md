@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- GitHub Pages API documentation with Redoc
+  - Multi-version support with version selector
+  - Landing page showing all available versions
+  - Automatic deployment after successful releases to Maven Central
+  - Manual deployment via workflow dispatch
+
 ### Changed
 - **BREAKING**: Renamed server module from `epistola-server-kotlin` to `server-kotlin-springboot4`
   - Artifact ID changed from `server-spring-boot4` to `server-kotlin-springboot4`

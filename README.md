@@ -2,6 +2,12 @@
 
 Contract-first API repository for [Epistola](https://github.com/sdegroot/epistola). This repository owns the OpenAPI specification and generates both client libraries and server stubs.
 
+## API Documentation
+
+View the interactive API documentation at: https://sdegroot.github.io/epistola-contract/
+
+The documentation is automatically deployed when releases are published to Maven Central.
+
 ## Overview
 
 This repository follows the **contract-first** approach:

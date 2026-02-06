@@ -1,0 +1,141 @@
+name: Deploy API Documentation
+
+on:
+  workflow_run:
+    workflows: ["Release to Maven Central"]
+    types: [completed]
+    branches: ['release/**']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'API version to deploy (e.g., 1.0)'
+        required: true
+        type: string
+
+jobs:
+  deploy-docs:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Extract API version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            API_VERSION="${{ inputs.version }}"
+          else
+            API_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+)\.[0-9]+["'"'"']?.*/\1/')
+          fi
+          echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
+          echo "version_dir=v${API_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Bundle OpenAPI spec
+        run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
+
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v6
+        with:
+          ref: gh-pages
+          path: gh-pages
+          fetch-depth: 0
+
+      - name: Deploy version
+        env:
+          API_VERSION: ${{ steps.version.outputs.api_version }}
+          VERSION_DIR: ${{ steps.version.outputs.version_dir }}
+        run: |
+          mkdir -p "gh-pages/${VERSION_DIR}"
+          cp openapi.yaml "gh-pages/${VERSION_DIR}/"
+
+          # Create Redoc page with version selector
+          cat > "gh-pages/${VERSION_DIR}/index.html" << EOF
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Epistola API v${API_VERSION}</title>
+            <meta charset="utf-8"/>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+              body { margin: 0; padding: 0; }
+              .version-bar {
+                position: fixed; top: 0; left: 0; right: 0; height: 40px;
+                background: #32329f; color: white; display: flex;
+                align-items: center; padding: 0 20px; z-index: 1000;
+                font-family: sans-serif;
+              }
+              .version-bar select { margin-left: 10px; padding: 5px; border-radius: 4px; }
+              .version-bar a { color: white; margin-left: auto; text-decoration: none; }
+              redoc { margin-top: 40px; display: block; }
+            </style>
+          </head>
+          <body>
+            <div class="version-bar">
+              <span>Version:</span>
+              <select id="version-select" onchange="location.href=this.value"></select>
+              <a href="../">All Versions</a>
+            </div>
+            <redoc spec-url='openapi.yaml'></redoc>
+            <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+            <script>
+              fetch('../versions.json').then(r=>r.json()).then(d=>{
+                const sel=document.getElementById('version-select');
+                const cur=location.pathname.split('/').filter(Boolean).pop();
+                d.versions.forEach(v=>{
+                  const opt=document.createElement('option');
+                  opt.value='..'+v.path;
+                  opt.text=v.label;
+                  opt.selected=v.version===cur;
+                  sel.appendChild(opt);
+                });
+              });
+            </script>
+          </body>
+          </html>
+          EOF
+
+      - name: Update versions.json
+        env:
+          API_VERSION: ${{ steps.version.outputs.api_version }}
+          VERSION_DIR: ${{ steps.version.outputs.version_dir }}
+        run: |
+          cd gh-pages
+          DATE=$(date +%Y-%m-%d)
+
+          if [ ! -f versions.json ]; then
+            echo '{"latest":"","versions":[]}' > versions.json
+          fi
+
+          # Add or update version entry
+          jq --arg v "$VERSION_DIR" --arg label "$API_VERSION" --arg date "$DATE" \
+            '.versions = ([{"version": $v, "path": "/\($v)/", "label": $label, "releaseDate": $date, "status": "current"}] + [.versions[] | select(.version != $v)]) | .latest = $v' \
+            versions.json > versions.tmp && mv versions.tmp versions.json
+
+      - name: Update latest
+        env:
+          VERSION_DIR: ${{ steps.version.outputs.version_dir }}
+        run: |
+          cd gh-pages
+          rm -rf latest
+          cp -r "${VERSION_DIR}" latest
+
+      - name: Commit and push
+        env:
+          API_VERSION: ${{ steps.version.outputs.api_version }}
+        run: |
+          cd gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "docs: deploy API documentation for v${API_VERSION}" || exit 0
+          git push
