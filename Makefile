@@ -25,19 +25,19 @@ build-client:
 # Build Kotlin server
 build-server:
 	@echo "==> Building Kotlin server..."
-	cd epistola-server-kotlin && ./gradlew build
+	cd server-kotlin-springboot4 && ./gradlew build
 
 # Clean all build artifacts
 clean:
 	@echo "==> Cleaning..."
 	cd client-kotlin-spring-restclient && ./gradlew clean
-	cd epistola-server-kotlin && ./gradlew clean
+	cd server-kotlin-springboot4 && ./gradlew clean
 
 # Publish to local Maven repository (for testing)
 publish-local: build
 	@echo "==> Publishing to local Maven repository..."
 	cd client-kotlin-spring-restclient && ./gradlew publishToMavenLocal
-	cd epistola-server-kotlin && ./gradlew publishToMavenLocal
+	cd server-kotlin-springboot4 && ./gradlew publishToMavenLocal
 	@echo "==> Published to ~/.m2/repository/app/epistola/contract/"
 
 # Show help

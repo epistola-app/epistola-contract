@@ -25,10 +25,9 @@ epistola-contract/
 │   │   └── build.gradle.kts
 │   ├── build.gradle.kts
 │   └── settings.gradle.kts
-├── epistola-server-kotlin/            # Generated Spring server stubs
-│   ├── server/
-│   │   └── build.gradle.kts
+├── server-kotlin-springboot4/            # Generated Spring server stubs
 │   ├── build.gradle.kts
+│   ├── gradle/
 │   └── settings.gradle.kts
 ├── .github/workflows/
 │   ├── build.yml                      # Build all artifacts in parallel
@@ -85,7 +84,7 @@ This will:
 ### Build Kotlin Server Stubs
 
 ```bash
-cd epistola-server-kotlin
+cd server-kotlin-springboot4
 ./gradlew build
 ```
 
@@ -103,7 +102,7 @@ A Kotlin client library using:
 - **Jackson** for JSON serialization
 - Java 8 date/time handling
 
-### Kotlin Server (`app.epistola.contract:server-spring-boot4`)
+### Kotlin Server (`app.epistola.contract:server-kotlin-springboot4`)
 
 Spring server interfaces for implementing the API:
 - Interface-only generation (no implementations)
@@ -322,7 +321,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("app.epistola.contract:server-spring-boot4:1.0.0")
+    implementation("app.epistola.contract:server-kotlin-springboot4:1.0.0")
 }
 ```
 

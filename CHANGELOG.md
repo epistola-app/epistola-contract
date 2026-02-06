@@ -8,8 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **BREAKING**: Renamed server module from `epistola-server-kotlin` to `server-kotlin-springboot4`
+  - Artifact ID changed from `server-spring-boot4` to `server-kotlin-springboot4`
+  - Removed submodule structure (flattened to single module)
+- Upgraded vanniktech/gradle-maven-publish-plugin from 0.30.0 to 0.36.0 for snapshot support
+  - Plugin API changed: removed `SonatypeHost` enum (Central Portal is now default)
 - **BREAKING**: Migrated Maven publishing from OSSRH (s01.oss.sonatype.org) to Sonatype Central Portal
-  - Replaced manual `maven-publish` and `signing` plugins with vanniktech/gradle-maven-publish-plugin 0.30.0
+  - Replaced manual `maven-publish` and `signing` plugins with vanniktech/gradle-maven-publish-plugin 0.36.0
   - Publishing now uses `publishToMavenCentral` command instead of `publish`
   - GPG signing now uses in-memory keys instead of requiring GPG binary
   - **User action required**: Generate new Central Portal token at https://central.sonatype.com/account
@@ -54,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Spring RestClient for HTTP communication
   - Jackson for JSON serialization
   - Java 8 date/time handling
-- `epistola-server-kotlin` module for Spring server stubs
+- `server-kotlin-springboot4` module for Spring server stubs
   - Interface-only generation for clean implementations
   - Spring Boot 4.x compatible (Jackson 3)
   - Bean validation annotations

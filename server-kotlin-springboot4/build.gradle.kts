@@ -1,9 +1,48 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.spring)
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.kover)
     alias(libs.plugins.openapi.generator)
     alias(libs.plugins.maven.publish)
     `java-library`
+}
+
+// Version can be overridden via -Pversion=X (used for snapshots)
+// Otherwise, calculated from OpenAPI spec version + patch version
+val calculatedVersion: String = run {
+    val specFile = file("$rootDir/../epistola-api.yaml")
+    val apiVersion: String = if (specFile.exists()) {
+        val versionRegex = Regex("""^\s*version:\s*["']?(\d+\.\d+)\.\d+["']?\s*$""", RegexOption.MULTILINE)
+        val match = versionRegex.find(specFile.readText())
+        match?.groupValues?.get(1) ?: "0.0"
+    } else {
+        "0.0"
+    }
+    val patchVersion: String = findProperty("patchVersion")?.toString() ?: "0"
+    "$apiVersion.$patchVersion"
+}
+
+group = "app.epistola.contract"
+version = findProperty("version")?.toString()?.takeIf { it != "unspecified" } ?: calculatedVersion
+description = "Epistola API Server Interfaces for Kotlin/Spring"
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+    withSourcesJar()
+    withJavadocJar()
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xjsr305=strict")
+    }
 }
 
 val generatedDir = layout.buildDirectory.dir("generated")
@@ -68,9 +107,17 @@ configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
     }
 }
 
-java {
-    withSourcesJar()
-    withJavadocJar()
+kover {
+    reports {
+        total {
+            xml {
+                onCheck = false
+            }
+            html {
+                onCheck = false
+            }
+        }
+    }
 }
 
 // sourcesJar and javadocJar need to depend on openApiGenerate since sources are generated
@@ -86,7 +133,7 @@ mavenPublishing {
     publishToMavenCentral()
     signAllPublications()
 
-    coordinates(rootProject.group.toString(), "server-spring-boot4", rootProject.version.toString())
+    coordinates(group.toString(), "server-kotlin-springboot4", version.toString())
 
     pom {
         name.set("Epistola Kotlin Server")

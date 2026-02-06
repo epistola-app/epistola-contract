@@ -42,7 +42,7 @@ jobs:
               - 'client-kotlin-spring-restclient/**'
             server:
               - 'epistola-api.yaml'
-              - 'epistola-server-kotlin/**'
+              - 'server-kotlin-springboot4/**'
 
   # Publish snapshots for changed modules
   publish-client:
@@ -83,7 +83,7 @@ jobs:
         run: ./gradlew publishToMavenCentral -Pversion=${{ steps.version.outputs.snapshot_version }}
 
   publish-server:
-    name: Publish server-spring-boot4 Snapshot
+    name: Publish server-kotlin-springboot4 Snapshot
     needs: [spec-validation, detect-changes]
     if: needs.detect-changes.outputs.server == 'true'
     runs-on: ubuntu-latest
@@ -106,11 +106,11 @@ jobs:
           echo "Publishing snapshot version: ${SNAPSHOT_VERSION}"
 
       - name: Build and test
-        working-directory: epistola-server-kotlin
+        working-directory: server-kotlin-springboot4
         run: ./gradlew build -Pversion=${{ steps.version.outputs.snapshot_version }}
 
       - name: Publish snapshot to Maven Central
-        working-directory: epistola-server-kotlin
+        working-directory: server-kotlin-springboot4
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.OSSRH_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.OSSRH_PASSWORD }}

@@ -15,7 +15,7 @@ on:
         options:
           - both
           - client-kotlin-spring-restclient
-          - epistola-server-kotlin
+          - server-kotlin-springboot4
 
 jobs:
   validate-branch:
@@ -65,8 +65,8 @@ jobs:
         include:
           - module: client-kotlin-spring-restclient
             artifact_id: client-spring3-restclient
-          - module: epistola-server-kotlin
-            artifact_id: server-spring-boot4
+          - module: server-kotlin-springboot4
+            artifact_id: server-kotlin-springboot4
     steps:
       - name: Check if should run
         id: should_run
