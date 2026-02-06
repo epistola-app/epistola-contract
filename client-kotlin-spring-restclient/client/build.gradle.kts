@@ -1,5 +1,3 @@
-import com.vanniktech.maven.publish.SonatypeHost
-
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.spring)
@@ -83,7 +81,7 @@ tasks.named("javadocJar") {
 }
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
     signAllPublications()
 
     coordinates(rootProject.group.toString(), "client-spring3-restclient", rootProject.version.toString())
