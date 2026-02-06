@@ -5,16 +5,51 @@ on:
     branches: [main]
 
 jobs:
-  publish-snapshots:
-    name: Publish ${{ matrix.artifact_id }} Snapshot
+  # Validate OpenAPI spec first
+  spec-validation:
+    name: Validate OpenAPI Spec
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - module: client-kotlin-spring-restclient
-            artifact_id: client-spring3-restclient
-          - module: epistola-server-kotlin
-            artifact_id: server-spring-boot4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate OpenAPI spec
+        run: npx @redocly/cli lint epistola-api.yaml
+
+  # Detect which modules have changes
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      client: ${{ steps.filter.outputs.client }}
+      server: ${{ steps.filter.outputs.server }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check for changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            client:
+              - 'epistola-api.yaml'
+              - 'client-kotlin-spring-restclient/**'
+            server:
+              - 'epistola-api.yaml'
+              - 'epistola-server-kotlin/**'
+
+  # Publish snapshots for changed modules
+  publish-client:
+    name: Publish client-spring3-restclient Snapshot
+    needs: [spec-validation, detect-changes]
+    if: needs.detect-changes.outputs.client == 'true'
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -28,14 +63,13 @@ jobs:
       - name: Calculate snapshot version
         id: version
         run: |
-          # Read API version from spec (e.g., "1.0.0" -> "1.0")
           API_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+)\.[0-9]+["'"'"']?.*/\1/')
           SNAPSHOT_VERSION="${API_VERSION}-SNAPSHOT"
           echo "snapshot_version=${SNAPSHOT_VERSION}" >> $GITHUB_OUTPUT
           echo "Publishing snapshot version: ${SNAPSHOT_VERSION}"
 
       - name: Build and test
-        working-directory: ${{ matrix.module }}
+        working-directory: client-kotlin-spring-restclient
         run: ./gradlew build -Pversion=${{ steps.version.outputs.snapshot_version }}
 
       - name: Import GPG key
@@ -45,7 +79,53 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Publish snapshot to Maven Central
-        working-directory: ${{ matrix.module }}
+        working-directory: client-kotlin-spring-restclient
+        env:
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./gradlew publish \
+            -Pversion=${{ steps.version.outputs.snapshot_version }} \
+            -Psigning.gnupg.executable=gpg \
+            -Psigning.gnupg.keyName="${{ secrets.GPG_KEY_ID }}"
+
+  publish-server:
+    name: Publish server-spring-boot4 Snapshot
+    needs: [spec-validation, detect-changes]
+    if: needs.detect-changes.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup tools with mise
+        uses: jdx/mise-action@v3
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Calculate snapshot version
+        id: version
+        run: |
+          API_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+)\.[0-9]+["'"'"']?.*/\1/')
+          SNAPSHOT_VERSION="${API_VERSION}-SNAPSHOT"
+          echo "snapshot_version=${SNAPSHOT_VERSION}" >> $GITHUB_OUTPUT
+          echo "Publishing snapshot version: ${SNAPSHOT_VERSION}"
+
+      - name: Build and test
+        working-directory: epistola-server-kotlin
+        run: ./gradlew build -Pversion=${{ steps.version.outputs.snapshot_version }}
+
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Publish snapshot to Maven Central
+        working-directory: epistola-server-kotlin
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
