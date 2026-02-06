@@ -46,3 +46,6 @@ dist/
 
 ### Test Coverage ###
 coverage/
+
+### Generated files ###
+openapi.yaml

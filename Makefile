@@ -1,4 +1,4 @@
-.PHONY: all lint build-client build-server build clean publish-local help
+.PHONY: all lint bundle build-client build-server build clean publish-local help
 
 # Default target - runs what CI runs
 all: lint build
@@ -7,6 +7,12 @@ all: lint build
 lint:
 	@echo "==> Validating OpenAPI spec..."
 	npx @redocly/cli lint epistola-api.yaml
+
+# Bundle OpenAPI spec into single file
+bundle:
+	@echo "==> Bundling OpenAPI spec..."
+	npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
+	@echo "==> Created openapi.yaml"
 
 # Build both modules
 build: build-client build-server
@@ -39,6 +45,7 @@ help:
 	@echo "Available targets:"
 	@echo "  all            - Run lint + build (default, mirrors CI)"
 	@echo "  lint           - Validate OpenAPI spec"
+	@echo "  bundle         - Bundle OpenAPI spec into single openapi.yaml"
 	@echo "  build          - Build client and server"
 	@echo "  build-client   - Build Kotlin client only"
 	@echo "  build-server   - Build Kotlin server only"
