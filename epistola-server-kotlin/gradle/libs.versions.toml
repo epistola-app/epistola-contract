@@ -2,8 +2,8 @@
 kotlin = "2.3.10"
 ktlint = "14.0.1"
 kover = "0.9.6"
-openapi-generator = "7.13.0"
-spring-boot = "3.5.1"
+openapi-generator = "7.19.0"
+spring-boot = "4.0.2"
 springdoc = "2.8.9"
 jakarta-validation = "3.1.1"
 
@@ -11,6 +11,7 @@ jakarta-validation = "3.1.1"
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "spring-boot" }
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation", version.ref = "spring-boot" }
 jakarta-validation-api = { module = "jakarta.validation:jakarta.validation-api", version.ref = "jakarta-validation" }
+jackson-module-kotlin = { module = "tools.jackson.module:jackson-module-kotlin", version = "3.0.4" }
 springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
 
 [plugins]

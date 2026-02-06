@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **BREAKING**: Server module now targets Spring Boot 4.x with Jackson 3
+  - Updated Spring Boot from 3.5.1 to 4.0.2
+  - Updated OpenAPI Generator from 7.13.0 to 7.19.0
+  - Added Jackson 3 module (`tools.jackson.module:jackson-module-kotlin`)
+  - Added `useJakartaEe` configuration option
+
 ### Added
 - Maven Central publishing configuration for both modules
   - Signing plugin with GPG support
@@ -44,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Java 8 date/time handling
 - `epistola-server-kotlin` module for Spring server stubs
   - Interface-only generation for clean implementations
-  - Spring Boot 3.x compatible
+  - Spring Boot 4.x compatible (Jackson 3)
   - Bean validation annotations
 - Redocly configuration for spec validation (`redocly.yaml`)
 - Spec validation job in CI pipeline

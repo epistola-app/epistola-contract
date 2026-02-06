@@ -22,6 +22,7 @@ openApiGenerate {
             "useTags" to "true",
             "documentationProvider" to "none",
             "useSpringBoot3" to "true",
+            "useJakartaEe" to "true",
             "enumPropertyNaming" to "UPPERCASE",
             "serializableModel" to "true",
             "useBeanValidation" to "true",
@@ -43,6 +44,7 @@ dependencies {
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.jakarta.validation.api)
+    implementation(libs.jackson.module.kotlin)
 
     testImplementation(kotlin("test"))
 }

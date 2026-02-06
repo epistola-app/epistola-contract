@@ -107,7 +107,7 @@ A Kotlin client library using:
 
 Spring server interfaces for implementing the API:
 - Interface-only generation (no implementations)
-- Spring Boot 3.x compatible
+- Spring Boot 4.x compatible (Jackson 3)
 - Bean validation annotations
 - Ready to implement in your Spring application
 
