@@ -66,17 +66,8 @@ configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
     }
 }
 
-java {
-    withSourcesJar()
-    withJavadocJar()
-}
-
-// sourcesJar and javadocJar need to depend on openApiGenerate since sources are generated
-tasks.named("sourcesJar") {
-    dependsOn(tasks.openApiGenerate)
-}
-
-tasks.named("javadocJar") {
+// Configure vanniktech plugin's jar tasks to depend on openApiGenerate since sources are generated
+tasks.matching { it.name == "plainJavadocJar" || it.name == "sourcesJar" }.configureEach {
     dependsOn(tasks.openApiGenerate)
 }
 

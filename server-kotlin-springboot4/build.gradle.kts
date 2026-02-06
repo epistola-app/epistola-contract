@@ -35,8 +35,6 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
     }
-    withSourcesJar()
-    withJavadocJar()
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
@@ -120,12 +118,8 @@ kover {
     }
 }
 
-// sourcesJar and javadocJar need to depend on openApiGenerate since sources are generated
-tasks.named("sourcesJar") {
-    dependsOn(tasks.openApiGenerate)
-}
-
-tasks.named("javadocJar") {
+// Configure vanniktech plugin's jar tasks to depend on openApiGenerate since sources are generated
+tasks.matching { it.name == "plainJavadocJar" || it.name == "sourcesJar" }.configureEach {
     dependsOn(tasks.openApiGenerate)
 }
 
