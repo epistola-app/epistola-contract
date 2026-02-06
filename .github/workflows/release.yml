@@ -2,6 +2,9 @@ name: Release to Maven Central
 
 on:
   workflow_dispatch:
+    branches:
+      - main
+      - 'release/**'
     inputs:
       module:
         description: 'Module to release'
@@ -13,8 +16,43 @@ on:
           - both
 
 jobs:
+  validate-branch:
+    name: Validate branch and version
+    runs-on: ubuntu-latest
+    outputs:
+      api_version: ${{ steps.validate.outputs.api_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate branch matches spec version
+        id: validate
+        run: |
+          # Read API version from spec
+          API_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+)\.[0-9]+["'"'"']?.*/\1/')
+          echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
+          echo "Spec API version: ${API_VERSION}"
+
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          echo "Branch: ${BRANCH}"
+
+          # For release/* branches, validate version matches
+          if [[ "$BRANCH" == release/* ]]; then
+            BRANCH_VERSION="${BRANCH#release/}"
+            if [[ "$BRANCH_VERSION" != "$API_VERSION" ]]; then
+              echo "::error::Branch version ($BRANCH_VERSION) does not match spec version ($API_VERSION)"
+              echo "::error::Release branch 'release/$BRANCH_VERSION' must have spec version '$BRANCH_VERSION.x'"
+              exit 1
+            fi
+            echo "Branch version matches spec version"
+          else
+            echo "Main branch - any version allowed"
+          fi
+
+
   release:
     name: Release ${{ inputs.module }}
+    needs: validate-branch
     runs-on: ubuntu-latest
     permissions:
       contents: write
