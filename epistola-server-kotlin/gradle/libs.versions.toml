@@ -6,6 +6,7 @@ openapi-generator = "7.19.0"
 spring-boot = "4.0.2"
 springdoc = "2.8.9"
 jakarta-validation = "3.1.1"
+maven-publish = "0.30.0"
 
 [libraries]
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "spring-boot" }
@@ -20,3 +21,4 @@ kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotl
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 openapi-generator = { id = "org.openapi.generator", version.ref = "openapi-generator" }
+maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }

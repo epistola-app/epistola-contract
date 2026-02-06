@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **BREAKING**: Migrated Maven publishing from OSSRH (s01.oss.sonatype.org) to Sonatype Central Portal
+  - Replaced manual `maven-publish` and `signing` plugins with vanniktech/gradle-maven-publish-plugin 0.30.0
+  - Publishing now uses `publishToMavenCentral` command instead of `publish`
+  - GPG signing now uses in-memory keys instead of requiring GPG binary
+  - **User action required**: Generate new Central Portal token at https://central.sonatype.com/account
 - **BREAKING**: Server module now targets Spring Boot 4.x with Jackson 3
   - Updated Spring Boot from 3.5.1 to 4.0.2
   - Updated OpenAPI Generator from 7.13.0 to 7.19.0

@@ -1,10 +1,11 @@
+import com.vanniktech.maven.publish.SonatypeHost
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.spring)
     alias(libs.plugins.openapi.generator)
+    alias(libs.plugins.maven.publish)
     `java-library`
-    `maven-publish`
-    signing
 }
 
 val generatedDir = layout.buildDirectory.dir("generated")
@@ -81,58 +82,35 @@ tasks.named("javadocJar") {
     dependsOn(tasks.openApiGenerate)
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("mavenJava") {
-            from(components["java"])
-            groupId = rootProject.group.toString()
-            artifactId = "client-spring3-restclient"
-            version = rootProject.version.toString()
+mavenPublishing {
+    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    signAllPublications()
 
-            pom {
-                name.set("Epistola Kotlin Client")
-                description.set("Kotlin client library for Epistola API using Spring RestClient")
-                url.set("https://github.com/sdegroot/epistola-contract")
+    coordinates(rootProject.group.toString(), "client-spring3-restclient", rootProject.version.toString())
 
-                licenses {
-                    license {
-                        name.set("EUPL-1.2")
-                        url.set("https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12")
-                    }
-                }
+    pom {
+        name.set("Epistola Kotlin Client")
+        description.set("Kotlin client library for Epistola API using Spring RestClient")
+        url.set("https://github.com/epistola-app/epistola-contract")
 
-                developers {
-                    developer {
-                        id.set("sdegroot")
-                        name.set("Sander de Groot")
-                    }
-                }
-
-                scm {
-                    connection.set("scm:git:git://github.com/sdegroot/epistola-contract.git")
-                    developerConnection.set("scm:git:ssh://github.com/sdegroot/epistola-contract.git")
-                    url.set("https://github.com/sdegroot/epistola-contract")
-                }
+        licenses {
+            license {
+                name.set("EUPL-1.2")
+                url.set("https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12")
             }
         }
-    }
 
-    repositories {
-        maven {
-            name = "OSSRH"
-            val releasesUrl = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
-            val snapshotsUrl = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
-            url = if (version.toString().endsWith("SNAPSHOT")) snapshotsUrl else releasesUrl
-
-            credentials {
-                username = findProperty("ossrhUsername") as String? ?: System.getenv("OSSRH_USERNAME")
-                password = findProperty("ossrhPassword") as String? ?: System.getenv("OSSRH_PASSWORD")
+        developers {
+            developer {
+                id.set("sdegroot")
+                name.set("Sander de Groot")
             }
         }
-    }
-}
 
-signing {
-    setRequired { gradle.taskGraph.hasTask("publish") }
-    sign(publishing.publications["mavenJava"])
+        scm {
+            connection.set("scm:git:git://github.com/epistola-app/epistola-contract.git")
+            developerConnection.set("scm:git:ssh://github.com/epistola-app/epistola-contract.git")
+            url.set("https://github.com/epistola-app/epistola-contract")
+        }
+    }
 }
