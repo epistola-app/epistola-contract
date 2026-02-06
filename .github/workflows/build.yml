@@ -45,16 +45,6 @@ jobs:
       - name: Build and test
         run: ./gradlew build
 
-      - name: Generate coverage report
-        run: ./gradlew koverXmlReport
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v6
-        with:
-          name: kotlin-client-coverage-report
-          path: client-kotlin-spring-restclient/build/reports/kover/report.xml
-          retention-days: 7
-
   # Kotlin server stubs build
   kotlin-server:
     name: Kotlin Server (Spring)
@@ -75,16 +65,6 @@ jobs:
 
       - name: Build and test
         run: ./gradlew build
-
-      - name: Generate coverage report
-        run: ./gradlew koverXmlReport
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v6
-        with:
-          name: kotlin-server-coverage-report
-          path: epistola-server-kotlin/build/reports/kover/report.xml
-          retention-days: 7
 
   # Summary job that depends on all builds
   build-summary:
