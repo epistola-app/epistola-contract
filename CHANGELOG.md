@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Template data validation endpoint `POST /v1/tenants/{tenantId}/templates/{templateId}/validate`
+  - Pre-flight validation of input data against template JSON Schema
+  - Returns validation result with detailed error information (path, message, keyword)
+  - Enables faster feedback before batch submission without rendering overhead
+
 ### Changed
 - Standardized version handling across all workflows to use `-Pversion=` consistently
   - Release workflow now passes full version (e.g., `1.0.3`) instead of patch version

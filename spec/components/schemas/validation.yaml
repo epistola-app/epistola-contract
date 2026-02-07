@@ -1,0 +1,45 @@
+ValidateTemplateDataRequest:
+  type: object
+  description: Request body for validating template input data against the template's JSON Schema
+  required:
+    - data
+  properties:
+    data:
+      type: object
+      description: Template input data to validate against the template's schema
+
+TemplateDataValidationResult:
+  type: object
+  description: Result of validating template input data
+  required:
+    - valid
+  properties:
+    valid:
+      type: boolean
+      description: Whether the data passed validation
+      example: true
+    errors:
+      type: array
+      description: List of validation errors (empty when valid is true)
+      items:
+        $ref: '#/TemplateDataValidationError'
+
+TemplateDataValidationError:
+  type: object
+  description: A single validation error from JSON Schema validation
+  required:
+    - path
+    - message
+  properties:
+    path:
+      type: string
+      description: JSON path to the invalid field (JSON Pointer format)
+      example: "$.customer.email"
+    message:
+      type: string
+      description: Human-readable error message describing the validation failure
+      example: "must be a valid email address"
+    keyword:
+      type: string
+      description: JSON Schema validation keyword that failed (e.g., "type", "format", "required", "minLength")
+      example: "format"

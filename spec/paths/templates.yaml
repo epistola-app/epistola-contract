@@ -156,3 +156,53 @@ templates-id:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ErrorResponse'
+
+template-validate:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: templateId
+      in: path
+      required: true
+      description: Slug identifier of the template
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+
+  post:
+    operationId: validateTemplateData
+    summary: Validate template input data
+    description: |
+      Validate input data against the template's JSON Schema before submitting a generation job.
+      This endpoint provides pre-flight validation to catch schema violations early, enabling
+      faster feedback during development and before batch submission.
+    tags:
+      - Templates
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/validation.yaml#/ValidateTemplateDataRequest'
+    responses:
+      '200':
+        description: Validation completed (check the 'valid' field for result)
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/validation.yaml#/TemplateDataValidationResult'
+      '404':
+        description: Template or tenant not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'

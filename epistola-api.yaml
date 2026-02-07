@@ -58,6 +58,8 @@ paths:
     $ref: './spec/paths/templates.yaml#/templates'
   /v1/tenants/{tenantId}/templates/{templateId}:
     $ref: './spec/paths/templates.yaml#/templates-id'
+  /v1/tenants/{tenantId}/templates/{templateId}/validate:
+    $ref: './spec/paths/templates.yaml#/template-validate'
 
   # Variants
   /v1/tenants/{tenantId}/templates/{templateId}/variants:
@@ -148,6 +150,14 @@ components:
       $ref: './spec/components/schemas/templates.yaml#/TemplateListResponse'
     DataExampleDto:
       $ref: './spec/components/schemas/templates.yaml#/DataExampleDto'
+
+    # Validation schemas
+    ValidateTemplateDataRequest:
+      $ref: './spec/components/schemas/validation.yaml#/ValidateTemplateDataRequest'
+    TemplateDataValidationResult:
+      $ref: './spec/components/schemas/validation.yaml#/TemplateDataValidationResult'
+    TemplateDataValidationError:
+      $ref: './spec/components/schemas/validation.yaml#/TemplateDataValidationError'
 
     # Variant schemas
     VariantDto:
