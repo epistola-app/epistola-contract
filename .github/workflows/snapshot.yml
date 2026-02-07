@@ -16,6 +16,8 @@ jobs:
   spec-validation:
     name: Validate OpenAPI Spec
     runs-on: ubuntu-latest
+    outputs:
+      snapshot_version: ${{ steps.version.outputs.snapshot_version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -24,6 +26,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Calculate snapshot version
+        id: version
+        run: |
+          API_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+)\.[0-9]+["'"'"']?.*/\1/')
+          SNAPSHOT_VERSION="${API_VERSION}-SNAPSHOT"
+          echo "snapshot_version=${SNAPSHOT_VERSION}" >> $GITHUB_OUTPUT
+          echo "Snapshot version: ${SNAPSHOT_VERSION}"
 
       - name: Validate OpenAPI spec
         run: npx @redocly/cli lint epistola-api.yaml
@@ -43,6 +53,7 @@ jobs:
     name: Detect Changes
     runs-on: ubuntu-latest
     outputs:
+      spec: ${{ steps.filter.outputs.spec }}
       client: ${{ steps.filter.outputs.client }}
       server: ${{ steps.filter.outputs.server }}
     steps:
@@ -54,6 +65,9 @@ jobs:
         id: filter
         with:
           filters: |
+            spec:
+              - 'epistola-api.yaml'
+              - 'spec/**'
             client:
               - 'epistola-api.yaml'
               - 'spec/**'
@@ -84,17 +98,9 @@ jobs:
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Calculate snapshot version
-        id: version
-        run: |
-          API_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+)\.[0-9]+["'"'"']?.*/\1/')
-          SNAPSHOT_VERSION="${API_VERSION}-SNAPSHOT"
-          echo "snapshot_version=${SNAPSHOT_VERSION}" >> $GITHUB_OUTPUT
-          echo "Publishing snapshot version: ${SNAPSHOT_VERSION}"
-
       - name: Build and test
         working-directory: client-kotlin-spring-restclient
-        run: ./gradlew build -Pversion=${{ steps.version.outputs.snapshot_version }}
+        run: ./gradlew build -Pversion=${{ needs.spec-validation.outputs.snapshot_version }}
 
       - name: Publish snapshot to Maven Central
         working-directory: client-kotlin-spring-restclient
@@ -104,7 +110,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
-        run: ./gradlew publishToMavenCentral -Pversion=${{ steps.version.outputs.snapshot_version }}
+        run: ./gradlew publishToMavenCentral -Pversion=${{ needs.spec-validation.outputs.snapshot_version }}
 
   publish-server:
     name: Publish server-kotlin-springboot4 Snapshot
@@ -126,17 +132,9 @@ jobs:
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Calculate snapshot version
-        id: version
-        run: |
-          API_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+)\.[0-9]+["'"'"']?.*/\1/')
-          SNAPSHOT_VERSION="${API_VERSION}-SNAPSHOT"
-          echo "snapshot_version=${SNAPSHOT_VERSION}" >> $GITHUB_OUTPUT
-          echo "Publishing snapshot version: ${SNAPSHOT_VERSION}"
-
       - name: Build and test
         working-directory: server-kotlin-springboot4
-        run: ./gradlew build -Pversion=${{ steps.version.outputs.snapshot_version }}
+        run: ./gradlew build -Pversion=${{ needs.spec-validation.outputs.snapshot_version }}
 
       - name: Publish snapshot to Maven Central
         working-directory: server-kotlin-springboot4
@@ -146,4 +144,16 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
-        run: ./gradlew publishToMavenCentral -Pversion=${{ steps.version.outputs.snapshot_version }}
+        run: ./gradlew publishToMavenCentral -Pversion=${{ needs.spec-validation.outputs.snapshot_version }}
+
+  # Publish mock server snapshot when spec changes
+  mock-server:
+    name: Publish Mock Server Snapshot
+    needs: [spec-validation, detect-changes]
+    if: needs.detect-changes.outputs.spec == 'true' || inputs.skip_detection == true
+    uses: ./.github/workflows/mock-server.yml
+    with:
+      version: ${{ needs.spec-validation.outputs.snapshot_version }}
+    permissions:
+      contents: read
+      packages: write

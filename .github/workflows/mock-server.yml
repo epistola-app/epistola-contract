@@ -1,6 +1,12 @@
 name: Release Mock Server
 
 on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version tag (e.g., 1.0.0 or 1.0-SNAPSHOT)'
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       version:

@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       api_version: ${{ steps.validate.outputs.api_version }}
+      spec_version: ${{ steps.validate.outputs.spec_version }}
       is_release_branch: ${{ steps.validate.outputs.is_release_branch }}
     steps:
       - name: Checkout
@@ -37,10 +38,15 @@ jobs:
       - name: Validate branch matches spec version
         id: validate
         run: |
-          # Read API version from spec
-          API_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+)\.[0-9]+["'"'"']?.*/\1/')
+          # Read full spec version (e.g., 1.0.0)
+          SPEC_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+\.[0-9]+)["'"'"']?.*/\1/')
+          echo "spec_version=${SPEC_VERSION}" >> $GITHUB_OUTPUT
+          echo "Full spec version: ${SPEC_VERSION}"
+
+          # Extract API version (major.minor) for branch validation
+          API_VERSION=$(echo "$SPEC_VERSION" | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')
           echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
-          echo "Spec API version: ${API_VERSION}"
+          echo "API version: ${API_VERSION}"
 
           BRANCH="${GITHUB_REF#refs/heads/}"
           echo "Branch: ${BRANCH}"
@@ -155,7 +161,7 @@ jobs:
       - name: Build and test
         if: steps.should_run.outputs.enabled == 'true'
         working-directory: ${{ matrix.module }}
-        run: ./gradlew build -PpatchVersion=${{ steps.version.outputs.patch_version }}
+        run: ./gradlew build -Pversion=${{ steps.version.outputs.full_version }}
 
       - name: Publish to Maven Central
         if: steps.should_run.outputs.enabled == 'true'
@@ -166,7 +172,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
-        run: ./gradlew publishToMavenCentral -PpatchVersion=${{ steps.version.outputs.patch_version }}
+        run: ./gradlew publishToMavenCentral -Pversion=${{ steps.version.outputs.full_version }}
 
       - name: Create GitHub Release
         if: steps.should_run.outputs.enabled == 'true'
@@ -197,3 +203,14 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
+
+  # Publish mock server after successful release
+  mock-server:
+    name: Publish Mock Server
+    needs: [validate-and-bundle, release]
+    uses: ./.github/workflows/mock-server.yml
+    with:
+      version: ${{ needs.validate-and-bundle.outputs.spec_version }}
+    permissions:
+      contents: read
+      packages: write

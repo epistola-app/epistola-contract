@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Standardized version handling across all workflows to use `-Pversion=` consistently
+  - Release workflow now passes full version (e.g., `1.0.3`) instead of patch version
+  - Snapshot workflow centralizes version calculation in spec-validation job
+- Mock server is now automatically published as part of release and snapshot workflows
+  - Releases publish with spec version tag (e.g., `1.0.0`) and `latest`
+  - Snapshots publish with snapshot version tag (e.g., `1.0-SNAPSHOT`) and `latest`
+- Removed redundant `build-summary` job from build workflow (use GitHub's native required checks)
+
 ### Added
 - OpenAPI development tooling
   - `make breaking` - Check for breaking API changes against main branch using oasdiff
@@ -15,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - CI workflow for automatic breaking change detection on PRs modifying the spec
 - Mock server Docker image published to GitHub Container Registry (ghcr.io)
   - Based on Stoplight Prism with bundled OpenAPI spec
-  - Released via manual workflow dispatch
+  - Automatically released with snapshots and releases, also available via manual workflow dispatch
 - Claude skill for OpenAPI spec maintenance (`.claude/skills/openapi.md`)
   - Guidance for file structure navigation
   - Patterns for adding endpoints and schemas
