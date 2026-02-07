@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- OpenAPI development tooling
+  - `make breaking` - Check for breaking API changes against main branch using oasdiff
+  - `make mock` - Start Prism mock server for API testing on http://localhost:4010
+  - `make validate-impl` - Validate implementation against OpenAPI spec using Prism proxy
+  - CI workflow for automatic breaking change detection on PRs modifying the spec
+- Mock server Docker image published to GitHub Container Registry (ghcr.io)
+  - Based on Stoplight Prism with bundled OpenAPI spec
+  - Released via manual workflow dispatch
+- Claude skill for OpenAPI spec maintenance (`.claude/skills/openapi.md`)
+  - Guidance for file structure navigation
+  - Patterns for adding endpoints and schemas
+  - REST best practices and versioning guidelines
 - GitHub Pages API documentation with Redoc
   - Multi-version support with version selector
   - Landing page showing all available versions

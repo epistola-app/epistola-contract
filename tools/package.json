@@ -1,0 +1,9 @@
+{
+  "name": "epistola-contract-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Development tools for Epistola API contract",
+  "devDependencies": {
+    "@stoplight/prism-cli": "^5.0.0"
+  }
+}

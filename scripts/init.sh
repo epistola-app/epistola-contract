@@ -39,6 +39,14 @@ configure_shell
 # Install versions from .mise.toml
 mise install
 
+# Install oasdiff for breaking change detection
+if ! command -v oasdiff &> /dev/null; then
+    echo "Installing oasdiff for API breaking change detection..."
+    curl -sSL https://raw.githubusercontent.com/oasdiff/oasdiff/main/install.sh | sh
+else
+    echo "oasdiff already installed"
+fi
+
 # Install npm dependencies for Git hooks (in .husky/)
 echo "Setting up Git hooks..."
 npm install --prefix .husky

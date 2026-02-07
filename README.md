@@ -97,6 +97,7 @@ brew install mise
    ```bash
    ./scripts/init.sh
    ```
+   This installs development tools via mise, Git hooks, and [oasdiff](https://github.com/Tufin/oasdiff) for breaking change detection.
 
 3. **Restart your shell** to activate mise
 
@@ -361,6 +362,37 @@ make build        # Build both modules
 make bundle       # Create bundled openapi.yaml
 make publish-local  # Publish to ~/.m2 for local testing
 ```
+
+### API Development Tools
+
+Additional commands for API development and testing:
+
+```bash
+# Check for breaking changes against main branch
+make breaking
+
+# Start mock server on http://localhost:4010
+make mock
+# Test with: curl http://localhost:4010/api/v1/tenants
+
+# Validate your implementation against the spec
+TARGET_URL=http://localhost:8080 make validate-impl
+```
+
+The mock server uses [Prism](https://stoplight.io/open-source/prism) to simulate API responses based on the OpenAPI spec, including example data and validation.
+
+### Mock Server Docker Image
+
+A Docker image of the mock server is published to GitHub Container Registry:
+
+```bash
+docker run -p 4010:4010 ghcr.io/epistola-app/epistola-contract/mock-server:latest
+
+# Or use a specific version
+docker run -p 4010:4010 ghcr.io/epistola-app/epistola-contract/mock-server:1.0.0
+```
+
+Test with: `curl http://localhost:4010/api/v1/tenants`
 
 ## Using in Your Project
 

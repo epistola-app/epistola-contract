@@ -1,4 +1,4 @@
-.PHONY: all lint bundle build-client build-server build clean publish-local help
+.PHONY: all lint bundle build-client build-server build clean publish-local breaking mock validate-impl help
 
 # Default target - runs what CI runs
 all: lint build
@@ -40,6 +40,26 @@ publish-local: build
 	cd server-kotlin-springboot4 && ./gradlew publishToMavenLocal
 	@echo "==> Published to ~/.m2/repository/app/epistola/contract/"
 
+# Check for breaking changes against main branch
+breaking: bundle
+	@echo "==> Checking for breaking changes against main branch..."
+	@rm -rf /tmp/epistola-base-spec && mkdir -p /tmp/epistola-base-spec
+	@git archive main -- epistola-api.yaml spec/ 2>/dev/null | tar -xC /tmp/epistola-base-spec || cp -r epistola-api.yaml spec/ /tmp/epistola-base-spec/
+	@cd /tmp/epistola-base-spec && npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml 2>/dev/null
+	oasdiff breaking /tmp/epistola-base-spec/openapi.yaml openapi.yaml
+
+# Start mock server on port 4010
+mock: bundle
+	@echo "==> Starting Prism mock server on http://localhost:4010..."
+	@echo "==> Use Ctrl+C to stop"
+	npx --prefix tools @stoplight/prism-cli mock openapi.yaml -p 4010 -d
+
+# Validate implementation against spec (requires running server)
+validate-impl: bundle
+	@echo "==> Starting contract validation proxy..."
+	@echo "==> Proxying to $${TARGET_URL:-http://localhost:8080}"
+	npx --prefix tools @stoplight/prism-cli proxy openapi.yaml $${TARGET_URL:-http://localhost:8080} --errors
+
 # Show help
 help:
 	@echo "Available targets:"
@@ -51,4 +71,7 @@ help:
 	@echo "  build-server   - Build Kotlin server only"
 	@echo "  clean          - Clean all build artifacts"
 	@echo "  publish-local  - Publish to local Maven repository"
+	@echo "  breaking       - Check for breaking API changes against main branch"
+	@echo "  mock           - Start Prism mock server on http://localhost:4010"
+	@echo "  validate-impl  - Validate implementation against spec (set TARGET_URL)"
 	@echo "  help           - Show this help"

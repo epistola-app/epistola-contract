@@ -85,6 +85,42 @@ docs: update installation instructions
 - Run `gradle ktlintFormat` to auto-fix
 - EditorConfig is configured for consistent formatting
 
+### API Changes
+
+When modifying the OpenAPI specification:
+
+1. **Check for breaking changes** before submitting your PR:
+   ```bash
+   make breaking
+   ```
+
+2. **Avoid breaking changes** when possible. These require a major version bump:
+   - Removing or renaming endpoints
+   - Removing or renaming required fields
+   - Changing field types
+   - Adding new required fields to existing schemas
+   - Changing enum values
+   - Making validation stricter
+
+3. **Non-breaking changes** are safe:
+   - Adding new endpoints
+   - Adding optional fields
+   - Adding new query parameters
+   - Adding new enum values (if clients handle unknown values)
+   - Relaxing validation
+
+4. **When breaking changes are necessary**:
+   - Document the change clearly in your PR
+   - The CI will flag breaking changes in a PR comment
+   - Coordinate with API consumers before merging
+
+5. **Test with mock server**:
+   ```bash
+   make mock
+   # In another terminal:
+   curl http://localhost:4010/api/v1/tenants
+   ```
+
 ### Testing
 
 - All PRs must pass CI checks

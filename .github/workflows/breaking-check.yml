@@ -1,0 +1,104 @@
+name: API Breaking Change Check
+
+on:
+  pull_request:
+    paths:
+      - 'epistola-api.yaml'
+      - 'spec/**'
+
+jobs:
+  breaking-changes:
+    name: Check Breaking Changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Bundle current spec
+        run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
+
+      - name: Get base branch spec
+        run: |
+          git show origin/${{ github.base_ref }}:epistola-api.yaml > /tmp/base-spec.yaml 2>/dev/null || echo "No base spec found"
+          if [ -f /tmp/base-spec.yaml ]; then
+            npx @redocly/cli bundle /tmp/base-spec.yaml -o /tmp/base-openapi.yaml 2>/dev/null || cp /tmp/base-spec.yaml /tmp/base-openapi.yaml
+          else
+            cp openapi.yaml /tmp/base-openapi.yaml
+          fi
+
+      - name: Check for breaking changes
+        id: breaking
+        uses: oasdiff/oasdiff-action/breaking@main
+        with:
+          base: /tmp/base-openapi.yaml
+          revision: openapi.yaml
+          fail-on-diff: false
+
+      - name: Generate API changelog
+        id: changelog
+        uses: oasdiff/oasdiff-action/changelog@main
+        with:
+          base: /tmp/base-openapi.yaml
+          revision: openapi.yaml
+
+      - name: Comment on PR
+        if: steps.breaking.outputs.breaking != '' || steps.changelog.outputs.changelog != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const breaking = `${{ steps.breaking.outputs.breaking }}`;
+            const changelog = `${{ steps.changelog.outputs.changelog }}`;
+
+            let body = '## API Change Report\n\n';
+
+            if (breaking && breaking.trim()) {
+              body += '### Breaking Changes\n\n';
+              body += 'The following breaking changes were detected:\n\n';
+              body += '```\n' + breaking + '\n```\n\n';
+            }
+
+            if (changelog && changelog.trim()) {
+              body += '### Changelog\n\n';
+              body += '```\n' + changelog + '\n```\n\n';
+            }
+
+            if (!breaking?.trim() && !changelog?.trim()) {
+              body += 'No API changes detected.\n';
+            }
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('## API Change Report')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
