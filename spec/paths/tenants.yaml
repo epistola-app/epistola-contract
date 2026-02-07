@@ -33,6 +33,12 @@ tenants:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/tenants.yaml#/TenantListResponse'
+      '400':
+        description: Invalid request parameters
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
 
   post:
     operationId: createTenant

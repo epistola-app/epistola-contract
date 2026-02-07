@@ -119,6 +119,12 @@ jobs:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/generation.yaml#/GenerationJobListResponse'
+      '400':
+        description: Invalid request parameters
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
 
 job-detail:
   parameters:
@@ -226,6 +232,12 @@ documents:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/generation.yaml#/DocumentListResponse'
+      '400':
+        description: Invalid request parameters
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
 
 document-detail:
   parameters:
