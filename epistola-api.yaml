@@ -19,7 +19,7 @@ info:
     Access is controlled via roles (`reader`, `editor`, `generator`, `admin`) and
     tenant permissions. JWT claims or API key configuration determine which
     tenants a client can access.
-  version: 1.0.0
+  version: 0.1.0
   contact:
     name: Epistola Team
   license:
