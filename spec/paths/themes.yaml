@@ -16,6 +16,7 @@ themes:
     description: Retrieve all themes configured for a specific tenant.
     tags:
       - Themes
+    x-required-roles: [reader, editor, generator, manager]
     parameters:
       - name: q
         in: query
@@ -29,6 +30,10 @@ themes:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/themes.yaml#/ThemeListResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Tenant not found
         content:
@@ -42,6 +47,7 @@ themes:
     description: Create a new theme for the specified tenant.
     tags:
       - Themes
+    x-required-roles: [editor, manager]
     requestBody:
       required: true
       content:
@@ -61,6 +67,10 @@ themes:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Tenant not found
         content:
@@ -101,6 +111,7 @@ themes-id:
     description: Retrieve details of a specific theme.
     tags:
       - Themes
+    x-required-roles: [reader, editor, generator, manager]
     responses:
       '200':
         description: Theme details
@@ -108,6 +119,10 @@ themes-id:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/themes.yaml#/ThemeDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Theme or tenant not found
         content:
@@ -121,6 +136,7 @@ themes-id:
     description: Update an existing theme. Only provided fields will be updated.
     tags:
       - Themes
+    x-required-roles: [editor, manager]
     requestBody:
       required: true
       content:
@@ -140,6 +156,10 @@ themes-id:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Theme or tenant not found
         content:
@@ -159,9 +179,14 @@ themes-id:
     description: Delete a theme. Templates referencing this theme will fall back to their own styles.
     tags:
       - Themes
+    x-required-roles: [manager]
     responses:
       '204':
         description: Theme deleted successfully
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Theme or tenant not found
         content:

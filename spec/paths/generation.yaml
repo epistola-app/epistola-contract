@@ -7,6 +7,7 @@ generate-document:
     description: Submit a request to generate a single PDF document. Returns immediately with a job ID for tracking progress.
     tags:
       - Generation
+    x-required-roles: [generator, manager]
     parameters:
       - name: tenantId
         in: path
@@ -36,6 +37,10 @@ generate-document:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
 
 generate-batch:
   post:
@@ -44,6 +49,7 @@ generate-batch:
     description: Submit a batch request to generate multiple PDF documents. Returns immediately with a job ID for tracking progress.
     tags:
       - Generation
+    x-required-roles: [generator, manager]
     parameters:
       - name: tenantId
         in: path
@@ -73,6 +79,10 @@ generate-batch:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
 
 jobs:
   get:
@@ -81,6 +91,7 @@ jobs:
     description: List all generation jobs for a tenant with optional status filtering
     tags:
       - Generation
+    x-required-roles: [reader, editor, generator, manager]
     parameters:
       - name: tenantId
         in: path
@@ -125,6 +136,10 @@ jobs:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
 
 job-detail:
   parameters:
@@ -151,6 +166,7 @@ job-detail:
     description: Get detailed status of a generation job including all items and their progress
     tags:
       - Generation
+    x-required-roles: [reader, editor, generator, manager]
     responses:
       '200':
         description: Job status with items
@@ -158,12 +174,16 @@ job-detail:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/generation.yaml#/GenerationJobDetail'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Job not found
         content:
           application/vnd.epistola.v1+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
 
   delete:
     operationId: cancelGenerationJob
@@ -171,13 +191,26 @@ job-detail:
     description: Cancel a pending or in-progress generation job
     tags:
       - Generation
+    x-required-roles: [manager]
     responses:
       '204':
         description: Job cancelled successfully
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Job not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
       '409':
         description: Job cannot be cancelled (already completed, failed, or cancelled)
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
 
 documents:
   get:
@@ -186,6 +219,7 @@ documents:
     description: List all generated documents for a tenant with optional filtering
     tags:
       - Generation
+    x-required-roles: [reader, editor, generator, manager]
     parameters:
       - name: tenantId
         in: path
@@ -238,6 +272,10 @@ documents:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
 
 document-detail:
   parameters:
@@ -264,6 +302,7 @@ document-detail:
     description: Download the PDF content of a generated document
     tags:
       - Generation
+    x-required-roles: [reader, editor, generator, manager]
     responses:
       '200':
         description: Document content
@@ -281,8 +320,16 @@ document-detail:
             schema:
               type: integer
             description: File size in bytes
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Document not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
 
   delete:
     operationId: deleteDocument
@@ -290,8 +337,17 @@ document-detail:
     description: Permanently delete a generated document
     tags:
       - Generation
+    x-required-roles: [manager]
     responses:
       '204':
         description: Document deleted successfully
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Document not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'

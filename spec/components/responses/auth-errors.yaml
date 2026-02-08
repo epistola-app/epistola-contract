@@ -1,0 +1,21 @@
+# Authentication and Authorization Error Responses
+
+UnauthorizedError:
+  description: Missing or invalid authentication credentials
+  content:
+    application/vnd.epistola.v1+json:
+      schema:
+        $ref: './errors.yaml#/ErrorResponse'
+      example:
+        code: UNAUTHORIZED
+        message: "Invalid or expired access token"
+
+ForbiddenError:
+  description: Authenticated but insufficient permissions for the requested resource
+  content:
+    application/vnd.epistola.v1+json:
+      schema:
+        $ref: './errors.yaml#/ErrorResponse'
+      example:
+        code: FORBIDDEN
+        message: "Access denied to tenant 'acme-corp'"
