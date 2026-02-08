@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Enabled automatic release to Maven Central (no more manual "Publish" click in Sonatype Central Portal)
+
 ### Added
 - **Dual authentication support** for system-to-system communication
   - OAuth 2.0 Client Credentials flow with JWT (recommended)

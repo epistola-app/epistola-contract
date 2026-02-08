@@ -91,7 +91,7 @@ tasks.matching { it.name == "plainJavadocJar" || it.name == "sourcesJar" }.confi
 }
 
 mavenPublishing {
-    publishToMavenCentral()
+    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
     signAllPublications()
 
     coordinates(rootProject.group.toString(), "client-spring3-restclient", rootProject.version.toString())

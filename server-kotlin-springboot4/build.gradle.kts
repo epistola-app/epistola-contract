@@ -167,7 +167,7 @@ tasks.matching { it.name == "plainJavadocJar" || it.name == "sourcesJar" }.confi
 }
 
 mavenPublishing {
-    publishToMavenCentral()
+    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
 
     // Only sign when GPG credentials are available (CI or release builds)
     if (project.findProperty("signing.keyId") != null || System.getenv("ORG_GRADLE_PROJECT_signingInMemoryKey") != null) {
