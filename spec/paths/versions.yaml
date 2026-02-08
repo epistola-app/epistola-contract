@@ -34,6 +34,7 @@ versions:
     description: Retrieve all versions of a specific variant (draft, published, archived).
     tags:
       - Versions
+    x-required-roles: [reader, editor, generator, manager]
     parameters:
       - name: status
         in: query
@@ -51,6 +52,10 @@ versions:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/versions.yaml#/VersionListResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Variant, template, or tenant not found
         content:
@@ -102,6 +107,7 @@ versions-id:
     description: Retrieve details of a specific version including its template model.
     tags:
       - Versions
+    x-required-roles: [reader, editor, generator, manager]
     responses:
       '200':
         description: Version details
@@ -109,6 +115,10 @@ versions-id:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/versions.yaml#/VersionDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Version, variant, template, or tenant not found
         content:
@@ -122,6 +132,7 @@ versions-id:
     description: Update the template model of a draft version. Only drafts can be updated.
     tags:
       - Versions
+    x-required-roles: [editor, manager]
     requestBody:
       required: true
       content:
@@ -141,6 +152,10 @@ versions-id:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Version, variant, template, or tenant not found
         content:
@@ -194,6 +209,7 @@ version-publish:
       instead of creating a new version. The draft is NOT preserved - it becomes the published version.
     tags:
       - Versions
+    x-required-roles: [editor, manager]
     responses:
       '200':
         description: New published version created
@@ -207,6 +223,10 @@ version-publish:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Version, variant, template, or tenant not found
         content:
@@ -261,6 +281,7 @@ version-archive:
       to be updated to use a different version.
     tags:
       - Versions
+    x-required-roles: [editor, manager]
     responses:
       '200':
         description: Version archived successfully
@@ -274,6 +295,10 @@ version-archive:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Version, variant, template, or tenant not found
         content:

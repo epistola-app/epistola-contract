@@ -5,6 +5,7 @@ tenants:
     description: Retrieve a paginated list of all tenants with optional search filtering.
     tags:
       - Tenants
+    x-required-roles: [tenant_control]
     parameters:
       - name: q
         in: query
@@ -39,6 +40,10 @@ tenants:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
 
   post:
     operationId: createTenant
@@ -46,6 +51,7 @@ tenants:
     description: Create a new tenant with the given name.
     tags:
       - Tenants
+    x-required-roles: [tenant_control]
     requestBody:
       required: true
       content:
@@ -65,6 +71,10 @@ tenants:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
 
 tenants-id:
   parameters:
@@ -84,6 +94,7 @@ tenants-id:
     description: Retrieve details of a specific tenant.
     tags:
       - Tenants
+    x-required-roles: [reader, editor, generator, manager, tenant_control]
     responses:
       '200':
         description: Tenant details
@@ -91,6 +102,10 @@ tenants-id:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/tenants.yaml#/TenantDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Tenant not found
         content:
@@ -104,6 +119,7 @@ tenants-id:
     description: Update the name of an existing tenant.
     tags:
       - Tenants
+    x-required-roles: [tenant_control]
     requestBody:
       required: true
       content:
@@ -123,6 +139,10 @@ tenants-id:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Tenant not found
         content:
@@ -136,9 +156,14 @@ tenants-id:
     description: Delete a tenant and all associated templates.
     tags:
       - Tenants
+    x-required-roles: [tenant_control]
     responses:
       '204':
         description: Tenant deleted successfully
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Tenant not found
         content:

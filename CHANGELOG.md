@@ -8,12 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Template data validation endpoint `POST /v1/tenants/{tenantId}/templates/{templateId}/validate`
+- **Dual authentication support** for system-to-system communication
+  - OAuth 2.0 Client Credentials flow with JWT (recommended)
+  - API Key authentication via `X-API-Key` header (fallback)
+- **Role-based access control** with five independent roles (can be combined)
+  - `reader`: Read-only access to resources within allowed tenants
+  - `editor`: Create and update resources within allowed tenants
+  - `generator`: Submit document generation jobs
+  - `manager`: Delete resources and cancel jobs within allowed tenants
+  - `tenant_control`: Manage tenants (list all, create, update, delete)
+- **Tenant authorization** via JWT claims (`allowed_tenants`)
+- **Security schemes** in OpenAPI spec: `bearerAuth` (JWT) and `apiKeyAuth`
+- **401/403 error responses** for authentication/authorization failures
+- **`x-required-roles`** extension on all endpoints documenting permission requirements
+- Authentication documentation at `docs/auth.md`
+- Template data validation endpoint `POST /tenants/{tenantId}/templates/{templateId}/validate`
   - Pre-flight validation of input data against template JSON Schema
   - Returns validation result with detailed error information (path, message, keyword)
   - Enables faster feedback before batch submission without rendering overhead
 
 ### Changed
+- **BREAKING**: Removed `/v1` prefix from all URL paths
+  - API versioning is handled via `Accept` header (`application/vnd.epistola.v1+json`)
+  - Paths now start with `/tenants` instead of `/v1/tenants`
 - Standardized version handling across all workflows to use `-Pversion=` consistently
   - Release workflow now passes full version (e.g., `1.0.3`) instead of patch version
   - Snapshot workflow centralizes version calculation in spec-validation job

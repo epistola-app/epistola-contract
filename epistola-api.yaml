@@ -7,6 +7,18 @@ info:
     ## Versioning
     This API uses header-based versioning via the Accept header.
     Use `application/vnd.epistola.v1+json` for API version 1.
+
+    ## Authentication
+    The API supports two authentication methods:
+    - **OAuth 2.0 JWT** (recommended): Use Client Credentials flow to obtain an access token
+    - **API Key**: Static key in `X-API-Key` header for environments without an IdP
+
+    See the [Authentication Guide](/docs/auth.md) for details.
+
+    ## Authorization
+    Access is controlled via roles (`reader`, `editor`, `generator`, `admin`) and
+    tenant permissions. JWT claims or API key configuration determine which
+    tenants a client can access.
   version: 1.0.0
   contact:
     name: Epistola Team
@@ -34,69 +46,74 @@ tags:
   - name: Generation
     description: Asynchronous document generation operations
 
+# Global security - either JWT or API Key is valid (OR logic via separate array entries)
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+
 paths:
   # Tenants
-  /v1/tenants:
+  /tenants:
     $ref: './spec/paths/tenants.yaml#/tenants'
-  /v1/tenants/{tenantId}:
+  /tenants/{tenantId}:
     $ref: './spec/paths/tenants.yaml#/tenants-id'
 
   # Themes
-  /v1/tenants/{tenantId}/themes:
+  /tenants/{tenantId}/themes:
     $ref: './spec/paths/themes.yaml#/themes'
-  /v1/tenants/{tenantId}/themes/{themeId}:
+  /tenants/{tenantId}/themes/{themeId}:
     $ref: './spec/paths/themes.yaml#/themes-id'
 
   # Environments
-  /v1/tenants/{tenantId}/environments:
+  /tenants/{tenantId}/environments:
     $ref: './spec/paths/environments.yaml#/environments'
-  /v1/tenants/{tenantId}/environments/{environmentId}:
+  /tenants/{tenantId}/environments/{environmentId}:
     $ref: './spec/paths/environments.yaml#/environments-id'
 
   # Templates
-  /v1/tenants/{tenantId}/templates:
+  /tenants/{tenantId}/templates:
     $ref: './spec/paths/templates.yaml#/templates'
-  /v1/tenants/{tenantId}/templates/{templateId}:
+  /tenants/{tenantId}/templates/{templateId}:
     $ref: './spec/paths/templates.yaml#/templates-id'
-  /v1/tenants/{tenantId}/templates/{templateId}/validate:
+  /tenants/{tenantId}/templates/{templateId}/validate:
     $ref: './spec/paths/templates.yaml#/template-validate'
 
   # Variants
-  /v1/tenants/{tenantId}/templates/{templateId}/variants:
+  /tenants/{tenantId}/templates/{templateId}/variants:
     $ref: './spec/paths/variants.yaml#/variants'
-  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}:
+  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}:
     $ref: './spec/paths/variants.yaml#/variants-id'
-  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/draft:
+  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/draft:
     $ref: './spec/paths/variants.yaml#/variant-draft'
-  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/activations:
+  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/activations:
     $ref: './spec/paths/variants.yaml#/variant-activations'
-  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/activations/{environmentId}:
+  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/activations/{environmentId}:
     $ref: './spec/paths/variants.yaml#/variant-activation-env'
-  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/active:
+  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/active:
     $ref: './spec/paths/variants.yaml#/variant-active'
 
   # Versions
-  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions:
+  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions:
     $ref: './spec/paths/versions.yaml#/versions'
-  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions/{versionId}:
+  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions/{versionId}:
     $ref: './spec/paths/versions.yaml#/versions-id'
-  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/publish:
+  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/publish:
     $ref: './spec/paths/versions.yaml#/version-publish'
-  /v1/tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/archive:
+  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/archive:
     $ref: './spec/paths/versions.yaml#/version-archive'
 
   # Document Generation
-  /v1/tenants/{tenantId}/documents/generate:
+  /tenants/{tenantId}/documents/generate:
     $ref: './spec/paths/generation.yaml#/generate-document'
-  /v1/tenants/{tenantId}/documents/generate/batch:
+  /tenants/{tenantId}/documents/generate/batch:
     $ref: './spec/paths/generation.yaml#/generate-batch'
-  /v1/tenants/{tenantId}/documents/jobs:
+  /tenants/{tenantId}/documents/jobs:
     $ref: './spec/paths/generation.yaml#/jobs'
-  /v1/tenants/{tenantId}/documents/jobs/{requestId}:
+  /tenants/{tenantId}/documents/jobs/{requestId}:
     $ref: './spec/paths/generation.yaml#/job-detail'
-  /v1/tenants/{tenantId}/documents:
+  /tenants/{tenantId}/documents:
     $ref: './spec/paths/generation.yaml#/documents'
-  /v1/tenants/{tenantId}/documents/{documentId}:
+  /tenants/{tenantId}/documents/{documentId}:
     $ref: './spec/paths/generation.yaml#/document-detail'
 
 components:
@@ -216,3 +233,25 @@ components:
       $ref: './spec/components/responses/errors.yaml#/ValidationErrorResponse'
     FieldError:
       $ref: './spec/components/responses/errors.yaml#/FieldError'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        OAuth 2.0 access token obtained via Client Credentials flow.
+        Supports Keycloak, Azure AD, or any OAuth 2.0 compliant IdP.
+
+        Required JWT claims:
+        - `roles`: Array of roles (reader, editor, generator, manager, tenant_control)
+        - `allowed_tenants`: Array of tenant slugs or ["*"] for all tenants
+
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        Static API key for environments without an IdP.
+        Keys are issued by administrators and stored server-side
+        with associated roles and tenant access permissions.

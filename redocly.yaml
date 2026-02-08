@@ -11,7 +11,7 @@ rules:
   no-unresolved-refs: error
   no-unused-components: warn
   spec-components-invalid-map-name: error
-  # Disable security-defined until authentication is implemented
-  security-defined: off
+  # Security schemes are now defined (bearerAuth + apiKeyAuth)
+  security-defined: error
   # Disable 4xx response requirement for listing endpoints
   operation-4xx-response: warn

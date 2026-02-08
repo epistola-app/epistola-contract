@@ -16,6 +16,7 @@ templates:
     description: Retrieve all document templates belonging to a specific tenant.
     tags:
       - Templates
+    x-required-roles: [reader, editor, generator, manager]
     parameters:
       - name: q
         in: query
@@ -29,6 +30,10 @@ templates:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/templates.yaml#/TemplateListResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Tenant not found
         content:
@@ -42,6 +47,7 @@ templates:
     description: Create a new document template for the specified tenant.
     tags:
       - Templates
+    x-required-roles: [editor, manager]
     requestBody:
       required: true
       content:
@@ -61,6 +67,10 @@ templates:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Tenant not found
         content:
@@ -95,6 +105,7 @@ templates-id:
     description: Retrieve details of a specific document template including its model and data examples.
     tags:
       - Templates
+    x-required-roles: [reader, editor, generator, manager]
     responses:
       '200':
         description: Template details
@@ -102,6 +113,10 @@ templates-id:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/templates.yaml#/TemplateDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Template or tenant not found
         content:
@@ -115,6 +130,7 @@ templates-id:
     description: Update an existing document template's properties, model, or data examples.
     tags:
       - Templates
+    x-required-roles: [editor, manager]
     requestBody:
       required: true
       content:
@@ -134,6 +150,10 @@ templates-id:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Template or tenant not found
         content:
@@ -147,9 +167,14 @@ templates-id:
     description: Delete a document template.
     tags:
       - Templates
+    x-required-roles: [manager]
     responses:
       '204':
         description: Template deleted successfully
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Template or tenant not found
         content:
@@ -187,6 +212,7 @@ template-validate:
       faster feedback during development and before batch submission.
     tags:
       - Templates
+    x-required-roles: [reader, editor, generator, manager]
     requestBody:
       required: true
       content:
@@ -200,6 +226,10 @@ template-validate:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/validation.yaml#/TemplateDataValidationResult'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Template or tenant not found
         content:

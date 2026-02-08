@@ -25,6 +25,7 @@ variants:
     description: Retrieve all variants of a specific template.
     tags:
       - Variants
+    x-required-roles: [reader, editor, generator, manager]
     responses:
       '200':
         description: List of variants
@@ -32,6 +33,10 @@ variants:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantListResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Template or tenant not found
         content:
@@ -45,6 +50,7 @@ variants:
     description: Create a new variant for the specified template with optional tags.
     tags:
       - Variants
+    x-required-roles: [editor, manager]
     requestBody:
       required: true
       content:
@@ -64,6 +70,10 @@ variants:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Template or tenant not found
         content:
@@ -107,6 +117,7 @@ variants-id:
     description: Retrieve details of a specific variant including version summary.
     tags:
       - Variants
+    x-required-roles: [reader, editor, generator, manager]
     responses:
       '200':
         description: Variant details
@@ -114,6 +125,10 @@ variants-id:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Variant, template, or tenant not found
         content:
@@ -127,6 +142,7 @@ variants-id:
     description: Update a variant's tags.
     tags:
       - Variants
+    x-required-roles: [editor, manager]
     requestBody:
       required: true
       content:
@@ -146,6 +162,10 @@ variants-id:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Variant, template, or tenant not found
         content:
@@ -159,9 +179,14 @@ variants-id:
     description: Delete a variant and all its versions.
     tags:
       - Variants
+    x-required-roles: [manager]
     responses:
       '204':
         description: Variant deleted successfully
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Variant, template, or tenant not found
         content:
@@ -205,6 +230,7 @@ variant-draft:
     description: Retrieve the current draft version for a variant.
     tags:
       - Variants
+    x-required-roles: [reader, editor, generator, manager]
     responses:
       '200':
         description: Draft version
@@ -212,6 +238,10 @@ variant-draft:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/versions.yaml#/VersionDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Draft, variant, template, or tenant not found
         content:
@@ -225,6 +255,7 @@ variant-draft:
     description: Create a new draft or update the existing draft for a variant.
     tags:
       - Variants
+    x-required-roles: [editor, manager]
     requestBody:
       required: true
       content:
@@ -250,6 +281,10 @@ variant-draft:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Variant, template, or tenant not found
         content:
@@ -293,6 +328,7 @@ variant-activations:
     description: List which version is active in each environment for this variant.
     tags:
       - Variants
+    x-required-roles: [reader, editor, generator, manager]
     responses:
       '200':
         description: List of activations
@@ -300,6 +336,10 @@ variant-activations:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/ActivationListResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Variant, template, or tenant not found
         content:
@@ -352,6 +392,7 @@ variant-activation-env:
     description: Set which published version is active for this variant in the specified environment.
     tags:
       - Variants
+    x-required-roles: [editor, manager]
     requestBody:
       required: true
       content:
@@ -371,6 +412,10 @@ variant-activation-env:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Variant, template, environment, or tenant not found
         content:
@@ -384,9 +429,14 @@ variant-activation-env:
     description: Remove the active version for this variant in the specified environment.
     tags:
       - Variants
+    x-required-roles: [manager]
     responses:
       '204':
         description: Activation removed successfully
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Activation, variant, template, environment, or tenant not found
         content:
@@ -430,6 +480,7 @@ variant-active:
     description: Retrieve the active published version for this variant in the specified environment.
     tags:
       - Variants
+    x-required-roles: [reader, editor, generator, manager]
     parameters:
       - name: environment
         in: query
@@ -447,6 +498,10 @@ variant-active:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/versions.yaml#/VersionDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: No active version, variant, template, environment, or tenant not found
         content:
