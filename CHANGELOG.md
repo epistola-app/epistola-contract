@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Client-side validation extension functions generated from OpenAPI schema constraints
+  - `.validate()` extension on all model classes that have constrained properties (25 models)
+  - Enforces `pattern`, `minLength`/`maxLength`, `minimum`/`maximum`, and `minItems` constraints
+  - Nullable fields use safe `?.let` pattern; null values skip validation
+  - Returns `this` for fluent chaining (e.g., `createTenantRequest.validate()`)
+  - Generated into `build/generated-validation/` (not committed) alongside the OpenAPI-generated client code
 - OpenAPI examples for consistent, deterministic mock server responses
   - Schema-level examples on all response/DTO types (used by Prism for reliable static responses)
   - Property-level examples on all properties (used by documentation renderers like Redoc)
