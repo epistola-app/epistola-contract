@@ -25,10 +25,13 @@ jobs:
     outputs:
       api_version: ${{ steps.validate.outputs.api_version }}
       spec_version: ${{ steps.validate.outputs.spec_version }}
+      release_version: ${{ steps.version.outputs.release_version }}
       is_release_branch: ${{ steps.validate.outputs.is_release_branch }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -65,6 +68,25 @@ jobs:
             echo "is_release_branch=false" >> $GITHUB_OUTPUT
             echo "Main branch - any version allowed"
           fi
+
+      - name: Calculate release version
+        id: version
+        run: |
+          API_VERSION="${{ steps.validate.outputs.api_version }}"
+
+          # Find the highest patch version among all release tags for this API version
+          LATEST_PATCH=-1
+          for tag in $(git tag -l "*-v${API_VERSION}.*"); do
+            PATCH=$(echo "$tag" | sed -E 's/.*-v[0-9]+\.[0-9]+\.([0-9]+)/\1/')
+            if [ "$PATCH" -gt "$LATEST_PATCH" ] 2>/dev/null; then
+              LATEST_PATCH=$PATCH
+            fi
+          done
+
+          NEXT_PATCH=$((LATEST_PATCH + 1))
+          RELEASE_VERSION="${API_VERSION}.${NEXT_PATCH}"
+          echo "release_version=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "Release version: ${RELEASE_VERSION}"
 
       - name: Validate OpenAPI spec
         run: npx @redocly/cli lint epistola-api.yaml
@@ -134,34 +156,10 @@ jobs:
         if: steps.should_run.outputs.enabled == 'true'
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Calculate version
-        if: steps.should_run.outputs.enabled == 'true'
-        id: version
-        run: |
-          # Read API version from spec (e.g., "1.0.0" -> "1.0")
-          API_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+)\.[0-9]+["'"'"']?.*/\1/')
-          echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
-
-          # Find highest existing patch version for this artifact and API version
-          LATEST_TAG=$(git tag -l "${{ matrix.artifact_id }}-v${API_VERSION}.*" | sort -V | tail -1)
-
-          if [ -z "$LATEST_TAG" ]; then
-            PATCH_VERSION=0
-          else
-            # Extract patch from tag like "client-spring3-restclient-v1.0.3" -> "3"
-            LATEST_PATCH=$(echo "$LATEST_TAG" | sed -E 's/.*-v[0-9]+\.[0-9]+\.([0-9]+)/\1/')
-            PATCH_VERSION=$((LATEST_PATCH + 1))
-          fi
-
-          FULL_VERSION="${API_VERSION}.${PATCH_VERSION}"
-          echo "patch_version=${PATCH_VERSION}" >> $GITHUB_OUTPUT
-          echo "full_version=${FULL_VERSION}" >> $GITHUB_OUTPUT
-          echo "Releasing version: ${FULL_VERSION}"
-
       - name: Build and test
         if: steps.should_run.outputs.enabled == 'true'
         working-directory: ${{ matrix.module }}
-        run: ./gradlew build -Pversion=${{ steps.version.outputs.full_version }}
+        run: ./gradlew build -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
       - name: Publish to Maven Central
         if: steps.should_run.outputs.enabled == 'true'
@@ -172,30 +170,30 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
-        run: ./gradlew publishToMavenCentral -Pversion=${{ steps.version.outputs.full_version }}
+        run: ./gradlew publishToMavenCentral -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
       - name: Create GitHub Release
         if: steps.should_run.outputs.enabled == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ matrix.artifact_id }}-v${{ steps.version.outputs.full_version }}
-          name: ${{ matrix.artifact_id }} v${{ steps.version.outputs.full_version }}
+          tag_name: ${{ matrix.artifact_id }}-v${{ needs.validate-and-bundle.outputs.release_version }}
+          name: ${{ matrix.artifact_id }} v${{ needs.validate-and-bundle.outputs.release_version }}
           files: openapi.yaml
           body: |
-            ## ${{ matrix.artifact_id }} v${{ steps.version.outputs.full_version }}
+            ## ${{ matrix.artifact_id }} v${{ needs.validate-and-bundle.outputs.release_version }}
 
             ### Maven Coordinates
             ```xml
             <dependency>
                 <groupId>app.epistola.contract</groupId>
                 <artifactId>${{ matrix.artifact_id }}</artifactId>
-                <version>${{ steps.version.outputs.full_version }}</version>
+                <version>${{ needs.validate-and-bundle.outputs.release_version }}</version>
             </dependency>
             ```
 
             ### Gradle (Kotlin DSL)
             ```kotlin
-            implementation("app.epistola.contract:${{ matrix.artifact_id }}:${{ steps.version.outputs.full_version }}")
+            implementation("app.epistola.contract:${{ matrix.artifact_id }}:${{ needs.validate-and-bundle.outputs.release_version }}")
             ```
 
             ### OpenAPI Spec
@@ -210,7 +208,7 @@ jobs:
     needs: [validate-and-bundle, release]
     uses: ./.github/workflows/mock-server.yml
     with:
-      version: ${{ needs.validate-and-bundle.outputs.spec_version }}
+      version: ${{ needs.validate-and-bundle.outputs.release_version }}
     permissions:
       contents: read
       packages: write

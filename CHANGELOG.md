@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Mock server Docker image now receives the correct auto-incremented version during releases
+  - Previously used static spec version from `epistola-api.yaml` (e.g., always `0.1.0`)
+  - Now uses the same centralized version calculation as Maven artifacts (e.g., `0.1.2`)
+- Centralized release version calculation in `validate-and-bundle` job
+  - All artifacts (client, server, mock server) now share the same version per release
+  - Eliminates potential version drift between independently calculated artifact versions
+
 ### Changed
 - Enabled automatic release to Maven Central (no more manual "Publish" click in Sonatype Central Portal)
 
