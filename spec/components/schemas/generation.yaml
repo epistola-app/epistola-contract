@@ -39,9 +39,33 @@ GenerateDocumentRequest:
       type: object
       description: JSON data to populate the template
       example:
-        customerName: "Jane Smith"
+        customer:
+          name: "Jane Smith"
+          email: "jane.smith@example.com"
+          taxId: "US123456789"
+          address:
+            street: "123 Main Street"
+            city: "Springfield"
+            postalCode: "62704"
+            country: US
         invoiceNumber: "INV-2026-001"
-        amount: 1250.00
+        issueDate: "2026-02-01"
+        dueDate: "2026-03-01"
+        lineItems:
+          - description: "Consulting Services (40h)"
+            quantity: 40
+            unitPrice: 150.00
+            taxRate: 21
+          - description: "Software License - Enterprise"
+            quantity: 1
+            unitPrice: 2500.00
+            taxRate: 21
+          - description: "Travel Expenses"
+            quantity: 1
+            unitPrice: 384.50
+            taxRate: 0
+        notes: "Payment due within 30 days. Please reference invoice number on transfer."
+        currency: EUR
     filename:
       type: [string, "null"]
       description: Optional filename for the generated document
@@ -92,9 +116,33 @@ BatchGenerationItem:
       type: object
       description: JSON data to populate the template
       example:
-        customerName: "Jane Smith"
+        customer:
+          name: "Jane Smith"
+          email: "jane.smith@example.com"
+          taxId: "US123456789"
+          address:
+            street: "123 Main Street"
+            city: "Springfield"
+            postalCode: "62704"
+            country: US
         invoiceNumber: "INV-2026-001"
-        amount: 1250.00
+        issueDate: "2026-02-01"
+        dueDate: "2026-03-01"
+        lineItems:
+          - description: "Consulting Services (40h)"
+            quantity: 40
+            unitPrice: 150.00
+            taxRate: 21
+          - description: "Software License - Enterprise"
+            quantity: 1
+            unitPrice: 2500.00
+            taxRate: 21
+          - description: "Travel Expenses"
+            quantity: 1
+            unitPrice: 384.50
+            taxRate: 0
+        notes: "Payment due within 30 days. Please reference invoice number on transfer."
+        currency: EUR
     filename:
       type: [string, "null"]
       description: Optional filename for the generated document. Must be unique within a batch.
@@ -207,9 +255,33 @@ DocumentGenerationItemDto:
       type: object
       description: JSON data used for generation
       example:
-        customerName: "Jane Smith"
+        customer:
+          name: "Jane Smith"
+          email: "jane.smith@example.com"
+          taxId: "US123456789"
+          address:
+            street: "123 Main Street"
+            city: "Springfield"
+            postalCode: "62704"
+            country: US
         invoiceNumber: "INV-2026-001"
-        amount: 1250.00
+        issueDate: "2026-02-01"
+        dueDate: "2026-03-01"
+        lineItems:
+          - description: "Consulting Services (40h)"
+            quantity: 40
+            unitPrice: 150.00
+            taxRate: 21
+          - description: "Software License - Enterprise"
+            quantity: 1
+            unitPrice: 2500.00
+            taxRate: 21
+          - description: "Travel Expenses"
+            quantity: 1
+            unitPrice: 384.50
+            taxRate: 0
+        notes: "Payment due within 30 days. Please reference invoice number on transfer."
+        currency: EUR
     filename:
       type: [string, "null"]
       description: Requested filename
@@ -254,9 +326,33 @@ DocumentGenerationItemDto:
     versionId: 1
     environmentId: null
     data:
-      customerName: "Jane Smith"
+      customer:
+        name: "Jane Smith"
+        email: "jane.smith@example.com"
+        taxId: "US123456789"
+        address:
+          street: "123 Main Street"
+          city: "Springfield"
+          postalCode: "62704"
+          country: US
       invoiceNumber: "INV-2026-001"
-      amount: 1250.00
+      issueDate: "2026-02-01"
+      dueDate: "2026-03-01"
+      lineItems:
+        - description: "Consulting Services (40h)"
+          quantity: 40
+          unitPrice: 150.00
+          taxRate: 21
+        - description: "Software License - Enterprise"
+          quantity: 1
+          unitPrice: 2500.00
+          taxRate: 21
+        - description: "Travel Expenses"
+          quantity: 1
+          unitPrice: 384.50
+          taxRate: 0
+      notes: "Payment due within 30 days. Please reference invoice number on transfer."
+      currency: EUR
     filename: "invoice-2026-001.pdf"
     correlationId: "order-7890"
     status: COMPLETED
@@ -376,9 +472,26 @@ GenerationJobDetail:
         versionId: 1
         environmentId: null
         data:
-          customerName: "Jane Smith"
+          customer:
+            name: "Jane Smith"
+            email: "jane.smith@example.com"
+            address:
+              street: "123 Main Street"
+              city: "Springfield"
+              postalCode: "62704"
+              country: US
           invoiceNumber: "INV-2026-001"
-          amount: 1250.00
+          issueDate: "2026-02-01"
+          lineItems:
+            - description: "Consulting Services (40h)"
+              quantity: 40
+              unitPrice: 150.00
+              taxRate: 21
+            - description: "Software License - Enterprise"
+              quantity: 1
+              unitPrice: 2500.00
+              taxRate: 21
+          currency: EUR
         filename: "invoice-2026-001.pdf"
         correlationId: "order-7890"
         status: COMPLETED

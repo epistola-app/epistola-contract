@@ -26,9 +26,45 @@ VersionDto:
       example:
         blocks:
           - type: header
+            level: 1
             content: "Invoice {{invoiceNumber}}"
+          - type: columns
+            columns:
+              - blocks:
+                  - type: paragraph
+                    content: "**From:** Acme Corporation\n1 Enterprise Way\nSpringfield, IL 62704"
+              - blocks:
+                  - type: paragraph
+                    content: "**To:** {{customer.name}}\n{{customer.address.street}}\n{{customer.address.city}}, {{customer.address.postalCode}}"
+          - type: metadata
+            fields:
+              - label: "Issue Date"
+                value: "{{issueDate}}"
+              - label: "Due Date"
+                value: "{{dueDate}}"
+              - label: "Currency"
+                value: "{{currency}}"
+          - type: table
+            dataSource: "{{lineItems}}"
+            columns:
+              - header: "Description"
+                field: "description"
+              - header: "Qty"
+                field: "quantity"
+                align: right
+              - header: "Unit Price"
+                field: "unitPrice"
+                format: currency
+              - header: "Tax %"
+                field: "taxRate"
+                format: percentage
+          - type: divider
           - type: paragraph
-            content: "Dear {{customerName}},"
+            style: caption
+            content: "{{#if notes}}Note: {{notes}}{{/if}}"
+          - type: paragraph
+            style: bold
+            content: "Total Due: {{currency}} {{summary.total}}"
     status:
       type: string
       enum:
@@ -62,9 +98,45 @@ VersionDto:
     templateModel:
       blocks:
         - type: header
+          level: 1
           content: "Invoice {{invoiceNumber}}"
+        - type: columns
+          columns:
+            - blocks:
+                - type: paragraph
+                  content: "**From:** Acme Corporation\n1 Enterprise Way\nSpringfield, IL 62704"
+            - blocks:
+                - type: paragraph
+                  content: "**To:** {{customer.name}}\n{{customer.address.street}}\n{{customer.address.city}}, {{customer.address.postalCode}}"
+        - type: metadata
+          fields:
+            - label: "Issue Date"
+              value: "{{issueDate}}"
+            - label: "Due Date"
+              value: "{{dueDate}}"
+            - label: "Currency"
+              value: "{{currency}}"
+        - type: table
+          dataSource: "{{lineItems}}"
+          columns:
+            - header: "Description"
+              field: "description"
+            - header: "Qty"
+              field: "quantity"
+              align: right
+            - header: "Unit Price"
+              field: "unitPrice"
+              format: currency
+            - header: "Tax %"
+              field: "taxRate"
+              format: percentage
+        - type: divider
         - type: paragraph
-          content: "Dear {{customerName}},"
+          style: caption
+          content: "{{#if notes}}Note: {{notes}}{{/if}}"
+        - type: paragraph
+          style: bold
+          content: "Total Due: {{currency}} {{summary.total}}"
     status: published
     createdAt: "2026-01-22T09:00:00Z"
     publishedAt: "2026-01-25T14:00:00Z"
@@ -137,9 +209,30 @@ UpdateDraftRequest:
       example:
         blocks:
           - type: header
+            level: 1
             content: "Invoice {{invoiceNumber}}"
+          - type: columns
+            columns:
+              - blocks:
+                  - type: paragraph
+                    content: "**From:** Acme Corporation\n1 Enterprise Way\nSpringfield, IL 62704"
+              - blocks:
+                  - type: paragraph
+                    content: "**To:** {{customer.name}}\n{{customer.address.street}}\n{{customer.address.city}}, {{customer.address.postalCode}}"
+          - type: table
+            dataSource: "{{lineItems}}"
+            columns:
+              - header: "Description"
+                field: "description"
+              - header: "Qty"
+                field: "quantity"
+                align: right
+              - header: "Unit Price"
+                field: "unitPrice"
+                format: currency
           - type: paragraph
-            content: "Dear {{customerName}},"
+            style: bold
+            content: "Total Due: {{currency}} {{summary.total}}"
 
 VersionListResponse:
   type: object

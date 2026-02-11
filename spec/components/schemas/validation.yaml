@@ -8,9 +8,28 @@ ValidateTemplateDataRequest:
       type: object
       description: Template input data to validate against the template's schema
       example:
-        customerName: "Jane Smith"
+        customer:
+          name: "Jane Smith"
+          email: "jane.smith@example.com"
+          taxId: "US123456789"
+          address:
+            street: "123 Main Street"
+            city: "Springfield"
+            postalCode: "62704"
+            country: US
         invoiceNumber: "INV-2026-001"
-        amount: 1250.00
+        issueDate: "2026-02-01"
+        dueDate: "2026-03-01"
+        lineItems:
+          - description: "Consulting Services (40h)"
+            quantity: 40
+            unitPrice: 150.00
+            taxRate: 21
+          - description: "Software License - Enterprise"
+            quantity: 1
+            unitPrice: 2500.00
+            taxRate: 21
+        currency: EUR
 
 TemplateDataValidationResult:
   type: object
