@@ -15,21 +15,43 @@ TemplateDto:
       minLength: 3
       maxLength: 50
       description: Slug identifier of the template (e.g., "monthly-invoice")
+      example: invoice
     tenantId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
       description: Slug identifier of the tenant this template belongs to
+      example: acme-corp
     name:
       type: string
       description: Name of the template
+      example: Monthly Invoice
     schema:
       type: object
       description: JSON Schema defining the input parameters for this template
+      example:
+        type: object
+        required:
+          - customerName
+          - invoiceNumber
+        properties:
+          customerName:
+            type: string
+          invoiceNumber:
+            type: string
+          amount:
+            type: number
     dataModel:
       type: object
       description: JSON Schema defining the expected data structure for template rendering
+      example:
+        type: object
+        properties:
+          header:
+            type: object
+          lineItems:
+            type: array
     dataExamples:
       type: array
       description: Example data sets for testing template rendering
@@ -44,10 +66,12 @@ TemplateDto:
       type: string
       format: date-time
       description: Timestamp when the template was created
+      example: "2026-01-20T09:00:00Z"
     lastModified:
       type: string
       format: date-time
       description: Timestamp when the template was last modified
+      example: "2026-01-22T16:45:00Z"
 
 TemplateSummaryDto:
   type: object
@@ -65,23 +89,28 @@ TemplateSummaryDto:
       minLength: 3
       maxLength: 50
       description: Slug identifier of the template (e.g., "monthly-invoice")
+      example: invoice
     tenantId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
       description: Slug identifier of the tenant this template belongs to
+      example: acme-corp
     name:
       type: string
       description: Name of the template
+      example: Monthly Invoice
     createdAt:
       type: string
       format: date-time
       description: Timestamp when the template was created
+      example: "2026-01-20T09:00:00Z"
     lastModified:
       type: string
       format: date-time
       description: Timestamp when the template was last modified
+      example: "2026-01-22T16:45:00Z"
 
 DataExampleDto:
   type: object
@@ -94,12 +123,18 @@ DataExampleDto:
     id:
       type: string
       description: Unique identifier of the data example
+      example: standard-invoice
     name:
       type: string
       description: Display name of the data example
+      example: Standard Invoice
     data:
       type: object
       description: The example data matching the template's data model
+      example:
+        customerName: "Jane Smith"
+        invoiceNumber: "INV-2026-001"
+        amount: 1250.00
 
 CreateTemplateRequest:
   type: object
@@ -114,14 +149,26 @@ CreateTemplateRequest:
       minLength: 3
       maxLength: 50
       description: Client-provided slug identifier for the template
+      example: invoice
     name:
       type: string
       minLength: 1
       maxLength: 255
       description: Name of the template to create
+      example: Monthly Invoice
     schema:
       type: object
       description: JSON Schema defining the input parameters for this template
+      example:
+        type: object
+        required:
+          - customerName
+          - invoiceNumber
+        properties:
+          customerName:
+            type: string
+          invoiceNumber:
+            type: string
 
 UpdateTemplateRequest:
   type: object
@@ -132,13 +179,34 @@ UpdateTemplateRequest:
       minLength: 1
       maxLength: 255
       description: New name for the template
+      example: Monthly Invoice (Updated)
     schema:
       type: object
       additionalProperties: true
       description: Updated JSON Schema for input parameters
+      example:
+        type: object
+        required:
+          - customerName
+          - invoiceNumber
+          - amount
+        properties:
+          customerName:
+            type: string
+          invoiceNumber:
+            type: string
+          amount:
+            type: number
     dataModel:
       type: object
       description: Updated data model schema
+      example:
+        type: object
+        properties:
+          header:
+            type: object
+          lineItems:
+            type: array
     dataExamples:
       type: array
       description: Updated data examples
@@ -148,6 +216,7 @@ UpdateTemplateRequest:
       type: boolean
       default: false
       description: If true, save schema even if data examples don't match (returns warnings instead of errors)
+      example: false
 
 TemplateListResponse:
   type: object

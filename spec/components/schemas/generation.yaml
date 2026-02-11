@@ -14,34 +14,44 @@ GenerateDocumentRequest:
       minLength: 3
       maxLength: 50
       description: Slug identifier of template to use for generation
+      example: invoice
     variantId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Slug identifier of the variant to use
+      example: english
     versionId:
       type: [integer, "null"]
       minimum: 1
       maximum: 200
       description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId)
+      example: 1
     environmentId:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 30
       description: Slug identifier of environment to determine version from (mutually exclusive with versionId)
+      example: null
     data:
       type: object
       description: JSON data to populate the template
+      example:
+        customerName: "Jane Smith"
+        invoiceNumber: "INV-2026-001"
+        amount: 1250.00
     filename:
       type: [string, "null"]
       description: Optional filename for the generated document
       maxLength: 255
+      example: "invoice-2026-001.pdf"
     correlationId:
       type: [string, "null"]
       description: Client-provided ID for tracking documents across systems
       maxLength: 255
+      example: "order-7890"
 
 BatchGenerationItem:
   type: object
@@ -57,34 +67,44 @@ BatchGenerationItem:
       minLength: 3
       maxLength: 50
       description: Slug identifier of template to use for generation
+      example: invoice
     variantId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Slug identifier of the variant to use
+      example: english
     versionId:
       type: [integer, "null"]
       minimum: 1
       maximum: 200
       description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId)
+      example: 1
     environmentId:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 30
       description: Slug identifier of environment to determine version from (mutually exclusive with versionId)
+      example: null
     data:
       type: object
       description: JSON data to populate the template
+      example:
+        customerName: "Jane Smith"
+        invoiceNumber: "INV-2026-001"
+        amount: 1250.00
     filename:
       type: [string, "null"]
       description: Optional filename for the generated document. Must be unique within a batch.
       maxLength: 255
+      example: "invoice-2026-001.pdf"
     correlationId:
       type: [string, "null"]
       description: Client-provided ID for tracking documents across systems. Must be unique within a batch.
       maxLength: 255
+      example: "order-7890"
 
 GenerateBatchRequest:
   type: object
@@ -113,21 +133,26 @@ GenerationJobResponse:
       type: string
       format: uuid
       description: Unique identifier for tracking this generation request
+      example: "550e8400-e29b-41d4-a716-446655440000"
     status:
       type: string
       enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED, CANCELLED]
       description: Current status of the request
+      example: PENDING
     jobType:
       type: string
       enum: [SINGLE, BATCH]
       description: Type of generation job
+      example: SINGLE
     totalCount:
       type: integer
       description: Total number of items to generate
+      example: 1
     createdAt:
       type: string
       format: date-time
       description: When the request was created
+      example: "2026-02-01T08:00:00Z"
 
 DocumentGenerationItemDto:
   type: object
@@ -144,61 +169,78 @@ DocumentGenerationItemDto:
       type: string
       format: uuid
       description: Unique identifier of this item
+      example: "660e8400-e29b-41d4-a716-446655440001"
     templateId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Slug identifier of template used for generation
+      example: invoice
     variantId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Slug identifier of the variant used for generation
+      example: english
     versionId:
       type: [integer, "null"]
       minimum: 1
       maximum: 200
       description: Explicit version ID (version number, 1-200, if specified)
+      example: 1
     environmentId:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 30
       description: Slug identifier of environment (if specified)
+      example: null
     data:
       type: object
       description: JSON data used for generation
+      example:
+        customerName: "Jane Smith"
+        invoiceNumber: "INV-2026-001"
+        amount: 1250.00
     filename:
       type: [string, "null"]
       description: Requested filename
+      example: "invoice-2026-001.pdf"
     correlationId:
       type: [string, "null"]
       description: Client-provided ID for tracking documents across systems
+      example: "order-7890"
     status:
       type: string
       enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED]
       description: Status of this item
+      example: COMPLETED
     errorMessage:
       type: [string, "null"]
       description: Error message if processing failed
+      example: null
     documentId:
       type: [string, "null"]
       format: uuid
       description: ID of the generated document (if successful)
+      example: "770e8400-e29b-41d4-a716-446655440002"
     createdAt:
       type: string
       format: date-time
       description: When the item was created
+      example: "2026-02-01T08:00:00Z"
     startedAt:
       type: [string, "null"]
       format: date-time
       description: When processing started
+      example: "2026-02-01T08:00:01Z"
     completedAt:
       type: [string, "null"]
       format: date-time
       description: When processing completed
+      example: "2026-02-01T08:00:03Z"
 
 DocumentGenerationJobDto:
   type: object
@@ -216,42 +258,53 @@ DocumentGenerationJobDto:
       type: string
       format: uuid
       description: Unique identifier of the request
+      example: "550e8400-e29b-41d4-a716-446655440000"
     jobType:
       type: string
       enum: [SINGLE, BATCH]
       description: Type of generation job
+      example: SINGLE
     status:
       type: string
       enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED, CANCELLED]
       description: Current status of the request
+      example: COMPLETED
     totalCount:
       type: integer
       description: Total number of items to generate
+      example: 1
     completedCount:
       type: integer
       description: Number of items successfully completed
+      example: 1
     failedCount:
       type: integer
       description: Number of items that failed
+      example: 0
     errorMessage:
       type: [string, "null"]
       description: Error message if the job failed
+      example: null
     createdAt:
       type: string
       format: date-time
       description: When the request was created
+      example: "2026-02-01T08:00:00Z"
     startedAt:
       type: [string, "null"]
       format: date-time
       description: When processing started
+      example: "2026-02-01T08:00:01Z"
     completedAt:
       type: [string, "null"]
       format: date-time
       description: When processing completed
+      example: "2026-02-01T08:00:03Z"
     progressPercentage:
       type: number
       format: double
       description: Progress percentage (0-100)
+      example: 100.0
 
 GenerationJobDetail:
   type: object
@@ -286,15 +339,19 @@ GenerationJobListResponse:
     page:
       type: integer
       description: Current page number (0-based)
+      example: 0
     size:
       type: integer
       description: Number of items per page
+      example: 20
     totalElements:
       type: integer
       description: Total number of items across all pages
+      example: 1
     totalPages:
       type: integer
       description: Total number of pages
+      example: 1
 
 DocumentDto:
   type: object
@@ -314,49 +371,60 @@ DocumentDto:
       type: string
       format: uuid
       description: Unique identifier of the document
+      example: "770e8400-e29b-41d4-a716-446655440002"
     tenantId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
       description: Slug identifier of the tenant that owns this document
+      example: acme-corp
     templateId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Slug identifier of template used to generate this document
+      example: invoice
     variantId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Slug identifier of the variant used to generate this document
+      example: english
     versionId:
       type: integer
       minimum: 1
       maximum: 200
       description: Version used to generate this document (version number, 1-200)
+      example: 1
     filename:
       type: string
       description: Filename of the document
+      example: "invoice-2026-001.pdf"
     correlationId:
       type: [string, "null"]
       description: Client-provided ID for tracking documents across systems
+      example: "order-7890"
     contentType:
       type: string
       description: MIME type of the document
+      example: "application/pdf"
     sizeBytes:
       type: integer
       format: int64
       description: Size of the document in bytes
+      example: 184320
     createdAt:
       type: string
       format: date-time
       description: When the document was generated
+      example: "2026-02-01T08:00:03Z"
     createdBy:
       type: [string, "null"]
       description: User who generated the document (future feature)
+      example: null
 
 DocumentListResponse:
   type: object
@@ -376,12 +444,16 @@ DocumentListResponse:
     page:
       type: integer
       description: Current page number (0-based)
+      example: 0
     size:
       type: integer
       description: Number of items per page
+      example: 20
     totalElements:
       type: integer
       description: Total number of items across all pages
+      example: 1
     totalPages:
       type: integer
       description: Total number of pages
+      example: 1

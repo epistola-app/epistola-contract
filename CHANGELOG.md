@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Property-level examples on all OpenAPI schema properties for consistent mock server responses
+  - Examples follow a coherent "Epistola story" narrative (Acme Corp tenant, invoice template, English variant)
+  - All IDs, timestamps, and references are cross-consistent across schemas
+
+### Changed
+- Switched Prism mock server from dynamic (`-d`) to static mode
+  - Responses are now deterministic and consistent across repeated requests
+  - Mock data is derived from schema property examples instead of randomly generated
+
 ### Fixed
 - Mock server Docker image now receives the correct auto-incremented version during releases
   - Previously used static spec version from `epistola-api.yaml` (e.g., always `0.1.0`)

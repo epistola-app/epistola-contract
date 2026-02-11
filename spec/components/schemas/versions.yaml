@@ -12,15 +12,23 @@ VersionDto:
       minimum: 1
       maximum: 200
       description: Version identifier (also the version number, 1-200)
+      example: 1
     variantId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Slug identifier of the variant this version belongs to
+      example: english
     templateModel:
       type: object
       description: The template model defining the document structure
+      example:
+        blocks:
+          - type: header
+            content: "Invoice {{invoiceNumber}}"
+          - type: paragraph
+            content: "Dear {{customerName}},"
     status:
       type: string
       enum:
@@ -28,22 +36,26 @@ VersionDto:
         - published
         - archived
       description: Lifecycle status of this version
+      example: published
     createdAt:
       type: string
       format: date-time
       description: Timestamp when the version was created
+      example: "2026-01-22T09:00:00Z"
     publishedAt:
       type:
         - string
         - 'null'
       format: date-time
       description: Timestamp when the version was published
+      example: "2026-01-25T14:00:00Z"
     archivedAt:
       type:
         - string
         - 'null'
       format: date-time
       description: Timestamp when the version was archived
+      example: null
 
 VersionSummaryDto:
   type: object
@@ -59,12 +71,14 @@ VersionSummaryDto:
       minimum: 1
       maximum: 200
       description: Version identifier (also the version number, 1-200)
+      example: 1
     variantId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Slug identifier of the variant this version belongs to
+      example: english
     status:
       type: string
       enum:
@@ -72,22 +86,26 @@ VersionSummaryDto:
         - published
         - archived
       description: Lifecycle status of this version
+      example: published
     createdAt:
       type: string
       format: date-time
       description: Timestamp when the version was created
+      example: "2026-01-22T09:00:00Z"
     publishedAt:
       type:
         - string
         - 'null'
       format: date-time
       description: Timestamp when the version was published
+      example: "2026-01-25T14:00:00Z"
     archivedAt:
       type:
         - string
         - 'null'
       format: date-time
       description: Timestamp when the version was archived
+      example: null
 
 UpdateDraftRequest:
   type: object
@@ -96,6 +114,12 @@ UpdateDraftRequest:
     templateModel:
       type: object
       description: Template model structure
+      example:
+        blocks:
+          - type: header
+            content: "Invoice {{invoiceNumber}}"
+          - type: paragraph
+            content: "Dear {{customerName}},"
 
 VersionListResponse:
   type: object

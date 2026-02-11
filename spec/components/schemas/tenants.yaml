@@ -16,10 +16,12 @@ TenantDto:
     name:
       type: string
       description: Name of the tenant
+      example: Acme Corporation
     createdAt:
       type: string
       format: date-time
       description: Timestamp when the tenant was created
+      example: "2026-01-15T09:00:00Z"
 
 CreateTenantRequest:
   type: object
@@ -44,6 +46,7 @@ CreateTenantRequest:
       minLength: 1
       maxLength: 255
       description: Name of the tenant to create
+      example: Acme Corporation
 
 UpdateTenantRequest:
   type: object
@@ -54,6 +57,7 @@ UpdateTenantRequest:
       minLength: 1
       maxLength: 255
       description: New name for the tenant
+      example: Acme Corporation Ltd.
 
 TenantListResponse:
   type: object
@@ -73,13 +77,17 @@ TenantListResponse:
     page:
       type: integer
       description: Current page number (0-based)
+      example: 0
     size:
       type: integer
       description: Number of items per page
+      example: 20
     totalElements:
       type: integer
       format: int64
       description: Total number of tenants
+      example: 1
     totalPages:
       type: integer
       description: Total number of pages
+      example: 1

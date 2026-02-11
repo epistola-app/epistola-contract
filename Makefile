@@ -52,7 +52,7 @@ breaking: bundle
 mock: bundle
 	@echo "==> Starting Prism mock server on http://localhost:4010..."
 	@echo "==> Use Ctrl+C to stop"
-	npx --prefix tools @stoplight/prism-cli mock openapi.yaml -p 4010 -d
+	npx --prefix tools @stoplight/prism-cli mock openapi.yaml -p 4010
 
 # Validate implementation against spec (requires running server)
 validate-impl: bundle

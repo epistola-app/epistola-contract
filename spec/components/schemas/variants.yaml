@@ -16,43 +16,54 @@ VariantDto:
       minLength: 3
       maxLength: 50
       description: Slug identifier of the variant
+      example: english
     templateId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Slug identifier of the template this variant belongs to
+      example: invoice
     title:
       type:
         - string
         - 'null'
       description: Human-readable title for the variant
+      example: English Invoice
     description:
       type:
         - string
         - 'null'
       description: Description of the variant
+      example: English language invoice for international customers
     tags:
       type: object
       additionalProperties:
         type: string
       description: Free-form key-value tags (e.g., locale=nl-NL, brand=acme)
+      example:
+        locale: en-US
+        brand: acme
     hasDraft:
       type: boolean
       description: Whether this variant has an unpublished draft
+      example: true
     publishedVersions:
       type: array
       items:
         type: integer
       description: List of published version numbers
+      example: [1, 2]
     createdAt:
       type: string
       format: date-time
       description: Timestamp when the variant was created
+      example: "2026-01-21T10:00:00Z"
     lastModified:
       type: string
       format: date-time
       description: Timestamp when the variant was last modified
+      example: "2026-01-28T11:30:00Z"
 
 VariantSummaryDto:
   type: object
@@ -69,24 +80,31 @@ VariantSummaryDto:
       minLength: 3
       maxLength: 50
       description: Slug identifier of the variant
+      example: english
     title:
       type:
         - string
         - 'null'
       description: Human-readable title for the variant
+      example: English Invoice
     tags:
       type: object
       additionalProperties:
         type: string
       description: Free-form key-value tags
+      example:
+        locale: en-US
+        brand: acme
     hasDraft:
       type: boolean
       description: Whether this variant has an unpublished draft
+      example: true
     publishedVersions:
       type: array
       items:
         type: integer
       description: List of published version numbers
+      example: [1, 2]
 
 CreateVariantRequest:
   type: object
@@ -100,21 +118,27 @@ CreateVariantRequest:
       minLength: 3
       maxLength: 50
       description: Client-provided slug identifier for the variant
+      example: english
     title:
       type:
         - string
         - 'null'
       description: Human-readable title for the variant
+      example: English Invoice
     description:
       type:
         - string
         - 'null'
       description: Description of the variant
+      example: English language invoice for international customers
     tags:
       type: object
       additionalProperties:
         type: string
       description: Free-form key-value tags for this variant
+      example:
+        locale: en-US
+        brand: acme
 
 UpdateVariantRequest:
   type: object
@@ -125,16 +149,22 @@ UpdateVariantRequest:
         - string
         - 'null'
       description: Human-readable title for the variant
+      example: English Invoice (Updated)
     description:
       type:
         - string
         - 'null'
       description: Description of the variant
+      example: Updated English language invoice
     tags:
       type: object
       additionalProperties:
         type: string
       description: Updated tags for this variant
+      example:
+        locale: en-US
+        brand: acme
+        region: north-america
 
 VariantListResponse:
   type: object
@@ -163,18 +193,22 @@ ActivationDto:
       minLength: 3
       maxLength: 30
       description: Slug identifier of the environment
+      example: production
     environmentName:
       type: string
       description: Name of the environment
+      example: Production
     versionId:
       type: integer
       minimum: 1
       maximum: 200
       description: ID of the active version (also the version number, 1-200)
+      example: 1
     activatedAt:
       type: string
       format: date-time
       description: Timestamp when this version was activated
+      example: "2026-01-28T12:00:00Z"
 
 SetActivationRequest:
   type: object
@@ -187,6 +221,7 @@ SetActivationRequest:
       minimum: 1
       maximum: 200
       description: ID of the version to activate (version number, 1-200)
+      example: 1
 
 ActivationListResponse:
   type: object

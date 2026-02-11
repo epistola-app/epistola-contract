@@ -13,5 +13,5 @@ EXPOSE 4010
 
 WORKDIR /app
 
-# Run Prism mock server with dynamic response generation
-ENTRYPOINT ["prism", "mock", "-h", "0.0.0.0", "-p", "4010", "-d", "/app/openapi.yaml"]
+# Run Prism mock server with static responses from schema examples
+ENTRYPOINT ["prism", "mock", "-h", "0.0.0.0", "-p", "4010", "/app/openapi.yaml"]

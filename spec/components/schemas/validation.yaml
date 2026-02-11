@@ -7,6 +7,10 @@ ValidateTemplateDataRequest:
     data:
       type: object
       description: Template input data to validate against the template's schema
+      example:
+        customerName: "Jane Smith"
+        invoiceNumber: "INV-2026-001"
+        amount: 1250.00
 
 TemplateDataValidationResult:
   type: object

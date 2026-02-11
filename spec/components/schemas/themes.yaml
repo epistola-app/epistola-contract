@@ -15,18 +15,22 @@ ThemeDto:
       minLength: 3
       maxLength: 20
       description: Slug identifier of the theme (e.g., "corporate")
+      example: corporate
     tenantId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
       description: Slug identifier of the tenant this theme belongs to
+      example: acme-corp
     name:
       type: string
       description: Name of the theme
+      example: Corporate Theme
     description:
       type: string
       description: Optional description of the theme
+      example: Default corporate branding with Acme colors and fonts
     documentStyles:
       $ref: '#/DocumentStylesDto'
     pageSettings:
@@ -36,14 +40,23 @@ ThemeDto:
       additionalProperties:
         type: object
       description: Named block style presets (like CSS classes)
+      example:
+        heading:
+          fontSize: "18pt"
+          fontWeight: bold
+        caption:
+          fontSize: "9pt"
+          color: "#666666"
     createdAt:
       type: string
       format: date-time
       description: Timestamp when the theme was created
+      example: "2026-01-17T11:00:00Z"
     lastModified:
       type: string
       format: date-time
       description: Timestamp when the theme was last modified
+      example: "2026-01-18T14:30:00Z"
 
 DocumentStylesDto:
   type: object
@@ -52,28 +65,36 @@ DocumentStylesDto:
     fontFamily:
       type: string
       description: Default font family
+      example: Helvetica
     fontSize:
       type: string
       description: Default font size (e.g., "12pt", "16px")
+      example: "12pt"
     fontWeight:
       type: string
       description: Default font weight (e.g., "normal", "bold")
+      example: normal
     color:
       type: string
       description: Default text color (e.g., "#000000")
+      example: "#333333"
     lineHeight:
       type: string
       description: Default line height (e.g., "1.5", "24px")
+      example: "1.5"
     letterSpacing:
       type: string
       description: Default letter spacing
+      example: "0.01em"
     textAlign:
       type: string
       enum: [left, center, right, justify]
       description: Default text alignment
+      example: left
     backgroundColor:
       type: string
       description: Default background color
+      example: "#ffffff"
 
 PageSettingsDto:
   type: object
@@ -83,10 +104,12 @@ PageSettingsDto:
       type: string
       enum: [A4, Letter, Custom]
       description: Page format
+      example: A4
     orientation:
       type: string
       enum: [portrait, landscape]
       description: Page orientation
+      example: portrait
     margins:
       $ref: '#/MarginsDto'
 
@@ -97,15 +120,19 @@ MarginsDto:
     top:
       type: integer
       description: Top margin in pixels
+      example: 40
     right:
       type: integer
       description: Right margin in pixels
+      example: 40
     bottom:
       type: integer
       description: Bottom margin in pixels
+      example: 40
     left:
       type: integer
       description: Left margin in pixels
+      example: 40
 
 CreateThemeRequest:
   type: object
@@ -120,14 +147,17 @@ CreateThemeRequest:
       minLength: 3
       maxLength: 20
       description: Client-provided slug identifier for the theme
+      example: corporate
     name:
       type: string
       minLength: 1
       maxLength: 255
       description: Name of the theme
+      example: Corporate Theme
     description:
       type: string
       description: Optional description of the theme
+      example: Default corporate branding with Acme colors and fonts
     documentStyles:
       $ref: '#/DocumentStylesDto'
     pageSettings:
@@ -137,6 +167,10 @@ CreateThemeRequest:
       additionalProperties:
         type: object
       description: Named block style presets
+      example:
+        heading:
+          fontSize: "18pt"
+          fontWeight: bold
 
 UpdateThemeRequest:
   type: object
@@ -147,11 +181,13 @@ UpdateThemeRequest:
       minLength: 1
       maxLength: 255
       description: New name for the theme
+      example: Corporate Theme v2
     description:
       type:
         - string
         - 'null'
       description: New description for the theme (null to clear)
+      example: Updated corporate branding for 2026
     documentStyles:
       $ref: '#/DocumentStylesDto'
     pageSettings:

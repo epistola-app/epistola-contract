@@ -13,19 +13,23 @@ EnvironmentDto:
       minLength: 3
       maxLength: 30
       description: Slug identifier of the environment
+      example: production
     tenantId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
       description: Slug identifier of the tenant this environment belongs to
+      example: acme-corp
     name:
       type: string
       description: Name of the environment (e.g., staging, production)
+      example: Production
     createdAt:
       type: string
       format: date-time
       description: Timestamp when the environment was created
+      example: "2026-01-16T10:00:00Z"
 
 CreateEnvironmentRequest:
   type: object
@@ -40,11 +44,13 @@ CreateEnvironmentRequest:
       minLength: 3
       maxLength: 30
       description: Slug identifier for the environment (e.g., production, staging, development)
+      example: production
     name:
       type: string
       minLength: 1
       maxLength: 100
       description: Name of the environment to create
+      example: Production
 
 UpdateEnvironmentRequest:
   type: object
@@ -55,6 +61,7 @@ UpdateEnvironmentRequest:
       minLength: 1
       maxLength: 100
       description: New name for the environment
+      example: Production (EU)
 
 EnvironmentListResponse:
   type: object
