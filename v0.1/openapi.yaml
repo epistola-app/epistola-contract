@@ -2094,10 +2094,16 @@ components:
         name:
           type: string
           description: Name of the tenant
+          example: Acme Corporation
         createdAt:
           type: string
           format: date-time
           description: Timestamp when the tenant was created
+          example: '2026-01-15T09:00:00Z'
+      example:
+        id: acme-corp
+        name: Acme Corporation
+        createdAt: '2026-01-15T09:00:00Z'
     CreateTenantRequest:
       type: object
       description: Request body for creating a new tenant
@@ -2121,6 +2127,7 @@ components:
           minLength: 1
           maxLength: 255
           description: Name of the tenant to create
+          example: Acme Corporation
     UpdateTenantRequest:
       type: object
       description: Request body for updating a tenant
@@ -2130,6 +2137,7 @@ components:
           minLength: 1
           maxLength: 255
           description: New name for the tenant
+          example: Acme Corporation Ltd.
     TenantListResponse:
       type: object
       description: Paginated list of tenants
@@ -2148,16 +2156,29 @@ components:
         page:
           type: integer
           description: Current page number (0-based)
+          example: 0
         size:
           type: integer
           description: Number of items per page
+          example: 20
         totalElements:
           type: integer
           format: int64
           description: Total number of tenants
+          example: 1
         totalPages:
           type: integer
           description: Total number of pages
+          example: 1
+      example:
+        items:
+          - id: acme-corp
+            name: Acme Corporation
+            createdAt: '2026-01-15T09:00:00Z'
+        page: 0
+        size: 20
+        totalElements: 1
+        totalPages: 1
     ThemeDto:
       type: object
       description: A theme defines reusable styling that can be applied across multiple templates
@@ -2175,18 +2196,22 @@ components:
           minLength: 3
           maxLength: 20
           description: Slug identifier of the theme (e.g., "corporate")
+          example: corporate
         tenantId:
           type: string
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 63
           description: Slug identifier of the tenant this theme belongs to
+          example: acme-corp
         name:
           type: string
           description: Name of the theme
+          example: Corporate Theme
         description:
           type: string
           description: Optional description of the theme
+          example: Default corporate branding with Acme colors and fonts
         documentStyles:
           $ref: '#/components/schemas/DocumentStylesDto'
         pageSettings:
@@ -2196,14 +2221,54 @@ components:
           additionalProperties:
             type: object
           description: Named block style presets (like CSS classes)
+          example:
+            heading:
+              fontSize: 18pt
+              fontWeight: bold
+            caption:
+              fontSize: 9pt
+              color: '#666666'
         createdAt:
           type: string
           format: date-time
           description: Timestamp when the theme was created
+          example: '2026-01-17T11:00:00Z'
         lastModified:
           type: string
           format: date-time
           description: Timestamp when the theme was last modified
+          example: '2026-01-18T14:30:00Z'
+      example:
+        id: corporate
+        tenantId: acme-corp
+        name: Corporate Theme
+        description: Default corporate branding with Acme colors and fonts
+        documentStyles:
+          fontFamily: Helvetica
+          fontSize: 12pt
+          fontWeight: normal
+          color: '#333333'
+          lineHeight: '1.5'
+          letterSpacing: 0.01em
+          textAlign: left
+          backgroundColor: '#ffffff'
+        pageSettings:
+          format: A4
+          orientation: portrait
+          margins:
+            top: 40
+            right: 40
+            bottom: 40
+            left: 40
+        blockStylePresets:
+          heading:
+            fontSize: 18pt
+            fontWeight: bold
+          caption:
+            fontSize: 9pt
+            color: '#666666'
+        createdAt: '2026-01-17T11:00:00Z'
+        lastModified: '2026-01-18T14:30:00Z'
     DocumentStylesDto:
       type: object
       description: Document-level styling defaults
@@ -2211,21 +2276,27 @@ components:
         fontFamily:
           type: string
           description: Default font family
+          example: Helvetica
         fontSize:
           type: string
           description: Default font size (e.g., "12pt", "16px")
+          example: 12pt
         fontWeight:
           type: string
           description: Default font weight (e.g., "normal", "bold")
+          example: normal
         color:
           type: string
           description: Default text color (e.g., "#000000")
+          example: '#333333'
         lineHeight:
           type: string
           description: Default line height (e.g., "1.5", "24px")
+          example: '1.5'
         letterSpacing:
           type: string
           description: Default letter spacing
+          example: 0.01em
         textAlign:
           type: string
           enum:
@@ -2234,9 +2305,20 @@ components:
             - right
             - justify
           description: Default text alignment
+          example: left
         backgroundColor:
           type: string
           description: Default background color
+          example: '#ffffff'
+      example:
+        fontFamily: Helvetica
+        fontSize: 12pt
+        fontWeight: normal
+        color: '#333333'
+        lineHeight: '1.5'
+        letterSpacing: 0.01em
+        textAlign: left
+        backgroundColor: '#ffffff'
     PageSettingsDto:
       type: object
       description: Page layout settings
@@ -2248,14 +2330,24 @@ components:
             - Letter
             - Custom
           description: Page format
+          example: A4
         orientation:
           type: string
           enum:
             - portrait
             - landscape
           description: Page orientation
+          example: portrait
         margins:
           $ref: '#/components/schemas/MarginsDto'
+      example:
+        format: A4
+        orientation: portrait
+        margins:
+          top: 40
+          right: 40
+          bottom: 40
+          left: 40
     MarginsDto:
       type: object
       description: Page margins in pixels
@@ -2263,15 +2355,24 @@ components:
         top:
           type: integer
           description: Top margin in pixels
+          example: 40
         right:
           type: integer
           description: Right margin in pixels
+          example: 40
         bottom:
           type: integer
           description: Bottom margin in pixels
+          example: 40
         left:
           type: integer
           description: Left margin in pixels
+          example: 40
+      example:
+        top: 40
+        right: 40
+        bottom: 40
+        left: 40
     CreateThemeRequest:
       type: object
       description: Request body for creating a new theme
@@ -2285,14 +2386,17 @@ components:
           minLength: 3
           maxLength: 20
           description: Client-provided slug identifier for the theme
+          example: corporate
         name:
           type: string
           minLength: 1
           maxLength: 255
           description: Name of the theme
+          example: Corporate Theme
         description:
           type: string
           description: Optional description of the theme
+          example: Default corporate branding with Acme colors and fonts
         documentStyles:
           $ref: '#/components/schemas/DocumentStylesDto'
         pageSettings:
@@ -2302,6 +2406,10 @@ components:
           additionalProperties:
             type: object
           description: Named block style presets
+          example:
+            heading:
+              fontSize: 18pt
+              fontWeight: bold
     UpdateThemeRequest:
       type: object
       description: Request body for updating a theme (partial update)
@@ -2311,11 +2419,13 @@ components:
           minLength: 1
           maxLength: 255
           description: New name for the theme
+          example: Corporate Theme v2
         description:
           type:
             - string
             - 'null'
           description: New description for the theme (null to clear)
+          example: Updated corporate branding for 2026
         documentStyles:
           $ref: '#/components/schemas/DocumentStylesDto'
         pageSettings:
@@ -2338,6 +2448,38 @@ components:
           description: List of themes
           items:
             $ref: '#/components/schemas/ThemeDto'
+      example:
+        items:
+          - id: corporate
+            tenantId: acme-corp
+            name: Corporate Theme
+            description: Default corporate branding with Acme colors and fonts
+            documentStyles:
+              fontFamily: Helvetica
+              fontSize: 12pt
+              fontWeight: normal
+              color: '#333333'
+              lineHeight: '1.5'
+              letterSpacing: 0.01em
+              textAlign: left
+              backgroundColor: '#ffffff'
+            pageSettings:
+              format: A4
+              orientation: portrait
+              margins:
+                top: 40
+                right: 40
+                bottom: 40
+                left: 40
+            blockStylePresets:
+              heading:
+                fontSize: 18pt
+                fontWeight: bold
+              caption:
+                fontSize: 9pt
+                color: '#666666'
+            createdAt: '2026-01-17T11:00:00Z'
+            lastModified: '2026-01-18T14:30:00Z'
     EnvironmentDto:
       type: object
       description: Tenant environment for version activation (e.g., staging, production)
@@ -2353,19 +2495,28 @@ components:
           minLength: 3
           maxLength: 30
           description: Slug identifier of the environment
+          example: production
         tenantId:
           type: string
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 63
           description: Slug identifier of the tenant this environment belongs to
+          example: acme-corp
         name:
           type: string
           description: Name of the environment (e.g., staging, production)
+          example: Production
         createdAt:
           type: string
           format: date-time
           description: Timestamp when the environment was created
+          example: '2026-01-16T10:00:00Z'
+      example:
+        id: production
+        tenantId: acme-corp
+        name: Production
+        createdAt: '2026-01-16T10:00:00Z'
     CreateEnvironmentRequest:
       type: object
       description: Request body for creating a new environment
@@ -2379,11 +2530,13 @@ components:
           minLength: 3
           maxLength: 30
           description: Slug identifier for the environment (e.g., production, staging, development)
+          example: production
         name:
           type: string
           minLength: 1
           maxLength: 100
           description: Name of the environment to create
+          example: Production
     UpdateEnvironmentRequest:
       type: object
       description: Request body for updating an environment
@@ -2393,6 +2546,7 @@ components:
           minLength: 1
           maxLength: 100
           description: New name for the environment
+          example: Production (EU)
     EnvironmentListResponse:
       type: object
       description: List of environments
@@ -2404,6 +2558,16 @@ components:
           description: List of environments
           items:
             $ref: '#/components/schemas/EnvironmentDto'
+      example:
+        items:
+          - id: production
+            tenantId: acme-corp
+            name: Production
+            createdAt: '2026-01-16T10:00:00Z'
+          - id: staging
+            tenantId: acme-corp
+            name: Staging
+            createdAt: '2026-01-16T10:30:00Z'
     TemplateDto:
       type: object
       description: Full document template with all details including variant summaries
@@ -2421,21 +2585,43 @@ components:
           minLength: 3
           maxLength: 50
           description: Slug identifier of the template (e.g., "monthly-invoice")
+          example: invoice
         tenantId:
           type: string
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 63
           description: Slug identifier of the tenant this template belongs to
+          example: acme-corp
         name:
           type: string
           description: Name of the template
+          example: Monthly Invoice
         schema:
           type: object
           description: JSON Schema defining the input parameters for this template
+          example:
+            type: object
+            required:
+              - customerName
+              - invoiceNumber
+            properties:
+              customerName:
+                type: string
+              invoiceNumber:
+                type: string
+              amount:
+                type: number
         dataModel:
           type: object
           description: JSON Schema defining the expected data structure for template rendering
+          example:
+            type: object
+            properties:
+              header:
+                type: object
+              lineItems:
+                type: array
         dataExamples:
           type: array
           description: Example data sets for testing template rendering
@@ -2450,10 +2636,54 @@ components:
           type: string
           format: date-time
           description: Timestamp when the template was created
+          example: '2026-01-20T09:00:00Z'
         lastModified:
           type: string
           format: date-time
           description: Timestamp when the template was last modified
+          example: '2026-01-22T16:45:00Z'
+      example:
+        id: invoice
+        tenantId: acme-corp
+        name: Monthly Invoice
+        schema:
+          type: object
+          required:
+            - customerName
+            - invoiceNumber
+          properties:
+            customerName:
+              type: string
+            invoiceNumber:
+              type: string
+            amount:
+              type: number
+        dataModel:
+          type: object
+          properties:
+            header:
+              type: object
+            lineItems:
+              type: array
+        dataExamples:
+          - id: standard-invoice
+            name: Standard Invoice
+            data:
+              customerName: Jane Smith
+              invoiceNumber: INV-2026-001
+              amount: 1250
+        variants:
+          - id: english
+            title: English Invoice
+            tags:
+              locale: en-US
+              brand: acme
+            hasDraft: true
+            publishedVersions:
+              - 1
+              - 2
+        createdAt: '2026-01-20T09:00:00Z'
+        lastModified: '2026-01-22T16:45:00Z'
     TemplateSummaryDto:
       type: object
       description: Summary view of a template for list displays
@@ -2470,23 +2700,34 @@ components:
           minLength: 3
           maxLength: 50
           description: Slug identifier of the template (e.g., "monthly-invoice")
+          example: invoice
         tenantId:
           type: string
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 63
           description: Slug identifier of the tenant this template belongs to
+          example: acme-corp
         name:
           type: string
           description: Name of the template
+          example: Monthly Invoice
         createdAt:
           type: string
           format: date-time
           description: Timestamp when the template was created
+          example: '2026-01-20T09:00:00Z'
         lastModified:
           type: string
           format: date-time
           description: Timestamp when the template was last modified
+          example: '2026-01-22T16:45:00Z'
+      example:
+        id: invoice
+        tenantId: acme-corp
+        name: Monthly Invoice
+        createdAt: '2026-01-20T09:00:00Z'
+        lastModified: '2026-01-22T16:45:00Z'
     CreateTemplateRequest:
       type: object
       description: Request body for creating a new template
@@ -2500,14 +2741,26 @@ components:
           minLength: 3
           maxLength: 50
           description: Client-provided slug identifier for the template
+          example: invoice
         name:
           type: string
           minLength: 1
           maxLength: 255
           description: Name of the template to create
+          example: Monthly Invoice
         schema:
           type: object
           description: JSON Schema defining the input parameters for this template
+          example:
+            type: object
+            required:
+              - customerName
+              - invoiceNumber
+            properties:
+              customerName:
+                type: string
+              invoiceNumber:
+                type: string
     UpdateTemplateRequest:
       type: object
       description: Request body for updating a template's metadata (all fields optional)
@@ -2517,13 +2770,34 @@ components:
           minLength: 1
           maxLength: 255
           description: New name for the template
+          example: Monthly Invoice (Updated)
         schema:
           type: object
           additionalProperties: true
           description: Updated JSON Schema for input parameters
+          example:
+            type: object
+            required:
+              - customerName
+              - invoiceNumber
+              - amount
+            properties:
+              customerName:
+                type: string
+              invoiceNumber:
+                type: string
+              amount:
+                type: number
         dataModel:
           type: object
           description: Updated data model schema
+          example:
+            type: object
+            properties:
+              header:
+                type: object
+              lineItems:
+                type: array
         dataExamples:
           type: array
           description: Updated data examples
@@ -2533,6 +2807,7 @@ components:
           type: boolean
           default: false
           description: If true, save schema even if data examples don't match (returns warnings instead of errors)
+          example: false
     TemplateListResponse:
       type: object
       description: List of templates
@@ -2544,6 +2819,13 @@ components:
           description: List of template summaries
           items:
             $ref: '#/components/schemas/TemplateSummaryDto'
+      example:
+        items:
+          - id: invoice
+            tenantId: acme-corp
+            name: Monthly Invoice
+            createdAt: '2026-01-20T09:00:00Z'
+            lastModified: '2026-01-22T16:45:00Z'
     DataExampleDto:
       type: object
       description: Named example data set for template testing
@@ -2555,12 +2837,25 @@ components:
         id:
           type: string
           description: Unique identifier of the data example
+          example: standard-invoice
         name:
           type: string
           description: Display name of the data example
+          example: Standard Invoice
         data:
           type: object
           description: The example data matching the template's data model
+          example:
+            customerName: Jane Smith
+            invoiceNumber: INV-2026-001
+            amount: 1250
+      example:
+        id: standard-invoice
+        name: Standard Invoice
+        data:
+          customerName: Jane Smith
+          invoiceNumber: INV-2026-001
+          amount: 1250
     ValidateTemplateDataRequest:
       type: object
       description: Request body for validating template input data against the template's JSON Schema
@@ -2570,6 +2865,10 @@ components:
         data:
           type: object
           description: Template input data to validate against the template's schema
+          example:
+            customerName: Jane Smith
+            invoiceNumber: INV-2026-001
+            amount: 1250
     TemplateDataValidationResult:
       type: object
       description: Result of validating template input data
@@ -2585,6 +2884,9 @@ components:
           description: List of validation errors (empty when valid is true)
           items:
             $ref: '#/components/schemas/TemplateDataValidationError'
+      example:
+        valid: true
+        errors: []
     TemplateDataValidationError:
       type: object
       description: A single validation error from JSON Schema validation
@@ -2604,6 +2906,10 @@ components:
           type: string
           description: JSON Schema validation keyword that failed (e.g., "type", "format", "required", "minLength")
           example: format
+      example:
+        path: $.customer.email
+        message: must be a valid email address
+        keyword: format
     VariantDto:
       type: object
       description: Full template variant with version summary
@@ -2622,43 +2928,70 @@ components:
           minLength: 3
           maxLength: 50
           description: Slug identifier of the variant
+          example: english
         templateId:
           type: string
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 50
           description: Slug identifier of the template this variant belongs to
+          example: invoice
         title:
           type:
             - string
             - 'null'
           description: Human-readable title for the variant
+          example: English Invoice
         description:
           type:
             - string
             - 'null'
           description: Description of the variant
+          example: English language invoice for international customers
         tags:
           type: object
           additionalProperties:
             type: string
           description: Free-form key-value tags (e.g., locale=nl-NL, brand=acme)
+          example:
+            locale: en-US
+            brand: acme
         hasDraft:
           type: boolean
           description: Whether this variant has an unpublished draft
+          example: true
         publishedVersions:
           type: array
           items:
             type: integer
           description: List of published version numbers
+          example:
+            - 1
+            - 2
         createdAt:
           type: string
           format: date-time
           description: Timestamp when the variant was created
+          example: '2026-01-21T10:00:00Z'
         lastModified:
           type: string
           format: date-time
           description: Timestamp when the variant was last modified
+          example: '2026-01-28T11:30:00Z'
+      example:
+        id: english
+        templateId: invoice
+        title: English Invoice
+        description: English language invoice for international customers
+        tags:
+          locale: en-US
+          brand: acme
+        hasDraft: true
+        publishedVersions:
+          - 1
+          - 2
+        createdAt: '2026-01-21T10:00:00Z'
+        lastModified: '2026-01-28T11:30:00Z'
     VariantSummaryDto:
       type: object
       description: Summary view of a variant for inclusion in template responses
@@ -2674,24 +3007,43 @@ components:
           minLength: 3
           maxLength: 50
           description: Slug identifier of the variant
+          example: english
         title:
           type:
             - string
             - 'null'
           description: Human-readable title for the variant
+          example: English Invoice
         tags:
           type: object
           additionalProperties:
             type: string
           description: Free-form key-value tags
+          example:
+            locale: en-US
+            brand: acme
         hasDraft:
           type: boolean
           description: Whether this variant has an unpublished draft
+          example: true
         publishedVersions:
           type: array
           items:
             type: integer
           description: List of published version numbers
+          example:
+            - 1
+            - 2
+      example:
+        id: english
+        title: English Invoice
+        tags:
+          locale: en-US
+          brand: acme
+        hasDraft: true
+        publishedVersions:
+          - 1
+          - 2
     CreateVariantRequest:
       type: object
       description: Request body for creating a new variant
@@ -2704,21 +3056,27 @@ components:
           minLength: 3
           maxLength: 50
           description: Client-provided slug identifier for the variant
+          example: english
         title:
           type:
             - string
             - 'null'
           description: Human-readable title for the variant
+          example: English Invoice
         description:
           type:
             - string
             - 'null'
           description: Description of the variant
+          example: English language invoice for international customers
         tags:
           type: object
           additionalProperties:
             type: string
           description: Free-form key-value tags for this variant
+          example:
+            locale: en-US
+            brand: acme
     UpdateVariantRequest:
       type: object
       description: Request body for updating a variant
@@ -2728,16 +3086,22 @@ components:
             - string
             - 'null'
           description: Human-readable title for the variant
+          example: English Invoice (Updated)
         description:
           type:
             - string
             - 'null'
           description: Description of the variant
+          example: Updated English language invoice
         tags:
           type: object
           additionalProperties:
             type: string
           description: Updated tags for this variant
+          example:
+            locale: en-US
+            brand: acme
+            region: north-america
     VariantListResponse:
       type: object
       description: List of template variants
@@ -2749,6 +3113,21 @@ components:
           description: List of variants
           items:
             $ref: '#/components/schemas/VariantDto'
+      example:
+        items:
+          - id: english
+            templateId: invoice
+            title: English Invoice
+            description: English language invoice for international customers
+            tags:
+              locale: en-US
+              brand: acme
+            hasDraft: true
+            publishedVersions:
+              - 1
+              - 2
+            createdAt: '2026-01-21T10:00:00Z'
+            lastModified: '2026-01-28T11:30:00Z'
     ActivationDto:
       type: object
       description: Environment activation for a variant. versionId IS the version number (1-200).
@@ -2764,18 +3143,27 @@ components:
           minLength: 3
           maxLength: 30
           description: Slug identifier of the environment
+          example: production
         environmentName:
           type: string
           description: Name of the environment
+          example: Production
         versionId:
           type: integer
           minimum: 1
           maximum: 200
           description: ID of the active version (also the version number, 1-200)
+          example: 1
         activatedAt:
           type: string
           format: date-time
           description: Timestamp when this version was activated
+          example: '2026-01-28T12:00:00Z'
+      example:
+        environmentId: production
+        environmentName: Production
+        versionId: 1
+        activatedAt: '2026-01-28T12:00:00Z'
     SetActivationRequest:
       type: object
       description: Request body for setting the active version for an environment
@@ -2787,6 +3175,7 @@ components:
           minimum: 1
           maximum: 200
           description: ID of the version to activate (version number, 1-200)
+          example: 1
     ActivationListResponse:
       type: object
       description: List of environment activations for a variant
@@ -2798,6 +3187,16 @@ components:
           description: List of activations
           items:
             $ref: '#/components/schemas/ActivationDto'
+      example:
+        items:
+          - environmentId: production
+            environmentName: Production
+            versionId: 1
+            activatedAt: '2026-01-28T12:00:00Z'
+          - environmentId: staging
+            environmentName: Staging
+            versionId: 2
+            activatedAt: '2026-01-29T09:00:00Z'
     VersionDto:
       type: object
       description: Template version with content and lifecycle state. The id field IS the version number (1-200).
@@ -2812,15 +3211,23 @@ components:
           minimum: 1
           maximum: 200
           description: Version identifier (also the version number, 1-200)
+          example: 1
         variantId:
           type: string
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 50
           description: Slug identifier of the variant this version belongs to
+          example: english
         templateModel:
           type: object
           description: The template model defining the document structure
+          example:
+            blocks:
+              - type: header
+                content: Invoice {{invoiceNumber}}
+              - type: paragraph
+                content: Dear {{customerName}},
         status:
           type: string
           enum:
@@ -2828,22 +3235,39 @@ components:
             - published
             - archived
           description: Lifecycle status of this version
+          example: published
         createdAt:
           type: string
           format: date-time
           description: Timestamp when the version was created
+          example: '2026-01-22T09:00:00Z'
         publishedAt:
           type:
             - string
             - 'null'
           format: date-time
           description: Timestamp when the version was published
+          example: '2026-01-25T14:00:00Z'
         archivedAt:
           type:
             - string
             - 'null'
           format: date-time
           description: Timestamp when the version was archived
+          example: null
+      example:
+        id: 1
+        variantId: english
+        templateModel:
+          blocks:
+            - type: header
+              content: Invoice {{invoiceNumber}}
+            - type: paragraph
+              content: Dear {{customerName}},
+        status: published
+        createdAt: '2026-01-22T09:00:00Z'
+        publishedAt: '2026-01-25T14:00:00Z'
+        archivedAt: null
     VersionSummaryDto:
       type: object
       description: Summary view of a version for list displays. The id field IS the version number (1-200).
@@ -2858,12 +3282,14 @@ components:
           minimum: 1
           maximum: 200
           description: Version identifier (also the version number, 1-200)
+          example: 1
         variantId:
           type: string
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 50
           description: Slug identifier of the variant this version belongs to
+          example: english
         status:
           type: string
           enum:
@@ -2871,22 +3297,33 @@ components:
             - published
             - archived
           description: Lifecycle status of this version
+          example: published
         createdAt:
           type: string
           format: date-time
           description: Timestamp when the version was created
+          example: '2026-01-22T09:00:00Z'
         publishedAt:
           type:
             - string
             - 'null'
           format: date-time
           description: Timestamp when the version was published
+          example: '2026-01-25T14:00:00Z'
         archivedAt:
           type:
             - string
             - 'null'
           format: date-time
           description: Timestamp when the version was archived
+          example: null
+      example:
+        id: 1
+        variantId: english
+        status: published
+        createdAt: '2026-01-22T09:00:00Z'
+        publishedAt: '2026-01-25T14:00:00Z'
+        archivedAt: null
     UpdateDraftRequest:
       type: object
       description: Request body for updating a draft version
@@ -2894,6 +3331,12 @@ components:
         templateModel:
           type: object
           description: Template model structure
+          example:
+            blocks:
+              - type: header
+                content: Invoice {{invoiceNumber}}
+              - type: paragraph
+                content: Dear {{customerName}},
     VersionListResponse:
       type: object
       description: List of template versions
@@ -2905,6 +3348,20 @@ components:
           description: List of versions
           items:
             $ref: '#/components/schemas/VersionSummaryDto'
+      example:
+        items:
+          - id: 1
+            variantId: english
+            status: published
+            createdAt: '2026-01-22T09:00:00Z'
+            publishedAt: '2026-01-25T14:00:00Z'
+            archivedAt: null
+          - id: 2
+            variantId: english
+            status: published
+            createdAt: '2026-01-26T10:00:00Z'
+            publishedAt: '2026-01-28T11:00:00Z'
+            archivedAt: null
     GenerateDocumentRequest:
       type: object
       description: Request to generate a single document
@@ -2919,12 +3376,14 @@ components:
           minLength: 3
           maxLength: 50
           description: Slug identifier of template to use for generation
+          example: invoice
         variantId:
           type: string
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 50
           description: Slug identifier of the variant to use
+          example: english
         versionId:
           type:
             - integer
@@ -2932,6 +3391,7 @@ components:
           minimum: 1
           maximum: 200
           description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId)
+          example: 1
         environmentId:
           type:
             - string
@@ -2940,21 +3400,28 @@ components:
           minLength: 3
           maxLength: 30
           description: Slug identifier of environment to determine version from (mutually exclusive with versionId)
+          example: null
         data:
           type: object
           description: JSON data to populate the template
+          example:
+            customerName: Jane Smith
+            invoiceNumber: INV-2026-001
+            amount: 1250
         filename:
           type:
             - string
             - 'null'
           description: Optional filename for the generated document
           maxLength: 255
+          example: invoice-2026-001.pdf
         correlationId:
           type:
             - string
             - 'null'
           description: Client-provided ID for tracking documents across systems
           maxLength: 255
+          example: order-7890
     BatchGenerationItem:
       type: object
       description: Single item in a batch generation request. Both correlationId and filename must be unique within a batch (null values are excluded from uniqueness checks).
@@ -2969,12 +3436,14 @@ components:
           minLength: 3
           maxLength: 50
           description: Slug identifier of template to use for generation
+          example: invoice
         variantId:
           type: string
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 50
           description: Slug identifier of the variant to use
+          example: english
         versionId:
           type:
             - integer
@@ -2982,6 +3451,7 @@ components:
           minimum: 1
           maximum: 200
           description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId)
+          example: 1
         environmentId:
           type:
             - string
@@ -2990,21 +3460,28 @@ components:
           minLength: 3
           maxLength: 30
           description: Slug identifier of environment to determine version from (mutually exclusive with versionId)
+          example: null
         data:
           type: object
           description: JSON data to populate the template
+          example:
+            customerName: Jane Smith
+            invoiceNumber: INV-2026-001
+            amount: 1250
         filename:
           type:
             - string
             - 'null'
           description: Optional filename for the generated document. Must be unique within a batch.
           maxLength: 255
+          example: invoice-2026-001.pdf
         correlationId:
           type:
             - string
             - 'null'
           description: Client-provided ID for tracking documents across systems. Must be unique within a batch.
           maxLength: 255
+          example: order-7890
     GenerateBatchRequest:
       type: object
       description: Request to generate multiple documents in a batch
@@ -3031,6 +3508,7 @@ components:
           type: string
           format: uuid
           description: Unique identifier for tracking this generation request
+          example: 550e8400-e29b-41d4-a716-446655440000
         status:
           type: string
           enum:
@@ -3040,19 +3518,29 @@ components:
             - FAILED
             - CANCELLED
           description: Current status of the request
+          example: PENDING
         jobType:
           type: string
           enum:
             - SINGLE
             - BATCH
           description: Type of generation job
+          example: SINGLE
         totalCount:
           type: integer
           description: Total number of items to generate
+          example: 1
         createdAt:
           type: string
           format: date-time
           description: When the request was created
+          example: '2026-02-01T08:00:00Z'
+      example:
+        requestId: 550e8400-e29b-41d4-a716-446655440000
+        status: PENDING
+        jobType: SINGLE
+        totalCount: 1
+        createdAt: '2026-02-01T08:00:00Z'
     DocumentGenerationItemDto:
       type: object
       description: Individual item in a generation batch
@@ -3068,18 +3556,21 @@ components:
           type: string
           format: uuid
           description: Unique identifier of this item
+          example: 660e8400-e29b-41d4-a716-446655440001
         templateId:
           type: string
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 50
           description: Slug identifier of template used for generation
+          example: invoice
         variantId:
           type: string
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 50
           description: Slug identifier of the variant used for generation
+          example: english
         versionId:
           type:
             - integer
@@ -3087,6 +3578,7 @@ components:
           minimum: 1
           maximum: 200
           description: Explicit version ID (version number, 1-200, if specified)
+          example: 1
         environmentId:
           type:
             - string
@@ -3095,19 +3587,26 @@ components:
           minLength: 3
           maxLength: 30
           description: Slug identifier of environment (if specified)
+          example: null
         data:
           type: object
           description: JSON data used for generation
+          example:
+            customerName: Jane Smith
+            invoiceNumber: INV-2026-001
+            amount: 1250
         filename:
           type:
             - string
             - 'null'
           description: Requested filename
+          example: invoice-2026-001.pdf
         correlationId:
           type:
             - string
             - 'null'
           description: Client-provided ID for tracking documents across systems
+          example: order-7890
         status:
           type: string
           enum:
@@ -3116,33 +3615,57 @@ components:
             - COMPLETED
             - FAILED
           description: Status of this item
+          example: COMPLETED
         errorMessage:
           type:
             - string
             - 'null'
           description: Error message if processing failed
+          example: null
         documentId:
           type:
             - string
             - 'null'
           format: uuid
           description: ID of the generated document (if successful)
+          example: 770e8400-e29b-41d4-a716-446655440002
         createdAt:
           type: string
           format: date-time
           description: When the item was created
+          example: '2026-02-01T08:00:00Z'
         startedAt:
           type:
             - string
             - 'null'
           format: date-time
           description: When processing started
+          example: '2026-02-01T08:00:01Z'
         completedAt:
           type:
             - string
             - 'null'
           format: date-time
           description: When processing completed
+          example: '2026-02-01T08:00:03Z'
+      example:
+        id: 660e8400-e29b-41d4-a716-446655440001
+        templateId: invoice
+        variantId: english
+        versionId: 1
+        environmentId: null
+        data:
+          customerName: Jane Smith
+          invoiceNumber: INV-2026-001
+          amount: 1250
+        filename: invoice-2026-001.pdf
+        correlationId: order-7890
+        status: COMPLETED
+        errorMessage: null
+        documentId: 770e8400-e29b-41d4-a716-446655440002
+        createdAt: '2026-02-01T08:00:00Z'
+        startedAt: '2026-02-01T08:00:01Z'
+        completedAt: '2026-02-01T08:00:03Z'
     DocumentGenerationJobDto:
       type: object
       description: Generation job summary
@@ -3159,12 +3682,14 @@ components:
           type: string
           format: uuid
           description: Unique identifier of the request
+          example: 550e8400-e29b-41d4-a716-446655440000
         jobType:
           type: string
           enum:
             - SINGLE
             - BATCH
           description: Type of generation job
+          example: SINGLE
         status:
           type: string
           enum:
@@ -3174,40 +3699,61 @@ components:
             - FAILED
             - CANCELLED
           description: Current status of the request
+          example: COMPLETED
         totalCount:
           type: integer
           description: Total number of items to generate
+          example: 1
         completedCount:
           type: integer
           description: Number of items successfully completed
+          example: 1
         failedCount:
           type: integer
           description: Number of items that failed
+          example: 0
         errorMessage:
           type:
             - string
             - 'null'
           description: Error message if the job failed
+          example: null
         createdAt:
           type: string
           format: date-time
           description: When the request was created
+          example: '2026-02-01T08:00:00Z'
         startedAt:
           type:
             - string
             - 'null'
           format: date-time
           description: When processing started
+          example: '2026-02-01T08:00:01Z'
         completedAt:
           type:
             - string
             - 'null'
           format: date-time
           description: When processing completed
+          example: '2026-02-01T08:00:03Z'
         progressPercentage:
           type: number
           format: double
           description: Progress percentage (0-100)
+          example: 100
+      example:
+        id: 550e8400-e29b-41d4-a716-446655440000
+        jobType: SINGLE
+        status: COMPLETED
+        totalCount: 1
+        completedCount: 1
+        failedCount: 0
+        errorMessage: null
+        createdAt: '2026-02-01T08:00:00Z'
+        startedAt: '2026-02-01T08:00:01Z'
+        completedAt: '2026-02-01T08:00:03Z'
+        progressPercentage: 100
     GenerationJobDetail:
       type: object
       description: Detailed generation job with all items
@@ -3222,6 +3768,37 @@ components:
           description: List of items in this batch
           items:
             $ref: '#/components/schemas/DocumentGenerationItemDto'
+      example:
+        request:
+          id: 550e8400-e29b-41d4-a716-446655440000
+          jobType: SINGLE
+          status: COMPLETED
+          totalCount: 1
+          completedCount: 1
+          failedCount: 0
+          errorMessage: null
+          createdAt: '2026-02-01T08:00:00Z'
+          startedAt: '2026-02-01T08:00:01Z'
+          completedAt: '2026-02-01T08:00:03Z'
+          progressPercentage: 100
+        items:
+          - id: 660e8400-e29b-41d4-a716-446655440001
+            templateId: invoice
+            variantId: english
+            versionId: 1
+            environmentId: null
+            data:
+              customerName: Jane Smith
+              invoiceNumber: INV-2026-001
+              amount: 1250
+            filename: invoice-2026-001.pdf
+            correlationId: order-7890
+            status: COMPLETED
+            errorMessage: null
+            documentId: 770e8400-e29b-41d4-a716-446655440002
+            createdAt: '2026-02-01T08:00:00Z'
+            startedAt: '2026-02-01T08:00:01Z'
+            completedAt: '2026-02-01T08:00:03Z'
     GenerationJobListResponse:
       type: object
       description: Paginated list of generation jobs
@@ -3240,15 +3817,36 @@ components:
         page:
           type: integer
           description: Current page number (0-based)
+          example: 0
         size:
           type: integer
           description: Number of items per page
+          example: 20
         totalElements:
           type: integer
           description: Total number of items across all pages
+          example: 1
         totalPages:
           type: integer
           description: Total number of pages
+          example: 1
+      example:
+        items:
+          - id: 550e8400-e29b-41d4-a716-446655440000
+            jobType: SINGLE
+            status: COMPLETED
+            totalCount: 1
+            completedCount: 1
+            failedCount: 0
+            errorMessage: null
+            createdAt: '2026-02-01T08:00:00Z'
+            startedAt: '2026-02-01T08:00:01Z'
+            completedAt: '2026-02-01T08:00:03Z'
+            progressPercentage: 100
+        page: 0
+        size: 20
+        totalElements: 1
+        totalPages: 1
     DocumentDto:
       type: object
       description: Generated document metadata
@@ -3267,53 +3865,76 @@ components:
           type: string
           format: uuid
           description: Unique identifier of the document
+          example: 770e8400-e29b-41d4-a716-446655440002
         tenantId:
           type: string
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 63
           description: Slug identifier of the tenant that owns this document
+          example: acme-corp
         templateId:
           type: string
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 50
           description: Slug identifier of template used to generate this document
+          example: invoice
         variantId:
           type: string
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 50
           description: Slug identifier of the variant used to generate this document
+          example: english
         versionId:
           type: integer
           minimum: 1
           maximum: 200
           description: Version used to generate this document (version number, 1-200)
+          example: 1
         filename:
           type: string
           description: Filename of the document
+          example: invoice-2026-001.pdf
         correlationId:
           type:
             - string
             - 'null'
           description: Client-provided ID for tracking documents across systems
+          example: order-7890
         contentType:
           type: string
           description: MIME type of the document
+          example: application/pdf
         sizeBytes:
           type: integer
           format: int64
           description: Size of the document in bytes
+          example: 184320
         createdAt:
           type: string
           format: date-time
           description: When the document was generated
+          example: '2026-02-01T08:00:03Z'
         createdBy:
           type:
             - string
             - 'null'
           description: User who generated the document (future feature)
+          example: null
+      example:
+        id: 770e8400-e29b-41d4-a716-446655440002
+        tenantId: acme-corp
+        templateId: invoice
+        variantId: english
+        versionId: 1
+        filename: invoice-2026-001.pdf
+        correlationId: order-7890
+        contentType: application/pdf
+        sizeBytes: 184320
+        createdAt: '2026-02-01T08:00:03Z'
+        createdBy: null
     DocumentListResponse:
       type: object
       description: Paginated list of documents
@@ -3332,15 +3953,36 @@ components:
         page:
           type: integer
           description: Current page number (0-based)
+          example: 0
         size:
           type: integer
           description: Number of items per page
+          example: 20
         totalElements:
           type: integer
           description: Total number of items across all pages
+          example: 1
         totalPages:
           type: integer
           description: Total number of pages
+          example: 1
+      example:
+        items:
+          - id: 770e8400-e29b-41d4-a716-446655440002
+            tenantId: acme-corp
+            templateId: invoice
+            variantId: english
+            versionId: 1
+            filename: invoice-2026-001.pdf
+            correlationId: order-7890
+            contentType: application/pdf
+            sizeBytes: 184320
+            createdAt: '2026-02-01T08:00:03Z'
+            createdBy: null
+        page: 0
+        size: 20
+        totalElements: 1
+        totalPages: 1
     ErrorResponse:
       type: object
       description: Standard error response
