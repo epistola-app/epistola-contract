@@ -64,6 +64,18 @@ VariantDto:
       format: date-time
       description: Timestamp when the variant was last modified
       example: "2026-01-28T11:30:00Z"
+  example:
+    id: english
+    templateId: invoice
+    title: English Invoice
+    description: English language invoice for international customers
+    tags:
+      locale: en-US
+      brand: acme
+    hasDraft: true
+    publishedVersions: [1, 2]
+    createdAt: "2026-01-21T10:00:00Z"
+    lastModified: "2026-01-28T11:30:00Z"
 
 VariantSummaryDto:
   type: object
@@ -105,6 +117,14 @@ VariantSummaryDto:
         type: integer
       description: List of published version numbers
       example: [1, 2]
+  example:
+    id: english
+    title: English Invoice
+    tags:
+      locale: en-US
+      brand: acme
+    hasDraft: true
+    publishedVersions: [1, 2]
 
 CreateVariantRequest:
   type: object
@@ -177,6 +197,19 @@ VariantListResponse:
       description: List of variants
       items:
         $ref: '#/VariantDto'
+  example:
+    items:
+      - id: english
+        templateId: invoice
+        title: English Invoice
+        description: English language invoice for international customers
+        tags:
+          locale: en-US
+          brand: acme
+        hasDraft: true
+        publishedVersions: [1, 2]
+        createdAt: "2026-01-21T10:00:00Z"
+        lastModified: "2026-01-28T11:30:00Z"
 
 ActivationDto:
   type: object
@@ -209,6 +242,11 @@ ActivationDto:
       format: date-time
       description: Timestamp when this version was activated
       example: "2026-01-28T12:00:00Z"
+  example:
+    environmentId: production
+    environmentName: Production
+    versionId: 1
+    activatedAt: "2026-01-28T12:00:00Z"
 
 SetActivationRequest:
   type: object
@@ -234,3 +272,13 @@ ActivationListResponse:
       description: List of activations
       items:
         $ref: '#/ActivationDto'
+  example:
+    items:
+      - environmentId: production
+        environmentName: Production
+        versionId: 1
+        activatedAt: "2026-01-28T12:00:00Z"
+      - environmentId: staging
+        environmentName: Staging
+        versionId: 2
+        activatedAt: "2026-01-29T09:00:00Z"

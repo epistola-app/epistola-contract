@@ -56,6 +56,19 @@ VersionDto:
       format: date-time
       description: Timestamp when the version was archived
       example: null
+  example:
+    id: 1
+    variantId: english
+    templateModel:
+      blocks:
+        - type: header
+          content: "Invoice {{invoiceNumber}}"
+        - type: paragraph
+          content: "Dear {{customerName}},"
+    status: published
+    createdAt: "2026-01-22T09:00:00Z"
+    publishedAt: "2026-01-25T14:00:00Z"
+    archivedAt: null
 
 VersionSummaryDto:
   type: object
@@ -106,6 +119,13 @@ VersionSummaryDto:
       format: date-time
       description: Timestamp when the version was archived
       example: null
+  example:
+    id: 1
+    variantId: english
+    status: published
+    createdAt: "2026-01-22T09:00:00Z"
+    publishedAt: "2026-01-25T14:00:00Z"
+    archivedAt: null
 
 UpdateDraftRequest:
   type: object
@@ -132,3 +152,17 @@ VersionListResponse:
       description: List of versions
       items:
         $ref: '#/VersionSummaryDto'
+  example:
+    items:
+      - id: 1
+        variantId: english
+        status: published
+        createdAt: "2026-01-22T09:00:00Z"
+        publishedAt: "2026-01-25T14:00:00Z"
+        archivedAt: null
+      - id: 2
+        variantId: english
+        status: published
+        createdAt: "2026-01-26T10:00:00Z"
+        publishedAt: "2026-01-28T11:00:00Z"
+        archivedAt: null

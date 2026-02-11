@@ -30,6 +30,11 @@ EnvironmentDto:
       format: date-time
       description: Timestamp when the environment was created
       example: "2026-01-16T10:00:00Z"
+  example:
+    id: production
+    tenantId: acme-corp
+    name: Production
+    createdAt: "2026-01-16T10:00:00Z"
 
 CreateEnvironmentRequest:
   type: object
@@ -74,3 +79,13 @@ EnvironmentListResponse:
       description: List of environments
       items:
         $ref: '#/EnvironmentDto'
+  example:
+    items:
+      - id: production
+        tenantId: acme-corp
+        name: Production
+        createdAt: "2026-01-16T10:00:00Z"
+      - id: staging
+        tenantId: acme-corp
+        name: Staging
+        createdAt: "2026-01-16T10:30:00Z"

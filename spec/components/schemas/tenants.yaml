@@ -22,6 +22,10 @@ TenantDto:
       format: date-time
       description: Timestamp when the tenant was created
       example: "2026-01-15T09:00:00Z"
+  example:
+    id: acme-corp
+    name: Acme Corporation
+    createdAt: "2026-01-15T09:00:00Z"
 
 CreateTenantRequest:
   type: object
@@ -91,3 +95,12 @@ TenantListResponse:
       type: integer
       description: Total number of pages
       example: 1
+  example:
+    items:
+      - id: acme-corp
+        name: Acme Corporation
+        createdAt: "2026-01-15T09:00:00Z"
+    page: 0
+    size: 20
+    totalElements: 1
+    totalPages: 1

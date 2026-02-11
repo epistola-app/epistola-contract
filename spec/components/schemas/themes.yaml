@@ -57,6 +57,37 @@ ThemeDto:
       format: date-time
       description: Timestamp when the theme was last modified
       example: "2026-01-18T14:30:00Z"
+  example:
+    id: corporate
+    tenantId: acme-corp
+    name: Corporate Theme
+    description: Default corporate branding with Acme colors and fonts
+    documentStyles:
+      fontFamily: Helvetica
+      fontSize: "12pt"
+      fontWeight: normal
+      color: "#333333"
+      lineHeight: "1.5"
+      letterSpacing: "0.01em"
+      textAlign: left
+      backgroundColor: "#ffffff"
+    pageSettings:
+      format: A4
+      orientation: portrait
+      margins:
+        top: 40
+        right: 40
+        bottom: 40
+        left: 40
+    blockStylePresets:
+      heading:
+        fontSize: "18pt"
+        fontWeight: bold
+      caption:
+        fontSize: "9pt"
+        color: "#666666"
+    createdAt: "2026-01-17T11:00:00Z"
+    lastModified: "2026-01-18T14:30:00Z"
 
 DocumentStylesDto:
   type: object
@@ -95,6 +126,15 @@ DocumentStylesDto:
       type: string
       description: Default background color
       example: "#ffffff"
+  example:
+    fontFamily: Helvetica
+    fontSize: "12pt"
+    fontWeight: normal
+    color: "#333333"
+    lineHeight: "1.5"
+    letterSpacing: "0.01em"
+    textAlign: left
+    backgroundColor: "#ffffff"
 
 PageSettingsDto:
   type: object
@@ -112,6 +152,14 @@ PageSettingsDto:
       example: portrait
     margins:
       $ref: '#/MarginsDto'
+  example:
+    format: A4
+    orientation: portrait
+    margins:
+      top: 40
+      right: 40
+      bottom: 40
+      left: 40
 
 MarginsDto:
   type: object
@@ -133,6 +181,11 @@ MarginsDto:
       type: integer
       description: Left margin in pixels
       example: 40
+  example:
+    top: 40
+    right: 40
+    bottom: 40
+    left: 40
 
 CreateThemeRequest:
   type: object
@@ -211,3 +264,35 @@ ThemeListResponse:
       description: List of themes
       items:
         $ref: '#/ThemeDto'
+  example:
+    items:
+      - id: corporate
+        tenantId: acme-corp
+        name: Corporate Theme
+        description: Default corporate branding with Acme colors and fonts
+        documentStyles:
+          fontFamily: Helvetica
+          fontSize: "12pt"
+          fontWeight: normal
+          color: "#333333"
+          lineHeight: "1.5"
+          letterSpacing: "0.01em"
+          textAlign: left
+          backgroundColor: "#ffffff"
+        pageSettings:
+          format: A4
+          orientation: portrait
+          margins:
+            top: 40
+            right: 40
+            bottom: 40
+            left: 40
+        blockStylePresets:
+          heading:
+            fontSize: "18pt"
+            fontWeight: bold
+          caption:
+            fontSize: "9pt"
+            color: "#666666"
+        createdAt: "2026-01-17T11:00:00Z"
+        lastModified: "2026-01-18T14:30:00Z"

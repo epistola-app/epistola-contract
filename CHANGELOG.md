@@ -8,14 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Property-level examples on all OpenAPI schema properties for consistent mock server responses
+- OpenAPI examples for consistent, deterministic mock server responses
+  - Schema-level examples on all response/DTO types (used by Prism for reliable static responses)
+  - Property-level examples on all properties (used by documentation renderers like Redoc)
   - Examples follow a coherent "Epistola story" narrative (Acme Corp tenant, invoice template, English variant)
   - All IDs, timestamps, and references are cross-consistent across schemas
+  - List responses include realistic multi-item arrays (e.g., production + staging environments)
 
 ### Changed
 - Switched Prism mock server from dynamic (`-d`) to static mode
   - Responses are now deterministic and consistent across repeated requests
-  - Mock data is derived from schema property examples instead of randomly generated
+  - Mock data is derived from schema examples instead of randomly generated
 
 ### Fixed
 - Mock server Docker image now receives the correct auto-incremented version during releases

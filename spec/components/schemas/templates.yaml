@@ -72,6 +72,46 @@ TemplateDto:
       format: date-time
       description: Timestamp when the template was last modified
       example: "2026-01-22T16:45:00Z"
+  example:
+    id: invoice
+    tenantId: acme-corp
+    name: Monthly Invoice
+    schema:
+      type: object
+      required:
+        - customerName
+        - invoiceNumber
+      properties:
+        customerName:
+          type: string
+        invoiceNumber:
+          type: string
+        amount:
+          type: number
+    dataModel:
+      type: object
+      properties:
+        header:
+          type: object
+        lineItems:
+          type: array
+    dataExamples:
+      - id: standard-invoice
+        name: Standard Invoice
+        data:
+          customerName: "Jane Smith"
+          invoiceNumber: "INV-2026-001"
+          amount: 1250.00
+    variants:
+      - id: english
+        title: English Invoice
+        tags:
+          locale: en-US
+          brand: acme
+        hasDraft: true
+        publishedVersions: [1, 2]
+    createdAt: "2026-01-20T09:00:00Z"
+    lastModified: "2026-01-22T16:45:00Z"
 
 TemplateSummaryDto:
   type: object
@@ -111,6 +151,12 @@ TemplateSummaryDto:
       format: date-time
       description: Timestamp when the template was last modified
       example: "2026-01-22T16:45:00Z"
+  example:
+    id: invoice
+    tenantId: acme-corp
+    name: Monthly Invoice
+    createdAt: "2026-01-20T09:00:00Z"
+    lastModified: "2026-01-22T16:45:00Z"
 
 DataExampleDto:
   type: object
@@ -135,6 +181,13 @@ DataExampleDto:
         customerName: "Jane Smith"
         invoiceNumber: "INV-2026-001"
         amount: 1250.00
+  example:
+    id: standard-invoice
+    name: Standard Invoice
+    data:
+      customerName: "Jane Smith"
+      invoiceNumber: "INV-2026-001"
+      amount: 1250.00
 
 CreateTemplateRequest:
   type: object
@@ -229,3 +282,10 @@ TemplateListResponse:
       description: List of template summaries
       items:
         $ref: '#/TemplateSummaryDto'
+  example:
+    items:
+      - id: invoice
+        tenantId: acme-corp
+        name: Monthly Invoice
+        createdAt: "2026-01-20T09:00:00Z"
+        lastModified: "2026-01-22T16:45:00Z"

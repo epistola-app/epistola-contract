@@ -153,6 +153,12 @@ GenerationJobResponse:
       format: date-time
       description: When the request was created
       example: "2026-02-01T08:00:00Z"
+  example:
+    requestId: "550e8400-e29b-41d4-a716-446655440000"
+    status: PENDING
+    jobType: SINGLE
+    totalCount: 1
+    createdAt: "2026-02-01T08:00:00Z"
 
 DocumentGenerationItemDto:
   type: object
@@ -241,6 +247,24 @@ DocumentGenerationItemDto:
       format: date-time
       description: When processing completed
       example: "2026-02-01T08:00:03Z"
+  example:
+    id: "660e8400-e29b-41d4-a716-446655440001"
+    templateId: invoice
+    variantId: english
+    versionId: 1
+    environmentId: null
+    data:
+      customerName: "Jane Smith"
+      invoiceNumber: "INV-2026-001"
+      amount: 1250.00
+    filename: "invoice-2026-001.pdf"
+    correlationId: "order-7890"
+    status: COMPLETED
+    errorMessage: null
+    documentId: "770e8400-e29b-41d4-a716-446655440002"
+    createdAt: "2026-02-01T08:00:00Z"
+    startedAt: "2026-02-01T08:00:01Z"
+    completedAt: "2026-02-01T08:00:03Z"
 
 DocumentGenerationJobDto:
   type: object
@@ -305,6 +329,18 @@ DocumentGenerationJobDto:
       format: double
       description: Progress percentage (0-100)
       example: 100.0
+  example:
+    id: "550e8400-e29b-41d4-a716-446655440000"
+    jobType: SINGLE
+    status: COMPLETED
+    totalCount: 1
+    completedCount: 1
+    failedCount: 0
+    errorMessage: null
+    createdAt: "2026-02-01T08:00:00Z"
+    startedAt: "2026-02-01T08:00:01Z"
+    completedAt: "2026-02-01T08:00:03Z"
+    progressPercentage: 100.0
 
 GenerationJobDetail:
   type: object
@@ -320,6 +356,37 @@ GenerationJobDetail:
       description: List of items in this batch
       items:
         $ref: '#/DocumentGenerationItemDto'
+  example:
+    request:
+      id: "550e8400-e29b-41d4-a716-446655440000"
+      jobType: SINGLE
+      status: COMPLETED
+      totalCount: 1
+      completedCount: 1
+      failedCount: 0
+      errorMessage: null
+      createdAt: "2026-02-01T08:00:00Z"
+      startedAt: "2026-02-01T08:00:01Z"
+      completedAt: "2026-02-01T08:00:03Z"
+      progressPercentage: 100.0
+    items:
+      - id: "660e8400-e29b-41d4-a716-446655440001"
+        templateId: invoice
+        variantId: english
+        versionId: 1
+        environmentId: null
+        data:
+          customerName: "Jane Smith"
+          invoiceNumber: "INV-2026-001"
+          amount: 1250.00
+        filename: "invoice-2026-001.pdf"
+        correlationId: "order-7890"
+        status: COMPLETED
+        errorMessage: null
+        documentId: "770e8400-e29b-41d4-a716-446655440002"
+        createdAt: "2026-02-01T08:00:00Z"
+        startedAt: "2026-02-01T08:00:01Z"
+        completedAt: "2026-02-01T08:00:03Z"
 
 GenerationJobListResponse:
   type: object
@@ -352,6 +419,23 @@ GenerationJobListResponse:
       type: integer
       description: Total number of pages
       example: 1
+  example:
+    items:
+      - id: "550e8400-e29b-41d4-a716-446655440000"
+        jobType: SINGLE
+        status: COMPLETED
+        totalCount: 1
+        completedCount: 1
+        failedCount: 0
+        errorMessage: null
+        createdAt: "2026-02-01T08:00:00Z"
+        startedAt: "2026-02-01T08:00:01Z"
+        completedAt: "2026-02-01T08:00:03Z"
+        progressPercentage: 100.0
+    page: 0
+    size: 20
+    totalElements: 1
+    totalPages: 1
 
 DocumentDto:
   type: object
@@ -425,6 +509,18 @@ DocumentDto:
       type: [string, "null"]
       description: User who generated the document (future feature)
       example: null
+  example:
+    id: "770e8400-e29b-41d4-a716-446655440002"
+    tenantId: acme-corp
+    templateId: invoice
+    variantId: english
+    versionId: 1
+    filename: "invoice-2026-001.pdf"
+    correlationId: "order-7890"
+    contentType: "application/pdf"
+    sizeBytes: 184320
+    createdAt: "2026-02-01T08:00:03Z"
+    createdBy: null
 
 DocumentListResponse:
   type: object
@@ -457,3 +553,20 @@ DocumentListResponse:
       type: integer
       description: Total number of pages
       example: 1
+  example:
+    items:
+      - id: "770e8400-e29b-41d4-a716-446655440002"
+        tenantId: acme-corp
+        templateId: invoice
+        variantId: english
+        versionId: 1
+        filename: "invoice-2026-001.pdf"
+        correlationId: "order-7890"
+        contentType: "application/pdf"
+        sizeBytes: 184320
+        createdAt: "2026-02-01T08:00:03Z"
+        createdBy: null
+    page: 0
+    size: 20
+    totalElements: 1
+    totalPages: 1

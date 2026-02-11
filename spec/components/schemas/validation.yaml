@@ -27,6 +27,9 @@ TemplateDataValidationResult:
       description: List of validation errors (empty when valid is true)
       items:
         $ref: '#/TemplateDataValidationError'
+  example:
+    valid: true
+    errors: []
 
 TemplateDataValidationError:
   type: object
@@ -47,3 +50,7 @@ TemplateDataValidationError:
       type: string
       description: JSON Schema validation keyword that failed (e.g., "type", "format", "required", "minLength")
       example: "format"
+  example:
+    path: "$.customer.email"
+    message: "must be a valid email address"
+    keyword: "format"
