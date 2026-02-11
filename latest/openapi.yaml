@@ -2603,15 +2603,86 @@ components:
           example:
             type: object
             required:
-              - customerName
+              - customer
               - invoiceNumber
+              - issueDate
+              - lineItems
             properties:
-              customerName:
-                type: string
+              customer:
+                type: object
+                required:
+                  - name
+                  - email
+                properties:
+                  name:
+                    type: string
+                    minLength: 1
+                    maxLength: 200
+                  email:
+                    type: string
+                    format: email
+                  taxId:
+                    type: string
+                    pattern: ^[A-Z]{2}\d{9}$
+                  address:
+                    type: object
+                    properties:
+                      street:
+                        type: string
+                      city:
+                        type: string
+                      postalCode:
+                        type: string
+                        pattern: ^\d{5}(-\d{4})?$
+                      country:
+                        type: string
+                        enum:
+                          - US
+                          - GB
+                          - NL
+                          - DE
+                          - FR
               invoiceNumber:
                 type: string
-              amount:
-                type: number
+                pattern: ^INV-\d{4}-\d{3}$
+              issueDate:
+                type: string
+                format: date
+              dueDate:
+                type: string
+                format: date
+              lineItems:
+                type: array
+                minItems: 1
+                items:
+                  type: object
+                  required:
+                    - description
+                    - quantity
+                    - unitPrice
+                  properties:
+                    description:
+                      type: string
+                    quantity:
+                      type: integer
+                      minimum: 1
+                    unitPrice:
+                      type: number
+                      minimum: 0
+                    taxRate:
+                      type: number
+                      minimum: 0
+                      maximum: 100
+              notes:
+                type: string
+                maxLength: 1000
+              currency:
+                type: string
+                enum:
+                  - USD
+                  - EUR
+                  - GBP
+                default: USD
         dataModel:
           type: object
           description: JSON Schema defining the expected data structure for template rendering
@@ -2620,8 +2691,57 @@ components:
             properties:
               header:
                 type: object
+                properties:
+                  logo:
+                    type: string
+                    format: uri
+                  companyName:
+                    type: string
+                  companyAddress:
+                    type: object
+                    properties:
+                      street:
+                        type: string
+                      city:
+                        type: string
+                      postalCode:
+                        type: string
+                      country:
+                        type: string
+              summary:
+                type: object
+                properties:
+                  subtotal:
+                    type: number
+                  taxTotal:
+                    type: number
+                  total:
+                    type: number
               lineItems:
                 type: array
+                items:
+                  type: object
+                  properties:
+                    description:
+                      type: string
+                    quantity:
+                      type: integer
+                    unitPrice:
+                      type: number
+                    lineTotal:
+                      type: number
+              footer:
+                type: object
+                properties:
+                  paymentTerms:
+                    type: string
+                  bankDetails:
+                    type: object
+                    properties:
+                      iban:
+                        type: string
+                      bic:
+                        type: string
         dataExamples:
           type: array
           description: Example data sets for testing template rendering
@@ -2649,29 +2769,171 @@ components:
         schema:
           type: object
           required:
-            - customerName
+            - customer
             - invoiceNumber
+            - issueDate
+            - lineItems
           properties:
-            customerName:
-              type: string
+            customer:
+              type: object
+              required:
+                - name
+                - email
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                email:
+                  type: string
+                  format: email
+                taxId:
+                  type: string
+                  pattern: ^[A-Z]{2}\d{9}$
+                address:
+                  type: object
+                  properties:
+                    street:
+                      type: string
+                    city:
+                      type: string
+                    postalCode:
+                      type: string
+                      pattern: ^\d{5}(-\d{4})?$
+                    country:
+                      type: string
+                      enum:
+                        - US
+                        - GB
+                        - NL
+                        - DE
+                        - FR
             invoiceNumber:
               type: string
-            amount:
-              type: number
+              pattern: ^INV-\d{4}-\d{3}$
+            issueDate:
+              type: string
+              format: date
+            dueDate:
+              type: string
+              format: date
+            lineItems:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                required:
+                  - description
+                  - quantity
+                  - unitPrice
+                properties:
+                  description:
+                    type: string
+                  quantity:
+                    type: integer
+                    minimum: 1
+                  unitPrice:
+                    type: number
+                    minimum: 0
+                  taxRate:
+                    type: number
+                    minimum: 0
+                    maximum: 100
+            notes:
+              type: string
+              maxLength: 1000
+            currency:
+              type: string
+              enum:
+                - USD
+                - EUR
+                - GBP
+              default: USD
         dataModel:
           type: object
           properties:
             header:
               type: object
+              properties:
+                logo:
+                  type: string
+                  format: uri
+                companyName:
+                  type: string
+                companyAddress:
+                  type: object
+            summary:
+              type: object
+              properties:
+                subtotal:
+                  type: number
+                taxTotal:
+                  type: number
+                total:
+                  type: number
             lineItems:
               type: array
+              items:
+                type: object
+                properties:
+                  description:
+                    type: string
+                  quantity:
+                    type: integer
+                  unitPrice:
+                    type: number
+                  lineTotal:
+                    type: number
+            footer:
+              type: object
+              properties:
+                paymentTerms:
+                  type: string
+                bankDetails:
+                  type: object
         dataExamples:
           - id: standard-invoice
             name: Standard Invoice
             data:
-              customerName: Jane Smith
+              customer:
+                name: Jane Smith
+                email: jane.smith@example.com
+                taxId: US123456789
+                address:
+                  street: 123 Main Street
+                  city: Springfield
+                  postalCode: '62704'
+                  country: US
               invoiceNumber: INV-2026-001
-              amount: 1250
+              issueDate: '2026-02-01'
+              dueDate: '2026-03-01'
+              lineItems:
+                - description: Consulting Services (40h)
+                  quantity: 40
+                  unitPrice: 150
+                  taxRate: 21
+                - description: Software License - Enterprise
+                  quantity: 1
+                  unitPrice: 2500
+                  taxRate: 21
+                - description: Travel Expenses
+                  quantity: 1
+                  unitPrice: 384.5
+                  taxRate: 0
+              notes: Payment due within 30 days. Please reference invoice number on transfer.
+              currency: EUR
+          - id: minimal-invoice
+            name: Minimal Invoice (required fields only)
+            data:
+              customer:
+                name: Bob Johnson
+                email: bob@example.com
+              invoiceNumber: INV-2026-002
+              issueDate: '2026-02-15'
+              lineItems:
+                - description: One-time setup fee
+                  quantity: 1
+                  unitPrice: 500
         variants:
           - id: english
             title: English Invoice
@@ -2754,13 +3016,86 @@ components:
           example:
             type: object
             required:
-              - customerName
+              - customer
               - invoiceNumber
+              - issueDate
+              - lineItems
             properties:
-              customerName:
-                type: string
+              customer:
+                type: object
+                required:
+                  - name
+                  - email
+                properties:
+                  name:
+                    type: string
+                    minLength: 1
+                    maxLength: 200
+                  email:
+                    type: string
+                    format: email
+                  taxId:
+                    type: string
+                    pattern: ^[A-Z]{2}\d{9}$
+                  address:
+                    type: object
+                    properties:
+                      street:
+                        type: string
+                      city:
+                        type: string
+                      postalCode:
+                        type: string
+                        pattern: ^\d{5}(-\d{4})?$
+                      country:
+                        type: string
+                        enum:
+                          - US
+                          - GB
+                          - NL
+                          - DE
+                          - FR
               invoiceNumber:
                 type: string
+                pattern: ^INV-\d{4}-\d{3}$
+              issueDate:
+                type: string
+                format: date
+              dueDate:
+                type: string
+                format: date
+              lineItems:
+                type: array
+                minItems: 1
+                items:
+                  type: object
+                  required:
+                    - description
+                    - quantity
+                    - unitPrice
+                  properties:
+                    description:
+                      type: string
+                    quantity:
+                      type: integer
+                      minimum: 1
+                    unitPrice:
+                      type: number
+                      minimum: 0
+                    taxRate:
+                      type: number
+                      minimum: 0
+                      maximum: 100
+              notes:
+                type: string
+                maxLength: 1000
+              currency:
+                type: string
+                enum:
+                  - USD
+                  - EUR
+                  - GBP
+                default: USD
     UpdateTemplateRequest:
       type: object
       description: Request body for updating a template's metadata (all fields optional)
@@ -2778,16 +3113,93 @@ components:
           example:
             type: object
             required:
-              - customerName
+              - customer
               - invoiceNumber
-              - amount
+              - issueDate
+              - lineItems
+              - paymentMethod
             properties:
-              customerName:
-                type: string
+              customer:
+                type: object
+                required:
+                  - name
+                  - email
+                properties:
+                  name:
+                    type: string
+                    minLength: 1
+                    maxLength: 200
+                  email:
+                    type: string
+                    format: email
+                  taxId:
+                    type: string
+                    pattern: ^[A-Z]{2}\d{9}$
+                  address:
+                    type: object
+                    properties:
+                      street:
+                        type: string
+                      city:
+                        type: string
+                      postalCode:
+                        type: string
+                        pattern: ^\d{5}(-\d{4})?$
+                      country:
+                        type: string
+                        enum:
+                          - US
+                          - GB
+                          - NL
+                          - DE
+                          - FR
               invoiceNumber:
                 type: string
-              amount:
-                type: number
+                pattern: ^INV-\d{4}-\d{3}$
+              issueDate:
+                type: string
+                format: date
+              dueDate:
+                type: string
+                format: date
+              lineItems:
+                type: array
+                minItems: 1
+                items:
+                  type: object
+                  required:
+                    - description
+                    - quantity
+                    - unitPrice
+                  properties:
+                    description:
+                      type: string
+                    quantity:
+                      type: integer
+                      minimum: 1
+                    unitPrice:
+                      type: number
+                      minimum: 0
+                    taxRate:
+                      type: number
+                      minimum: 0
+                      maximum: 100
+              paymentMethod:
+                type: string
+                enum:
+                  - bank-transfer
+                  - credit-card
+                  - paypal
+              notes:
+                type: string
+                maxLength: 1000
+              currency:
+                type: string
+                enum:
+                  - USD
+                  - EUR
+                  - GBP
+                default: USD
         dataModel:
           type: object
           description: Updated data model schema
@@ -2796,8 +3208,43 @@ components:
             properties:
               header:
                 type: object
+                properties:
+                  logo:
+                    type: string
+                    format: uri
+                  companyName:
+                    type: string
+                  companyAddress:
+                    type: object
+              summary:
+                type: object
+                properties:
+                  subtotal:
+                    type: number
+                  taxTotal:
+                    type: number
+                  total:
+                    type: number
               lineItems:
                 type: array
+                items:
+                  type: object
+                  properties:
+                    description:
+                      type: string
+                    quantity:
+                      type: integer
+                    unitPrice:
+                      type: number
+                    lineTotal:
+                      type: number
+              footer:
+                type: object
+                properties:
+                  paymentTerms:
+                    type: string
+                  bankDetails:
+                    type: object
         dataExamples:
           type: array
           description: Updated data examples
@@ -2846,16 +3293,64 @@ components:
           type: object
           description: The example data matching the template's data model
           example:
-            customerName: Jane Smith
+            customer:
+              name: Jane Smith
+              email: jane.smith@example.com
+              taxId: US123456789
+              address:
+                street: 123 Main Street
+                city: Springfield
+                postalCode: '62704'
+                country: US
             invoiceNumber: INV-2026-001
-            amount: 1250
+            issueDate: '2026-02-01'
+            dueDate: '2026-03-01'
+            lineItems:
+              - description: Consulting Services (40h)
+                quantity: 40
+                unitPrice: 150
+                taxRate: 21
+              - description: Software License - Enterprise
+                quantity: 1
+                unitPrice: 2500
+                taxRate: 21
+              - description: Travel Expenses
+                quantity: 1
+                unitPrice: 384.5
+                taxRate: 0
+            notes: Payment due within 30 days. Please reference invoice number on transfer.
+            currency: EUR
       example:
         id: standard-invoice
         name: Standard Invoice
         data:
-          customerName: Jane Smith
+          customer:
+            name: Jane Smith
+            email: jane.smith@example.com
+            taxId: US123456789
+            address:
+              street: 123 Main Street
+              city: Springfield
+              postalCode: '62704'
+              country: US
           invoiceNumber: INV-2026-001
-          amount: 1250
+          issueDate: '2026-02-01'
+          dueDate: '2026-03-01'
+          lineItems:
+            - description: Consulting Services (40h)
+              quantity: 40
+              unitPrice: 150
+              taxRate: 21
+            - description: Software License - Enterprise
+              quantity: 1
+              unitPrice: 2500
+              taxRate: 21
+            - description: Travel Expenses
+              quantity: 1
+              unitPrice: 384.5
+              taxRate: 0
+          notes: Payment due within 30 days. Please reference invoice number on transfer.
+          currency: EUR
     ValidateTemplateDataRequest:
       type: object
       description: Request body for validating template input data against the template's JSON Schema
@@ -2866,9 +3361,28 @@ components:
           type: object
           description: Template input data to validate against the template's schema
           example:
-            customerName: Jane Smith
+            customer:
+              name: Jane Smith
+              email: jane.smith@example.com
+              taxId: US123456789
+              address:
+                street: 123 Main Street
+                city: Springfield
+                postalCode: '62704'
+                country: US
             invoiceNumber: INV-2026-001
-            amount: 1250
+            issueDate: '2026-02-01'
+            dueDate: '2026-03-01'
+            lineItems:
+              - description: Consulting Services (40h)
+                quantity: 40
+                unitPrice: 150
+                taxRate: 21
+              - description: Software License - Enterprise
+                quantity: 1
+                unitPrice: 2500
+                taxRate: 21
+            currency: EUR
     TemplateDataValidationResult:
       type: object
       description: Result of validating template input data
@@ -3225,9 +3739,51 @@ components:
           example:
             blocks:
               - type: header
+                level: 1
                 content: Invoice {{invoiceNumber}}
+              - type: columns
+                columns:
+                  - blocks:
+                      - type: paragraph
+                        content: |-
+                          **From:** Acme Corporation
+                          1 Enterprise Way
+                          Springfield, IL 62704
+                  - blocks:
+                      - type: paragraph
+                        content: |-
+                          **To:** {{customer.name}}
+                          {{customer.address.street}}
+                          {{customer.address.city}}, {{customer.address.postalCode}}
+              - type: metadata
+                fields:
+                  - label: Issue Date
+                    value: '{{issueDate}}'
+                  - label: Due Date
+                    value: '{{dueDate}}'
+                  - label: Currency
+                    value: '{{currency}}'
+              - type: table
+                dataSource: '{{lineItems}}'
+                columns:
+                  - header: Description
+                    field: description
+                  - header: Qty
+                    field: quantity
+                    align: right
+                  - header: Unit Price
+                    field: unitPrice
+                    format: currency
+                  - header: Tax %
+                    field: taxRate
+                    format: percentage
+              - type: divider
               - type: paragraph
-                content: Dear {{customerName}},
+                style: caption
+                content: '{{#if notes}}Note: {{notes}}{{/if}}'
+              - type: paragraph
+                style: bold
+                content: 'Total Due: {{currency}} {{summary.total}}'
         status:
           type: string
           enum:
@@ -3261,9 +3817,51 @@ components:
         templateModel:
           blocks:
             - type: header
+              level: 1
               content: Invoice {{invoiceNumber}}
+            - type: columns
+              columns:
+                - blocks:
+                    - type: paragraph
+                      content: |-
+                        **From:** Acme Corporation
+                        1 Enterprise Way
+                        Springfield, IL 62704
+                - blocks:
+                    - type: paragraph
+                      content: |-
+                        **To:** {{customer.name}}
+                        {{customer.address.street}}
+                        {{customer.address.city}}, {{customer.address.postalCode}}
+            - type: metadata
+              fields:
+                - label: Issue Date
+                  value: '{{issueDate}}'
+                - label: Due Date
+                  value: '{{dueDate}}'
+                - label: Currency
+                  value: '{{currency}}'
+            - type: table
+              dataSource: '{{lineItems}}'
+              columns:
+                - header: Description
+                  field: description
+                - header: Qty
+                  field: quantity
+                  align: right
+                - header: Unit Price
+                  field: unitPrice
+                  format: currency
+                - header: Tax %
+                  field: taxRate
+                  format: percentage
+            - type: divider
             - type: paragraph
-              content: Dear {{customerName}},
+              style: caption
+              content: '{{#if notes}}Note: {{notes}}{{/if}}'
+            - type: paragraph
+              style: bold
+              content: 'Total Due: {{currency}} {{summary.total}}'
         status: published
         createdAt: '2026-01-22T09:00:00Z'
         publishedAt: '2026-01-25T14:00:00Z'
@@ -3334,9 +3932,36 @@ components:
           example:
             blocks:
               - type: header
+                level: 1
                 content: Invoice {{invoiceNumber}}
+              - type: columns
+                columns:
+                  - blocks:
+                      - type: paragraph
+                        content: |-
+                          **From:** Acme Corporation
+                          1 Enterprise Way
+                          Springfield, IL 62704
+                  - blocks:
+                      - type: paragraph
+                        content: |-
+                          **To:** {{customer.name}}
+                          {{customer.address.street}}
+                          {{customer.address.city}}, {{customer.address.postalCode}}
+              - type: table
+                dataSource: '{{lineItems}}'
+                columns:
+                  - header: Description
+                    field: description
+                  - header: Qty
+                    field: quantity
+                    align: right
+                  - header: Unit Price
+                    field: unitPrice
+                    format: currency
               - type: paragraph
-                content: Dear {{customerName}},
+                style: bold
+                content: 'Total Due: {{currency}} {{summary.total}}'
     VersionListResponse:
       type: object
       description: List of template versions
@@ -3405,9 +4030,33 @@ components:
           type: object
           description: JSON data to populate the template
           example:
-            customerName: Jane Smith
+            customer:
+              name: Jane Smith
+              email: jane.smith@example.com
+              taxId: US123456789
+              address:
+                street: 123 Main Street
+                city: Springfield
+                postalCode: '62704'
+                country: US
             invoiceNumber: INV-2026-001
-            amount: 1250
+            issueDate: '2026-02-01'
+            dueDate: '2026-03-01'
+            lineItems:
+              - description: Consulting Services (40h)
+                quantity: 40
+                unitPrice: 150
+                taxRate: 21
+              - description: Software License - Enterprise
+                quantity: 1
+                unitPrice: 2500
+                taxRate: 21
+              - description: Travel Expenses
+                quantity: 1
+                unitPrice: 384.5
+                taxRate: 0
+            notes: Payment due within 30 days. Please reference invoice number on transfer.
+            currency: EUR
         filename:
           type:
             - string
@@ -3465,9 +4114,33 @@ components:
           type: object
           description: JSON data to populate the template
           example:
-            customerName: Jane Smith
+            customer:
+              name: Jane Smith
+              email: jane.smith@example.com
+              taxId: US123456789
+              address:
+                street: 123 Main Street
+                city: Springfield
+                postalCode: '62704'
+                country: US
             invoiceNumber: INV-2026-001
-            amount: 1250
+            issueDate: '2026-02-01'
+            dueDate: '2026-03-01'
+            lineItems:
+              - description: Consulting Services (40h)
+                quantity: 40
+                unitPrice: 150
+                taxRate: 21
+              - description: Software License - Enterprise
+                quantity: 1
+                unitPrice: 2500
+                taxRate: 21
+              - description: Travel Expenses
+                quantity: 1
+                unitPrice: 384.5
+                taxRate: 0
+            notes: Payment due within 30 days. Please reference invoice number on transfer.
+            currency: EUR
         filename:
           type:
             - string
@@ -3592,9 +4265,33 @@ components:
           type: object
           description: JSON data used for generation
           example:
-            customerName: Jane Smith
+            customer:
+              name: Jane Smith
+              email: jane.smith@example.com
+              taxId: US123456789
+              address:
+                street: 123 Main Street
+                city: Springfield
+                postalCode: '62704'
+                country: US
             invoiceNumber: INV-2026-001
-            amount: 1250
+            issueDate: '2026-02-01'
+            dueDate: '2026-03-01'
+            lineItems:
+              - description: Consulting Services (40h)
+                quantity: 40
+                unitPrice: 150
+                taxRate: 21
+              - description: Software License - Enterprise
+                quantity: 1
+                unitPrice: 2500
+                taxRate: 21
+              - description: Travel Expenses
+                quantity: 1
+                unitPrice: 384.5
+                taxRate: 0
+            notes: Payment due within 30 days. Please reference invoice number on transfer.
+            currency: EUR
         filename:
           type:
             - string
@@ -3655,9 +4352,33 @@ components:
         versionId: 1
         environmentId: null
         data:
-          customerName: Jane Smith
+          customer:
+            name: Jane Smith
+            email: jane.smith@example.com
+            taxId: US123456789
+            address:
+              street: 123 Main Street
+              city: Springfield
+              postalCode: '62704'
+              country: US
           invoiceNumber: INV-2026-001
-          amount: 1250
+          issueDate: '2026-02-01'
+          dueDate: '2026-03-01'
+          lineItems:
+            - description: Consulting Services (40h)
+              quantity: 40
+              unitPrice: 150
+              taxRate: 21
+            - description: Software License - Enterprise
+              quantity: 1
+              unitPrice: 2500
+              taxRate: 21
+            - description: Travel Expenses
+              quantity: 1
+              unitPrice: 384.5
+              taxRate: 0
+          notes: Payment due within 30 days. Please reference invoice number on transfer.
+          currency: EUR
         filename: invoice-2026-001.pdf
         correlationId: order-7890
         status: COMPLETED
@@ -3788,9 +4509,26 @@ components:
             versionId: 1
             environmentId: null
             data:
-              customerName: Jane Smith
+              customer:
+                name: Jane Smith
+                email: jane.smith@example.com
+                address:
+                  street: 123 Main Street
+                  city: Springfield
+                  postalCode: '62704'
+                  country: US
               invoiceNumber: INV-2026-001
-              amount: 1250
+              issueDate: '2026-02-01'
+              lineItems:
+                - description: Consulting Services (40h)
+                  quantity: 40
+                  unitPrice: 150
+                  taxRate: 21
+                - description: Software License - Enterprise
+                  quantity: 1
+                  unitPrice: 2500
+                  taxRate: 21
+              currency: EUR
             filename: invoice-2026-001.pdf
             correlationId: order-7890
             status: COMPLETED
