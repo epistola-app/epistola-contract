@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Event system design document (`docs/event_system.md`) exploring four delivery mechanisms:
+  Long Polling, SSE, Webhooks, and Polling with Event Log. Recommends Polling with
+  Event Log for contract-first compatibility, with an upgrade path to Long Polling.
 - Client-side validation extension functions generated from OpenAPI schema constraints
   - `.validate()` extension on all model classes that have constrained properties (25 models)
   - Enforces `pattern`, `minLength`/`maxLength`, `minimum`/`maximum`, and `minItems` constraints
