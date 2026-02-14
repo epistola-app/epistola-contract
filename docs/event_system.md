@@ -518,30 +518,174 @@ When `hasMore` is `true`, the client should immediately request the next page. W
 
 ---
 
+### Option E: gRPC Notification Channel + REST Event Log (Hybrid)
+
+#### How it works
+
+The REST event log from Option D remains the data plane — all event payloads, cursors, and delivery guarantees live there. A gRPC bidirectional streaming channel is added as an optional signaling layer. The gRPC channel carries lightweight notifications ("tenant X has new events up to sequence Y") but never event payloads.
+
+Consumer flow:
+
+1. **With gRPC available**: Consumer opens a bidirectional gRPC stream to receive notifications. On notification, it immediately fetches the REST event log from its last cursor. Between notifications it does nothing.
+2. **Without gRPC (fallback)**: Consumer polls the REST event log on a timer, identical to Option D. No gRPC dependency.
+
+The gRPC channel is explicitly best-effort. If the stream disconnects, the consumer falls back to polling until the stream reconnects. No events are lost because the REST event log is the source of truth.
+
+#### API Shape
+
+**REST endpoint (identical to Option D):**
+
+```
+GET /tenants/{tenantId}/events
+  ?after={sequenceNumber}
+  &resourceType=version
+  &limit=100
+
+Accept: application/vnd.epistola.v1+json
+
+200 OK
+Content-Type: application/vnd.epistola.v1+json
+
+{
+  "events": [ ... ],
+  "cursor": {
+    "sequenceNumber": 4210,
+    "hasMore": false
+  }
+}
+```
+
+**gRPC notification service (protobuf):**
+
+```protobuf
+syntax = "proto3";
+
+package epistola.notifications.v1;
+
+option java_multiple_files = true;
+option java_package = "com.epistola.notifications.v1";
+
+service EventNotificationService {
+  // Bidirectional stream: client subscribes, server pushes notifications
+  rpc SubscribeToNotifications (stream ClientMessage) returns (stream ServerMessage);
+}
+
+// --- Client → Server ---
+
+message ClientMessage {
+  oneof message {
+    Subscribe subscribe = 1;
+    Heartbeat heartbeat = 2;
+    Unsubscribe unsubscribe = 3;
+  }
+}
+
+message Subscribe {
+  string tenant_id = 1;
+  repeated string resource_types = 2;  // empty = all types
+}
+
+message Heartbeat {
+  // Sent periodically by the client to signal liveness
+}
+
+message Unsubscribe {
+  string tenant_id = 1;
+}
+
+// --- Server → Client ---
+
+message ServerMessage {
+  oneof message {
+    SubscriptionConfirmed subscription_confirmed = 1;
+    EventNotification event_notification = 2;
+    ServerHeartbeat server_heartbeat = 3;
+  }
+}
+
+message SubscriptionConfirmed {
+  string tenant_id = 1;
+  int64 latest_sequence_number = 2;
+}
+
+message EventNotification {
+  string tenant_id = 1;
+  int64 latest_sequence_number = 2;
+  repeated string affected_resource_types = 3;  // e.g., ["version", "activation"]
+}
+
+message ServerHeartbeat {
+  // Sent periodically to keep the stream alive through load balancers
+}
+```
+
+Notifications carry only three pieces of information: which tenant changed, the latest sequence number, and which resource types were affected. The consumer uses this to decide whether to fetch and what filters to apply. All actual event data comes from the REST endpoint.
+
+#### Scalability
+
+- **Server**: The REST event log is identical to Option D (stateless, indexed query). The gRPC layer adds a fan-out component: when an event is written, it must notify all connected consumers subscribed to that tenant. This requires an in-process pub/sub bus (single instance) or a distributed pub/sub layer (multi-instance, e.g., Redis Pub/Sub, PostgreSQL `LISTEN/NOTIFY`).
+- **Client**: Each client instance opens one gRPC stream for all tenants it cares about (subscriptions are multiplexed over a single stream). If gRPC is unavailable, the client polls REST as in Option D.
+- **Infrastructure**: Everything from Option D (database, REST server) plus a gRPC server (HTTP/2), a load balancer with HTTP/2 and streaming support, and optionally a pub/sub layer for multi-instance fan-out.
+
+#### Delivery Guarantees
+
+- **REST layer**: Identical to Option D — at-least-once, ordered, durable.
+- **gRPC layer**: Best-effort. Notifications may be missed if the stream disconnects between server send and client receive. This is by design — the gRPC channel is an optimization, not a guarantee. Consumers that require guaranteed delivery use the REST poll interval as a safety net.
+- **Combined**: At-least-once. The REST poll interval (e.g., every 60 seconds) acts as a fallback that catches anything the gRPC channel misses. The gRPC channel reduces the effective latency from the poll interval to near-zero for connected consumers.
+
+#### Client/Server Complexity
+
+| Aspect | Complexity |
+|---|---|
+| Server implementation | **High** — Option D's REST endpoint (low) + gRPC server, stream lifecycle management, fan-out layer |
+| Client implementation | Medium — Option D's REST polling (low) + optional gRPC client, reconnection logic, fallback |
+| Generated client compatibility | **Split** — REST client fully generated from OpenAPI. gRPC client generated from protobuf (separate artifact, separate generator). |
+| Generated server compatibility | **Split** — REST server stubs fully generated from OpenAPI. gRPC service generated from protobuf (separate module). |
+| OpenAPI expressibility | **Partial** — REST endpoint is fully expressed in OpenAPI. gRPC service is defined in protobuf, outside the OpenAPI spec. |
+
+#### Pros
+
+- **Very low latency when connected** — gRPC notifications arrive in ~10ms, triggering an immediate REST fetch.
+- **Graceful degradation** — gRPC is optional. If unavailable (network, infrastructure, client library), the consumer falls back to Option D polling. No events are lost.
+- **No schema drift** — gRPC carries only signaling (tenant ID, sequence number, resource types). All domain models live exclusively in OpenAPI. The protobuf contract is small and stable.
+- **Consumer liveness** — unique to this option: the server knows which consumers are actively connected via heartbeats. This enables operational dashboards, alerting on disconnected consumers, and future features like consumer-specific backpressure.
+- **REST event log remains source of truth** — all delivery guarantees, ordering, and durability come from the REST layer, which is already proven in Option D.
+
+#### Cons
+
+- **Two protocols** — consumers and server now speak both REST/HTTP and gRPC/HTTP2. Two sets of libraries, two deployment concerns, two sets of monitoring.
+- **Two code generation pipelines** — OpenAPI Generator for REST (existing) and protoc/grpc-kotlin for gRPC (new module, new build configuration).
+- **Infrastructure cost** — requires an HTTP/2-capable load balancer, a gRPC server process (can be co-located), and a pub/sub layer for multi-instance fan-out.
+- **Marginal latency improvement over Option A** — Long polling (Option A) achieves ~100ms latency with zero new infrastructure. gRPC achieves ~10ms, but the 90ms difference is unlikely to matter for human-initiated document operations.
+- **Operational complexity** — gRPC stream health monitoring, reconnection storms after server deploys, HTTP/2 load balancer configuration, protobuf versioning.
+
+---
+
 ## 4. Comparison Matrix
 
-| Criterion | A: Long Polling | B: SSE | C: Webhooks | D: Polling |
-|---|---|---|---|---|
-| **Event latency** | Low (~100ms) | Very low (~10ms) | Low-medium (batch delay) | Medium (poll interval) |
-| **Server complexity** | Medium | High | Very high | **Low** |
-| **Client complexity** | Low | Medium | Medium | **Low** |
-| **OpenAPI expressibility** | **Full** | Partial | Partial | **Full** |
-| **Generated client** | **Works** | **Broken** | Partial | **Works** |
-| **Generated server** | **Works** | **Broken** | Partial | **Works** |
-| **Horizontal scaling** | Good (virtual threads) | Good (with pub/sub) | Good (with workers) | **Excellent** (stateless) |
-| **Delivery guarantee** | At-least-once | At-least-once | At-least-once | At-least-once |
-| **Event ordering** | Guaranteed | Guaranteed | Per-batch | Guaranteed |
-| **Firewall friendly** | Yes | Mostly | Requires inbound | **Yes** |
-| **Infrastructure needs** | Database | Database + pub/sub | Database + workers + queues | **Database only** |
-| **Content type** | `vnd.epistola.v1` | `text/event-stream` | `vnd.epistola.v1` | `vnd.epistola.v1` |
-| **Catchup from outage** | Built-in (cursor) | Built-in (Last-Event-ID) | Replay from dead letter | Built-in (cursor) |
-| **Observability** | Standard HTTP metrics | Custom SSE metrics | Delivery status tracking | **Standard HTTP metrics** |
+| Criterion | A: Long Polling | B: SSE | C: Webhooks | D: Polling | E: gRPC + REST |
+|---|---|---|---|---|---|
+| **Event latency** | Low (~100ms) | Very low (~10ms) | Low-medium (batch delay) | Medium (poll interval) | Very low (~10ms) with gRPC; medium without |
+| **Server complexity** | Medium | High | Very high | **Low** | High (REST low + gRPC fan-out) |
+| **Client complexity** | Low | Medium | Medium | **Low** | Medium (REST low + optional gRPC) |
+| **OpenAPI expressibility** | **Full** | Partial | Partial | **Full** | Partial (REST full, gRPC via protobuf) |
+| **Generated client** | **Works** | **Broken** | Partial | **Works** | Split (REST works, gRPC separate artifact) |
+| **Generated server** | **Works** | **Broken** | Partial | **Works** | Split (REST works, gRPC separate module) |
+| **Horizontal scaling** | Good (virtual threads) | Good (with pub/sub) | Good (with workers) | **Excellent** (stateless) | Good (REST stateless, gRPC needs pub/sub) |
+| **Delivery guarantee** | At-least-once | At-least-once | At-least-once | At-least-once | At-least-once (via REST) |
+| **Event ordering** | Guaranteed | Guaranteed | Per-batch | Guaranteed | Guaranteed (via REST) |
+| **Firewall friendly** | Yes | Mostly | Requires inbound | **Yes** | Mostly (gRPC needs HTTP/2) |
+| **Infrastructure needs** | Database | Database + pub/sub | Database + workers + queues | **Database only** | Database + pub/sub + gRPC server + HTTP/2 LB |
+| **Content type** | `vnd.epistola.v1` | `text/event-stream` | `vnd.epistola.v1` | `vnd.epistola.v1` | `vnd.epistola.v1` (REST) + protobuf (gRPC) |
+| **Catchup from outage** | Built-in (cursor) | Built-in (Last-Event-ID) | Replay from dead letter | Built-in (cursor) | Built-in (cursor via REST) |
+| **Observability** | Standard HTTP metrics | Custom SSE metrics | Delivery status tracking | **Standard HTTP metrics** | HTTP metrics (REST) + gRPC metrics |
+| **Consumer liveness** | No | No | No | No | **Yes** (heartbeat-based) |
 
 ---
 
 ## 5. Recommendation
 
-**Option D (Polling with Event Log)** as the initial implementation, with a designed-in upgrade path to **Option A (Long Polling)** as a future enhancement.
+**Option D (Polling with Event Log)** as the initial implementation, with two designed-in upgrade paths for different latency requirements.
 
 ### Rationale
 
@@ -553,31 +697,52 @@ Options B (SSE) and C (Webhooks) fundamentally conflict with this constraint:
 - SSE requires content types and streaming semantics that OpenAPI generators cannot produce. Both the Kotlin client (Spring RestClient) and server stubs (Spring Boot 4 interfaces) would need manual, non-generated code.
 - Webhooks require the consumer to implement a callback server, which is outside the generated client's scope. The webhook delivery mechanism itself is entirely server-internal and untestable via the contract.
 
-Options A and D both fully fit the contract-first model. Both use standard HTTP GET with JSON responses, work with the generated client, and can be expressed as regular OpenAPI endpoints.
+Options A, D, and E's REST layer all fit the contract-first model. They use standard HTTP GET with JSON responses, work with the generated client, and can be expressed as regular OpenAPI endpoints. Option E's gRPC layer is defined separately in protobuf and does not interfere with the OpenAPI contract.
 
 #### Complexity budget
 
-Epistola is in its `0.1.x` phase. Introducing a delivery worker fleet (webhooks), a pub/sub layer (SSE), or connection-holding semantics (long polling) is premature. The event log approach requires:
+Epistola is in its `0.1.x` phase. Introducing a delivery worker fleet (webhooks), a pub/sub layer (SSE), connection-holding semantics (long polling), or a gRPC server is premature. The event log approach requires:
 - One database table.
 - One new endpoint.
 - Zero infrastructure beyond what already exists.
 
 This is proportionate to the current project maturity.
 
-#### Upgrade path
+#### Upgrade paths
 
-The API shape for Options A and D is intentionally identical — same endpoint, same parameters, same response schema. The only difference is the `timeout` query parameter that Option A adds. This means:
+The API shape for Options A and D is intentionally identical — same endpoint, same parameters, same response schema. Option E builds on D by adding a separate gRPC channel alongside the existing REST endpoint. This gives two independent upgrade paths from Option D:
 
-1. Ship Option D now with the event log endpoint.
-2. Later, add the optional `timeout` parameter to upgrade to Option A.
-3. Existing clients continue to work (they just don't send `timeout`).
-4. Clients that want lower latency opt in by adding `timeout=30`.
+**Path D → A (Long Polling) — Primary upgrade path**
 
-This is a backwards-compatible, additive change.
+1. Add the optional `timeout` query parameter to the existing event feed endpoint.
+2. Existing clients continue to work (they just don't send `timeout`).
+3. Clients that want lower latency opt in by adding `timeout=30`.
+4. Achieves ~100ms latency with zero new infrastructure, protocols, or dependencies.
+5. Fully backwards compatible, additive change.
+
+**Path D → E (gRPC Hybrid) — Future consideration**
+
+1. Add a `grpc-kotlin-protobuf/` module with the `EventNotificationService` protobuf contract.
+2. Deploy a gRPC server alongside the existing REST API.
+3. Existing REST consumers are unaffected — gRPC is purely additive.
+4. Consumers that want ~10ms latency opt in by connecting to the gRPC notification stream.
+5. Requires: new module, protobuf contract, fan-out layer, HTTP/2 load balancer.
+6. Adds consumer liveness detection (heartbeat-based).
+
+#### Why not jump to Option E?
+
+The 90ms latency difference between Option A (~100ms) and Option E (~10ms) does not justify the infrastructure cost for a `0.1.x` document template platform where events are human-initiated. Option A achieves sub-second latency by adding a single query parameter — no new protocols, no new build pipelines, no new load balancer requirements.
+
+Option E becomes justified when Epistola needs capabilities that long polling genuinely cannot serve:
+- **Real-time collaboration** — multiple users editing templates simultaneously need sub-50ms notification of each other's changes.
+- **Presence and liveness** — knowing which consumers are actively connected (heartbeat-based) for operational dashboards or consumer-specific backpressure.
+- **Streaming progress** — document generation progress updates where polling overhead becomes a bottleneck at scale.
+
+Until those requirements emerge, Option A covers the latency needs with dramatically less complexity.
 
 #### Latency is acceptable
 
-For Epistola's use-cases (cache invalidation, workflow orchestration, audit), a 5-10 second delay is entirely acceptable. Template publishes and activation changes are human-initiated operations that happen at most a few times per hour. If sub-second latency becomes a requirement in the future, the long-polling upgrade path addresses it without breaking existing consumers.
+For Epistola's current use-cases (cache invalidation, workflow orchestration, audit), a 5-10 second delay is entirely acceptable. Template publishes and activation changes are human-initiated operations that happen at most a few times per hour. When sub-second latency becomes a requirement, the long-polling upgrade (Path D → A) addresses it without breaking existing consumers. If true real-time needs emerge beyond that, the gRPC upgrade (Path D → E) is available.
 
 ### Implementation outline (not part of this design — for future planning)
 
@@ -621,3 +786,60 @@ The event feed endpoint should require the `reader` role (or higher). Events may
 Suggested `x-required-roles`: `[reader, editor, generator, manager]`
 
 This matches the pattern used by other read endpoints (e.g., `listVersions`, `listGenerationJobs`).
+
+## Appendix D: Protobuf Contract and OpenAPI Spec Relationship
+
+If Option E is adopted, the project would maintain two interface definition languages (IDLs): OpenAPI for the REST API and protobuf for the gRPC notification channel. This appendix describes how they coexist without overlap or drift.
+
+### Scope separation
+
+| Concern | IDL | Scope |
+|---|---|---|
+| Domain models (DTOs, requests, responses) | OpenAPI | All event payloads, resource schemas, error responses |
+| Event delivery (event log endpoint) | OpenAPI | `GET /tenants/{tenantId}/events` — full event data |
+| Notification signaling | Protobuf | `EventNotificationService` — tenant ID, sequence number, affected types only |
+
+The protobuf contract contains **no domain models**. It defines only the signaling messages (`Subscribe`, `EventNotification`, `Heartbeat`, etc.) which carry identifiers and metadata, never event payloads. This means:
+
+- Changes to the OpenAPI schema (new event types, new fields on DTOs) require **no changes** to the protobuf contract.
+- Changes to the protobuf contract (new signaling fields, new message types) require **no changes** to the OpenAPI spec.
+- There is no shared model that could drift between the two IDLs.
+
+### Code generation
+
+| Aspect | OpenAPI (existing) | Protobuf (Option E) |
+|---|---|---|
+| **IDL file** | `epistola-api.yaml` | `proto/epistola/notifications/v1/notifications.proto` |
+| **Generator** | OpenAPI Generator | protoc + grpc-kotlin |
+| **Client artifact** | `client-kotlin-spring-restclient` | `grpc-kotlin-protobuf` (new module) |
+| **Server artifact** | `server-kotlin-springboot4` | `grpc-kotlin-protobuf` (shared) |
+| **Generated output** | REST client/server interfaces + DTOs | gRPC stubs + protobuf message classes |
+| **Build tool** | Gradle + OpenAPI Generator plugin | Gradle + protobuf plugin |
+
+### Versioning independence
+
+The OpenAPI spec and protobuf contract are versioned independently:
+
+- **OpenAPI**: Versioned via `info.version` in `epistola-api.yaml` and the `application/vnd.epistola.v1+json` media type. Follows the existing release process.
+- **Protobuf**: Versioned via the package name (`epistola.notifications.v1`). New versions introduce a new package (`v2`) rather than modifying the existing one.
+
+Because the protobuf contract is small and stable (only signaling messages), it is expected to change rarely compared to the OpenAPI spec.
+
+### Build integration
+
+If added, the protobuf module would be a new Gradle subproject:
+
+```
+epistola-contract/
+├── client-kotlin-spring-restclient/    # OpenAPI → Kotlin client
+├── server-kotlin-springboot4/          # OpenAPI → Spring server stubs
+├── grpc-kotlin-protobuf/               # Protobuf → gRPC stubs (new)
+│   ├── build.gradle.kts
+│   └── src/main/proto/
+│       └── epistola/notifications/v1/
+│           └── notifications.proto
+├── epistola-api.yaml
+└── Makefile
+```
+
+The module would produce a single artifact containing both client stubs and server interfaces, published to Maven Central alongside the existing artifacts. Consumers that want gRPC notification support add the dependency; those that don't simply ignore it.
