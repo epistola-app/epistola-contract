@@ -203,22 +203,31 @@ version-publish:
 
   post:
     operationId: publishVersion
-    summary: Publish a draft version
+    summary: Publish a version to an environment
     description: |
-      Publish a draft version. BREAKING CHANGE: Publishing now updates the draft status to 'published'
-      instead of creating a new version. The draft is NOT preserved - it becomes the published version.
+      Publish a version to a target environment. If the version is a draft, it freezes the content
+      (status changes to 'published'). If already published, the version status is unchanged.
+      Archived versions cannot be published.
+
+      This single action replaces the previous separate publish + activate workflow.
     tags:
       - Versions
     x-required-roles: [editor, manager]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/versions.yaml#/PublishVersionRequest'
     responses:
       '200':
-        description: New published version created
+        description: Version published to environment
         content:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/versions.yaml#/VersionDto'
       '400':
-        description: Version is not a draft
+        description: Version is archived or invalid request
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -228,7 +237,7 @@ version-publish:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Version, variant, template, or tenant not found
+        description: Version, variant, template, environment, or tenant not found
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -301,6 +310,12 @@ version-archive:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         description: Version, variant, template, or tenant not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+      '409':
+        description: Version is still active in one or more environments
         content:
           application/vnd.epistola.v1+json:
             schema:

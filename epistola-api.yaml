@@ -191,8 +191,6 @@ components:
       $ref: './spec/components/schemas/variants.yaml#/VariantListResponse'
     ActivationDto:
       $ref: './spec/components/schemas/variants.yaml#/ActivationDto'
-    SetActivationRequest:
-      $ref: './spec/components/schemas/variants.yaml#/SetActivationRequest'
     ActivationListResponse:
       $ref: './spec/components/schemas/variants.yaml#/ActivationListResponse'
 
@@ -203,6 +201,8 @@ components:
       $ref: './spec/components/schemas/versions.yaml#/VersionSummaryDto'
     UpdateDraftRequest:
       $ref: './spec/components/schemas/versions.yaml#/UpdateDraftRequest'
+    PublishVersionRequest:
+      $ref: './spec/components/schemas/versions.yaml#/PublishVersionRequest'
     VersionListResponse:
       $ref: './spec/components/schemas/versions.yaml#/VersionListResponse'
 

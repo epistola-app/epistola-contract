@@ -260,19 +260,6 @@ ActivationDto:
     versionId: 1
     activatedAt: "2026-01-28T12:00:00Z"
 
-SetActivationRequest:
-  type: object
-  description: Request body for setting the active version for an environment
-  required:
-    - versionId
-  properties:
-    versionId:
-      type: integer
-      minimum: 1
-      maximum: 200
-      description: ID of the version to activate (version number, 1-200)
-      example: 1
-
 ActivationListResponse:
   type: object
   description: List of environment activations for a variant

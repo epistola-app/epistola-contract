@@ -447,43 +447,6 @@ variant-activation-env:
         minLength: 3
         maxLength: 30
 
-  put:
-    operationId: setVariantActivation
-    summary: Set active version for environment
-    description: Set which published version is active for this variant in the specified environment.
-    tags:
-      - Variants
-    x-required-roles: [editor, manager]
-    requestBody:
-      required: true
-      content:
-        application/vnd.epistola.v1+json:
-          schema:
-            $ref: '../components/schemas/variants.yaml#/SetActivationRequest'
-    responses:
-      '200':
-        description: Activation set successfully
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/variants.yaml#/ActivationDto'
-      '400':
-        description: Invalid request (version not published)
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        description: Variant, template, environment, or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
-
   delete:
     operationId: removeVariantActivation
     summary: Remove activation for environment

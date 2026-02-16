@@ -234,6 +234,20 @@ UpdateDraftRequest:
             style: bold
             content: "Total Due: {{currency}} {{summary.total}}"
 
+PublishVersionRequest:
+  type: object
+  description: Request body for publishing a version to an environment
+  required:
+    - environmentId
+  properties:
+    environmentId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 30
+      description: Slug identifier of the target environment
+      example: production
+
 VersionListResponse:
   type: object
   description: List of template versions
