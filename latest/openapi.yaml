@@ -1327,44 +1327,6 @@ paths:
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 30
-    put:
-      operationId: setVariantActivation
-      summary: Set active version for environment
-      description: Set which published version is active for this variant in the specified environment.
-      tags:
-        - Variants
-      x-required-roles:
-        - editor
-        - manager
-      requestBody:
-        required: true
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '#/components/schemas/SetActivationRequest'
-      responses:
-        '200':
-          description: Activation set successfully
-          content:
-            application/vnd.epistola.v1+json:
-              schema:
-                $ref: '#/components/schemas/ActivationDto'
-        '400':
-          description: Invalid request (version not published)
-          content:
-            application/vnd.epistola.v1+json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '403':
-          $ref: '#/components/responses/ForbiddenError'
-        '404':
-          description: Variant, template, environment, or tenant not found
-          content:
-            application/vnd.epistola.v1+json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
     delete:
       operationId: removeVariantActivation
       summary: Remove activation for environment
@@ -1662,24 +1624,33 @@ paths:
           maximum: 200
     post:
       operationId: publishVersion
-      summary: Publish a draft version
+      summary: Publish a version to an environment
       description: |
-        Publish a draft version. BREAKING CHANGE: Publishing now updates the draft status to 'published'
-        instead of creating a new version. The draft is NOT preserved - it becomes the published version.
+        Publish a version to a target environment. If the version is a draft, it freezes the content
+        (status changes to 'published'). If already published, the version status is unchanged.
+        Archived versions cannot be published.
+
+        This single action replaces the previous separate publish + activate workflow.
       tags:
         - Versions
       x-required-roles:
         - editor
         - manager
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/PublishVersionRequest'
       responses:
         '200':
-          description: New published version created
+          description: Version published to environment
           content:
             application/vnd.epistola.v1+json:
               schema:
                 $ref: '#/components/schemas/VersionDto'
         '400':
-          description: Version is not a draft
+          description: Version is archived or invalid request
           content:
             application/vnd.epistola.v1+json:
               schema:
@@ -1689,7 +1660,7 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenError'
         '404':
-          description: Version, variant, template, or tenant not found
+          description: Version, variant, template, environment, or tenant not found
           content:
             application/vnd.epistola.v1+json:
               schema:
@@ -1762,6 +1733,12 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
         '404':
           description: Version, variant, template, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Version is still active in one or more environments
           content:
             application/vnd.epistola.v1+json:
               schema:
@@ -3751,18 +3728,6 @@ components:
         environmentName: Production
         versionId: 1
         activatedAt: '2026-01-28T12:00:00Z'
-    SetActivationRequest:
-      type: object
-      description: Request body for setting the active version for an environment
-      required:
-        - versionId
-      properties:
-        versionId:
-          type: integer
-          minimum: 1
-          maximum: 200
-          description: ID of the version to activate (version number, 1-200)
-          example: 1
     ActivationListResponse:
       type: object
       description: List of environment activations for a variant
@@ -4035,6 +4000,19 @@ components:
               - type: paragraph
                 style: bold
                 content: 'Total Due: {{currency}} {{summary.total}}'
+    PublishVersionRequest:
+      type: object
+      description: Request body for publishing a version to an environment
+      required:
+        - environmentId
+      properties:
+        environmentId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 30
+          description: Slug identifier of the target environment
+          example: production
     VersionListResponse:
       type: object
       description: List of template versions
