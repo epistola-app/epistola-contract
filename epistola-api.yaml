@@ -83,6 +83,8 @@ paths:
     $ref: './spec/paths/variants.yaml#/variants'
   /tenants/{tenantId}/templates/{templateId}/variants/{variantId}:
     $ref: './spec/paths/variants.yaml#/variants-id'
+  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/set-default:
+    $ref: './spec/paths/variants.yaml#/variant-set-default'
   /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/draft:
     $ref: './spec/paths/variants.yaml#/variant-draft'
   /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/activations:

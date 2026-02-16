@@ -5,6 +5,7 @@ VariantDto:
     - id
     - templateId
     - attributes
+    - isDefault
     - hasDraft
     - publishedVersions
     - createdAt
@@ -44,6 +45,10 @@ VariantDto:
       example:
         locale: en-US
         brand: acme
+    isDefault:
+      type: boolean
+      description: Whether this variant is the default for its template
+      example: false
     hasDraft:
       type: boolean
       description: Whether this variant has an unpublished draft
@@ -72,6 +77,7 @@ VariantDto:
     attributes:
       locale: en-US
       brand: acme
+    isDefault: false
     hasDraft: true
     publishedVersions: [1, 2]
     createdAt: "2026-01-21T10:00:00Z"
@@ -83,6 +89,7 @@ VariantSummaryDto:
   required:
     - id
     - attributes
+    - isDefault
     - hasDraft
     - publishedVersions
   properties:
@@ -107,6 +114,10 @@ VariantSummaryDto:
       example:
         locale: en-US
         brand: acme
+    isDefault:
+      type: boolean
+      description: Whether this variant is the default for its template
+      example: false
     hasDraft:
       type: boolean
       description: Whether this variant has an unpublished draft
@@ -123,6 +134,7 @@ VariantSummaryDto:
     attributes:
       locale: en-US
       brand: acme
+    isDefault: false
     hasDraft: true
     publishedVersions: [1, 2]
 
