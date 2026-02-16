@@ -101,9 +101,64 @@ jobs:
           path: openapi.yaml
           retention-days: 1
 
-  release:
-    name: Release ${{ matrix.artifact_id }}
+  # Build and test all modules before publishing anything.
+  # This prevents half-releases where one module publishes but the other fails.
+  build:
+    name: Build ${{ matrix.module }}
     needs: validate-and-bundle
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - module: client-kotlin-spring-restclient
+          - module: server-kotlin-springboot4
+    steps:
+      - name: Check if should run
+        id: should_run
+        run: |
+          # For push events (auto-release), always build both
+          # For workflow_dispatch, check the input
+          if [ "${{ github.event_name }}" == "push" ]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+          else
+            MODULE_INPUT="${{ inputs.module }}"
+            if [ "$MODULE_INPUT" == "both" ] || [ "$MODULE_INPUT" == "${{ matrix.module }}" ]; then
+              echo "enabled=true" >> $GITHUB_OUTPUT
+            else
+              echo "enabled=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Checkout
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download bundled spec
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
+      - name: Setup tools with mise
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: jdx/mise-action@v3
+
+      - name: Setup Gradle cache
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Build and test
+        if: steps.should_run.outputs.enabled == 'true'
+        working-directory: ${{ matrix.module }}
+        run: ./gradlew build -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
+
+  # Only publish after ALL builds succeed — no more half-releases
+  publish:
+    name: Release ${{ matrix.artifact_id }}
+    needs: [validate-and-bundle, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -118,8 +173,6 @@ jobs:
       - name: Check if should run
         id: should_run
         run: |
-          # For push events (auto-release), always release both
-          # For workflow_dispatch, check the input
           if [ "${{ github.event_name }}" == "push" ]; then
             echo "enabled=true" >> $GITHUB_OUTPUT
           else
@@ -130,10 +183,6 @@ jobs:
               echo "enabled=false" >> $GITHUB_OUTPUT
             fi
           fi
-
-      - name: Skip if not enabled
-        if: steps.should_run.outputs.enabled != 'true'
-        run: echo "Skipping ${{ matrix.module }}"
 
       - name: Checkout
         if: steps.should_run.outputs.enabled == 'true'
@@ -155,11 +204,6 @@ jobs:
       - name: Setup Gradle cache
         if: steps.should_run.outputs.enabled == 'true'
         uses: gradle/actions/setup-gradle@v5
-
-      - name: Build and test
-        if: steps.should_run.outputs.enabled == 'true'
-        working-directory: ${{ matrix.module }}
-        run: ./gradlew build -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
       - name: Publish to Maven Central
         if: steps.should_run.outputs.enabled == 'true'
@@ -205,7 +249,7 @@ jobs:
   # Publish mock server after successful release
   mock-server:
     name: Publish Mock Server
-    needs: [validate-and-bundle, release]
+    needs: [validate-and-bundle, publish]
     uses: ./.github/workflows/mock-server.yml
     with:
       version: ${{ needs.validate-and-bundle.outputs.release_version }}

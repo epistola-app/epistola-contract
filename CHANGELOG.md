@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Prevent half-releases by separating build and publish phases in CI workflows
+  - Release and snapshot workflows now build and test all modules first
+  - Publishing only starts after all builds succeed
+  - Previously, modules built and published independently — if one succeeded and the other failed,
+    only one artifact would be published to Maven Central
+
 ### Added
 - Event system design document (`docs/event_system.md`) exploring five delivery mechanisms:
   Long Polling, SSE, Webhooks, Polling with Event Log, and gRPC Hybrid (notification
