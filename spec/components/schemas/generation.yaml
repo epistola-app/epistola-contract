@@ -1,11 +1,30 @@
 # Document Generation Schemas
 
+VariantSelectionAttribute:
+  type: object
+  description: Attribute criterion for variant selection
+  required:
+    - key
+    - value
+  properties:
+    key:
+      type: string
+      description: Attribute key (must match an attribute definition for the tenant)
+      example: language
+    value:
+      type: string
+      description: Attribute value to match
+      example: dutch
+    required:
+      type: boolean
+      default: true
+      description: If true, variant MUST match this attribute. If false, it's preferred but not mandatory.
+
 GenerateDocumentRequest:
   type: object
-  description: Request to generate a single document
+  description: Request to generate a single document. Specify either variantId (explicit) or attributes (auto-select) but not both.
   required:
     - templateId
-    - variantId
     - data
   properties:
     templateId:
@@ -16,12 +35,17 @@ GenerateDocumentRequest:
       description: Slug identifier of template to use for generation
       example: invoice
     variantId:
-      type: string
+      type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the variant to use
+      description: Slug identifier of the variant to use (mutually exclusive with attributes)
       example: english
+    attributes:
+      type: array
+      items:
+        $ref: '#/VariantSelectionAttribute'
+      description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
     versionId:
       type: [integer, "null"]
       minimum: 1
@@ -79,10 +103,9 @@ GenerateDocumentRequest:
 
 BatchGenerationItem:
   type: object
-  description: Single item in a batch generation request. Both correlationId and filename must be unique within a batch (null values are excluded from uniqueness checks).
+  description: Single item in a batch generation request. Specify either variantId (explicit) or attributes (auto-select) but not both. Both correlationId and filename must be unique within a batch (null values are excluded from uniqueness checks).
   required:
     - templateId
-    - variantId
     - data
   properties:
     templateId:
@@ -93,12 +116,17 @@ BatchGenerationItem:
       description: Slug identifier of template to use for generation
       example: invoice
     variantId:
-      type: string
+      type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the variant to use
+      description: Slug identifier of the variant to use (mutually exclusive with attributes)
       example: english
+    attributes:
+      type: array
+      items:
+        $ref: '#/VariantSelectionAttribute'
+      description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
     versionId:
       type: [integer, "null"]
       minimum: 1

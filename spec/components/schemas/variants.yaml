@@ -4,7 +4,7 @@ VariantDto:
   required:
     - id
     - templateId
-    - tags
+    - attributes
     - hasDraft
     - publishedVersions
     - createdAt
@@ -36,11 +36,11 @@ VariantDto:
         - 'null'
       description: Description of the variant
       example: English language invoice for international customers
-    tags:
+    attributes:
       type: object
       additionalProperties:
         type: string
-      description: Free-form key-value tags (e.g., locale=nl-NL, brand=acme)
+      description: Variant attributes for selection criteria (e.g., language=dutch, brand=acme)
       example:
         locale: en-US
         brand: acme
@@ -69,7 +69,7 @@ VariantDto:
     templateId: invoice
     title: English Invoice
     description: English language invoice for international customers
-    tags:
+    attributes:
       locale: en-US
       brand: acme
     hasDraft: true
@@ -82,7 +82,7 @@ VariantSummaryDto:
   description: Summary view of a variant for inclusion in template responses
   required:
     - id
-    - tags
+    - attributes
     - hasDraft
     - publishedVersions
   properties:
@@ -99,11 +99,11 @@ VariantSummaryDto:
         - 'null'
       description: Human-readable title for the variant
       example: English Invoice
-    tags:
+    attributes:
       type: object
       additionalProperties:
         type: string
-      description: Free-form key-value tags
+      description: Variant attributes for selection criteria
       example:
         locale: en-US
         brand: acme
@@ -120,7 +120,7 @@ VariantSummaryDto:
   example:
     id: english
     title: English Invoice
-    tags:
+    attributes:
       locale: en-US
       brand: acme
     hasDraft: true
@@ -151,11 +151,11 @@ CreateVariantRequest:
         - 'null'
       description: Description of the variant
       example: English language invoice for international customers
-    tags:
+    attributes:
       type: object
       additionalProperties:
         type: string
-      description: Free-form key-value tags for this variant
+      description: Variant attributes for selection criteria for this variant
       example:
         locale: en-US
         brand: acme
@@ -176,11 +176,11 @@ UpdateVariantRequest:
         - 'null'
       description: Description of the variant
       example: Updated English language invoice
-    tags:
+    attributes:
       type: object
       additionalProperties:
         type: string
-      description: Updated tags for this variant
+      description: Updated attributes for this variant
       example:
         locale: en-US
         brand: acme
@@ -203,7 +203,7 @@ VariantListResponse:
         templateId: invoice
         title: English Invoice
         description: English language invoice for international customers
-        tags:
+        attributes:
           locale: en-US
           brand: acme
         hasDraft: true
