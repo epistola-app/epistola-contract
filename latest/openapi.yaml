@@ -1052,7 +1052,7 @@ paths:
     delete:
       operationId: deleteVariant
       summary: Delete a variant
-      description: Delete a variant and all its versions.
+      description: Delete a variant and all its versions. Cannot delete the default variant — reassign default first.
       tags:
         - Variants
       x-required-roles:
@@ -1060,6 +1060,67 @@ paths:
       responses:
         '204':
           description: Variant deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Variant, template, or tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Cannot delete the default variant
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/set-default:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+      - name: templateId
+        in: path
+        required: true
+        description: Slug identifier of the template
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+      - name: variantId
+        in: path
+        required: true
+        description: Slug identifier of the variant
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+    post:
+      operationId: setDefaultVariant
+      summary: Set default variant
+      description: Set a variant as the default for its template. The previous default is cleared.
+      tags:
+        - Variants
+      x-required-roles:
+        - editor
+        - manager
+      responses:
+        '200':
+          description: Default variant set successfully
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/VariantDto'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -3431,6 +3492,7 @@ components:
         - id
         - templateId
         - attributes
+        - isDefault
         - hasDraft
         - publishedVersions
         - createdAt
@@ -3470,6 +3532,10 @@ components:
           example:
             locale: en-US
             brand: acme
+        isDefault:
+          type: boolean
+          description: Whether this variant is the default for its template
+          example: false
         hasDraft:
           type: boolean
           description: Whether this variant has an unpublished draft
@@ -3500,6 +3566,7 @@ components:
         attributes:
           locale: en-US
           brand: acme
+        isDefault: false
         hasDraft: true
         publishedVersions:
           - 1
@@ -3512,6 +3579,7 @@ components:
       required:
         - id
         - attributes
+        - isDefault
         - hasDraft
         - publishedVersions
       properties:
@@ -3536,6 +3604,10 @@ components:
           example:
             locale: en-US
             brand: acme
+        isDefault:
+          type: boolean
+          description: Whether this variant is the default for its template
+          example: false
         hasDraft:
           type: boolean
           description: Whether this variant has an unpublished draft
@@ -3554,6 +3626,7 @@ components:
         attributes:
           locale: en-US
           brand: acme
+        isDefault: false
         hasDraft: true
         publishedVersions:
           - 1
