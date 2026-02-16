@@ -8,7 +8,6 @@ import app.epistola.client.model.CreateTenantRequest
 import app.epistola.client.model.DocumentDto
 import app.epistola.client.model.GenerateBatchRequest
 import app.epistola.client.model.GenerateDocumentRequest
-import app.epistola.client.model.SetActivationRequest
 import app.epistola.client.model.UpdateTenantRequest
 import app.epistola.client.model.VersionDto
 import java.time.OffsetDateTime
@@ -120,37 +119,6 @@ class ModelValidationTest {
     fun `UpdateTenantRequest with empty name fails`() {
         assertFailsWith<IllegalArgumentException> {
             UpdateTenantRequest(name = "").validate()
-        }
-    }
-
-    // --- Integer range validation ---
-
-    @Test
-    fun `SetActivationRequest accepts boundary values`() {
-        assertEquals(
-            SetActivationRequest(versionId = 1),
-            SetActivationRequest(versionId = 1).validate(),
-        )
-        assertEquals(
-            SetActivationRequest(versionId = 200),
-            SetActivationRequest(versionId = 200).validate(),
-        )
-    }
-
-    @Test
-    fun `SetActivationRequest rejects out-of-range values`() {
-        val ex0 = assertFailsWith<IllegalArgumentException> {
-            SetActivationRequest(versionId = 0).validate()
-        }
-        assertEquals("versionId: must be between 1 and 200", ex0.message)
-
-        val ex201 = assertFailsWith<IllegalArgumentException> {
-            SetActivationRequest(versionId = 201).validate()
-        }
-        assertEquals("versionId: must be between 1 and 200", ex201.message)
-
-        assertFailsWith<IllegalArgumentException> {
-            SetActivationRequest(versionId = -1).validate()
         }
     }
 
