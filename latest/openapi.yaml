@@ -3430,7 +3430,7 @@ components:
       required:
         - id
         - templateId
-        - tags
+        - attributes
         - hasDraft
         - publishedVersions
         - createdAt
@@ -3462,11 +3462,11 @@ components:
             - 'null'
           description: Description of the variant
           example: English language invoice for international customers
-        tags:
+        attributes:
           type: object
           additionalProperties:
             type: string
-          description: Free-form key-value tags (e.g., locale=nl-NL, brand=acme)
+          description: Variant attributes for selection criteria (e.g., language=dutch, brand=acme)
           example:
             locale: en-US
             brand: acme
@@ -3497,7 +3497,7 @@ components:
         templateId: invoice
         title: English Invoice
         description: English language invoice for international customers
-        tags:
+        attributes:
           locale: en-US
           brand: acme
         hasDraft: true
@@ -3511,7 +3511,7 @@ components:
       description: Summary view of a variant for inclusion in template responses
       required:
         - id
-        - tags
+        - attributes
         - hasDraft
         - publishedVersions
       properties:
@@ -3528,11 +3528,11 @@ components:
             - 'null'
           description: Human-readable title for the variant
           example: English Invoice
-        tags:
+        attributes:
           type: object
           additionalProperties:
             type: string
-          description: Free-form key-value tags
+          description: Variant attributes for selection criteria
           example:
             locale: en-US
             brand: acme
@@ -3551,7 +3551,7 @@ components:
       example:
         id: english
         title: English Invoice
-        tags:
+        attributes:
           locale: en-US
           brand: acme
         hasDraft: true
@@ -3583,11 +3583,11 @@ components:
             - 'null'
           description: Description of the variant
           example: English language invoice for international customers
-        tags:
+        attributes:
           type: object
           additionalProperties:
             type: string
-          description: Free-form key-value tags for this variant
+          description: Variant attributes for selection criteria for this variant
           example:
             locale: en-US
             brand: acme
@@ -3607,11 +3607,11 @@ components:
             - 'null'
           description: Description of the variant
           example: Updated English language invoice
-        tags:
+        attributes:
           type: object
           additionalProperties:
             type: string
-          description: Updated tags for this variant
+          description: Updated attributes for this variant
           example:
             locale: en-US
             brand: acme
@@ -3633,7 +3633,7 @@ components:
             templateId: invoice
             title: English Invoice
             description: English language invoice for international customers
-            tags:
+            attributes:
               locale: en-US
               brand: acme
             hasDraft: true
@@ -3989,10 +3989,9 @@ components:
             archivedAt: null
     GenerateDocumentRequest:
       type: object
-      description: Request to generate a single document
+      description: Request to generate a single document. Specify either variantId (explicit) or attributes (auto-select) but not both.
       required:
         - templateId
-        - variantId
         - data
       properties:
         templateId:
@@ -4003,12 +4002,19 @@ components:
           description: Slug identifier of template to use for generation
           example: invoice
         variantId:
-          type: string
+          type:
+            - string
+            - 'null'
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 50
-          description: Slug identifier of the variant to use
+          description: Slug identifier of the variant to use (mutually exclusive with attributes)
           example: english
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/VariantSelectionAttribute'
+          description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
         versionId:
           type:
             - integer
@@ -4073,10 +4079,9 @@ components:
           example: order-7890
     BatchGenerationItem:
       type: object
-      description: Single item in a batch generation request. Both correlationId and filename must be unique within a batch (null values are excluded from uniqueness checks).
+      description: Single item in a batch generation request. Specify either variantId (explicit) or attributes (auto-select) but not both. Both correlationId and filename must be unique within a batch (null values are excluded from uniqueness checks).
       required:
         - templateId
-        - variantId
         - data
       properties:
         templateId:
@@ -4087,12 +4092,19 @@ components:
           description: Slug identifier of template to use for generation
           example: invoice
         variantId:
-          type: string
+          type:
+            - string
+            - 'null'
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 50
-          description: Slug identifier of the variant to use
+          description: Slug identifier of the variant to use (mutually exclusive with attributes)
           example: english
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/VariantSelectionAttribute'
+          description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
         versionId:
           type:
             - integer
@@ -4774,6 +4786,25 @@ components:
           example: Name must not be blank
         rejectedValue:
           description: The value that was rejected (if applicable)
+    VariantSelectionAttribute:
+      type: object
+      description: Attribute criterion for variant selection
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+          description: Attribute key (must match an attribute definition for the tenant)
+          example: language
+        value:
+          type: string
+          description: Attribute value to match
+          example: dutch
+        required:
+          type: boolean
+          default: true
+          description: If true, variant MUST match this attribute. If false, it's preferred but not mandatory.
   securitySchemes:
     bearerAuth:
       type: http
