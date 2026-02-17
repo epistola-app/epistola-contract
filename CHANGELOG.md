@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Consumer registration design document (`docs/consumer_registration.md`) covering:
+  - Consumer registry for tracking which systems consume the Epistola API (platform-level CRUD)
+  - Template dependency declaration per tenant for impact analysis
+  - 409 Conflict responses on delete when dependent consumers exist
+  - Attribution via `DocumentDto.createdBy` population
+  - Integration with the event system actor model
+  - Phased implementation recommendation (registry, dependencies, events)
+
 ### Fixed
 - Prevent half-releases by separating build and publish phases in CI workflows
   - Release and snapshot workflows now build and test all modules first
