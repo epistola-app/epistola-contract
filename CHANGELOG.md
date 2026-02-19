@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Phased implementation recommendation (registry, dependencies, events)
 
 ### Fixed
+- Fix mock server Docker image pull failure ("manifest unknown") by disabling provenance attestations,
+  which forced OCI-only manifest format incompatible with older Docker clients
 - Prevent half-releases by separating build and publish phases in CI workflows
   - Release and snapshot workflows now build and test all modules first
   - Publishing only starts after all builds succeed
