@@ -1,0 +1,334 @@
+TemplateDocumentDto:
+  type: object
+  description: |
+    Root schema for an Epistola template document using the node/slot graph model.
+    The document is a flat graph of nodes connected through slots, with a single root node.
+  required:
+    - modelVersion
+    - root
+    - nodes
+    - slots
+    - themeRef
+  properties:
+    modelVersion:
+      type: integer
+      const: 1
+      description: Schema version for forward-compatibility detection
+      example: 1
+    root:
+      type: string
+      minLength: 1
+      description: ID of the root node in the document tree
+      example: node-root
+    nodes:
+      type: object
+      additionalProperties:
+        $ref: '#/NodeDto'
+      description: Flat map of all nodes keyed by node ID
+      example:
+        node-root:
+          id: node-root
+          type: container
+          slots:
+            - slot-root-children
+          styles: {}
+          props: {}
+        node-header:
+          id: node-header
+          type: text
+          slots: []
+          styles:
+            fontSize: "24pt"
+            fontWeight: bold
+          props:
+            content: "Invoice {{invoiceNumber}}"
+        node-columns:
+          id: node-columns
+          type: columns
+          slots:
+            - slot-col-0
+            - slot-col-1
+          styles: {}
+          props:
+            columnCount: 2
+        node-from:
+          id: node-from
+          type: text
+          slots: []
+          styles: {}
+          props:
+            content: "**From:** Acme Corporation\n1 Enterprise Way\nSpringfield, IL 62704"
+        node-to:
+          id: node-to
+          type: text
+          slots: []
+          styles: {}
+          props:
+            content: "**To:** {{customer.name}}\n{{customer.address.street}}\n{{customer.address.city}}, {{customer.address.postalCode}}"
+    slots:
+      type: object
+      additionalProperties:
+        $ref: '#/SlotDto'
+      description: Flat map of all slots keyed by slot ID
+      example:
+        slot-root-children:
+          id: slot-root-children
+          nodeId: node-root
+          name: children
+          children:
+            - node-header
+            - node-columns
+        slot-col-0:
+          id: slot-col-0
+          nodeId: node-columns
+          name: column-0
+          children:
+            - node-from
+        slot-col-1:
+          id: slot-col-1
+          nodeId: node-columns
+          name: column-1
+          children:
+            - node-to
+    themeRef:
+      $ref: '#/ThemeRefDto'
+    pageSettingsOverride:
+      $ref: './themes.yaml#/PageSettingsDto'
+    documentStylesOverride:
+      $ref: './themes.yaml#/DocumentStylesDto'
+  example:
+    modelVersion: 1
+    root: node-root
+    nodes:
+      node-root:
+        id: node-root
+        type: container
+        slots:
+          - slot-root-children
+        styles: {}
+        props: {}
+      node-header:
+        id: node-header
+        type: text
+        slots: []
+        styles:
+          fontSize: "24pt"
+          fontWeight: bold
+        props:
+          content: "Invoice {{invoiceNumber}}"
+      node-columns:
+        id: node-columns
+        type: columns
+        slots:
+          - slot-col-0
+          - slot-col-1
+        styles: {}
+        props:
+          columnCount: 2
+      node-from:
+        id: node-from
+        type: text
+        slots: []
+        styles: {}
+        props:
+          content: "**From:** Acme Corporation\n1 Enterprise Way\nSpringfield, IL 62704"
+      node-to:
+        id: node-to
+        type: text
+        slots: []
+        styles: {}
+        props:
+          content: "**To:** {{customer.name}}\n{{customer.address.street}}\n{{customer.address.city}}, {{customer.address.postalCode}}"
+    slots:
+      slot-root-children:
+        id: slot-root-children
+        nodeId: node-root
+        name: children
+        children:
+          - node-header
+          - node-columns
+      slot-col-0:
+        id: slot-col-0
+        nodeId: node-columns
+        name: column-0
+        children:
+          - node-from
+      slot-col-1:
+        id: slot-col-1
+        nodeId: node-columns
+        name: column-1
+        children:
+          - node-to
+    themeRef:
+      type: inherit
+
+NodeDto:
+  type: object
+  description: A node in the template document graph. Represents a content or layout element.
+  required:
+    - id
+    - type
+    - slots
+  properties:
+    id:
+      type: string
+      minLength: 1
+      description: Unique identifier for this node within the document
+      example: node-header
+    type:
+      type: string
+      minLength: 1
+      description: Node type identifier (e.g. 'text', 'container', 'columns', 'table')
+      example: text
+    slots:
+      type: array
+      items:
+        type: string
+        minLength: 1
+      description: Ordered slot IDs owned by this node
+      example: []
+    styles:
+      type: object
+      description: Inline style overrides (CSS-like key/value pairs)
+      example:
+        fontSize: "24pt"
+        fontWeight: bold
+    stylePreset:
+      type: string
+      description: Reference to a named preset in the theme's block style presets
+      example: heading
+    props:
+      type: object
+      description: Type-specific properties (content, expression, columns config, etc.)
+      example:
+        content: "Invoice {{invoiceNumber}}"
+  example:
+    id: node-header
+    type: text
+    slots: []
+    styles:
+      fontSize: "24pt"
+      fontWeight: bold
+    props:
+      content: "Invoice {{invoiceNumber}}"
+
+SlotDto:
+  type: object
+  description: A slot in the template document graph. Slots are containers owned by nodes that hold ordered child nodes.
+  required:
+    - id
+    - nodeId
+    - name
+    - children
+  properties:
+    id:
+      type: string
+      minLength: 1
+      description: Unique identifier for this slot within the document
+      example: slot-root-children
+    nodeId:
+      type: string
+      minLength: 1
+      description: ID of the parent node that owns this slot
+      example: node-root
+    name:
+      type: string
+      minLength: 1
+      description: Semantic slot name (e.g. 'children', 'column-0', 'cell-0-1', 'body')
+      example: children
+    children:
+      type: array
+      items:
+        type: string
+        minLength: 1
+      description: Ordered child node IDs in this slot
+      example:
+        - node-header
+        - node-columns
+  example:
+    id: slot-root-children
+    nodeId: node-root
+    name: children
+    children:
+      - node-header
+      - node-columns
+
+ThemeRefDto:
+  description: |
+    Reference to a theme for this template document. Either inherits the theme from the
+    variant/template hierarchy, or overrides it with a specific theme ID.
+  oneOf:
+    - $ref: '#/ThemeRefInheritDto'
+    - $ref: '#/ThemeRefOverrideDto'
+  discriminator:
+    propertyName: type
+    mapping:
+      inherit: '#/ThemeRefInheritDto'
+      override: '#/ThemeRefOverrideDto'
+
+ThemeRefInheritDto:
+  type: object
+  description: Inherit the theme from the variant/template hierarchy
+  required:
+    - type
+  properties:
+    type:
+      type: string
+      const: inherit
+      example: inherit
+  example:
+    type: inherit
+
+ThemeRefOverrideDto:
+  type: object
+  description: Override the theme with a specific theme ID
+  required:
+    - type
+    - themeId
+  properties:
+    type:
+      type: string
+      const: override
+      example: override
+    themeId:
+      type: string
+      minLength: 1
+      description: Slug identifier of the theme to use
+      example: corporate
+  example:
+    type: override
+    themeId: corporate
+
+BlockStylePresetDto:
+  type: object
+  description: A named block style preset (like a CSS class) that can be applied to nodes
+  required:
+    - label
+    - styles
+  properties:
+    label:
+      type: string
+      description: Human-readable label for the preset
+      example: Heading
+    styles:
+      type: object
+      description: CSS-like style properties for this preset
+      example:
+        fontSize: "18pt"
+        fontWeight: bold
+    applicableTo:
+      type: array
+      items:
+        type: string
+      description: Node types this preset can be applied to. Absent or empty means all types.
+      example:
+        - text
+        - container
+  example:
+    label: Heading
+    styles:
+      fontSize: "18pt"
+      fontWeight: bold
+    applicableTo:
+      - text
+      - container

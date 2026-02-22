@@ -194,6 +194,22 @@ components:
     ActivationListResponse:
       $ref: './spec/components/schemas/variants.yaml#/ActivationListResponse'
 
+    # Template model schemas
+    TemplateDocumentDto:
+      $ref: './spec/components/schemas/template-model.yaml#/TemplateDocumentDto'
+    NodeDto:
+      $ref: './spec/components/schemas/template-model.yaml#/NodeDto'
+    SlotDto:
+      $ref: './spec/components/schemas/template-model.yaml#/SlotDto'
+    ThemeRefDto:
+      $ref: './spec/components/schemas/template-model.yaml#/ThemeRefDto'
+    ThemeRefInheritDto:
+      $ref: './spec/components/schemas/template-model.yaml#/ThemeRefInheritDto'
+    ThemeRefOverrideDto:
+      $ref: './spec/components/schemas/template-model.yaml#/ThemeRefOverrideDto'
+    BlockStylePresetDto:
+      $ref: './spec/components/schemas/template-model.yaml#/BlockStylePresetDto'
+
     # Version schemas
     VersionDto:
       $ref: './spec/components/schemas/versions.yaml#/VersionDto'
