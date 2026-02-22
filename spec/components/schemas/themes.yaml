@@ -152,6 +152,10 @@ PageSettingsDto:
       example: portrait
     margins:
       $ref: '#/MarginsDto'
+    backgroundColor:
+      type: string
+      description: Page background color (CSS color value)
+      example: "#ffffff"
   example:
     format: A4
     orientation: portrait
@@ -163,23 +167,32 @@ PageSettingsDto:
 
 MarginsDto:
   type: object
-  description: Page margins in pixels
+  description: Page margins in millimeters
+  required:
+    - top
+    - right
+    - bottom
+    - left
   properties:
     top:
       type: integer
-      description: Top margin in pixels
+      minimum: 0
+      description: Top margin in mm
       example: 40
     right:
       type: integer
-      description: Right margin in pixels
+      minimum: 0
+      description: Right margin in mm
       example: 40
     bottom:
       type: integer
-      description: Bottom margin in pixels
+      minimum: 0
+      description: Bottom margin in mm
       example: 40
     left:
       type: integer
-      description: Left margin in pixels
+      minimum: 0
+      description: Left margin in mm
       example: 40
   example:
     top: 40
