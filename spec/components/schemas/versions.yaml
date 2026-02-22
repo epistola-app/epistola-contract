@@ -21,50 +21,7 @@ VersionDto:
       description: Slug identifier of the variant this version belongs to
       example: english
     templateModel:
-      type: object
-      description: The template model defining the document structure
-      example:
-        blocks:
-          - type: header
-            level: 1
-            content: "Invoice {{invoiceNumber}}"
-          - type: columns
-            columns:
-              - blocks:
-                  - type: paragraph
-                    content: "**From:** Acme Corporation\n1 Enterprise Way\nSpringfield, IL 62704"
-              - blocks:
-                  - type: paragraph
-                    content: "**To:** {{customer.name}}\n{{customer.address.street}}\n{{customer.address.city}}, {{customer.address.postalCode}}"
-          - type: metadata
-            fields:
-              - label: "Issue Date"
-                value: "{{issueDate}}"
-              - label: "Due Date"
-                value: "{{dueDate}}"
-              - label: "Currency"
-                value: "{{currency}}"
-          - type: table
-            dataSource: "{{lineItems}}"
-            columns:
-              - header: "Description"
-                field: "description"
-              - header: "Qty"
-                field: "quantity"
-                align: right
-              - header: "Unit Price"
-                field: "unitPrice"
-                format: currency
-              - header: "Tax %"
-                field: "taxRate"
-                format: percentage
-          - type: divider
-          - type: paragraph
-            style: caption
-            content: "{{#if notes}}Note: {{notes}}{{/if}}"
-          - type: paragraph
-            style: bold
-            content: "Total Due: {{currency}} {{summary.total}}"
+      $ref: './template-model.yaml#/TemplateDocumentDto'
     status:
       type: string
       enum:
@@ -96,47 +53,70 @@ VersionDto:
     id: 1
     variantId: english
     templateModel:
-      blocks:
-        - type: header
-          level: 1
-          content: "Invoice {{invoiceNumber}}"
-        - type: columns
-          columns:
-            - blocks:
-                - type: paragraph
-                  content: "**From:** Acme Corporation\n1 Enterprise Way\nSpringfield, IL 62704"
-            - blocks:
-                - type: paragraph
-                  content: "**To:** {{customer.name}}\n{{customer.address.street}}\n{{customer.address.city}}, {{customer.address.postalCode}}"
-        - type: metadata
-          fields:
-            - label: "Issue Date"
-              value: "{{issueDate}}"
-            - label: "Due Date"
-              value: "{{dueDate}}"
-            - label: "Currency"
-              value: "{{currency}}"
-        - type: table
-          dataSource: "{{lineItems}}"
-          columns:
-            - header: "Description"
-              field: "description"
-            - header: "Qty"
-              field: "quantity"
-              align: right
-            - header: "Unit Price"
-              field: "unitPrice"
-              format: currency
-            - header: "Tax %"
-              field: "taxRate"
-              format: percentage
-        - type: divider
-        - type: paragraph
-          style: caption
-          content: "{{#if notes}}Note: {{notes}}{{/if}}"
-        - type: paragraph
-          style: bold
-          content: "Total Due: {{currency}} {{summary.total}}"
+      modelVersion: 1
+      root: node-root
+      nodes:
+        node-root:
+          id: node-root
+          type: container
+          slots:
+            - slot-root-children
+          styles: {}
+          props: {}
+        node-header:
+          id: node-header
+          type: text
+          slots: []
+          styles:
+            fontSize: "24pt"
+            fontWeight: bold
+          props:
+            content: "Invoice {{invoiceNumber}}"
+        node-columns:
+          id: node-columns
+          type: columns
+          slots:
+            - slot-col-0
+            - slot-col-1
+          styles: {}
+          props:
+            columnCount: 2
+        node-from:
+          id: node-from
+          type: text
+          slots: []
+          styles: {}
+          props:
+            content: "**From:** Acme Corporation\n1 Enterprise Way\nSpringfield, IL 62704"
+        node-to:
+          id: node-to
+          type: text
+          slots: []
+          styles: {}
+          props:
+            content: "**To:** {{customer.name}}\n{{customer.address.street}}\n{{customer.address.city}}, {{customer.address.postalCode}}"
+      slots:
+        slot-root-children:
+          id: slot-root-children
+          nodeId: node-root
+          name: children
+          children:
+            - node-header
+            - node-columns
+        slot-col-0:
+          id: slot-col-0
+          nodeId: node-columns
+          name: column-0
+          children:
+            - node-from
+        slot-col-1:
+          id: slot-col-1
+          nodeId: node-columns
+          name: column-1
+          children:
+            - node-to
+      themeRef:
+        type: inherit
     status: published
     createdAt: "2026-01-22T09:00:00Z"
     publishedAt: "2026-01-25T14:00:00Z"
@@ -204,35 +184,7 @@ UpdateDraftRequest:
   description: Request body for updating a draft version
   properties:
     templateModel:
-      type: object
-      description: Template model structure
-      example:
-        blocks:
-          - type: header
-            level: 1
-            content: "Invoice {{invoiceNumber}}"
-          - type: columns
-            columns:
-              - blocks:
-                  - type: paragraph
-                    content: "**From:** Acme Corporation\n1 Enterprise Way\nSpringfield, IL 62704"
-              - blocks:
-                  - type: paragraph
-                    content: "**To:** {{customer.name}}\n{{customer.address.street}}\n{{customer.address.city}}, {{customer.address.postalCode}}"
-          - type: table
-            dataSource: "{{lineItems}}"
-            columns:
-              - header: "Description"
-                field: "description"
-              - header: "Qty"
-                field: "quantity"
-                align: right
-              - header: "Unit Price"
-                field: "unitPrice"
-                format: currency
-          - type: paragraph
-            style: bold
-            content: "Total Due: {{currency}} {{summary.total}}"
+      $ref: './template-model.yaml#/TemplateDocumentDto'
 
 PublishVersionRequest:
   type: object

@@ -8,6 +8,10 @@ import app.epistola.client.model.CreateTenantRequest
 import app.epistola.client.model.DocumentDto
 import app.epistola.client.model.GenerateBatchRequest
 import app.epistola.client.model.GenerateDocumentRequest
+import app.epistola.client.model.NodeDto
+import app.epistola.client.model.SlotDto
+import app.epistola.client.model.TemplateDocumentDto
+import app.epistola.client.model.ThemeRefDto
 import app.epistola.client.model.UpdateTenantRequest
 import app.epistola.client.model.VersionDto
 import java.time.OffsetDateTime
@@ -185,11 +189,17 @@ class ModelValidationTest {
             variantId = "english",
             status = VersionDto.Status.PUBLISHED,
             createdAt = now,
-            templateModel = mapOf(
-                "blocks" to listOf(
-                    mapOf("type" to "header", "content" to "Invoice {{invoiceNumber}}"),
-                    mapOf("type" to "paragraph", "content" to "Dear {{customerName}},"),
+            templateModel = TemplateDocumentDto(
+                modelVersion = TemplateDocumentDto.ModelVersion._1,
+                root = "node-root",
+                nodes = mapOf(
+                    "node-root" to NodeDto(id = "node-root", type = "container", slots = listOf("slot-root")),
+                    "node-header" to NodeDto(id = "node-header", type = "text", slots = emptyList()),
                 ),
+                slots = mapOf(
+                    "slot-root" to SlotDto(id = "slot-root", nodeId = "node-root", name = "children", children = listOf("node-header")),
+                ),
+                themeRef = ThemeRefDto(type = ThemeRefDto.Type.INHERIT),
             ),
             publishedAt = now,
         )

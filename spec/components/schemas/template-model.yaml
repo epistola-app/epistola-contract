@@ -254,50 +254,31 @@ SlotDto:
       - node-columns
 
 ThemeRefDto:
+  type: object
   description: |
-    Reference to a theme for this template document. Either inherits the theme from the
-    variant/template hierarchy, or overrides it with a specific theme ID.
-  oneOf:
-    - $ref: '#/ThemeRefInheritDto'
-    - $ref: '#/ThemeRefOverrideDto'
-  discriminator:
-    propertyName: type
-    mapping:
-      inherit: '#/ThemeRefInheritDto'
-      override: '#/ThemeRefOverrideDto'
-
-ThemeRefInheritDto:
-  type: object
-  description: Inherit the theme from the variant/template hierarchy
+    Reference to a theme for this template document.
+    When type is "inherit", the theme is inherited from the variant/template hierarchy.
+    When type is "override", the themeId field specifies which theme to use.
   required:
     - type
   properties:
     type:
       type: string
-      const: inherit
+      enum:
+        - inherit
+        - override
+      description: |
+        Theme reference strategy.
+        "inherit" uses the theme from the variant/template hierarchy.
+        "override" uses the theme specified by themeId.
       example: inherit
-  example:
-    type: inherit
-
-ThemeRefOverrideDto:
-  type: object
-  description: Override the theme with a specific theme ID
-  required:
-    - type
-    - themeId
-  properties:
-    type:
-      type: string
-      const: override
-      example: override
     themeId:
       type: string
       minLength: 1
-      description: Slug identifier of the theme to use
+      description: Slug identifier of the theme to use. Required when type is "override".
       example: corporate
   example:
-    type: override
-    themeId: corporate
+    type: inherit
 
 BlockStylePresetDto:
   type: object

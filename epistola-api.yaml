@@ -203,10 +203,6 @@ components:
       $ref: './spec/components/schemas/template-model.yaml#/SlotDto'
     ThemeRefDto:
       $ref: './spec/components/schemas/template-model.yaml#/ThemeRefDto'
-    ThemeRefInheritDto:
-      $ref: './spec/components/schemas/template-model.yaml#/ThemeRefInheritDto'
-    ThemeRefOverrideDto:
-      $ref: './spec/components/schemas/template-model.yaml#/ThemeRefOverrideDto'
     BlockStylePresetDto:
       $ref: './spec/components/schemas/template-model.yaml#/BlockStylePresetDto'
 
