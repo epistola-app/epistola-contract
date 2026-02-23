@@ -38,15 +38,21 @@ ThemeDto:
     blockStylePresets:
       type: object
       additionalProperties:
-        type: object
-      description: Named block style presets (like CSS classes)
+        $ref: './template-model.yaml#/BlockStylePresetDto'
+      description: Named block style presets (like CSS classes). Key is the preset name.
       example:
         heading:
-          fontSize: "18pt"
-          fontWeight: bold
+          label: Heading
+          styles:
+            fontSize: "18pt"
+            fontWeight: bold
+          applicableTo:
+            - text
         caption:
-          fontSize: "9pt"
-          color: "#666666"
+          label: Caption
+          styles:
+            fontSize: "9pt"
+            color: "#666666"
     createdAt:
       type: string
       format: date-time
@@ -81,11 +87,17 @@ ThemeDto:
         left: 40
     blockStylePresets:
       heading:
-        fontSize: "18pt"
-        fontWeight: bold
+        label: Heading
+        styles:
+          fontSize: "18pt"
+          fontWeight: bold
+        applicableTo:
+          - text
       caption:
-        fontSize: "9pt"
-        color: "#666666"
+        label: Caption
+        styles:
+          fontSize: "9pt"
+          color: "#666666"
     createdAt: "2026-01-17T11:00:00Z"
     lastModified: "2026-01-18T14:30:00Z"
 
@@ -200,12 +212,14 @@ CreateThemeRequest:
     blockStylePresets:
       type: object
       additionalProperties:
-        type: object
-      description: Named block style presets
+        $ref: './template-model.yaml#/BlockStylePresetDto'
+      description: Named block style presets. Key is the preset name.
       example:
         heading:
-          fontSize: "18pt"
-          fontWeight: bold
+          label: Heading
+          styles:
+            fontSize: "18pt"
+            fontWeight: bold
 
 UpdateThemeRequest:
   type: object
@@ -232,8 +246,8 @@ UpdateThemeRequest:
         - object
         - 'null'
       additionalProperties:
-        type: object
-      description: Named block style presets (null to clear)
+        $ref: './template-model.yaml#/BlockStylePresetDto'
+      description: Named block style presets (null to clear). Key is the preset name.
 
 ThemeListResponse:
   type: object
@@ -271,10 +285,16 @@ ThemeListResponse:
             left: 40
         blockStylePresets:
           heading:
-            fontSize: "18pt"
-            fontWeight: bold
+            label: Heading
+            styles:
+              fontSize: "18pt"
+              fontWeight: bold
+            applicableTo:
+              - text
           caption:
-            fontSize: "9pt"
-            color: "#666666"
+            label: Caption
+            styles:
+              fontSize: "9pt"
+              color: "#666666"
         createdAt: "2026-01-17T11:00:00Z"
         lastModified: "2026-01-18T14:30:00Z"
