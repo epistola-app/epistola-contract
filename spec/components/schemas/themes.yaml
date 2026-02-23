@@ -91,41 +91,10 @@ ThemeDto:
 
 DocumentStylesDto:
   type: object
-  description: Document-level styling defaults
-  properties:
-    fontFamily:
-      type: string
-      description: Default font family
-      example: Helvetica
-    fontSize:
-      type: string
-      description: Default font size (e.g., "12pt", "16px")
-      example: "12pt"
-    fontWeight:
-      type: string
-      description: Default font weight (e.g., "normal", "bold")
-      example: normal
-    color:
-      type: string
-      description: Default text color (e.g., "#000000")
-      example: "#333333"
-    lineHeight:
-      type: string
-      description: Default line height (e.g., "1.5", "24px")
-      example: "1.5"
-    letterSpacing:
-      type: string
-      description: Default letter spacing
-      example: "0.01em"
-    textAlign:
-      type: string
-      enum: [left, center, right, justify]
-      description: Default text alignment
-      example: left
-    backgroundColor:
-      type: string
-      description: Default background color
-      example: "#ffffff"
+  description: |
+    Document-level style overrides. Open object — the available style properties are
+    driven by the style registry (e.g. fontFamily, fontSize, color, lineHeight, etc.).
+    Keys are camelCase CSS property names, values are strings.
   example:
     fontFamily: Helvetica
     fontSize: "12pt"
