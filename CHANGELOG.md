@@ -8,6 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Template model schema types** for the node/slot graph model (`spec/components/schemas/template-model.yaml`)
+  - `TemplateDocumentDto`: root document with modelVersion, root, nodes, slots, themeRef, and optional overrides
+  - `NodeDto`: graph node with id, type, slots, styles (open), stylePreset, and props (open)
+  - `SlotDto`: graph slot with id, nodeId, name, and children
+  - `ThemeRefDto`: theme reference with type enum (`inherit` / `override`) and optional themeId
+  - `BlockStylePresetDto`: structured preset with label, styles (open), and optional applicableTo
+- `PageSettingsDto.backgroundColor` property for page background color
+
+### Changed
+- **BREAKING**: `VersionDto.templateModel` and `UpdateDraftRequest.templateModel` changed from bare `type: object` to `TemplateDocumentDto`
+  - Server stubs: `ObjectNode` → `TemplateDocumentDto`
+  - Client: `Any?` → `TemplateDocumentDto`
+  - Wire format remains compatible — same JSON, now properly described
+  - All examples updated from old block-based model to node/slot graph format
+- **BREAKING**: `DocumentStylesDto` changed from explicit properties to an open object
+  - Matches `template-shared.schema.json#DocumentStyles` where available properties are driven by the style registry
+  - Server stubs: typed data class → `Map`/`ObjectNode`
+  - Client: typed data class → `Any`
+- **BREAKING**: `blockStylePresets` in `ThemeDto`, `CreateThemeRequest`, and `UpdateThemeRequest` changed
+  from unstructured `additionalProperties: type: object` to `additionalProperties: $ref: BlockStylePresetDto`
+  - Each preset now has `label` (required), `styles` (required), and `applicableTo` (optional)
+  - Server/client: `Map<String, Any>` → `Map<String, BlockStylePresetDto>`
+
+### Fixed
+- `MarginsDto` description corrected from "pixels" to "millimeters" matching the source of truth
+  - Added `required` constraint on all four sides and `minimum: 0` validation
+
+### Added
 - Consumer registration design document (`docs/consumer_registration.md`) covering:
   - Consumer registry for tracking which systems consume the Epistola API (platform-level CRUD)
   - Template dependency declaration per tenant for impact analysis
