@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Bulk template import endpoint** `POST /tenants/{tenantId}/templates/import`
+  - Create-or-update semantics for idempotent template synchronization
+  - Supports full template definition: metadata, dataModel, dataExamples, templateModel, variants
+  - Per-variant templateModel override (falls back to top-level templateModel)
+  - Automatic publishing to specified environments after import
+  - Per-template result status: `created`, `updated`, `unchanged`, `failed`
+  - New schemas: `ImportTemplatesRequest`, `ImportTemplateDto`, `ImportVariantDto`, `ImportTemplatesResponse`, `ImportTemplateResultDto`
+
+### Added
 - **Template model schema types** for the node/slot graph model (`spec/components/schemas/template-model.yaml`)
   - `TemplateDocumentDto`: root document with modelVersion, root, nodes, slots, themeRef, and optional overrides
   - `NodeDto`: graph node with id, type, slots, styles (open), stylePreset, and props (open)

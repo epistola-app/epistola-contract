@@ -1,0 +1,58 @@
+import-templates:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+
+  post:
+    operationId: importTemplates
+    summary: Bulk import templates
+    description: |
+      Import one or more templates in a single request. For each template, this endpoint
+      performs a create-or-update operation:
+
+      - **Template**: Created if it doesn't exist, updated if it does (name, dataModel, dataExamples)
+      - **Variants**: Created if they don't exist, updated if they do (title, attributes)
+      - **Draft**: Upserted with the provided templateModel (variant-specific or top-level fallback)
+      - **Publishing**: Draft is published and activated in each environment listed in `publishTo`
+
+      This endpoint is idempotent — importing the same payload multiple times produces the same result.
+      It is designed for automated sync scenarios (CI/CD pipelines, plugin template sync).
+    tags:
+      - Templates
+    x-required-roles: [editor, manager]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/import.yaml#/ImportTemplatesRequest'
+    responses:
+      '200':
+        description: Import completed successfully
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/import.yaml#/ImportTemplatesResponse'
+      '400':
+        description: Invalid request (validation errors in one or more templates)
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Tenant not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'

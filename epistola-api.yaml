@@ -104,6 +104,10 @@ paths:
   /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/archive:
     $ref: './spec/paths/versions.yaml#/version-archive'
 
+  # Template Import
+  /tenants/{tenantId}/templates/import:
+    $ref: './spec/paths/import.yaml#/import-templates'
+
   # Document Generation
   /tenants/{tenantId}/documents/generate:
     $ref: './spec/paths/generation.yaml#/generate-document'
@@ -169,6 +173,18 @@ components:
       $ref: './spec/components/schemas/templates.yaml#/TemplateListResponse'
     DataExampleDto:
       $ref: './spec/components/schemas/templates.yaml#/DataExampleDto'
+
+    # Import schemas
+    ImportTemplatesRequest:
+      $ref: './spec/components/schemas/import.yaml#/ImportTemplatesRequest'
+    ImportTemplateDto:
+      $ref: './spec/components/schemas/import.yaml#/ImportTemplateDto'
+    ImportVariantDto:
+      $ref: './spec/components/schemas/import.yaml#/ImportVariantDto'
+    ImportTemplatesResponse:
+      $ref: './spec/components/schemas/import.yaml#/ImportTemplatesResponse'
+    ImportTemplateResultDto:
+      $ref: './spec/components/schemas/import.yaml#/ImportTemplateResultDto'
 
     # Validation schemas
     ValidateTemplateDataRequest:
