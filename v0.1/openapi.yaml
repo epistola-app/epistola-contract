@@ -2257,15 +2257,21 @@ components:
         blockStylePresets:
           type: object
           additionalProperties:
-            type: object
-          description: Named block style presets (like CSS classes)
+            $ref: '#/components/schemas/BlockStylePresetDto'
+          description: Named block style presets (like CSS classes). Key is the preset name.
           example:
             heading:
-              fontSize: 18pt
-              fontWeight: bold
+              label: Heading
+              styles:
+                fontSize: 18pt
+                fontWeight: bold
+              applicableTo:
+                - text
             caption:
-              fontSize: 9pt
-              color: '#666666'
+              label: Caption
+              styles:
+                fontSize: 9pt
+                color: '#666666'
         createdAt:
           type: string
           format: date-time
@@ -2300,54 +2306,25 @@ components:
             left: 40
         blockStylePresets:
           heading:
-            fontSize: 18pt
-            fontWeight: bold
+            label: Heading
+            styles:
+              fontSize: 18pt
+              fontWeight: bold
+            applicableTo:
+              - text
           caption:
-            fontSize: 9pt
-            color: '#666666'
+            label: Caption
+            styles:
+              fontSize: 9pt
+              color: '#666666'
         createdAt: '2026-01-17T11:00:00Z'
         lastModified: '2026-01-18T14:30:00Z'
     DocumentStylesDto:
       type: object
-      description: Document-level styling defaults
-      properties:
-        fontFamily:
-          type: string
-          description: Default font family
-          example: Helvetica
-        fontSize:
-          type: string
-          description: Default font size (e.g., "12pt", "16px")
-          example: 12pt
-        fontWeight:
-          type: string
-          description: Default font weight (e.g., "normal", "bold")
-          example: normal
-        color:
-          type: string
-          description: Default text color (e.g., "#000000")
-          example: '#333333'
-        lineHeight:
-          type: string
-          description: Default line height (e.g., "1.5", "24px")
-          example: '1.5'
-        letterSpacing:
-          type: string
-          description: Default letter spacing
-          example: 0.01em
-        textAlign:
-          type: string
-          enum:
-            - left
-            - center
-            - right
-            - justify
-          description: Default text alignment
-          example: left
-        backgroundColor:
-          type: string
-          description: Default background color
-          example: '#ffffff'
+      description: |
+        Document-level style overrides. Open object — the available style properties are
+        driven by the style registry (e.g. fontFamily, fontSize, color, lineHeight, etc.).
+        Keys are camelCase CSS property names, values are strings.
       example:
         fontFamily: Helvetica
         fontSize: 12pt
@@ -2378,6 +2355,10 @@ components:
           example: portrait
         margins:
           $ref: '#/components/schemas/MarginsDto'
+        backgroundColor:
+          type: string
+          description: Page background color (CSS color value)
+          example: '#ffffff'
       example:
         format: A4
         orientation: portrait
@@ -2388,23 +2369,32 @@ components:
           left: 40
     MarginsDto:
       type: object
-      description: Page margins in pixels
+      description: Page margins in millimeters
+      required:
+        - top
+        - right
+        - bottom
+        - left
       properties:
         top:
           type: integer
-          description: Top margin in pixels
+          minimum: 0
+          description: Top margin in mm
           example: 40
         right:
           type: integer
-          description: Right margin in pixels
+          minimum: 0
+          description: Right margin in mm
           example: 40
         bottom:
           type: integer
-          description: Bottom margin in pixels
+          minimum: 0
+          description: Bottom margin in mm
           example: 40
         left:
           type: integer
-          description: Left margin in pixels
+          minimum: 0
+          description: Left margin in mm
           example: 40
       example:
         top: 40
@@ -2442,12 +2432,14 @@ components:
         blockStylePresets:
           type: object
           additionalProperties:
-            type: object
-          description: Named block style presets
+            $ref: '#/components/schemas/BlockStylePresetDto'
+          description: Named block style presets. Key is the preset name.
           example:
             heading:
-              fontSize: 18pt
-              fontWeight: bold
+              label: Heading
+              styles:
+                fontSize: 18pt
+                fontWeight: bold
     UpdateThemeRequest:
       type: object
       description: Request body for updating a theme (partial update)
@@ -2473,8 +2465,8 @@ components:
             - object
             - 'null'
           additionalProperties:
-            type: object
-          description: Named block style presets (null to clear)
+            $ref: '#/components/schemas/BlockStylePresetDto'
+          description: Named block style presets (null to clear). Key is the preset name.
     ThemeListResponse:
       type: object
       description: List of themes
@@ -2511,11 +2503,17 @@ components:
                 left: 40
             blockStylePresets:
               heading:
-                fontSize: 18pt
-                fontWeight: bold
+                label: Heading
+                styles:
+                  fontSize: 18pt
+                  fontWeight: bold
+                applicableTo:
+                  - text
               caption:
-                fontSize: 9pt
-                color: '#666666'
+                label: Caption
+                styles:
+                  fontSize: 9pt
+                  color: '#666666'
             createdAt: '2026-01-17T11:00:00Z'
             lastModified: '2026-01-18T14:30:00Z'
     EnvironmentDto:
@@ -3749,6 +3747,329 @@ components:
             environmentName: Staging
             versionId: 2
             activatedAt: '2026-01-29T09:00:00Z'
+    TemplateDocumentDto:
+      type: object
+      description: |
+        Root schema for an Epistola template document using the node/slot graph model.
+        The document is a flat graph of nodes connected through slots, with a single root node.
+      required:
+        - modelVersion
+        - root
+        - nodes
+        - slots
+        - themeRef
+      properties:
+        modelVersion:
+          type: integer
+          const: 1
+          description: Schema version for forward-compatibility detection
+          example: 1
+        root:
+          type: string
+          minLength: 1
+          description: ID of the root node in the document tree
+          example: node-root
+        nodes:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/NodeDto'
+          description: Flat map of all nodes keyed by node ID
+          example:
+            node-root:
+              id: node-root
+              type: container
+              slots:
+                - slot-root-children
+              styles: {}
+              props: {}
+            node-header:
+              id: node-header
+              type: text
+              slots: []
+              styles:
+                fontSize: 24pt
+                fontWeight: bold
+              props:
+                content: Invoice {{invoiceNumber}}
+            node-columns:
+              id: node-columns
+              type: columns
+              slots:
+                - slot-col-0
+                - slot-col-1
+              styles: {}
+              props:
+                columnCount: 2
+            node-from:
+              id: node-from
+              type: text
+              slots: []
+              styles: {}
+              props:
+                content: |-
+                  **From:** Acme Corporation
+                  1 Enterprise Way
+                  Springfield, IL 62704
+            node-to:
+              id: node-to
+              type: text
+              slots: []
+              styles: {}
+              props:
+                content: |-
+                  **To:** {{customer.name}}
+                  {{customer.address.street}}
+                  {{customer.address.city}}, {{customer.address.postalCode}}
+        slots:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/SlotDto'
+          description: Flat map of all slots keyed by slot ID
+          example:
+            slot-root-children:
+              id: slot-root-children
+              nodeId: node-root
+              name: children
+              children:
+                - node-header
+                - node-columns
+            slot-col-0:
+              id: slot-col-0
+              nodeId: node-columns
+              name: column-0
+              children:
+                - node-from
+            slot-col-1:
+              id: slot-col-1
+              nodeId: node-columns
+              name: column-1
+              children:
+                - node-to
+        themeRef:
+          $ref: '#/components/schemas/ThemeRefDto'
+        pageSettingsOverride:
+          $ref: '#/components/schemas/PageSettingsDto'
+        documentStylesOverride:
+          $ref: '#/components/schemas/DocumentStylesDto'
+      example:
+        modelVersion: 1
+        root: node-root
+        nodes:
+          node-root:
+            id: node-root
+            type: container
+            slots:
+              - slot-root-children
+            styles: {}
+            props: {}
+          node-header:
+            id: node-header
+            type: text
+            slots: []
+            styles:
+              fontSize: 24pt
+              fontWeight: bold
+            props:
+              content: Invoice {{invoiceNumber}}
+          node-columns:
+            id: node-columns
+            type: columns
+            slots:
+              - slot-col-0
+              - slot-col-1
+            styles: {}
+            props:
+              columnCount: 2
+          node-from:
+            id: node-from
+            type: text
+            slots: []
+            styles: {}
+            props:
+              content: |-
+                **From:** Acme Corporation
+                1 Enterprise Way
+                Springfield, IL 62704
+          node-to:
+            id: node-to
+            type: text
+            slots: []
+            styles: {}
+            props:
+              content: |-
+                **To:** {{customer.name}}
+                {{customer.address.street}}
+                {{customer.address.city}}, {{customer.address.postalCode}}
+        slots:
+          slot-root-children:
+            id: slot-root-children
+            nodeId: node-root
+            name: children
+            children:
+              - node-header
+              - node-columns
+          slot-col-0:
+            id: slot-col-0
+            nodeId: node-columns
+            name: column-0
+            children:
+              - node-from
+          slot-col-1:
+            id: slot-col-1
+            nodeId: node-columns
+            name: column-1
+            children:
+              - node-to
+        themeRef:
+          type: inherit
+    NodeDto:
+      type: object
+      description: A node in the template document graph. Represents a content or layout element.
+      required:
+        - id
+        - type
+        - slots
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: Unique identifier for this node within the document
+          example: node-header
+        type:
+          type: string
+          minLength: 1
+          description: Node type identifier (e.g. 'text', 'container', 'columns', 'table')
+          example: text
+        slots:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          description: Ordered slot IDs owned by this node
+          example: []
+        styles:
+          type: object
+          description: Inline style overrides (CSS-like key/value pairs)
+          example:
+            fontSize: 24pt
+            fontWeight: bold
+        stylePreset:
+          type: string
+          description: Reference to a named preset in the theme's block style presets
+          example: heading
+        props:
+          type: object
+          description: Type-specific properties (content, expression, columns config, etc.)
+          example:
+            content: Invoice {{invoiceNumber}}
+      example:
+        id: node-header
+        type: text
+        slots: []
+        styles:
+          fontSize: 24pt
+          fontWeight: bold
+        props:
+          content: Invoice {{invoiceNumber}}
+    SlotDto:
+      type: object
+      description: A slot in the template document graph. Slots are containers owned by nodes that hold ordered child nodes.
+      required:
+        - id
+        - nodeId
+        - name
+        - children
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: Unique identifier for this slot within the document
+          example: slot-root-children
+        nodeId:
+          type: string
+          minLength: 1
+          description: ID of the parent node that owns this slot
+          example: node-root
+        name:
+          type: string
+          minLength: 1
+          description: Semantic slot name (e.g. 'children', 'column-0', 'cell-0-1', 'body')
+          example: children
+        children:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          description: Ordered child node IDs in this slot
+          example:
+            - node-header
+            - node-columns
+      example:
+        id: slot-root-children
+        nodeId: node-root
+        name: children
+        children:
+          - node-header
+          - node-columns
+    ThemeRefDto:
+      type: object
+      description: |
+        Reference to a theme for this template document.
+        When type is "inherit", the theme is inherited from the variant/template hierarchy.
+        When type is "override", the themeId field specifies which theme to use.
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - inherit
+            - override
+          description: |
+            Theme reference strategy.
+            "inherit" uses the theme from the variant/template hierarchy.
+            "override" uses the theme specified by themeId.
+          example: inherit
+        themeId:
+          type: string
+          minLength: 1
+          description: Slug identifier of the theme to use. Required when type is "override".
+          example: corporate
+      example:
+        type: inherit
+    BlockStylePresetDto:
+      type: object
+      description: A named block style preset (like a CSS class) that can be applied to nodes
+      required:
+        - label
+        - styles
+      properties:
+        label:
+          type: string
+          description: Human-readable label for the preset
+          example: Heading
+        styles:
+          type: object
+          description: CSS-like style properties for this preset
+          example:
+            fontSize: 18pt
+            fontWeight: bold
+        applicableTo:
+          type: array
+          items:
+            type: string
+          description: Node types this preset can be applied to. Absent or empty means all types.
+          example:
+            - text
+            - container
+      example:
+        label: Heading
+        styles:
+          fontSize: 18pt
+          fontWeight: bold
+        applicableTo:
+          - text
+          - container
     VersionDto:
       type: object
       description: Template version with content and lifecycle state. The id field IS the version number (1-200).
@@ -3772,56 +4093,7 @@ components:
           description: Slug identifier of the variant this version belongs to
           example: english
         templateModel:
-          type: object
-          description: The template model defining the document structure
-          example:
-            blocks:
-              - type: header
-                level: 1
-                content: Invoice {{invoiceNumber}}
-              - type: columns
-                columns:
-                  - blocks:
-                      - type: paragraph
-                        content: |-
-                          **From:** Acme Corporation
-                          1 Enterprise Way
-                          Springfield, IL 62704
-                  - blocks:
-                      - type: paragraph
-                        content: |-
-                          **To:** {{customer.name}}
-                          {{customer.address.street}}
-                          {{customer.address.city}}, {{customer.address.postalCode}}
-              - type: metadata
-                fields:
-                  - label: Issue Date
-                    value: '{{issueDate}}'
-                  - label: Due Date
-                    value: '{{dueDate}}'
-                  - label: Currency
-                    value: '{{currency}}'
-              - type: table
-                dataSource: '{{lineItems}}'
-                columns:
-                  - header: Description
-                    field: description
-                  - header: Qty
-                    field: quantity
-                    align: right
-                  - header: Unit Price
-                    field: unitPrice
-                    format: currency
-                  - header: Tax %
-                    field: taxRate
-                    format: percentage
-              - type: divider
-              - type: paragraph
-                style: caption
-                content: '{{#if notes}}Note: {{notes}}{{/if}}'
-              - type: paragraph
-                style: bold
-                content: 'Total Due: {{currency}} {{summary.total}}'
+          $ref: '#/components/schemas/TemplateDocumentDto'
         status:
           type: string
           enum:
@@ -3853,53 +4125,76 @@ components:
         id: 1
         variantId: english
         templateModel:
-          blocks:
-            - type: header
-              level: 1
-              content: Invoice {{invoiceNumber}}
-            - type: columns
-              columns:
-                - blocks:
-                    - type: paragraph
-                      content: |-
-                        **From:** Acme Corporation
-                        1 Enterprise Way
-                        Springfield, IL 62704
-                - blocks:
-                    - type: paragraph
-                      content: |-
-                        **To:** {{customer.name}}
-                        {{customer.address.street}}
-                        {{customer.address.city}}, {{customer.address.postalCode}}
-            - type: metadata
-              fields:
-                - label: Issue Date
-                  value: '{{issueDate}}'
-                - label: Due Date
-                  value: '{{dueDate}}'
-                - label: Currency
-                  value: '{{currency}}'
-            - type: table
-              dataSource: '{{lineItems}}'
-              columns:
-                - header: Description
-                  field: description
-                - header: Qty
-                  field: quantity
-                  align: right
-                - header: Unit Price
-                  field: unitPrice
-                  format: currency
-                - header: Tax %
-                  field: taxRate
-                  format: percentage
-            - type: divider
-            - type: paragraph
-              style: caption
-              content: '{{#if notes}}Note: {{notes}}{{/if}}'
-            - type: paragraph
-              style: bold
-              content: 'Total Due: {{currency}} {{summary.total}}'
+          modelVersion: 1
+          root: node-root
+          nodes:
+            node-root:
+              id: node-root
+              type: container
+              slots:
+                - slot-root-children
+              styles: {}
+              props: {}
+            node-header:
+              id: node-header
+              type: text
+              slots: []
+              styles:
+                fontSize: 24pt
+                fontWeight: bold
+              props:
+                content: Invoice {{invoiceNumber}}
+            node-columns:
+              id: node-columns
+              type: columns
+              slots:
+                - slot-col-0
+                - slot-col-1
+              styles: {}
+              props:
+                columnCount: 2
+            node-from:
+              id: node-from
+              type: text
+              slots: []
+              styles: {}
+              props:
+                content: |-
+                  **From:** Acme Corporation
+                  1 Enterprise Way
+                  Springfield, IL 62704
+            node-to:
+              id: node-to
+              type: text
+              slots: []
+              styles: {}
+              props:
+                content: |-
+                  **To:** {{customer.name}}
+                  {{customer.address.street}}
+                  {{customer.address.city}}, {{customer.address.postalCode}}
+          slots:
+            slot-root-children:
+              id: slot-root-children
+              nodeId: node-root
+              name: children
+              children:
+                - node-header
+                - node-columns
+            slot-col-0:
+              id: slot-col-0
+              nodeId: node-columns
+              name: column-0
+              children:
+                - node-from
+            slot-col-1:
+              id: slot-col-1
+              nodeId: node-columns
+              name: column-1
+              children:
+                - node-to
+          themeRef:
+            type: inherit
         status: published
         createdAt: '2026-01-22T09:00:00Z'
         publishedAt: '2026-01-25T14:00:00Z'
@@ -3965,41 +4260,7 @@ components:
       description: Request body for updating a draft version
       properties:
         templateModel:
-          type: object
-          description: Template model structure
-          example:
-            blocks:
-              - type: header
-                level: 1
-                content: Invoice {{invoiceNumber}}
-              - type: columns
-                columns:
-                  - blocks:
-                      - type: paragraph
-                        content: |-
-                          **From:** Acme Corporation
-                          1 Enterprise Way
-                          Springfield, IL 62704
-                  - blocks:
-                      - type: paragraph
-                        content: |-
-                          **To:** {{customer.name}}
-                          {{customer.address.street}}
-                          {{customer.address.city}}, {{customer.address.postalCode}}
-              - type: table
-                dataSource: '{{lineItems}}'
-                columns:
-                  - header: Description
-                    field: description
-                  - header: Qty
-                    field: quantity
-                    align: right
-                  - header: Unit Price
-                    field: unitPrice
-                    format: currency
-              - type: paragraph
-                style: bold
-                content: 'Total Due: {{currency}} {{summary.total}}'
+          $ref: '#/components/schemas/TemplateDocumentDto'
     PublishVersionRequest:
       type: object
       description: Request body for publishing a version to an environment
