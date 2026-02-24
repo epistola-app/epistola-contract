@@ -1743,6 +1743,65 @@ paths:
             application/vnd.epistola.v1+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /tenants/{tenantId}/templates/import:
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 63
+    post:
+      operationId: importTemplates
+      summary: Bulk import templates
+      description: |
+        Import one or more templates in a single request. For each template, this endpoint
+        performs a create-or-update operation:
+
+        - **Template**: Created if it doesn't exist, updated if it does (name, dataModel, dataExamples)
+        - **Variants**: Created if they don't exist, updated if they do (title, attributes)
+        - **Draft**: Upserted with the provided templateModel (variant-specific or top-level fallback)
+        - **Publishing**: Draft is published and activated in each environment listed in `publishTo`
+
+        This endpoint is idempotent — importing the same payload multiple times produces the same result.
+        It is designed for automated sync scenarios (CI/CD pipelines, plugin template sync).
+      tags:
+        - Templates
+      x-required-roles:
+        - editor
+        - manager
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/ImportTemplatesRequest'
+      responses:
+        '200':
+          description: Import completed successfully
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ImportTemplatesResponse'
+        '400':
+          description: Invalid request (validation errors in one or more templates)
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Tenant not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /tenants/{tenantId}/documents/generate:
     post:
       operationId: generateDocument
@@ -3387,6 +3446,259 @@ components:
               taxRate: 0
           notes: Payment due within 30 days. Please reference invoice number on transfer.
           currency: EUR
+    ImportTemplatesRequest:
+      type: object
+      description: Request body for bulk template import (create-or-update)
+      required:
+        - templates
+      properties:
+        templates:
+          type: array
+          minItems: 1
+          maxItems: 50
+          description: List of template definitions to import
+          items:
+            $ref: '#/components/schemas/ImportTemplateDto'
+      example:
+        templates:
+          - slug: subsidiebesluit
+            name: Subsidiebesluit
+            version: 1.0.0
+            dataModel:
+              type: object
+              properties:
+                beneficiary:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+            dataExamples:
+              - id: voorbeeld
+                name: Voorbeeld
+                data:
+                  beneficiary:
+                    name: Gemeente Amsterdam
+            templateModel:
+              modelVersion: 1
+              root: node-root
+              nodes:
+                node-root:
+                  id: node-root
+                  type: container
+                  slots:
+                    - slot-root-children
+                  styles: {}
+                  props: {}
+              slots:
+                slot-root-children:
+                  id: slot-root-children
+                  nodeId: node-root
+                  name: children
+                  children: []
+              themeRef:
+                type: inherit
+            variants:
+              - id: default
+                title: Standaard
+                attributes:
+                  language: nl
+            publishTo:
+              - production
+    ImportTemplateDto:
+      type: object
+      description: |
+        A single template definition for import. Contains the full template structure
+        including metadata, data model, visual layout, variants, and publishing targets.
+      required:
+        - slug
+        - name
+        - version
+        - templateModel
+      properties:
+        slug:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier for the template (used as template ID)
+          example: subsidiebesluit
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Display name of the template
+          example: Subsidiebesluit
+        version:
+          type: string
+          pattern: ^\d+\.\d+\.\d+$
+          description: Semantic version of the template definition (for change tracking by callers)
+          example: 1.0.0
+        dataModel:
+          type: object
+          description: JSON Schema defining the expected data structure for template rendering
+        dataExamples:
+          type: array
+          description: Example data sets for testing template rendering
+          items:
+            $ref: '#/components/schemas/DataExampleDto'
+        templateModel:
+          $ref: '#/components/schemas/TemplateDocumentDto'
+        variants:
+          type: array
+          description: |
+            Variant definitions to create or update. If omitted, only the default variant
+            (auto-created with the template) is updated with the top-level templateModel.
+          items:
+            $ref: '#/components/schemas/ImportVariantDto'
+        publishTo:
+          type: array
+          description: |
+            Environment slugs to publish to after importing. For each environment, the draft
+            is published and activated. Environments must exist in the tenant.
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+            minLength: 3
+            maxLength: 30
+          example:
+            - production
+      example:
+        slug: subsidiebesluit
+        name: Subsidiebesluit
+        version: 1.0.0
+        dataModel:
+          type: object
+          properties:
+            beneficiary:
+              type: object
+              properties:
+                name:
+                  type: string
+        templateModel:
+          modelVersion: 1
+          root: node-root
+          nodes:
+            node-root:
+              id: node-root
+              type: container
+              slots:
+                - slot-root-children
+              styles: {}
+              props: {}
+          slots:
+            slot-root-children:
+              id: slot-root-children
+              nodeId: node-root
+              name: children
+              children: []
+          themeRef:
+            type: inherit
+        variants:
+          - id: default
+            title: Standaard
+            attributes:
+              language: nl
+        publishTo:
+          - production
+    ImportVariantDto:
+      type: object
+      description: Variant definition within an import template
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier for the variant
+          example: default
+        title:
+          type:
+            - string
+            - 'null'
+          description: Human-readable title for the variant
+          example: Standaard
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+          description: Variant attributes for selection criteria
+          example:
+            language: nl
+        templateModel:
+          $ref: '#/components/schemas/TemplateDocumentDto'
+      example:
+        id: default
+        title: Standaard
+        attributes:
+          language: nl
+    ImportTemplatesResponse:
+      type: object
+      description: Response for bulk template import
+      required:
+        - results
+      properties:
+        results:
+          type: array
+          description: Import result for each template in the request (same order)
+          items:
+            $ref: '#/components/schemas/ImportTemplateResultDto'
+      example:
+        results:
+          - slug: subsidiebesluit
+            status: created
+            version: 1.0.0
+            publishedTo:
+              - production
+    ImportTemplateResultDto:
+      type: object
+      description: Import result for a single template
+      required:
+        - slug
+        - status
+        - version
+      properties:
+        slug:
+          type: string
+          description: Template slug that was imported
+          example: subsidiebesluit
+        status:
+          type: string
+          enum:
+            - created
+            - updated
+            - unchanged
+            - failed
+          description: |
+            Result status:
+            - `created`: Template was newly created
+            - `updated`: Existing template was updated
+            - `unchanged`: Template already existed with same content (no changes made)
+            - `failed`: Import failed for this template (see errorMessage)
+          example: created
+        version:
+          type: string
+          description: Version that was imported
+          example: 1.0.0
+        publishedTo:
+          type: array
+          description: Environments the template was published to
+          items:
+            type: string
+          example:
+            - production
+        errorMessage:
+          type:
+            - string
+            - 'null'
+          description: Error message if status is "failed"
+      example:
+        slug: subsidiebesluit
+        status: created
+        version: 1.0.0
+        publishedTo:
+          - production
     ValidateTemplateDataRequest:
       type: object
       description: Request body for validating template input data against the template's JSON Schema
