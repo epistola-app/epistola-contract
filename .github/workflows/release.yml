@@ -1,11 +1,10 @@
 name: Release to Maven Central
 
 on:
-  # Auto-release on push to release branches
+  # Auto-release when a commit on main contains [release]
   push:
-    branches:
-      - 'release/**'
-  # Manual release from any allowed branch
+    branches: [main]
+  # Manual release
   workflow_dispatch:
     inputs:
       module:
@@ -18,15 +17,17 @@ on:
           - server-kotlin-springboot4
 
 jobs:
-  # Validate branch and bundle spec
+  # Validate and bundle spec
   validate-and-bundle:
-    name: Validate branch and bundle spec
+    name: Validate and bundle spec
+    if: >-
+      contains(github.event.head_commit.message, '[release]') ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       api_version: ${{ steps.validate.outputs.api_version }}
       spec_version: ${{ steps.validate.outputs.spec_version }}
       release_version: ${{ steps.version.outputs.release_version }}
-      is_release_branch: ${{ steps.validate.outputs.is_release_branch }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -38,7 +39,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Validate branch matches spec version
+      - name: Read spec version
         id: validate
         run: |
           # Read full spec version (e.g., 1.0.0)
@@ -46,28 +47,10 @@ jobs:
           echo "spec_version=${SPEC_VERSION}" >> $GITHUB_OUTPUT
           echo "Full spec version: ${SPEC_VERSION}"
 
-          # Extract API version (major.minor) for branch validation
+          # Extract API version (major.minor)
           API_VERSION=$(echo "$SPEC_VERSION" | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')
           echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
           echo "API version: ${API_VERSION}"
-
-          BRANCH="${GITHUB_REF#refs/heads/}"
-          echo "Branch: ${BRANCH}"
-
-          # For release/* branches, validate version matches
-          if [[ "$BRANCH" == release/* ]]; then
-            echo "is_release_branch=true" >> $GITHUB_OUTPUT
-            BRANCH_VERSION="${BRANCH#release/}"
-            if [[ "$BRANCH_VERSION" != "$API_VERSION" ]]; then
-              echo "::error::Branch version ($BRANCH_VERSION) does not match spec version ($API_VERSION)"
-              echo "::error::Release branch 'release/$BRANCH_VERSION' must have spec version '$BRANCH_VERSION.x'"
-              exit 1
-            fi
-            echo "Branch version matches spec version"
-          else
-            echo "is_release_branch=false" >> $GITHUB_OUTPUT
-            echo "Main branch - any version allowed"
-          fi
 
       - name: Calculate release version
         id: version

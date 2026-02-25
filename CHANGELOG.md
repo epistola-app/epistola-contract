@@ -8,13 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Main-first branching strategy** — `main` is now the active development branch; release branches are cut for milestones
-- **Automated version bumping** via `version-bump.yml` workflow — creates a PR to bump `info.version` on `main` when a `release/**` branch is created
-- **`make cut-release`** convenience target for creating release branches with built-in safety checks (branch, clean tree, version match)
-- **Backport label** `backport:release/0.1` for cherry-picking fixes to the release branch
+- **Trunk-based release flow** — releases are triggered by including `[release]` in a commit message on `main`
+- **`make release`** convenience target that creates a `[release]` marker commit with safety checks (must be on `main`, clean working tree)
+- Snapshot publishing automatically skips when a `[release]` commit is pushed (prevents duplicate artifacts)
 
-### Changed
-- `build.yml` now validates PRs targeting `release/**` branches in addition to `main`
+### Removed
+- `version-bump.yml` workflow (was for release-branch model)
+- `make cut-release` target (replaced by `make release`)
+- `backport:release/0.1` label (no release branches to backport to)
 
 ### Added
 - **Bulk template import endpoint** `POST /tenants/{tenantId}/templates/import`

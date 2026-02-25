@@ -98,11 +98,6 @@
   color: "b60205"
   description: Introduces breaking changes
 
-# Backport Labels
-- name: "backport:release/0.1"
-  color: "006b75"
-  description: Backport this PR to release/0.1 branch
-
 # Size Labels
 - name: "size: xs"
   color: "ededed"

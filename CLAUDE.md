@@ -165,35 +165,26 @@ The spec is validated with Redocly using these rules:
 
 ## Branching Strategy
 
-This project uses a **main-first** development model:
+This project uses a **trunk-based** development model with releases from `main`:
 
-- **`main`** is the active development branch. All new features and fixes land here first.
-- **`release/X.Y`** branches are cut from `main` for milestones and receive only bug fixes (via backport).
-- Pushes to `release/**` trigger releases to Maven Central. Pushes to `main` trigger snapshot publishing.
+- **`main`** is the only long-lived branch. All development happens here.
+- **Snapshots** are published on every push to `main` (unless the commit contains `[release]`).
+- **Releases** are triggered by including `[release]` in a commit message on `main`, or via `workflow_dispatch`.
 
-### Cutting a Release
+### Creating a Release
 
 ```bash
-# Ensure epistola-api.yaml version matches (e.g., 0.2.0 for release/0.2)
-make cut-release VERSION=0.2
-git push origin release/0.2
+# Creates an empty commit with [release] marker
+make release
+# Then push to trigger the release workflow
+git push origin main
 ```
 
-After pushing, the `version-bump.yml` workflow automatically creates a PR to bump `main` to the next development version (e.g., `0.3.0`).
+The release workflow reads the version from `epistola-api.yaml` and auto-increments the patch number based on existing git tags. For example, if the spec says `0.1.0` and there are no prior tags, the first release will be `0.1.0`. Subsequent releases auto-increment: `0.1.1`, `0.1.2`, etc.
 
-### Version Flow Example
+### Bumping the API Version
 
-```
-main (0.1.0) → cut release/0.1 → main bumped to 0.2.0
-main (0.2.0) → cut release/0.2 → main bumped to 0.3.0
-```
-
-### Backporting Fixes
-
-1. Fix the issue on `main` via a normal PR
-2. Add a `backport:release/X.Y` label to the PR
-3. After merge, the backport workflow creates a cherry-pick PR to the release branch
-4. Review and merge the backport PR — this triggers a new release automatically
+To release a new major/minor version, update `info.version` in `epistola-api.yaml` (e.g., from `0.1.0` to `0.2.0`) and then `make release`.
 
 ## Commit Guidelines
 
