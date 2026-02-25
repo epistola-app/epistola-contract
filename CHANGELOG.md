@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - CLAUDE.md `security-defined` validation rule documented as "Disabled" but was actually set to `error` in `redocly.yaml`
+- Version injection `sed` command in release and snapshot workflows replaced all `version:` lines in bundled spec, corrupting schema property definitions (now only replaces the first match: `info.version`)
 
 ### Added
 - **Trunk-based release flow** — releases are triggered by including `[release]` in a commit message on `main`

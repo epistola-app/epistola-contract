@@ -47,7 +47,7 @@ jobs:
       - name: Inject snapshot version into bundled spec
         run: |
           SNAPSHOT_VERSION="${{ steps.version.outputs.snapshot_version }}"
-          sed -i "s/^\(\s*version:\s*\).*/\1\"${SNAPSHOT_VERSION}\"/" openapi.yaml
+          sed -i "0,/^\s*version:/{s/^\(\s*version:\s*\).*/\1\"${SNAPSHOT_VERSION}\"/}" openapi.yaml
           echo "Set openapi.yaml version to ${SNAPSHOT_VERSION}"
           grep 'version:' openapi.yaml | head -1
 

@@ -95,7 +95,7 @@ jobs:
       - name: Inject release version into bundled spec
         run: |
           RELEASE_VERSION="${{ steps.version.outputs.release_version }}"
-          sed -i "s/^\(\s*version:\s*\).*/\1\"${RELEASE_VERSION}\"/" openapi.yaml
+          sed -i "0,/^\s*version:/{s/^\(\s*version:\s*\).*/\1\"${RELEASE_VERSION}\"/}" openapi.yaml
           echo "Set openapi.yaml version to ${RELEASE_VERSION}"
           grep 'version:' openapi.yaml | head -1
 
