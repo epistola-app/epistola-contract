@@ -3032,9 +3032,10 @@ components:
         variants:
           - id: english
             title: English Invoice
-            tags:
+            attributes:
               locale: en-US
               brand: acme
+            isDefault: false
             hasDraft: true
             publishedVersions:
               - 1
