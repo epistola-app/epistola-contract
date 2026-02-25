@@ -154,7 +154,7 @@ The spec is validated with Redocly using these rules:
 - `operation-summary`: Recommended (warn)
 - `no-unresolved-refs`: Required (error)
 - `operation-4xx-response`: Recommended (warn)
-- `security-defined`: Disabled (auth not yet implemented)
+- `security-defined`: Required (error)
 
 ## Testing Changes
 

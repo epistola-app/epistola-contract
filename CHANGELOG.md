@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Snapshot workflow restructured** to match release workflow pattern
+  - Replaced sequential `build-all` job with parallel matrix-based `build` job (client and server build concurrently)
+  - Consolidated `publish-client` and `publish-server` into a single matrix-based `publish` job
+  - Build jobs now skip when no relevant files changed (previously always built both modules)
+  - `detect-changes` job now skips on `[release]` commits (previously ran unnecessarily)
+  - `mock-server` job no longer waits for Gradle builds (only needs bundled spec)
+
+### Fixed
+- CLAUDE.md `security-defined` validation rule documented as "Disabled" but was actually set to `error` in `redocly.yaml`
+
 ### Added
 - **Trunk-based release flow** — releases are triggered by including `[release]` in a commit message on `main`
 - **`make release`** convenience target that creates a `[release]` marker commit with safety checks (must be on `main`, clean working tree)

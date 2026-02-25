@@ -61,6 +61,9 @@ jobs:
   # Detect which modules have changes
   detect-changes:
     name: Detect Changes
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      !contains(github.event.head_commit.message, '[release]')
     runs-on: ubuntu-latest
     outputs:
       spec: ${{ steps.filter.outputs.spec }}
@@ -87,88 +90,104 @@ jobs:
               - 'spec/**'
               - 'server-kotlin-springboot4/**'
 
-  # Build and test all modules before publishing anything.
+  # Build and test modules in parallel before publishing.
   # This prevents half-releases where one module publishes but the other fails.
-  build-all:
-    name: Build all modules
-    needs: spec-validation
+  build:
+    name: Build ${{ matrix.module }}
+    needs: [spec-validation, detect-changes]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - module: client-kotlin-spring-restclient
+            filter: client
+          - module: server-kotlin-springboot4
+            filter: server
     steps:
+      - name: Check if should run
+        id: should_run
+        env:
+          CHANGED: ${{ needs.detect-changes.outputs[matrix.filter] }}
+          SKIP_DETECTION: ${{ inputs.skip_detection }}
+        run: |
+          if [ "$CHANGED" == "true" ] || [ "$SKIP_DETECTION" == "true" ]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "enabled=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout
+        if: steps.should_run.outputs.enabled == 'true'
         uses: actions/checkout@v6
 
       - name: Download bundled spec
+        if: steps.should_run.outputs.enabled == 'true'
         uses: actions/download-artifact@v4
         with:
           name: openapi-spec
 
       - name: Setup tools with mise
+        if: steps.should_run.outputs.enabled == 'true'
         uses: jdx/mise-action@v3
 
       - name: Setup Gradle cache
+        if: steps.should_run.outputs.enabled == 'true'
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Build and test client
-        working-directory: client-kotlin-spring-restclient
-        run: ./gradlew build -Pversion=${{ needs.spec-validation.outputs.snapshot_version }}
-
-      - name: Build and test server
-        working-directory: server-kotlin-springboot4
+      - name: Build and test
+        if: steps.should_run.outputs.enabled == 'true'
+        working-directory: ${{ matrix.module }}
         run: ./gradlew build -Pversion=${{ needs.spec-validation.outputs.snapshot_version }}
 
   # Only publish after all builds succeed
-  publish-client:
-    name: Publish client-spring3-restclient Snapshot
-    needs: [spec-validation, detect-changes, build-all]
-    if: needs.detect-changes.outputs.client == 'true' || inputs.skip_detection == true
+  publish:
+    name: Publish ${{ matrix.artifact_id }} Snapshot
+    needs: [spec-validation, detect-changes, build]
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - module: client-kotlin-spring-restclient
+            artifact_id: client-spring3-restclient
+            filter: client
+          - module: server-kotlin-springboot4
+            artifact_id: server-kotlin-springboot4
+            filter: server
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Download bundled spec
-        uses: actions/download-artifact@v4
-        with:
-          name: openapi-spec
-
-      - name: Setup tools with mise
-        uses: jdx/mise-action@v3
-
-      - name: Setup Gradle cache
-        uses: gradle/actions/setup-gradle@v5
-
-      - name: Publish snapshot to Maven Central
-        working-directory: client-kotlin-spring-restclient
+      - name: Check if should run
+        id: should_run
         env:
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.OSSRH_USERNAME }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.OSSRH_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_KEY_ID }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
-        run: ./gradlew publishToMavenCentral -Pversion=${{ needs.spec-validation.outputs.snapshot_version }}
+          CHANGED: ${{ needs.detect-changes.outputs[matrix.filter] }}
+          SKIP_DETECTION: ${{ inputs.skip_detection }}
+        run: |
+          if [ "$CHANGED" == "true" ] || [ "$SKIP_DETECTION" == "true" ]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "enabled=false" >> $GITHUB_OUTPUT
+          fi
 
-  publish-server:
-    name: Publish server-kotlin-springboot4 Snapshot
-    needs: [spec-validation, detect-changes, build-all]
-    if: needs.detect-changes.outputs.server == 'true' || inputs.skip_detection == true
-    runs-on: ubuntu-latest
-    steps:
       - name: Checkout
+        if: steps.should_run.outputs.enabled == 'true'
         uses: actions/checkout@v6
 
       - name: Download bundled spec
+        if: steps.should_run.outputs.enabled == 'true'
         uses: actions/download-artifact@v4
         with:
           name: openapi-spec
 
       - name: Setup tools with mise
+        if: steps.should_run.outputs.enabled == 'true'
         uses: jdx/mise-action@v3
 
       - name: Setup Gradle cache
+        if: steps.should_run.outputs.enabled == 'true'
         uses: gradle/actions/setup-gradle@v5
 
       - name: Publish snapshot to Maven Central
-        working-directory: server-kotlin-springboot4
+        if: steps.should_run.outputs.enabled == 'true'
+        working-directory: ${{ matrix.module }}
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.OSSRH_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.OSSRH_PASSWORD }}
@@ -180,7 +199,7 @@ jobs:
   # Publish mock server snapshot when spec changes
   mock-server:
     name: Publish Mock Server Snapshot
-    needs: [spec-validation, detect-changes, build-all]
+    needs: [spec-validation, detect-changes]
     if: needs.detect-changes.outputs.spec == 'true' || inputs.skip_detection == true
     uses: ./.github/workflows/mock-server.yml
     with:
