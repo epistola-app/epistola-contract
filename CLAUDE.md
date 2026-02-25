@@ -163,6 +163,38 @@ The spec is validated with Redocly using these rules:
 3. Run `make build` to verify client/server generation compiles
 4. Run `make mock` to test endpoints with mock server
 
+## Branching Strategy
+
+This project uses a **main-first** development model:
+
+- **`main`** is the active development branch. All new features and fixes land here first.
+- **`release/X.Y`** branches are cut from `main` for milestones and receive only bug fixes (via backport).
+- Pushes to `release/**` trigger releases to Maven Central. Pushes to `main` trigger snapshot publishing.
+
+### Cutting a Release
+
+```bash
+# Ensure epistola-api.yaml version matches (e.g., 0.2.0 for release/0.2)
+make cut-release VERSION=0.2
+git push origin release/0.2
+```
+
+After pushing, the `version-bump.yml` workflow automatically creates a PR to bump `main` to the next development version (e.g., `0.3.0`).
+
+### Version Flow Example
+
+```
+main (0.1.0) → cut release/0.1 → main bumped to 0.2.0
+main (0.2.0) → cut release/0.2 → main bumped to 0.3.0
+```
+
+### Backporting Fixes
+
+1. Fix the issue on `main` via a normal PR
+2. Add a `backport:release/X.Y` label to the PR
+3. After merge, the backport workflow creates a cherry-pick PR to the release branch
+4. Review and merge the backport PR — this triggers a new release automatically
+
 ## Commit Guidelines
 
 - Follow conventional commits: `feat(api):`, `fix(spec):`, `docs:`, etc.

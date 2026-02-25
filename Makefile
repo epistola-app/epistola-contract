@@ -1,4 +1,4 @@
-.PHONY: all lint bundle build-client build-server build clean publish-local breaking mock validate-impl help
+.PHONY: all lint bundle build-client build-server build clean publish-local breaking mock validate-impl cut-release help
 
 # Default target - runs what CI runs
 all: lint build
@@ -60,6 +60,39 @@ validate-impl: bundle
 	@echo "==> Proxying to $${TARGET_URL:-http://localhost:8080}"
 	npx --prefix tools @stoplight/prism-cli proxy openapi.yaml $${TARGET_URL:-http://localhost:8080} --errors
 
+# Cut a release branch from main
+# Usage: make cut-release VERSION=0.2
+cut-release:
+ifndef VERSION
+	$(error VERSION is required. Usage: make cut-release VERSION=0.2)
+endif
+	@# Must be on main
+	@BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
+	if [ "$$BRANCH" != "main" ]; then \
+		echo "Error: must be on 'main' branch (currently on '$$BRANCH')"; \
+		exit 1; \
+	fi
+	@# Working tree must be clean
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: working tree is not clean. Commit or stash changes first."; \
+		exit 1; \
+	fi
+	@# Spec version must match requested release
+	@SPEC_VERSION=$$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*"?([0-9]+\.[0-9]+)\.[0-9]+"?.*/\1/'); \
+	if [ "$$SPEC_VERSION" != "$(VERSION)" ]; then \
+		echo "Error: epistola-api.yaml version '$$SPEC_VERSION' does not match requested VERSION=$(VERSION)"; \
+		echo "Update the spec version to $(VERSION).0 before cutting a release."; \
+		exit 1; \
+	fi
+	@git branch release/$(VERSION)
+	@echo "==> Created branch release/$(VERSION)"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. Push the branch:  git push origin release/$(VERSION)"
+	@echo "  2. A version-bump PR will be created automatically on main"
+	@echo "  3. Review and merge the version-bump PR"
+	@echo "  4. Pushes to release/$(VERSION) trigger releases to Maven Central"
+
 # Show help
 help:
 	@echo "Available targets:"
@@ -74,4 +107,5 @@ help:
 	@echo "  breaking       - Check for breaking API changes against main branch"
 	@echo "  mock           - Start Prism mock server on http://localhost:4010"
 	@echo "  validate-impl  - Validate implementation against spec (set TARGET_URL)"
+	@echo "  cut-release    - Cut a release branch (VERSION=X.Y required)"
 	@echo "  help           - Show this help"

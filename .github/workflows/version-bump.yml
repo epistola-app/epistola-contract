@@ -1,0 +1,56 @@
+name: Bump development version
+
+on:
+  create:
+
+jobs:
+  bump-version:
+    name: Create version bump PR
+    # Only run when a release/* branch is created
+    if: github.ref_type == 'branch' && startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Extract versions
+        id: versions
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/release/}"
+          echo "release_version=${BRANCH}" >> $GITHUB_OUTPUT
+
+          # Calculate next development version (bump minor)
+          MAJOR=$(echo "$BRANCH" | cut -d. -f1)
+          MINOR=$(echo "$BRANCH" | cut -d. -f2)
+          NEXT_MINOR=$((MINOR + 1))
+          NEXT_VERSION="${MAJOR}.${NEXT_MINOR}.0"
+          echo "next_version=${NEXT_VERSION}" >> $GITHUB_OUTPUT
+
+          echo "Release branch: release/${BRANCH}"
+          echo "Next development version: ${NEXT_VERSION}"
+
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - name: Update spec version
+        run: |
+          sed -i "s/^\(\s*version:\s*\).*/\1${{ steps.versions.outputs.next_version }}/" epistola-api.yaml
+          echo "Updated epistola-api.yaml version to ${{ steps.versions.outputs.next_version }}"
+          grep 'version:' epistola-api.yaml | head -1
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/bump-version-${{ steps.versions.outputs.next_version }}
+          commit-message: "chore: bump development version to ${{ steps.versions.outputs.next_version }}"
+          title: "chore: bump development version to ${{ steps.versions.outputs.next_version }}"
+          body: |
+            Automated version bump after `release/${{ steps.versions.outputs.release_version }}` branch was created.
+
+            Updates `info.version` in `epistola-api.yaml` from `${{ steps.versions.outputs.release_version }}.0` to `${{ steps.versions.outputs.next_version }}`.
+
+            > If a **major** version bump is needed instead, edit `epistola-api.yaml` in this PR before merging.
+          labels: infrastructure
+          delete-branch: true
