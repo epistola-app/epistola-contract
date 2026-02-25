@@ -1,9 +1,11 @@
 name: Release to Maven Central
 
 on:
-  # Auto-release when a commit on main contains [release]
+  # Auto-release when a commit on main contains [release], or any push to release branches
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'release/**'
   # Manual release
   workflow_dispatch:
     inputs:
@@ -22,7 +24,8 @@ jobs:
     name: Validate and bundle spec
     if: >-
       contains(github.event.head_commit.message, '[release]') ||
-      github.event_name == 'workflow_dispatch'
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/heads/release/')
     runs-on: ubuntu-latest
     outputs:
       api_version: ${{ steps.validate.outputs.api_version }}
@@ -51,6 +54,18 @@ jobs:
           API_VERSION=$(echo "$SPEC_VERSION" | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')
           echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
           echo "API version: ${API_VERSION}"
+
+          # For release/* branches, validate version matches
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          if [[ "$BRANCH" == release/* ]]; then
+            BRANCH_VERSION="${BRANCH#release/}"
+            if [[ "$BRANCH_VERSION" != "$API_VERSION" ]]; then
+              echo "::error::Branch version ($BRANCH_VERSION) does not match spec version ($API_VERSION)"
+              echo "::error::Release branch 'release/$BRANCH_VERSION' must have spec version '$BRANCH_VERSION.x'"
+              exit 1
+            fi
+            echo "Branch version matches spec version"
+          fi
 
       - name: Calculate release version
         id: version

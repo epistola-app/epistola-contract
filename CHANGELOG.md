@@ -11,11 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Trunk-based release flow** — releases are triggered by including `[release]` in a commit message on `main`
 - **`make release`** convenience target that creates a `[release]` marker commit with safety checks (must be on `main`, clean working tree)
 - Snapshot publishing automatically skips when a `[release]` commit is pushed (prevents duplicate artifacts)
+- Release branches (`release/X.Y`) are still supported for hotfixing older versions — any push to a release branch triggers a release
 
 ### Removed
 - `version-bump.yml` workflow (was for release-branch model)
 - `make cut-release` target (replaced by `make release`)
-- `backport:release/0.1` label (no release branches to backport to)
 
 ### Added
 - **Bulk template import endpoint** `POST /tenants/{tenantId}/templates/import`

@@ -4,7 +4,9 @@ on:
   workflow_run:
     workflows: ["Release to Maven Central"]
     types: [completed]
-    branches: [main]
+    branches:
+      - main
+      - 'release/**'
   workflow_dispatch:
     inputs:
       version:

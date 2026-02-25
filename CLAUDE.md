@@ -170,6 +170,7 @@ This project uses a **trunk-based** development model with releases from `main`:
 - **`main`** is the only long-lived branch. All development happens here.
 - **Snapshots** are published on every push to `main` (unless the commit contains `[release]`).
 - **Releases** are triggered by including `[release]` in a commit message on `main`, or via `workflow_dispatch`.
+- **Release branches** (`release/X.Y`) can be created for hotfixing older versions. Any push to a release branch triggers a release.
 
 ### Creating a Release
 
@@ -185,6 +186,15 @@ The release workflow reads the version from `epistola-api.yaml` and auto-increme
 ### Bumping the API Version
 
 To release a new major/minor version, update `info.version` in `epistola-api.yaml` (e.g., from `0.1.0` to `0.2.0`) and then `make release`.
+
+### Hotfixing Older Versions
+
+When a fix is needed on an older release:
+
+1. Create a `release/X.Y` branch from the relevant tag (if it doesn't exist yet)
+2. Cherry-pick or apply the fix on the release branch
+3. Push — any push to `release/**` triggers a release automatically
+4. The branch spec version must match the branch name (e.g., `release/0.1` requires `info.version: 0.1.x`)
 
 ## Commit Guidelines
 
