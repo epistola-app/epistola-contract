@@ -109,7 +109,6 @@ jobs:
   # Build and test all modules before publishing anything.
   # This prevents half-releases where one module publishes but the other fails.
   build:
-    name: Build ${{ matrix.module }}
     needs: validate-and-bundle
     runs-on: ubuntu-latest
     strategy:
@@ -162,7 +161,6 @@ jobs:
 
   # Only publish after ALL builds succeed — no more half-releases
   publish:
-    name: Release ${{ matrix.artifact_id }}
     needs: [validate-and-bundle, build]
     runs-on: ubuntu-latest
     permissions:
