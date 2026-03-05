@@ -52,6 +52,7 @@ ImportTemplatesRequest:
         variants:
           - id: default
             title: Standaard
+            isDefault: true
             attributes:
               language: nl
         publishTo:
@@ -67,6 +68,7 @@ ImportTemplateDto:
     - name
     - version
     - templateModel
+    - variants
   properties:
     slug:
       type: string
@@ -98,9 +100,10 @@ ImportTemplateDto:
       $ref: './template-model.yaml#/TemplateDocumentDto'
     variants:
       type: array
+      minItems: 1
       description: |
-        Variant definitions to create or update. If omitted, only the default variant
-        (auto-created with the template) is updated with the top-level templateModel.
+        Variant definitions to create or update. At least one variant is required,
+        and exactly one must have `isDefault: true`.
       items:
         $ref: '#/ImportVariantDto'
     publishTo:
@@ -180,11 +183,16 @@ ImportVariantDto:
       description: Variant attributes for selection criteria
       example:
         language: nl
+    isDefault:
+      type: boolean
+      default: false
+      description: Whether this variant is the default variant for the template. Exactly one variant per template must have isDefault=true.
     templateModel:
       $ref: './template-model.yaml#/TemplateDocumentDto'
   example:
     id: default
     title: Standaard
+    isDefault: true
     attributes:
       language: nl
 
