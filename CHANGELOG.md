@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Consolidated GitHub releases** — releases now create a single unified release per version (e.g. `v0.1.3`) instead of two separate per-module releases (e.g. `client-spring3-restclient-v0.1.3` and `server-kotlin-springboot4-v0.1.3`)
+  - Release tag format changed from `{artifact_id}-v{version}` to `v{version}`
+  - Version calculation scans both new unified tags and legacy module-prefixed tags for backwards compatibility
+
+### Changed
 - **Snapshot workflow restructured** to match release workflow pattern
   - Replaced sequential `build-all` job with parallel matrix-based `build` job (client and server build concurrently)
   - Consolidated `publish-client` and `publish-server` into a single matrix-based `publish` job

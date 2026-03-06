@@ -72,10 +72,10 @@ jobs:
         run: |
           API_VERSION="${{ steps.validate.outputs.api_version }}"
 
-          # Find the highest patch version among all release tags for this API version
+          # Find the highest patch version across both unified (v0.1.x) and legacy (module-v0.1.x) tags
           LATEST_PATCH=-1
-          for tag in $(git tag -l "*-v${API_VERSION}.*"); do
-            PATCH=$(echo "$tag" | sed -E 's/.*-v[0-9]+\.[0-9]+\.([0-9]+)/\1/')
+          for tag in $(git tag -l "v${API_VERSION}.*" && git tag -l "*-v${API_VERSION}.*"); do
+            PATCH=$(echo "$tag" | sed -E 's/.*v[0-9]+\.[0-9]+\.([0-9]+)/\1/')
             if [ "$PATCH" -gt "$LATEST_PATCH" ] 2>/dev/null; then
               LATEST_PATCH=$PATCH
             fi
@@ -163,8 +163,6 @@ jobs:
   publish:
     needs: [validate-and-bundle, build]
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     strategy:
       matrix:
         include:
@@ -219,28 +217,46 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: ./gradlew publishToMavenCentral -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
+  # Create a single unified GitHub release after all modules are published
+  github-release:
+    needs: [validate-and-bundle, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download bundled spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
       - name: Create GitHub Release
-        if: steps.should_run.outputs.enabled == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ matrix.artifact_id }}-v${{ needs.validate-and-bundle.outputs.release_version }}
-          name: ${{ matrix.artifact_id }} v${{ needs.validate-and-bundle.outputs.release_version }}
+          tag_name: v${{ needs.validate-and-bundle.outputs.release_version }}
+          name: v${{ needs.validate-and-bundle.outputs.release_version }}
           files: openapi.yaml
           body: |
-            ## ${{ matrix.artifact_id }} v${{ needs.validate-and-bundle.outputs.release_version }}
+            ## v${{ needs.validate-and-bundle.outputs.release_version }}
 
             ### Maven Coordinates
             ```xml
             <dependency>
                 <groupId>app.epistola.contract</groupId>
-                <artifactId>${{ matrix.artifact_id }}</artifactId>
+                <artifactId>client-spring3-restclient</artifactId>
+                <version>${{ needs.validate-and-bundle.outputs.release_version }}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>app.epistola.contract</groupId>
+                <artifactId>server-kotlin-springboot4</artifactId>
                 <version>${{ needs.validate-and-bundle.outputs.release_version }}</version>
             </dependency>
             ```
 
             ### Gradle (Kotlin DSL)
             ```kotlin
-            implementation("app.epistola.contract:${{ matrix.artifact_id }}:${{ needs.validate-and-bundle.outputs.release_version }}")
+            implementation("app.epistola.contract:client-spring3-restclient:${{ needs.validate-and-bundle.outputs.release_version }}")
+            implementation("app.epistola.contract:server-kotlin-springboot4:${{ needs.validate-and-bundle.outputs.release_version }}")
             ```
 
             ### OpenAPI Spec
