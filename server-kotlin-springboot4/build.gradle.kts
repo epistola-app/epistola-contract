@@ -111,7 +111,18 @@ openApiGenerate {
 sourceSets {
     main {
         kotlin.srcDir(generatedDir.map { it.dir("src/main/kotlin") })
+        resources.srcDir(layout.buildDirectory.dir("openapi-resource"))
     }
+}
+
+val copyOpenApiSpec by tasks.registering(Copy::class) {
+    from(bundledSpec)
+    rename { "epistola-contract.yaml" }
+    into(layout.buildDirectory.dir("openapi-resource/openapi"))
+}
+
+tasks.processResources {
+    dependsOn(copyOpenApiSpec)
 }
 
 tasks.compileKotlin {
@@ -163,7 +174,7 @@ kover {
 
 // Configure vanniktech plugin's jar tasks to depend on openApiGenerate since sources are generated
 tasks.matching { it.name == "plainJavadocJar" || it.name == "sourcesJar" }.configureEach {
-    dependsOn(tasks.openApiGenerate)
+    dependsOn(tasks.openApiGenerate, copyOpenApiSpec)
 }
 
 mavenPublishing {
