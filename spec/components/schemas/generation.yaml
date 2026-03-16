@@ -1,5 +1,63 @@
 # Document Generation Schemas
 
+BatchDownloadFormat:
+  type: string
+  description: Format for batch download assembly
+  enum:
+    - zip
+    - merged_pdf
+  example: zip
+
+AssemblyStatus:
+  type: string
+  description: Status of batch download assembly
+  enum:
+    - NONE
+    - PENDING
+    - IN_PROGRESS
+    - COMPLETED
+    - FAILED
+  example: NONE
+
+BatchDownloadPartInfo:
+  type: object
+  description: Information about a single part of an assembled download
+  required:
+    - partNumber
+    - sizeBytes
+  properties:
+    partNumber:
+      type: integer
+      minimum: 1
+      description: Part number (1-based)
+      example: 1
+    sizeBytes:
+      type: integer
+      format: int64
+      description: Size of this part in bytes
+      example: 52428800
+
+BatchDownloadInfo:
+  type: object
+  description: Information about an assembled batch download
+  required:
+    - format
+    - parts
+  properties:
+    format:
+      $ref: '#/BatchDownloadFormat'
+    parts:
+      type: array
+      description: List of parts for this download format
+      minItems: 1
+      items:
+        $ref: '#/BatchDownloadPartInfo'
+  example:
+    format: zip
+    parts:
+      - partNumber: 1
+        sizeBytes: 52428800
+
 VariantSelectionAttribute:
   type: object
   description: Attribute criterion for variant selection
@@ -194,6 +252,14 @@ GenerateBatchRequest:
       minItems: 1
       items:
         $ref: '#/BatchGenerationItem'
+    downloadFormats:
+      type: array
+      description: Desired download formats to assemble after batch completion. If omitted or empty, no assembly is performed.
+      items:
+        $ref: '#/BatchDownloadFormat'
+      example:
+        - zip
+        - merged_pdf
 
 GenerationJobResponse:
   type: object
@@ -453,6 +519,9 @@ DocumentGenerationJobDto:
       format: double
       description: Progress percentage (0-100)
       example: 100.0
+    assemblyStatus:
+      $ref: '#/AssemblyStatus'
+      description: Status of batch download assembly. Only relevant for BATCH jobs with downloadFormats specified.
   example:
     id: "550e8400-e29b-41d4-a716-446655440000"
     jobType: SINGLE
@@ -465,6 +534,7 @@ DocumentGenerationJobDto:
     startedAt: "2026-02-01T08:00:01Z"
     completedAt: "2026-02-01T08:00:03Z"
     progressPercentage: 100.0
+    assemblyStatus: NONE
 
 GenerationJobDetail:
   type: object
@@ -480,6 +550,11 @@ GenerationJobDetail:
       description: List of items in this batch
       items:
         $ref: '#/DocumentGenerationItemDto'
+    downloads:
+      type: array
+      description: Available download formats and their parts. Only present when assemblyStatus is COMPLETED.
+      items:
+        $ref: '#/BatchDownloadInfo'
   example:
     request:
       id: "550e8400-e29b-41d4-a716-446655440000"
