@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Batch download support** for assembled ZIP and merged PDF outputs
+  - `BatchDownloadFormat` enum (`zip`, `merged_pdf`) for specifying desired download formats
+  - `AssemblyStatus` enum (`NONE`, `PENDING`, `IN_PROGRESS`, `COMPLETED`, `FAILED`) for tracking assembly progress
+  - `BatchDownloadInfo` and `BatchDownloadPartInfo` schemas for multi-part download metadata
+  - `downloadFormats` field on `GenerateBatchRequest` to request assembly at submission time
+  - `assemblyStatus` field on `DocumentGenerationJobDto` to track assembly progress
+  - `downloads` field on `GenerationJobDetail` with per-format part information
+  - `GET /tenants/{tenantId}/documents/jobs/{requestId}/download` endpoint with `format` and `part` query params
+    - Returns binary content (ZIP or PDF) with appropriate content type
+    - 400 if format was not requested, 404 if not found or part out of range, 409 if not ready
+
 ### Changed
 - **CI/CD simplification** — extracted 3 composite actions to eliminate duplication across workflows
   - `setup-build-tools`: unified tool setup via mise (Java, Gradle, Node, pnpm) with optional npm dependency installation
