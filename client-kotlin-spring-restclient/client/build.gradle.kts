@@ -224,7 +224,22 @@ tasks.matching { it.name == "plainJavadocJar" || it.name == "sourcesJar" }.confi
 
 mavenPublishing {
     publishToMavenCentral(automaticRelease = true)
-    signAllPublications()
+
+    // Only sign when GPG credentials are available (CI or release builds)
+    if (project.findProperty("signing.keyId") != null || System.getenv("ORG_GRADLE_PROJECT_signingInMemoryKey") != null) {
+        signAllPublications()
+    }
+
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/epistola-app/epistola-contract")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: ""
+                password = System.getenv("GITHUB_TOKEN") ?: ""
+            }
+        }
+    }
 
     coordinates(rootProject.group.toString(), "client-spring3-restclient", rootProject.version.toString())
 
