@@ -224,7 +224,10 @@ tasks.matching { it.name == "plainJavadocJar" || it.name == "sourcesJar" }.confi
 
 mavenPublishing {
     publishToMavenCentral(automaticRelease = true)
-    signAllPublications()
+    // Only sign when GPG credentials are available (CI or release builds)
+    if (project.findProperty("signing.keyId") != null || System.getenv("ORG_GRADLE_PROJECT_signingInMemoryKey") != null) {
+        signAllPublications()
+    }
 
     coordinates(rootProject.group.toString(), "client-spring3-restclient", rootProject.version.toString())
 
