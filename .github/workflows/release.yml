@@ -14,9 +14,10 @@ on:
         required: true
         type: choice
         options:
-          - both
+          - all
           - client-kotlin-spring-restclient
           - server-kotlin-springboot4
+          - editor-model
 
 jobs:
   # Validate and bundle spec
@@ -116,18 +117,22 @@ jobs:
       matrix:
         include:
           - module: client-kotlin-spring-restclient
+            needs_spec: true
           - module: server-kotlin-springboot4
+            needs_spec: true
+          - module: editor-model
+            needs_spec: false
     steps:
       - name: Check if should run
         id: should_run
         run: |
-          # For push events (auto-release), always build both
+          # For push events (auto-release), always build all
           # For workflow_dispatch, check the input
           if [ "${{ github.event_name }}" == "push" ]; then
             echo "enabled=true" >> $GITHUB_OUTPUT
           else
             MODULE_INPUT="${{ inputs.module }}"
-            if [ "$MODULE_INPUT" == "both" ] || [ "$MODULE_INPUT" == "${{ matrix.module }}" ]; then
+            if [ "$MODULE_INPUT" == "all" ] || [ "$MODULE_INPUT" == "${{ matrix.module }}" ]; then
               echo "enabled=true" >> $GITHUB_OUTPUT
             else
               echo "enabled=false" >> $GITHUB_OUTPUT
@@ -141,7 +146,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download bundled spec
-        if: steps.should_run.outputs.enabled == 'true'
+        if: steps.should_run.outputs.enabled == 'true' && matrix.needs_spec
         uses: actions/download-artifact@v4
         with:
           name: openapi-spec
@@ -163,13 +168,21 @@ jobs:
   publish:
     needs: [validate-and-bundle, build]
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     strategy:
       matrix:
         include:
           - module: client-kotlin-spring-restclient
             artifact_id: client-spring3-restclient
+            needs_spec: true
           - module: server-kotlin-springboot4
             artifact_id: server-kotlin-springboot4
+            needs_spec: true
+          - module: editor-model
+            artifact_id: editor-model
+            needs_spec: false
     steps:
       - name: Check if should run
         id: should_run
@@ -178,7 +191,7 @@ jobs:
             echo "enabled=true" >> $GITHUB_OUTPUT
           else
             MODULE_INPUT="${{ inputs.module }}"
-            if [ "$MODULE_INPUT" == "both" ] || [ "$MODULE_INPUT" == "${{ matrix.module }}" ]; then
+            if [ "$MODULE_INPUT" == "all" ] || [ "$MODULE_INPUT" == "${{ matrix.module }}" ]; then
               echo "enabled=true" >> $GITHUB_OUTPUT
             else
               echo "enabled=false" >> $GITHUB_OUTPUT
@@ -193,7 +206,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download bundled spec
-        if: steps.should_run.outputs.enabled == 'true'
+        if: steps.should_run.outputs.enabled == 'true' && matrix.needs_spec
         uses: actions/download-artifact@v4
         with:
           name: openapi-spec
@@ -216,6 +229,21 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: ./gradlew publishToMavenCentral -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
+
+      - name: Setup Node.js
+        if: matrix.module == 'editor-model' && steps.should_run.outputs.enabled == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: https://registry.npmjs.org
+
+      - name: Publish to npm
+        if: matrix.module == 'editor-model' && steps.should_run.outputs.enabled == 'true'
+        working-directory: editor-model
+        run: |
+          npm install -g npm@latest
+          npm version ${{ needs.validate-and-bundle.outputs.release_version }} --no-git-tag-version
+          npm publish --provenance --access public
 
   # Create a single unified GitHub release after all modules are published
   github-release:
@@ -251,12 +279,24 @@ jobs:
                 <artifactId>server-kotlin-springboot4</artifactId>
                 <version>${{ needs.validate-and-bundle.outputs.release_version }}</version>
             </dependency>
+
+            <dependency>
+                <groupId>app.epistola.contract</groupId>
+                <artifactId>editor-model</artifactId>
+                <version>${{ needs.validate-and-bundle.outputs.release_version }}</version>
+            </dependency>
             ```
 
             ### Gradle (Kotlin DSL)
             ```kotlin
             implementation("app.epistola.contract:client-spring3-restclient:${{ needs.validate-and-bundle.outputs.release_version }}")
             implementation("app.epistola.contract:server-kotlin-springboot4:${{ needs.validate-and-bundle.outputs.release_version }}")
+            implementation("app.epistola.contract:editor-model:${{ needs.validate-and-bundle.outputs.release_version }}")
+            ```
+
+            ### npm
+            ```bash
+            npm install @epistola/editor-model@${{ needs.validate-and-bundle.outputs.release_version }}
             ```
 
             ### OpenAPI Spec
