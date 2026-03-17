@@ -229,6 +229,17 @@ mavenPublishing {
         signAllPublications()
     }
 
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/epistola-app/epistola-contract")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: ""
+                password = System.getenv("GITHUB_TOKEN") ?: ""
+            }
+        }
+    }
+
     coordinates(rootProject.group.toString(), "client-spring3-restclient", rootProject.version.toString())
 
     pom {

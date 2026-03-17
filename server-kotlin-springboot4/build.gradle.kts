@@ -185,6 +185,17 @@ mavenPublishing {
         signAllPublications()
     }
 
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/epistola-app/epistola-contract")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: ""
+                password = System.getenv("GITHUB_TOKEN") ?: ""
+            }
+        }
+    }
+
     coordinates(group.toString(), "server-kotlin-springboot4", version.toString())
 
     pom {
