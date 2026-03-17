@@ -36,8 +36,8 @@ clean:
 # Publish to local Maven repository (for testing)
 publish-local: build
 	@echo "==> Publishing to local Maven repository..."
-	cd client-kotlin-spring-restclient && ./gradlew publishToMavenLocal
-	cd server-kotlin-springboot4 && ./gradlew publishToMavenLocal
+	cd client-kotlin-spring-restclient && ./gradlew publishToMavenLocal -x signMavenPublication
+	cd server-kotlin-springboot4 && ./gradlew publishToMavenLocal -x signMavenPublication
 	@echo "==> Published to ~/.m2/repository/app/epistola/contract/"
 
 # Check for breaking changes against main branch
