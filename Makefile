@@ -40,11 +40,12 @@ clean:
 	cd editor-model && ./gradlew clean
 
 # Publish to local Maven repository (for testing)
+VERSION_ARG := $(if $(VERSION),-Pversion=$(VERSION),)
 publish-local: build
 	@echo "==> Publishing to local Maven repository..."
-	cd client-kotlin-spring-restclient && ./gradlew publishToMavenLocal -x signMavenPublication
-	cd server-kotlin-springboot4 && ./gradlew publishToMavenLocal -x signMavenPublication
-	cd editor-model && ./gradlew publishToMavenLocal -x signMavenPublication
+	cd client-kotlin-spring-restclient && ./gradlew publishToMavenLocal -x signMavenPublication $(VERSION_ARG)
+	cd server-kotlin-springboot4 && ./gradlew publishToMavenLocal -x signMavenPublication $(VERSION_ARG)
+	cd editor-model && ./gradlew publishToMavenLocal -x signMavenPublication $(VERSION_ARG)
 	@echo "==> Published to ~/.m2/repository/app/epistola/contract/"
 
 # Check for breaking changes against main branch
