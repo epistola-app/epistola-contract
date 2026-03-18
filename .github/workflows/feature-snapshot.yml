@@ -41,10 +41,13 @@ jobs:
         include:
           - module: client-kotlin-spring-restclient
             needs_spec: true
+            publish_task: ':client:publishAllPublicationsToGitHubPackagesRepository'
           - module: server-kotlin-springboot4
             needs_spec: true
+            publish_task: 'publishAllPublicationsToGitHubPackagesRepository'
           - module: editor-model
             needs_spec: false
+            publish_task: 'publishAllPublicationsToGitHubPackagesRepository'
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -62,4 +65,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: ${{ matrix.module }}
-        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository -Pversion=${{ needs.prepare.outputs.version }}
+        run: ./gradlew ${{ matrix.publish_task }} -Pversion=${{ needs.prepare.outputs.version }}
