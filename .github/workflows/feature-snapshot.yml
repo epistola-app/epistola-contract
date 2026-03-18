@@ -36,7 +36,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: client-kotlin-spring-restclient
-        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository -Pversion=${{ steps.version.outputs.version }}
+        run: ./gradlew :client:publishAllPublicationsToGitHubPackagesRepository -Pversion=${{ steps.version.outputs.version }}
 
       - name: Publish server to GitHub Packages
         env:
