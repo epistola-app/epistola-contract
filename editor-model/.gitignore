@@ -3,3 +3,4 @@ build/
 .kotlin
 node_modules/
 generated/
+dist/
