@@ -69,6 +69,7 @@ jobs:
       spec: ${{ steps.filter.outputs.spec }}
       client: ${{ steps.filter.outputs.client }}
       server: ${{ steps.filter.outputs.server }}
+      editor-model: ${{ steps.filter.outputs.editor-model }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -89,6 +90,8 @@ jobs:
               - 'epistola-api.yaml'
               - 'spec/**'
               - 'server-kotlin-springboot4/**'
+            editor-model:
+              - 'editor-model/**'
 
   # Build and test modules in parallel before publishing.
   # This prevents half-releases where one module publishes but the other fails.
@@ -102,8 +105,13 @@ jobs:
         include:
           - module: client-kotlin-spring-restclient
             filter: client
+            needs_spec: true
           - module: server-kotlin-springboot4
             filter: server
+            needs_spec: true
+          - module: editor-model
+            filter: editor-model
+            needs_spec: false
     steps:
       - name: Check if should run
         id: should_run
@@ -122,7 +130,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download bundled spec
-        if: steps.should_run.outputs.enabled == 'true'
+        if: steps.should_run.outputs.enabled == 'true' && matrix.needs_spec
         uses: actions/download-artifact@v4
         with:
           name: openapi-spec
@@ -151,9 +159,15 @@ jobs:
           - module: client-kotlin-spring-restclient
             artifact_id: client-spring3-restclient
             filter: client
+            needs_spec: true
           - module: server-kotlin-springboot4
             artifact_id: server-kotlin-springboot4
             filter: server
+            needs_spec: true
+          - module: editor-model
+            artifact_id: editor-model
+            filter: editor-model
+            needs_spec: false
     steps:
       - name: Check if should run
         id: should_run
@@ -172,7 +186,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download bundled spec
-        if: steps.should_run.outputs.enabled == 'true'
+        if: steps.should_run.outputs.enabled == 'true' && matrix.needs_spec
         uses: actions/download-artifact@v4
         with:
           name: openapi-spec

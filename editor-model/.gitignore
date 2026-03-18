@@ -1,0 +1,6 @@
+build/
+.gradle
+.kotlin
+node_modules/
+generated/
+dist/

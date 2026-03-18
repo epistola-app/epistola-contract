@@ -1,0 +1,37 @@
+{
+  "name": "@epistola.app/editor-model",
+  "private": false,
+  "version": "0.1.0",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/ts/index.d.ts",
+      "default": "./dist/ts/index.js"
+    },
+    "./schemas/*": "./schemas/*",
+    "./generated/*": {
+      "types": "./dist/generated/*.d.ts",
+      "default": "./dist/generated/*.js"
+    }
+  },
+  "scripts": {
+    "generate:types": "cd schemas && json2ts --input 'template-document.schema.json' --output '../generated/template-document.ts' --cwd . && json2ts --input 'template-shared.schema.json' --output '../generated/template-shared.ts' --cwd . && json2ts --input 'theme.schema.json' --output '../generated/theme.ts' --cwd . && json2ts --input 'component-manifest.schema.json' --output '../generated/component-manifest.ts' --cwd . && json2ts --input 'style-registry.schema.json' --output '../generated/style-registry.ts' --cwd .",
+    "build": "tsc",
+    "prepublishOnly": "pnpm generate:types && pnpm build"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "^15.0.4",
+    "typescript": "~5.9.3"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map",
+    "ts/**/*.ts",
+    "schemas/**/*.json",
+    "generated/**/*.ts"
+  ]
+}
