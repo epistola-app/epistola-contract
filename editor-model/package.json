@@ -1,5 +1,5 @@
 {
-  "name": "@epistola/editor-model",
+  "name": "@epistola.app/editor-model",
   "private": false,
   "version": "0.1.0",
   "type": "module",

@@ -296,7 +296,7 @@ jobs:
 
             ### npm
             ```bash
-            npm install @epistola/editor-model@${{ needs.validate-and-bundle.outputs.release_version }}
+            npm install @epistola.app/editor-model@${{ needs.validate-and-bundle.outputs.release_version }}
             ```
 
             ### OpenAPI Spec
