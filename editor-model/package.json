@@ -3,6 +3,11 @@
   "private": false,
   "version": "0.1.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/epistola-app/epistola-contract",
+    "directory": "editor-model"
+  },
   "publishConfig": {
     "access": "public"
   },
