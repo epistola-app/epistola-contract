@@ -29,37 +29,29 @@ jobs:
       startsWith(github.ref, 'refs/heads/release/')
     runs-on: ubuntu-latest
     outputs:
-      api_version: ${{ steps.validate.outputs.api_version }}
-      spec_version: ${{ steps.validate.outputs.spec_version }}
-      release_version: ${{ steps.version.outputs.release_version }}
+      api_version: ${{ steps.version.outputs.api_version }}
+      release_version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+
+      - name: Calculate release version
+        id: version
+        uses: ./.github/actions/calculate-version
         with:
-          node-version: '22'
+          mode: release
 
-      - name: Read spec version
-        id: validate
+      - name: Validate release branch version
         run: |
-          # Read full spec version (e.g., 1.0.0)
-          SPEC_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+\.[0-9]+)["'"'"']?.*/\1/')
-          echo "spec_version=${SPEC_VERSION}" >> $GITHUB_OUTPUT
-          echo "Full spec version: ${SPEC_VERSION}"
-
-          # Extract API version (major.minor)
-          API_VERSION=$(echo "$SPEC_VERSION" | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')
-          echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
-          echo "API version: ${API_VERSION}"
-
-          # For release/* branches, validate version matches
           BRANCH="${GITHUB_REF#refs/heads/}"
           if [[ "$BRANCH" == release/* ]]; then
             BRANCH_VERSION="${BRANCH#release/}"
+            API_VERSION="${{ steps.version.outputs.api_version }}"
             if [[ "$BRANCH_VERSION" != "$API_VERSION" ]]; then
               echo "::error::Branch version ($BRANCH_VERSION) does not match spec version ($API_VERSION)"
               echo "::error::Release branch 'release/$BRANCH_VERSION' must have spec version '$BRANCH_VERSION.x'"
@@ -68,44 +60,10 @@ jobs:
             echo "Branch version matches spec version"
           fi
 
-      - name: Calculate release version
-        id: version
-        run: |
-          API_VERSION="${{ steps.validate.outputs.api_version }}"
-
-          # Find the highest patch version across both unified (v0.1.x) and legacy (module-v0.1.x) tags
-          LATEST_PATCH=-1
-          for tag in $(git tag -l "v${API_VERSION}.*" && git tag -l "*-v${API_VERSION}.*"); do
-            PATCH=$(echo "$tag" | sed -E 's/.*v[0-9]+\.[0-9]+\.([0-9]+)/\1/')
-            if [ "$PATCH" -gt "$LATEST_PATCH" ] 2>/dev/null; then
-              LATEST_PATCH=$PATCH
-            fi
-          done
-
-          NEXT_PATCH=$((LATEST_PATCH + 1))
-          RELEASE_VERSION="${API_VERSION}.${NEXT_PATCH}"
-          echo "release_version=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
-          echo "Release version: ${RELEASE_VERSION}"
-
-      - name: Validate OpenAPI spec
-        run: npx @redocly/cli lint epistola-api.yaml
-
-      - name: Bundle OpenAPI spec
-        run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
-
-      - name: Inject release version into bundled spec
-        run: |
-          RELEASE_VERSION="${{ steps.version.outputs.release_version }}"
-          sed -i "0,/^\s*version:/{s/^\(\s*version:\s*\).*/\1\"${RELEASE_VERSION}\"/}" openapi.yaml
-          echo "Set openapi.yaml version to ${RELEASE_VERSION}"
-          grep 'version:' openapi.yaml | head -1
-
-      - name: Upload bundled spec
-        uses: actions/upload-artifact@v4
+      - name: Bundle spec
+        uses: ./.github/actions/bundle-spec
         with:
-          name: openapi-spec
-          path: openapi.yaml
-          retention-days: 1
+          version: ${{ steps.version.outputs.version }}
 
   # Build and test all modules before publishing anything.
   # This prevents half-releases where one module publishes but the other fails.
@@ -151,13 +109,9 @@ jobs:
         with:
           name: openapi-spec
 
-      - name: Setup tools with mise
+      - name: Setup tools
         if: steps.should_run.outputs.enabled == 'true'
-        uses: jdx/mise-action@v3
-
-      - name: Setup Gradle cache
-        if: steps.should_run.outputs.enabled == 'true'
-        uses: gradle/actions/setup-gradle@v5
+        uses: ./.github/actions/setup-build-tools
 
       - name: Build and test
         if: steps.should_run.outputs.enabled == 'true'
@@ -211,13 +165,9 @@ jobs:
         with:
           name: openapi-spec
 
-      - name: Setup tools with mise
+      - name: Setup tools
         if: steps.should_run.outputs.enabled == 'true'
-        uses: jdx/mise-action@v3
-
-      - name: Setup Gradle cache
-        if: steps.should_run.outputs.enabled == 'true'
-        uses: gradle/actions/setup-gradle@v5
+        uses: ./.github/actions/setup-build-tools
 
       - name: Publish to Maven Central
         if: steps.should_run.outputs.enabled == 'true'
@@ -230,18 +180,21 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: ./gradlew publishToMavenCentral -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
-      - name: Setup Node.js
+      - name: Install npm dependencies
+        if: matrix.module == 'editor-model' && steps.should_run.outputs.enabled == 'true'
+        working-directory: editor-model
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup npm registry
         if: matrix.module == 'editor-model' && steps.should_run.outputs.enabled == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
           registry-url: https://registry.npmjs.org
 
       - name: Publish to npm
         if: matrix.module == 'editor-model' && steps.should_run.outputs.enabled == 'true'
         working-directory: editor-model
         run: |
-          npm install -g npm@latest
           npm version ${{ needs.validate-and-bundle.outputs.release_version }} --no-git-tag-version
           npm publish --provenance --access public
 

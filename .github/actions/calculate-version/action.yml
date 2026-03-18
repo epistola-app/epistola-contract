@@ -1,0 +1,58 @@
+name: Calculate Version
+description: Calculate release, snapshot, or feature-snapshot version from the OpenAPI spec
+
+inputs:
+  mode:
+    description: 'Version mode: release, snapshot, or feature-snapshot'
+    required: true
+
+outputs:
+  version:
+    description: 'The calculated version (e.g., 0.2.3, 0.2-SNAPSHOT, 0.2.0-my-feature-SNAPSHOT)'
+    value: ${{ steps.calc.outputs.version }}
+  api_version:
+    description: 'The major.minor API version from the spec (e.g., 0.2)'
+    value: ${{ steps.calc.outputs.api_version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Calculate version
+      id: calc
+      shell: bash
+      run: |
+        # Read full spec version (e.g., 1.0.0)
+        SPEC_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+\.[0-9]+)["'"'"']?.*/\1/')
+        API_VERSION=$(echo "$SPEC_VERSION" | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')
+        echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
+        echo "Spec version: ${SPEC_VERSION}, API version: ${API_VERSION}"
+
+        MODE="${{ inputs.mode }}"
+        case "$MODE" in
+          release)
+            # Find the highest patch version across both unified and legacy tags
+            LATEST_PATCH=-1
+            for tag in $(git tag -l "v${API_VERSION}.*" && git tag -l "*-v${API_VERSION}.*"); do
+              PATCH=$(echo "$tag" | sed -E 's/.*v[0-9]+\.[0-9]+\.([0-9]+)/\1/')
+              if [ "$PATCH" -gt "$LATEST_PATCH" ] 2>/dev/null; then
+                LATEST_PATCH=$PATCH
+              fi
+            done
+            NEXT_PATCH=$((LATEST_PATCH + 1))
+            VERSION="${API_VERSION}.${NEXT_PATCH}"
+            ;;
+          snapshot)
+            VERSION="${API_VERSION}-SNAPSHOT"
+            ;;
+          feature-snapshot)
+            BRANCH_SUFFIX="${GITHUB_REF_NAME#feature/}"
+            VERSION="${SPEC_VERSION}-${BRANCH_SUFFIX}-SNAPSHOT"
+            ;;
+          *)
+            echo "::error::Unknown version mode: ${MODE}"
+            exit 1
+            ;;
+        esac
+
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "Calculated version (${MODE}): ${VERSION}"

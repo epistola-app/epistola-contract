@@ -29,11 +29,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
       - name: Determine version
         id: version
         run: |
@@ -46,10 +41,19 @@ jobs:
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Version: ${VERSION}"
 
-      - name: Validate OpenAPI spec
-        run: npx @redocly/cli lint epistola-api.yaml
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
 
-      - name: Bundle OpenAPI spec
+      - name: Try to download bundled spec from caller
+        id: download
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+        continue-on-error: true
+
+      - name: Bundle spec locally (fallback)
+        if: steps.download.outcome != 'success'
         run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
 
       - name: Copy spec to mock-server directory

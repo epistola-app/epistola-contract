@@ -202,6 +202,12 @@ When a fix is needed on an older release:
 - Update CHANGELOG.md for user-facing changes
 - Never push directly - create commits locally for review
 
+## CI/CD Notes
+
+- Tool setup (Java, Gradle, Node, pnpm) is managed by `.mise.toml` via composite actions in `.github/actions/`
+- npm publishing uses **OIDC authentication** (`id-token: write` permission), not an `NPM_TOKEN` secret — do not add `NODE_AUTH_TOKEN` env vars to npm publish steps
+- Maven Central publishing uses GPG signing with in-memory keys (secrets: `OSSRH_USERNAME`, `OSSRH_PASSWORD`, `GPG_PRIVATE_KEY`, `GPG_KEY_ID`, `GPG_PASSPHRASE`)
+
 ## Important Notes
 
 - `openapi.yaml` is gitignored - always regenerate with `make bundle`

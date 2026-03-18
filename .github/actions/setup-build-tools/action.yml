@@ -1,0 +1,27 @@
+name: Setup Build Tools
+description: Install Java, Gradle, Node, and pnpm via mise, with optional npm dependency installation
+
+inputs:
+  install-npm-deps:
+    description: 'Whether to install npm dependencies via pnpm'
+    required: false
+    default: 'false'
+  npm-working-directory:
+    description: 'Working directory for pnpm install (required if install-npm-deps is true)'
+    required: false
+    default: '.'
+
+runs:
+  using: composite
+  steps:
+    - name: Setup tools with mise
+      uses: jdx/mise-action@v3
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v5
+
+    - name: Install npm dependencies
+      if: inputs.install-npm-deps == 'true'
+      shell: bash
+      working-directory: ${{ inputs.npm-working-directory }}
+      run: pnpm install --frozen-lockfile

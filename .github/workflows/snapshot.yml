@@ -20,43 +20,24 @@ jobs:
       !contains(github.event.head_commit.message, '[release]')
     runs-on: ubuntu-latest
     outputs:
-      snapshot_version: ${{ steps.version.outputs.snapshot_version }}
+      snapshot_version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
 
       - name: Calculate snapshot version
         id: version
-        run: |
-          API_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+)\.[0-9]+["'"'"']?.*/\1/')
-          SNAPSHOT_VERSION="${API_VERSION}-SNAPSHOT"
-          echo "snapshot_version=${SNAPSHOT_VERSION}" >> $GITHUB_OUTPUT
-          echo "Snapshot version: ${SNAPSHOT_VERSION}"
-
-      - name: Validate OpenAPI spec
-        run: npx @redocly/cli lint epistola-api.yaml
-
-      - name: Bundle OpenAPI spec
-        run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
-
-      - name: Inject snapshot version into bundled spec
-        run: |
-          SNAPSHOT_VERSION="${{ steps.version.outputs.snapshot_version }}"
-          sed -i "0,/^\s*version:/{s/^\(\s*version:\s*\).*/\1\"${SNAPSHOT_VERSION}\"/}" openapi.yaml
-          echo "Set openapi.yaml version to ${SNAPSHOT_VERSION}"
-          grep 'version:' openapi.yaml | head -1
-
-      - name: Upload bundled spec
-        uses: actions/upload-artifact@v4
+        uses: ./.github/actions/calculate-version
         with:
-          name: openapi-spec
-          path: openapi.yaml
-          retention-days: 1
+          mode: snapshot
+
+      - name: Bundle spec
+        uses: ./.github/actions/bundle-spec
+        with:
+          version: ${{ steps.version.outputs.version }}
 
   # Detect which modules have changes
   detect-changes:
@@ -135,13 +116,9 @@ jobs:
         with:
           name: openapi-spec
 
-      - name: Setup tools with mise
+      - name: Setup tools
         if: steps.should_run.outputs.enabled == 'true'
-        uses: jdx/mise-action@v3
-
-      - name: Setup Gradle cache
-        if: steps.should_run.outputs.enabled == 'true'
-        uses: gradle/actions/setup-gradle@v5
+        uses: ./.github/actions/setup-build-tools
 
       - name: Build and test
         if: steps.should_run.outputs.enabled == 'true'
@@ -191,13 +168,9 @@ jobs:
         with:
           name: openapi-spec
 
-      - name: Setup tools with mise
+      - name: Setup tools
         if: steps.should_run.outputs.enabled == 'true'
-        uses: jdx/mise-action@v3
-
-      - name: Setup Gradle cache
-        if: steps.should_run.outputs.enabled == 'true'
-        uses: gradle/actions/setup-gradle@v5
+        uses: ./.github/actions/setup-build-tools
 
       - name: Publish snapshot to Maven Central
         if: steps.should_run.outputs.enabled == 'true'

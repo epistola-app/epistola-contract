@@ -16,23 +16,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
 
-      - name: Validate OpenAPI spec
-        run: npx @redocly/cli lint epistola-api.yaml
-
-      - name: Bundle OpenAPI spec
-        run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
-
-      - name: Upload bundled spec
-        uses: actions/upload-artifact@v4
-        with:
-          name: openapi-spec
-          path: openapi.yaml
-          retention-days: 1
+      - name: Bundle spec
+        uses: ./.github/actions/bundle-spec
 
   # Kotlin Spring RestClient build
   kotlin-client:
@@ -51,11 +39,8 @@ jobs:
         with:
           name: openapi-spec
 
-      - name: Setup tools with mise
-        uses: jdx/mise-action@v3
-
-      - name: Setup Gradle cache
-        uses: gradle/actions/setup-gradle@v5
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
 
       - name: Build and test
         run: ./gradlew build
@@ -77,11 +62,8 @@ jobs:
         with:
           name: openapi-spec
 
-      - name: Setup tools with mise
-        uses: jdx/mise-action@v3
-
-      - name: Setup Gradle cache
-        uses: gradle/actions/setup-gradle@v5
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
 
       - name: Build and test
         run: ./gradlew build
@@ -97,20 +79,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup tools with mise
-        uses: jdx/mise-action@v3
-
-      - name: Setup Gradle cache
-        uses: gradle/actions/setup-gradle@v5
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: editor-model
 
       - name: Build and test
         run: ./gradlew build
-
-      - name: Setup pnpm
-        run: npm install -g pnpm
-
-      - name: Install npm dependencies
-        run: pnpm install
 
       - name: Verify TypeScript type generation
         run: pnpm generate:types

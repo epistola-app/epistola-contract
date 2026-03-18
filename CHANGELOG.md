@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **CI/CD simplification** — extracted 3 composite actions to eliminate duplication across workflows
+  - `setup-build-tools`: unified tool setup via mise (Java, Gradle, Node, pnpm) with optional npm dependency installation
+  - `bundle-spec`: OpenAPI validation, bundling, optional version injection, and artifact upload
+  - `calculate-version`: version calculation for release, snapshot, and feature-snapshot modes
+- **All workflows refactored** to use composite actions instead of duplicated inline steps
+  - Removed hardcoded Node 22 references (now uses Node 24 from `.mise.toml` via mise)
+  - Removed manual `npm install -g pnpm`, `setup-node@v4`, and `pnpm/action-setup@v4` in favor of mise
+- **Feature snapshot workflow** now validates the OpenAPI spec, uses matrix strategy for parallel builds, and publishes editor-model to GitHub Packages
+- **Mock server workflow** now reuses bundled spec artifact from caller workflow instead of re-bundling
+- **Client version catalog aligned** with server — Kotlin `2.3.0` → `2.3.10`, OpenAPI Generator `7.13.0` → `7.19.0`
+
+### Fixed
+- Release workflow npm publish now correctly installs pnpm and npm dependencies before publishing (was missing `pnpm install`, would fail at runtime)
+
+### Changed
 - **Consolidated GitHub releases** — releases now create a single unified release per version (e.g. `v0.1.3`) instead of two separate per-module releases (e.g. `client-spring3-restclient-v0.1.3` and `server-kotlin-springboot4-v0.1.3`)
   - Release tag format changed from `{artifact_id}-v{version}` to `v{version}`
   - Version calculation scans both new unified tags and legacy module-prefixed tags for backwards compatibility

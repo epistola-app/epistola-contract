@@ -5,41 +5,61 @@ on:
     branches: ['feature/*']
 
 jobs:
-  publish:
-    name: Publish Feature Snapshot
+  # Validate spec and calculate version
+  prepare:
+    name: Validate and Prepare
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup tools with mise
-        uses: jdx/mise-action@v3
-
-      - name: Setup Gradle cache
-        uses: gradle/actions/setup-gradle@v5
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
 
       - name: Calculate version
         id: version
-        run: |
-          API_FULL_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+\.[0-9]+)["'"'"']?.*/\1/')
-          BRANCH_SUFFIX="${GITHUB_REF_NAME#feature/}"
-          echo "version=${API_FULL_VERSION}-${BRANCH_SUFFIX}-SNAPSHOT" >> $GITHUB_OUTPUT
-          echo "Feature snapshot version: ${API_FULL_VERSION}-${BRANCH_SUFFIX}-SNAPSHOT"
+        uses: ./.github/actions/calculate-version
+        with:
+          mode: feature-snapshot
 
       - name: Bundle spec
-        run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
+        uses: ./.github/actions/bundle-spec
 
-      - name: Publish client to GitHub Packages
+  # Build and publish all modules
+  publish:
+    name: Publish ${{ matrix.module }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - module: client-kotlin-spring-restclient
+            needs_spec: true
+          - module: server-kotlin-springboot4
+            needs_spec: true
+          - module: editor-model
+            needs_spec: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download bundled spec
+        if: matrix.needs_spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+
+      - name: Publish to GitHub Packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        working-directory: client-kotlin-spring-restclient
-        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository -Pversion=${{ steps.version.outputs.version }}
-
-      - name: Publish server to GitHub Packages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        working-directory: server-kotlin-springboot4
-        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository -Pversion=${{ steps.version.outputs.version }}
+        working-directory: ${{ matrix.module }}
+        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository -Pversion=${{ needs.prepare.outputs.version }}

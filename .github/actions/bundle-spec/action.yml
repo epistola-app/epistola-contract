@@ -1,0 +1,39 @@
+name: Bundle OpenAPI Spec
+description: Validate, bundle, and optionally version-stamp the OpenAPI spec
+
+inputs:
+  version:
+    description: 'Version to inject into the bundled spec (optional)'
+    required: false
+    default: ''
+  upload-artifact:
+    description: 'Whether to upload the bundled spec as an artifact'
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Validate OpenAPI spec
+      shell: bash
+      run: npx @redocly/cli lint epistola-api.yaml
+
+    - name: Bundle OpenAPI spec
+      shell: bash
+      run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
+
+    - name: Inject version into bundled spec
+      if: inputs.version != ''
+      shell: bash
+      run: |
+        sed -i "0,/^\s*version:/{s/^\(\s*version:\s*\).*/\1\"${{ inputs.version }}\"/}" openapi.yaml
+        echo "Set openapi.yaml version to ${{ inputs.version }}"
+        grep 'version:' openapi.yaml | head -1
+
+    - name: Upload bundled spec
+      if: inputs.upload-artifact == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: openapi-spec
+        path: openapi.yaml
+        retention-days: 1
