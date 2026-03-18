@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Release workflow npm publish now correctly installs pnpm and npm dependencies before publishing (was missing `pnpm install`, would fail at runtime)
+- Release workflow now creates the git tag **before** publishing to Maven Central/npm, preventing a stuck-version loop where a partial publish failure leaves no tag, causing the next release attempt to retry the same version and fail with "already exists"
 
 ### Changed
 - **Consolidated GitHub releases** — releases now create a single unified release per version (e.g. `v0.1.3`) instead of two separate per-module releases (e.g. `client-spring3-restclient-v0.1.3` and `server-kotlin-springboot4-v0.1.3`)
