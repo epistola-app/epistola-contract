@@ -212,6 +212,94 @@ job-detail:
             schema:
               $ref: '../components/responses/errors.yaml#/ErrorResponse'
 
+job-download:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: requestId
+      in: path
+      required: true
+      description: Generation request ID
+      schema:
+        type: string
+        format: uuid
+
+  get:
+    operationId: downloadBatchJob
+    summary: Download assembled batch output
+    description: |
+      Download the assembled output (ZIP or merged PDF) of a completed batch job.
+      The requested format must have been specified in `downloadFormats` when submitting the batch.
+      Large files may be split into multiple parts; use the `part` parameter to retrieve specific parts.
+    tags:
+      - Generation
+    x-required-roles: [reader, editor, generator, manager]
+    parameters:
+      - name: format
+        in: query
+        description: Download format
+        schema:
+          type: string
+          enum: [zip, merged_pdf]
+          default: zip
+      - name: part
+        in: query
+        description: Part number for multi-part downloads (1-based)
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+    responses:
+      '200':
+        description: Assembled batch download content
+        content:
+          application/zip:
+            schema:
+              type: string
+              format: binary
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+        headers:
+          Content-Disposition:
+            schema:
+              type: string
+            description: Attachment filename
+          Content-Length:
+            schema:
+              type: integer
+            description: File size in bytes
+      '400':
+        description: Format not requested at submission time or invalid parameters
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Job not found or part number out of range
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+      '409':
+        description: Job not complete, assembly in progress, or batch has failures
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+
 documents:
   get:
     operationId: listDocuments

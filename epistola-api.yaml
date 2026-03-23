@@ -117,6 +117,8 @@ paths:
     $ref: './spec/paths/generation.yaml#/jobs'
   /tenants/{tenantId}/documents/jobs/{requestId}:
     $ref: './spec/paths/generation.yaml#/job-detail'
+  /tenants/{tenantId}/documents/jobs/{requestId}/download:
+    $ref: './spec/paths/generation.yaml#/job-download'
   /tenants/{tenantId}/documents:
     $ref: './spec/paths/generation.yaml#/documents'
   /tenants/{tenantId}/documents/{documentId}:
@@ -255,6 +257,14 @@ components:
       $ref: './spec/components/schemas/generation.yaml#/DocumentDto'
     DocumentListResponse:
       $ref: './spec/components/schemas/generation.yaml#/DocumentListResponse'
+    BatchDownloadFormat:
+      $ref: './spec/components/schemas/generation.yaml#/BatchDownloadFormat'
+    AssemblyStatus:
+      $ref: './spec/components/schemas/generation.yaml#/AssemblyStatus'
+    BatchDownloadPartInfo:
+      $ref: './spec/components/schemas/generation.yaml#/BatchDownloadPartInfo'
+    BatchDownloadInfo:
+      $ref: './spec/components/schemas/generation.yaml#/BatchDownloadInfo'
 
     # Error schemas
     ErrorResponse:
