@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Theme `spacingUnit` property** — `ThemeDto`, `CreateThemeRequest`, and `UpdateThemeRequest` now include an optional `spacingUnit` field (number, 1-16). This is the base spacing unit in points for the sp spacing scale system. Null means default (4pt).
+- **Style system** — centralized `default-style-system.json` defining all supported CSS properties (canonical properties with inheritable flags), editor UI groups with field control types, and property mappings for composite inputs (spacing, border, border-radius). Replaces the old `style-registry.schema.json`. All units use pt/sp.
 
 ### Changed
 - **CI/CD simplification** — extracted 3 composite actions to eliminate duplication across workflows

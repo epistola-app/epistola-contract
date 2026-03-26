@@ -1,0 +1,202 @@
+{
+  "canonicalProperties": [
+    { "key": "fontSize", "label": "Font Size", "valueKind": "unit", "inheritable": true },
+    { "key": "fontFamily", "label": "Font Family", "valueKind": "keyword", "inheritable": true },
+    { "key": "fontWeight", "label": "Font Weight", "valueKind": "keyword", "inheritable": true },
+    { "key": "fontStyle", "label": "Font Style", "valueKind": "keyword", "inheritable": true },
+    { "key": "color", "label": "Color", "valueKind": "color", "inheritable": true },
+    { "key": "textAlign", "label": "Text Align", "valueKind": "keyword", "inheritable": true },
+    { "key": "lineHeight", "label": "Line Height", "valueKind": "number", "inheritable": true },
+    { "key": "letterSpacing", "label": "Letter Spacing", "valueKind": "unit", "inheritable": true },
+    { "key": "backgroundColor", "label": "Background Color", "valueKind": "color", "inheritable": false },
+    { "key": "width", "label": "Width", "valueKind": "unit", "inheritable": false },
+    { "key": "marginTop", "label": "Margin Top", "valueKind": "unit", "inheritable": false },
+    { "key": "marginRight", "label": "Margin Right", "valueKind": "unit", "inheritable": false },
+    { "key": "marginBottom", "label": "Margin Bottom", "valueKind": "unit", "inheritable": false },
+    { "key": "marginLeft", "label": "Margin Left", "valueKind": "unit", "inheritable": false },
+    { "key": "paddingTop", "label": "Padding Top", "valueKind": "unit", "inheritable": false },
+    { "key": "paddingRight", "label": "Padding Right", "valueKind": "unit", "inheritable": false },
+    { "key": "paddingBottom", "label": "Padding Bottom", "valueKind": "unit", "inheritable": false },
+    { "key": "paddingLeft", "label": "Padding Left", "valueKind": "unit", "inheritable": false },
+    { "key": "borderTopWidth", "label": "Border Top Width", "valueKind": "unit", "inheritable": false },
+    { "key": "borderTopStyle", "label": "Border Top Style", "valueKind": "keyword", "inheritable": false },
+    { "key": "borderTopColor", "label": "Border Top Color", "valueKind": "color", "inheritable": false },
+    { "key": "borderRightWidth", "label": "Border Right Width", "valueKind": "unit", "inheritable": false },
+    { "key": "borderRightStyle", "label": "Border Right Style", "valueKind": "keyword", "inheritable": false },
+    { "key": "borderRightColor", "label": "Border Right Color", "valueKind": "color", "inheritable": false },
+    { "key": "borderBottomWidth", "label": "Border Bottom Width", "valueKind": "unit", "inheritable": false },
+    { "key": "borderBottomStyle", "label": "Border Bottom Style", "valueKind": "keyword", "inheritable": false },
+    { "key": "borderBottomColor", "label": "Border Bottom Color", "valueKind": "color", "inheritable": false },
+    { "key": "borderLeftWidth", "label": "Border Left Width", "valueKind": "unit", "inheritable": false },
+    { "key": "borderLeftStyle", "label": "Border Left Style", "valueKind": "keyword", "inheritable": false },
+    { "key": "borderLeftColor", "label": "Border Left Color", "valueKind": "color", "inheritable": false },
+    { "key": "borderTopLeftRadius", "label": "Border Top Left Radius", "valueKind": "unit", "inheritable": false },
+    { "key": "borderTopRightRadius", "label": "Border Top Right Radius", "valueKind": "unit", "inheritable": false },
+    { "key": "borderBottomRightRadius", "label": "Border Bottom Right Radius", "valueKind": "unit", "inheritable": false },
+    { "key": "borderBottomLeftRadius", "label": "Border Bottom Left Radius", "valueKind": "unit", "inheritable": false }
+  ],
+  "editorGroups": [
+    {
+      "name": "typography",
+      "label": "Typography",
+      "fields": [
+        {
+          "key": "fontFamily",
+          "label": "Font",
+          "control": "select",
+          "propertyKey": "fontFamily",
+          "options": [
+            { "label": "Sans (Helvetica)", "value": "Helvetica, Arial, sans-serif" },
+            { "label": "Serif (Times)", "value": "\"Times New Roman\", Georgia, serif" },
+            { "label": "Mono (Courier)", "value": "\"Courier New\", monospace" }
+          ]
+        },
+        {
+          "key": "fontSize",
+          "label": "Size",
+          "control": "unit",
+          "propertyKey": "fontSize",
+          "units": ["pt", "sp"]
+        },
+        {
+          "key": "fontWeight",
+          "label": "Weight",
+          "control": "select",
+          "propertyKey": "fontWeight",
+          "options": [
+            { "label": "Normal", "value": "400" },
+            { "label": "Medium", "value": "500" },
+            { "label": "Semi Bold", "value": "600" },
+            { "label": "Bold", "value": "700" }
+          ]
+        },
+        {
+          "key": "fontStyle",
+          "label": "Style",
+          "control": "select",
+          "propertyKey": "fontStyle",
+          "options": [
+            { "label": "Normal", "value": "normal" },
+            { "label": "Italic", "value": "italic" }
+          ]
+        },
+        {
+          "key": "color",
+          "label": "Color",
+          "control": "color",
+          "propertyKey": "color"
+        },
+        {
+          "key": "textAlign",
+          "label": "Text Align",
+          "control": "select",
+          "propertyKey": "textAlign",
+          "options": [
+            { "label": "Left", "value": "left" },
+            { "label": "Center", "value": "center" },
+            { "label": "Right", "value": "right" },
+            { "label": "Justify", "value": "justify" }
+          ]
+        },
+        {
+          "key": "lineHeight",
+          "label": "Line Height",
+          "control": "number",
+          "propertyKey": "lineHeight"
+        },
+        {
+          "key": "letterSpacing",
+          "label": "Letter Spacing",
+          "control": "unit",
+          "propertyKey": "letterSpacing",
+          "units": ["pt", "sp"]
+        }
+      ]
+    },
+    {
+      "name": "spacing",
+      "label": "Spacing",
+      "fields": [
+        {
+          "key": "padding",
+          "label": "Padding",
+          "control": "spacing",
+          "spacingProperties": {
+            "top": "paddingTop",
+            "right": "paddingRight",
+            "bottom": "paddingBottom",
+            "left": "paddingLeft"
+          },
+          "units": ["sp", "pt"]
+        },
+        {
+          "key": "margin",
+          "label": "Margin",
+          "control": "spacing",
+          "spacingProperties": {
+            "top": "marginTop",
+            "right": "marginRight",
+            "bottom": "marginBottom",
+            "left": "marginLeft"
+          },
+          "units": ["sp", "pt"]
+        },
+        {
+          "key": "width",
+          "label": "Width",
+          "control": "unit",
+          "propertyKey": "width",
+          "units": ["pt", "sp", "%"]
+        }
+      ]
+    },
+    {
+      "name": "background",
+      "label": "Background",
+      "fields": [
+        {
+          "key": "backgroundColor",
+          "label": "Background",
+          "control": "color",
+          "propertyKey": "backgroundColor"
+        }
+      ]
+    },
+    {
+      "name": "borders",
+      "label": "Borders",
+      "fields": [
+        {
+          "key": "border",
+          "label": "Border",
+          "control": "border",
+          "borderProperties": {
+            "top": { "width": "borderTopWidth", "style": "borderTopStyle", "color": "borderTopColor" },
+            "right": { "width": "borderRightWidth", "style": "borderRightStyle", "color": "borderRightColor" },
+            "bottom": { "width": "borderBottomWidth", "style": "borderBottomStyle", "color": "borderBottomColor" },
+            "left": { "width": "borderLeftWidth", "style": "borderLeftStyle", "color": "borderLeftColor" }
+          },
+          "units": ["pt", "sp"],
+          "options": [
+            { "label": "None", "value": "none" },
+            { "label": "Solid", "value": "solid" },
+            { "label": "Dashed", "value": "dashed" },
+            { "label": "Dotted", "value": "dotted" }
+          ]
+        },
+        {
+          "key": "borderRadius",
+          "label": "Border Radius",
+          "control": "borderRadius",
+          "borderRadiusProperties": {
+            "topLeft": "borderTopLeftRadius",
+            "topRight": "borderTopRightRadius",
+            "bottomRight": "borderBottomRightRadius",
+            "bottomLeft": "borderBottomLeftRadius"
+          },
+          "units": ["pt", "sp"]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epistola.app/schemas/style-system.schema.json",
+  "title": "StyleSystem",
+  "description": "Centralized style system definition. Single source of truth for supported CSS properties, editor field layout, and inheritable keys.",
+  "type": "object",
+  "required": ["canonicalProperties", "editorGroups"],
+  "additionalProperties": false,
+
+  "properties": {
+    "canonicalProperties": {
+      "type": "array",
+      "description": "All supported CSS-like properties with metadata.",
+      "items": { "$ref": "#/$defs/CanonicalProperty" }
+    },
+    "editorGroups": {
+      "type": "array",
+      "description": "UI groups for the style inspector, each containing fields.",
+      "items": { "$ref": "#/$defs/EditorGroup" }
+    }
+  },
+
+  "$defs": {
+    "CanonicalProperty": {
+      "type": "object",
+      "required": ["key", "label", "valueKind", "inheritable"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "type": "string", "description": "CSS property key (camelCase)." },
+        "label": { "type": "string", "description": "Human-readable label." },
+        "valueKind": {
+          "type": "string",
+          "enum": ["unit", "color", "keyword", "number"],
+          "description": "The kind of value this property accepts."
+        },
+        "inheritable": {
+          "type": "boolean",
+          "description": "Whether this property cascades from document styles to nodes."
+        }
+      }
+    },
+
+    "EditorGroup": {
+      "type": "object",
+      "required": ["name", "label", "fields"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "label": { "type": "string" },
+        "fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/EditorField" }
+        }
+      }
+    },
+
+    "EditorField": {
+      "type": "object",
+      "required": ["key", "label", "control"],
+      "properties": {
+        "key": { "type": "string", "description": "Field identifier (may differ from property key for composite fields)." },
+        "label": { "type": "string" },
+        "control": {
+          "type": "string",
+          "enum": ["unit", "color", "select", "number", "spacing", "border", "borderRadius"],
+          "description": "UI control type."
+        },
+        "propertyKey": { "type": "string", "description": "For simple fields: the canonical property key." },
+        "units": { "type": "array", "items": { "type": "string" }, "description": "Available units (for unit/spacing/border controls)." },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "value"],
+            "properties": {
+              "label": { "type": "string" },
+              "value": { "type": "string" }
+            }
+          },
+          "description": "Options for select/border style controls."
+        },
+        "spacingProperties": {
+          "type": "object",
+          "description": "For spacing fields: maps sides to canonical property keys.",
+          "properties": {
+            "top": { "type": "string" },
+            "right": { "type": "string" },
+            "bottom": { "type": "string" },
+            "left": { "type": "string" }
+          }
+        },
+        "borderProperties": {
+          "type": "object",
+          "description": "For border fields: maps sides to width/style/color property keys."
+        },
+        "borderRadiusProperties": {
+          "type": "object",
+          "description": "For borderRadius fields: maps corners to property keys."
+        }
+      }
+    }
+  }
+}
