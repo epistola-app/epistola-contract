@@ -222,14 +222,8 @@ tasks.matching { it.name == "plainJavadocJar" || it.name == "sourcesJar" }.confi
     dependsOn(generateValidation)
 }
 
-mavenPublishing {
-    publishToMavenCentral(automaticRelease = true)
-
-    // Only sign when GPG credentials are available (CI or release builds)
-    if (project.findProperty("signing.keyId") != null || System.getenv("ORG_GRADLE_PROJECT_signingInMemoryKey") != null) {
-        signAllPublications()
-    }
-
+// GitHub Packages repository for snapshot publishing (standard Gradle publishing plugin)
+publishing {
     repositories {
         maven {
             name = "GitHubPackages"
@@ -239,6 +233,15 @@ mavenPublishing {
                 password = System.getenv("GITHUB_TOKEN") ?: ""
             }
         }
+    }
+}
+
+mavenPublishing {
+    publishToMavenCentral(automaticRelease = true)
+
+    // Only sign when GPG credentials are available (CI or release builds)
+    if (project.findProperty("signing.keyId") != null || System.getenv("ORG_GRADLE_PROJECT_signingInMemoryKey") != null) {
+        signAllPublications()
     }
 
     coordinates(rootProject.group.toString(), "client-spring3-restclient", rootProject.version.toString())

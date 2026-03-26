@@ -189,9 +189,12 @@ NodeDto:
       example: []
     styles:
       type: object
-      description: Inline style overrides (CSS-like key/value pairs)
+      description: |
+        Inline style overrides. Values use pt (points), sp (spacing scale), or mm (page margins).
+        Examples: `"12pt"`, `"2sp"`, `"1.5sp"`.
       example:
         fontSize: "24pt"
+        marginBottom: "3sp"
         fontWeight: bold
     stylePreset:
       type: string
@@ -293,9 +296,12 @@ BlockStylePresetDto:
       example: Heading
     styles:
       type: object
-      description: CSS-like style properties for this preset
+      description: |
+        Style properties for this preset. Values use pt (points) or sp (spacing scale).
+        Examples: `"18pt"`, `"4sp"`.
       example:
         fontSize: "18pt"
+        marginBottom: "4sp"
         fontWeight: bold
     applicableTo:
       type: array

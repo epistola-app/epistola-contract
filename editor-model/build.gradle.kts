@@ -121,6 +121,20 @@ tasks.matching { it.name == "plainJavadocJar" || it.name == "sourcesJar" }.confi
     dependsOn("generate", removeGeneratedOverrides)
 }
 
+// GitHub Packages repository for snapshot publishing (standard Gradle publishing plugin)
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/epistola-app/epistola-contract")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: ""
+                password = System.getenv("GITHUB_TOKEN") ?: ""
+            }
+        }
+    }
+}
+
 mavenPublishing {
     publishToMavenCentral(automaticRelease = true)
 

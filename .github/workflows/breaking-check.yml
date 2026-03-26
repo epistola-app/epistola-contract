@@ -28,26 +28,28 @@ jobs:
 
       - name: Get base branch spec
         run: |
-          git show origin/${{ github.base_ref }}:epistola-api.yaml > /tmp/base-spec.yaml 2>/dev/null || echo "No base spec found"
-          if [ -f /tmp/base-spec.yaml ]; then
-            npx @redocly/cli bundle /tmp/base-spec.yaml -o /tmp/base-openapi.yaml 2>/dev/null || cp /tmp/base-spec.yaml /tmp/base-openapi.yaml
+          mkdir -p .oasdiff
+          git show origin/${{ github.base_ref }}:epistola-api.yaml > .oasdiff/base-spec.yaml 2>/dev/null || echo "No base spec found"
+          if [ -f .oasdiff/base-spec.yaml ]; then
+            # Bundle needs the spec/ directory from the base branch too
+            git archive origin/${{ github.base_ref }} -- spec/ 2>/dev/null | tar -xC .oasdiff/ || true
+            npx @redocly/cli bundle .oasdiff/base-spec.yaml -o .oasdiff/base-openapi.yaml 2>/dev/null || cp .oasdiff/base-spec.yaml .oasdiff/base-openapi.yaml
           else
-            cp openapi.yaml /tmp/base-openapi.yaml
+            cp openapi.yaml .oasdiff/base-openapi.yaml
           fi
 
       - name: Check for breaking changes
         id: breaking
         uses: oasdiff/oasdiff-action/breaking@main
         with:
-          base: /tmp/base-openapi.yaml
+          base: .oasdiff/base-openapi.yaml
           revision: openapi.yaml
-          fail-on-diff: false
 
       - name: Generate API changelog
         id: changelog
         uses: oasdiff/oasdiff-action/changelog@main
         with:
-          base: /tmp/base-openapi.yaml
+          base: .oasdiff/base-openapi.yaml
           revision: openapi.yaml
 
       - name: Comment on PR

@@ -53,6 +53,15 @@ ThemeDto:
           styles:
             fontSize: "9pt"
             color: "#666666"
+    spacingUnit:
+      type: number
+      minimum: 1
+      maximum: 16
+      description: |
+        Base spacing unit in points for the spacing scale system. All sp values
+        are multiples of this value (e.g., with spacingUnit=4, 2sp resolves
+        to 8pt). Null means default (4pt).
+      example: 4
     createdAt:
       type: string
       format: date-time
@@ -74,23 +83,23 @@ ThemeDto:
       fontWeight: normal
       color: "#333333"
       lineHeight: "1.5"
-      letterSpacing: "0.01em"
+      letterSpacing: "0.5pt"
       textAlign: left
-      backgroundColor: "#ffffff"
     pageSettings:
       format: A4
       orientation: portrait
       margins:
-        top: 40
-        right: 40
-        bottom: 40
-        left: 40
+        top: 20
+        right: 20
+        bottom: 20
+        left: 20
     blockStylePresets:
       heading:
         label: Heading
         styles:
           fontSize: "18pt"
           fontWeight: bold
+          marginBottom: "4sp"
         applicableTo:
           - text
       caption:
@@ -98,6 +107,7 @@ ThemeDto:
         styles:
           fontSize: "9pt"
           color: "#666666"
+    spacingUnit: 4
     createdAt: "2026-01-17T11:00:00Z"
     lastModified: "2026-01-18T14:30:00Z"
 
@@ -107,15 +117,22 @@ DocumentStylesDto:
     Document-level style overrides. Open object — the available style properties are
     driven by the style registry (e.g. fontFamily, fontSize, color, lineHeight, etc.).
     Keys are camelCase CSS property names, values are strings.
+
+    **Supported units:**
+    - `pt` — points (1/72 inch). The native PDF unit, used for all sizes.
+    - `sp` — spacing scale. Multiplier of the theme's `spacingUnit` (default 4pt).
+      Example: `"2sp"` = 2 × 4pt = 8pt.
+    - `mm` — millimeters. Used for page margins only.
+
+    Examples: `"12pt"`, `"2sp"`, `"1.5sp"`.
   example:
     fontFamily: Helvetica
     fontSize: "12pt"
     fontWeight: normal
     color: "#333333"
     lineHeight: "1.5"
-    letterSpacing: "0.01em"
+    letterSpacing: "0.5pt"
     textAlign: left
-    backgroundColor: "#ffffff"
 
 PageSettingsDto:
   type: object
@@ -220,6 +237,12 @@ CreateThemeRequest:
           styles:
             fontSize: "18pt"
             fontWeight: bold
+    spacingUnit:
+      type: number
+      minimum: 1
+      maximum: 16
+      description: Base spacing unit in points. Null means default (4pt).
+      example: 4
 
 UpdateThemeRequest:
   type: object
@@ -248,6 +271,14 @@ UpdateThemeRequest:
       additionalProperties:
         $ref: './template-model.yaml#/BlockStylePresetDto'
       description: Named block style presets (null to clear). Key is the preset name.
+    spacingUnit:
+      type:
+        - number
+        - 'null'
+      minimum: 1
+      maximum: 16
+      description: Base spacing unit in points (null to reset to default 4pt).
+      example: 4
 
 ThemeListResponse:
   type: object
@@ -272,23 +303,23 @@ ThemeListResponse:
           fontWeight: normal
           color: "#333333"
           lineHeight: "1.5"
-          letterSpacing: "0.01em"
+          letterSpacing: "0.5pt"
           textAlign: left
-          backgroundColor: "#ffffff"
         pageSettings:
           format: A4
           orientation: portrait
           margins:
-            top: 40
-            right: 40
-            bottom: 40
-            left: 40
+            top: 20
+            right: 20
+            bottom: 20
+            left: 20
         blockStylePresets:
           heading:
             label: Heading
             styles:
               fontSize: "18pt"
               fontWeight: bold
+              marginBottom: "4sp"
             applicableTo:
               - text
           caption:

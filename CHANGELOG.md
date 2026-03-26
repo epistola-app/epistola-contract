@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Theme `spacingUnit` property** — `ThemeDto`, `CreateThemeRequest`, and `UpdateThemeRequest` now include an optional `spacingUnit` field (number, 1-16). This is the base spacing unit in points for the sp spacing scale system. Null means default (4pt).
+
 ### Changed
 - **CI/CD simplification** — extracted 3 composite actions to eliminate duplication across workflows
   - `setup-build-tools`: unified tool setup via mise (Java, Gradle, Node, pnpm) with optional npm dependency installation
