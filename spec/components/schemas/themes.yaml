@@ -83,23 +83,23 @@ ThemeDto:
       fontWeight: normal
       color: "#333333"
       lineHeight: "1.5"
-      letterSpacing: "0.01em"
+      letterSpacing: "0.5pt"
       textAlign: left
-      backgroundColor: "#ffffff"
     pageSettings:
       format: A4
       orientation: portrait
       margins:
-        top: 40
-        right: 40
-        bottom: 40
-        left: 40
+        top: 20
+        right: 20
+        bottom: 20
+        left: 20
     blockStylePresets:
       heading:
         label: Heading
         styles:
           fontSize: "18pt"
           fontWeight: bold
+          marginBottom: "4sp"
         applicableTo:
           - text
       caption:
@@ -117,15 +117,22 @@ DocumentStylesDto:
     Document-level style overrides. Open object — the available style properties are
     driven by the style registry (e.g. fontFamily, fontSize, color, lineHeight, etc.).
     Keys are camelCase CSS property names, values are strings.
+
+    **Supported units:**
+    - `pt` — points (1/72 inch). The native PDF unit, used for all sizes.
+    - `sp` — spacing scale. Multiplier of the theme's `spacingUnit` (default 4pt).
+      Example: `"2sp"` = 2 × 4pt = 8pt.
+    - `mm` — millimeters. Used for page margins only.
+
+    Examples: `"12pt"`, `"2sp"`, `"1.5sp"`.
   example:
     fontFamily: Helvetica
     fontSize: "12pt"
     fontWeight: normal
     color: "#333333"
     lineHeight: "1.5"
-    letterSpacing: "0.01em"
+    letterSpacing: "0.5pt"
     textAlign: left
-    backgroundColor: "#ffffff"
 
 PageSettingsDto:
   type: object
@@ -296,23 +303,23 @@ ThemeListResponse:
           fontWeight: normal
           color: "#333333"
           lineHeight: "1.5"
-          letterSpacing: "0.01em"
+          letterSpacing: "0.5pt"
           textAlign: left
-          backgroundColor: "#ffffff"
         pageSettings:
           format: A4
           orientation: portrait
           margins:
-            top: 40
-            right: 40
-            bottom: 40
-            left: 40
+            top: 20
+            right: 20
+            bottom: 20
+            left: 20
         blockStylePresets:
           heading:
             label: Heading
             styles:
               fontSize: "18pt"
               fontWeight: bold
+              marginBottom: "4sp"
             applicableTo:
               - text
           caption:
