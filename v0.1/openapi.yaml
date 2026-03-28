@@ -1802,6 +1802,70 @@ paths:
             application/vnd.epistola.v1+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /tenants/{tenantId}/documents/preview:
+    post:
+      operationId: previewDocument
+      summary: Preview a document (synchronous)
+      description: |
+        Generate a preview PDF synchronously and return it directly in the response body.
+
+        **This endpoint is for preview purposes only:**
+        - The output is **not PDF/A compliant**
+        - The endpoint is **rate-limited** — do not use for production document generation
+        - There are **no guarantees on latency or throughput**
+        - Generated documents are **not stored** — use the async generation endpoints for production use
+      tags:
+        - Generation
+      x-required-roles:
+        - editor
+        - generator
+        - manager
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          description: Unique slug identifier of the tenant (e.g., "acme-corp")
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+            minLength: 3
+            maxLength: 63
+      requestBody:
+        required: true
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '#/components/schemas/PreviewDocumentRequest'
+      responses:
+        '200':
+          description: Preview PDF document
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid request
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Template, variant, or version not found
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded — too many preview requests
+          content:
+            application/vnd.epistola.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /tenants/{tenantId}/documents/generate:
     post:
       operationId: generateDocument
@@ -4657,6 +4721,91 @@ components:
             createdAt: '2026-01-26T10:00:00Z'
             publishedAt: '2026-01-28T11:00:00Z'
             archivedAt: null
+    PreviewDocumentRequest:
+      type: object
+      description: |
+        Request to preview a single document synchronously. Returns the PDF directly.
+
+        **Important**: This endpoint is for preview purposes only.
+        - The output is **not PDF/A compliant**
+        - The endpoint is **rate-limited** — do not use for production document generation
+        - There are **no guarantees on latency or throughput**
+        - Generated documents are **not stored** — use the async generation endpoint for production use
+
+        Specify either variantId (explicit) or attributes (auto-select) but not both.
+      required:
+        - templateId
+        - data
+      properties:
+        templateId:
+          type: string
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of template to use for preview
+          example: invoice
+        variantId:
+          type:
+            - string
+            - 'null'
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: Slug identifier of the variant to use (mutually exclusive with attributes)
+          example: english
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/VariantSelectionAttribute'
+          description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
+        versionId:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+          maximum: 200
+          description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId)
+          example: 1
+        environmentId:
+          type:
+            - string
+            - 'null'
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 30
+          description: Slug identifier of environment to determine version from (mutually exclusive with versionId)
+          example: null
+        data:
+          type: object
+          description: JSON data to populate the template
+          example:
+            customer:
+              name: Jane Smith
+              email: jane.smith@example.com
+              taxId: US123456789
+              address:
+                street: 123 Main Street
+                city: Springfield
+                postalCode: '62704'
+                country: US
+            invoiceNumber: INV-2026-001
+            issueDate: '2026-02-01'
+            dueDate: '2026-03-01'
+            lineItems:
+              - description: Consulting Services (40h)
+                quantity: 40
+                unitPrice: 150
+                taxRate: 21
+              - description: Software License - Enterprise
+                quantity: 1
+                unitPrice: 2500
+                taxRate: 21
+              - description: Travel Expenses
+                quantity: 1
+                unitPrice: 384.5
+                taxRate: 0
+            notes: Payment due within 30 days. Please reference invoice number on transfer.
+            currency: EUR
     GenerateDocumentRequest:
       type: object
       description: Request to generate a single document. Specify either variantId (explicit) or attributes (auto-select) but not both.
