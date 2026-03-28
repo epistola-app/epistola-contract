@@ -1,5 +1,67 @@
 # Document Generation Endpoints
 
+preview-document:
+  post:
+    operationId: previewDocument
+    summary: Preview a document (synchronous)
+    description: |
+      Generate a preview PDF synchronously and return it directly in the response body.
+
+      **This endpoint is for preview purposes only:**
+      - The output is **not PDF/A compliant**
+      - The endpoint is **rate-limited** — do not use for production document generation
+      - There are **no guarantees on latency or throughput**
+      - Generated documents are **not stored** — use the async generation endpoints for production use
+    tags:
+      - Generation
+    x-required-roles: [editor, generator, manager]
+    parameters:
+      - name: tenantId
+        in: path
+        required: true
+        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        schema:
+          type: string
+          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+          minLength: 3
+          maxLength: 63
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/generation.yaml#/PreviewDocumentRequest'
+    responses:
+      '200':
+        description: Preview PDF document
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+      '400':
+        description: Invalid request
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Template, variant, or version not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+      '429':
+        description: Rate limit exceeded — too many preview requests
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+
 generate-document:
   post:
     operationId: generateDocument
