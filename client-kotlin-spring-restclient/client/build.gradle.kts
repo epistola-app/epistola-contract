@@ -193,8 +193,11 @@ dependencies {
     implementation(libs.spring.boot.starter.web)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.jackson.datatype.jsr310)
+    compileOnly(libs.json.schema.validator)
 
     testImplementation(kotlin("test"))
+    testImplementation(libs.mockk)
+    testImplementation(libs.json.schema.validator)
 }
 
 tasks.test {
