@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `SchemaCache` fun interface with pluggable caching; default `TtlSchemaCache` uses ConcurrentHashMap with configurable TTL (5 min default)
   - Auto-detects JSON Schema draft version from `$schema` keyword (supports Draft 4/6/7/2019-09/2020-12)
   - Batch validation collects all errors across all items into a single `TemplateDataValidationException`
-  - New dependency: `com.networknt:json-schema-validator:1.5.7`
+  - Optional dependency: `com.networknt:json-schema-validator:1.5.7` (consumers add it only if using validation)
 - **Theme `spacingUnit` property** — `ThemeDto`, `CreateThemeRequest`, and `UpdateThemeRequest` now include an optional `spacingUnit` field (number, 1-16). This is the base spacing unit in points for the sp spacing scale system. Null means default (4pt).
 
 ### Changed
