@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Document preview endpoint** `POST /tenants/{tenantId}/documents/preview`
+  - Synchronous endpoint that returns a PDF directly in the response body
+  - For preview purposes only — not PDF/A compliant, rate-limited, no latency/throughput guarantees
+  - Documents are not stored; use the async generation endpoint for production use
+  - New `PreviewDocumentRequest` schema (same as generation request without `filename`/`correlationId`)
+  - Returns `429 Too Many Requests` when rate limit is exceeded
 - **Client-side JSON Schema validation** for document generation requests
   - `TemplateSchemaValidator` fetches the template's JSON Schema from the server, caches it, and validates the `data` field locally before submission
   - `ValidatingGenerationApi` wraps `GenerationApi` to transparently validate on `generateDocument` and `generateDocumentBatch` calls

@@ -1,5 +1,85 @@
 # Document Generation Schemas
 
+PreviewDocumentRequest:
+  type: object
+  description: |
+    Request to preview a single document synchronously. Returns the PDF directly.
+
+    **Important**: This endpoint is for preview purposes only.
+    - The output is **not PDF/A compliant**
+    - The endpoint is **rate-limited** — do not use for production document generation
+    - There are **no guarantees on latency or throughput**
+    - Generated documents are **not stored** — use the async generation endpoint for production use
+
+    Specify either variantId (explicit) or attributes (auto-select) but not both.
+  required:
+    - templateId
+    - data
+  properties:
+    templateId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of template to use for preview
+      example: invoice
+    variantId:
+      type: [string, "null"]
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of the variant to use (mutually exclusive with attributes)
+      example: english
+    attributes:
+      type: array
+      items:
+        $ref: '#/VariantSelectionAttribute'
+      description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
+    versionId:
+      type: [integer, "null"]
+      minimum: 1
+      maximum: 200
+      description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId)
+      example: 1
+    environmentId:
+      type: [string, "null"]
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 30
+      description: Slug identifier of environment to determine version from (mutually exclusive with versionId)
+      example: null
+    data:
+      type: object
+      description: JSON data to populate the template
+      example:
+        customer:
+          name: "Jane Smith"
+          email: "jane.smith@example.com"
+          taxId: "US123456789"
+          address:
+            street: "123 Main Street"
+            city: "Springfield"
+            postalCode: "62704"
+            country: US
+        invoiceNumber: "INV-2026-001"
+        issueDate: "2026-02-01"
+        dueDate: "2026-03-01"
+        lineItems:
+          - description: "Consulting Services (40h)"
+            quantity: 40
+            unitPrice: 150.00
+            taxRate: 21
+          - description: "Software License - Enterprise"
+            quantity: 1
+            unitPrice: 2500.00
+            taxRate: 21
+          - description: "Travel Expenses"
+            quantity: 1
+            unitPrice: 384.50
+            taxRate: 0
+        notes: "Payment due within 30 days. Please reference invoice number on transfer."
+        currency: EUR
+
 VariantSelectionAttribute:
   type: object
   description: Attribute criterion for variant selection
