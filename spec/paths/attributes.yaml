@@ -1,0 +1,193 @@
+attributes:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+  get:
+    operationId: listAttributes
+    summary: List attribute definitions for a tenant
+    description: >-
+      Retrieve all attribute definitions configured for a specific tenant.
+      Attribute definitions describe the keys that can be used for variant selection.
+    tags:
+      - Attributes
+    x-required-roles:
+      - reader
+      - editor
+      - generator
+      - manager
+    responses:
+      '200':
+        description: List of attribute definitions
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/attributes.yaml#/AttributeListResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Tenant not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+  post:
+    operationId: createAttribute
+    summary: Create a new attribute definition
+    description: Create a new attribute definition for the specified tenant.
+    tags:
+      - Attributes
+    x-required-roles:
+      - editor
+      - manager
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/attributes.yaml#/CreateAttributeRequest'
+    responses:
+      '201':
+        description: Attribute definition created successfully
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/attributes.yaml#/AttributeDto'
+      '400':
+        description: Invalid request
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Tenant not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+      '409':
+        description: Attribute with this key already exists
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+
+attributes-key:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: attributeKey
+      in: path
+      required: true
+      description: The attribute key (e.g., "language", "brand")
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 1
+        maxLength: 50
+  get:
+    operationId: getAttribute
+    summary: Get an attribute definition
+    description: Retrieve a specific attribute definition by key.
+    tags:
+      - Attributes
+    x-required-roles:
+      - reader
+      - editor
+      - generator
+      - manager
+    responses:
+      '200':
+        description: Attribute definition details
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/attributes.yaml#/AttributeDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Attribute or tenant not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+  patch:
+    operationId: updateAttribute
+    summary: Update an attribute definition
+    description: Update the description of an existing attribute definition.
+    tags:
+      - Attributes
+    x-required-roles:
+      - editor
+      - manager
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/attributes.yaml#/UpdateAttributeRequest'
+    responses:
+      '200':
+        description: Attribute definition updated successfully
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/attributes.yaml#/AttributeDto'
+      '400':
+        description: Invalid request
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Attribute or tenant not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+  delete:
+    operationId: deleteAttribute
+    summary: Delete an attribute definition
+    description: Delete an attribute definition. Existing variant attributes using this key are not affected.
+    tags:
+      - Attributes
+    x-required-roles:
+      - manager
+    responses:
+      '204':
+        description: Attribute definition deleted successfully
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Attribute or tenant not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
