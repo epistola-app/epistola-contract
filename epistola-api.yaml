@@ -39,6 +39,8 @@ tags:
     description: Reusable style collections for templates
   - name: Environments
     description: Tenant environment configuration (staging, production, etc.)
+  - name: Attributes
+    description: Attribute definitions for variant selection criteria
   - name: Variants
     description: Template variant operations (language, brand variations)
   - name: Versions
@@ -69,6 +71,12 @@ paths:
     $ref: './spec/paths/environments.yaml#/environments'
   /tenants/{tenantId}/environments/{environmentId}:
     $ref: './spec/paths/environments.yaml#/environments-id'
+
+  # Attributes
+  /tenants/{tenantId}/attributes:
+    $ref: './spec/paths/attributes.yaml#/attributes'
+  /tenants/{tenantId}/attributes/{attributeKey}:
+    $ref: './spec/paths/attributes.yaml#/attributes-key'
 
   # Templates
   /tenants/{tenantId}/templates:

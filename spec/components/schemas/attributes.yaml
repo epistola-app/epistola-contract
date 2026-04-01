@@ -1,0 +1,91 @@
+AttributeDto:
+  type: object
+  description: An attribute definition for variant selection within a tenant
+  required:
+    - key
+    - tenantId
+    - createdAt
+  properties:
+    key:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 1
+      maxLength: 50
+      description: Unique attribute key within the tenant
+      example: language
+    tenantId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 63
+      description: Slug identifier of the tenant this attribute belongs to
+      example: acme-corp
+    description:
+      type:
+        - string
+        - 'null'
+      description: Human-readable description of the attribute
+      example: The language of the document
+    createdAt:
+      type: string
+      format: date-time
+      description: Timestamp when the attribute was created
+      example: "2026-01-16T10:00:00Z"
+  example:
+    key: language
+    tenantId: acme-corp
+    description: The language of the document
+    createdAt: "2026-01-16T10:00:00Z"
+
+CreateAttributeRequest:
+  type: object
+  description: Request body for creating a new attribute definition
+  required:
+    - key
+  properties:
+    key:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 1
+      maxLength: 50
+      description: Unique attribute key within the tenant
+      example: language
+    description:
+      type:
+        - string
+        - 'null'
+      description: Human-readable description of the attribute
+      example: The language of the document
+
+UpdateAttributeRequest:
+  type: object
+  description: Request body for updating an attribute definition
+  properties:
+    description:
+      type:
+        - string
+        - 'null'
+      description: New description for the attribute
+      example: The language of the generated document
+
+AttributeListResponse:
+  type: object
+  description: List of attribute definitions
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      description: List of attribute definitions
+      items:
+        $ref: '#/AttributeDto'
+  example:
+    items:
+      - key: language
+        tenantId: acme-corp
+        description: The language of the document
+        createdAt: "2026-01-16T10:00:00Z"
+      - key: brand
+        tenantId: acme-corp
+        description: The brand identity to use
+        createdAt: "2026-01-16T10:30:00Z"
