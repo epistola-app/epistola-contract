@@ -1,37 +1,33 @@
 name: Release to Maven Central
 
 on:
-  # Auto-release when a commit on main contains [release], or any push to release branches
+  # Main releases: triggered by creating a GitHub Release (e.g., gh release create v0.2.0)
+  release:
+    types: [published]
+  # Hotfix releases: any push to a release branch auto-releases
   push:
     branches:
-      - main
       - 'release/**'
-  # Manual release
-  workflow_dispatch:
-    inputs:
-      module:
-        description: 'Module to release'
-        required: true
-        type: choice
-        options:
-          - all
-          - client-kotlin-spring-restclient
-          - server-kotlin-springboot4
-          - editor-model
 
 jobs:
   # Validate and bundle spec
   validate-and-bundle:
     name: Validate and bundle spec
-    if: >-
-      contains(github.event.head_commit.message, '[release]') ||
-      github.event_name == 'workflow_dispatch' ||
-      startsWith(github.ref, 'refs/heads/release/')
     runs-on: ubuntu-latest
     outputs:
       api_version: ${{ steps.version.outputs.api_version }}
       release_version: ${{ steps.version.outputs.version }}
+      is_release_event: ${{ steps.source.outputs.is_release_event }}
     steps:
+      - name: Determine release source
+        id: source
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "is_release_event=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_release_event=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
@@ -40,13 +36,37 @@ jobs:
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
 
-      - name: Calculate release version
-        id: version
+      - name: Extract version from release tag
+        if: github.event_name == 'release'
+        id: tag_version
+        run: |
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          VERSION="${TAG_NAME#v}"
+          API_VERSION=$(echo "$VERSION" | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
+          echo "Release version from tag: ${VERSION}"
+
+      - name: Calculate version for release branch
+        if: github.event_name == 'push'
+        id: branch_version
         uses: ./.github/actions/calculate-version
         with:
           mode: release
 
+      - name: Set version output
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "version=${{ steps.tag_version.outputs.version }}" >> $GITHUB_OUTPUT
+            echo "api_version=${{ steps.tag_version.outputs.api_version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ steps.branch_version.outputs.version }}" >> $GITHUB_OUTPUT
+            echo "api_version=${{ steps.branch_version.outputs.api_version }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Validate release branch version
+        if: github.event_name == 'push'
         run: |
           BRANCH="${GITHUB_REF#refs/heads/}"
           if [[ "$BRANCH" == release/* ]]; then
@@ -81,49 +101,29 @@ jobs:
           - module: editor-model
             needs_spec: false
     steps:
-      - name: Check if should run
-        id: should_run
-        run: |
-          # For push events (auto-release), always build all
-          # For workflow_dispatch, check the input
-          if [ "${{ github.event_name }}" == "push" ]; then
-            echo "enabled=true" >> $GITHUB_OUTPUT
-          else
-            MODULE_INPUT="${{ inputs.module }}"
-            if [ "$MODULE_INPUT" == "all" ] || [ "$MODULE_INPUT" == "${{ matrix.module }}" ]; then
-              echo "enabled=true" >> $GITHUB_OUTPUT
-            else
-              echo "enabled=false" >> $GITHUB_OUTPUT
-            fi
-          fi
-
       - name: Checkout
-        if: steps.should_run.outputs.enabled == 'true'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Download bundled spec
-        if: steps.should_run.outputs.enabled == 'true' && matrix.needs_spec
+        if: matrix.needs_spec
         uses: actions/download-artifact@v4
         with:
           name: openapi-spec
 
       - name: Setup tools
-        if: steps.should_run.outputs.enabled == 'true'
         uses: ./.github/actions/setup-build-tools
 
       - name: Build and test
-        if: steps.should_run.outputs.enabled == 'true'
         working-directory: ${{ matrix.module }}
         run: ./gradlew build -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
-  # Reserve the version by creating a git tag before publishing.
-  # This ensures that if any publish step fails, the version is "consumed" and
-  # the next release attempt gets a fresh version instead of retrying the same
-  # one and hitting "already exists" errors on Maven Central.
+  # Reserve the version by creating a git tag before publishing (release branches only).
+  # For GitHub Release events the tag already exists.
   create-tag:
     needs: [validate-and-bundle, build]
+    if: needs.validate-and-bundle.outputs.is_release_event == 'false'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -139,6 +139,11 @@ jobs:
   # Only publish after ALL builds succeed and version tag is reserved
   publish:
     needs: [validate-and-bundle, build, create-tag]
+    # Always run after build succeeds — create-tag may be skipped for release events
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -156,39 +161,22 @@ jobs:
             artifact_id: editor-model
             needs_spec: false
     steps:
-      - name: Check if should run
-        id: should_run
-        run: |
-          if [ "${{ github.event_name }}" == "push" ]; then
-            echo "enabled=true" >> $GITHUB_OUTPUT
-          else
-            MODULE_INPUT="${{ inputs.module }}"
-            if [ "$MODULE_INPUT" == "all" ] || [ "$MODULE_INPUT" == "${{ matrix.module }}" ]; then
-              echo "enabled=true" >> $GITHUB_OUTPUT
-            else
-              echo "enabled=false" >> $GITHUB_OUTPUT
-            fi
-          fi
-
       - name: Checkout
-        if: steps.should_run.outputs.enabled == 'true'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download bundled spec
-        if: steps.should_run.outputs.enabled == 'true' && matrix.needs_spec
+        if: matrix.needs_spec
         uses: actions/download-artifact@v4
         with:
           name: openapi-spec
 
       - name: Setup tools
-        if: steps.should_run.outputs.enabled == 'true'
         uses: ./.github/actions/setup-build-tools
 
       - name: Publish to Maven Central
-        if: steps.should_run.outputs.enabled == 'true'
         working-directory: ${{ matrix.module }}
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.OSSRH_USERNAME }}
@@ -199,26 +187,29 @@ jobs:
         run: ./gradlew publishToMavenCentral -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
       - name: Install npm dependencies
-        if: matrix.module == 'editor-model' && steps.should_run.outputs.enabled == 'true'
+        if: matrix.module == 'editor-model'
         working-directory: editor-model
         run: pnpm install --frozen-lockfile
 
       - name: Setup npm registry
-        if: matrix.module == 'editor-model' && steps.should_run.outputs.enabled == 'true'
+        if: matrix.module == 'editor-model'
         uses: actions/setup-node@v4
         with:
           registry-url: https://registry.npmjs.org
 
       - name: Publish to npm
-        if: matrix.module == 'editor-model' && steps.should_run.outputs.enabled == 'true'
+        if: matrix.module == 'editor-model'
         working-directory: editor-model
         run: |
           npm version ${{ needs.validate-and-bundle.outputs.release_version }} --no-git-tag-version
           npm publish --provenance --access public
 
-  # Create GitHub release on the existing tag after all modules are published
-  github-release:
-    needs: [validate-and-bundle, create-tag, publish]
+  # Upload release assets and create GitHub release for release branch pushes
+  finalize-release:
+    needs: [validate-and-bundle, publish]
+    if: |
+      always() &&
+      needs.publish.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -228,7 +219,15 @@ jobs:
         with:
           name: openapi-spec
 
-      - name: Create GitHub Release
+      - name: Upload spec to existing GitHub Release
+        if: needs.validate-and-bundle.outputs.is_release_event == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" openapi.yaml --clobber --repo "${{ github.repository }}"
+
+      - name: Create GitHub Release (release branch)
+        if: needs.validate-and-bundle.outputs.is_release_event == 'false'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.validate-and-bundle.outputs.release_version }}
@@ -280,6 +279,9 @@ jobs:
   mock-server:
     name: Publish Mock Server
     needs: [validate-and-bundle, publish]
+    if: |
+      always() &&
+      needs.publish.result == 'success'
     uses: ./.github/workflows/mock-server.yml
     with:
       version: ${{ needs.validate-and-bundle.outputs.release_version }}

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Release trigger changed from `[release]` commit to GitHub Release** — releases are now triggered by creating a GitHub Release (`gh release create vX.Y.Z` or `make release`) instead of pushing a commit containing `[release]` to `main`
+  - `make release` now auto-calculates the next patch version and creates a GitHub Release directly (no more empty marker commits)
+  - Snapshot workflow no longer needs to check for `[release]` commits — all pushes to `main` publish snapshots
+  - Release branches (`release/**`) continue to auto-release on push
+  - Aligns release approach with epistola-suite
+
 ### Added
 - **Document preview endpoint** `POST /tenants/{tenantId}/documents/preview`
   - Synchronous endpoint that returns a PDF directly in the response body

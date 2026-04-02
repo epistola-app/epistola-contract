@@ -67,8 +67,7 @@ validate-impl: bundle
 	@echo "==> Proxying to $${TARGET_URL:-http://localhost:8080}"
 	npx --prefix tools @stoplight/prism-cli proxy openapi.yaml $${TARGET_URL:-http://localhost:8080} --errors
 
-# Trigger a release from main
-# Creates a [release] marker commit that triggers the release workflow on push
+# Create a GitHub Release to trigger the release workflow
 release:
 	@# Must be on main
 	@BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
@@ -81,13 +80,27 @@ release:
 		echo "Error: working tree is not clean. Commit or stash changes first."; \
 		exit 1; \
 	fi
+	@# Must be up to date with remote
+	@git fetch origin main --quiet; \
+	if [ "$$(git rev-parse HEAD)" != "$$(git rev-parse origin/main)" ]; then \
+		echo "Error: local main is not up to date with origin/main. Pull first."; \
+		exit 1; \
+	fi
 	@SPEC_VERSION=$$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+\.[0-9]+)["'"'"']?.*/\1/'); \
-	echo "==> Will release version $$SPEC_VERSION (patch auto-incremented by CI)"; \
+	API_VERSION=$$(echo "$$SPEC_VERSION" | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/'); \
+	LATEST_PATCH=-1; \
+	for tag in $$(git tag -l "v$${API_VERSION}.*" 2>/dev/null) $$(git tag -l "*-v$${API_VERSION}.*" 2>/dev/null); do \
+		PATCH=$$(echo "$$tag" | sed -E 's/.*v[0-9]+\.[0-9]+\.([0-9]+)/\1/'); \
+		if [ "$$PATCH" -gt "$$LATEST_PATCH" ] 2>/dev/null; then \
+			LATEST_PATCH=$$PATCH; \
+		fi; \
+	done; \
+	NEXT_PATCH=$$((LATEST_PATCH + 1)); \
+	VERSION="$${API_VERSION}.$${NEXT_PATCH}"; \
+	echo "==> Creating release v$$VERSION"; \
+	gh release create "v$$VERSION" --title "v$$VERSION" --generate-notes; \
 	echo ""; \
-	git commit --allow-empty -m "chore: [release] $$SPEC_VERSION"; \
-	echo ""; \
-	echo "Release commit created. Push to trigger the release workflow:"; \
-	echo "  git push origin main"
+	echo "Release v$$VERSION created. The release workflow will now build and publish all artifacts."
 
 # Show help
 help:
@@ -104,5 +117,5 @@ help:
 	@echo "  breaking       - Check for breaking API changes against main branch"
 	@echo "  mock           - Start Prism mock server on http://localhost:4010"
 	@echo "  validate-impl  - Validate implementation against spec (set TARGET_URL)"
-	@echo "  release        - Create a [release] commit to trigger a release from main"
+	@echo "  release        - Create a GitHub Release to trigger the release workflow"
 	@echo "  help           - Show this help"

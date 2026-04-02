@@ -15,9 +15,6 @@ jobs:
   # Validate and bundle OpenAPI spec first
   spec-validation:
     name: Validate OpenAPI Spec
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      !contains(github.event.head_commit.message, '[release]')
     runs-on: ubuntu-latest
     outputs:
       snapshot_version: ${{ steps.version.outputs.version }}
@@ -42,9 +39,6 @@ jobs:
   # Detect which modules have changes
   detect-changes:
     name: Detect Changes
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      !contains(github.event.head_commit.message, '[release]')
     runs-on: ubuntu-latest
     outputs:
       spec: ${{ steps.filter.outputs.spec }}

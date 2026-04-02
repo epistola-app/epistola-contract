@@ -168,20 +168,21 @@ The spec is validated with Redocly using these rules:
 This project uses a **trunk-based** development model with releases from `main`:
 
 - **`main`** is the only long-lived branch. All development happens here.
-- **Snapshots** are published on every push to `main` (unless the commit contains `[release]`).
-- **Releases** are triggered by including `[release]` in a commit message on `main`, or via `workflow_dispatch`.
-- **Release branches** (`release/X.Y`) can be created for hotfixing older versions. Any push to a release branch triggers a release.
+- **Snapshots** are published on every push to `main`.
+- **Releases** are triggered by creating a GitHub Release (manually or via `make release`).
+- **Release branches** (`release/X.Y`) can be created for hotfixing older versions. Any push to a release branch triggers a release automatically.
 
 ### Creating a Release
 
 ```bash
-# Creates an empty commit with [release] marker
+# Auto-calculates next patch version and creates a GitHub Release
 make release
-# Then push to trigger the release workflow
-git push origin main
+
+# Or manually with gh CLI
+gh release create v0.2.0 --title "v0.2.0" --generate-notes
 ```
 
-The release workflow reads the version from `epistola-api.yaml` and auto-increments the patch number based on existing git tags. For example, if the spec says `0.1.0` and there are no prior tags, the first release will be `0.1.0`. Subsequent releases auto-increment: `0.1.1`, `0.1.2`, etc.
+The version is determined by the release tag. `make release` reads the major.minor from `epistola-api.yaml` and auto-increments the patch number based on existing git tags. For example, if the spec says `0.1.0` and the latest tag is `v0.1.2`, the next release will be `v0.1.3`.
 
 ### Bumping the API Version
 
@@ -193,7 +194,7 @@ When a fix is needed on an older release:
 
 1. Create a `release/X.Y` branch from the relevant tag (if it doesn't exist yet)
 2. Cherry-pick or apply the fix on the release branch
-3. Push — any push to `release/**` triggers a release automatically
+3. Push — any push to `release/**` triggers a release automatically (version is auto-calculated)
 4. The branch spec version must match the branch name (e.g., `release/0.1` requires `info.version: 0.1.x`)
 
 ## Commit Guidelines
