@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `POST .../versions/{versionId}/archive` — archive published versions
   - `GET .../versions/{versionId}/usage` — find templates using a stencil version
   - `POST .../versions/{versionId}/upgrade-preview` — before/after diff for bulk upgrades
-- **StencilRefDto** added to NodeDto in template model — nodes can carry a stencil reference (stencilId + version) to track embedded stencil origin and enable upgrade detection
+- **Stencil component type** — stencil instances in templates use a dedicated `stencil` node type with `stencilId` and `version` in props, rather than a generic reference on all nodes
 
 ### Changed
 - **Release trigger changed from `[release]` commit to GitHub Release** — releases are now triggered by creating a GitHub Release (`gh release create vX.Y.Z` or `make release`) instead of pushing a commit containing `[release]` to `main`

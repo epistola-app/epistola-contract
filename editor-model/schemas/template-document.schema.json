@@ -65,35 +65,9 @@
         "props": {
           "type": "object",
           "description": "Type-specific properties (content, expression, columns config, etc.)."
-        },
-        "stencilRef": {
-          "$ref": "#/$defs/StencilRef",
-          "description": "Reference to the stencil version this node was copied from. Present only on stencil instance root nodes."
         }
       },
       "required": ["id", "type", "slots"],
-      "additionalProperties": false
-    },
-
-    "StencilRef": {
-      "type": "object",
-      "description": "Reference to a stencil version embedded in a node. Tracks origin for upgrade detection.",
-      "properties": {
-        "stencilId": {
-          "type": "string",
-          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
-          "minLength": 3,
-          "maxLength": 50,
-          "description": "Slug identifier of the source stencil."
-        },
-        "version": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 200,
-          "description": "Version number of the stencil that was embedded."
-        }
-      },
-      "required": ["stencilId", "version"],
       "additionalProperties": false
     },
 

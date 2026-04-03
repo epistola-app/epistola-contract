@@ -281,8 +281,6 @@ components:
       $ref: './spec/components/schemas/template-model.yaml#/ThemeRefDto'
     BlockStylePresetDto:
       $ref: './spec/components/schemas/template-model.yaml#/BlockStylePresetDto'
-    StencilRefDto:
-      $ref: './spec/components/schemas/template-model.yaml#/StencilRefDto'
 
     # Version schemas
     VersionDto:

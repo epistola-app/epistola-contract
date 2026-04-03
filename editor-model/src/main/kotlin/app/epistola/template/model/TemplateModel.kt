@@ -75,7 +75,6 @@ data class TemplateDocument(
  * @property styles Inline CSS-like style overrides.
  * @property stylePreset Reference to a named preset in the theme's block style presets.
  * @property props Type-specific properties (content, expression, column config, etc.).
- * @property stencilRef Reference to the stencil version this node was copied from, if any.
  */
 data class Node(
     val id: String,
@@ -84,19 +83,6 @@ data class Node(
     val styles: Map<String, Any?>? = null,
     val stylePreset: String? = null,
     val props: Map<String, Any?>? = null,
-    val stencilRef: StencilRef? = null,
-)
-
-/**
- * Reference to a stencil version embedded in a node.
- * Tracks the origin stencil and version for upgrade detection.
- *
- * @property stencilId Slug identifier of the source stencil.
- * @property version Version number of the stencil that was embedded.
- */
-data class StencilRef(
-    val stencilId: String,
-    val version: Int,
 )
 
 /**
