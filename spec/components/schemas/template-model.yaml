@@ -205,6 +205,8 @@ NodeDto:
       description: Type-specific properties (content, expression, columns config, etc.)
       example:
         content: "Invoice {{invoiceNumber}}"
+    stencilRef:
+      $ref: '#/StencilRefDto'
   example:
     id: node-header
     type: text
@@ -319,3 +321,31 @@ BlockStylePresetDto:
     applicableTo:
       - text
       - container
+
+StencilRefDto:
+  type: object
+  description: |
+    Reference to a stencil version embedded in a node. When present on a node, it indicates
+    that the node (and its subtree) is a copy of a specific stencil version. The actual content
+    is stored inline in the document — the reference is metadata for tracking the origin and
+    detecting available upgrades.
+  required:
+    - stencilId
+    - version
+  properties:
+    stencilId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of the source stencil
+      example: corporate-header
+    version:
+      type: integer
+      minimum: 1
+      maximum: 200
+      description: Version number of the stencil that was embedded
+      example: 1
+  example:
+    stencilId: corporate-header
+    version: 1

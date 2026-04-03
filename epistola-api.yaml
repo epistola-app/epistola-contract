@@ -45,6 +45,8 @@ tags:
     description: Template variant operations (language, brand variations)
   - name: Versions
     description: Template version lifecycle (draft, publish, archive)
+  - name: Stencils
+    description: Reusable template component operations (CRUD, versioning, usage tracking)
   - name: Generation
     description: Asynchronous document generation operations
 
@@ -111,6 +113,24 @@ paths:
     $ref: './spec/paths/versions.yaml#/version-publish'
   /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/archive:
     $ref: './spec/paths/versions.yaml#/version-archive'
+
+  # Stencils
+  /tenants/{tenantId}/stencils:
+    $ref: './spec/paths/stencils.yaml#/stencils'
+  /tenants/{tenantId}/stencils/{stencilId}:
+    $ref: './spec/paths/stencils.yaml#/stencils-id'
+  /tenants/{tenantId}/stencils/{stencilId}/versions:
+    $ref: './spec/paths/stencils.yaml#/stencil-versions'
+  /tenants/{tenantId}/stencils/{stencilId}/versions/{versionId}:
+    $ref: './spec/paths/stencils.yaml#/stencil-versions-id'
+  /tenants/{tenantId}/stencils/{stencilId}/versions/{versionId}/publish:
+    $ref: './spec/paths/stencils.yaml#/stencil-version-publish'
+  /tenants/{tenantId}/stencils/{stencilId}/versions/{versionId}/archive:
+    $ref: './spec/paths/stencils.yaml#/stencil-version-archive'
+  /tenants/{tenantId}/stencils/{stencilId}/versions/{versionId}/usage:
+    $ref: './spec/paths/stencils.yaml#/stencil-version-usage'
+  /tenants/{tenantId}/stencils/{stencilId}/versions/{versionId}/upgrade-preview:
+    $ref: './spec/paths/stencils.yaml#/stencil-version-upgrade-preview'
 
   # Template Import
   /tenants/{tenantId}/templates/import:
@@ -220,6 +240,36 @@ components:
     ActivationListResponse:
       $ref: './spec/components/schemas/variants.yaml#/ActivationListResponse'
 
+    # Stencil schemas
+    StencilDto:
+      $ref: './spec/components/schemas/stencils.yaml#/StencilDto'
+    StencilSummaryDto:
+      $ref: './spec/components/schemas/stencils.yaml#/StencilSummaryDto'
+    StencilVersionDto:
+      $ref: './spec/components/schemas/stencils.yaml#/StencilVersionDto'
+    StencilVersionSummaryDto:
+      $ref: './spec/components/schemas/stencils.yaml#/StencilVersionSummaryDto'
+    CreateStencilRequest:
+      $ref: './spec/components/schemas/stencils.yaml#/CreateStencilRequest'
+    UpdateStencilRequest:
+      $ref: './spec/components/schemas/stencils.yaml#/UpdateStencilRequest'
+    CreateStencilVersionRequest:
+      $ref: './spec/components/schemas/stencils.yaml#/CreateStencilVersionRequest'
+    UpdateStencilDraftRequest:
+      $ref: './spec/components/schemas/stencils.yaml#/UpdateStencilDraftRequest'
+    StencilUsageDto:
+      $ref: './spec/components/schemas/stencils.yaml#/StencilUsageDto'
+    UpgradePreviewDto:
+      $ref: './spec/components/schemas/stencils.yaml#/UpgradePreviewDto'
+    StencilListResponse:
+      $ref: './spec/components/schemas/stencils.yaml#/StencilListResponse'
+    StencilVersionListResponse:
+      $ref: './spec/components/schemas/stencils.yaml#/StencilVersionListResponse'
+    StencilUsageListResponse:
+      $ref: './spec/components/schemas/stencils.yaml#/StencilUsageListResponse'
+    UpgradePreviewListResponse:
+      $ref: './spec/components/schemas/stencils.yaml#/UpgradePreviewListResponse'
+
     # Template model schemas
     TemplateDocumentDto:
       $ref: './spec/components/schemas/template-model.yaml#/TemplateDocumentDto'
@@ -231,6 +281,8 @@ components:
       $ref: './spec/components/schemas/template-model.yaml#/ThemeRefDto'
     BlockStylePresetDto:
       $ref: './spec/components/schemas/template-model.yaml#/BlockStylePresetDto'
+    StencilRefDto:
+      $ref: './spec/components/schemas/template-model.yaml#/StencilRefDto'
 
     # Version schemas
     VersionDto:
