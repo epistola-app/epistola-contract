@@ -1,0 +1,580 @@
+StencilDto:
+  type: object
+  description: |
+    Full stencil with all details including version summaries.
+    A stencil is a reusable template component that can be inserted into any template.
+    Each stencil has versioned content following the same draft/published/archived lifecycle as template versions.
+  required:
+    - id
+    - tenantId
+    - name
+    - versions
+    - createdAt
+    - lastModified
+  properties:
+    id:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of the stencil (e.g., "corporate-header")
+      example: corporate-header
+    tenantId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 63
+      description: Slug identifier of the tenant this stencil belongs to
+      example: acme-corp
+    name:
+      type: string
+      description: Display name of the stencil
+      example: Corporate Header
+    description:
+      type:
+        - string
+        - 'null'
+      description: Optional description of what this stencil provides
+      example: Standard corporate header with logo, company name, and address block
+    tags:
+      type: array
+      items:
+        type: string
+      description: Tags for categorization and search
+      example:
+        - header
+        - corporate
+    versions:
+      type: array
+      description: Summary of all versions for this stencil
+      items:
+        $ref: '#/StencilVersionSummaryDto'
+    createdAt:
+      type: string
+      format: date-time
+      description: Timestamp when the stencil was created
+      example: "2026-03-01T10:00:00Z"
+    lastModified:
+      type: string
+      format: date-time
+      description: Timestamp when the stencil was last modified
+      example: "2026-03-15T14:30:00Z"
+  example:
+    id: corporate-header
+    tenantId: acme-corp
+    name: Corporate Header
+    description: Standard corporate header with logo, company name, and address block
+    tags:
+      - header
+      - corporate
+    versions:
+      - id: 1
+        status: published
+        createdAt: "2026-03-01T10:00:00Z"
+        publishedAt: "2026-03-02T09:00:00Z"
+        archivedAt: null
+      - id: 2
+        status: draft
+        createdAt: "2026-03-15T14:30:00Z"
+        publishedAt: null
+        archivedAt: null
+    createdAt: "2026-03-01T10:00:00Z"
+    lastModified: "2026-03-15T14:30:00Z"
+
+StencilSummaryDto:
+  type: object
+  description: Summary view of a stencil for list displays
+  required:
+    - id
+    - tenantId
+    - name
+    - latestPublishedVersion
+    - createdAt
+    - lastModified
+  properties:
+    id:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of the stencil
+      example: corporate-header
+    tenantId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 63
+      description: Slug identifier of the tenant this stencil belongs to
+      example: acme-corp
+    name:
+      type: string
+      description: Display name of the stencil
+      example: Corporate Header
+    description:
+      type:
+        - string
+        - 'null'
+      description: Optional description of what this stencil provides
+      example: Standard corporate header with logo, company name, and address block
+    tags:
+      type: array
+      items:
+        type: string
+      description: Tags for categorization and search
+      example:
+        - header
+        - corporate
+    latestPublishedVersion:
+      type:
+        - integer
+        - 'null'
+      minimum: 1
+      maximum: 200
+      description: Version number of the latest published version, or null if no version is published
+      example: 1
+    createdAt:
+      type: string
+      format: date-time
+      description: Timestamp when the stencil was created
+      example: "2026-03-01T10:00:00Z"
+    lastModified:
+      type: string
+      format: date-time
+      description: Timestamp when the stencil was last modified
+      example: "2026-03-15T14:30:00Z"
+  example:
+    id: corporate-header
+    tenantId: acme-corp
+    name: Corporate Header
+    description: Standard corporate header with logo, company name, and address block
+    tags:
+      - header
+      - corporate
+    latestPublishedVersion: 1
+    createdAt: "2026-03-01T10:00:00Z"
+    lastModified: "2026-03-15T14:30:00Z"
+
+StencilVersionDto:
+  type: object
+  description: |
+    Stencil version with content and lifecycle state.
+    The content is a TemplateDocument fragment (nodes + slots subgraph) that gets copied
+    into a template when the stencil is inserted.
+  required:
+    - id
+    - stencilId
+    - status
+    - createdAt
+  properties:
+    id:
+      type: integer
+      minimum: 1
+      maximum: 200
+      description: Version number (1-200)
+      example: 1
+    stencilId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of the stencil this version belongs to
+      example: corporate-header
+    status:
+      type: string
+      enum:
+        - draft
+        - published
+        - archived
+      description: Lifecycle status of this version
+      example: published
+    content:
+      $ref: './template-model.yaml#/TemplateDocumentDto'
+    createdAt:
+      type: string
+      format: date-time
+      description: Timestamp when the version was created
+      example: "2026-03-01T10:00:00Z"
+    publishedAt:
+      type:
+        - string
+        - 'null'
+      format: date-time
+      description: Timestamp when the version was published
+      example: "2026-03-02T09:00:00Z"
+    archivedAt:
+      type:
+        - string
+        - 'null'
+      format: date-time
+      description: Timestamp when the version was archived
+      example: null
+  example:
+    id: 1
+    stencilId: corporate-header
+    status: published
+    content:
+      modelVersion: 1
+      root: node-root
+      nodes:
+        node-root:
+          id: node-root
+          type: container
+          slots:
+            - slot-root-children
+          styles: {}
+          props: {}
+        node-logo:
+          id: node-logo
+          type: image
+          slots: []
+          styles:
+            marginBottom: "2sp"
+          props:
+            src: "{{company.logo}}"
+            alt: "Company logo"
+        node-company-name:
+          id: node-company-name
+          type: text
+          slots: []
+          styles:
+            fontSize: "18pt"
+            fontWeight: bold
+          props:
+            content: "{{company.name}}"
+      slots:
+        slot-root-children:
+          id: slot-root-children
+          nodeId: node-root
+          name: children
+          children:
+            - node-logo
+            - node-company-name
+      themeRef:
+        type: inherit
+    createdAt: "2026-03-01T10:00:00Z"
+    publishedAt: "2026-03-02T09:00:00Z"
+    archivedAt: null
+
+StencilVersionSummaryDto:
+  type: object
+  description: Summary view of a stencil version for list displays
+  required:
+    - id
+    - status
+    - createdAt
+  properties:
+    id:
+      type: integer
+      minimum: 1
+      maximum: 200
+      description: Version number (1-200)
+      example: 1
+    status:
+      type: string
+      enum:
+        - draft
+        - published
+        - archived
+      description: Lifecycle status of this version
+      example: published
+    createdAt:
+      type: string
+      format: date-time
+      description: Timestamp when the version was created
+      example: "2026-03-01T10:00:00Z"
+    publishedAt:
+      type:
+        - string
+        - 'null'
+      format: date-time
+      description: Timestamp when the version was published
+      example: "2026-03-02T09:00:00Z"
+    archivedAt:
+      type:
+        - string
+        - 'null'
+      format: date-time
+      description: Timestamp when the version was archived
+      example: null
+  example:
+    id: 1
+    status: published
+    createdAt: "2026-03-01T10:00:00Z"
+    publishedAt: "2026-03-02T09:00:00Z"
+    archivedAt: null
+
+CreateStencilRequest:
+  type: object
+  description: Request body for creating a new stencil
+  required:
+    - id
+    - name
+  properties:
+    id:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Client-provided slug identifier for the stencil
+      example: corporate-header
+    name:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: Display name of the stencil
+      example: Corporate Header
+    description:
+      type: string
+      maxLength: 1000
+      description: Optional description of what this stencil provides
+      example: Standard corporate header with logo, company name, and address block
+    tags:
+      type: array
+      items:
+        type: string
+        maxLength: 50
+      maxItems: 20
+      description: Tags for categorization and search
+      example:
+        - header
+        - corporate
+    content:
+      $ref: './template-model.yaml#/TemplateDocumentDto'
+
+UpdateStencilRequest:
+  type: object
+  description: Request body for updating a stencil's metadata (all fields optional)
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: New display name for the stencil
+      example: Corporate Header (Updated)
+    description:
+      type:
+        - string
+        - 'null'
+      maxLength: 1000
+      description: Updated description (null to clear)
+      example: Updated corporate header with new branding
+    tags:
+      type: array
+      items:
+        type: string
+        maxLength: 50
+      maxItems: 20
+      description: Updated tags (replaces existing tags)
+      example:
+        - header
+        - corporate
+        - branding
+
+CreateStencilVersionRequest:
+  type: object
+  description: Request body for creating a new draft version of a stencil
+  properties:
+    content:
+      $ref: './template-model.yaml#/TemplateDocumentDto'
+
+UpdateStencilDraftRequest:
+  type: object
+  description: Request body for updating a draft stencil version
+  properties:
+    content:
+      $ref: './template-model.yaml#/TemplateDocumentDto'
+
+StencilUsageDto:
+  type: object
+  description: Describes where a stencil version is used within a template
+  required:
+    - templateId
+    - templateName
+    - variantId
+    - versionId
+    - stencilVersion
+  properties:
+    templateId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of the template using this stencil
+      example: monthly-invoice
+    templateName:
+      type: string
+      description: Display name of the template
+      example: Monthly Invoice
+    variantId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of the variant
+      example: english
+    versionId:
+      type: integer
+      minimum: 1
+      maximum: 200
+      description: Template version number that contains the stencil
+      example: 3
+    stencilVersion:
+      type: integer
+      minimum: 1
+      maximum: 200
+      description: The stencil version number embedded in this template version
+      example: 1
+  example:
+    templateId: monthly-invoice
+    templateName: Monthly Invoice
+    variantId: english
+    versionId: 3
+    stencilVersion: 1
+
+UpgradePreviewDto:
+  type: object
+  description: Preview of upgrading a stencil instance to a newer version within a template
+  required:
+    - templateId
+    - variantId
+    - versionId
+    - fromStencilVersion
+    - toStencilVersion
+    - before
+    - after
+  properties:
+    templateId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of the affected template
+      example: monthly-invoice
+    variantId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of the affected variant
+      example: english
+    versionId:
+      type: integer
+      minimum: 1
+      maximum: 200
+      description: Template version number that would be affected
+      example: 3
+    fromStencilVersion:
+      type: integer
+      minimum: 1
+      maximum: 200
+      description: Current stencil version embedded in the template
+      example: 1
+    toStencilVersion:
+      type: integer
+      minimum: 1
+      maximum: 200
+      description: Target stencil version for the upgrade
+      example: 2
+    before:
+      $ref: './template-model.yaml#/TemplateDocumentDto'
+    after:
+      $ref: './template-model.yaml#/TemplateDocumentDto'
+  example:
+    templateId: monthly-invoice
+    variantId: english
+    versionId: 3
+    fromStencilVersion: 1
+    toStencilVersion: 2
+    before:
+      modelVersion: 1
+      root: node-root
+      nodes: {}
+      slots: {}
+      themeRef:
+        type: inherit
+    after:
+      modelVersion: 1
+      root: node-root
+      nodes: {}
+      slots: {}
+      themeRef:
+        type: inherit
+
+StencilListResponse:
+  type: object
+  description: List of stencils
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      description: List of stencil summaries
+      items:
+        $ref: '#/StencilSummaryDto'
+  example:
+    items:
+      - id: corporate-header
+        tenantId: acme-corp
+        name: Corporate Header
+        description: Standard corporate header with logo, company name, and address block
+        tags:
+          - header
+          - corporate
+        latestPublishedVersion: 1
+        createdAt: "2026-03-01T10:00:00Z"
+        lastModified: "2026-03-15T14:30:00Z"
+
+StencilVersionListResponse:
+  type: object
+  description: List of stencil versions
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      description: List of stencil version summaries
+      items:
+        $ref: '#/StencilVersionSummaryDto'
+  example:
+    items:
+      - id: 1
+        status: published
+        createdAt: "2026-03-01T10:00:00Z"
+        publishedAt: "2026-03-02T09:00:00Z"
+        archivedAt: null
+      - id: 2
+        status: draft
+        createdAt: "2026-03-15T14:30:00Z"
+        publishedAt: null
+        archivedAt: null
+
+StencilUsageListResponse:
+  type: object
+  description: List of template usages for a stencil version
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      description: List of template usages
+      items:
+        $ref: '#/StencilUsageDto'
+  example:
+    items:
+      - templateId: monthly-invoice
+        templateName: Monthly Invoice
+        variantId: english
+        versionId: 3
+        stencilVersion: 1
+
+UpgradePreviewListResponse:
+  type: object
+  description: List of upgrade previews for templates using a stencil version
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      description: List of upgrade previews
+      items:
+        $ref: '#/UpgradePreviewDto'
