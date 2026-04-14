@@ -126,5 +126,13 @@ class ThemeRefInherit : ThemeRef() {
     override fun toString() = "ThemeRef.Inherit"
 }
 
-/** Override with a specific theme by ID. */
-data class ThemeRefOverride(val themeId: String) : ThemeRef()
+/**
+ * Override with a specific theme by ID, optionally from a specific catalog.
+ *
+ * @property themeId Theme slug identifier.
+ * @property catalogKey Catalog containing the theme. Null means same catalog as the owning template.
+ */
+data class ThemeRefOverride(
+    val themeId: String,
+    val catalogKey: String? = null,
+) : ThemeRef()
