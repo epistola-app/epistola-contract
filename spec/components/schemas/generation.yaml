@@ -13,9 +13,17 @@ PreviewDocumentRequest:
 
     Specify either variantId (explicit) or attributes (auto-select) but not both.
   required:
+    - catalogId
     - templateId
     - data
   properties:
+    catalogId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of the catalog containing the template
+      example: default
     templateId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -104,9 +112,17 @@ GenerateDocumentRequest:
   type: object
   description: Request to generate a single document. Specify either variantId (explicit) or attributes (auto-select) but not both.
   required:
+    - catalogId
     - templateId
     - data
   properties:
+    catalogId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of the catalog containing the template
+      example: default
     templateId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -185,9 +201,17 @@ BatchGenerationItem:
   type: object
   description: Single item in a batch generation request. Specify either variantId (explicit) or attributes (auto-select) but not both. Both correlationId and filename must be unique within a batch (null values are excluded from uniqueness checks).
   required:
+    - catalogId
     - templateId
     - data
   properties:
+    catalogId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of the catalog containing the template
+      example: default
     templateId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'

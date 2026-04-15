@@ -58,11 +58,12 @@ class TemplateSchemaValidatorTest {
 
     @Test
     fun `valid data passes without exception`() {
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
         val validator = TemplateSchemaValidator(templatesApi)
 
         validator.validate(
             "acme",
+            "default",
             "invoice",
             mapOf(
                 "customer" to mapOf("name" to "Jane", "email" to "jane@example.com"),
@@ -73,11 +74,16 @@ class TemplateSchemaValidatorTest {
 
     @Test
     fun `missing required field throws with correct keyword`() {
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
         val validator = TemplateSchemaValidator(templatesApi)
 
         val ex = assertFailsWith<TemplateDataValidationException> {
-            validator.validate("acme", "invoice", mapOf("customer" to mapOf("name" to "Jane", "email" to "j@e.com")))
+            validator.validate(
+                "acme",
+                "default",
+                "invoice",
+                mapOf("customer" to mapOf("name" to "Jane", "email" to "j@e.com")),
+            )
         }
 
         assertTrue(ex.errors.any { it.keyword == "required" && it.message.contains("invoiceNumber") })
@@ -85,12 +91,13 @@ class TemplateSchemaValidatorTest {
 
     @Test
     fun `wrong type throws with correct error`() {
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
         val validator = TemplateSchemaValidator(templatesApi)
 
         val ex = assertFailsWith<TemplateDataValidationException> {
             validator.validate(
                 "acme",
+                "default",
                 "invoice",
                 mapOf(
                     "customer" to "not-an-object",
@@ -104,12 +111,13 @@ class TemplateSchemaValidatorTest {
 
     @Test
     fun `nested object validation reports correct path`() {
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
         val validator = TemplateSchemaValidator(templatesApi)
 
         val ex = assertFailsWith<TemplateDataValidationException> {
             validator.validate(
                 "acme",
+                "default",
                 "invoice",
                 mapOf(
                     "customer" to mapOf("name" to "Jane"),
@@ -123,12 +131,13 @@ class TemplateSchemaValidatorTest {
 
     @Test
     fun `array item validation reports correct path`() {
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
         val validator = TemplateSchemaValidator(templatesApi)
 
         val ex = assertFailsWith<TemplateDataValidationException> {
             validator.validate(
                 "acme",
+                "default",
                 "invoice",
                 mapOf(
                     "customer" to mapOf("name" to "Jane", "email" to "j@e.com"),
@@ -145,16 +154,21 @@ class TemplateSchemaValidatorTest {
 
     @Test
     fun `null schema on template skips validation`() {
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto(schema = null)
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto(schema = null)
         val validator = TemplateSchemaValidator(templatesApi)
 
         // Should not throw
-        validator.validate("acme", "invoice", mapOf("anything" to "goes"))
+        validator.validate(
+            "acme",
+            "default",
+            "invoice",
+            mapOf("anything" to "goes"),
+        )
     }
 
     @Test
     fun `schema is cached across calls`() {
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
         val validator = TemplateSchemaValidator(templatesApi)
 
         val validData = mapOf(
@@ -162,15 +176,25 @@ class TemplateSchemaValidatorTest {
             "invoiceNumber" to "INV-2026-001",
         )
 
-        validator.validate("acme", "invoice", validData)
-        validator.validate("acme", "invoice", validData)
+        validator.validate(
+            "acme",
+            "default",
+            "invoice",
+            validData,
+        )
+        validator.validate(
+            "acme",
+            "default",
+            "invoice",
+            validData,
+        )
 
-        verify(exactly = 1) { templatesApi.getTemplate("acme", "invoice") }
+        verify(exactly = 1) { templatesApi.getTemplate("acme", "default", "invoice") }
     }
 
     @Test
     fun `cache eviction triggers re-fetch`() {
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
         val cache = TtlSchemaCache()
         val validator = TemplateSchemaValidator(templatesApi, cache = cache)
 
@@ -179,21 +203,32 @@ class TemplateSchemaValidatorTest {
             "invoiceNumber" to "INV-2026-001",
         )
 
-        validator.validate("acme", "invoice", validData)
+        validator.validate(
+            "acme",
+            "default",
+            "invoice",
+            validData,
+        )
         cache.evict("acme", "invoice")
-        validator.validate("acme", "invoice", validData)
+        validator.validate(
+            "acme",
+            "default",
+            "invoice",
+            validData,
+        )
 
-        verify(exactly = 2) { templatesApi.getTemplate("acme", "invoice") }
+        verify(exactly = 2) { templatesApi.getTemplate("acme", "default", "invoice") }
     }
 
     @Test
     fun `pattern validation reports correct keyword`() {
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
         val validator = TemplateSchemaValidator(templatesApi)
 
         val ex = assertFailsWith<TemplateDataValidationException> {
             validator.validate(
                 "acme",
+                "default",
                 "invoice",
                 mapOf(
                     "customer" to mapOf("name" to "Jane", "email" to "j@e.com"),
@@ -207,11 +242,16 @@ class TemplateSchemaValidatorTest {
 
     @Test
     fun `formatErrors produces readable output`() {
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
         val validator = TemplateSchemaValidator(templatesApi)
 
         val ex = assertFailsWith<TemplateDataValidationException> {
-            validator.validate("acme", "invoice", emptyMap<String, Any>())
+            validator.validate(
+                "acme",
+                "default",
+                "invoice",
+                emptyMap<String, Any>(),
+            )
         }
 
         val formatted = ex.formatErrors()
@@ -221,11 +261,16 @@ class TemplateSchemaValidatorTest {
 
     @Test
     fun `multiple errors are collected`() {
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
         val validator = TemplateSchemaValidator(templatesApi)
 
         val ex = assertFailsWith<TemplateDataValidationException> {
-            validator.validate("acme", "invoice", emptyMap<String, Any>())
+            validator.validate(
+                "acme",
+                "default",
+                "invoice",
+                emptyMap<String, Any>(),
+            )
         }
 
         assertEquals(2, ex.errors.size)

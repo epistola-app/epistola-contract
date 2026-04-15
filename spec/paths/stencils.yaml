@@ -9,6 +9,15 @@ stencils:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the catalog
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
 
   get:
     operationId: listStencils
@@ -102,6 +111,15 @@ stencils-id:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the catalog
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
     - name: stencilId
       in: path
       required: true
@@ -208,6 +226,15 @@ stencil-versions:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the catalog
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
     - name: stencilId
       in: path
       required: true
@@ -304,6 +331,15 @@ stencil-versions-id:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the catalog
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
     - name: stencilId
       in: path
       required: true
@@ -395,6 +431,15 @@ stencil-version-publish:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the catalog
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
     - name: stencilId
       in: path
       required: true
@@ -458,6 +503,15 @@ stencil-version-archive:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the catalog
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
     - name: stencilId
       in: path
       required: true
@@ -520,6 +574,15 @@ stencil-version-usage:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the catalog
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
     - name: stencilId
       in: path
       required: true
@@ -576,6 +639,15 @@ stencil-version-upgrade-preview:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the catalog
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
     - name: stencilId
       in: path
       required: true

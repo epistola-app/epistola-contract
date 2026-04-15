@@ -37,7 +37,7 @@ class ValidatingGenerationApi(
         tenantId: String,
         generateDocumentRequest: GenerateDocumentRequest,
     ): GenerationJobResponse {
-        validator.validate(tenantId, generateDocumentRequest.templateId, generateDocumentRequest.data)
+        validator.validate(tenantId, generateDocumentRequest.catalogId, generateDocumentRequest.templateId, generateDocumentRequest.data)
         return delegate.generateDocument(tenantId, generateDocumentRequest)
     }
 
@@ -45,7 +45,7 @@ class ValidatingGenerationApi(
         tenantId: String,
         generateDocumentRequest: GenerateDocumentRequest,
     ): ResponseEntity<GenerationJobResponse> {
-        validator.validate(tenantId, generateDocumentRequest.templateId, generateDocumentRequest.data)
+        validator.validate(tenantId, generateDocumentRequest.catalogId, generateDocumentRequest.templateId, generateDocumentRequest.data)
         return delegate.generateDocumentWithHttpInfo(tenantId, generateDocumentRequest)
     }
 
@@ -69,7 +69,7 @@ class ValidatingGenerationApi(
         val allErrors = mutableListOf<TemplateDataValidationException.ValidationError>()
         for ((index, item) in request.items.withIndex()) {
             try {
-                validator.validate(tenantId, item.templateId, item.data)
+                validator.validate(tenantId, item.catalogId, item.templateId, item.data)
             } catch (e: TemplateDataValidationException) {
                 allErrors += e.errors.map { error ->
                     error.copy(path = "items[$index]${error.path}")

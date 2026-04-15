@@ -39,10 +39,11 @@ class ValidatingGenerationApiTest {
 
     @Test
     fun `generateDocument with invalid data throws before HTTP call`() {
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
 
         val api = ValidatingGenerationApi(generationApi, templatesApi)
         val request = GenerateDocumentRequest(
+            catalogId = "default",
             templateId = "invoice",
             data = emptyMap<String, Any>(),
         )
@@ -56,10 +57,11 @@ class ValidatingGenerationApiTest {
 
     @Test
     fun `generateDocument with valid data delegates to wrapped api`() {
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
 
         val api = ValidatingGenerationApi(generationApi, templatesApi)
         val request = GenerateDocumentRequest(
+            catalogId = "default",
             templateId = "invoice",
             data = mapOf("name" to "Jane"),
         )
@@ -71,13 +73,13 @@ class ValidatingGenerationApiTest {
 
     @Test
     fun `batch with multiple invalid items collects all errors`() {
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
 
         val api = ValidatingGenerationApi(generationApi, templatesApi)
         val request = GenerateBatchRequest(
             items = listOf(
-                BatchGenerationItem(templateId = "invoice", data = emptyMap<String, Any>()),
-                BatchGenerationItem(templateId = "invoice", data = emptyMap<String, Any>()),
+                BatchGenerationItem(catalogId = "default", templateId = "invoice", data = emptyMap<String, Any>()),
+                BatchGenerationItem(catalogId = "default", templateId = "invoice", data = emptyMap<String, Any>()),
             ),
         )
 
@@ -98,14 +100,14 @@ class ValidatingGenerationApiTest {
                 "title" to mapOf("type" to "string"),
             ),
         )
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto("invoice", schema)
-        every { templatesApi.getTemplate("acme", "report") } returns templateDto("report", otherSchema)
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto("invoice", schema)
+        every { templatesApi.getTemplate("acme", "default", "report") } returns templateDto("report", otherSchema)
 
         val api = ValidatingGenerationApi(generationApi, templatesApi)
         val request = GenerateBatchRequest(
             items = listOf(
-                BatchGenerationItem(templateId = "invoice", data = emptyMap<String, Any>()),
-                BatchGenerationItem(templateId = "report", data = emptyMap<String, Any>()),
+                BatchGenerationItem(catalogId = "default", templateId = "invoice", data = emptyMap<String, Any>()),
+                BatchGenerationItem(catalogId = "default", templateId = "report", data = emptyMap<String, Any>()),
             ),
         )
 
@@ -119,13 +121,13 @@ class ValidatingGenerationApiTest {
 
     @Test
     fun `batch with mix of valid and invalid items only reports invalid ones`() {
-        every { templatesApi.getTemplate("acme", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
 
         val api = ValidatingGenerationApi(generationApi, templatesApi)
         val request = GenerateBatchRequest(
             items = listOf(
-                BatchGenerationItem(templateId = "invoice", data = mapOf("name" to "Jane")),
-                BatchGenerationItem(templateId = "invoice", data = emptyMap<String, Any>()),
+                BatchGenerationItem(catalogId = "default", templateId = "invoice", data = mapOf("name" to "Jane")),
+                BatchGenerationItem(catalogId = "default", templateId = "invoice", data = emptyMap<String, Any>()),
             ),
         )
 
