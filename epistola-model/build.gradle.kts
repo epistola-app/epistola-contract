@@ -88,9 +88,8 @@ tasks.named("compileKotlin") {
 }
 
 dependencies {
-    // Jackson 2 annotations + databind — compatible with both Jackson 2 (plugin) and Jackson 4 (suite) runtimes
+    // Jackson 2 annotations — compatible with both Jackson 2 (plugin) and Jackson 3 (suite) runtimes
     api("com.fasterxml.jackson.core:jackson-annotations:2.21")
-    api("com.fasterxml.jackson.core:jackson-databind:2.21.2")
 }
 
 tasks.test {

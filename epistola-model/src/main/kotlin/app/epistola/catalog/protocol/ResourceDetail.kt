@@ -1,12 +1,9 @@
 package app.epistola.catalog.protocol
 
-import app.epistola.template.model.BlockStylePresets
-import app.epistola.template.model.DocumentStyles
 import app.epistola.template.model.PageSettings
 import app.epistola.template.model.TemplateDocument
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import com.fasterxml.jackson.databind.node.ObjectNode
 
 /**
  * Wire format for a single resource detail JSON fetched from a catalog's detailUrl.
@@ -37,7 +34,7 @@ sealed interface CatalogResource {
 data class TemplateResource(
     override val slug: String,
     override val name: String,
-    val dataModel: ObjectNode? = null,
+    val dataModel: Map<String, Any?>? = null,
     val dataExamples: List<DataExampleEntry>? = null,
     val templateModel: TemplateDocument,
     val variants: List<VariantEntry>,
@@ -49,9 +46,9 @@ data class ThemeResource(
     override val slug: String,
     override val name: String,
     val description: String? = null,
-    val documentStyles: DocumentStyles = emptyMap(),
+    val documentStyles: Map<String, Any?>? = null,
     val pageSettings: PageSettings? = null,
-    val blockStylePresets: BlockStylePresets? = null,
+    val blockStylePresets: Map<String, Any?>? = null,
     val spacingUnit: Float? = null,
 ) : CatalogResource {
     override val type: String get() = "theme"
@@ -88,7 +85,7 @@ data class AssetResource(
 
 data class DataExampleEntry(
     val name: String,
-    val data: ObjectNode,
+    val data: Map<String, Any?>,
 )
 
 data class VariantEntry(

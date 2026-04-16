@@ -14,12 +14,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 typealias DocumentStyles = Map<String, Any>
 
 /**
- * Block style presets — maps a preset name to a set of style properties.
- * Used by themes to define reusable style configurations for blocks.
- */
-typealias BlockStylePresets = Map<String, Map<String, Any>>
-
-/**
  * Page settings with sensible defaults.
  *
  * Defined manually because the codegen tool generates non-nullable constructor
