@@ -25,9 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Version fallback** — `versionId` and `environmentId` are both optional in generate/preview requests. When neither is specified, the latest published version is used.
 
 ### Removed
-- **Template import endpoint** `POST /tenants/{tenantId}/catalogs/{catalogId}/templates/import` — superseded by catalog import. Related schemas (`ImportTemplatesRequest`, `ImportTemplateDto`, `ImportVariantDto`, `ImportTemplatesResponse`) removed.
-
-### Removed
 - **Template import endpoint** `POST /tenants/{tenantId}/catalogs/{catalogId}/templates/import` — superseded by catalog import (`POST /tenants/{tenantId}/catalogs/import`). Related schemas (`ImportTemplatesRequest`, `ImportTemplateDto`, `ImportVariantDto`, `ImportTemplatesResponse`) removed.
 
 ### Changed
