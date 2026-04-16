@@ -142,10 +142,6 @@ paths:
   /tenants/{tenantId}/catalogs/import:
     $ref: './spec/paths/import.yaml#/import-catalog'
 
-  # Template Import
-  /tenants/{tenantId}/catalogs/{catalogId}/templates/import:
-    $ref: './spec/paths/import.yaml#/import-templates'
-
   # Document Preview & Generation
   /tenants/{tenantId}/documents/preview:
     $ref: './spec/paths/generation.yaml#/preview-document'
@@ -215,14 +211,6 @@ components:
       $ref: './spec/components/schemas/templates.yaml#/DataExampleDto'
 
     # Import schemas
-    ImportTemplatesRequest:
-      $ref: './spec/components/schemas/import.yaml#/ImportTemplatesRequest'
-    ImportTemplateDto:
-      $ref: './spec/components/schemas/import.yaml#/ImportTemplateDto'
-    ImportVariantDto:
-      $ref: './spec/components/schemas/import.yaml#/ImportVariantDto'
-    ImportTemplatesResponse:
-      $ref: './spec/components/schemas/import.yaml#/ImportTemplatesResponse'
     CatalogDto:
       $ref: './spec/components/schemas/catalogs.yaml#/CatalogDto'
     CatalogListResponse:
