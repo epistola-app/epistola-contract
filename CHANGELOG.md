@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-16
+
 ### Added
+- **Catalogs API** — `GET /tenants/{tenantId}/catalogs` lists all catalogs. `POST /tenants/{tenantId}/catalogs/import` imports a self-contained ZIP archive.
+- **Catalog protocol** — shared `epistola-model` module (renamed from `editor-model`) with `CatalogManifest`, `ResourceDetail`, `DependencyRef` types for catalog exchange. Published as both Maven (`app.epistola.contract:epistola-model`) and npm (`@epistola.app/epistola-model`).
 - **Stencils API** — full CRUD for reusable template components (stencils) with versioned content
   - `GET/POST /tenants/{tenantId}/stencils` — list and create stencils
   - `GET/PATCH/DELETE /tenants/{tenantId}/stencils/{stencilId}` — manage individual stencils
@@ -18,8 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `GET .../versions/{versionId}/usage` — find templates using a stencil version
   - `POST .../versions/{versionId}/upgrade-preview` — before/after diff for bulk upgrades
 - **Stencil component type** — stencil instances in templates use a dedicated `stencil` node type with `stencilId` and `version` in props, rather than a generic reference on all nodes
+- **Version fallback** — `versionId` and `environmentId` are both optional in generate/preview requests. When neither is specified, the latest published version is used.
+
+### Removed
+- **Template import endpoint** `POST /tenants/{tenantId}/catalogs/{catalogId}/templates/import` — superseded by catalog import. Related schemas (`ImportTemplatesRequest`, `ImportTemplateDto`, `ImportVariantDto`, `ImportTemplatesResponse`) removed.
 
 ### Changed
+- **BREAKING: All catalog-scoped paths now include `{catalogId}`** — endpoints for templates, themes, stencils, attributes, and variants are nested under `/tenants/{tenantId}/catalogs/{catalogId}/...`. Generation and preview requests require a `catalogId` field.
 - **Release trigger changed from `[release]` commit to GitHub Release** — releases are now triggered by creating a GitHub Release (`gh release create vX.Y.Z` or `make release`) instead of pushing a commit containing `[release]` to `main`
   - `make release` now auto-calculates the next patch version and creates a GitHub Release directly (no more empty marker commits)
   - Snapshot workflow no longer needs to check for `[release]` commits — all pushes to `main` publish snapshots
