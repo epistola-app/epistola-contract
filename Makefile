@@ -1,4 +1,4 @@
-.PHONY: all lint bundle build-client build-server build-editor-model build clean publish-local breaking mock validate-impl release help
+.PHONY: all lint bundle build-client build-server build-epistola-model build clean publish-local breaking mock validate-impl release help
 
 # Default target - runs what CI runs
 all: lint build
@@ -15,7 +15,7 @@ bundle:
 	@echo "==> Created openapi.yaml"
 
 # Build all modules
-build: build-client build-server build-editor-model
+build: build-client build-server build-epistola-model
 
 # Build Kotlin client
 build-client:
@@ -28,23 +28,23 @@ build-server:
 	cd server-kotlin-springboot4 && ./gradlew build
 
 # Build template model
-build-editor-model:
+build-epistola-model:
 	@echo "==> Building template model..."
-	cd editor-model && ./gradlew build
+	cd epistola-model && ./gradlew build
 
 # Clean all build artifacts
 clean:
 	@echo "==> Cleaning..."
 	cd client-kotlin-spring-restclient && ./gradlew clean
 	cd server-kotlin-springboot4 && ./gradlew clean
-	cd editor-model && ./gradlew clean
+	cd epistola-model && ./gradlew clean
 
 # Publish to local Maven repository (for testing)
 publish-local: build
 	@echo "==> Publishing to local Maven repository..."
 	cd client-kotlin-spring-restclient && ./gradlew publishToMavenLocal
 	cd server-kotlin-springboot4 && ./gradlew publishToMavenLocal
-	cd editor-model && ./gradlew publishToMavenLocal
+	cd epistola-model && ./gradlew publishToMavenLocal
 	@echo "==> Published to ~/.m2/repository/app/epistola/contract/"
 
 # Check for breaking changes against main branch
@@ -108,10 +108,10 @@ help:
 	@echo "  all            - Run lint + build (default, mirrors CI)"
 	@echo "  lint           - Validate OpenAPI spec"
 	@echo "  bundle         - Bundle OpenAPI spec into single openapi.yaml"
-	@echo "  build                - Build all modules (client, server, editor-model)"
+	@echo "  build                - Build all modules (client, server, epistola-model)"
 	@echo "  build-client         - Build Kotlin client only"
 	@echo "  build-server         - Build Kotlin server only"
-	@echo "  build-editor-model - Build template model only"
+	@echo "  build-epistola-model - Build template model only"
 	@echo "  clean          - Clean all build artifacts"
 	@echo "  publish-local  - Publish to local Maven repository"
 	@echo "  breaking       - Check for breaking API changes against main branch"
