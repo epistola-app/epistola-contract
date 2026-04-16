@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - **Template import endpoint** `POST /tenants/{tenantId}/catalogs/{catalogId}/templates/import` — superseded by catalog import. Related schemas (`ImportTemplatesRequest`, `ImportTemplateDto`, `ImportVariantDto`, `ImportTemplatesResponse`) removed.
 
+### Removed
+- **Template import endpoint** `POST /tenants/{tenantId}/catalogs/{catalogId}/templates/import` — superseded by catalog import (`POST /tenants/{tenantId}/catalogs/import`). Related schemas (`ImportTemplatesRequest`, `ImportTemplateDto`, `ImportVariantDto`, `ImportTemplatesResponse`) removed.
+
 ### Changed
 - **BREAKING: All catalog-scoped paths now include `{catalogId}`** — endpoints for templates, themes, stencils, attributes, and variants are nested under `/tenants/{tenantId}/catalogs/{catalogId}/...`. Generation and preview requests require a `catalogId` field.
 - **Release trigger changed from `[release]` commit to GitHub Release** — releases are now triggered by creating a GitHub Release (`gh release create vX.Y.Z` or `make release`) instead of pushing a commit containing `[release]` to `main`
