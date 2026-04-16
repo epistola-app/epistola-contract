@@ -98,7 +98,7 @@ jobs:
             needs_spec: true
           - module: server-kotlin-springboot4
             needs_spec: true
-          - module: editor-model
+          - module: epistola-model
             needs_spec: false
     steps:
       - name: Checkout
@@ -157,8 +157,8 @@ jobs:
           - module: server-kotlin-springboot4
             artifact_id: server-kotlin-springboot4
             needs_spec: true
-          - module: editor-model
-            artifact_id: editor-model
+          - module: epistola-model
+            artifact_id: epistola-model
             needs_spec: false
     steps:
       - name: Checkout
@@ -187,19 +187,19 @@ jobs:
         run: ./gradlew publishToMavenCentral -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
       - name: Install npm dependencies
-        if: matrix.module == 'editor-model'
-        working-directory: editor-model
+        if: matrix.module == 'epistola-model'
+        working-directory: epistola-model
         run: pnpm install --frozen-lockfile
 
       - name: Setup npm registry
-        if: matrix.module == 'editor-model'
+        if: matrix.module == 'epistola-model'
         uses: actions/setup-node@v4
         with:
           registry-url: https://registry.npmjs.org
 
       - name: Publish to npm
-        if: matrix.module == 'editor-model'
-        working-directory: editor-model
+        if: matrix.module == 'epistola-model'
+        working-directory: epistola-model
         run: |
           npm version ${{ needs.validate-and-bundle.outputs.release_version }} --no-git-tag-version
           npm publish --provenance --access public
@@ -252,7 +252,7 @@ jobs:
 
             <dependency>
                 <groupId>app.epistola.contract</groupId>
-                <artifactId>editor-model</artifactId>
+                <artifactId>epistola-model</artifactId>
                 <version>${{ needs.validate-and-bundle.outputs.release_version }}</version>
             </dependency>
             ```
@@ -261,12 +261,12 @@ jobs:
             ```kotlin
             implementation("app.epistola.contract:client-spring3-restclient:${{ needs.validate-and-bundle.outputs.release_version }}")
             implementation("app.epistola.contract:server-kotlin-springboot4:${{ needs.validate-and-bundle.outputs.release_version }}")
-            implementation("app.epistola.contract:editor-model:${{ needs.validate-and-bundle.outputs.release_version }}")
+            implementation("app.epistola.contract:epistola-model:${{ needs.validate-and-bundle.outputs.release_version }}")
             ```
 
             ### npm
             ```bash
-            npm install @epistola.app/editor-model@${{ needs.validate-and-bundle.outputs.release_version }}
+            npm install @epistola.app/epistola-model@${{ needs.validate-and-bundle.outputs.release_version }}
             ```
 
             ### OpenAPI Spec

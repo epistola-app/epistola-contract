@@ -235,6 +235,7 @@ class ModelValidationTest {
     @Test
     fun `GenerateDocumentRequest with realistic nested data passes`() {
         val request = GenerateDocumentRequest(
+            catalogId = "default",
             templateId = "monthly-invoice",
             variantId = "english",
             data = mapOf(
@@ -265,6 +266,7 @@ class ModelValidationTest {
     fun `GenerateDocumentRequest validates each nullable field independently`() {
         // null versionId: skipped
         GenerateDocumentRequest(
+            catalogId = "default",
             templateId = "invoice",
             variantId = "english",
             data = emptyMap<String, Any>(),
@@ -274,6 +276,7 @@ class ModelValidationTest {
         // invalid versionId: fails
         assertFailsWith<IllegalArgumentException> {
             GenerateDocumentRequest(
+                catalogId = "default",
                 templateId = "invoice",
                 variantId = "english",
                 data = emptyMap<String, Any>(),
@@ -283,6 +286,7 @@ class ModelValidationTest {
 
         // null environmentId: skipped
         GenerateDocumentRequest(
+            catalogId = "default",
             templateId = "invoice",
             variantId = "english",
             data = emptyMap<String, Any>(),
@@ -292,6 +296,7 @@ class ModelValidationTest {
         // invalid environmentId pattern: fails
         assertFailsWith<IllegalArgumentException> {
             GenerateDocumentRequest(
+                catalogId = "default",
                 templateId = "invoice",
                 variantId = "english",
                 data = emptyMap<String, Any>(),
@@ -301,6 +306,7 @@ class ModelValidationTest {
 
         // filename at limit: passes
         GenerateDocumentRequest(
+            catalogId = "default",
             templateId = "invoice",
             variantId = "english",
             data = emptyMap<String, Any>(),
@@ -310,6 +316,7 @@ class ModelValidationTest {
         // filename over limit: fails
         val ex = assertFailsWith<IllegalArgumentException> {
             GenerateDocumentRequest(
+                catalogId = "default",
                 templateId = "invoice",
                 variantId = "english",
                 data = emptyMap<String, Any>(),
@@ -323,6 +330,7 @@ class ModelValidationTest {
     fun `GenerateDocumentRequest fails on invalid required slug field before reaching nullable fields`() {
         val ex = assertFailsWith<IllegalArgumentException> {
             GenerateDocumentRequest(
+                catalogId = "default",
                 templateId = "INVALID",
                 variantId = "english",
                 data = emptyMap<String, Any>(),
@@ -338,6 +346,7 @@ class ModelValidationTest {
     @Test
     fun `BatchGenerationItem with all optional fields populated validates everything`() {
         val item = BatchGenerationItem(
+            catalogId = "default",
             templateId = "invoice",
             variantId = "english",
             data = mapOf(
@@ -356,6 +365,7 @@ class ModelValidationTest {
     fun `BatchGenerationItem rejects environmentId with invalid slug when versionId is null`() {
         assertFailsWith<IllegalArgumentException> {
             BatchGenerationItem(
+                catalogId = "default",
                 templateId = "invoice",
                 variantId = "english",
                 data = emptyMap<String, Any>(),
@@ -371,6 +381,7 @@ class ModelValidationTest {
     fun `GenerateBatchRequest with multiple items passes`() {
         val items = (1..5).map { i ->
             BatchGenerationItem(
+                catalogId = "default",
                 templateId = "invoice",
                 variantId = "english",
                 data = mapOf(

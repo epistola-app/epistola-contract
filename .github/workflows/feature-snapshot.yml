@@ -45,7 +45,7 @@ jobs:
           - module: server-kotlin-springboot4
             needs_spec: true
             publish_task: 'publishAllPublicationsToGitHubPackagesRepository'
-          - module: editor-model
+          - module: epistola-model
             needs_spec: false
             publish_task: 'publishAllPublicationsToGitHubPackagesRepository'
     steps:

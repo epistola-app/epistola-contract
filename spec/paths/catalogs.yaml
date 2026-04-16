@@ -1,0 +1,36 @@
+catalogs:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+
+  get:
+    operationId: listCatalogs
+    summary: List catalogs for a tenant
+    description: Returns all catalogs (authored and subscribed) for the specified tenant.
+    tags:
+      - Catalogs
+    x-required-roles: [reader, editor, generator, manager]
+    responses:
+      '200':
+        description: List of catalogs
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogListResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Tenant not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'

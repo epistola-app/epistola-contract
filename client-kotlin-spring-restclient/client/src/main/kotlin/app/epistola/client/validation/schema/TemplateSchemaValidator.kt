@@ -31,13 +31,14 @@ class TemplateSchemaValidator(
      * Validates [data] against the schema of the specified template.
      *
      * @param tenantId Tenant identifier.
+     * @param catalogId Catalog identifier.
      * @param templateId Template identifier.
      * @param data The data object (typically a `Map<String, Any?>`) to validate.
      * @throws TemplateDataValidationException if validation fails.
      * @throws org.springframework.web.client.RestClientResponseException if template fetch fails.
      */
-    fun validate(tenantId: String, templateId: String, data: Any) {
-        val schema = cache.getOrLoad(tenantId, templateId) { loadSchema(tenantId, templateId) }
+    fun validate(tenantId: String, catalogId: String, templateId: String, data: Any) {
+        val schema = cache.getOrLoad(tenantId, templateId) { loadSchema(tenantId, catalogId, templateId) }
             ?: return // No schema defined on template -- nothing to validate
 
         val dataNode: JsonNode = objectMapper.valueToTree(data)
@@ -55,8 +56,8 @@ class TemplateSchemaValidator(
         }
     }
 
-    private fun loadSchema(tenantId: String, templateId: String): JsonSchema? {
-        val template = templatesApi.getTemplate(tenantId, templateId)
+    private fun loadSchema(tenantId: String, catalogId: String, templateId: String): JsonSchema? {
+        val template = templatesApi.getTemplate(tenantId, catalogId, templateId)
         val schemaObj = template.schema ?: return null
         val schemaNode: JsonNode = objectMapper.valueToTree(schemaObj)
         val versionFlag = detectVersion(schemaNode)

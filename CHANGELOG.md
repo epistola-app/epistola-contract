@@ -50,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **All workflows refactored** to use composite actions instead of duplicated inline steps
   - Removed hardcoded Node 22 references (now uses Node 24 from `.mise.toml` via mise)
   - Removed manual `npm install -g pnpm`, `setup-node@v4`, and `pnpm/action-setup@v4` in favor of mise
-- **Feature snapshot workflow** now validates the OpenAPI spec, uses matrix strategy for parallel builds, and publishes editor-model to GitHub Packages
+- **Feature snapshot workflow** now validates the OpenAPI spec, uses matrix strategy for parallel builds, and publishes epistola-model to GitHub Packages
 - **Mock server workflow** now reuses bundled spec artifact from caller workflow instead of re-bundling
 - **Client version catalog aligned** with server — Kotlin `2.3.0` → `2.3.10`, OpenAPI Generator `7.13.0` → `7.19.0`
 

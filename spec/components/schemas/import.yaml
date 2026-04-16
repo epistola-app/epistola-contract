@@ -263,3 +263,39 @@ ImportTemplateResultDto:
     version: "1.0.0"
     publishedTo:
       - production
+
+ImportCatalogResponse:
+  type: object
+  description: Result of importing a catalog ZIP archive
+  required:
+    - catalogKey
+    - catalogName
+    - installed
+    - updated
+    - failed
+    - total
+  properties:
+    catalogKey:
+      type: string
+      description: Slug identifier of the imported catalog
+      example: valtimo-demo
+    catalogName:
+      type: string
+      description: Display name of the imported catalog
+      example: Valtimo Demo Catalog
+    installed:
+      type: integer
+      description: Number of resources newly installed
+      example: 5
+    updated:
+      type: integer
+      description: Number of resources updated
+      example: 2
+    failed:
+      type: integer
+      description: Number of resources that failed to import
+      example: 0
+    total:
+      type: integer
+      description: Total number of resources in the catalog
+      example: 7

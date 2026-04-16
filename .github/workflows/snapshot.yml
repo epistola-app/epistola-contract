@@ -44,7 +44,7 @@ jobs:
       spec: ${{ steps.filter.outputs.spec }}
       client: ${{ steps.filter.outputs.client }}
       server: ${{ steps.filter.outputs.server }}
-      editor-model: ${{ steps.filter.outputs.editor-model }}
+      epistola-model: ${{ steps.filter.outputs.epistola-model }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -65,8 +65,8 @@ jobs:
               - 'epistola-api.yaml'
               - 'spec/**'
               - 'server-kotlin-springboot4/**'
-            editor-model:
-              - 'editor-model/**'
+            epistola-model:
+              - 'epistola-model/**'
 
   # Build and test modules in parallel before publishing.
   # This prevents half-releases where one module publishes but the other fails.
@@ -84,8 +84,8 @@ jobs:
           - module: server-kotlin-springboot4
             filter: server
             needs_spec: true
-          - module: editor-model
-            filter: editor-model
+          - module: epistola-model
+            filter: epistola-model
             needs_spec: false
     steps:
       - name: Check if should run
@@ -135,9 +135,9 @@ jobs:
             artifact_id: server-kotlin-springboot4
             filter: server
             needs_spec: true
-          - module: editor-model
-            artifact_id: editor-model
-            filter: editor-model
+          - module: epistola-model
+            artifact_id: epistola-model
+            filter: epistola-model
             needs_spec: false
     steps:
       - name: Check if should run

@@ -19,7 +19,7 @@ info:
     Access is controlled via roles (`reader`, `editor`, `generator`, `admin`) and
     tenant permissions. JWT claims or API key configuration determine which
     tenants a client can access.
-  version: "0.1.0"
+  version: "0.2.0"
   contact:
     name: Epistola Team
   license:
@@ -47,6 +47,8 @@ tags:
     description: Template version lifecycle (draft, publish, archive)
   - name: Stencils
     description: Reusable template component operations (CRUD, versioning, usage tracking)
+  - name: Catalogs
+    description: Catalog import and management operations
   - name: Generation
     description: Asynchronous document generation operations
 
@@ -63,9 +65,9 @@ paths:
     $ref: './spec/paths/tenants.yaml#/tenants-id'
 
   # Themes
-  /tenants/{tenantId}/themes:
+  /tenants/{tenantId}/catalogs/{catalogId}/themes:
     $ref: './spec/paths/themes.yaml#/themes'
-  /tenants/{tenantId}/themes/{themeId}:
+  /tenants/{tenantId}/catalogs/{catalogId}/themes/{themeId}:
     $ref: './spec/paths/themes.yaml#/themes-id'
 
   # Environments
@@ -75,65 +77,73 @@ paths:
     $ref: './spec/paths/environments.yaml#/environments-id'
 
   # Attributes
-  /tenants/{tenantId}/attributes:
+  /tenants/{tenantId}/catalogs/{catalogId}/attributes:
     $ref: './spec/paths/attributes.yaml#/attributes'
-  /tenants/{tenantId}/attributes/{attributeKey}:
+  /tenants/{tenantId}/catalogs/{catalogId}/attributes/{attributeKey}:
     $ref: './spec/paths/attributes.yaml#/attributes-key'
 
   # Templates
-  /tenants/{tenantId}/templates:
+  /tenants/{tenantId}/catalogs/{catalogId}/templates:
     $ref: './spec/paths/templates.yaml#/templates'
-  /tenants/{tenantId}/templates/{templateId}:
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}:
     $ref: './spec/paths/templates.yaml#/templates-id'
-  /tenants/{tenantId}/templates/{templateId}/validate:
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/validate:
     $ref: './spec/paths/templates.yaml#/template-validate'
 
   # Variants
-  /tenants/{tenantId}/templates/{templateId}/variants:
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants:
     $ref: './spec/paths/variants.yaml#/variants'
-  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}:
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}:
     $ref: './spec/paths/variants.yaml#/variants-id'
-  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/set-default:
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/set-default:
     $ref: './spec/paths/variants.yaml#/variant-set-default'
-  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/draft:
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/draft:
     $ref: './spec/paths/variants.yaml#/variant-draft'
-  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/activations:
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/activations:
     $ref: './spec/paths/variants.yaml#/variant-activations'
-  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/activations/{environmentId}:
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/activations/{environmentId}:
     $ref: './spec/paths/variants.yaml#/variant-activation-env'
-  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/active:
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/active:
     $ref: './spec/paths/variants.yaml#/variant-active'
 
   # Versions
-  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions:
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/versions:
     $ref: './spec/paths/versions.yaml#/versions'
-  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions/{versionId}:
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/versions/{versionId}:
     $ref: './spec/paths/versions.yaml#/versions-id'
-  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/publish:
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/publish:
     $ref: './spec/paths/versions.yaml#/version-publish'
-  /tenants/{tenantId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/archive:
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/archive:
     $ref: './spec/paths/versions.yaml#/version-archive'
 
   # Stencils
-  /tenants/{tenantId}/stencils:
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils:
     $ref: './spec/paths/stencils.yaml#/stencils'
-  /tenants/{tenantId}/stencils/{stencilId}:
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}:
     $ref: './spec/paths/stencils.yaml#/stencils-id'
-  /tenants/{tenantId}/stencils/{stencilId}/versions:
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions:
     $ref: './spec/paths/stencils.yaml#/stencil-versions'
-  /tenants/{tenantId}/stencils/{stencilId}/versions/{versionId}:
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}:
     $ref: './spec/paths/stencils.yaml#/stencil-versions-id'
-  /tenants/{tenantId}/stencils/{stencilId}/versions/{versionId}/publish:
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}/publish:
     $ref: './spec/paths/stencils.yaml#/stencil-version-publish'
-  /tenants/{tenantId}/stencils/{stencilId}/versions/{versionId}/archive:
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}/archive:
     $ref: './spec/paths/stencils.yaml#/stencil-version-archive'
-  /tenants/{tenantId}/stencils/{stencilId}/versions/{versionId}/usage:
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}/usage:
     $ref: './spec/paths/stencils.yaml#/stencil-version-usage'
-  /tenants/{tenantId}/stencils/{stencilId}/versions/{versionId}/upgrade-preview:
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}/upgrade-preview:
     $ref: './spec/paths/stencils.yaml#/stencil-version-upgrade-preview'
 
+  # Catalogs
+  /tenants/{tenantId}/catalogs:
+    $ref: './spec/paths/catalogs.yaml#/catalogs'
+
+  # Catalog Import
+  /tenants/{tenantId}/catalogs/import:
+    $ref: './spec/paths/import.yaml#/import-catalog'
+
   # Template Import
-  /tenants/{tenantId}/templates/import:
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/import:
     $ref: './spec/paths/import.yaml#/import-templates'
 
   # Document Preview & Generation
@@ -213,6 +223,12 @@ components:
       $ref: './spec/components/schemas/import.yaml#/ImportVariantDto'
     ImportTemplatesResponse:
       $ref: './spec/components/schemas/import.yaml#/ImportTemplatesResponse'
+    CatalogDto:
+      $ref: './spec/components/schemas/catalogs.yaml#/CatalogDto'
+    CatalogListResponse:
+      $ref: './spec/components/schemas/catalogs.yaml#/CatalogListResponse'
+    ImportCatalogResponse:
+      $ref: './spec/components/schemas/import.yaml#/ImportCatalogResponse'
     ImportTemplateResultDto:
       $ref: './spec/components/schemas/import.yaml#/ImportTemplateResultDto'
 

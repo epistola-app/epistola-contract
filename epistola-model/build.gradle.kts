@@ -88,8 +88,8 @@ tasks.named("compileKotlin") {
 }
 
 dependencies {
-    // Jackson annotations for JSON serialization (Jackson 3 uses Jackson 2 annotations)
-    implementation("com.fasterxml.jackson.core:jackson-annotations:2.21")
+    // Jackson 2 annotations — compatible with both Jackson 2 (plugin) and Jackson 3 (suite) runtimes
+    api("com.fasterxml.jackson.core:jackson-annotations:2.21")
 }
 
 tasks.test {
@@ -143,7 +143,7 @@ mavenPublishing {
         signAllPublications()
     }
 
-    coordinates(group.toString(), "editor-model", version.toString())
+    coordinates(group.toString(), "epistola-model", version.toString())
 
     pom {
         name.set("Epistola Editor Model")
