@@ -1,3 +1,72 @@
+import-catalog:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+
+  post:
+    operationId: importCatalog
+    summary: Import a catalog from a ZIP archive
+    description: |
+      Import a self-contained catalog ZIP archive. The ZIP must contain a `catalog.json` manifest
+      and resource detail files matching the catalog exchange protocol.
+
+      - If the catalog slug already exists and is AUTHORED: resources are updated in place
+      - If the catalog slug already exists and is SUBSCRIBED: the request is rejected
+      - If the catalog slug is new: a new catalog is created with the specified type
+
+      Resources are installed in dependency order: assets → attributes → themes → stencils → templates.
+    tags:
+      - Catalogs
+    x-required-roles: [editor, manager]
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+              - file
+            properties:
+              file:
+                type: string
+                format: binary
+                description: The catalog ZIP archive
+              catalogType:
+                type: string
+                enum: [AUTHORED, SUBSCRIBED]
+                default: AUTHORED
+                description: Type of catalog to create if it doesn't exist
+    responses:
+      '200':
+        description: Catalog imported successfully
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/import.yaml#/ImportCatalogResponse'
+      '400':
+        description: Invalid ZIP or catalog already exists as SUBSCRIBED
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Tenant not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+
 import-templates:
   parameters:
     - name: tenantId

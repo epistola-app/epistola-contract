@@ -47,6 +47,8 @@ tags:
     description: Template version lifecycle (draft, publish, archive)
   - name: Stencils
     description: Reusable template component operations (CRUD, versioning, usage tracking)
+  - name: Catalogs
+    description: Catalog import and management operations
   - name: Generation
     description: Asynchronous document generation operations
 
@@ -132,6 +134,10 @@ paths:
   /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}/upgrade-preview:
     $ref: './spec/paths/stencils.yaml#/stencil-version-upgrade-preview'
 
+  # Catalog Import
+  /tenants/{tenantId}/catalogs/import:
+    $ref: './spec/paths/import.yaml#/import-catalog'
+
   # Template Import
   /tenants/{tenantId}/catalogs/{catalogId}/templates/import:
     $ref: './spec/paths/import.yaml#/import-templates'
@@ -213,6 +219,8 @@ components:
       $ref: './spec/components/schemas/import.yaml#/ImportVariantDto'
     ImportTemplatesResponse:
       $ref: './spec/components/schemas/import.yaml#/ImportTemplatesResponse'
+    ImportCatalogResponse:
+      $ref: './spec/components/schemas/import.yaml#/ImportCatalogResponse'
     ImportTemplateResultDto:
       $ref: './spec/components/schemas/import.yaml#/ImportTemplateResultDto'
 
