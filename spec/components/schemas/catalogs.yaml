@@ -1,0 +1,33 @@
+CatalogDto:
+  type: object
+  required:
+    - id
+    - name
+    - type
+  properties:
+    id:
+      type: string
+      description: Catalog slug identifier
+      example: municipality-demo
+    name:
+      type: string
+      description: Display name
+      example: Municipality Demo Catalog
+    description:
+      type: [string, "null"]
+      description: Optional description
+    type:
+      type: string
+      enum: [AUTHORED, SUBSCRIBED]
+      description: Catalog type
+      example: AUTHORED
+
+CatalogListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/CatalogDto'

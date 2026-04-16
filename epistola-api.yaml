@@ -134,6 +134,10 @@ paths:
   /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}/upgrade-preview:
     $ref: './spec/paths/stencils.yaml#/stencil-version-upgrade-preview'
 
+  # Catalogs
+  /tenants/{tenantId}/catalogs:
+    $ref: './spec/paths/catalogs.yaml#/catalogs'
+
   # Catalog Import
   /tenants/{tenantId}/catalogs/import:
     $ref: './spec/paths/import.yaml#/import-catalog'
@@ -219,6 +223,10 @@ components:
       $ref: './spec/components/schemas/import.yaml#/ImportVariantDto'
     ImportTemplatesResponse:
       $ref: './spec/components/schemas/import.yaml#/ImportTemplatesResponse'
+    CatalogDto:
+      $ref: './spec/components/schemas/catalogs.yaml#/CatalogDto'
+    CatalogListResponse:
+      $ref: './spec/components/schemas/catalogs.yaml#/CatalogListResponse'
     ImportCatalogResponse:
       $ref: './spec/components/schemas/import.yaml#/ImportCatalogResponse'
     ImportTemplateResultDto:
