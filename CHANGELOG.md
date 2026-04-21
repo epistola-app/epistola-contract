@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **GitHub Pages deployment** — docs workflow was skipped for releases because `workflow_run` branch filter didn't match tag-based release runs; removed the branch filter so docs deploy triggers on any successful release
+
 ## [0.2.0] - 2026-04-16
 
 ### Added
