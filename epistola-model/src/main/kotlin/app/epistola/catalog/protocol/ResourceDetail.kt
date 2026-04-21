@@ -35,6 +35,7 @@ data class TemplateResource(
     override val slug: String,
     override val name: String,
     val themeId: String? = null,
+    val themeCatalogKey: String? = null,
     val dataModel: Map<String, Any?>? = null,
     val dataExamples: List<DataExampleEntry>? = null,
     val templateModel: TemplateDocument,

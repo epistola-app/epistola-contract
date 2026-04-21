@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **themeCatalogKey on TemplateResource** — added optional `themeCatalogKey` field to indicate which catalog a template's theme belongs to, enabling cross-catalog theme references in exports
+
 ## [0.2.4] - 2026-04-21
 
 ### Added
