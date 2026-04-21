@@ -33,8 +33,11 @@ jobs:
         run: |
           if [ -n "${{ inputs.version }}" ]; then
             API_VERSION="${{ inputs.version }}"
+          elif [ -n "${{ github.event.workflow_run.head_branch }}" ]; then
+            # Extract version from release tag (e.g., v0.2.5 -> 0.2.5)
+            API_VERSION=$(echo "${{ github.event.workflow_run.head_branch }}" | sed 's/^v//')
           else
-            API_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+)\.[0-9]+["'"'"']?.*/\1/')
+            API_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+\.[0-9]+)["'"'"']?.*/\1/')
           fi
           echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
           echo "version_dir=v${API_VERSION}" >> $GITHUB_OUTPUT
