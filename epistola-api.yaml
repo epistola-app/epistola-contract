@@ -15,11 +15,30 @@ info:
 
     See the [Authentication Guide](/docs/auth.md) for details.
 
+    ## Client Identity
+
+    All requests must include the following headers for client identification:
+
+    - **`User-Agent`** (required) — identifies the client software stack using standard
+      [RFC 9110 §10.1.5](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent) product tokens.
+      The first token **must** be `epistola-contract/{version}` indicating the contract
+      version the client was built against. Additional product/version pairs can be
+      appended to describe the full software stack.
+      Example: `epistola-contract/0.3.0 valtimo-epistola-plugin/1.2.0 gzac/5.0.0`
+    - **`X-EP-Node-Id`** (required) — identifies the specific client node. Use the
+      Kubernetes pod name, container ID, or hostname. In local/dev environments,
+      the machine hostname is acceptable.
+
+    The generated Epistola client libraries set both headers automatically — `User-Agent`
+    with the contract version, and `X-EP-Node-Id` with the hostname. Consumers wrapping
+    the client library can append additional product tokens to `User-Agent` for their
+    own software and override the node ID as needed.
+
     ## Authorization
     Access is controlled via roles (`reader`, `editor`, `generator`, `admin`) and
     tenant permissions. JWT claims or API key configuration determine which
     tenants a client can access.
-  version: "0.2.0"
+  version: "0.3.0"
   contact:
     name: Epistola Team
   license:
@@ -31,6 +50,29 @@ servers:
     description: Base API path
 
 tags:
+  - name: System
+    description: |
+      System-level endpoints for health checking and metadata exchange.
+
+      ## Ping / Pong
+
+      The `POST /ping` endpoint enables bidirectional metadata exchange between
+      clients and the server. It serves two purposes:
+
+      1. **Health checking** — Any client (including load balancers and monitoring
+         probes) can send an unauthenticated ping to verify the server is alive.
+         The response contains only `status` and `timestamp`.
+
+      2. **Metadata exchange** — Authenticated clients receive a full response
+         including server version, API spec version, and node identity. Clients
+         can also send their own metadata (name, version, node ID) in the request
+         body for server-side logging and diagnostics.
+
+      ### Recommended ping intervals
+
+      - **On startup**: Always ping once before making business requests.
+      - **Periodic**: Every 30–60 seconds for ongoing health monitoring.
+      - **After failures**: Ping to check server availability before retrying.
   - name: Tenants
     description: Multi-tenant management operations
   - name: Templates
@@ -58,6 +100,10 @@ security:
   - apiKeyAuth: []
 
 paths:
+  # System
+  /ping:
+    $ref: './spec/paths/ping.yaml#/ping'
+
   # Tenants
   /tenants:
     $ref: './spec/paths/tenants.yaml#/tenants'
@@ -160,6 +206,14 @@ paths:
 
 components:
   schemas:
+    # Ping/Pong schemas
+    PingRequest:
+      $ref: './spec/components/schemas/ping.yaml#/PingRequest'
+    PongResponse:
+      $ref: './spec/components/schemas/ping.yaml#/PongResponse'
+    PongDetailsDto:
+      $ref: './spec/components/schemas/ping.yaml#/PongDetailsDto'
+
     # Tenant schemas
     TenantDto:
       $ref: './spec/components/schemas/tenants.yaml#/TenantDto'
@@ -329,6 +383,32 @@ components:
       $ref: './spec/components/responses/errors.yaml#/ValidationErrorResponse'
     FieldError:
       $ref: './spec/components/responses/errors.yaml#/FieldError'
+
+  parameters:
+    UserAgent:
+      name: User-Agent
+      in: header
+      required: true
+      description: |
+        Required. Identifies the client software stack using RFC 9110 product tokens
+        (`product/version`). The first token must be `epistola-contract/{version}`
+        indicating the contract version the client was built against. Additional tokens
+        can be appended to describe the full software stack.
+      schema:
+        type: string
+      example: epistola-contract/0.3.0 valtimo-epistola-plugin/1.2.0
+
+    NodeId:
+      name: X-EP-Node-Id
+      in: header
+      required: true
+      description: |
+        Required. Identifies the specific client node for request correlation and
+        diagnostics. Use the Kubernetes pod name, container ID, or hostname.
+        In local/dev environments, the machine hostname is acceptable.
+      schema:
+        type: string
+      example: epistola-cli-pod-7f8b9c
 
   securitySchemes:
     bearerAuth:

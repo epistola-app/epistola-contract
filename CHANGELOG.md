@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Ping/Pong endpoint** — `POST /ping` for bidirectional health checking and metadata exchange. Unauthenticated requests receive basic health status; authenticated requests also get server version, API spec version, and node identity.
+- **Client identity headers** — two required headers on all requests: `User-Agent` (must start with `epistola-contract/{version}`, additional product tokens for the software stack) and `X-EP-Node-Id` (pod name, container ID, or hostname).
+
+### Changed
+- **API version bumped to 0.3.0** — new System endpoint group for ping/pong, client identity headers
+
 ### Fixed
 - **Docs version** — docs workflow now uses the actual release tag version (e.g., 0.2.5) instead of only major.minor from the API spec
 

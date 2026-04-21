@@ -1,0 +1,61 @@
+PingRequest:
+  type: object
+  description: |
+    Client metadata sent to the server as part of a ping request.
+    An empty object or no body works as a basic health probe.
+
+    Note: client identity (software stack, contract version) and node ID are conveyed
+    via the `User-Agent` and `X-EP-Node-Id` headers respectively, which are required
+    on all API requests including ping.
+
+PongResponse:
+  type: object
+  description: |
+    Server response to a ping request.
+
+    When the request is unauthenticated, only `status` and `timestamp` are returned
+    (basic health check). When authenticated, the `details` object is included with
+    full server metadata.
+  required:
+    - status
+    - timestamp
+  properties:
+    status:
+      type: string
+      enum:
+        - UP
+        - DEGRADED
+      description: |
+        Current health status of the server.
+        - `UP`: All systems operational.
+        - `DEGRADED`: Service is running but with reduced capability.
+        A server that is completely down cannot respond, so there is no `DOWN` value.
+      example: UP
+    timestamp:
+      type: string
+      format: date-time
+      description: Server timestamp at the time of the response (ISO 8601)
+      example: "2026-04-21T10:30:00Z"
+    details:
+      $ref: '#/PongDetailsDto'
+
+PongDetailsDto:
+  type: object
+  description: |
+    Detailed server metadata, only included in the response when the request is authenticated.
+  required:
+    - serverVersion
+    - apiVersion
+  properties:
+    serverVersion:
+      type: string
+      description: Semantic version of the running server application
+      example: "2.1.0"
+    apiVersion:
+      type: string
+      description: The API spec version supported by this server
+      example: "0.3.0"
+    nodeId:
+      type: string
+      description: Server node identifier (e.g. Kubernetes pod name, hostname)
+      example: epistola-server-pod-3a2d1e
