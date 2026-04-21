@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-04-21
+
+### Added
+- **themeId on TemplateResource** — added `themeId` field to link templates to catalog themes
+
 ### Fixed
 - **GitHub Pages deployment** — docs workflow was skipped for releases because `workflow_run` branch filter didn't match tag-based release runs; removed the branch filter so docs deploy triggers on any successful release
 
