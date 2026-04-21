@@ -111,6 +111,7 @@ openApiGenerate {
 sourceSets {
     main {
         kotlin.srcDir(generatedDir.map { it.dir("src/main/kotlin") })
+        kotlin.srcDir("src/main/kotlin")
         resources.srcDir(layout.buildDirectory.dir("openapi-resource"))
     }
 }

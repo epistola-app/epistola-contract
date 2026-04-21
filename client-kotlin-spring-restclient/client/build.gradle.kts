@@ -174,11 +174,36 @@ val generateValidation by tasks.registering {
     }
 }
 
+// Generate a resource file with the contract version so ClientIdentity can read it at runtime.
+// Uses the version from the spec (which is updated to the full version on each release).
+val generateContractVersionResource by tasks.registering {
+    description = "Writes the contract version to a resource file for ClientIdentity"
+    inputs.file(bundledSpec)
+    val outputDir = layout.buildDirectory.dir("generated-resources")
+    outputs.dir(outputDir)
+
+    @Suppress("UNCHECKED_CAST")
+    doLast {
+        val yaml = org.yaml.snakeyaml.Yaml()
+        val spec = yaml.load<Map<String, Any>>(bundledSpec.readText()) as Map<String, Any>
+        val version = (spec["info"] as Map<String, Any>)["version"] as String
+        val outFile = outputDir.get().file("epistola-contract-version.txt").asFile
+        outFile.parentFile.mkdirs()
+        outFile.writeText(version)
+        logger.lifecycle("Wrote contract version $version → ${outFile.relativeTo(project.projectDir)}")
+    }
+}
+
 sourceSets {
     main {
         kotlin.srcDir(generatedDir.map { it.dir("src/main/kotlin") })
         kotlin.srcDir(generatedValidationDir)
+        resources.srcDir(layout.buildDirectory.dir("generated-resources"))
     }
+}
+
+tasks.processResources {
+    dependsOn(generateContractVersionResource)
 }
 
 tasks.compileKotlin {
@@ -222,7 +247,7 @@ configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
 
 // Configure vanniktech plugin's jar tasks to depend on code generation since sources are generated
 tasks.matching { it.name == "plainJavadocJar" || it.name == "sourcesJar" }.configureEach {
-    dependsOn(generateValidation)
+    dependsOn(generateValidation, generateContractVersionResource)
 }
 
 // GitHub Packages repository for snapshot publishing (standard Gradle publishing plugin)

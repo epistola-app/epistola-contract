@@ -10,9 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Ping/Pong endpoint** — `POST /ping` for bidirectional health checking and metadata exchange. Unauthenticated requests receive basic health status; authenticated requests also get server version, API spec version, and node identity.
 - **Client identity headers** — two required headers on all requests: `User-Agent` (must start with `epistola-contract/{version}`, additional product tokens for the software stack) and `X-EP-Node-Id` (pod name, container ID, or hostname).
+- **ClientIdentity (client)** — builder class for managing `User-Agent` and `X-EP-Node-Id` headers with key/value product registration. Creates a `ClientHttpRequestInterceptor` for Spring RestClient. Contract version is baked in automatically at build time.
+- **ClientInfo (server)** — parser for extracting client identity from incoming requests. Provides `contractVersion`, `nodeId`, and `productVersion(name)` for easy access to any product in the software stack.
 
 ### Changed
 - **API version bumped to 0.3.0** — new System endpoint group for ping/pong, client identity headers
+- **Release process** — `make release` now updates `info.version` in `epistola-api.yaml` to the full release version before creating the GitHub Release, ensuring the spec always reflects the exact artifact version
 
 ### Fixed
 - **Docs version** — docs workflow now uses the actual release tag version (e.g., 0.2.5) instead of only major.minor from the API spec

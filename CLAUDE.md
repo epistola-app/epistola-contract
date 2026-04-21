@@ -175,18 +175,24 @@ This project uses a **trunk-based** development model with releases from `main`:
 ### Creating a Release
 
 ```bash
-# Auto-calculates next patch version and creates a GitHub Release
+# Auto-calculates next patch version, updates spec, commits, pushes, and creates GitHub Release
 make release
 
 # Or manually with gh CLI
 gh release create v0.2.0 --title "v0.2.0" --generate-notes
 ```
 
-The version is determined by the release tag. `make release` reads the major.minor from `epistola-api.yaml` and auto-increments the patch number based on existing git tags. For example, if the spec says `0.1.0` and the latest tag is `v0.1.2`, the next release will be `v0.1.3`.
+`make release` performs these steps:
+1. Reads the major.minor from `epistola-api.yaml` and auto-increments the patch from existing git tags
+2. Updates `info.version` in `epistola-api.yaml` to the full release version (e.g. `0.3.1`)
+3. Commits the spec update and pushes to main
+4. Creates the GitHub Release with the version tag
+
+For example, if the spec says `0.3.0` and the latest tag is `v0.3.0`, the next release will update the spec to `0.3.1` and create tag `v0.3.1`.
 
 ### Bumping the API Version
 
-To release a new major/minor version, update `info.version` in `epistola-api.yaml` (e.g., from `0.1.0` to `0.2.0`) and then `make release`.
+To release a new major/minor version, update `info.version` in `epistola-api.yaml` (e.g., from `0.2.0` to `0.3.0`) and then `make release`. The release process will auto-calculate the patch.
 
 ### Hotfixing Older Versions
 

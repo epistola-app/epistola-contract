@@ -97,6 +97,11 @@ release:
 	done; \
 	NEXT_PATCH=$$((LATEST_PATCH + 1)); \
 	VERSION="$${API_VERSION}.$${NEXT_PATCH}"; \
+	echo "==> Updating spec version to $$VERSION"; \
+	sed -i -E "s/(^\s*version:\s*[\"']?)[0-9]+\.[0-9]+\.[0-9]+([\"']?)/\1$$VERSION\2/" epistola-api.yaml; \
+	git add epistola-api.yaml; \
+	git commit -m "release: bump spec version to $$VERSION"; \
+	git push origin main; \
 	echo "==> Creating release v$$VERSION"; \
 	gh release create "v$$VERSION" --title "v$$VERSION" --generate-notes; \
 	echo ""; \
