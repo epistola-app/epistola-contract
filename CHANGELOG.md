@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Consumer onboarding** — Full consumer lifecycle with two registration paths: self-service via `POST /consumers/register` (with public key for self-signed JWT auth) or auto-registration from OAuth. Admin approval (`POST /consumers/{id}/approve`) sets allowed tenants, roles, and optional expiry. Includes reject, update, delete, and public key rotation endpoints.
+- **Self-signed JWT authentication** — Applications without an IdP can authenticate by signing short-lived JWTs with a registered private key. Includes replay protection via `jti` nonce and `exp` claims.
+- **Permissions managed in Epistola** — Allowed tenants, roles, and expiry are set in the consumer record, not JWT claims. Single source of truth for authorization.
+- **Ping metadata** — Extend `POST /ping` request body with optional `name`, `description`, and `contact` fields for application self-description.
+- **Event schema** — `EventEnvelope`, `ResourceRef`, and `EventActor` schemas defining the event model for all domain events (generation, template changes, etc.). Supports 24 event types across all resource types.
+- **Event trackers** — `PUT/GET/DELETE /tenants/{tenantId}/trackers/{trackerId}` for creating named server-side cursors with consumer-group semantics. `POST .../trackers/{trackerId}/poll` combines acknowledge + fetch in a single call with lease-based node affinity and automatic takeover.
 - **Ping/Pong endpoint** — `POST /ping` for bidirectional health checking and metadata exchange. Unauthenticated requests receive basic health status; authenticated requests also get server version, API spec version, and node identity.
 - **Client identity headers** — two required headers on all requests: `User-Agent` (must start with `epistola-contract/{version}`, additional product tokens for the software stack) and `X-EP-Node-Id` (pod name, container ID, or hostname).
 - **ClientIdentity (client)** — builder class for managing `User-Agent` and `X-EP-Node-Id` headers with key/value product registration. Creates a `ClientHttpRequestInterceptor` for Spring RestClient. Contract version is baked in automatically at build time.
@@ -15,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **API version bumped to 0.3.0** — new System endpoint group for ping/pong, client identity headers
+- **Auth model redesigned** — `X-API-Key` authentication removed, replaced by self-signed JWT. All authorization (tenants, roles) now managed in Epistola's consumer record, not JWT claims. **Breaking change.**
 - **Release process** — `make release` now updates `info.version` in `epistola-api.yaml` to the full release version before creating the GitHub Release, ensuring the spec always reflects the exact artifact version
 
 ### Fixed

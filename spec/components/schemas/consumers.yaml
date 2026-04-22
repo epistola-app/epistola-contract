@@ -1,0 +1,363 @@
+ConsumerDto:
+  type: object
+  description: |
+    Represents a consumer application registered within a tenant.
+
+    Consumers are tenant-scoped — each tenant independently manages which
+    applications can access their resources. The same application can register
+    in multiple tenants with separate approvals.
+
+    Two registration paths are supported:
+    - **Self-signed JWT**: Application calls `POST /tenants/{tenantId}/consumers/register`
+      with a public key and requested permissions. Created as `pending` until
+      a tenant manager approves.
+    - **OAuth**: First authenticated request to a tenant auto-registers the consumer
+      as `pending`. Requested permissions are derived from JWT scopes.
+  required:
+    - id
+    - tenantId
+    - name
+    - status
+    - authMethod
+    - requestedPermissions
+    - grantedPermissions
+    - nodes
+    - createdAt
+  properties:
+    id:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 63
+      description: |
+        Unique slug identifier of the consumer within this tenant.
+        For self-signed JWT consumers, this is self-chosen at registration
+        and used as the `iss` claim. For OAuth consumers, this is derived
+        from the JWT `client_id` claim.
+      example: invoice-service
+    tenantId:
+      type: string
+      description: Tenant this consumer is registered in
+      example: acme-corp
+    name:
+      type: string
+      description: Human-readable name of the consuming application
+      example: Invoice Service
+    description:
+      type: ['string', 'null']
+      description: What this application does and why it uses Epistola
+      example: Generates PDF invoices for the billing pipeline
+    contact:
+      type: ['string', 'null']
+      description: Team or individual responsible for this application
+      example: billing-team@acme-corp.com
+    status:
+      type: string
+      enum: [pending, active, rejected, expired, inactive]
+      description: |
+        Current lifecycle status:
+        - `pending`: Registered but awaiting manager approval.
+        - `active`: Approved and operational.
+        - `rejected`: Manager rejected the registration.
+        - `expired`: Approval has expired (expiresAt passed).
+        - `inactive`: Manually deactivated by a manager.
+      example: active
+    authMethod:
+      type: string
+      enum: [oauth, self-signed-jwt]
+      description: |
+        How this consumer authenticates:
+        - `oauth`: JWT tokens issued by an external Identity Provider.
+        - `self-signed-jwt`: Short-lived JWTs signed with the consumer's private key.
+      example: self-signed-jwt
+    requestedPermissions:
+      $ref: '#/ConsumerPermissions'
+    grantedPermissions:
+      $ref: '#/ConsumerPermissions'
+    publicKey:
+      type: ['string', 'null']
+      description: |
+        PEM-encoded public key for self-signed JWT consumers.
+        Null for OAuth consumers.
+      example: null
+    expiresAt:
+      type: ['string', 'null']
+      format: date-time
+      description: |
+        When this consumer's approval expires. Null means no expiry.
+        After this time, the consumer transitions to `expired` status.
+      example: "2027-04-22T00:00:00Z"
+    rejectionReason:
+      type: ['string', 'null']
+      description: Reason provided by manager when rejecting the consumer
+      example: null
+    nodes:
+      type: array
+      description: Known instances (nodes) of this consumer application
+      items:
+        $ref: '#/ConsumerNodeDto'
+    createdAt:
+      type: string
+      format: date-time
+      description: When the consumer was registered
+      example: "2026-04-22T10:00:00Z"
+    lastSeenAt:
+      type: ['string', 'null']
+      format: date-time
+      description: When the server last received a request from this consumer
+      example: "2026-04-22T14:30:00Z"
+    updatedAt:
+      type: ['string', 'null']
+      format: date-time
+      description: When the consumer record was last modified
+      example: null
+
+ConsumerPermissions:
+  type: object
+  description: |
+    Resource-level permissions for a consumer. Each resource type has its own
+    access levels. Higher levels imply lower levels (e.g., `write` implies `read`).
+    All default to `none`.
+
+    Event delivery via trackers is implicit: if a consumer has `read` or higher
+    on a resource type, it may receive events for that resource type. No separate
+    event permission is needed.
+
+    For OAuth consumers, requested permissions are derived from JWT scopes
+    using the pattern `epistola:{resource}:{level}` (e.g., `epistola:generation:write`,
+    `epistola:templates:publish`).
+  properties:
+    templates:
+      type: string
+      enum: [none, read, write, publish]
+      default: none
+      description: |
+        read = list/get templates.
+        write = create/update/delete templates + read.
+        publish = publish versions to environments + write.
+    variants:
+      type: string
+      enum: [none, read, write]
+      default: none
+      description: "read = list/get variants, write = create/update/delete + read"
+    versions:
+      type: string
+      enum: [none, read, write]
+      default: none
+      description: "read = list/get versions, write = create/update drafts + read"
+    themes:
+      type: string
+      enum: [none, read, write]
+      default: none
+      description: "read = list/get themes, write = create/update/delete + read"
+    environments:
+      type: string
+      enum: [none, read, write]
+      default: none
+      description: "read = list/get environments, write = create/update/delete + read"
+    stencils:
+      type: string
+      enum: [none, read, write]
+      default: none
+      description: "read = list/get stencils, write = create/update/publish + read"
+    catalogs:
+      type: string
+      enum: [none, read, write]
+      default: none
+      description: "read = list catalogs, write = import catalogs + read"
+    generation:
+      type: string
+      enum: [none, read, write]
+      default: none
+      description: "read = view jobs and documents, write = submit jobs/preview + read"
+    trackers:
+      type: string
+      enum: [none, read, write]
+      default: none
+      description: |
+        read = view trackers.
+        write = create/poll/delete trackers + read.
+        Events delivered by trackers are filtered by the consumer's other
+        permissions — a consumer only receives events for resources it
+        has at least `read` access to.
+    consumers:
+      type: string
+      enum: [none, read, manage]
+      default: none
+      description: |
+        Consumer management within this tenant.
+        read = list/view consumers.
+        manage = approve/reject/update/delete consumers + read.
+
+ConsumerNodeDto:
+  type: object
+  description: A known instance (node) of a consumer application
+  required:
+    - nodeId
+    - lastSeenAt
+  properties:
+    nodeId:
+      type: string
+      description: Node identifier from the `X-EP-Node-Id` header
+      example: invoice-service-pod-7f8b9c
+    userAgent:
+      type: ['string', 'null']
+      description: Last seen `User-Agent` header value from this node
+      example: "epistola-contract/0.3.0 valtimo-epistola-plugin/1.2.0"
+    lastSeenAt:
+      type: string
+      format: date-time
+      description: When the server last received a request from this node
+      example: "2026-04-22T14:30:00Z"
+
+RegisterConsumerRequest:
+  type: object
+  description: |
+    Self-service registration for consumers using self-signed JWT authentication.
+    The consumer declares what permissions it needs. A tenant manager will
+    review and grant equal or fewer permissions on approval.
+  required:
+    - id
+    - name
+    - publicKey
+    - requestedPermissions
+  properties:
+    id:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 63
+      description: |
+        Self-chosen unique slug identifier for the consumer within this tenant.
+        Used as the `iss` claim in self-signed JWTs.
+      example: invoice-service
+    name:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: Human-readable name of the consuming application
+      example: Invoice Service
+    description:
+      type: string
+      maxLength: 1000
+      description: What this application does and why it uses Epistola
+      example: Generates PDF invoices for the billing pipeline
+    contact:
+      type: string
+      maxLength: 255
+      description: Team or individual responsible for this application
+      example: billing-team@acme-corp.com
+    publicKey:
+      type: string
+      maxLength: 8192
+      description: |
+        PEM-encoded public key (RSA 2048+ or Ed25519). The corresponding
+        private key is used to sign short-lived JWTs for authentication.
+      example: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
+    requestedPermissions:
+      $ref: '#/ConsumerPermissions'
+
+ApproveConsumerRequest:
+  type: object
+  description: |
+    Tenant manager approval of a pending consumer. The manager reviews the
+    requested permissions and grants equal or fewer. The consumer transitions
+    from `pending` to `active`.
+  required:
+    - grantedPermissions
+  properties:
+    grantedPermissions:
+      $ref: '#/ConsumerPermissions'
+    expiresAt:
+      type: ['string', 'null']
+      format: date-time
+      description: When the approval expires. Null means no expiry.
+      example: "2027-04-22T00:00:00Z"
+
+RejectConsumerRequest:
+  type: object
+  description: Tenant manager rejection of a pending consumer registration.
+  properties:
+    reason:
+      type: string
+      maxLength: 1000
+      description: Why the consumer was rejected
+      example: "Unknown application — contact the platform team for onboarding"
+
+UpdateConsumerRequest:
+  type: object
+  description: |
+    Update consumer metadata or permissions within this tenant.
+    All fields are optional.
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: Updated name
+    description:
+      type: ['string', 'null']
+      maxLength: 1000
+      description: Updated description (null to clear)
+    contact:
+      type: ['string', 'null']
+      maxLength: 255
+      description: Updated contact (null to clear)
+    status:
+      type: string
+      enum: [active, inactive]
+      description: |
+        Set to `inactive` to deactivate, `active` to reactivate.
+        Cannot change other statuses (use approve/reject instead).
+    grantedPermissions:
+      $ref: '#/ConsumerPermissions'
+    expiresAt:
+      type: ['string', 'null']
+      format: date-time
+      description: Updated expiry (null to remove expiry)
+
+RotatePublicKeyRequest:
+  type: object
+  description: |
+    Rotate the public key for a self-signed JWT consumer.
+    Must authenticate with a valid JWT signed by the current key.
+  required:
+    - publicKey
+  properties:
+    publicKey:
+      type: string
+      maxLength: 8192
+      description: New PEM-encoded public key (RSA 2048+ or Ed25519)
+      example: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
+
+ConsumerListResponse:
+  type: object
+  description: Paginated list of consumers within a tenant
+  required:
+    - items
+    - page
+    - size
+    - totalElements
+    - totalPages
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/ConsumerDto'
+    page:
+      type: integer
+      description: Current page number (0-based)
+      example: 0
+    size:
+      type: integer
+      description: Number of items per page
+      example: 20
+    totalElements:
+      type: integer
+      format: int64
+      description: Total number of consumers matching the filter
+      example: 1
+    totalPages:
+      type: integer
+      description: Total number of pages
+      example: 1

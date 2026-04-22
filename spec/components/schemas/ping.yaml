@@ -4,9 +4,32 @@ PingRequest:
     Client metadata sent to the server as part of a ping request.
     An empty object or no body works as a basic health probe.
 
-    Note: client identity (software stack, contract version) and node ID are conveyed
-    via the `User-Agent` and `X-EP-Node-Id` headers respectively, which are required
-    on all API requests including ping.
+    When authenticated, the server uses ping data to maintain a consumer registry.
+    The optional `name`, `description`, and `contact` fields allow the application
+    to announce itself with human-readable metadata. Combined with the required
+    `User-Agent` and `X-EP-Node-Id` headers, the server builds a live view of
+    which applications are connected, which nodes they run on, and what versions
+    they use.
+  properties:
+    name:
+      type: string
+      maxLength: 255
+      description: |
+        Human-readable name of the consuming application.
+        Stored by the server as part of the consumer registry.
+      example: Invoice Service
+    description:
+      type: string
+      maxLength: 1000
+      description: |
+        What this application does and why it uses Epistola.
+      example: Generates PDF invoices for the billing pipeline
+    contact:
+      type: string
+      maxLength: 255
+      description: |
+        Team or individual responsible for this application (email, Slack channel, etc.).
+      example: billing-team@acme-corp.com
 
 PongResponse:
   type: object
