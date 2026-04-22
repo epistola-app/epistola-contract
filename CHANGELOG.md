@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Self-signed JWT authentication** — Applications without an IdP can authenticate by signing short-lived JWTs with a registered private key. Includes replay protection via `jti` nonce and `exp` claims.
 - **Permissions managed in Epistola** — Allowed tenants, roles, and expiry are set in the consumer record, not JWT claims. Single source of truth for authorization.
 - **Ping metadata** — Extend `POST /ping` request body with optional `name`, `description`, and `contact` fields for application self-description.
+- **JwtSigner (client)** — Utility for creating and signing short-lived JWTs for self-signed JWT authentication. Builder pattern with RSA/EC key support and a Spring `ClientHttpRequestInterceptor` for automatic Bearer token injection.
+- **TrackerPoller (client)** — Poll loop utility for event trackers. Handles acknowledge+fetch cycle, backpressure via batch size, catch-up mode, and graceful shutdown.
+- **ConsumerResolver (server)** — Extracts consumer identity from JWT claims (`client_id`, `azp`, or `iss`). Works for both OAuth and self-signed JWT consumers.
 - **Event schema** — `EventEnvelope`, `ResourceRef`, and `EventActor` schemas defining the event model for all domain events (generation, template changes, etc.). Supports 24 event types across all resource types.
 - **Event trackers** — `PUT/GET/DELETE /tenants/{tenantId}/trackers/{trackerId}` for creating named server-side cursors with consumer-group semantics. `POST .../trackers/{trackerId}/poll` combines acknowledge + fetch in a single call with lease-based node affinity and automatic takeover.
 - **Ping/Pong endpoint** — `POST /ping` for bidirectional health checking and metadata exchange. Unauthenticated requests receive basic health status; authenticated requests also get server version, API spec version, and node identity.

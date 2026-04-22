@@ -218,6 +218,7 @@ dependencies {
     implementation(libs.spring.boot.starter.web)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.jackson.datatype.jsr310)
+    implementation(libs.nimbus.jose.jwt)
     compileOnly(libs.json.schema.validator)
 
     testImplementation(kotlin("test"))

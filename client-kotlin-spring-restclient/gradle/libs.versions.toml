@@ -7,6 +7,7 @@ spring-boot = "3.5.1"
 jackson = "2.19.0"
 json-schema-validator = "1.5.7"
 mockk = "1.14.2"
+nimbus-jose-jwt = "10.3"
 maven-publish = "0.36.0"
 
 [libraries]
@@ -15,6 +16,7 @@ jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-
 jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
 json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "json-schema-validator" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+nimbus-jose-jwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimbus-jose-jwt" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
