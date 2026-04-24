@@ -314,10 +314,24 @@ BatchGenerationItem:
 
 GenerateBatchRequest:
   type: object
-  description: Request to generate multiple documents in a batch
+  description: |
+    Request to generate multiple documents in a batch.
+
+    A batch-level `routingKey` can be set as a default for all items.
+    Individual items can override with their own `routingKey`.
+    Using the same routing key across all items ensures all results
+    are delivered to the same consumer node.
   required:
     - items
   properties:
+    routingKey:
+      type: [string, "null"]
+      description: |
+        Default routing key for all items in this batch. Individual items
+        can override with their own `routingKey`. If neither is set,
+        each item defaults to its request ID.
+      maxLength: 255
+      example: "order-7890"
     items:
       type: array
       description: List of items to generate

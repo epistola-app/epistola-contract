@@ -57,6 +57,10 @@ GenerationResult:
       type: ['string', 'null']
       description: Client-provided correlation ID from the generation request
       example: order-7890
+    routingKey:
+      type: ['string', 'null']
+      description: Routing key used for partition assignment
+      example: order-7890
     templateId:
       type: string
       description: Template used for generation
