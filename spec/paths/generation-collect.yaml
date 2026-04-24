@@ -19,21 +19,34 @@ generation-collect:
       Collect completed and failed generation results as a compressed NDJSON stream.
       Each line is a self-contained JSON object representing one generation result.
 
-      ## Priority and failover
+      ## Partition-based routing
 
-      Results are returned in priority order:
-      1. **Your node's results** — results from generation requests submitted by this node
-         (identified by `X-EP-Node-Id`) are returned first.
-      2. **Untagged results** — results from generation requests submitted without an
-         `X-EP-Node-Id` header have no node affinity and are available to any node
-         of the consumer immediately.
-      3. **Orphaned results** — if a node has not polled within the server-configured timeout
-         (default: 60 seconds), its uncollected results become available to other nodes of
-         the same consumer.
+      Results are routed to nodes using consistent hashing on the `routingKey`
+      from the generation request:
 
-      This ensures that results normally go back to the node that requested them, but are
-      not lost when a node crashes or is restarted. Results from requests without a node ID
-      are treated as belonging to the consumer as a whole, not to any specific node.
+      1. Each result is assigned to a **partition**: `murmur3(routingKey) % totalPartitions`.
+         If no routing key was provided, the request ID is used.
+      2. Partitions are **assigned to nodes** via consistent hashing. The server
+         tracks which nodes are active based on poll frequency.
+      3. Each node receives results from its **assigned partitions** only.
+
+      ## Failover
+
+      If a node stops polling (server-configured timeout, default: 60 seconds),
+      its partitions are redistributed to the remaining active nodes. Results
+      from those partitions are delivered to the new owners. When the node
+      returns, partitions are rebalanced again.
+
+      Consistent hashing minimizes disruption — when a node joins or leaves,
+      only ~1/N of partitions move.
+
+      ## Partition assignment
+
+      The response metadata (`_meta` line) includes the current partition
+      assignment: total partitions, which partitions are assigned to this node,
+      and the hash algorithm. Clients can use this to compute routing keys
+      that target specific nodes (e.g., to ensure results come back to the
+      submitting node).
 
       ## Acknowledgment
 
