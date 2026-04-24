@@ -24,12 +24,16 @@ generation-collect:
       Results are returned in priority order:
       1. **Your node's results** — results from generation requests submitted by this node
          (identified by `X-EP-Node-Id`) are returned first.
-      2. **Orphaned results** — if a node has not polled within the server-configured timeout
+      2. **Untagged results** — results from generation requests submitted without an
+         `X-EP-Node-Id` header have no node affinity and are available to any node
+         of the consumer immediately.
+      3. **Orphaned results** — if a node has not polled within the server-configured timeout
          (default: 60 seconds), its uncollected results become available to other nodes of
          the same consumer.
 
       This ensures that results normally go back to the node that requested them, but are
-      not lost when a node crashes or is restarted.
+      not lost when a node crashes or is restarted. Results from requests without a node ID
+      are treated as belonging to the consumer as a whole, not to any specific node.
 
       ## Acknowledgment
 
