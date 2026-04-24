@@ -96,6 +96,12 @@ ConsumerDto:
       description: Known instances (nodes) of this consumer application
       items:
         $ref: '#/ConsumerNodeDto'
+    totalPartitions:
+      type: ['integer', 'null']
+      description: |
+        Total number of partitions for generation result collection.
+        Null if the consumer has not yet polled the collect endpoint.
+      example: 12
     createdAt:
       type: string
       format: date-time
@@ -204,6 +210,15 @@ ConsumerNodeDto:
       type: ['string', 'null']
       description: Last seen `User-Agent` header value from this node
       example: "epistola-contract/0.3.0 valtimo-epistola-plugin/1.2.0"
+    partitions:
+      type: array
+      items:
+        type: integer
+      description: |
+        Partition numbers currently assigned to this node for generation
+        result collection. Empty if the node has not polled the collect
+        endpoint or has no assigned partitions.
+      example: [0, 1, 2, 3]
     lastSeenAt:
       type: string
       format: date-time
