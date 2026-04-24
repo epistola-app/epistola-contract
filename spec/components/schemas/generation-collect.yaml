@@ -154,5 +154,14 @@ PartitionAssignment:
       description: |
         Hash algorithm used for routing key → partition mapping.
         The client must use the same algorithm to predict routing.
+
+        `murmur3` refers to MurmurHash3 x86 32-bit variant with seed 0.
+        The partition is computed as: `(murmur3_x86_32(routingKey, seed=0) & 0x7FFFFFFF) % total`.
+        The bitmask ensures a non-negative value before the modulo.
+
+        Reference implementations:
+        - Java: `com.google.common.hash.Hashing.murmur3_32_fixed(0)`
+        - Kotlin: same as Java (Guava)
+        - Python: `mmh3.hash(key, seed=0) & 0x7FFFFFFF`
       enum: [murmur3]
       example: murmur3

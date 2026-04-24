@@ -213,8 +213,16 @@ consumer-resource:
     operationId: deleteConsumer
     summary: Delete a consumer
     description: |
-      Permanently remove a consumer from this tenant, including its trackers.
-      Documents attributed to this consumer retain their `createdBy` value.
+      Permanently remove a consumer from this tenant.
+
+      **Effect on generation results:**
+      - Partitions assigned to this consumer's nodes are released.
+      - Uncollected generation results remain in the system but are no longer
+        deliverable via the `/generation/collect` endpoint.
+      - Generated documents can still be accessed directly via
+        `GET /tenants/{tenantId}/documents/{documentId}`.
+      - The `createdBy` field on documents retains the consumer ID
+        (orphaned reference).
     tags:
       - Consumers
     x-required-roles: [manager]

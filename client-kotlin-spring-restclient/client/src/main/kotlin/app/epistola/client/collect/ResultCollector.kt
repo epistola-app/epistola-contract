@@ -149,7 +149,7 @@ class ResultCollector private constructor(
             .uri("/tenants/{tenantId}/generation/collect", tenantId)
             .contentType(EPISTOLA_JSON)
             .accept(NDJSON)
-            .header("Accept-Encoding", "lz4, zstd, gzip")
+            .header("Accept-Encoding", "gzip") // TODO: add lz4, zstd when decompression is implemented
             .body(requestBody)
             .exchange { _, response ->
                 val stream = decompressIfNeeded(
@@ -207,6 +207,10 @@ class ResultCollector private constructor(
         completedAt = node["completedAt"]?.asText(),
     )
 
+    // TODO: Add lz4 (net.jpountz.lz4:lz4-java) and zstd (com.github.luben:zstd-jni)
+    //       decompression support. Currently only gzip is handled; lz4/zstd responses
+    //       will fall through to raw reading which will fail on compressed data.
+    //       Until then, clients should set Accept-Encoding to "gzip" only.
     private fun decompressIfNeeded(input: InputStream, encoding: String?): InputStream = when (encoding) {
         "gzip" -> GZIPInputStream(input)
         else -> input

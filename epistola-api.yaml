@@ -124,7 +124,9 @@ tags:
   - name: Generation
     description: Asynchronous document generation operations
 
-# Global security - JWT Bearer (preferred) or API Key (deprecated)
+# Global security — either method is accepted.
+# bearerAuth (JWT) is the recommended path. apiKeyAuth is deprecated and
+# retained only for backwards compatibility — it will be removed in a future version.
 security:
   - bearerAuth: []
   - apiKeyAuth: []

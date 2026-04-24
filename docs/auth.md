@@ -37,8 +37,8 @@ curl https://api.example.com/api/tenants/acme-corp/templates \
 1. Admin creates an OAuth client in the IdP (client_id + client_secret)
 2. Application obtains a JWT token from the IdP
 3. First request to Epistola auto-registers the consumer as `pending`
-4. Administrator approves the consumer (`POST /consumers/{id}/approve`), setting allowed tenants, roles, and optional expiry
-5. Application can now access resources within its allowed tenants
+4. Tenant manager approves the consumer (`POST /tenants/{tenantId}/consumers/{id}/approve`), setting roles and optional expiry
+5. Application can now access resources within that tenant
 
 ### Method 2: Self-Signed JWT
 
@@ -61,7 +61,7 @@ openssl rsa -in private.pem -pubout -out public.pem
 2. Register with Epistola:
 
 ```bash
-curl -X POST https://api.example.com/api/consumers/register \
+curl -X POST https://api.example.com/api/tenants/acme-corp/consumers/register \
   -H "Content-Type: application/vnd.epistola.v1+json" \
   -d '{
     "id": "invoice-service",
@@ -102,7 +102,7 @@ curl https://api.example.com/api/tenants/acme-corp/templates \
 Rotate your public key while authenticated with the current key:
 
 ```bash
-curl -X PUT https://api.example.com/api/consumers/invoice-service/public-key \
+curl -X PUT https://api.example.com/api/tenants/acme-corp/consumers/invoice-service/public-key \
   -H "Authorization: Bearer <jwt-signed-with-current-key>" \
   -H "Content-Type: application/vnd.epistola.v1+json" \
   -d '{ "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBI..." }'
