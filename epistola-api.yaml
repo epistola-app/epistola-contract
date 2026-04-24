@@ -124,9 +124,10 @@ tags:
   - name: Generation
     description: Asynchronous document generation operations
 
-# Global security - JWT Bearer token required (OAuth or self-signed)
+# Global security - JWT Bearer (preferred) or API Key (deprecated)
 security:
   - bearerAuth: []
+  - apiKeyAuth: []
 
 paths:
   # System
@@ -507,3 +508,14 @@ components:
         In both cases, the JWT proves identity only. Permissions (allowed
         tenants, roles, expiry) are managed in Epistola's consumer record,
         set by an administrator during approval.
+
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        **Deprecated — use JWT Bearer authentication (OAuth or self-signed) instead.**
+
+        Static API key for legacy environments. Keys are issued by administrators
+        and stored server-side with associated roles and tenant access permissions.
+        API key authentication will be removed in a future API version.
