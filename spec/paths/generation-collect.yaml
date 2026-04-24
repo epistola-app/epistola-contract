@@ -50,10 +50,19 @@ generation-collect:
 
       ## Acknowledgment
 
-      The `acknowledge` field controls whether the previous batch is marked as collected:
-      - `acknowledge: true` (default) — previous results are marked as collected,
-        next batch returned.
-      - `acknowledge: false` — previous batch is redelivered (use when processing failed).
+      Each result includes a `sequence` number. Pass the highest successfully
+      processed sequence as `acknowledgeUpTo` in the next poll to advance the cursor:
+
+      1. First poll: omit `acknowledgeUpTo` (nothing to acknowledge yet).
+      2. Process results. Track the highest `sequence` you successfully handled.
+      3. Next poll: `{ "acknowledgeUpTo": 508, "limit": 100 }`.
+      4. Server advances per-partition cursors, returns results after 508.
+
+      **Partial acknowledgment**: if you processed results 500-505 out of 500-509,
+      set `acknowledgeUpTo: 505`. Results 506-509 are redelivered.
+
+      **After restart**: omit `acknowledgeUpTo`. The server resumes from the last
+      acknowledged position. No data loss, no silent acknowledgment.
 
       ## Compression
 
@@ -105,7 +114,7 @@ generation-collect:
               type: string
               enum: [lz4, zstd, gzip]
         content:
-          application/x-ndjson:
+          application/vnd.epistola.v1+ndjson:
             schema:
               type: string
               description: |

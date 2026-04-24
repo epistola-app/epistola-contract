@@ -21,12 +21,14 @@ class ResultCollectorTest {
     private fun ndjsonResponse(vararg lines: String) = ByteArrayInputStream(lines.joinToString("\n").toByteArray())
 
     private fun resultLine(
+        sequence: Long = 100,
         requestId: String = "req-1",
         status: String = "COMPLETED",
         documentId: String? = "doc-1",
         correlationId: String? = "corr-1",
     ): String = objectMapper.writeValueAsString(
         mapOf(
+            "sequence" to sequence,
             "requestId" to requestId,
             "status" to status,
             "documentId" to documentId,
@@ -37,8 +39,8 @@ class ResultCollectorTest {
     )
 
     @Suppress("ktlint:standard:function-signature")
-    private fun metaLine(hasMore: Boolean, count: Int) =
-        """{"_meta":true,"hasMore":$hasMore,"count":$count,"partitions":{"total":12,"mine":[0,1,2],"hash":"murmur3"}}"""
+    private fun metaLine(hasMore: Boolean, count: Int, lastSequence: Long = 0) =
+        """{"_meta":true,"hasMore":$hasMore,"count":$count,"lastSequence":$lastSequence,"partitions":{"total":12,"mine":[0,1,2],"hash":"murmur3"}}"""
 
     @Test
     fun `parses NDJSON results correctly`() {
@@ -46,9 +48,9 @@ class ResultCollectorTest {
 
         val restClient = mockRestClient(
             ndjsonResponse(
-                resultLine(requestId = "r1", status = "COMPLETED", documentId = "d1"),
-                resultLine(requestId = "r2", status = "FAILED", documentId = null),
-                metaLine(hasMore = false, count = 2),
+                resultLine(sequence = 100, requestId = "r1", status = "COMPLETED", documentId = "d1"),
+                resultLine(sequence = 101, requestId = "r2", status = "FAILED", documentId = null),
+                metaLine(hasMore = false, count = 2, lastSequence = 101),
             ),
         )
 
@@ -64,9 +66,11 @@ class ResultCollectorTest {
         assertEquals(2, result.count)
         assertFalse(result.hasMore)
         assertEquals(2, results.size)
+        assertEquals(100, results[0].sequence)
         assertEquals("r1", results[0].requestId)
         assertEquals("COMPLETED", results[0].status)
         assertEquals("d1", results[0].documentId)
+        assertEquals(101, results[1].sequence)
         assertEquals("r2", results[1].requestId)
         assertEquals("FAILED", results[1].status)
     }

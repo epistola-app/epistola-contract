@@ -82,3 +82,13 @@ PongDetailsDto:
       type: string
       description: Server node identifier (e.g. Kubernetes pod name, hostname)
       example: epistola-server-pod-3a2d1e
+    partitions:
+      description: |
+        Partition assignment for generation result collection, if available.
+        Included when the authenticated consumer has an active partition
+        assignment in this tenant. Null for new consumers that have not
+        yet polled the collect endpoint, or when the request is unauthenticated.
+
+        Clients can use this on startup to compute routing keys that target
+        their own node before submitting generation requests.
+      $ref: '../schemas/generation-collect.yaml#/PartitionAssignment'

@@ -2,15 +2,27 @@ CollectRequest:
   type: object
   description: |
     Request body for the generation result collection endpoint.
-    Controls acknowledgment of previously delivered results and batch size.
+    Controls cursor position (via acknowledgment) and batch size.
   properties:
-    acknowledge:
-      type: boolean
-      default: true
+    acknowledgeUpTo:
+      type: ['integer', 'null']
+      format: int64
       description: |
-        Acknowledge the previous batch as collected and processed.
-        - `true` (default): mark previous results as collected, return next batch.
-        - `false`: redeliver previous batch (use when processing failed).
+        Acknowledge that all results up to and including this sequence number
+        have been successfully processed. The server advances the per-partition
+        cursors accordingly.
+
+        - **First poll**: omit or set to null (nothing to acknowledge).
+        - **Subsequent polls**: set to the `sequence` value of the last
+          successfully processed result (or `lastSequence` from the meta line
+          if the entire batch was processed).
+        - **After restart**: omit or set to null. The server delivers from the
+          last acknowledged position — no data loss, no silent acknowledgment.
+
+        Partial acknowledgment is supported: if you received results with
+        sequences 100-109 but only processed through 105, set `acknowledgeUpTo: 105`.
+        The next poll returns results starting from 106.
+      example: 508
     limit:
       type: integer
       minimum: 1
@@ -28,11 +40,20 @@ GenerationResult:
     per result. Contains all information needed to process the result
     without additional API calls (except downloading the document itself).
   required:
+    - sequence
     - requestId
     - status
     - templateId
     - completedAt
   properties:
+    sequence:
+      type: integer
+      format: int64
+      description: |
+        Monotonic sequence number for this result. Used as the cursor value
+        for acknowledgment: pass this value as `acknowledgeUpTo` to confirm
+        processing up to this point.
+      example: 508
     requestId:
       type: string
       format: uuid
@@ -108,6 +129,7 @@ CollectMeta:
     - _meta
     - hasMore
     - count
+    - lastSequence
     - partitions
   properties:
     _meta:
@@ -121,6 +143,13 @@ CollectMeta:
     count:
       type: integer
       description: Number of result lines in this response (excluding this meta line).
+    lastSequence:
+      type: integer
+      format: int64
+      description: |
+        The highest sequence number in this batch. Convenience value —
+        pass this as `acknowledgeUpTo` if the entire batch was processed
+        successfully. Equals the cursor position when the batch is empty.
     partitions:
       $ref: '#/PartitionAssignment'
 

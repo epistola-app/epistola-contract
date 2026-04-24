@@ -48,10 +48,10 @@ class ResultCollector private constructor(
 ) {
     private val running = AtomicBoolean(false)
     private var currentInterval: Long = minInterval.toMillis()
-    private var acknowledge = true
+    private var lastAcknowledgedSequence: Long? = null
 
     companion object {
-        private val NDJSON = MediaType.parseMediaType("application/x-ndjson")
+        private val NDJSON = MediaType.parseMediaType("application/vnd.epistola.v1+ndjson")
         private val EPISTOLA_JSON = MediaType.parseMediaType("application/vnd.epistola.v1+json")
 
         fun builder(): Builder = Builder()
@@ -61,6 +61,7 @@ class ResultCollector private constructor(
      * A completed or failed generation result.
      */
     data class GenerationResult(
+        val sequence: Long,
         val requestId: String,
         val batchId: String?,
         val status: String,
@@ -112,7 +113,7 @@ class ResultCollector private constructor(
                 Thread.currentThread().interrupt()
                 break
             } catch (e: Exception) {
-                acknowledge = false
+                // Don't update lastAcknowledgedSequence — redelivery on next poll
                 errorHandler?.invoke(e)
                 val jitter = ThreadLocalRandom.current().nextLong(currentInterval / 2 + 1)
                 currentInterval = (currentInterval * 2).coerceAtMost(maxInterval.toMillis())
@@ -140,8 +141,12 @@ class ResultCollector private constructor(
      */
     fun collectOnce(): CollectResult {
         val requestBody = buildString {
-            append("{\"acknowledge\":").append(acknowledge)
-            append(",\"limit\":").append(batchSize)
+            append("{")
+            if (lastAcknowledgedSequence != null) {
+                append("\"acknowledgeUpTo\":").append(lastAcknowledgedSequence)
+                append(",")
+            }
+            append("\"limit\":").append(batchSize)
             append("}")
         }
 
@@ -160,7 +165,7 @@ class ResultCollector private constructor(
 
                 var count = 0
                 var hasMore = false
-                var handlerFailed = false
+                var lastSequenceInBatch: Long? = null
 
                 reader.useLines { lines ->
                     for (line in lines) {
@@ -172,19 +177,17 @@ class ResultCollector private constructor(
                             break
                         }
 
-                        if (!handlerFailed) {
-                            try {
-                                handler(parseResult(node))
-                                count++
-                            } catch (e: Exception) {
-                                handlerFailed = true
-                                throw e
-                            }
-                        }
+                        val parsed = parseResult(node)
+                        handler(parsed)
+                        lastSequenceInBatch = parsed.sequence
+                        count++
                     }
                 }
 
-                acknowledge = !handlerFailed
+                // Only advance if handler processed all results without throwing
+                if (lastSequenceInBatch != null) {
+                    lastAcknowledgedSequence = lastSequenceInBatch
+                }
                 CollectResult(count = count, hasMore = hasMore)
             }
 
@@ -192,6 +195,7 @@ class ResultCollector private constructor(
     }
 
     private fun parseResult(node: com.fasterxml.jackson.databind.JsonNode) = GenerationResult(
+        sequence = node["sequence"].asLong(),
         requestId = node["requestId"].asText(),
         batchId = node["batchId"]?.asText(),
         status = node["status"].asText(),
