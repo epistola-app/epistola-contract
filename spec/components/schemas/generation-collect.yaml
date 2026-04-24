@@ -1,0 +1,115 @@
+CollectRequest:
+  type: object
+  description: |
+    Request body for the generation result collection endpoint.
+    Controls acknowledgment of previously delivered results and batch size.
+  properties:
+    acknowledge:
+      type: boolean
+      default: true
+      description: |
+        Acknowledge the previous batch as collected and processed.
+        - `true` (default): mark previous results as collected, return next batch.
+        - `false`: redeliver previous batch (use when processing failed).
+    limit:
+      type: integer
+      minimum: 1
+      maximum: 10000
+      default: 100
+      description: |
+        Maximum number of results to stream in this response.
+        Use for backpressure — only request as many results as you
+        can process before the next poll.
+
+GenerationResult:
+  type: object
+  description: |
+    A completed or failed generation result. Streamed as one NDJSON line
+    per result. Contains all information needed to process the result
+    without additional API calls (except downloading the document itself).
+  required:
+    - requestId
+    - status
+    - templateId
+    - completedAt
+  properties:
+    requestId:
+      type: string
+      format: uuid
+      description: The generation request ID
+      example: "550e8400-e29b-41d4-a716-446655440000"
+    batchId:
+      type: ['string', 'null']
+      format: uuid
+      description: Batch ID if this was part of a batch request. Null for single requests.
+      example: null
+    status:
+      type: string
+      enum: [COMPLETED, FAILED]
+      description: Terminal status of the generation request
+      example: COMPLETED
+    documentId:
+      type: ['string', 'null']
+      format: uuid
+      description: ID of the generated document. Present when status is COMPLETED.
+      example: "770e8400-e29b-41d4-a716-446655440002"
+    correlationId:
+      type: ['string', 'null']
+      description: Client-provided correlation ID from the generation request
+      example: order-7890
+    templateId:
+      type: string
+      description: Template used for generation
+      example: invoice
+    variantId:
+      type: ['string', 'null']
+      description: Variant used for generation
+      example: english
+    versionId:
+      type: ['integer', 'null']
+      description: Version number used for generation
+      example: 3
+    filename:
+      type: ['string', 'null']
+      description: Filename of the generated document
+      example: invoice-2026-001.pdf
+    contentType:
+      type: ['string', 'null']
+      description: MIME type of the generated document
+      example: application/pdf
+    sizeBytes:
+      type: ['integer', 'null']
+      format: int64
+      description: Size of the generated document in bytes
+      example: 184320
+    error:
+      type: ['string', 'null']
+      description: Error message. Present when status is FAILED.
+      example: null
+    completedAt:
+      type: string
+      format: date-time
+      description: When the generation completed or failed
+      example: "2026-04-24T10:30:05Z"
+
+CollectMeta:
+  type: object
+  description: |
+    Metadata line at the end of the NDJSON collection response.
+    Always the last line in the stream. Identified by `_meta: true`.
+  required:
+    - _meta
+    - hasMore
+    - count
+  properties:
+    _meta:
+      type: boolean
+      description: Always true. Distinguishes this from result lines.
+    hasMore:
+      type: boolean
+      description: |
+        true = more results are available, poll again immediately.
+        false = all results collected, wait before next poll.
+    count:
+      type: integer
+      description: Number of result lines in this response (excluding this meta line).

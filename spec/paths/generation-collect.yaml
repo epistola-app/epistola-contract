@@ -1,0 +1,112 @@
+# Generation Result Collection Endpoint
+
+generation-collect:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+
+  post:
+    operationId: collectGenerationResults
+    summary: Collect generation results
+    description: |
+      Collect completed and failed generation results as a compressed NDJSON stream.
+      Each line is a self-contained JSON object representing one generation result.
+
+      ## Priority and failover
+
+      Results are returned in priority order:
+      1. **Your node's results** — results from generation requests submitted by this node
+         (identified by `X-EP-Node-Id`) are returned first.
+      2. **Orphaned results** — if a node has not polled within the server-configured timeout
+         (default: 60 seconds), its uncollected results become available to other nodes of
+         the same consumer.
+
+      This ensures that results normally go back to the node that requested them, but are
+      not lost when a node crashes or is restarted.
+
+      ## Acknowledgment
+
+      The `acknowledge` field controls whether the previous batch is marked as collected:
+      - `acknowledge: true` (default) — previous results are marked as collected,
+        next batch returned.
+      - `acknowledge: false` — previous batch is redelivered (use when processing failed).
+
+      ## Compression
+
+      The client specifies preferred compression via `Accept-Encoding`:
+      ```
+      Accept-Encoding: lz4, zstd, gzip
+      ```
+      Supported: `lz4` (fastest), `zstd` (best ratio), `gzip` (universal).
+      Defaults to `gzip` if not specified.
+
+      ## NDJSON response format
+
+      - **Result lines**: `GenerationResult` objects, one per line
+      - **Meta line**: Last line, identified by `_meta: true`, contains `hasMore` and `count`
+
+      ## Adaptive polling
+
+      Use the `hasMore` flag to control polling frequency:
+      - `hasMore: true` — poll again immediately (more results available)
+      - `hasMore: false` — wait before next poll (caught up)
+
+      Recommended: exponential backoff (1s → 2s → 4s → ... → 30s max), reset on results.
+    tags:
+      - Generation
+    parameters:
+      - name: Accept-Encoding
+        in: header
+        required: false
+        description: Preferred compression algorithm(s). Defaults to gzip.
+        schema:
+          type: string
+          default: gzip
+        example: "lz4, zstd, gzip"
+    requestBody:
+      required: false
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/generation-collect.yaml#/CollectRequest'
+    responses:
+      '200':
+        description: |
+          NDJSON stream of generation results. Each line is a JSON object — either a
+          `GenerationResult` or a `CollectMeta` (last line, identified by `_meta: true`).
+        headers:
+          Content-Encoding:
+            description: Compression algorithm used.
+            schema:
+              type: string
+              enum: [lz4, zstd, gzip]
+        content:
+          application/x-ndjson:
+            schema:
+              type: string
+              description: |
+                Newline-delimited JSON stream. Each line is a self-contained JSON object.
+                Result lines conform to the GenerationResult schema. The last line conforms
+                to the CollectMeta schema (identified by `_meta: true`).
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '429':
+        description: Rate limit exceeded.
+        headers:
+          Retry-After:
+            description: Seconds to wait before retrying
+            schema:
+              type: integer
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'

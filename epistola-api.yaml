@@ -123,17 +123,6 @@ tags:
       the JWT is short-lived (60s) and signed with the consumer's private key.
   - name: Generation
     description: Asynchronous document generation operations
-  - name: Trackers
-    description: |
-      Event trackers for consumer-group event delivery.
-
-      A tracker is a named, server-side cursor that delivers events to a consumer
-      with consumer-group semantics: lease-based node affinity, automatic takeover
-      on node failure, and combined acknowledge+fetch in a single poll call.
-
-      Currently, trackers deliver generation events (completed/failed) scoped to
-      the consumer's own documents. Broader event types and distribution modes
-      will be added in future phases.
 
 # Global security - JWT Bearer token required (OAuth or self-signed)
 security:
@@ -258,13 +247,9 @@ paths:
   /tenants/{tenantId}/documents/{documentId}:
     $ref: './spec/paths/generation.yaml#/document-detail'
 
-  # Trackers
-  /tenants/{tenantId}/trackers:
-    $ref: './spec/paths/trackers.yaml#/tracker-collection'
-  /tenants/{tenantId}/trackers/{trackerId}:
-    $ref: './spec/paths/trackers.yaml#/tracker-resource'
-  /tenants/{tenantId}/trackers/{trackerId}/poll:
-    $ref: './spec/paths/trackers.yaml#/tracker-poll'
+  # Generation Result Collection
+  /tenants/{tenantId}/generation/collect:
+    $ref: './spec/paths/generation-collect.yaml#/generation-collect'
 
 components:
   schemas:
@@ -458,29 +443,13 @@ components:
     DocumentListResponse:
       $ref: './spec/components/schemas/generation.yaml#/DocumentListResponse'
 
-    # Event schemas
-    EventEnvelope:
-      $ref: './spec/components/schemas/events.yaml#/EventEnvelope'
-    ResourceRef:
-      $ref: './spec/components/schemas/events.yaml#/ResourceRef'
-    EventActor:
-      $ref: './spec/components/schemas/events.yaml#/EventActor'
-
-    # Tracker schemas
-    TrackerDto:
-      $ref: './spec/components/schemas/trackers.yaml#/TrackerDto'
-    TrackerCursor:
-      $ref: './spec/components/schemas/trackers.yaml#/TrackerCursor'
-    CreateOrUpdateTrackerRequest:
-      $ref: './spec/components/schemas/trackers.yaml#/CreateOrUpdateTrackerRequest'
-    TrackerListResponse:
-      $ref: './spec/components/schemas/trackers.yaml#/TrackerListResponse'
-    PollTrackerRequest:
-      $ref: './spec/components/schemas/trackers.yaml#/PollTrackerRequest'
-    PollTrackerResponse:
-      $ref: './spec/components/schemas/trackers.yaml#/PollTrackerResponse'
-    TrackerLeaseConflictResponse:
-      $ref: './spec/components/schemas/trackers.yaml#/TrackerLeaseConflictResponse'
+    # Generation collection schemas
+    CollectRequest:
+      $ref: './spec/components/schemas/generation-collect.yaml#/CollectRequest'
+    GenerationResult:
+      $ref: './spec/components/schemas/generation-collect.yaml#/GenerationResult'
+    CollectMeta:
+      $ref: './spec/components/schemas/generation-collect.yaml#/CollectMeta'
 
     # Error schemas
     ErrorResponse:
