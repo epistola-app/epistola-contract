@@ -1,4 +1,4 @@
-.PHONY: all lint bundle build-client build-server build-epistola-model build clean publish-local breaking mock validate-impl release help
+.PHONY: all lint bundle build-client build-server build-epistola-model build clean publish-local breaking mock validate-impl release docs help
 
 # Default target - runs what CI runs
 all: lint build
@@ -54,6 +54,14 @@ breaking: bundle
 	@git archive main -- epistola-api.yaml spec/ 2>/dev/null | tar -xC /tmp/epistola-base-spec || cp -r epistola-api.yaml spec/ /tmp/epistola-base-spec/
 	@cd /tmp/epistola-base-spec && npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml 2>/dev/null
 	oasdiff breaking /tmp/epistola-base-spec/openapi.yaml openapi.yaml
+
+# Generate API docs and open in browser
+docs: bundle
+	@echo "==> Building API documentation..."
+	npx @redocly/cli build-docs openapi.yaml -o /tmp/epistola-api-docs.html
+	@echo "==> Opening http://localhost:8888/epistola-api-docs.html"
+	@python3 -m http.server 8888 --directory /tmp --bind 0.0.0.0 &>/dev/null &
+	@echo "==> Server running on port 8888. Use Ctrl+C to stop."
 
 # Start mock server on port 4010
 mock: bundle
@@ -120,6 +128,7 @@ help:
 	@echo "  clean          - Clean all build artifacts"
 	@echo "  publish-local  - Publish to local Maven repository"
 	@echo "  breaking       - Check for breaking API changes against main branch"
+	@echo "  docs           - Build API docs and serve at http://localhost:8888"
 	@echo "  mock           - Start Prism mock server on http://localhost:4010"
 	@echo "  validate-impl  - Validate implementation against spec (set TARGET_URL)"
 	@echo "  release        - Create a GitHub Release to trigger the release workflow"
