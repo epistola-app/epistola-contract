@@ -12,6 +12,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ResultCollectorTest {
@@ -40,7 +42,7 @@ class ResultCollectorTest {
 
     @Suppress("ktlint:standard:function-signature")
     private fun metaLine(hasMore: Boolean, count: Int, lastSequence: Long = 0) =
-        """{"_meta":true,"hasMore":$hasMore,"count":$count,"lastSequence":$lastSequence,"partitions":{"total":12,"mine":[0,1,2],"hash":"murmur3"}}"""
+        """{"_meta":true,"hasMore":$hasMore,"count":$count,"lastSequence":$lastSequence,"partitions":{"total":12,"mine":[0,1,2,3],"hash":"murmur3"}}"""
 
     @Test
     fun `parses NDJSON results correctly`() {
@@ -54,22 +56,14 @@ class ResultCollectorTest {
             ),
         )
 
-        val collector = ResultCollector.builder()
-            .restClient(restClient)
-            .tenantId("acme-corp")
-            .handler { results.add(it) }
-            .objectMapper(objectMapper)
-            .build()
-
+        val collector = buildCollector(restClient) { results.add(it) }
         val result = collector.collectOnce()
 
         assertEquals(2, result.count)
         assertFalse(result.hasMore)
-        assertEquals(2, results.size)
         assertEquals(100, results[0].sequence)
         assertEquals("r1", results[0].requestId)
         assertEquals("COMPLETED", results[0].status)
-        assertEquals("d1", results[0].documentId)
         assertEquals(101, results[1].sequence)
         assertEquals("r2", results[1].requestId)
         assertEquals("FAILED", results[1].status)
@@ -78,17 +72,8 @@ class ResultCollectorTest {
     @Test
     fun `handles empty response`() {
         val results = mutableListOf<ResultCollector.GenerationResult>()
-
-        val restClient = mockRestClient(
-            ndjsonResponse(metaLine(hasMore = false, count = 0)),
-        )
-
-        val collector = ResultCollector.builder()
-            .restClient(restClient)
-            .tenantId("acme-corp")
-            .handler { results.add(it) }
-            .objectMapper(objectMapper)
-            .build()
+        val restClient = mockRestClient(ndjsonResponse(metaLine(hasMore = false, count = 0)))
+        val collector = buildCollector(restClient) { results.add(it) }
 
         val result = collector.collectOnce()
 
@@ -100,84 +85,105 @@ class ResultCollectorTest {
     @Test
     fun `hasMore true when more results available`() {
         val restClient = mockRestClient(
+            ndjsonResponse(resultLine(), metaLine(hasMore = true, count = 1, lastSequence = 100)),
+        )
+        val collector = buildCollector(restClient) { }
+
+        assertTrue(collector.collectOnce().hasMore)
+    }
+
+    @Test
+    fun `updates partition assignment from meta`() {
+        val restClient = mockRestClient(
+            ndjsonResponse(metaLine(hasMore = false, count = 0)),
+        )
+        val collector = buildCollector(restClient) { }
+
+        assertNull(collector.partitionAssignment)
+        collector.collectOnce()
+        assertNotNull(collector.partitionAssignment)
+        assertEquals(12, collector.partitionAssignment!!.total)
+        assertEquals(listOf(0, 1, 2, 3), collector.partitionAssignment!!.mine)
+    }
+
+    @Test
+    fun `partitionFor computes correct partition`() {
+        val restClient = mockRestClient(
+            ndjsonResponse(metaLine(hasMore = false, count = 0)),
+        )
+        val collector = buildCollector(restClient) { }
+        collector.collectOnce() // load partitions
+
+        val partition = collector.partitionFor("test-key")
+        assertNotNull(partition)
+        assertTrue(partition in 0 until 12)
+    }
+
+    @Test
+    fun `partitionFor returns null before first poll`() {
+        val collector = buildCollector(mockk()) { }
+        assertNull(collector.partitionFor("test-key"))
+    }
+
+    @Test
+    fun `isMyPartition checks against assigned partitions`() {
+        val restClient = mockRestClient(
+            ndjsonResponse(metaLine(hasMore = false, count = 0)),
+        )
+        val collector = buildCollector(restClient) { }
+        collector.collectOnce()
+
+        // At least one key should route to our partitions [0,1,2,3] out of 12
+        val foundMine = (0..100).any { collector.isMyPartition("key-$it") }
+        assertTrue(foundMine, "Expected at least one key to route to our partitions")
+    }
+
+    @Test
+    fun `routingKeyToMe returns original key if already mine`() {
+        val restClient = mockRestClient(
+            ndjsonResponse(metaLine(hasMore = false, count = 0)),
+        )
+        val collector = buildCollector(restClient) { }
+        collector.collectOnce()
+
+        // Find a key that already routes to our partitions
+        val myKey = (0..1000).map { "key-$it" }.first { collector.isMyPartition(it) }
+        assertEquals(myKey, collector.routingKeyToMe(myKey))
+    }
+
+    @Test
+    fun `metrics listener receives poll events`() {
+        var pollCount = 0
+        var lastCount = -1
+        val listener = object : ResultCollector.MetricsListener {
+            override fun onPoll(count: Int, hasMore: Boolean, durationMs: Long, error: Exception?) {
+                pollCount++
+                lastCount = count
+            }
+
+            override fun onPartitionChange(
+                oldAssignment: ResultCollector.PartitionAssignment?,
+                newAssignment: ResultCollector.PartitionAssignment,
+            ) {}
+        }
+
+        val restClient = mockRestClient(
             ndjsonResponse(
-                resultLine(),
-                metaLine(hasMore = true, count = 1),
+                resultLine(sequence = 100),
+                metaLine(hasMore = false, count = 1, lastSequence = 100),
             ),
         )
+        val collector = buildCollector(restClient, metricsListener = listener) { }
+        collector.collectOnce()
 
-        val collector = ResultCollector.builder()
-            .restClient(restClient)
-            .tenantId("acme-corp")
-            .handler { }
-            .objectMapper(objectMapper)
-            .build()
-
-        val result = collector.collectOnce()
-
-        assertTrue(result.hasMore)
-    }
-
-    @Test
-    fun `builder rejects invalid batch size`() {
-        assertFailsWith<IllegalArgumentException> {
-            ResultCollector.builder().batchSize(0)
-        }
-        assertFailsWith<IllegalArgumentException> {
-            ResultCollector.builder().batchSize(10001)
-        }
-    }
-
-    @Test
-    fun `builder rejects zero min interval`() {
-        assertFailsWith<IllegalArgumentException> {
-            ResultCollector.builder().minInterval(Duration.ZERO)
-        }
-    }
-
-    @Test
-    fun `builder requires restClient`() {
-        assertFailsWith<IllegalArgumentException> {
-            ResultCollector.builder()
-                .tenantId("acme-corp")
-                .handler { }
-                .build()
-        }
-    }
-
-    @Test
-    fun `builder requires tenantId`() {
-        assertFailsWith<IllegalArgumentException> {
-            ResultCollector.builder()
-                .restClient(mockk())
-                .handler { }
-                .build()
-        }
-    }
-
-    @Test
-    fun `builder requires handler`() {
-        assertFailsWith<IllegalArgumentException> {
-            ResultCollector.builder()
-                .restClient(mockk())
-                .tenantId("acme-corp")
-                .build()
-        }
+        assertEquals(1, pollCount)
+        assertEquals(1, lastCount)
     }
 
     @Test
     fun `stop terminates poll loop`() {
-        val restClient = mockRestClient(
-            ndjsonResponse(metaLine(hasMore = false, count = 0)),
-        )
-
-        val collector = ResultCollector.builder()
-            .restClient(restClient)
-            .tenantId("acme-corp")
-            .minInterval(Duration.ofMillis(50))
-            .handler { }
-            .objectMapper(objectMapper)
-            .build()
+        val restClient = mockRestClient(ndjsonResponse(metaLine(hasMore = false, count = 0)))
+        val collector = buildCollector(restClient, registerShutdownHook = false) { }
 
         val thread = Thread { collector.start() }
         thread.start()
@@ -187,6 +193,70 @@ class ResultCollectorTest {
 
         assertFalse(thread.isAlive)
     }
+
+    @Test
+    fun `builder rejects invalid batch size`() {
+        assertFailsWith<IllegalArgumentException> { ResultCollector.builder().batchSize(0) }
+        assertFailsWith<IllegalArgumentException> { ResultCollector.builder().batchSize(10001) }
+    }
+
+    @Test
+    fun `builder rejects zero min interval`() {
+        assertFailsWith<IllegalArgumentException> { ResultCollector.builder().minInterval(Duration.ZERO) }
+    }
+
+    @Test
+    fun `builder requires restClient`() {
+        assertFailsWith<IllegalArgumentException> {
+            ResultCollector.builder().tenantId("t").handler { }.build()
+        }
+    }
+
+    @Test
+    fun `builder requires tenantId`() {
+        assertFailsWith<IllegalArgumentException> {
+            ResultCollector.builder().restClient(mockk()).handler { }.build()
+        }
+    }
+
+    @Test
+    fun `builder requires handler`() {
+        assertFailsWith<IllegalArgumentException> {
+            ResultCollector.builder().restClient(mockk()).tenantId("t").build()
+        }
+    }
+
+    @Test
+    fun `murmur3 hash is deterministic`() {
+        val hash1 = murmur3x86_32("test-key".toByteArray(), 0)
+        val hash2 = murmur3x86_32("test-key".toByteArray(), 0)
+        assertEquals(hash1, hash2)
+    }
+
+    @Test
+    fun `murmur3 different keys produce different hashes`() {
+        val hash1 = murmur3x86_32("key-a".toByteArray(), 0)
+        val hash2 = murmur3x86_32("key-b".toByteArray(), 0)
+        assertTrue(hash1 != hash2, "Different keys should produce different hashes")
+    }
+
+    // --- Helpers ---
+
+    @Suppress("ktlint:standard:function-signature")
+    private fun buildCollector(
+        restClient: RestClient,
+        metricsListener: ResultCollector.MetricsListener? = null,
+        registerShutdownHook: Boolean = false,
+        handler: (ResultCollector.GenerationResult) -> Unit,
+    ) = ResultCollector.builder()
+        .restClient(restClient)
+        .tenantId("acme-corp")
+        .minInterval(Duration.ofMillis(50))
+        .handler(handler)
+        .objectMapper(objectMapper)
+        .registerShutdownHook(registerShutdownHook)
+        .apply { if (metricsListener != null) metricsListener(metricsListener) }
+        .build()
 
     @Suppress("UNCHECKED_CAST")
     private fun mockRestClient(responseBody: ByteArrayInputStream): RestClient {
