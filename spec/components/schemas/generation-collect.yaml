@@ -97,10 +97,14 @@ CollectMeta:
   description: |
     Metadata line at the end of the NDJSON collection response.
     Always the last line in the stream. Identified by `_meta: true`.
+
+    Includes partition assignment information so the client can predict
+    which node will receive results for a given routing key.
   required:
     - _meta
     - hasMore
     - count
+    - partitions
   properties:
     _meta:
       type: boolean
@@ -113,3 +117,38 @@ CollectMeta:
     count:
       type: integer
       description: Number of result lines in this response (excluding this meta line).
+    partitions:
+      $ref: '#/PartitionAssignment'
+
+PartitionAssignment:
+  type: object
+  description: |
+    Current partition assignment for this consumer. The server uses consistent
+    hashing to distribute partitions across active nodes. When nodes join or
+    leave, partitions are reassigned with minimal disruption.
+
+    Clients can use this information to compute routing keys that target
+    specific nodes: `hash(routingKey) % total` determines the partition,
+    and `mine` lists the partitions assigned to this node.
+  required:
+    - total
+    - mine
+    - hash
+  properties:
+    total:
+      type: integer
+      description: Total number of partitions for this consumer
+      example: 12
+    mine:
+      type: array
+      items:
+        type: integer
+      description: Partition numbers assigned to this node
+      example: [0, 1, 2, 3]
+    hash:
+      type: string
+      description: |
+        Hash algorithm used for routing key → partition mapping.
+        The client must use the same algorithm to predict routing.
+      enum: [murmur3]
+      example: murmur3

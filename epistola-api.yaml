@@ -451,6 +451,8 @@ components:
       $ref: './spec/components/schemas/generation-collect.yaml#/GenerationResult'
     CollectMeta:
       $ref: './spec/components/schemas/generation-collect.yaml#/CollectMeta'
+    PartitionAssignment:
+      $ref: './spec/components/schemas/generation-collect.yaml#/PartitionAssignment'
 
     # Error schemas
     ErrorResponse:

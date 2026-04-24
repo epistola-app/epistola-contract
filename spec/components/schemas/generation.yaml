@@ -196,6 +196,23 @@ GenerateDocumentRequest:
       description: Client-provided ID for tracking documents across systems
       maxLength: 255
       example: "order-7890"
+    routingKey:
+      type: [string, "null"]
+      description: |
+        Optional key that determines which consumer node receives the result
+        via the `/generation/collect` endpoint. Results with the same routing key
+        are always delivered to the same node (consistent hashing).
+
+        Common strategies:
+        - Use a business key (e.g., customer ID, order ID) for locality —
+          all results for the same entity go to the same node.
+        - Omit to default to the request ID (even distribution, no affinity).
+
+        The routing key is hashed to a partition number. Partition-to-node
+        assignment is managed by the server and reported in the collect
+        response metadata.
+      maxLength: 255
+      example: "order-7890"
 
 BatchGenerationItem:
   type: object
@@ -283,6 +300,15 @@ BatchGenerationItem:
     correlationId:
       type: [string, "null"]
       description: Client-provided ID for tracking documents across systems. Must be unique within a batch.
+      maxLength: 255
+      example: "order-7890"
+    routingKey:
+      type: [string, "null"]
+      description: |
+        Optional key for result routing via `/generation/collect`.
+        Results with the same routing key go to the same consumer node.
+        Use the same routing key across batch items to keep results together.
+        Omit to default to the request ID.
       maxLength: 255
       example: "order-7890"
 
