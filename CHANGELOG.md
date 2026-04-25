@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Consumer onboarding** — Full consumer lifecycle with two registration paths: self-service via `POST /consumers/register` (with public key for self-signed JWT auth) or auto-registration from OAuth. Admin approval (`POST /consumers/{id}/approve`) sets allowed tenants, roles, and optional expiry. Includes reject, update, delete, and public key rotation endpoints.
+- **Self-signed JWT authentication** — Applications without an IdP can authenticate by signing short-lived JWTs with a registered private key. Includes replay protection via `jti` nonce and `exp` claims.
+- **Permissions managed in Epistola** — Allowed tenants, roles, and expiry are set in the consumer record, not JWT claims. Single source of truth for authorization.
+- **Ping metadata** — Extend `POST /ping` request body with optional `name`, `description`, and `contact` fields for application self-description.
+- **JwtSigner (client)** — Utility for creating and signing short-lived JWTs for self-signed JWT authentication. Builder pattern with RSA/EC key support and a Spring `ClientHttpRequestInterceptor` for automatic Bearer token injection.
+- **Generation result collection** — `POST /tenants/{tenantId}/generation/collect` streams completed/failed generation results as compressed NDJSON. Node-affinity with failover: results go to the node that requested them first, orphaned results from dead nodes are redistributed to active nodes. Supports compression negotiation (lz4, zstd, gzip) and adaptive polling via `hasMore` flag.
+- **ConsumerResolver (server)** — Extracts consumer identity from JWT claims (`client_id`, `azp`, or `iss`). Works for both OAuth and self-signed JWT consumers.
+- **Ping/Pong endpoint** — `POST /ping` for bidirectional health checking and metadata exchange. Unauthenticated requests receive basic health status; authenticated requests also get server version, API spec version, and node identity.
+- **Client identity headers** — two required headers on all requests: `User-Agent` (must start with `epistola-contract/{version}`, additional product tokens for the software stack) and `X-EP-Node-Id` (pod name, container ID, or hostname).
+- **ClientIdentity (client)** — builder class for managing `User-Agent` and `X-EP-Node-Id` headers with key/value product registration. Creates a `ClientHttpRequestInterceptor` for Spring RestClient. Contract version is baked in automatically at build time.
+- **ClientInfo (server)** — parser for extracting client identity from incoming requests. Provides `contractVersion`, `nodeId`, and `productVersion(name)` for easy access to any product in the software stack.
+
+### Changed
+- **API version bumped to 0.3.0** — new System endpoint group for ping/pong, client identity headers
+- **Auth model redesigned** — `X-API-Key` authentication removed, replaced by self-signed JWT. All authorization (tenants, roles) now managed in Epistola's consumer record, not JWT claims. **Breaking change.**
+- **Release process** — `make release` now updates `info.version` in `epistola-api.yaml` to the full release version before creating the GitHub Release, ensuring the spec always reflects the exact artifact version
+
 ### Fixed
 - **Docs version** — docs workflow now uses the actual release tag version (e.g., 0.2.5) instead of only major.minor from the API spec
 

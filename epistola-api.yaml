@@ -9,17 +9,39 @@ info:
     Use `application/vnd.epistola.v1+json` for API version 1.
 
     ## Authentication
-    The API supports two authentication methods:
-    - **OAuth 2.0 JWT** (recommended): Use Client Credentials flow to obtain an access token
-    - **API Key**: Static key in `X-API-Key` header for environments without an IdP
+    The API uses JWT Bearer tokens for authentication. Two paths are supported:
+    - **OAuth 2.0** (recommended): Use Client Credentials flow to obtain a JWT from your IdP
+    - **Self-signed JWT**: Register with a public key, then sign short-lived JWTs with your private key
+
+    Both paths use `Authorization: Bearer <jwt>`. Permissions (allowed tenants, roles)
+    are managed in Epistola's consumer record, not in JWT claims.
 
     See the [Authentication Guide](/docs/auth.md) for details.
 
+    ## Client Identity
+
+    All requests must include the following headers for client identification:
+
+    - **`User-Agent`** (required) — identifies the client software stack using standard
+      [RFC 9110 §10.1.5](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent) product tokens.
+      The first token **must** be `epistola-contract/{version}` indicating the contract
+      version the client was built against. Additional product/version pairs can be
+      appended to describe the full software stack.
+      Example: `epistola-contract/0.3.0 valtimo-epistola-plugin/1.2.0 gzac/5.0.0`
+    - **`X-EP-Node-Id`** (required) — identifies the specific client node. Use the
+      Kubernetes pod name, container ID, or hostname. In local/dev environments,
+      the machine hostname is acceptable.
+
+    The generated Epistola client libraries set both headers automatically — `User-Agent`
+    with the contract version, and `X-EP-Node-Id` with the hostname. Consumers wrapping
+    the client library can append additional product tokens to `User-Agent` for their
+    own software and override the node ID as needed.
+
     ## Authorization
-    Access is controlled via roles (`reader`, `editor`, `generator`, `admin`) and
-    tenant permissions. JWT claims or API key configuration determine which
-    tenants a client can access.
-  version: "0.2.0"
+    Access is controlled via roles (`reader`, `editor`, `generator`, `manager`,
+    `tenant_control`) and tenant permissions. These are set by an administrator
+    when approving a consumer registration.
+  version: "0.3.0"
   contact:
     name: Epistola Team
   license:
@@ -31,6 +53,29 @@ servers:
     description: Base API path
 
 tags:
+  - name: System
+    description: |
+      System-level endpoints for health checking and metadata exchange.
+
+      ## Ping / Pong
+
+      The `POST /ping` endpoint enables bidirectional metadata exchange between
+      clients and the server. It serves two purposes:
+
+      1. **Health checking** — Any client (including load balancers and monitoring
+         probes) can send an unauthenticated ping to verify the server is alive.
+         The response contains only `status` and `timestamp`.
+
+      2. **Metadata exchange** — Authenticated clients receive a full response
+         including server version, API spec version, and node identity. Clients
+         can also send their own metadata (name, version, node ID) in the request
+         body for server-side logging and diagnostics.
+
+      ### Recommended ping intervals
+
+      - **On startup**: Always ping once before making business requests.
+      - **Periodic**: Every 30–60 seconds for ongoing health monitoring.
+      - **After failures**: Ping to check server availability before retrying.
   - name: Tenants
     description: Multi-tenant management operations
   - name: Templates
@@ -49,20 +94,67 @@ tags:
     description: Reusable template component operations (CRUD, versioning, usage tracking)
   - name: Catalogs
     description: Catalog import and management operations
+  - name: Consumers
+    description: |
+      Tenant-scoped consumer application registration and lifecycle management.
+
+      Each tenant independently manages which applications can access their resources.
+      The same application can register in multiple tenants with separate approvals.
+
+      ## Onboarding
+
+      Two registration paths are supported:
+
+      - **Self-signed JWT**: Application calls `POST /tenants/{tenantId}/consumers/register`
+        with a public key. Created as `pending` until a tenant manager approves.
+      - **OAuth**: First authenticated request to a tenant auto-registers the consumer
+        as `pending`. A tenant manager must approve before resources are accessible.
+
+      ## Permissions
+
+      Consumers declare what permissions they need at registration time (or via
+      OAuth scopes). The tenant manager reviews and grants equal or fewer permissions
+      on approval. Permissions are per-resource (`read`, `write`, `publish`) and
+      managed in Epistola's consumer record.
+
+      ## Authentication
+
+      Both paths use `Authorization: Bearer <jwt>`. For self-signed JWT consumers,
+      the JWT is short-lived (60s) and signed with the consumer's private key.
   - name: Generation
     description: Asynchronous document generation operations
 
-# Global security - either JWT or API Key is valid (OR logic via separate array entries)
+# Global security — either method is accepted.
+# bearerAuth (JWT) is the recommended path. apiKeyAuth is deprecated and
+# retained only for backwards compatibility — it will be removed in a future version.
 security:
   - bearerAuth: []
   - apiKeyAuth: []
 
 paths:
+  # System
+  /ping:
+    $ref: './spec/paths/ping.yaml#/ping'
+
   # Tenants
   /tenants:
     $ref: './spec/paths/tenants.yaml#/tenants'
   /tenants/{tenantId}:
     $ref: './spec/paths/tenants.yaml#/tenants-id'
+
+  # Consumers (tenant-scoped)
+  /tenants/{tenantId}/consumers/register:
+    $ref: './spec/paths/consumers.yaml#/consumer-register'
+  /tenants/{tenantId}/consumers:
+    $ref: './spec/paths/consumers.yaml#/consumer-collection'
+  /tenants/{tenantId}/consumers/{consumerId}:
+    $ref: './spec/paths/consumers.yaml#/consumer-resource'
+  /tenants/{tenantId}/consumers/{consumerId}/approve:
+    $ref: './spec/paths/consumers.yaml#/consumer-approve'
+  /tenants/{tenantId}/consumers/{consumerId}/reject:
+    $ref: './spec/paths/consumers.yaml#/consumer-reject'
+  /tenants/{tenantId}/consumers/{consumerId}/public-key:
+    $ref: './spec/paths/consumers.yaml#/consumer-public-key'
 
   # Themes
   /tenants/{tenantId}/catalogs/{catalogId}/themes:
@@ -158,8 +250,40 @@ paths:
   /tenants/{tenantId}/documents/{documentId}:
     $ref: './spec/paths/generation.yaml#/document-detail'
 
+  # Generation Result Collection
+  /tenants/{tenantId}/generation/collect:
+    $ref: './spec/paths/generation-collect.yaml#/generation-collect'
+
 components:
   schemas:
+    # Ping/Pong schemas
+    PingRequest:
+      $ref: './spec/components/schemas/ping.yaml#/PingRequest'
+    PongResponse:
+      $ref: './spec/components/schemas/ping.yaml#/PongResponse'
+    PongDetailsDto:
+      $ref: './spec/components/schemas/ping.yaml#/PongDetailsDto'
+
+    # Consumer schemas
+    ConsumerDto:
+      $ref: './spec/components/schemas/consumers.yaml#/ConsumerDto'
+    ConsumerNodeDto:
+      $ref: './spec/components/schemas/consumers.yaml#/ConsumerNodeDto'
+    ConsumerPermissions:
+      $ref: './spec/components/schemas/consumers.yaml#/ConsumerPermissions'
+    RegisterConsumerRequest:
+      $ref: './spec/components/schemas/consumers.yaml#/RegisterConsumerRequest'
+    ApproveConsumerRequest:
+      $ref: './spec/components/schemas/consumers.yaml#/ApproveConsumerRequest'
+    RejectConsumerRequest:
+      $ref: './spec/components/schemas/consumers.yaml#/RejectConsumerRequest'
+    UpdateConsumerRequest:
+      $ref: './spec/components/schemas/consumers.yaml#/UpdateConsumerRequest'
+    RotatePublicKeyRequest:
+      $ref: './spec/components/schemas/consumers.yaml#/RotatePublicKeyRequest'
+    ConsumerListResponse:
+      $ref: './spec/components/schemas/consumers.yaml#/ConsumerListResponse'
+
     # Tenant schemas
     TenantDto:
       $ref: './spec/components/schemas/tenants.yaml#/TenantDto'
@@ -322,6 +446,16 @@ components:
     DocumentListResponse:
       $ref: './spec/components/schemas/generation.yaml#/DocumentListResponse'
 
+    # Generation collection schemas
+    CollectRequest:
+      $ref: './spec/components/schemas/generation-collect.yaml#/CollectRequest'
+    GenerationResult:
+      $ref: './spec/components/schemas/generation-collect.yaml#/GenerationResult'
+    CollectMeta:
+      $ref: './spec/components/schemas/generation-collect.yaml#/CollectMeta'
+    PartitionAssignment:
+      $ref: './spec/components/schemas/generation-collect.yaml#/PartitionAssignment'
+
     # Error schemas
     ErrorResponse:
       $ref: './spec/components/responses/errors.yaml#/ErrorResponse'
@@ -330,24 +464,62 @@ components:
     FieldError:
       $ref: './spec/components/responses/errors.yaml#/FieldError'
 
+  parameters:
+    UserAgent:
+      name: User-Agent
+      in: header
+      required: true
+      description: |
+        Required. Identifies the client software stack using RFC 9110 product tokens
+        (`product/version`). The first token must be `epistola-contract/{version}`
+        indicating the contract version the client was built against. Additional tokens
+        can be appended to describe the full software stack.
+      schema:
+        type: string
+      example: epistola-contract/0.3.0 valtimo-epistola-plugin/1.2.0
+
+    NodeId:
+      name: X-EP-Node-Id
+      in: header
+      required: true
+      description: |
+        Required. Identifies the specific client node for request correlation and
+        diagnostics. Use the Kubernetes pod name, container ID, or hostname.
+        In local/dev environments, the machine hostname is acceptable.
+      schema:
+        type: string
+      example: epistola-cli-pod-7f8b9c
+
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
       description: |
-        OAuth 2.0 access token obtained via Client Credentials flow.
-        Supports Keycloak, Azure AD, or any OAuth 2.0 compliant IdP.
+        JWT Bearer token. Two authentication paths are supported:
 
-        Required JWT claims:
-        - `roles`: Array of roles (reader, editor, generator, manager, tenant_control)
-        - `allowed_tenants`: Array of tenant slugs or ["*"] for all tenants
+        **OAuth (recommended for environments with an IdP):**
+        Obtain a token via OAuth 2.0 Client Credentials flow from your
+        Identity Provider (Keycloak, Azure AD, or any OIDC-compliant IdP).
+        The JWT `client_id` claim identifies the consumer.
+
+        **Self-signed JWT (no IdP required):**
+        Register via `POST /consumers/register` with a public key.
+        After admin approval, create short-lived JWTs (60s) signed with
+        your private key. Required claims: `iss` (consumer ID), `exp`,
+        `jti` (unique nonce for replay protection).
+
+        In both cases, the JWT proves identity only. Permissions (allowed
+        tenants, roles, expiry) are managed in Epistola's consumer record,
+        set by an administrator during approval.
 
     apiKeyAuth:
       type: apiKey
       in: header
       name: X-API-Key
       description: |
-        Static API key for environments without an IdP.
-        Keys are issued by administrators and stored server-side
-        with associated roles and tenant access permissions.
+        **Deprecated — use JWT Bearer authentication (OAuth or self-signed) instead.**
+
+        Static API key for legacy environments. Keys are issued by administrators
+        and stored server-side with associated roles and tenant access permissions.
+        API key authentication will be removed in a future API version.

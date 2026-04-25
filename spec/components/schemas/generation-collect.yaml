@@ -1,0 +1,196 @@
+CollectRequest:
+  type: object
+  description: |
+    Request body for the generation result collection endpoint.
+    Controls cursor position (via acknowledgment) and batch size.
+  properties:
+    acknowledgeUpTo:
+      type: ['integer', 'null']
+      format: int64
+      description: |
+        Acknowledge that all results up to and including this sequence number
+        have been successfully processed. The server advances the per-partition
+        cursors accordingly.
+
+        - **First poll**: omit or set to null (nothing to acknowledge).
+        - **Subsequent polls**: set to the `sequence` value of the last
+          successfully processed result (or `lastSequence` from the meta line
+          if the entire batch was processed).
+        - **After restart**: omit or set to null. The server delivers from the
+          last acknowledged position — no data loss, no silent acknowledgment.
+
+        Partial acknowledgment is supported: if you received results with
+        sequences 100-109 but only processed through 105, set `acknowledgeUpTo: 105`.
+        The next poll returns results starting from 106.
+      example: 508
+    limit:
+      type: integer
+      minimum: 1
+      maximum: 10000
+      default: 100
+      description: |
+        Maximum number of results to stream in this response.
+        Use for backpressure — only request as many results as you
+        can process before the next poll.
+
+GenerationResult:
+  type: object
+  description: |
+    A completed or failed generation result. Streamed as one NDJSON line
+    per result. Contains all information needed to process the result
+    without additional API calls (except downloading the document itself).
+  required:
+    - sequence
+    - requestId
+    - status
+    - templateId
+    - completedAt
+  properties:
+    sequence:
+      type: integer
+      format: int64
+      description: |
+        Monotonic sequence number for this result. Used as the cursor value
+        for acknowledgment: pass this value as `acknowledgeUpTo` to confirm
+        processing up to this point.
+      example: 508
+    requestId:
+      type: string
+      format: uuid
+      description: The generation request ID
+      example: "550e8400-e29b-41d4-a716-446655440000"
+    batchId:
+      type: ['string', 'null']
+      format: uuid
+      description: Batch ID if this was part of a batch request. Null for single requests.
+      example: null
+    status:
+      type: string
+      enum: [COMPLETED, FAILED]
+      description: Terminal status of the generation request
+      example: COMPLETED
+    documentId:
+      type: ['string', 'null']
+      format: uuid
+      description: ID of the generated document. Present when status is COMPLETED.
+      example: "770e8400-e29b-41d4-a716-446655440002"
+    correlationId:
+      type: ['string', 'null']
+      description: Client-provided correlation ID from the generation request
+      example: order-7890
+    routingKey:
+      type: ['string', 'null']
+      description: Routing key used for partition assignment
+      example: order-7890
+    templateId:
+      type: string
+      description: Template used for generation
+      example: invoice
+    variantId:
+      type: ['string', 'null']
+      description: Variant used for generation
+      example: english
+    versionId:
+      type: ['integer', 'null']
+      description: Version number used for generation
+      example: 3
+    filename:
+      type: ['string', 'null']
+      description: Filename of the generated document
+      example: invoice-2026-001.pdf
+    contentType:
+      type: ['string', 'null']
+      description: MIME type of the generated document
+      example: application/pdf
+    sizeBytes:
+      type: ['integer', 'null']
+      format: int64
+      description: Size of the generated document in bytes
+      example: 184320
+    error:
+      type: ['string', 'null']
+      description: Error message. Present when status is FAILED.
+      example: null
+    completedAt:
+      type: string
+      format: date-time
+      description: When the generation completed or failed
+      example: "2026-04-24T10:30:05Z"
+
+CollectMeta:
+  type: object
+  description: |
+    Metadata line at the end of the NDJSON collection response.
+    Always the last line in the stream. Identified by `_meta: true`.
+
+    Includes partition assignment information so the client can predict
+    which node will receive results for a given routing key.
+  required:
+    - _meta
+    - hasMore
+    - count
+    - lastSequence
+    - partitions
+  properties:
+    _meta:
+      type: boolean
+      description: Always true. Distinguishes this from result lines.
+    hasMore:
+      type: boolean
+      description: |
+        true = more results are available, poll again immediately.
+        false = all results collected, wait before next poll.
+    count:
+      type: integer
+      description: Number of result lines in this response (excluding this meta line).
+    lastSequence:
+      type: integer
+      format: int64
+      description: |
+        The highest sequence number in this batch. Convenience value —
+        pass this as `acknowledgeUpTo` if the entire batch was processed
+        successfully. Equals the cursor position when the batch is empty.
+    partitions:
+      $ref: '#/PartitionAssignment'
+
+PartitionAssignment:
+  type: object
+  description: |
+    Current partition assignment for this consumer. The server uses consistent
+    hashing to distribute partitions across active nodes. When nodes join or
+    leave, partitions are reassigned with minimal disruption.
+
+    Clients can use this information to compute routing keys that target
+    specific nodes: `hash(routingKey) % total` determines the partition,
+    and `mine` lists the partitions assigned to this node.
+  required:
+    - total
+    - mine
+    - hash
+  properties:
+    total:
+      type: integer
+      description: Total number of partitions for this consumer
+      example: 12
+    mine:
+      type: array
+      items:
+        type: integer
+      description: Partition numbers assigned to this node
+      example: [0, 1, 2, 3]
+    hash:
+      type: string
+      description: |
+        Hash algorithm used for routing key → partition mapping.
+        The client must use the same algorithm to predict routing.
+
+        `murmur3` refers to MurmurHash3 x86 32-bit variant with seed 0.
+        The partition is computed as: `(murmur3_x86_32(routingKey, seed=0) & 0x7FFFFFFF) % total`.
+        The bitmask ensures a non-negative value before the modulo.
+
+        Reference implementations:
+        - Java: `com.google.common.hash.Hashing.murmur3_32_fixed(0)`
+        - Kotlin: same as Java (Guava)
+        - Python: `mmh3.hash(key, seed=0) & 0x7FFFFFFF`
+      enum: [murmur3]
+      example: murmur3

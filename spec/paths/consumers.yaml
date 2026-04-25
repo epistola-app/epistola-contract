@@ -1,0 +1,421 @@
+# Consumer Registration and Lifecycle Endpoints (tenant-scoped)
+
+consumer-register:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+
+  post:
+    operationId: registerConsumer
+    summary: Register a new consumer in this tenant
+    description: |
+      Self-service registration for consumer applications using self-signed JWT
+      authentication. The consumer is created in `pending` status within this
+      tenant until a tenant manager approves the registration.
+
+      This endpoint requires no authentication — the public key in the request
+      body establishes the consumer's identity for future authentication.
+
+      OAuth consumers do not use this endpoint. They are auto-registered as
+      `pending` on their first authenticated request to this tenant.
+    tags:
+      - Consumers
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/consumers.yaml#/RegisterConsumerRequest'
+    responses:
+      '201':
+        description: Consumer registered (status = pending)
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
+      '400':
+        description: Invalid request (e.g., invalid public key format)
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '404':
+        description: Tenant not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+      '409':
+        description: Consumer with this ID already exists in this tenant
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+
+consumer-collection:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+
+  get:
+    operationId: listConsumers
+    summary: List consumers in this tenant
+    description: |
+      Retrieve a paginated list of consumers registered in this tenant
+      with optional filtering by status.
+    tags:
+      - Consumers
+    x-required-roles: [manager]
+    parameters:
+      - name: q
+        in: query
+        description: Search term for filtering consumers by name or ID
+        schema:
+          type: string
+      - name: status
+        in: query
+        description: Filter by consumer status
+        schema:
+          type: string
+          enum: [pending, active, rejected, expired, inactive]
+      - name: page
+        in: query
+        description: Page number (0-based)
+        schema:
+          type: integer
+          default: 0
+          minimum: 0
+      - name: size
+        in: query
+        description: Number of items per page
+        schema:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+    responses:
+      '200':
+        description: List of consumers
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/consumers.yaml#/ConsumerListResponse'
+      '400':
+        description: Invalid request parameters
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+
+consumer-resource:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: consumerId
+      in: path
+      required: true
+      description: Unique slug identifier of the consumer
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+
+  get:
+    operationId: getConsumer
+    summary: Get consumer by ID
+    description: Retrieve details of a specific consumer in this tenant.
+    tags:
+      - Consumers
+    x-required-roles: [manager]
+    responses:
+      '200':
+        description: Consumer details
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Consumer not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+
+  patch:
+    operationId: updateConsumer
+    summary: Update consumer metadata or permissions
+    description: Update a consumer's metadata or permissions within this tenant.
+    tags:
+      - Consumers
+    x-required-roles: [manager]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/consumers.yaml#/UpdateConsumerRequest'
+    responses:
+      '200':
+        description: Consumer updated
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
+      '400':
+        description: Invalid request
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Consumer not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+
+  delete:
+    operationId: deleteConsumer
+    summary: Delete a consumer
+    description: |
+      Permanently remove a consumer from this tenant.
+
+      **Effect on generation results:**
+      - Partitions assigned to this consumer's nodes are released.
+      - Uncollected generation results remain in the system but are no longer
+        deliverable via the `/generation/collect` endpoint.
+      - Generated documents can still be accessed directly via
+        `GET /tenants/{tenantId}/documents/{documentId}`.
+      - The `createdBy` field on documents retains the consumer ID
+        (orphaned reference).
+    tags:
+      - Consumers
+    x-required-roles: [manager]
+    responses:
+      '204':
+        description: Consumer deleted
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Consumer not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+
+consumer-approve:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: consumerId
+      in: path
+      required: true
+      description: Unique slug identifier of the consumer to approve
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+
+  post:
+    operationId: approveConsumer
+    summary: Approve a pending consumer
+    description: |
+      Approve a consumer registration within this tenant. Sets the roles and
+      optional expiry. The consumer transitions from `pending` to `active`.
+    tags:
+      - Consumers
+    x-required-roles: [manager]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/consumers.yaml#/ApproveConsumerRequest'
+    responses:
+      '200':
+        description: Consumer approved (status = active)
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
+      '400':
+        description: Consumer is not in pending status
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Consumer not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+
+consumer-reject:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: consumerId
+      in: path
+      required: true
+      description: Unique slug identifier of the consumer to reject
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+
+  post:
+    operationId: rejectConsumer
+    summary: Reject a pending consumer
+    description: |
+      Reject a consumer registration. The consumer transitions from `pending`
+      to `rejected`. Optionally provide a reason.
+    tags:
+      - Consumers
+    x-required-roles: [manager]
+    requestBody:
+      required: false
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/consumers.yaml#/RejectConsumerRequest'
+    responses:
+      '200':
+        description: Consumer rejected (status = rejected)
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
+      '400':
+        description: Consumer is not in pending status
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Consumer not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+
+consumer-public-key:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: consumerId
+      in: path
+      required: true
+      description: Unique slug identifier of the consumer
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+
+  put:
+    operationId: rotatePublicKey
+    summary: Rotate public key
+    description: |
+      Replace the public key for a self-signed JWT consumer. Must authenticate
+      with a valid JWT signed by the current key. After rotation, the old key
+      is immediately invalidated.
+    tags:
+      - Consumers
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/consumers.yaml#/RotatePublicKeyRequest'
+    responses:
+      '200':
+        description: Public key rotated
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
+      '400':
+        description: Invalid public key or consumer uses OAuth
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Consumer not found
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'

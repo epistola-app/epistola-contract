@@ -1,0 +1,94 @@
+PingRequest:
+  type: object
+  description: |
+    Client metadata sent to the server as part of a ping request.
+    An empty object or no body works as a basic health probe.
+
+    When authenticated, the server uses ping data to maintain a consumer registry.
+    The optional `name`, `description`, and `contact` fields allow the application
+    to announce itself with human-readable metadata. Combined with the required
+    `User-Agent` and `X-EP-Node-Id` headers, the server builds a live view of
+    which applications are connected, which nodes they run on, and what versions
+    they use.
+  properties:
+    name:
+      type: string
+      maxLength: 255
+      description: |
+        Human-readable name of the consuming application.
+        Stored by the server as part of the consumer registry.
+      example: Invoice Service
+    description:
+      type: string
+      maxLength: 1000
+      description: |
+        What this application does and why it uses Epistola.
+      example: Generates PDF invoices for the billing pipeline
+    contact:
+      type: string
+      maxLength: 255
+      description: |
+        Team or individual responsible for this application (email, Slack channel, etc.).
+      example: billing-team@acme-corp.com
+
+PongResponse:
+  type: object
+  description: |
+    Server response to a ping request.
+
+    When the request is unauthenticated, only `status` and `timestamp` are returned
+    (basic health check). When authenticated, the `details` object is included with
+    full server metadata.
+  required:
+    - status
+    - timestamp
+  properties:
+    status:
+      type: string
+      enum:
+        - UP
+        - DEGRADED
+      description: |
+        Current health status of the server.
+        - `UP`: All systems operational.
+        - `DEGRADED`: Service is running but with reduced capability.
+        A server that is completely down cannot respond, so there is no `DOWN` value.
+      example: UP
+    timestamp:
+      type: string
+      format: date-time
+      description: Server timestamp at the time of the response (ISO 8601)
+      example: "2026-04-21T10:30:00Z"
+    details:
+      $ref: '#/PongDetailsDto'
+
+PongDetailsDto:
+  type: object
+  description: |
+    Detailed server metadata, only included in the response when the request is authenticated.
+  required:
+    - serverVersion
+    - apiVersion
+  properties:
+    serverVersion:
+      type: string
+      description: Semantic version of the running server application
+      example: "2.1.0"
+    apiVersion:
+      type: string
+      description: The API spec version supported by this server
+      example: "0.3.0"
+    nodeId:
+      type: string
+      description: Server node identifier (e.g. Kubernetes pod name, hostname)
+      example: epistola-server-pod-3a2d1e
+    partitions:
+      description: |
+        Partition assignment for generation result collection, if available.
+        Included when the authenticated consumer has an active partition
+        assignment in this tenant. Null for new consumers that have not
+        yet polled the collect endpoint, or when the request is unauthenticated.
+
+        Clients can use this on startup to compute routing keys that target
+        their own node before submitting generation requests.
+      $ref: '../schemas/generation-collect.yaml#/PartitionAssignment'
