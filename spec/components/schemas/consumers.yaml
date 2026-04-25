@@ -125,9 +125,9 @@ ConsumerPermissions:
     access levels. Higher levels imply lower levels (e.g., `write` implies `read`).
     All default to `none`.
 
-    Event delivery via trackers is implicit: if a consumer has `read` or higher
-    on a resource type, it may receive events for that resource type. No separate
-    event permission is needed.
+    The generation result collection endpoint (`POST /generation/collect`) is
+    accessible to consumers with `generation: read` or higher. No separate
+    permission is needed.
 
     For OAuth consumers, requested permissions are derived from JWT scopes
     using the pattern `epistola:{resource}:{level}` (e.g., `epistola:generation:write`,
@@ -175,17 +175,10 @@ ConsumerPermissions:
       type: string
       enum: [none, read, write]
       default: none
-      description: "read = view jobs and documents, write = submit jobs/preview + read"
-    trackers:
-      type: string
-      enum: [none, read, write]
-      default: none
       description: |
-        read = view trackers.
-        write = create/poll/delete trackers + read.
-        Events delivered by trackers are filtered by the consumer's other
-        permissions — a consumer only receives events for resources it
-        has at least `read` access to.
+        read = view jobs, documents, and collect generation results
+        via POST /generation/collect.
+        write = submit jobs/preview + read.
     consumers:
       type: string
       enum: [none, read, manage]

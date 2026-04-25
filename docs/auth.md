@@ -154,14 +154,11 @@ Roles are **not hierarchical** — they are independent capabilities.
 | List all tenants | | | | | X |
 | Get tenant (within allowed_tenants) | X | X | X | X | X |
 | Create / Update / Delete | | | | | X |
+| Collect generation results | X | X | X | X | |
 | **Consumers** |
 | Register (self-signed JWT) | — | — | — | — | — |
 | List / Get / Approve / Reject | | | | | X |
 | Rotate own public key | *self* | *self* | *self* | *self* | |
-| **Trackers** |
-| Create / Poll | | | X | X | |
-| List / Get | X | X | X | X | |
-| Delete | | | | X | |
 
 ---
 
