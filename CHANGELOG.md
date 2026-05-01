@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Mock server CI** — multi-arch Docker builds now run on native runners (`ubuntu-latest` for amd64, `ubuntu-24.04-arm` for arm64) with a manifest-merge step, replacing the QEMU-emulated single-job build. This eliminates ~30 min of arm64 emulation time per release.
+
 ## [0.2.6] - 2026-05-01
 
 ### Changed
