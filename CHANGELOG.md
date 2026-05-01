@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **MarginsDto** — `top`, `right`, `bottom`, and `left` are no longer required, matching the relaxed contract in `@epistola.app/epistola-model`. Clients may now send a partial margins object (e.g. `{ "top": 40 }`); `minimum: 0` still applies when a value is provided.
+
 ### Fixed
 - **Docs version** — docs workflow now uses the actual release tag version (e.g., 0.2.5) instead of only major.minor from the API spec
 

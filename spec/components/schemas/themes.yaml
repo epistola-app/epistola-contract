@@ -166,11 +166,6 @@ PageSettingsDto:
 MarginsDto:
   type: object
   description: Page margins in millimeters
-  required:
-    - top
-    - right
-    - bottom
-    - left
   properties:
     top:
       type: integer
