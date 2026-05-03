@@ -25,6 +25,10 @@ consumer-register:
 
       OAuth consumers do not use this endpoint. They are auto-registered as
       `pending` on their first authenticated request to this tenant.
+
+      API-key consumers do not use this endpoint either. They are provisioned
+      out of band by a tenant manager (api-key creation is a manager-side
+      action, not a self-service flow) and materialize directly as `active`.
     tags:
       - Consumers
     security: []

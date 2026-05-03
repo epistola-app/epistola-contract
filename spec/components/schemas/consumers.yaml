@@ -64,11 +64,18 @@ ConsumerDto:
       example: active
     authMethod:
       type: string
-      enum: [oauth, self-signed-jwt]
+      enum: [oauth, self-signed-jwt, api-key]
       description: |
         How this consumer authenticates:
         - `oauth`: JWT tokens issued by an external Identity Provider.
         - `self-signed-jwt`: Short-lived JWTs signed with the consumer's private key.
+        - `api-key`: Long-lived `X-API-Key` header value provisioned by a tenant
+          manager. Simpler than the JWT flows; recommended only for trusted
+          server-to-server integrations where key rotation is operationally
+          manageable. The consumer cannot self-rotate an api key —
+          `PUT /consumers/{cid}/public-key` does not apply; rotation requires
+          a tenant manager to issue a new key and revoke the old one out of
+          band.
       example: self-signed-jwt
     requestedPermissions:
       $ref: '#/ConsumerPermissions'
