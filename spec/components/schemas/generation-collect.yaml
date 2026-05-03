@@ -163,6 +163,26 @@ PartitionAssignment:
     Clients can use this information to compute routing keys that target
     specific nodes: `hash(routingKey) % total` determines the partition,
     and `mine` lists the partitions assigned to this node.
+
+    ## Affinity during rebalance (v0.3 — eventual affinity, immediate correctness)
+
+    When a new consumer node joins the active set, partition ownership rebalances
+    **immediately** on the server. The new node sees its share on its first poll;
+    existing nodes see their reduced share on their *next* poll. Between those
+    two events — bounded by one poll interval (≤ 1s at the default `minInterval`) —
+    an existing node's cached `mine` is stale.
+
+    During that brief window, a `routingKeyToMe(...)` call on an existing node
+    may return a routing key whose partition is already owned by the new node.
+    The result still flows (at-least-once delivery is preserved) but is
+    collected by the new owner rather than the submitting node. BPMN
+    processes that depend on submitter-affinity for cache locality may briefly
+    advance on a different node than the one that submitted the request; they
+    still complete correctly.
+
+    Coordinated cutover with a `pending` assignment and a wall-clock `cutoverAt`
+    is planned for v0.4 — see `docs/v04-coordinated-rebalance.md` in the
+    epistola-suite repository.
   required:
     - total
     - mine
