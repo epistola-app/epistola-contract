@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **API version bumped to 0.3.0** — new System endpoint group for ping/pong, client identity headers
-- **Auth model redesigned** — `X-API-Key` authentication removed, replaced by self-signed JWT. All authorization (tenants, roles) now managed in Epistola's consumer record, not JWT claims. **Breaking change.**
+- **Auth model expanded** — `ConsumerDto.authMethod` is now an enum of `[oauth, self-signed-jwt, api-key]`. `oauth` and `self-signed-jwt` are the registration paths exposed by the new Consumer Management API; `api-key` covers the existing long-lived `X-API-Key` model (provisioned out of band by tenant managers, not a self-service flow). All authorization (tenants, roles, granted permissions) is managed in Epistola's consumer record across all three auth methods, not via JWT claims. The contract surface for `X-API-Key` is unchanged and continues to work; suite-side implementation of the JWT paths is a follow-on.
 - **Release process** — `make release` now updates `info.version` in `epistola-api.yaml` to the full release version before creating the GitHub Release, ensuring the spec always reflects the exact artifact version
 
 ### Fixed
