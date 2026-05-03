@@ -9,7 +9,9 @@ import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.time.Duration
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import java.util.zip.GZIPInputStream
@@ -54,6 +56,8 @@ class ResultCollector private constructor(
     private val batchSize: Int,
     private val minInterval: Duration,
     private val maxInterval: Duration,
+    private val kickInterval: Duration,
+    private val backoffMultiplier: Double,
     private val handler: (GenerationResult) -> Unit,
     private val errorHandler: ((Exception) -> Unit)?,
     private val metricsListener: MetricsListener?,
@@ -61,10 +65,18 @@ class ResultCollector private constructor(
     private val registerShutdownHook: Boolean,
 ) {
     private val running = AtomicBoolean(false)
+
+    @Volatile
     private var currentInterval: Long = minInterval.toMillis()
     private var lastAcknowledgedSequence: Long? = null
     private val pollLock = ReentrantLock()
     private var shutdownHook: Thread? = null
+
+    // Wakeable sleep — replaces Thread.sleep so kick() can shorten an in-progress
+    // wait. Capacity 1 is intentional: multiple rapid kicks collapse into one
+    // (the queue can only hold one token; subsequent offer() calls are dropped
+    // by tryOffer-like semantics, and we drain after wake regardless).
+    private val wakeUp = LinkedBlockingQueue<Unit>(1)
 
     /** Current partition assignment, updated on each poll from the _meta line. */
     @Volatile
@@ -207,21 +219,19 @@ class ResultCollector private constructor(
                     currentInterval = when {
                         result.hasMore -> 0
                         result.count > 0 -> minInterval.toMillis()
-                        else -> (currentInterval * 2).coerceAtMost(maxInterval.toMillis())
+                        else -> (currentInterval * backoffMultiplier).toLong().coerceAtMost(maxInterval.toMillis())
                     }
 
-                    if (currentInterval > 0) {
-                        Thread.sleep(currentInterval)
-                    }
+                    sleepInterruptibly(currentInterval)
                 } catch (e: InterruptedException) {
                     Thread.currentThread().interrupt()
                     break
                 } catch (e: Exception) {
                     errorHandler?.invoke(e)
                     val jitter = ThreadLocalRandom.current().nextLong(currentInterval / 2 + 1)
-                    currentInterval = (currentInterval * 2).coerceAtMost(maxInterval.toMillis())
+                    currentInterval = (currentInterval * backoffMultiplier).toLong().coerceAtMost(maxInterval.toMillis())
                     try {
-                        Thread.sleep(currentInterval + jitter)
+                        sleepInterruptibly(currentInterval + jitter)
                     } catch (_: InterruptedException) {
                         Thread.currentThread().interrupt()
                         break
@@ -233,9 +243,46 @@ class ResultCollector private constructor(
         }
     }
 
+    /**
+     * Wakeable replacement for `Thread.sleep`. Returns early when [kick] is
+     * called or when [stop] is signalled (we offer a token from both). Multiple
+     * tokens collapse via [wakeUp]'s capacity-1 + [LinkedBlockingQueue.clear]
+     * after wake.
+     */
+    private fun sleepInterruptibly(durationMs: Long) {
+        if (durationMs <= 0) {
+            wakeUp.clear()
+            return
+        }
+        wakeUp.poll(durationMs, TimeUnit.MILLISECONDS)
+        wakeUp.clear()
+    }
+
+    /**
+     * Hint that a result is expected soon — typically called right after a
+     * successful submission, so the next poll happens within [kickInterval]
+     * instead of waiting out the full adaptive backoff.
+     *
+     * Threshold-guarded: if `currentInterval <= kickInterval` we're already
+     * polling fast enough; the next poll is imminent and a wake-up would just
+     * burn a poll for no benefit. So this is a no-op during active periods,
+     * useful only when the collector has backed off into idle mode.
+     *
+     * Safe to call from any thread, any number of times — extra calls collapse
+     * harmlessly thanks to the capacity-1 [wakeUp] queue.
+     */
+    fun kick() {
+        if (currentInterval > kickInterval.toMillis()) {
+            currentInterval = kickInterval.toMillis()
+            wakeUp.offer(Unit)
+        }
+    }
+
     /** Signals the poll loop to stop after the current collection completes. */
     fun stop() {
         running.set(false)
+        // Wake the loop so shutdown isn't delayed by an in-progress backoff.
+        wakeUp.offer(Unit)
     }
 
     /**
@@ -377,6 +424,8 @@ class ResultCollector private constructor(
         private var batchSize: Int = 100
         private var minInterval: Duration = Duration.ofSeconds(1)
         private var maxInterval: Duration = Duration.ofSeconds(30)
+        private var kickInterval: Duration = Duration.ofSeconds(3)
+        private var backoffMultiplier: Double = 3.0
         private var handler: ((GenerationResult) -> Unit)? = null
         private var errorHandler: ((Exception) -> Unit)? = null
         private var metricsListener: MetricsListener? = null
@@ -404,6 +453,31 @@ class ResultCollector private constructor(
             this.maxInterval = interval
         }
 
+        /**
+         * Wait time used by [kick] to override the current backoff (default: 3s).
+         * Should be small enough to feel responsive but long enough that the
+         * server has had a chance to actually emit the expected row before we
+         * poll for it. 3 s is a reasonable balance for typical document
+         * generation latencies.
+         */
+        fun kickInterval(interval: Duration) = apply {
+            require(!interval.isNegative && !interval.isZero) { "kickInterval must be positive" }
+            this.kickInterval = interval
+        }
+
+        /**
+         * Exponential backoff multiplier applied to `currentInterval` on each
+         * empty poll (default: 3.0). With minInterval=1s, maxInterval=30s and
+         * multiplier=3 the back-off sequence is 1s → 3s → 9s → 27s → 30s
+         * (capped). Higher multipliers reach `maxInterval` faster, reducing
+         * idle poll volume; the [kick] mechanism is the safety net that gets
+         * us back to fast polling when a result is expected.
+         */
+        fun backoffMultiplier(multiplier: Double) = apply {
+            require(multiplier > 1.0) { "backoffMultiplier must be > 1.0" }
+            this.backoffMultiplier = multiplier
+        }
+
         /** Handler called for each result as it streams in. */
         fun handler(handler: (GenerationResult) -> Unit) = apply { this.handler = handler }
 
@@ -427,6 +501,8 @@ class ResultCollector private constructor(
                 batchSize = batchSize,
                 minInterval = minInterval,
                 maxInterval = maxInterval,
+                kickInterval = kickInterval,
+                backoffMultiplier = backoffMultiplier,
                 handler = requireNotNull(handler) { "handler is required" },
                 errorHandler = errorHandler,
                 metricsListener = metricsListener,
