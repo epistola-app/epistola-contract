@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **`epistola-model` Margins fields optional** — the `Margins` JSON Schema in `epistola-model` no longer requires `top`, `right`, `bottom`, and `left` (removed from `required`). Generated Kotlin (`Long? = null`) and TypeScript (`?: number`) types now allow these fields to be omitted, matching the relaxed `MarginsDto` contract introduced in v0.2.6. Wire format still rejects explicit `null` — fields must either be omitted or be a non-negative integer.
+- **`epistola-model` PageSettings.margins optional** — the `PageSettings` JSON Schema no longer requires `margins`. Generated TypeScript declares `margins?: Margins`; the manually-defined Kotlin `PageSettings` now uses `val margins: Margins? = null` instead of defaulting to `Margins(20, 20, 20, 20)`, so callers can distinguish "no margins specified" (cascade) from explicit margins. The OpenAPI `PageSettingsDto.margins` was already optional; this brings the JSON Schema in line.
 - **Mock server CI** — multi-arch Docker builds now run on native runners (`ubuntu-latest` for amd64, `ubuntu-24.04-arm` for arm64) with a manifest-merge step, replacing the QEMU-emulated single-job build. This eliminates ~30 min of arm64 emulation time per release.
 
 ## [0.2.6] - 2026-05-01

@@ -85,7 +85,7 @@ export interface Margins {
 export interface PageSettings {
   format: PageFormat
   orientation: Orientation
-  margins: Margins
+  margins?: Margins
   backgroundColor?: string
 }
 

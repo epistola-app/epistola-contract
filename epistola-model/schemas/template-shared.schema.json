@@ -47,7 +47,6 @@
         "margins": { "$ref": "#/$defs/Margins" },
         "backgroundColor": { "type": "string", "description": "Page background color (CSS color value)." }
       },
-      "required": ["margins"],
       "additionalProperties": false
     },
 
