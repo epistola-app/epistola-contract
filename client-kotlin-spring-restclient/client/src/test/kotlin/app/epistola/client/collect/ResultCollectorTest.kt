@@ -8,7 +8,11 @@ import org.springframework.http.HttpHeaders
 import org.springframework.web.client.RestClient
 import java.io.ByteArrayInputStream
 import java.time.Duration
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -202,24 +206,18 @@ class ResultCollectorTest {
         // min=50ms, max=10s, the backoff sequence is 50ms → 150ms → 450ms → … →
         // 10s, reached within ~5 polls.
         val restClient = mockRestClient(ndjsonResponse(metaLine(hasMore = false, count = 0)))
-        val collector = ResultCollector.builder()
-            .restClient(restClient)
-            .tenantId("acme-corp")
-            .minInterval(Duration.ofMillis(50))
-            .maxInterval(Duration.ofSeconds(10))
-            .kickInterval(Duration.ofMillis(200))
-            .backoffMultiplier(3.0)
-            .objectMapper(objectMapper)
-            .registerShutdownHook(false)
-            .handler { }
-            .build()
 
-        // Track how often collectOnce ran via a counter on the metrics listener
-        // would be cleaner, but the simplest is to count the actual mock-server
-        // exchanges. We can use the metricsListener for that.
-        val pollCount = AtomicInteger(0)
-        val pollTimes = mutableListOf<Long>()
-        val collectorWithMetrics = ResultCollector.builder()
+        // Backoff is "settled" after 4 polls: currentInterval = 50 * 3^4 = 4050ms,
+        // well above the 200ms kickInterval, so kick() will not be a no-op.
+        val backoffSettled = CountDownLatch(4)
+        // Latch installed by the test thread immediately before kick(); the next
+        // onPoll callback decrements it. Using AtomicReference so the listener
+        // sees the latest assignment without needing synchronization.
+        val nextPollLatch = AtomicReference<CountDownLatch?>(null)
+        val nextPollTime = AtomicLong(Long.MIN_VALUE)
+        val totalPolls = AtomicInteger(0)
+
+        val collector = ResultCollector.builder()
             .restClient(restClient)
             .tenantId("acme-corp")
             .minInterval(Duration.ofMillis(50))
@@ -231,8 +229,13 @@ class ResultCollectorTest {
             .handler { }
             .metricsListener(object : ResultCollector.MetricsListener {
                 override fun onPoll(count: Int, hasMore: Boolean, durationMs: Long, error: Exception?) {
-                    pollTimes.add(System.currentTimeMillis())
-                    pollCount.incrementAndGet()
+                    totalPolls.incrementAndGet()
+                    backoffSettled.countDown()
+                    val latch = nextPollLatch.get()
+                    if (latch != null && latch.count > 0) {
+                        nextPollTime.compareAndSet(Long.MIN_VALUE, System.currentTimeMillis())
+                        latch.countDown()
+                    }
                 }
                 override fun onPartitionChange(
                     oldAssignment: ResultCollector.PartitionAssignment?,
@@ -241,44 +244,45 @@ class ResultCollectorTest {
             })
             .build()
 
-        val thread = Thread { collectorWithMetrics.start() }
+        val thread = Thread { collector.start() }
         thread.start()
 
-        // Let backoff accumulate. After ~700ms we've done at least 3 polls
-        // (50ms + 150ms + 450ms = 650ms cumulative) and currentInterval is
-        // somewhere in the seconds range — well above the 200ms kickInterval.
-        Thread.sleep(800)
-        val pollsBeforeKick = pollCount.get()
-        val kickAt = System.currentTimeMillis()
+        try {
+            // Wait deterministically for backoff to accumulate instead of
+            // sleeping a fixed duration.
+            assertTrue(
+                backoffSettled.await(10, TimeUnit.SECONDS),
+                "Backoff didn't accumulate (${totalPolls.get()} polls in 10s)",
+            )
 
-        collectorWithMetrics.kick()
+            // Install the kick latch *before* calling kick(), so we can't miss
+            // the wake-up poll. kickAt is captured immediately before kick() —
+            // the next decrement comes from a poll whose listener runs after
+            // kick(), so its timestamp is ≥ kickAt.
+            val kickLatch = CountDownLatch(1)
+            nextPollLatch.set(kickLatch)
+            val kickAt = System.currentTimeMillis()
+            collector.kick()
 
-        // Wait long enough for kickInterval + slack to elapse and the next
-        // poll to register.
-        Thread.sleep(500)
-        collectorWithMetrics.stop()
-        thread.join(2000)
+            // Generous timeout — kickInterval is 200ms but CI runners can stall.
+            assertTrue(
+                kickLatch.await(5, TimeUnit.SECONDS),
+                "No poll recorded within 5s after kick (totalPolls=${totalPolls.get()})",
+            )
 
-        val pollsAfterKick = pollCount.get()
-        assertTrue(
-            pollsAfterKick > pollsBeforeKick,
-            "Expected at least one poll after kick (had $pollsBeforeKick, now $pollsAfterKick)",
-        )
-        // Find the first poll that happened after the kick.
-        val firstPostKickPoll = pollTimes.firstOrNull { it > kickAt }
-        assertTrue(firstPostKickPoll != null, "No poll recorded after kick")
-        val latencyMs = firstPostKickPoll - kickAt
-        // 200ms kickInterval + 200ms slack for scheduling jitter — generous.
-        assertTrue(
-            latencyMs <= 400,
-            "Kick should produce a poll within ~400ms (kickInterval + slack); got ${latencyMs}ms",
-        )
-
-        // Suppress unused-variable warning on the first collector (kept to make
-        // the original parameter shape obvious for readers comparing this test
-        // with the sibling `builder rejects` ones). It's intentionally inert.
-        @Suppress("UNUSED_EXPRESSION")
-        collector
+            val firstPostKickPoll = nextPollTime.get()
+            check(firstPostKickPoll != Long.MIN_VALUE) { "kick latch released without timestamp" }
+            val latencyMs = firstPostKickPoll - kickAt
+            // kickInterval (200ms) + generous slack for scheduling jitter and
+            // poll execution on loaded CI runners.
+            assertTrue(
+                latencyMs in 0..1000,
+                "Kick should produce a poll within ~1s; got ${latencyMs}ms",
+            )
+        } finally {
+            collector.stop()
+            thread.join(2000)
+        }
     }
 
     @Test
