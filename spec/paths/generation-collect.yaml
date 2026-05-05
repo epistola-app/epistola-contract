@@ -1,0 +1,138 @@
+# Generation Result Collection Endpoint
+
+generation-collect:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+
+  post:
+    operationId: collectGenerationResults
+    summary: Collect generation results
+    description: |
+      Collect completed and failed generation results as a compressed NDJSON stream.
+      Each line is a self-contained JSON object representing one generation result.
+
+      ## Partition-based routing
+
+      Results are routed to nodes using consistent hashing on the `routingKey`
+      from the generation request:
+
+      1. Each result is assigned to a **partition**: `murmur3(routingKey) % totalPartitions`.
+         If no routing key was provided, the request ID is used.
+      2. Partitions are **assigned to nodes** via consistent hashing. The server
+         tracks which nodes are active based on poll frequency.
+      3. Each node receives results from its **assigned partitions** only.
+
+      ## Failover
+
+      If a node stops polling (server-configured timeout, default: 60 seconds),
+      its partitions are redistributed to the remaining active nodes. Results
+      from those partitions are delivered to the new owners. When the node
+      returns, partitions are rebalanced again.
+
+      Consistent hashing minimizes disruption — when a node joins or leaves,
+      only ~1/N of partitions move.
+
+      ## Partition assignment
+
+      The response metadata (`_meta` line) includes the current partition
+      assignment: total partitions, which partitions are assigned to this node,
+      and the hash algorithm. Clients can use this to compute routing keys
+      that target specific nodes (e.g., to ensure results come back to the
+      submitting node).
+
+      ## Acknowledgment
+
+      Each result includes a `sequence` number. Pass the highest successfully
+      processed sequence as `acknowledgeUpTo` in the next poll to advance the cursor:
+
+      1. First poll: omit `acknowledgeUpTo` (nothing to acknowledge yet).
+      2. Process results. Track the highest `sequence` you successfully handled.
+      3. Next poll: `{ "acknowledgeUpTo": 508, "limit": 100 }`.
+      4. Server advances per-partition cursors, returns results after 508.
+
+      **Partial acknowledgment**: if you processed results 500-505 out of 500-509,
+      set `acknowledgeUpTo: 505`. Results 506-509 are redelivered.
+
+      **After restart**: omit `acknowledgeUpTo`. The server resumes from the last
+      acknowledged position. No data loss, no silent acknowledgment.
+
+      ## Compression
+
+      The client specifies preferred compression via `Accept-Encoding`:
+      ```
+      Accept-Encoding: lz4, zstd, gzip
+      ```
+      Supported: `lz4` (fastest), `zstd` (best ratio), `gzip` (universal).
+      Defaults to `gzip` if not specified.
+
+      ## NDJSON response format
+
+      - **Result lines**: `GenerationResult` objects, one per line
+      - **Meta line**: Last line, identified by `_meta: true`, contains `hasMore` and `count`
+
+      ## Adaptive polling
+
+      Use the `hasMore` flag to control polling frequency:
+      - `hasMore: true` — poll again immediately (more results available)
+      - `hasMore: false` — wait before next poll (caught up)
+
+      Recommended: exponential backoff (1s → 2s → 4s → ... → 30s max), reset on results.
+    tags:
+      - Generation
+    parameters:
+      - name: Accept-Encoding
+        in: header
+        required: false
+        description: Preferred compression algorithm(s). Defaults to gzip.
+        schema:
+          type: string
+          default: gzip
+        example: "lz4, zstd, gzip"
+    requestBody:
+      required: false
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/generation-collect.yaml#/CollectRequest'
+    responses:
+      '200':
+        description: |
+          NDJSON stream of generation results. Each line is a JSON object — either a
+          `GenerationResult` or a `CollectMeta` (last line, identified by `_meta: true`).
+        headers:
+          Content-Encoding:
+            description: Compression algorithm used.
+            schema:
+              type: string
+              enum: [lz4, zstd, gzip]
+        content:
+          application/vnd.epistola.v1+ndjson:
+            schema:
+              type: string
+              description: |
+                Newline-delimited JSON stream. Each line is a self-contained JSON object.
+                Result lines conform to the GenerationResult schema. The last line conforms
+                to the CollectMeta schema (identified by `_meta: true`).
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '429':
+        description: Rate limit exceeded.
+        headers:
+          Retry-After:
+            description: Seconds to wait before retrying
+            schema:
+              type: integer
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'

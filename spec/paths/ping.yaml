@@ -1,0 +1,47 @@
+ping:
+  post:
+    operationId: ping
+    summary: Ping the server and exchange metadata
+    description: |
+      Bidirectional metadata exchange endpoint for health checking and version discovery.
+
+      ## Two-tier response
+
+      This endpoint supports both unauthenticated and authenticated requests:
+
+      - **Unauthenticated**: Returns only `status` and `timestamp` — useful for load balancers,
+        monitoring probes, and basic liveness checks.
+      - **Authenticated**: Returns the full response including `details` with server version,
+        API spec version, and node identity. The client can also send its own metadata
+        (name, version, node ID) in the request body for server-side diagnostics.
+
+      ## Recommended usage
+
+      - **On startup**: Always ping once to verify the server is reachable and discover its
+        version before making business requests.
+      - **Periodic health check**: Ping every **30–60 seconds** for ongoing health monitoring.
+        More frequent pings add unnecessary load; less frequent pings delay issue detection.
+      - **On-demand after failures**: When a business request fails, ping to determine whether
+        the server is still available before retrying.
+
+      ## Request body
+
+      The request body is entirely optional. An empty body (`{}`) or no body at all is valid
+      and returns a basic health response. Include client metadata when you want the server
+      to log which clients are connected or to enable future compatibility features.
+    tags:
+      - System
+    security: []
+    requestBody:
+      required: false
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/ping.yaml#/PingRequest'
+    responses:
+      '200':
+        description: Server health status and optional metadata
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/ping.yaml#/PongResponse'

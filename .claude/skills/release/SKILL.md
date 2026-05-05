@@ -44,7 +44,23 @@ Add a fresh empty `[Unreleased]` section above it. Commit this change:
 docs: update changelog for vX.Y.Z release
 ```
 
-### 3. Ask for confirmation
+### 3. Update the spec version
+
+Update `info.version` in `epistola-api.yaml` to the full release version (e.g. `0.3.1`):
+
+```bash
+sed -i -E "s/(^\s*version:\s*[\"']?)[0-9]+\.[0-9]+\.[0-9]+([\"']?)/\1X.Y.Z\2/" epistola-api.yaml
+```
+
+Commit this change:
+
+```
+release: bump spec version to X.Y.Z
+```
+
+This ensures the spec always reflects the exact release version, which is baked into the client's `User-Agent` header (`epistola-contract/X.Y.Z`).
+
+### 4. Ask for confirmation
 
 Before creating the release, show the user:
 
@@ -52,7 +68,7 @@ Before creating the release, show the user:
 - The commits included
 - Ask for permission to proceed
 
-### 4. Push and create the release
+### 5. Push and create the release
 
 ```bash
 git push origin main
@@ -61,7 +77,7 @@ gh release create vX.Y.Z --title "vX.Y.Z" --generate-notes
 
 The `--generate-notes` flag auto-generates release notes from PRs and commits.
 
-### 5. Verify
+### 6. Verify
 
 After creating the release, tell the user:
 
