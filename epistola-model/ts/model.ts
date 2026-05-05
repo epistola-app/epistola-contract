@@ -76,10 +76,10 @@ export type PageFormat = 'A4' | 'Letter' | 'Custom'
 export type Orientation = 'portrait' | 'landscape'
 /** Page margins in millimeters. */
 export interface Margins {
-  top: number
-  right: number
-  bottom: number
-  left: number
+  top?: number
+  right?: number
+  bottom?: number
+  left?: number
 }
 
 export interface PageSettings {

@@ -36,7 +36,6 @@
         "bottom": { "type": "integer", "minimum": 0, "description": "Bottom margin in mm." },
         "left": { "type": "integer", "minimum": 0, "description": "Left margin in mm." }
       },
-      "required": ["top", "right", "bottom", "left"],
       "additionalProperties": false
     },
 
