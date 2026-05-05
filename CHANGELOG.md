@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-05
+
 ### Added
 - **`ResultCollector.kick()` + tunable backoff** — public API on the polling client. Producer-side hint that a result is expected soon: when the collector has backed off into idle mode, `kick()` resets the next-poll wait to `kickInterval` (new builder field, default 3s) instead of waiting out the full backoff. Threshold-guarded so a kick during active polling is a no-op. Implementation replaces `Thread.sleep` with a wakeable `LinkedBlockingQueue` so `kick()` can interrupt an in-progress wait. Also adds `backoffMultiplier` (new builder field, default 3.0; previously hard-coded to 2.0) — gives the sequence 1s → 3s → 9s → 27s → 30s (capped at `maxInterval`), reaching idle faster which reduces poll volume now that the kick is the safety net for fast resumption. Both fields are backward-compatible additions; existing callers keep working.
 - **Consumer onboarding** — Full consumer lifecycle with two registration paths: self-service via `POST /consumers/register` (with public key for self-signed JWT auth) or auto-registration from OAuth. Admin approval (`POST /consumers/{id}/approve`) sets allowed tenants, roles, and optional expiry. Includes reject, update, delete, and public key rotation endpoints.
@@ -25,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **API version bumped to 0.3.0** — new System endpoint group for ping/pong, client identity headers
 - **Auth model expanded** — `ConsumerDto.authMethod` is now an enum of `[oauth, self-signed-jwt, api-key]`. `oauth` and `self-signed-jwt` are the registration paths exposed by the new Consumer Management API; `api-key` covers the existing long-lived `X-API-Key` model (provisioned out of band by tenant managers, not a self-service flow). All authorization (tenants, roles, granted permissions) is managed in Epistola's consumer record across all three auth methods, not via JWT claims. The contract surface for `X-API-Key` is unchanged and continues to work; suite-side implementation of the JWT paths is a follow-on.
 - **Release process** — `make release` now updates `info.version` in `epistola-api.yaml` to the full release version before creating the GitHub Release, ensuring the spec always reflects the exact artifact version
+
 ## [0.2.7] - 2026-05-05
 
 ### Changed
