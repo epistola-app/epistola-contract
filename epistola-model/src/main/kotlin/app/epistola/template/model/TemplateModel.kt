@@ -14,16 +14,18 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 typealias DocumentStyles = Map<String, Any>
 
 /**
- * Page settings with sensible defaults.
+ * Page settings.
  *
- * Defined manually because the codegen tool generates non-nullable constructor
- * parameters from the JSON Schema `required` array, but the frontend may send
- * partial payloads (e.g. only margins). Defaults match the standard A4 portrait layout.
+ * Defined manually so consumers can construct partial payloads (e.g. only an
+ * orientation override) without supplying every field. `format` and
+ * `orientation` carry standard A4 portrait defaults; `margins` is null when
+ * not set so callers can distinguish "use cascade default" from "explicit
+ * margins".
  */
 data class PageSettings(
     val format: PageFormat = PageFormat.A4,
     val orientation: Orientation = Orientation.portrait,
-    val margins: Margins = Margins(top = 20, right = 20, bottom = 20, left = 20),
+    val margins: Margins? = null,
     val backgroundColor: String? = null,
 )
 
