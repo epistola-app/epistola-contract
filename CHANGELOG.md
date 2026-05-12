@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-12
+
 ### Added
 
 - **Catalog protocol: `CodeListResource`, `DependencyRef.CodeList`, and `AttributeResource.codeListBinding`.** Catalogs can now distribute code lists alongside attributes, and an attribute can reference a code list either inside its own catalog (`codeListBinding.catalogKey == null`) or in another catalog of the same tenant (`codeListBinding.catalogKey = "system"`). Manifest `schemaVersion` bumps to `3` only when these features are used; older v2 catalogs read unchanged. The discriminator `"codeList"` joins `theme`/`stencil`/`asset` in `DependencyRef`.
