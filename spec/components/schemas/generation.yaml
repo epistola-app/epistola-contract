@@ -90,19 +90,38 @@ PreviewDocumentRequest:
 
 VariantSelectionAttribute:
   type: object
-  description: Attribute criterion for variant selection
+  description: |
+    Attribute criterion for variant selection.
+
+    `key` may take three forms (server resolves in this order):
+      1. Explicit qualifier: provide `catalog` + a bare `key`. Recommended.
+      2. Dotted form: `key = "<catalog>.<slug>"`. The catalog slug grammar
+         excludes `.`, so the split is unambiguous.
+      3. Bare slug: tenant-wide lookup (legacy). If the same slug exists in
+         multiple catalogs of the tenant, the validator silently picks one.
   required:
     - key
     - value
   properties:
+    catalog:
+      type:
+        - string
+        - 'null'
+      description: |
+        Optional catalog qualifier. When set, the server resolves the attribute
+        as `(catalog, key)`. When omitted, `key` may be dotted (`"system.locale"`)
+        or a bare slug (legacy).
+      example: system
     key:
       type: string
-      description: Attribute key (must match an attribute definition for the tenant)
-      example: language
+      description: |
+        Attribute key. May be a bare slug (`locale`) or a dotted qualifier
+        (`system.locale`). Must match an attribute definition for the tenant.
+      example: locale
     value:
       type: string
-      description: Attribute value to match
-      example: dutch
+      description: Attribute value to match.
+      example: en-US
     required:
       type: boolean
       default: true

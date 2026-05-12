@@ -94,6 +94,12 @@ tags:
     description: Reusable template component operations (CRUD, versioning, usage tracking)
   - name: Catalogs
     description: Catalog import and management operations
+  - name: CodeLists
+    description: |
+      Reusable `{code, label}` collections that attributes can bind to.
+      Code lists are tenant + catalog scoped; SUBSCRIBED-catalog code
+      lists (e.g. the bundled `system` catalog's BCP-47, ISO 639-1,
+      ISO 3166-1 alpha-2) are read-only — PATCH/DELETE return 409.
   - name: Consumers
     description: |
       Tenant-scoped consumer application registration and lifecycle management.
@@ -173,6 +179,16 @@ paths:
     $ref: './spec/paths/attributes.yaml#/attributes'
   /tenants/{tenantId}/catalogs/{catalogId}/attributes/{attributeKey}:
     $ref: './spec/paths/attributes.yaml#/attributes-key'
+
+  # Code lists
+  /tenants/{tenantId}/catalogs/{catalogId}/code-lists:
+    $ref: './spec/paths/code-lists.yaml#/code-lists'
+  /tenants/{tenantId}/catalogs/{catalogId}/code-lists/{codeListSlug}:
+    $ref: './spec/paths/code-lists.yaml#/code-lists-slug'
+  /tenants/{tenantId}/catalogs/{catalogId}/code-lists/{codeListSlug}/refresh:
+    $ref: './spec/paths/code-lists.yaml#/code-list-refresh'
+  /tenants/{tenantId}/catalogs/{catalogId}/code-lists/{codeListSlug}/entries:
+    $ref: './spec/paths/code-lists.yaml#/code-list-entries'
 
   # Templates
   /tenants/{tenantId}/catalogs/{catalogId}/templates:
@@ -339,6 +355,20 @@ components:
       $ref: './spec/components/schemas/catalogs.yaml#/CatalogDto'
     CatalogListResponse:
       $ref: './spec/components/schemas/catalogs.yaml#/CatalogListResponse'
+
+    # Code list schemas
+    CodeListDto:
+      $ref: './spec/components/schemas/code-lists.yaml#/CodeListDto'
+    CodeListEntryDto:
+      $ref: './spec/components/schemas/code-lists.yaml#/CodeListEntryDto'
+    CodeListListResponse:
+      $ref: './spec/components/schemas/code-lists.yaml#/CodeListListResponse'
+    CodeListEntriesResponse:
+      $ref: './spec/components/schemas/code-lists.yaml#/CodeListEntriesResponse'
+    CreateCodeListRequest:
+      $ref: './spec/components/schemas/code-lists.yaml#/CreateCodeListRequest'
+    UpdateCodeListRequest:
+      $ref: './spec/components/schemas/code-lists.yaml#/UpdateCodeListRequest'
     ImportCatalogResponse:
       $ref: './spec/components/schemas/import.yaml#/ImportCatalogResponse'
     ImportTemplateResultDto:

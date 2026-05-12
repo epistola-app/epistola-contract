@@ -1,0 +1,269 @@
+CodeListDto:
+  type: object
+  description: |
+    A reusable `{code, label}` collection that an attribute can bind to.
+
+    Code lists are tenant + catalog scoped — the same shape attributes follow.
+    A code list from a SUBSCRIBED catalog (e.g. the bundled `system` catalog's
+    `bcp-47`, `iso-639-1`, `iso-3166-1-alpha2`) is flagged `readOnly: true`;
+    PATCH, DELETE, and entry hide-toggles on it return 409.
+
+    Sources: `INLINE` (entries baked into this row) or `URL` (entries fetched
+    over HTTPS via the manual "refresh" action). Catalog-imported code lists
+    always land as `INLINE` because the entries ship in the catalog manifest.
+  required:
+    - slug
+    - tenantId
+    - catalog
+    - displayName
+    - sourceType
+    - authType
+    - catalogType
+    - readOnly
+    - createdAt
+    - lastModified
+  properties:
+    slug:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 1
+      maxLength: 50
+      description: Slug identifier (unique within `tenant + catalog`).
+      example: bcp-47
+    tenantId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      example: acme-corp
+    catalog:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      description: Slug of the catalog this code list lives in.
+      example: system
+    displayName:
+      type: string
+      example: BCP-47 Language Tags
+    description:
+      type:
+        - string
+        - 'null'
+      example: Curated subset of common BCP-47 language + region tags.
+    sourceType:
+      type: string
+      enum:
+        - INLINE
+        - URL
+      description: Origin of entries — inline (this row) or fetched from a URL.
+      example: INLINE
+    sourceUrl:
+      type:
+        - string
+        - 'null'
+      description: Set only when `sourceType=URL`. HTTPS, file, or classpath.
+      example: null
+    authType:
+      type: string
+      enum:
+        - NONE
+        - API_KEY
+        - BEARER
+      description: Auth scheme for the URL source. Ignored for INLINE.
+      default: NONE
+      example: NONE
+    catalogType:
+      type: string
+      enum:
+        - AUTHORED
+        - SUBSCRIBED
+      example: SUBSCRIBED
+    readOnly:
+      type: boolean
+      description: True when `catalogType == SUBSCRIBED`.
+      example: true
+    lastRefreshedAt:
+      type:
+        - string
+        - 'null'
+      format: date-time
+      description: Timestamp of the last successful URL refresh. Null for INLINE.
+      example: null
+    lastRefreshError:
+      type:
+        - string
+        - 'null'
+      description: Set when the last refresh attempt failed.
+      example: null
+    createdAt:
+      type: string
+      format: date-time
+      example: "2026-05-11T00:00:00Z"
+    lastModified:
+      type: string
+      format: date-time
+      example: "2026-05-11T00:00:00Z"
+  example:
+    slug: bcp-47
+    tenantId: acme-corp
+    catalog: system
+    displayName: BCP-47 Language Tags
+    description: Curated subset of common BCP-47 language + region tags.
+    sourceType: INLINE
+    sourceUrl: null
+    authType: NONE
+    catalogType: SUBSCRIBED
+    readOnly: true
+    lastRefreshedAt: null
+    lastRefreshError: null
+    createdAt: "2026-05-11T00:00:00Z"
+    lastModified: "2026-05-11T00:00:00Z"
+
+CodeListEntryDto:
+  type: object
+  description: |
+    A single `{code, label}` entry of a code list.
+
+    `hidden` entries remain valid for existing variants — the validator
+    accepts them — but are filtered from pickers by default. This supports
+    deprecation, sunset, and tenant-curated subsets without breaking variants
+    that already use those codes.
+  required:
+    - code
+    - label
+  properties:
+    code:
+      type: string
+      description: Persistable value. What lands on a variant's attribute map.
+      example: en-US
+    label:
+      type: string
+      description: Human-readable label shown in pickers.
+      example: English (United States)
+    sortOrder:
+      type: integer
+      default: 0
+      description: Numeric ordering hint. Same value falls back to code-asc.
+      example: 10
+    hidden:
+      type: boolean
+      default: false
+      description: Soft-deprecates the entry; existing variants still validate.
+      example: false
+
+CodeListListResponse:
+  type: object
+  description: List of code lists.
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/CodeListDto'
+
+CodeListEntriesResponse:
+  type: object
+  description: List of code list entries.
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/CodeListEntryDto'
+
+CreateCodeListRequest:
+  type: object
+  description: |
+    Request body for creating a new code list.
+
+    `entries` is required when `sourceType == INLINE` and must contain at least
+    one entry with a unique `code`. For `sourceType == URL`, omit `entries` —
+    they'll be populated by the first manual refresh.
+
+    Writing to a SUBSCRIBED catalog (e.g. `system`) returns 409.
+  required:
+    - slug
+    - displayName
+    - sourceType
+  properties:
+    slug:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 1
+      maxLength: 50
+      example: priorities
+    displayName:
+      type: string
+      example: Priorities
+    description:
+      type:
+        - string
+        - 'null'
+      example: Customer-facing priority levels for outbound documents.
+    sourceType:
+      type: string
+      enum:
+        - INLINE
+        - URL
+      example: INLINE
+    sourceUrl:
+      type:
+        - string
+        - 'null'
+      example: null
+    authType:
+      type: string
+      enum:
+        - NONE
+        - API_KEY
+        - BEARER
+      default: NONE
+    credential:
+      type:
+        - string
+        - 'null'
+      description: |
+        Plaintext credential for the URL source (API key or bearer token).
+        Stored at rest unencrypted in this iteration — encryption is a
+        separate work item.
+      example: null
+    entries:
+      type: array
+      items:
+        $ref: '#/CodeListEntryDto'
+      default: []
+      example:
+        - { code: low, label: Low, sortOrder: 1 }
+        - { code: normal, label: Normal, sortOrder: 2 }
+        - { code: high, label: High, sortOrder: 3 }
+
+UpdateCodeListRequest:
+  type: object
+  description: |
+    Request body for updating a code list. All fields optional (PATCH semantics).
+    Omitting `entries` leaves them untouched; providing `entries` replaces them
+    atomically. Updates to SUBSCRIBED-catalog code lists return 409.
+  properties:
+    displayName:
+      type: string
+    description:
+      type:
+        - string
+        - 'null'
+    sourceUrl:
+      type:
+        - string
+        - 'null'
+    authType:
+      type: string
+      enum:
+        - NONE
+        - API_KEY
+        - BEARER
+    credential:
+      type:
+        - string
+        - 'null'
+    entries:
+      type: array
+      items:
+        $ref: '#/CodeListEntryDto'
