@@ -1,0 +1,342 @@
+code-lists:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant.
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the catalog.
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+  get:
+    operationId: listCodeLists
+    summary: List code lists in a catalog
+    description: |
+      Retrieve all code lists in the given tenant + catalog. Code lists from
+      a SUBSCRIBED catalog (e.g. the bundled `system` catalog) are flagged
+      `readOnly: true`.
+    tags:
+      - CodeLists
+    x-required-roles:
+      - reader
+      - editor
+      - generator
+      - manager
+    responses:
+      '200':
+        description: List of code lists.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/code-lists.yaml#/CodeListListResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Tenant or catalog not found.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+  post:
+    operationId: createCodeList
+    summary: Create a new code list
+    description: |
+      Create a new code list. SUBSCRIBED catalogs are read-only; writes return
+      409. Duplicate slug within the same tenant + catalog returns 409.
+    tags:
+      - CodeLists
+    x-required-roles:
+      - editor
+      - manager
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/code-lists.yaml#/CreateCodeListRequest'
+    responses:
+      '201':
+        description: Code list created.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/code-lists.yaml#/CodeListDto'
+      '400':
+        description: Invalid request (e.g. INLINE without entries, URL without sourceUrl, duplicate entry codes).
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Tenant or catalog not found.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+      '409':
+        description: Code list slug already exists, or the catalog is SUBSCRIBED (read-only).
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+
+code-lists-slug:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+    - name: codeListSlug
+      in: path
+      required: true
+      description: Slug of the code list.
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 1
+        maxLength: 50
+  get:
+    operationId: getCodeList
+    summary: Get a code list
+    tags:
+      - CodeLists
+    x-required-roles:
+      - reader
+      - editor
+      - generator
+      - manager
+    responses:
+      '200':
+        description: Code list.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/code-lists.yaml#/CodeListDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Code list not found.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+  patch:
+    operationId: updateCodeList
+    summary: Update a code list
+    description: |
+      Patch a code list. All fields optional. Providing `entries` replaces them
+      atomically. Updates to a SUBSCRIBED-catalog code list return 409.
+    tags:
+      - CodeLists
+    x-required-roles:
+      - editor
+      - manager
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/code-lists.yaml#/UpdateCodeListRequest'
+    responses:
+      '200':
+        description: Code list updated.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/code-lists.yaml#/CodeListDto'
+      '400':
+        description: Invalid request.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Code list not found.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+      '409':
+        description: SUBSCRIBED catalog (read-only).
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+  delete:
+    operationId: deleteCodeList
+    summary: Delete a code list
+    description: |
+      Delete a code list. Returns 409 if any attribute still binds to it
+      (unbind it first) or if the catalog is SUBSCRIBED.
+    tags:
+      - CodeLists
+    x-required-roles:
+      - manager
+    responses:
+      '204':
+        description: Code list deleted.
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Code list not found.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+      '409':
+        description: Code list is bound by an attribute, or catalog is SUBSCRIBED.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+
+code-list-refresh:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+    - name: catalogId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+    - name: codeListSlug
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+  post:
+    operationId: refreshCodeList
+    summary: Refresh a URL-sourced code list from its source
+    description: |
+      Re-fetches entries from the code list's `sourceUrl`. Only valid for
+      `sourceType: URL` — 400 otherwise. `lastRefreshedAt` is updated on
+      success; `lastRefreshError` is set and the previous entries are kept
+      on failure.
+    tags:
+      - CodeLists
+    x-required-roles:
+      - editor
+      - manager
+    responses:
+      '200':
+        description: Refresh succeeded; returns the updated code list.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/code-lists.yaml#/CodeListDto'
+      '400':
+        description: Code list is not URL-sourced.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Code list not found.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+
+code-list-entries:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+    - name: catalogId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+    - name: codeListSlug
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+    - name: includeHidden
+      in: query
+      required: false
+      description: "Include entries flagged `hidden: true`. Defaults to false."
+      schema:
+        type: boolean
+        default: false
+  get:
+    operationId: listCodeListEntries
+    summary: List entries of a code list
+    description: |
+      Returns entries ordered by `sortOrder` ascending, then `code` ascending.
+      Hidden entries are filtered out unless `includeHidden=true`.
+    tags:
+      - CodeLists
+    x-required-roles:
+      - reader
+      - editor
+      - generator
+      - manager
+    responses:
+      '200':
+        description: List of entries.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/code-lists.yaml#/CodeListEntriesResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        description: Code list not found.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/responses/errors.yaml#/ErrorResponse'

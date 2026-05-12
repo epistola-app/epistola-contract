@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Catalog protocol: `CodeListResource`, `DependencyRef.CodeList`, and `AttributeResource.codeListBinding`.** Catalogs can now distribute code lists alongside attributes, and an attribute can reference a code list either inside its own catalog (`codeListBinding.catalogKey == null`) or in another catalog of the same tenant (`codeListBinding.catalogKey = "system"`). Manifest `schemaVersion` bumps to `3` only when these features are used; older v2 catalogs read unchanged. The discriminator `"codeList"` joins `theme`/`stencil`/`asset` in `DependencyRef`.
+- **REST API: code-list CRUD endpoints.** New surface at `/tenants/{tenantId}/catalogs/{catalogId}/code-lists/...` — list, get, create, update, delete, refresh-from-source, and list-entries. SUBSCRIBED-catalog code lists are flagged `readOnly: true` and return 409 on writes. See `spec/paths/code-lists.yaml` and `spec/components/schemas/code-lists.yaml`.
+- **REST API: `AttributeDto` grows catalog + read-only + constraint fields.** Now carries `catalog`, `displayName`, `allowedValues`, `codeListBinding`, `catalogType` (AUTHORED/SUBSCRIBED), and `readOnly`. `CreateAttributeRequest` + `UpdateAttributeRequest` accept the same constraint shapes (inline values / code-list binding) that the UI already supports. PATCH/DELETE on SUBSCRIBED-catalog attributes return 409.
+- **REST API: `VariantSelectionAttribute` carries optional `catalog`.** Lets clients write `{ catalog: "system", key: "locale", value: "en-US" }` rather than relying on the dotted-form (`"system.locale"`) or bare-slug (legacy, tenant-wide lookup) fallbacks. All three forms remain supported; the explicit `catalog` field is the recommended shape.
+
 ## [0.3.0] - 2026-05-05
 
 ### Added

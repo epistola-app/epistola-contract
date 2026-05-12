@@ -1,72 +1,201 @@
 AttributeDto:
   type: object
-  description: An attribute definition for variant selection within a tenant
+  description: |
+    An attribute definition for variant selection within a tenant.
+
+    An attribute is constrained in exactly one of three ways:
+      - **Free format** — `allowedValues` is empty and `codeListBinding` is null.
+      - **Inline values** — `allowedValues` is non-empty; `codeListBinding` is null.
+      - **Bound to a code list** — `codeListBinding` is set; `allowedValues` is empty.
+
+    Attributes from a SUBSCRIBED catalog (e.g. the bundled `system` catalog)
+    are flagged `readOnly: true`. Writes to them via this API return 409.
   required:
     - key
     - tenantId
+    - catalog
+    - displayName
+    - catalogType
+    - readOnly
+    - allowedValues
     - createdAt
+    - lastModified
   properties:
     key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 1
       maxLength: 50
-      description: Unique attribute key within the tenant
-      example: language
+      description: Slug identifier of the attribute (unique within `tenant + catalog`).
+      example: locale
     tenantId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
-      description: Slug identifier of the tenant this attribute belongs to
+      description: Slug identifier of the tenant this attribute belongs to.
       example: acme-corp
+    catalog:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      description: Slug of the catalog this attribute lives in.
+      example: system
+    displayName:
+      type: string
+      description: Human-readable display name.
+      example: Locale
     description:
       type:
         - string
         - 'null'
-      description: Human-readable description of the attribute
-      example: The language of the document
+      description: Human-readable description of the attribute.
+      example: BCP-47 language + region tag (e.g. en-US, nl-NL).
+    allowedValues:
+      type: array
+      items:
+        type: string
+      description: |
+        Allowed values when the attribute uses the inline-values constraint.
+        Empty for free-format and code-list-bound attributes.
+      default: []
+      example: []
+    codeListBinding:
+      type:
+        - object
+        - 'null'
+      description: |
+        Set when the attribute is bound to a code list. The bound list may live
+        in this same catalog or in another catalog of the same tenant (e.g. a
+        local attribute binding to `system/iso-639-1`).
+      required:
+        - catalog
+        - slug
+      properties:
+        catalog:
+          type: string
+          description: Catalog the bound code list belongs to.
+          example: system
+        slug:
+          type: string
+          description: Code list slug within `catalog`.
+          example: bcp-47
+    catalogType:
+      type: string
+      enum:
+        - AUTHORED
+        - SUBSCRIBED
+      description: |
+        Origin of the attribute's catalog. AUTHORED catalogs are tenant-managed;
+        SUBSCRIBED catalogs are read-only mirrors of an upstream source.
+      example: SUBSCRIBED
+    readOnly:
+      type: boolean
+      description: |
+        True when `catalogType == SUBSCRIBED`. Clients should disable editing
+        affordances; PATCH and DELETE on these attributes return 409.
+      example: true
     createdAt:
       type: string
       format: date-time
-      description: Timestamp when the attribute was created
       example: "2026-01-16T10:00:00Z"
+    lastModified:
+      type: string
+      format: date-time
+      example: "2026-05-11T12:00:00Z"
   example:
-    key: language
+    key: locale
     tenantId: acme-corp
-    description: The language of the document
+    catalog: system
+    displayName: Locale
+    description: BCP-47 language + region tag (e.g. en-US, nl-NL).
+    allowedValues: []
+    codeListBinding:
+      catalog: system
+      slug: bcp-47
+    catalogType: SUBSCRIBED
+    readOnly: true
     createdAt: "2026-01-16T10:00:00Z"
+    lastModified: "2026-05-11T12:00:00Z"
 
 CreateAttributeRequest:
   type: object
-  description: Request body for creating a new attribute definition
+  description: |
+    Request body for creating a new attribute definition.
+
+    Exactly one constraint shape is allowed:
+      - Omit both `allowedValues` and `codeListBinding` for free-format.
+      - Provide a non-empty `allowedValues` for inline values.
+      - Provide `codeListBinding` for code-list-bound (and leave `allowedValues` empty).
+    Mixing the two is rejected with 422.
   required:
     - key
+    - displayName
   properties:
     key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 1
       maxLength: 50
-      description: Unique attribute key within the tenant
-      example: language
+      example: priority
+    displayName:
+      type: string
+      example: Priority
     description:
       type:
         - string
         - 'null'
-      description: Human-readable description of the attribute
-      example: The language of the document
+      example: Customer-facing priority of the document.
+    allowedValues:
+      type: array
+      items:
+        type: string
+      default: []
+      example: [low, normal, high]
+    codeListBinding:
+      type:
+        - object
+        - 'null'
+      required:
+        - catalog
+        - slug
+      properties:
+        catalog:
+          type: string
+          example: system
+        slug:
+          type: string
+          example: iso-639-1
 
 UpdateAttributeRequest:
   type: object
-  description: Request body for updating an attribute definition
+  description: |
+    Request body for updating an attribute definition. All fields are optional
+    (PATCH semantics). Constraint kind may switch — e.g. unset `codeListBinding`
+    and provide `allowedValues` to move from bound to inline. Attempting to
+    update an attribute from a SUBSCRIBED catalog returns 409.
   properties:
+    displayName:
+      type: string
     description:
       type:
         - string
         - 'null'
-      description: New description for the attribute
-      example: The language of the generated document
+    allowedValues:
+      type: array
+      items:
+        type: string
+    codeListBinding:
+      type:
+        - object
+        - 'null'
+      required:
+        - catalog
+        - slug
+      properties:
+        catalog:
+          type: string
+        slug:
+          type: string
 
 AttributeListResponse:
   type: object
@@ -81,11 +210,23 @@ AttributeListResponse:
         $ref: '#/AttributeDto'
   example:
     items:
-      - key: language
+      - key: locale
         tenantId: acme-corp
-        description: The language of the document
+        catalog: system
+        displayName: Locale
+        allowedValues: []
+        codeListBinding: { catalog: system, slug: bcp-47 }
+        catalogType: SUBSCRIBED
+        readOnly: true
         createdAt: "2026-01-16T10:00:00Z"
-      - key: brand
+        lastModified: "2026-05-11T12:00:00Z"
+      - key: priority
         tenantId: acme-corp
-        description: The brand identity to use
+        catalog: default
+        displayName: Priority
+        allowedValues: [low, normal, high]
+        codeListBinding: null
+        catalogType: AUTHORED
+        readOnly: false
         createdAt: "2026-01-16T10:30:00Z"
+        lastModified: "2026-01-16T10:30:00Z"

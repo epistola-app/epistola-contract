@@ -21,7 +21,7 @@ data class CatalogManifest(
 /**
  * A reference to a resource that this catalog depends on.
  * Sealed hierarchy ensures type-safe construction:
- * - Themes and stencils are catalog-scoped (require catalogKey)
+ * - Themes, stencils, and code lists are catalog-scoped (require catalogKey)
  * - Assets are tenant-global (just the UUID)
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -29,6 +29,7 @@ data class CatalogManifest(
     JsonSubTypes.Type(value = DependencyRef.Theme::class, name = "theme"),
     JsonSubTypes.Type(value = DependencyRef.Stencil::class, name = "stencil"),
     JsonSubTypes.Type(value = DependencyRef.Asset::class, name = "asset"),
+    JsonSubTypes.Type(value = DependencyRef.CodeList::class, name = "codeList"),
 )
 sealed class DependencyRef {
     abstract val slug: String
@@ -36,6 +37,7 @@ sealed class DependencyRef {
     data class Theme(val catalogKey: String, override val slug: String) : DependencyRef()
     data class Stencil(val catalogKey: String, override val slug: String) : DependencyRef()
     data class Asset(override val slug: String) : DependencyRef()
+    data class CodeList(val catalogKey: String, override val slug: String) : DependencyRef()
 }
 
 data class CatalogInfo(

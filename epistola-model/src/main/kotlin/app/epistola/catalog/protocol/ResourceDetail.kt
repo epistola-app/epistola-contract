@@ -18,6 +18,7 @@ data class ResourceDetail(
         JsonSubTypes.Type(value = StencilResource::class, name = "stencil"),
         JsonSubTypes.Type(value = AttributeResource::class, name = "attribute"),
         JsonSubTypes.Type(value = AssetResource::class, name = "asset"),
+        JsonSubTypes.Type(value = CodeListResource::class, name = "codeList"),
     )
     val resource: CatalogResource,
 )
@@ -70,9 +71,49 @@ data class AttributeResource(
     override val slug: String,
     override val name: String,
     val allowedValues: List<String> = emptyList(),
+    val codeListBinding: CodeListBindingRef? = null,
 ) : CatalogResource {
     override val type: String get() = "attribute"
 }
+
+/**
+ * Points a variant-attribute definition at a code list that constrains its
+ * allowed values. `catalogKey = null` means "the same catalog as the
+ * attribute" (the typical case for catalogs that author both an attribute
+ * and the list it binds to).
+ *
+ * Mutually exclusive with `AttributeResource.allowedValues` on the
+ * consumer side. The wire format doesn't enforce that — it relies on the
+ * importer (`CreateAttributeDefinition`) to reject mixed input, where the
+ * error message is friendlier than a `oneOf` schema rejection.
+ */
+data class CodeListBindingRef(
+    val catalogKey: String? = null,
+    val slug: String,
+)
+
+/**
+ * Inline catalog representation of a code list. Wire format only carries the
+ * entries — runtime `source_type` / `source_url` / auth metadata is local to
+ * each importing instance and reconstructed from the catalog source (a
+ * bundled catalog's code lists become `CLASSPATH`-sourced; a remote
+ * catalog's become `URL`-sourced via the refresh path).
+ */
+data class CodeListResource(
+    override val slug: String,
+    override val name: String,
+    val description: String? = null,
+    val entries: List<CodeListEntryEntry>,
+) : CatalogResource {
+    override val type: String get() = "codeList"
+}
+
+data class CodeListEntryEntry(
+    val code: String,
+    val label: String,
+    val sortOrder: Int = 0,
+    val hidden: Boolean = false,
+)
 
 data class AssetResource(
     override val slug: String,
