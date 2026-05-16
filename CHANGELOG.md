@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Catalog protocol: `FontResource`, `FontVariantEntry`, `DependencyRef.Font`, and `FontRef`.** Catalogs can now distribute font families. A font family is a thin grouping over up to four font-face binaries; each face rides the catalog as an ordinary `AssetResource`, referenced from `FontResource.variants[].assetSlug` (the `FontResource` carries no binary). Bundled system fonts are classpath-backed locally and never exported, so the wire format only ever describes catalog-authored (asset-backed) fonts. `FontRef { catalogKey?, slug }` mirrors `CodeListBindingRef` and is the shape stored under the `fontFamily` key in `documentStyles` / block-style presets / inline node styles. The discriminator `"font"` joins `theme`/`stencil`/`asset`/`codeList` in both `ResourceDetail` and `DependencyRef`. Manifest `schemaVersion` only needs bumping when a catalog actually declares fonts; existing catalogs read unchanged.
+
 ## [0.4.0] - 2026-05-12
 
 ### Added
