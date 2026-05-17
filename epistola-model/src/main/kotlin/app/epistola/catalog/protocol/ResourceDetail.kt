@@ -158,13 +158,18 @@ data class FontResource(
 }
 
 /**
- * One face of a [FontResource]. `variant` is one of
- * `regular` / `bold` / `italic` / `bold_italic`; `assetSlug` points at an
- * [AssetResource] in the same catalog holding that face's binary.
+ * One face of a [FontResource], identified by CSS-style numeric `weight`
+ * (1–1000; 400 = regular, 700 = bold) and `italic`. `assetSlug` points at an
+ * [AssetResource] in the same catalog holding that face's binary. A family
+ * carries as many faces as it ships (Light/Medium/SemiBold/…), not a fixed
+ * four. `variable = true` marks a single binary spanning a weight axis
+ * (reserved — variable-font instancing is not yet rendered).
  */
 data class FontVariantEntry(
-    val variant: String,
+    val weight: Int,
+    val italic: Boolean,
     val assetSlug: String,
+    val variable: Boolean = false,
 )
 
 data class DataExampleEntry(
