@@ -162,14 +162,13 @@ data class FontResource(
  * (1–1000; 400 = regular, 700 = bold) and `italic`. `assetSlug` points at an
  * [AssetResource] in the same catalog holding that face's binary. A family
  * carries as many faces as it ships (Light/Medium/SemiBold/…), not a fixed
- * four. `variable = true` marks a single binary spanning a weight axis
- * (reserved — variable-font instancing is not yet rendered).
+ * four. Every face is a static binary — variable fonts are instanced into
+ * static faces at upload, never represented here.
  */
 data class FontVariantEntry(
     val weight: Int,
     val italic: Boolean,
     val assetSlug: String,
-    val variable: Boolean = false,
 )
 
 data class DataExampleEntry(
