@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-17
+
 ### Added
 
 - **REST API: read-only font endpoints.** `GET /tenants/{tenantId}/catalogs/{catalogId}/fonts` (list) and `.../fonts/{fontSlug}` (get) — `FontDto` with `slug`/`name`/`kind`/`catalog`/`catalogType`/`readOnly`/`variants` (each face `{ weight, italic }`) + timestamps. Read-only by design, mirroring assets: font families and binaries are managed via the UI and catalog exchange, never created/updated/deleted over REST (write access deferred, may be revisited). New `spec/paths/fonts.yaml` + `spec/components/schemas/fonts.yaml`, wired into `epistola-api.yaml` with a `Fonts` tag. This documents the font REST surface the suite already ships (previously hand-written with no contract coverage).
