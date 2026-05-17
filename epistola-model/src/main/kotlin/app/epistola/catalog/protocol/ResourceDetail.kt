@@ -19,6 +19,7 @@ data class ResourceDetail(
         JsonSubTypes.Type(value = AttributeResource::class, name = "attribute"),
         JsonSubTypes.Type(value = AssetResource::class, name = "asset"),
         JsonSubTypes.Type(value = CodeListResource::class, name = "codeList"),
+        JsonSubTypes.Type(value = FontResource::class, name = "font"),
     )
     val resource: CatalogResource,
 )
@@ -93,6 +94,19 @@ data class CodeListBindingRef(
 )
 
 /**
+ * Points a style's `fontFamily` value at a font family. `catalogKey = null`
+ * means "the same catalog as the referencing theme/template" (the typical
+ * case); a non-null `catalogKey` references another catalog in the same
+ * tenant — most notably the bundled `system` catalog. Mirrors
+ * [CodeListBindingRef]; this is the shape stored in `documentStyles`,
+ * block-style presets, and inline node styles under the `fontFamily` key.
+ */
+data class FontRef(
+    val catalogKey: String? = null,
+    val slug: String,
+)
+
+/**
  * Inline catalog representation of a code list. Wire format only carries the
  * entries — runtime `source_type` / `source_url` / auth metadata is local to
  * each importing instance and reconstructed from the catalog source (a
@@ -125,6 +139,37 @@ data class AssetResource(
 ) : CatalogResource {
     override val type: String get() = "asset"
 }
+
+/**
+ * Inline catalog representation of a font family. A font family is a thin
+ * grouping over up to four font-face binaries; each binary rides the catalog
+ * as an ordinary [AssetResource], referenced here by its asset slug. The
+ * `FontResource` itself carries no binary. Bundled system fonts are
+ * classpath-backed locally and are never exported, so the wire format only
+ * ever describes catalog-authored (asset-backed) fonts.
+ */
+data class FontResource(
+    override val slug: String,
+    override val name: String,
+    val kind: String,
+    val variants: List<FontVariantEntry>,
+) : CatalogResource {
+    override val type: String get() = "font"
+}
+
+/**
+ * One face of a [FontResource], identified by CSS-style numeric `weight`
+ * (1–1000; 400 = regular, 700 = bold) and `italic`. `assetSlug` points at an
+ * [AssetResource] in the same catalog holding that face's binary. A family
+ * carries as many faces as it ships (Light/Medium/SemiBold/…), not a fixed
+ * four. Every face is a static binary — variable fonts are instanced into
+ * static faces at upload, never represented here.
+ */
+data class FontVariantEntry(
+    val weight: Int,
+    val italic: Boolean,
+    val assetSlug: String,
+)
 
 data class DataExampleEntry(
     val name: String,

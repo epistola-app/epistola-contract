@@ -1,0 +1,91 @@
+FontVariantDto:
+  type: object
+  description: One face of a font family — CSS numeric `weight` (1–1000) + `italic`.
+  required:
+    - weight
+    - italic
+  properties:
+    weight:
+      type: integer
+      minimum: 1
+      maximum: 1000
+      description: CSS font-weight (400 = regular, 700 = bold).
+      example: 400
+    italic:
+      type: boolean
+      example: false
+
+FontDto:
+  type: object
+  description: |
+    A font family: a thin, tenant + catalog scoped grouping over the
+    weight/italic faces it ships. Faces are backed by uploaded assets or
+    bundled classpath files; this view exposes metadata only (no binaries).
+
+    A family from a SUBSCRIBED catalog (e.g. the bundled `system` catalog's
+    `inter`, `roboto`, …) is flagged `readOnly: true`.
+
+    **Read-only over REST.** Like image assets, font families and their
+    binaries are managed through the UI and catalog exchange only — there is
+    no create/update/delete via this API. (Write access may be revisited
+    later.)
+  required:
+    - slug
+    - name
+    - kind
+    - catalog
+    - catalogType
+    - readOnly
+    - variants
+    - createdAt
+    - lastModified
+  properties:
+    slug:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 2
+      maxLength: 64
+      description: Slug identifier (unique within `tenant + catalog`).
+      example: inter
+    name:
+      type: string
+      description: Human-readable family name.
+      example: Inter
+    kind:
+      type: string
+      enum: [sans, serif, mono, condensed, display]
+      description: Broad typeface classification, used by the editor picker.
+      example: sans
+    catalog:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      description: Slug of the catalog this font family lives in.
+      example: system
+    catalogType:
+      type: string
+      enum: [AUTHORED, SUBSCRIBED]
+      description: Catalog ownership; SUBSCRIBED catalogs are read-only.
+    readOnly:
+      type: boolean
+      description: True when the owning catalog is SUBSCRIBED.
+    variants:
+      type: array
+      description: The weight/italic faces this family ships.
+      items:
+        $ref: '#/FontVariantDto'
+    createdAt:
+      type: string
+      format: date-time
+    lastModified:
+      type: string
+      format: date-time
+
+FontListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/FontDto'

@@ -100,6 +100,13 @@ tags:
       Code lists are tenant + catalog scoped; SUBSCRIBED-catalog code
       lists (e.g. the bundled `system` catalog's BCP-47, ISO 639-1,
       ISO 3166-1 alpha-2) are read-only — PATCH/DELETE return 409.
+  - name: Fonts
+    description: |
+      Font families (tenant + catalog scoped) and the weight/italic faces
+      they ship. Read-only over REST — like image assets, families and their
+      binaries are managed through the UI and catalog exchange only;
+      SUBSCRIBED-catalog families (the bundled `system` fonts) are flagged
+      `readOnly: true`.
   - name: Consumers
     description: |
       Tenant-scoped consumer application registration and lifecycle management.
@@ -189,6 +196,12 @@ paths:
     $ref: './spec/paths/code-lists.yaml#/code-list-refresh'
   /tenants/{tenantId}/catalogs/{catalogId}/code-lists/{codeListSlug}/entries:
     $ref: './spec/paths/code-lists.yaml#/code-list-entries'
+
+  # Fonts (read-only)
+  /tenants/{tenantId}/catalogs/{catalogId}/fonts:
+    $ref: './spec/paths/fonts.yaml#/fonts'
+  /tenants/{tenantId}/catalogs/{catalogId}/fonts/{fontSlug}:
+    $ref: './spec/paths/fonts.yaml#/fonts-slug'
 
   # Templates
   /tenants/{tenantId}/catalogs/{catalogId}/templates:
