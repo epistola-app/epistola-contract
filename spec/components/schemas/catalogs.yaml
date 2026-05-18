@@ -21,6 +21,21 @@ CatalogDto:
       enum: [AUTHORED, SUBSCRIBED]
       description: Catalog type
       example: AUTHORED
+    releasedVersion:
+      type: [string, "null"]
+      description: >-
+        The catalog's current version label. For AUTHORED catalogs this is the
+        latest released SemVer (null until first released). For SUBSCRIBED
+        catalogs this is the installed release version.
+      example: "1.4.0"
+    fingerprint:
+      type: [string, "null"]
+      description: >-
+        Lowercase hex SHA-256 of the catalog's canonical content
+        (deterministic, excludes volatile fields). Identifies content
+        independently of the version label. Null when never released / produced
+        before fingerprinting.
+      example: 9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
 
 CatalogListResponse:
   type: object

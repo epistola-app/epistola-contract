@@ -23,6 +23,15 @@ data class CatalogManifest(
  * Sealed hierarchy ensures type-safe construction:
  * - Themes, stencils, code lists, and fonts are catalog-scoped (require catalogKey)
  * - Assets are tenant-global (just the UUID)
+ *
+ * Reserved for a future release (catalog versioning Phase 3): the catalog-scoped
+ * subtypes (Theme, Stencil, CodeList, Font) will gain an optional
+ * `versionRange: String? = null` carrying a SemVer range (e.g. ">=1.2.0 <2.0.0")
+ * validated against the dependency catalog's installed/released version at
+ * import/upgrade time. Not added yet — declaring it before there is a producer
+ * and consumer risks it being mis-set. The free-form manifest snapshot stored
+ * by consumers round-trips an unknown field, so adding it later needs no
+ * migration.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(
@@ -53,9 +62,21 @@ data class PublisherInfo(
     val url: String? = null,
 )
 
+/**
+ * Release metadata for a catalog.
+ *
+ * @param version author-controlled SemVer (`MAJOR.MINOR.PATCH`) for AUTHORED
+ *   catalogs, or the installed release label for bundled/subscribed ones.
+ * @param releasedAt ISO-8601 timestamp the version was cut, if known.
+ * @param fingerprint lowercase hex SHA-256 of the catalog's canonical content
+ *   (deterministic, order-independent, excludes volatile fields). Lets
+ *   consumers detect that content actually changed independently of the
+ *   `version` label. Nullable for catalogs produced before fingerprinting.
+ */
 data class ReleaseInfo(
     val version: String,
     val releasedAt: String? = null,
+    val fingerprint: String? = null,
 )
 
 data class CompatibilityInfo(
