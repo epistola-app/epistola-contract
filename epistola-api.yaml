@@ -41,7 +41,7 @@ info:
     Access is controlled via roles (`reader`, `editor`, `generator`, `manager`,
     `tenant_control`) and tenant permissions. These are set by an administrator
     when approving a consumer registration.
-  version: "0.6.0"
+  version: "0.5.1"
   contact:
     name: Epistola Team
   license:
