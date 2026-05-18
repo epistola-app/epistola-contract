@@ -46,3 +46,73 @@ CatalogListResponse:
       type: array
       items:
         $ref: '#/CatalogDto'
+
+CatalogUpgradeDiff:
+  type: object
+  description: >-
+    Source-vs-source preview of upgrading a SUBSCRIBED catalog to its source's
+    latest release. Each bucket entry is `"type/slug"` (e.g. `theme/corporate`).
+  required:
+    - catalogId
+    - newVersion
+    - upgradeAvailable
+    - added
+    - removed
+    - changed
+    - unchanged
+    - conflicts
+    - blockedByConflicts
+  properties:
+    catalogId:
+      type: string
+      description: Catalog slug.
+      example: municipality-demo
+    previousVersion:
+      type: [string, "null"]
+      description: Currently installed release version (null if unknown).
+      example: "1.3.0"
+    newVersion:
+      type: string
+      description: The source manifest's release version.
+      example: "1.4.0"
+    upgradeAvailable:
+      type: boolean
+      description: True when there is anything to apply (added/removed/changed).
+      example: true
+    added:
+      type: array
+      description: >-
+        Newly published resources. Not installed on upgrade unless explicitly
+        opted in (UI only — there is no upgrade action over REST).
+      items:
+        type: string
+      example: ["template/cover-letter"]
+    removed:
+      type: array
+      description: Resources the new release removed (deleted on upgrade).
+      items:
+        type: string
+      example: ["theme/legacy"]
+    changed:
+      type: array
+      description: Installed resources whose published content changed.
+      items:
+        type: string
+      example: ["theme/corporate"]
+    unchanged:
+      type: array
+      items:
+        type: string
+      example: ["attribute/language"]
+    conflicts:
+      type: array
+      description: >-
+        Human-readable cross-catalog references that would block the removal
+        set. Non-empty ⇒ an upgrade would be rejected.
+      items:
+        type: string
+      example: ["Theme 'legacy' is used by template 'Invoice' (catalog: billing)"]
+    blockedByConflicts:
+      type: boolean
+      description: True when `conflicts` is non-empty.
+      example: false
