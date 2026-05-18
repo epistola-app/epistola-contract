@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Catalog protocol: `ReleaseInfo.fingerprint`.** Optional lowercase hex
+  SHA-256 of a catalog's canonical content (deterministic, order-independent,
+  excludes volatile fields). Lets consumers detect that catalog content
+  actually changed independently of the `version` label, enabling
+  content-based upgrade/drift detection alongside author-controlled SemVer.
+  Nullable — catalogs produced before fingerprinting read unchanged.
+- **REST `CatalogDto`: `releasedVersion` and `fingerprint`.** Read-only
+  exposure of a catalog's current version label (latest released SemVer for
+  AUTHORED, installed version for SUBSCRIBED) and content fingerprint.
+
+### Reserved
+
+- **`DependencyRef` versioning (Phase 3, not yet implemented).** KDoc reserves
+  a future optional `versionRange` on the catalog-scoped `DependencyRef`
+  subtypes for catalog-level SemVer dependency constraints. No wire change
+  yet; documented so consumers expect it.
+
 ## [0.5.0] - 2026-05-17
 
 ### Added
