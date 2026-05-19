@@ -46,9 +46,9 @@ themes:
       '404':
         description: Tenant not found
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
 
   post:
     operationId: createTheme
@@ -73,9 +73,9 @@ themes:
       '400':
         description: Invalid request
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -83,15 +83,15 @@ themes:
       '404':
         description: Tenant not found
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
       '409':
         description: Theme with this name already exists
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
 
 themes-id:
   parameters:
@@ -144,9 +144,9 @@ themes-id:
       '404':
         description: Theme or tenant not found
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
 
   patch:
     operationId: updateTheme
@@ -171,9 +171,9 @@ themes-id:
       '400':
         description: Invalid request
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -181,15 +181,15 @@ themes-id:
       '404':
         description: Theme or tenant not found
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
       '409':
         description: Theme with this name already exists
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
 
   delete:
     operationId: deleteTheme
@@ -208,6 +208,6 @@ themes-id:
       '404':
         description: Theme or tenant not found
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'

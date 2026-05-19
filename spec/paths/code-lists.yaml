@@ -46,9 +46,9 @@ code-lists:
       '404':
         description: Tenant or catalog not found.
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
   post:
     operationId: createCodeList
     summary: Create a new code list
@@ -76,9 +76,9 @@ code-lists:
       '400':
         description: Invalid request (e.g. INLINE without entries, URL without sourceUrl, duplicate entry codes).
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -86,15 +86,15 @@ code-lists:
       '404':
         description: Tenant or catalog not found.
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
       '409':
         description: Code list slug already exists, or the catalog is SUBSCRIBED (read-only).
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
 
 code-lists-slug:
   parameters:
@@ -147,9 +147,9 @@ code-lists-slug:
       '404':
         description: Code list not found.
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
   patch:
     operationId: updateCodeList
     summary: Update a code list
@@ -177,9 +177,9 @@ code-lists-slug:
       '400':
         description: Invalid request.
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -187,15 +187,15 @@ code-lists-slug:
       '404':
         description: Code list not found.
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
       '409':
         description: SUBSCRIBED catalog (read-only).
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
   delete:
     operationId: deleteCodeList
     summary: Delete a code list
@@ -216,15 +216,15 @@ code-lists-slug:
       '404':
         description: Code list not found.
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
       '409':
         description: Code list is bound by an attribute, or catalog is SUBSCRIBED.
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
 
 code-list-refresh:
   parameters:
@@ -269,9 +269,9 @@ code-list-refresh:
       '400':
         description: Code list is not URL-sourced.
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -279,9 +279,9 @@ code-list-refresh:
       '404':
         description: Code list not found.
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
 
 code-list-entries:
   parameters:
@@ -337,6 +337,6 @@ code-list-entries:
       '404':
         description: Code list not found.
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'

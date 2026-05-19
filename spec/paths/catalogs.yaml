@@ -31,9 +31,9 @@ catalogs:
       '404':
         description: Tenant not found
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
 
 catalog-upgrade-preview:
   parameters:
@@ -86,6 +86,6 @@ catalog-upgrade-preview:
       '404':
         description: Tenant or catalog not found, or the catalog is not subscribed
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'

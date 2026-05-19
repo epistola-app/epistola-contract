@@ -48,21 +48,21 @@ consumer-register:
       '400':
         description: Invalid request (e.g., invalid public key format)
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
       '404':
         description: Tenant not found
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
       '409':
         description: Consumer with this ID already exists in this tenant
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
 
 consumer-collection:
   parameters:
@@ -122,9 +122,9 @@ consumer-collection:
       '400':
         description: Invalid request parameters
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -172,9 +172,9 @@ consumer-resource:
       '404':
         description: Consumer not found
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
 
   patch:
     operationId: updateConsumer
@@ -199,9 +199,9 @@ consumer-resource:
       '400':
         description: Invalid request
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -209,9 +209,9 @@ consumer-resource:
       '404':
         description: Consumer not found
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
 
   delete:
     operationId: deleteConsumer
@@ -240,9 +240,9 @@ consumer-resource:
       '404':
         description: Consumer not found
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
 
 consumer-approve:
   parameters:
@@ -290,9 +290,9 @@ consumer-approve:
       '400':
         description: Consumer is not in pending status
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -300,9 +300,9 @@ consumer-approve:
       '404':
         description: Consumer not found
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
 
 consumer-reject:
   parameters:
@@ -350,9 +350,9 @@ consumer-reject:
       '400':
         description: Consumer is not in pending status
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -360,9 +360,9 @@ consumer-reject:
       '404':
         description: Consumer not found
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
 
 consumer-public-key:
   parameters:
@@ -410,9 +410,9 @@ consumer-public-key:
       '400':
         description: Invalid public key or consumer uses OAuth
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -420,6 +420,6 @@ consumer-public-key:
       '404':
         description: Consumer not found
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'

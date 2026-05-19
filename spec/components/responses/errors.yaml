@@ -1,6 +1,74 @@
+# RFC 7807 Problem Details for HTTP APIs
+# https://datatracker.ietf.org/doc/html/rfc7807
+
+ProblemDetail:
+  type: object
+  description: RFC 7807 Problem Details for HTTP APIs
+  required:
+    - type
+    - title
+    - status
+  properties:
+    type:
+      type: string
+      format: uri
+      description: URI that identifies the problem type
+      example: https://epistola.app/errors/not-found
+    title:
+      type: string
+      description: Short human-readable summary of the problem type
+      example: Resource Not Found
+    status:
+      type: integer
+      description: HTTP status code
+      example: 404
+    detail:
+      type: string
+      description: Human-readable explanation specific to this occurrence
+      example: Tenant with ID 'acme-corp' was not found
+    instance:
+      type: string
+      format: uri
+      description: URI that identifies this specific occurrence of the problem
+      example: https://epistola.app/api/v1/tenants/acme-corp
+
+# Extension for validation errors with field-level details
+ValidationProblemDetail:
+  allOf:
+    - $ref: '#/ProblemDetail'
+    - type: object
+      properties:
+        errors:
+          type: array
+          description: Field-level validation errors
+          items:
+            $ref: '#/ValidationError'
+
+ValidationError:
+  type: object
+  description: A single field validation error
+  required:
+    - field
+    - message
+  properties:
+    field:
+      type: string
+      description: The field that failed validation
+      example: name
+    message:
+      type: string
+      description: Description of the validation failure
+      example: must not be blank
+    rejectedValue:
+      description: The value that was rejected (if applicable)
+
+# DEPRECATED: Use ProblemDetail instead
+# Kept for backward compatibility during migration
 ErrorResponse:
   type: object
-  description: Standard error response
+  description: |
+    **Deprecated.** Use `ProblemDetail` instead.
+    Standard error response (pre-RFC 7807 format).
   required:
     - code
     - message
@@ -14,9 +82,13 @@ ErrorResponse:
       description: Human-readable error message
       example: Tenant with ID 123 not found
 
+# DEPRECATED: Use ValidationProblemDetail instead
+# Kept for backward compatibility during migration
 ValidationErrorResponse:
   type: object
-  description: Validation error response with field-level details
+  description: |
+    **Deprecated.** Use `ValidationProblemDetail` instead.
+    Validation error response with field-level details (pre-RFC 7807 format).
   required:
     - code
     - message
@@ -36,9 +108,13 @@ ValidationErrorResponse:
       items:
         $ref: '#/FieldError'
 
+# DEPRECATED: Use ValidationError instead
+# Kept for backward compatibility during migration
 FieldError:
   type: object
-  description: A single field validation error
+  description: |
+    **Deprecated.** Use `ValidationError` instead.
+    A single field validation error (pre-RFC 7807 format).
   required:
     - field
     - message

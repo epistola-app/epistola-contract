@@ -37,6 +37,21 @@ info:
     the client library can append additional product tokens to `User-Agent` for their
     own software and override the node ID as needed.
 
+    ## Error Responses
+
+    The API uses [RFC 7807 Problem Details](https://tools.ietf.org/html/rfc7807)
+    for error responses. Error responses have `Content-Type: application/problem+json`
+    and include the following fields:
+
+    - `type` (string, URI) — identifies the problem type
+    - `title` (string) — short human-readable summary
+    - `status` (integer) — HTTP status code
+    - `detail` (string, optional) — human-readable explanation of this occurrence
+    - `instance` (string, URI, optional) — identifies this specific occurrence
+
+    For validation errors, the response also includes an `errors` array with
+    field-level details.
+
     ## Authorization
     Access is controlled via roles (`reader`, `editor`, `generator`, `manager`,
     `tenant_control`) and tenant permissions. These are set by an administrator
@@ -503,7 +518,15 @@ components:
     PartitionAssignment:
       $ref: './spec/components/schemas/generation-collect.yaml#/PartitionAssignment'
 
-    # Error schemas
+    # RFC 7807 Problem Detail schemas
+    ProblemDetail:
+      $ref: './spec/components/responses/errors.yaml#/ProblemDetail'
+    ValidationProblemDetail:
+      $ref: './spec/components/responses/errors.yaml#/ValidationProblemDetail'
+    ValidationError:
+      $ref: './spec/components/responses/errors.yaml#/ValidationError'
+
+    # Deprecated: pre-RFC 7807 error schemas
     ErrorResponse:
       $ref: './spec/components/responses/errors.yaml#/ErrorResponse'
     ValidationErrorResponse:

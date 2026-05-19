@@ -49,9 +49,9 @@ fonts:
       '404':
         description: Tenant or catalog not found.
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
 
 fonts-slug:
   parameters:
@@ -104,6 +104,6 @@ fonts-slug:
       '404':
         description: Font family not found.
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'

@@ -53,12 +53,9 @@ import-catalog:
                 enum: [MERGE, REPLACE]
                 default: MERGE
                 description: |
-                  For a ZIP that targets an **existing AUTHORED** catalog:
-                  `MERGE` upserts the ZIP's resources and keeps resources that
-                  exist locally but not in the ZIP; `REPLACE` additionally
-                  deletes those local-only resources (conflict-checked before
-                  any mutation). Release state is never changed either way.
-                  Ignored for a newly-created or SUBSCRIBED catalog.
+                  Import mode for AUTHORED catalogs:
+                  - `MERGE`: Add new resources, update existing ones
+                  - `REPLACE`: Clear existing resources before importing
     responses:
       '200':
         description: Catalog imported successfully
@@ -69,9 +66,9 @@ import-catalog:
       '400':
         description: Invalid ZIP or catalog already exists as SUBSCRIBED
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -79,6 +76,6 @@ import-catalog:
       '404':
         description: Tenant not found
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
