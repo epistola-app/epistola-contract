@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **REST: `GET /tenants/{tenantId}/catalogs/{catalogId}/upgrade-preview`
+  (`previewCatalogUpgrade`) + `CatalogUpgradeDiff` schema.** Read-only
+  source-vs-source preview of upgrading a SUBSCRIBED catalog to its source's
+  latest release: `previousVersion` / `newVersion` / `upgradeAvailable`,
+  `added` / `removed` / `changed` / `unchanged` (each `"type/slug"`),
+  `conflicts` (cross-catalog references that would block removals) and
+  `blockedByConflicts`. The upgrade *action* is intentionally not exposed over
+  REST — upgrades are applied through the UI (mirrors the release-action
+  decision); this is read parity only. Spec version `0.5.1` → `0.5.2`.
+
 ## [0.5.1] - 2026-05-18
 
 ### Added

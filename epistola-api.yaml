@@ -41,7 +41,7 @@ info:
     Access is controlled via roles (`reader`, `editor`, `generator`, `manager`,
     `tenant_control`) and tenant permissions. These are set by an administrator
     when approving a consumer registration.
-  version: "0.5.1"
+  version: "0.5.2"
   contact:
     name: Epistola Team
   license:
@@ -258,6 +258,8 @@ paths:
   # Catalogs
   /tenants/{tenantId}/catalogs:
     $ref: './spec/paths/catalogs.yaml#/catalogs'
+  /tenants/{tenantId}/catalogs/{catalogId}/upgrade-preview:
+    $ref: './spec/paths/catalogs.yaml#/catalog-upgrade-preview'
 
   # Catalog Import
   /tenants/{tenantId}/catalogs/import:
@@ -368,6 +370,8 @@ components:
       $ref: './spec/components/schemas/catalogs.yaml#/CatalogDto'
     CatalogListResponse:
       $ref: './spec/components/schemas/catalogs.yaml#/CatalogListResponse'
+    CatalogUpgradeDiff:
+      $ref: './spec/components/schemas/catalogs.yaml#/CatalogUpgradeDiff'
 
     # Code list schemas
     CodeListDto:
