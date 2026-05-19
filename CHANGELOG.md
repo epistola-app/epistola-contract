@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-05-19
+
+### Added
+
+- **`importCatalog`: optional `authoredMode` form field (`MERGE` | `REPLACE`,
+  default `MERGE`).** For a ZIP that targets an existing **AUTHORED** catalog,
+  `MERGE` upserts the ZIP's resources and keeps local-only resources;
+  `REPLACE` additionally deletes local-only resources (conflict-checked before
+  any mutation). Release state is never changed. Ignored for a newly-created
+  or SUBSCRIBED catalog. Brings the REST surface to parity with the web UI's
+  Merge/Replace choice (it previously always merged).
+- **`ImportCatalogResponse.aborted` (boolean, required).** `true` when a
+  SUBSCRIBED-catalog ZIP upgrade was aborted (a resource install failed, so
+  nothing was pruned and the installed-release pointers were not advanced —
+  the catalog is unchanged and a re-import is a meaningful retry); `false`
+  when the import finalized (any `failed` resources are permanent for that
+  import and the catalog moved forward). Lets API clients distinguish
+  retry-safe from escalate, which `{installed,updated,failed,total}` alone
+  could not. Always `false` for AUTHORED imports.
+
 ## [0.5.2] - 2026-05-19
 
 ### Added

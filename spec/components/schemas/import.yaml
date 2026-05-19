@@ -274,6 +274,7 @@ ImportCatalogResponse:
     - updated
     - failed
     - total
+    - aborted
   properties:
     catalogKey:
       type: string
@@ -299,3 +300,14 @@ ImportCatalogResponse:
       type: integer
       description: Total number of resources in the catalog
       example: 7
+    aborted:
+      type: boolean
+      description: |
+        `true` when a SUBSCRIBED-catalog ZIP upgrade was **aborted**: a
+        resource install failed, so stale resources were **not** pruned and
+        the catalog's installed-release pointers were **not** advanced — the
+        catalog is unchanged on its previous release and a re-import is a
+        meaningful retry. When `false`, the import finalized: any `failed`
+        resources are permanent for this import and the catalog moved
+        forward. Always `false` for AUTHORED imports (merge/replace).
+      example: false
