@@ -17,8 +17,13 @@ import-catalog:
       Import a self-contained catalog ZIP archive. The ZIP must contain a `catalog.json` manifest
       and resource detail files matching the catalog exchange protocol.
 
-      - If the catalog slug already exists and is AUTHORED: resources are updated in place
-      - If the catalog slug already exists and is SUBSCRIBED: the request is rejected
+      - If the catalog slug already exists and is AUTHORED: resources are merged or
+        replaced per `authoredMode` (default `MERGE` — upsert and keep local-only
+        resources; `REPLACE` also deletes local-only resources, conflict-checked first)
+      - If the catalog slug already exists and is SUBSCRIBED: the ZIP is applied as a
+        full upgrade (conflict-checked; on a failed resource the upgrade is aborted
+        before any pruning and the catalog stays on its previous release — see
+        `aborted` in the response)
       - If the catalog slug is new: a new catalog is created with the specified type
 
       Resources are installed in dependency order: assets → attributes → themes → stencils → templates.
@@ -43,6 +48,17 @@ import-catalog:
                 enum: [AUTHORED, SUBSCRIBED]
                 default: AUTHORED
                 description: Type of catalog to create if it doesn't exist
+              authoredMode:
+                type: string
+                enum: [MERGE, REPLACE]
+                default: MERGE
+                description: |
+                  For a ZIP that targets an **existing AUTHORED** catalog:
+                  `MERGE` upserts the ZIP's resources and keeps resources that
+                  exist locally but not in the ZIP; `REPLACE` additionally
+                  deletes those local-only resources (conflict-checked before
+                  any mutation). Release state is never changed either way.
+                  Ignored for a newly-created or SUBSCRIBED catalog.
     responses:
       '200':
         description: Catalog imported successfully
