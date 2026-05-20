@@ -58,9 +58,17 @@ data class ThemeResource(
     override val type: String get() = "theme"
 }
 
+/**
+ * Wire format for a stencil resource. [version] is the published version
+ * number of the stencil whose [content] is carried here — preserved across
+ * export/import so that templates pinning a specific version still resolve
+ * after a round-trip. No default value: a ZIP without `version` is from a
+ * pre-`0.6.0` exporter and must be re-exported before it can be imported.
+ */
 data class StencilResource(
     override val slug: String,
     override val name: String,
+    val version: Int,
     val description: String? = null,
     val tags: List<String> = emptyList(),
     val content: TemplateDocument,

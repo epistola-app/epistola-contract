@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`StencilResource.version: Int` is now required.** The exported wire format carries the published version number of each stencil so that templates pinning a specific version survive a catalog round-trip. No default value: ZIPs produced by pre-`0.6.0` exporters lack the field and must be re-exported before they can be imported. **BREAKING** for any consumer producing/consuming `StencilResource` directly.
+
 ## [0.5.3] - 2026-05-19
 
 ### Added
