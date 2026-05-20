@@ -2,6 +2,7 @@ package app.epistola.catalog.protocol
 
 import app.epistola.template.model.PageSettings
 import app.epistola.template.model.TemplateDocument
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
@@ -64,11 +65,15 @@ data class ThemeResource(
  * export/import so that templates pinning a specific version still resolve
  * after a round-trip. No default value: a ZIP without `version` is from a
  * pre-`0.6.0` exporter and must be re-exported before it can be imported.
+ *
+ * `version` is annotated `required = true` so that consumers reject pre-0.6.0
+ * ZIPs at deserialisation time regardless of their `ObjectMapper` config,
+ * rather than silently coercing a missing field to `0`.
  */
 data class StencilResource(
     override val slug: String,
     override val name: String,
-    val version: Int,
+    @JsonProperty(required = true) val version: Int,
     val description: String? = null,
     val tags: List<String> = emptyList(),
     val content: TemplateDocument,
