@@ -66,6 +66,11 @@ data class ThemeResource(
  * after a round-trip. No default value: a ZIP without `version` is from a
  * pre-`0.6.0` exporter and must be re-exported before it can be imported.
  *
+ * Only published stencil versions are exported; draft and archived versions
+ * are filtered out at export time. The wire format therefore carries no
+ * status field — every `StencilResource` in a catalog ZIP is published by
+ * construction.
+ *
  * `version` is annotated `required = true` so that consumers reject pre-0.6.0
  * ZIPs at deserialisation time regardless of their `ObjectMapper` config,
  * rather than silently coercing a missing field to `0`.
