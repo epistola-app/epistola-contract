@@ -3,6 +3,25 @@ TemplateDocumentDto:
   description: |
     Root schema for an Epistola template document using the node/slot graph model.
     The document is a flat graph of nodes connected through slots, with a single root node.
+
+    ### Page-header nodes
+
+    Nodes whose `type` is `pageheader` are page-decoration nodes that render at the
+    top of every generated page (not part of the body flow). A document may contain
+    **at most two** `pageheader` nodes, both placed at the document root (siblings of
+    the body root). Their order in the root slot's `children` array is the
+    positional selector for which header applies to which page:
+
+    | Header count | Page 1                    | Page 2 and onward         |
+    | ------------ | ------------------------- | ------------------------- |
+    | 0            | (no header)               | (no header)               |
+    | 1            | the sole `pageheader`     | the sole `pageheader`     |
+    | 2            | the first `pageheader`    | the second `pageheader`   |
+
+    The mapping is purely positional — there is no selector property on the node.
+    Cardinality (max 2) and root-level placement are enforced by the suite's
+    server-side template validator, not by this OpenAPI schema, because `NodeDto`
+    is intentionally generic across all node types.
   required:
     - modelVersion
     - root
@@ -164,7 +183,13 @@ TemplateDocumentDto:
 
 NodeDto:
   type: object
-  description: A node in the template document graph. Represents a content or layout element.
+  description: |
+    A node in the template document graph. Represents a content or layout element.
+
+    The `type` field is open-ended; the suite recognises body-flow types such as
+    `text`, `container`, `columns`, `table`, and page-decoration types such as
+    `pageheader`. See `TemplateDocumentDto` for the rules that govern `pageheader`
+    placement and the positional first-page / running mapping.
   required:
     - id
     - type

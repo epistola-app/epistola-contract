@@ -2,6 +2,7 @@ package app.epistola.catalog.protocol
 
 import app.epistola.template.model.PageSettings
 import app.epistola.template.model.TemplateDocument
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
@@ -58,9 +59,26 @@ data class ThemeResource(
     override val type: String get() = "theme"
 }
 
+/**
+ * Wire format for a stencil resource. [version] is the published version
+ * number of the stencil whose [content] is carried here — preserved across
+ * export/import so that templates pinning a specific version still resolve
+ * after a round-trip. No default value: a ZIP without `version` is from a
+ * pre-`0.6.0` exporter and must be re-exported before it can be imported.
+ *
+ * Only published stencil versions are exported; draft and archived versions
+ * are filtered out at export time. The wire format therefore carries no
+ * status field — every `StencilResource` in a catalog ZIP is published by
+ * construction.
+ *
+ * `version` is annotated `required = true` so that consumers reject pre-0.6.0
+ * ZIPs at deserialisation time regardless of their `ObjectMapper` config,
+ * rather than silently coercing a missing field to `0`.
+ */
 data class StencilResource(
     override val slug: String,
     override val name: String,
+    @JsonProperty(required = true) val version: Int,
     val description: String? = null,
     val tags: List<String> = emptyList(),
     val content: TemplateDocument,
