@@ -11,6 +11,7 @@ UnauthorizedError:
         title: Unauthorized
         status: 401
         detail: Invalid or expired access token
+        code: UNAUTHORIZED
 
 ForbiddenError:
   description: Authenticated but insufficient permissions for the requested resource
@@ -19,7 +20,8 @@ ForbiddenError:
       schema:
         $ref: './errors.yaml#/ProblemDetail'
       example:
-        type: https://epistola.app/errors/forbidden
-        title: Forbidden
+        type: https://epistola.app/errors/access-denied
+        title: Access Denied
         status: 403
         detail: Access denied to tenant 'acme-corp'
+        code: ACCESS_DENIED

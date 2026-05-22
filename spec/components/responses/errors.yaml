@@ -8,6 +8,7 @@ ProblemDetail:
     - type
     - title
     - status
+    - code
   properties:
     type:
       type: string
@@ -28,9 +29,13 @@ ProblemDetail:
       example: Tenant with ID 'acme-corp' was not found
     instance:
       type: string
-      format: uri
-      description: URI that identifies this specific occurrence of the problem
-      example: https://epistola.app/api/v1/tenants/acme-corp
+      format: uri-reference
+      description: URI reference that identifies this specific occurrence of the problem
+      example: /api/tenants/acme-corp/catalogs/default/templates?q=invoice
+    code:
+      type: string
+      description: Stable machine-readable Epistola error code, exposed as an RFC 7807 extension member
+      example: THEME_NOT_FOUND
 
 # Extension for validation errors with field-level details
 ValidationProblemDetail:

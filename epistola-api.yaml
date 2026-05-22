@@ -48,6 +48,12 @@ info:
     - `status` (integer) — HTTP status code
     - `detail` (string, optional) — human-readable explanation of this occurrence
     - `instance` (string, URI, optional) — identifies this specific occurrence
+    - `code` (string) — stable machine-readable Epistola error code extension
+
+    Problem `type` URIs use the `https://epistola.app/errors/{slug}` namespace
+    and resolve to human-readable HTML documentation for that problem type.
+    Additional domain-specific extension members are emitted as top-level fields
+    (for example `themeId`, `catalogId`, or `validationErrors`).
 
     For validation errors, the response also includes an `errors` array with
     field-level details.

@@ -108,6 +108,26 @@ openApiGenerate {
     )
 }
 
+tasks.openApiGenerate {
+    doLast {
+        // OpenAPI Generator derives Spring `produces` from response bodies. 204 operations
+        // have no success body, so their generated mapping otherwise only accepts RFC 7807
+        // error media. Keep the OpenAPI 204 responses bodyless and normalize server mappings.
+        fileTree(generatedDir.get().dir("src/main/kotlin/app/epistola/api")) {
+            include("**/*Api.kt")
+        }.forEach { apiFile ->
+            val source = apiFile.readText()
+            val normalized = source.replace(
+                """produces = ["application/problem+json"]""",
+                """produces = ["application/vnd.epistola.v1+json", "application/problem+json"]""",
+            )
+            if (normalized != source) {
+                apiFile.writeText(normalized)
+            }
+        }
+    }
+}
+
 sourceSets {
     main {
         kotlin.srcDir(generatedDir.map { it.dir("src/main/kotlin") })
