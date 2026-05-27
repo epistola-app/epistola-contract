@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Error responses now use RFC 7807 Problem Details.** Error response media types are `application/problem+json`; problem bodies include `type`, `title`, `status`, `detail`, `instance`, and the required Epistola `code` extension. Validation errors use the `ValidationProblemDetail` shape with top-level `errors`.
 - **Problem `instance` values are documented as URI references.** Runtime responses may use relative `/api/...` paths with query strings, so the schema now uses `format: uri-reference` instead of requiring absolute URIs.
-- **`PATCH /tenants/{tenantId}` documents `501 Not Implemented`.** The operation remains in the contract but can explicitly report that tenant update is not implemented by the server yet.
+
 - **Generated Spring server stubs preserve the success media type for bodyless responses.** Post-generation normalization keeps `application/vnd.epistola.v1+json` alongside `application/problem+json` for generated mappings whose success response has no body.
 
 ## [0.6.0] - 2026-05-21

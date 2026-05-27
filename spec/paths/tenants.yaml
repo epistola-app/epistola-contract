@@ -149,13 +149,6 @@ tenants-id:
           application/problem+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ProblemDetail'
-      '501':
-        description: Tenant update is not implemented by this server
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
-
   delete:
     operationId: deleteTenant
     summary: Delete a tenant
