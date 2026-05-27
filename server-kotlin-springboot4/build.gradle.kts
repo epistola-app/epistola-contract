@@ -110,20 +110,29 @@ openApiGenerate {
 
 tasks.openApiGenerate {
     doLast {
-        // OpenAPI Generator derives Spring `produces` from response bodies. 204 operations
-        // have no success body, so their generated mapping otherwise only accepts RFC 7807
-        // error media. Keep the OpenAPI 204 responses bodyless and normalize server mappings.
+        // OpenAPI Generator derives Spring `produces` from response bodies. Bodyless
+        // success responses (204) contribute no media type, so the generator ends up
+        // with only `application/problem+json` from error responses. Normalize generated
+        // mappings to also accept the success media type.
+        //
+        // TODO: Fix this at the spec or generator-config level so post-processing is
+        // unnecessary. For now this is a pragmatic workaround.
+        var replaced = 0
         fileTree(generatedDir.get().dir("src/main/kotlin/app/epistola/api")) {
             include("**/*Api.kt")
         }.forEach { apiFile ->
             val source = apiFile.readText()
             val normalized = source.replace(
-                """produces = ["application/problem+json"]""",
+                Regex("""produces\s*=\s*\[\s*"application/problem\+json"\s*]"""),
                 """produces = ["application/vnd.epistola.v1+json", "application/problem+json"]""",
             )
             if (normalized != source) {
                 apiFile.writeText(normalized)
+                replaced++
             }
+        }
+        if (replaced == 0) {
+            logger.warn("no Api.kt files had their produces normalized — the string-replace may be broken")
         }
     }
 }
