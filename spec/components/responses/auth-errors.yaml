@@ -20,8 +20,8 @@ ForbiddenError:
       schema:
         $ref: './errors.yaml#/ProblemDetail'
       example:
-        type: https://epistola.app/errors/access-denied
-        title: Access Denied
+        type: https://epistola.app/errors/forbidden
+        title: Forbidden
         status: 403
         detail: Access denied to tenant 'acme-corp'
-        code: ACCESS_DENIED
+        code: FORBIDDEN
