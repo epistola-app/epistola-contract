@@ -53,9 +53,12 @@ import-catalog:
                 enum: [MERGE, REPLACE]
                 default: MERGE
                 description: |
-                  Import mode for AUTHORED catalogs:
-                  - `MERGE`: Add new resources, update existing ones
-                  - `REPLACE`: Clear existing resources before importing
+                  For a ZIP that targets an **existing AUTHORED** catalog:
+                  `MERGE` upserts the ZIP's resources and keeps resources that
+                  exist locally but not in the ZIP; `REPLACE` additionally
+                  deletes those local-only resources (conflict-checked before
+                  any mutation). Release state is never changed either way.
+                  Ignored for a newly-created or SUBSCRIBED catalog.
     responses:
       '200':
         description: Catalog imported successfully
