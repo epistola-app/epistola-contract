@@ -42,21 +42,21 @@ jobs:
       # This avoids routing the (potentially very large) diff output through
       # GitHub Actions step outputs / process arguments, which can exceed
       # ARG_MAX and fail with "Argument list too long".
+      # Informational only: breaking changes are reported in the PR comment, not
+      # gated. This project ships intentional breaking changes under SemVer 0.x
+      # (commits marked `!`), so the check surfaces them for review rather than
+      # blocking the merge. `|| true` keeps a non-zero oasdiff exit from failing
+      # the job.
       - name: Check for breaking changes
-        id: breaking
         run: |
-          set +e
           docker run --rm -v "${{ github.workspace }}:/data" tufin/oasdiff \
             breaking /data/.oasdiff/base-openapi.yaml /data/openapi.yaml \
-            --fail-on ERR > .oasdiff/breaking.txt 2>&1
-          status=$?
-          set -e
-          # Strip the trailing summary line oasdiff prints when no breaking
-          # changes are found so the comment step can detect "empty" cleanly.
+            > .oasdiff/breaking.txt 2>&1 || true
+          # Strip the summary line oasdiff prints when nothing is found so the
+          # comment step can detect "empty" cleanly.
           if grep -q "^No breaking changes" .oasdiff/breaking.txt; then
             : > .oasdiff/breaking.txt
           fi
-          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
 
       - name: Generate API changelog
         run: |
@@ -130,10 +130,3 @@ jobs:
                 body: body
               });
             }
-
-      - name: Fail on breaking changes
-        if: steps.breaking.outputs.exit_code != '0'
-        run: |
-          echo "Breaking changes detected:"
-          cat .oasdiff/breaking.txt
-          exit 1
