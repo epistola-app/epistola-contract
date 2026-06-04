@@ -9,13 +9,16 @@ ProblemDetail:
     - type
     - title
     - status
-    - code
   properties:
     type:
       type: string
       format: uri
       default: about:blank
-      description: URI that identifies the problem type. Defaults to `about:blank` when the problem has no specific type.
+      description: |
+        URI that identifies the problem type and is the stable, machine-readable
+        discriminator clients should switch on. Application-level errors use a
+        dereferenceable `https://epistola.app/errors/{slug}` URI; framework-level
+        errors with no specific type default to `about:blank`.
       example: https://epistola.app/errors/not-found
     title:
       type: string
@@ -34,10 +37,6 @@ ProblemDetail:
       format: uri-reference
       description: URI reference that identifies this specific occurrence of the problem
       example: /api/tenants/acme-corp/catalogs/default/templates?q=invoice
-    code:
-      type: string
-      description: Stable machine-readable Epistola error code, exposed as an RFC 9457 extension member
-      example: THEME_NOT_FOUND
 
 # Extension for validation errors with field-level details
 ValidationProblemDetail:

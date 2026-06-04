@@ -7,17 +7,16 @@ import java.net.URI
 
 /**
  * Builds [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem responses using Spring's
- * native [ProblemDetail], with the Epistola-specific extension members applied consistently
- * with the API contract.
+ * native [ProblemDetail], keeping the `type` discriminator and the `errors` extension
+ * consistent with the API contract.
  *
  * This is an **opt-in** helper — it registers no beans and installs no error handling. The
  * `@RestControllerAdvice` that turns exceptions into responses lives in the consuming
- * application (see the module README); this object just keeps the construction of `type`,
- * `code`, and `errors` consistent with the contract.
+ * application (see the module README).
  *
- * The contract requires every problem body to carry a stable machine-readable [code]. Use
- * [of]/[validation] for application-level errors, and [ensureCode] inside an advice override
- * to stamp a fallback `code` onto framework-generated responses (malformed JSON, 405, etc.).
+ * The contract's machine-readable discriminator is the problem [type] URI (there is no separate
+ * `code` member). Application-level errors use a `https://epistola.app/errors/{slug}` type;
+ * framework-level errors with no specific type keep Spring's default `about:blank`.
  *
  * Example usage:
  * ```
@@ -26,9 +25,8 @@ import java.net.URI
  *     HttpStatus.NOT_FOUND,
  *     ProblemDetails.of(
  *         status = HttpStatus.NOT_FOUND,
- *         code = "THEME_NOT_FOUND",
- *         detail = "Theme 'classic' was not found",
  *         type = ProblemDetails.typeFor("not-found"),
+ *         detail = "Theme 'classic' was not found",
  *     ),
  *     null,
  * )
@@ -42,9 +40,6 @@ object ProblemDetails {
     /** The RFC 9457 default problem type, used when no specific [type] is supplied. */
     val BLANK_TYPE: URI = URI.create("about:blank")
 
-    /** Extension member carrying the stable machine-readable Epistola error code. */
-    const val CODE_PROPERTY: String = "code"
-
     /** Extension member carrying field-level validation errors. */
     const val ERRORS_PROPERTY: String = "errors"
 
@@ -52,23 +47,20 @@ object ProblemDetails {
     fun typeFor(slug: String): URI = URI.create(TYPE_BASE + slug)
 
     /**
-     * Builds a [ProblemDetail] for an application-level error and stamps the required [code]
-     * extension member. `title` defaults to the status reason phrase; `type` is set explicitly
-     * to [BLANK_TYPE] (`about:blank`) unless [type] is supplied, so the contract's required
-     * `type` member is always present on the wire.
+     * Builds a [ProblemDetail] for an application-level error. `title` defaults to the status
+     * reason phrase; [type] is the machine-readable discriminator and defaults to [BLANK_TYPE]
+     * (`about:blank`) when not supplied.
      */
     fun of(
         status: HttpStatusCode,
-        code: String,
+        type: URI = BLANK_TYPE,
         detail: String? = null,
-        type: URI? = null,
         instance: URI? = null,
     ): ProblemDetail {
         val problem = ProblemDetail.forStatus(status)
-        problem.type = type ?: BLANK_TYPE
+        problem.type = type
         if (detail != null) problem.detail = detail
         if (instance != null) problem.instance = instance
-        problem.setProperty(CODE_PROPERTY, code)
         return problem
     }
 
@@ -78,26 +70,13 @@ object ProblemDetails {
      */
     fun validation(
         status: HttpStatusCode,
-        code: String,
+        type: URI = BLANK_TYPE,
         errors: List<ValidationError>,
         detail: String? = null,
-        type: URI? = null,
         instance: URI? = null,
     ): ProblemDetail {
-        val problem = of(status, code, detail, type, instance)
+        val problem = of(status, type, detail, instance)
         problem.setProperty(ERRORS_PROPERTY, errors)
-        return problem
-    }
-
-    /**
-     * Stamps [fallback] as the `code` only if the problem does not already carry one. Use this
-     * in a `ResponseEntityExceptionHandler.handleExceptionInternal` override so that Spring's
-     * framework-generated 4xx responses also satisfy the required-`code` contract.
-     */
-    fun ensureCode(problem: ProblemDetail, fallback: String): ProblemDetail {
-        if (problem.properties?.get(CODE_PROPERTY) == null) {
-            problem.setProperty(CODE_PROPERTY, fallback)
-        }
         return problem
     }
 }

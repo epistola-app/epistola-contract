@@ -43,12 +43,12 @@ info:
     for error responses. Error responses have `Content-Type: application/problem+json`
     and include the following fields:
 
-    - `type` (string, URI) — identifies the problem type
+    - `type` (string, URI) — identifies the problem type; the stable,
+      machine-readable discriminator clients should switch on
     - `title` (string) — short human-readable summary
     - `status` (integer) — HTTP status code
     - `detail` (string, optional) — human-readable explanation of this occurrence
     - `instance` (string, URI, optional) — identifies this specific occurrence
-    - `code` (string) — stable machine-readable Epistola error code extension
 
     Problem `type` URIs use the `https://epistola.app/errors/{slug}` namespace
     and resolve to human-readable HTML documentation for that problem type.
