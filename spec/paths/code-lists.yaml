@@ -44,11 +44,7 @@ code-lists:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Tenant or catalog not found.
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
   post:
     operationId: createCodeList
     summary: Create a new code list
@@ -74,27 +70,15 @@ code-lists:
             schema:
               $ref: '../components/schemas/code-lists.yaml#/CodeListDto'
       '400':
-        description: Invalid request (e.g. INLINE without entries, URL without sourceUrl, duplicate entry codes).
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Tenant or catalog not found.
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        description: Code list slug already exists, or the catalog is SUBSCRIBED (read-only).
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 code-lists-slug:
   parameters:
@@ -145,11 +129,7 @@ code-lists-slug:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Code list not found.
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
   patch:
     operationId: updateCodeList
     summary: Update a code list
@@ -175,27 +155,15 @@ code-lists-slug:
             schema:
               $ref: '../components/schemas/code-lists.yaml#/CodeListDto'
       '400':
-        description: Invalid request.
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Code list not found.
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        description: SUBSCRIBED catalog (read-only).
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
   delete:
     operationId: deleteCodeList
     summary: Delete a code list
@@ -214,17 +182,9 @@ code-lists-slug:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Code list not found.
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        description: Code list is bound by an attribute, or catalog is SUBSCRIBED.
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 code-list-refresh:
   parameters:
@@ -277,11 +237,7 @@ code-list-refresh:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Code list not found.
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 code-list-entries:
   parameters:
@@ -335,8 +291,4 @@ code-list-entries:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Code list not found.
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'

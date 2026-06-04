@@ -29,11 +29,7 @@ catalogs:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Tenant not found
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 catalog-upgrade-preview:
   parameters:
@@ -84,8 +80,4 @@ catalog-upgrade-preview:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Tenant or catalog not found, or the catalog is not subscribed
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'

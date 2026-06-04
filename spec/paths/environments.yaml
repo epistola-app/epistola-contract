@@ -29,11 +29,7 @@ environments:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Tenant not found
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
   post:
     operationId: createEnvironment
@@ -56,27 +52,15 @@ environments:
             schema:
               $ref: '../components/schemas/environments.yaml#/EnvironmentDto'
       '400':
-        description: Invalid request
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Tenant not found
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        description: Environment with this name already exists
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 environments-id:
   parameters:
@@ -118,11 +102,7 @@ environments-id:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Environment or tenant not found
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
   patch:
     operationId: updateEnvironment
@@ -145,27 +125,15 @@ environments-id:
             schema:
               $ref: '../components/schemas/environments.yaml#/EnvironmentDto'
       '400':
-        description: Invalid request
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Environment or tenant not found
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        description: Environment with this name already exists
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
   delete:
     operationId: deleteEnvironment
@@ -182,8 +150,4 @@ environments-id:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Environment or tenant not found
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'

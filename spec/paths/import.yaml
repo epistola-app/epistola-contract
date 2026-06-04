@@ -77,8 +77,4 @@ import-catalog:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Tenant not found
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'

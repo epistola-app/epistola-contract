@@ -46,23 +46,11 @@ consumer-register:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '400':
-        description: Invalid request (e.g., invalid public key format)
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '404':
-        description: Tenant not found
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        description: Consumer with this ID already exists in this tenant
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 consumer-collection:
   parameters:
@@ -120,11 +108,7 @@ consumer-collection:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerListResponse'
       '400':
-        description: Invalid request parameters
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -170,11 +154,7 @@ consumer-resource:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Consumer not found
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
   patch:
     operationId: updateConsumer
@@ -197,21 +177,13 @@ consumer-resource:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '400':
-        description: Invalid request
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Consumer not found
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
   delete:
     operationId: deleteConsumer
@@ -238,11 +210,7 @@ consumer-resource:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Consumer not found
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 consumer-approve:
   parameters:
@@ -288,21 +256,13 @@ consumer-approve:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '400':
-        description: Consumer is not in pending status
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Consumer not found
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 consumer-reject:
   parameters:
@@ -348,21 +308,13 @@ consumer-reject:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '400':
-        description: Consumer is not in pending status
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Consumer not found
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 consumer-public-key:
   parameters:
@@ -408,18 +360,10 @@ consumer-public-key:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '400':
-        description: Invalid public key or consumer uses OAuth
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Consumer not found
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
