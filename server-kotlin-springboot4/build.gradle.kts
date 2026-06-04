@@ -122,13 +122,20 @@ openApiGenerate {
 
 tasks.openApiGenerate {
     doLast {
-        // OpenAPI Generator derives Spring `produces` from response bodies. Bodyless
-        // success responses (204) contribute no media type, so the generator ends up
-        // with only `application/problem+json` from error responses. Normalize generated
+        // OpenAPI Generator derives Spring `produces` from the union of a method's response
+        // media types. Bodyless 204 success responses contribute none, so for those operations
+        // the only media type left is `application/problem+json` from the error responses —
+        // which the controller never actually returns on success. We normalize the generated
         // mappings to also accept the success media type.
         //
-        // TODO: Fix this at the spec or generator-config level so post-processing is
-        // unnecessary. For now this is a pragmatic workaround.
+        // NOTE: there is no clean spec- or generator-config-level fix:
+        //   - adding a fake `content` to the 204 lies about the bodyless response and corrupts
+        //     the published spec, the rendered docs, and the mock server;
+        //   - no kotlin-spring config option excludes error responses from `produces` derivation;
+        //   - the generator honours no per-operation produces-override vendor extension;
+        //   - a forked api.mustache template is more fragile than this localized rewrite.
+        // So we post-process here. The `replaced == 0` guard below logs a warning if a generator
+        // upgrade changes the emitted string and the rewrite silently stops matching.
         var replaced = 0
         fileTree(generatedDir.get().dir("src/main/kotlin/app/epistola/api")) {
             include("**/*Api.kt")
