@@ -52,11 +52,22 @@ info:
 
     Problem `type` URIs use the `https://epistola.app/errors/{slug}` namespace
     and resolve to human-readable HTML documentation for that problem type.
-    Additional domain-specific extension members are emitted as top-level fields
-    (for example `themeId`, `catalogId`, or `validationErrors`).
+    A response may also carry domain-specific extension members as top-level
+    fields; clients should ignore members they do not recognize.
 
-    For validation errors, the response also includes an `errors` array with
-    field-level details.
+    For validation errors (`type: .../validation-error`), the response also
+    includes an `errors` array with field-level details.
+
+    The canonical problem `type` slugs are:
+
+    | slug | status | when |
+    | --- | --- | --- |
+    | `validation-error` | 400 | request body or parameters failed validation (carries `errors[]`) |
+    | `unauthorized` | 401 | missing or invalid authentication credentials |
+    | `forbidden` | 403 | authenticated but not allowed to perform the operation |
+    | `not-found` | 404 | the addressed resource does not exist |
+    | `conflict` | 409 | the request conflicts with the current resource state |
+    | `rate-limited` | 429 | too many requests; see the `Retry-After` header |
 
     ## Authorization
     Access is controlled via roles (`reader`, `editor`, `generator`, `manager`,

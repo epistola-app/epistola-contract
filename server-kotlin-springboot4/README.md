@@ -49,8 +49,9 @@ no problem DTO is generated — you build and return the framework type directly
 `ResponseEntityExceptionHandler` serializes it out of the box.
 
 The machine-readable discriminator is the problem **`type`** URI — clients switch on `type`,
-not on a separate code. The opt-in `ProblemDetails` helper keeps `type`/`errors` consistent
-with the contract:
+not on a separate code. See [docs/error-types.md](../docs/error-types.md) for the canonical
+list of problem `type` slugs. The opt-in `ProblemDetails` helper keeps `type`/`errors`
+consistent with the contract:
 
 ```kotlin
 import app.epistola.api.error.ProblemDetails
