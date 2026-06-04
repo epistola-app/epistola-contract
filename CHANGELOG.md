@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Kotlin client: opt-in typed error handling.** A new `app.epistola.client.error` package adds `RestClient.Builder.installProblemDetailHandler()`, which parses `application/problem+json` responses and throws a typed `ProblemDetailException` (extends `RestClientResponseException`, so existing catch sites keep working). The exception exposes the problem `type`, `typeSlug`, `title`, `problemStatus`, `detail`, and field-level `errors`; switch on `typeSlug` (see `KnownProblemSlugs`). Non-problem error bodies still surface as plain `RestClientResponseException`.
+
 ### Changed
 
 - **Error responses now use RFC 9457 Problem Details.** Error response media types are `application/problem+json`; problem bodies include `type`, `title`, `status`, `detail`, and `instance`. The problem **`type` URI is the machine-readable discriminator** clients switch on (`https://epistola.app/errors/{slug}`, or `about:blank` for framework-level errors) — there is no separate `code` member. Validation errors use the `ValidationProblemDetail` shape with top-level `errors`. (RFC 9457 obsoletes RFC 7807.)
