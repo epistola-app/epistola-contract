@@ -39,7 +39,7 @@ info:
 
     ## Error Responses
 
-    The API uses [RFC 7807 Problem Details](https://tools.ietf.org/html/rfc7807)
+    The API uses [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457)
     for error responses. Error responses have `Content-Type: application/problem+json`
     and include the following fields:
 
@@ -524,21 +524,13 @@ components:
     PartitionAssignment:
       $ref: './spec/components/schemas/generation-collect.yaml#/PartitionAssignment'
 
-    # RFC 7807 Problem Detail schemas
+    # RFC 9457 Problem Details schemas
     ProblemDetail:
       $ref: './spec/components/responses/errors.yaml#/ProblemDetail'
     ValidationProblemDetail:
       $ref: './spec/components/responses/errors.yaml#/ValidationProblemDetail'
     ValidationError:
       $ref: './spec/components/responses/errors.yaml#/ValidationError'
-
-    # Deprecated: pre-RFC 7807 error schemas
-    ErrorResponse:
-      $ref: './spec/components/responses/errors.yaml#/ErrorResponse'
-    ValidationErrorResponse:
-      $ref: './spec/components/responses/errors.yaml#/ValidationErrorResponse'
-    FieldError:
-      $ref: './spec/components/responses/errors.yaml#/FieldError'
 
   parameters:
     UserAgent:

@@ -1,9 +1,10 @@
-# RFC 7807 Problem Details for HTTP APIs
-# https://datatracker.ietf.org/doc/html/rfc7807
+# RFC 9457 Problem Details for HTTP APIs
+# https://www.rfc-editor.org/rfc/rfc9457
+# (RFC 9457 obsoletes RFC 7807)
 
 ProblemDetail:
   type: object
-  description: RFC 7807 Problem Details for HTTP APIs
+  description: RFC 9457 Problem Details for HTTP APIs
   required:
     - type
     - title
@@ -13,7 +14,8 @@ ProblemDetail:
     type:
       type: string
       format: uri
-      description: URI that identifies the problem type
+      default: about:blank
+      description: URI that identifies the problem type. Defaults to `about:blank` when the problem has no specific type.
       example: https://epistola.app/errors/not-found
     title:
       type: string
@@ -34,7 +36,7 @@ ProblemDetail:
       example: /api/tenants/acme-corp/catalogs/default/templates?q=invoice
     code:
       type: string
-      description: Stable machine-readable Epistola error code, exposed as an RFC 7807 extension member
+      description: Stable machine-readable Epistola error code, exposed as an RFC 9457 extension member
       example: THEME_NOT_FOUND
 
 # Extension for validation errors with field-level details
@@ -64,73 +66,5 @@ ValidationError:
       type: string
       description: Description of the validation failure
       example: must not be blank
-    rejectedValue:
-      description: The value that was rejected (if applicable)
-
-# DEPRECATED: Use ProblemDetail instead
-# Kept for backward compatibility during migration
-ErrorResponse:
-  type: object
-  description: |
-    **Deprecated.** Use `ProblemDetail` instead.
-    Standard error response (pre-RFC 7807 format).
-  required:
-    - code
-    - message
-  properties:
-    code:
-      type: string
-      description: Machine-readable error code
-      example: NOT_FOUND
-    message:
-      type: string
-      description: Human-readable error message
-      example: Tenant with ID 123 not found
-
-# DEPRECATED: Use ValidationProblemDetail instead
-# Kept for backward compatibility during migration
-ValidationErrorResponse:
-  type: object
-  description: |
-    **Deprecated.** Use `ValidationProblemDetail` instead.
-    Validation error response with field-level details (pre-RFC 7807 format).
-  required:
-    - code
-    - message
-    - errors
-  properties:
-    code:
-      type: string
-      description: Machine-readable error code
-      example: VALIDATION_ERROR
-    message:
-      type: string
-      description: General error message
-      example: Validation failed
-    errors:
-      type: array
-      description: List of field-specific validation errors
-      items:
-        $ref: '#/FieldError'
-
-# DEPRECATED: Use ValidationError instead
-# Kept for backward compatibility during migration
-FieldError:
-  type: object
-  description: |
-    **Deprecated.** Use `ValidationError` instead.
-    A single field validation error (pre-RFC 7807 format).
-  required:
-    - field
-    - message
-  properties:
-    field:
-      type: string
-      description: The field that failed validation
-      example: name
-    message:
-      type: string
-      description: Description of the validation failure
-      example: Name must not be blank
     rejectedValue:
       description: The value that was rejected (if applicable)
