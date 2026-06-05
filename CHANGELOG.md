@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-05
+
 ### Added
 
 - **Kotlin client: opt-in typed error handling.** A new `app.epistola.client.error` package adds `RestClient.Builder.installProblemDetailHandler()`, which parses `application/problem+json` responses and throws a typed `ProblemDetailException` (extends `RestClientResponseException`, so existing catch sites keep working). The exception exposes the problem `type`, `typeSlug`, `title`, `problemStatus`, `detail`, and field-level `errors`; switch on `typeSlug` (see `KnownProblemSlugs`). Non-problem error bodies still surface as plain `RestClientResponseException`.
