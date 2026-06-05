@@ -43,11 +43,7 @@ attributes:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
   post:
     operationId: createAttribute
     summary: Create a new attribute definition
@@ -71,27 +67,15 @@ attributes:
             schema:
               $ref: '../components/schemas/attributes.yaml#/AttributeDto'
       '400':
-        description: Invalid request
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        description: Attribute with this key already exists
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 attributes-key:
   parameters:
@@ -145,11 +129,7 @@ attributes-key:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Attribute or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
   patch:
     operationId: updateAttribute
     summary: Update an attribute definition
@@ -173,21 +153,13 @@ attributes-key:
             schema:
               $ref: '../components/schemas/attributes.yaml#/AttributeDto'
       '400':
-        description: Invalid request
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Attribute or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
   delete:
     operationId: deleteAttribute
     summary: Delete an attribute definition
@@ -204,8 +176,4 @@ attributes-key:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Attribute or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'

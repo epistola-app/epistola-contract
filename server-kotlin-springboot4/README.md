@@ -40,6 +40,63 @@ Available interfaces:
 - `GenerationApi` — document generation + result collection
 - `AttributesApi` — variant selection criteria
 
+## Error Responses
+
+Error bodies follow [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457)
+(`Content-Type: application/problem+json`). The contract maps `ProblemDetail` and
+`ValidationProblemDetail` onto Spring's native `org.springframework.http.ProblemDetail`, so
+no problem DTO is generated — you build and return the framework type directly, and
+`ResponseEntityExceptionHandler` serializes it out of the box.
+
+The machine-readable discriminator is the problem **`type`** URI — clients switch on `type`,
+not on a separate code. See [docs/error-types.md](../docs/error-types.md) for the canonical
+list of problem `type` slugs. The opt-in `ProblemDetails` helper keeps `type`/`errors`
+consistent with the contract:
+
+```kotlin
+import app.epistola.api.error.ProblemDetails
+
+ProblemDetails.of(
+    status = HttpStatus.NOT_FOUND,
+    type = ProblemDetails.typeFor("not-found"),   // https://epistola.app/errors/not-found
+    detail = "Theme 'classic' was not found",
+)
+
+ProblemDetails.validation(
+    status = HttpStatus.BAD_REQUEST,
+    type = ProblemDetails.typeFor("validation-error"),
+    errors = listOf(ValidationError(field = "name", message = "must not be blank")),
+)
+```
+
+### Reference `@RestControllerAdvice`
+
+The advice that turns exceptions into responses is **application code** — it lives in your
+server, not in this library (which ships no auto-registered error handling). Map your domain
+exceptions to a problem with a specific `type`; Spring's framework-generated 4xx (malformed
+JSON, unsupported media type, 405, …) already carry a `type` (`about:blank` by default), so
+there is nothing extra to stamp on them:
+
+```kotlin
+@RestControllerAdvice
+class ApiExceptionHandler : ResponseEntityExceptionHandler() {
+
+    @ExceptionHandler(ThemeNotFoundException::class)
+    fun handleThemeNotFound(ex: ThemeNotFoundException): ProblemDetail =
+        ProblemDetails.of(
+            status = HttpStatus.NOT_FOUND,
+            type = ProblemDetails.typeFor("not-found"),
+            detail = ex.message,
+        )
+}
+```
+
+> **Serialization note (Jackson 3).** Spring's MVC converter registers
+> `ProblemDetailJacksonMixin` so `ProblemDetail` extension members (e.g. `errors`) serialize
+> flattened to the top level. If you serialize a `ProblemDetail` yourself with a hand-injected
+> `ObjectMapper` (e.g. in a security filter outside MVC), make sure that mapper has the mixin —
+> otherwise extensions nest under a `"properties"` object.
+
 ## Client Identity Parsing
 
 The `ClientInfo` utility parses client identity from incoming request headers (`User-Agent` and `X-EP-Node-Id`).

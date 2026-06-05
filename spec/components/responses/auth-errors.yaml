@@ -3,19 +3,23 @@
 UnauthorizedError:
   description: Missing or invalid authentication credentials
   content:
-    application/vnd.epistola.v1+json:
+    application/problem+json:
       schema:
-        $ref: './errors.yaml#/ErrorResponse'
+        $ref: './errors.yaml#/ProblemDetail'
       example:
-        code: UNAUTHORIZED
-        message: "Invalid or expired access token"
+        type: https://epistola.app/errors/unauthorized
+        title: Unauthorized
+        status: 401
+        detail: Invalid or expired access token
 
 ForbiddenError:
   description: Authenticated but insufficient permissions for the requested resource
   content:
-    application/vnd.epistola.v1+json:
+    application/problem+json:
       schema:
-        $ref: './errors.yaml#/ErrorResponse'
+        $ref: './errors.yaml#/ProblemDetail'
       example:
-        code: FORBIDDEN
-        message: "Access denied to tenant 'acme-corp'"
+        type: https://epistola.app/errors/forbidden
+        title: Forbidden
+        status: 403
+        detail: Access denied to tenant 'acme-corp'

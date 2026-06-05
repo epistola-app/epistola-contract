@@ -40,27 +40,15 @@ preview-document:
               type: string
               format: binary
       '400':
-        description: Invalid request
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Template, variant, or version not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '429':
-        description: Rate limit exceeded — too many preview requests
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/RateLimitedError'
 
 generate-document:
   post:
@@ -94,11 +82,7 @@ generate-document:
             schema:
               $ref: '../components/schemas/generation.yaml#/GenerationJobResponse'
       '400':
-        description: Invalid request
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -136,11 +120,7 @@ generate-batch:
             schema:
               $ref: '../components/schemas/generation.yaml#/GenerationJobResponse'
       '400':
-        description: Invalid request
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -193,11 +173,7 @@ jobs:
             schema:
               $ref: '../components/schemas/generation.yaml#/GenerationJobListResponse'
       '400':
-        description: Invalid request parameters
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -241,11 +217,7 @@ job-detail:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Job not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
   delete:
     operationId: cancelGenerationJob
@@ -262,17 +234,9 @@ job-detail:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Job not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        description: Job cannot be cancelled (already completed, failed, or cancelled)
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 documents:
   get:
@@ -329,11 +293,7 @@ documents:
             schema:
               $ref: '../components/schemas/generation.yaml#/DocumentListResponse'
       '400':
-        description: Invalid request parameters
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -387,11 +347,7 @@ document-detail:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Document not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
   delete:
     operationId: deleteDocument
@@ -408,8 +364,4 @@ document-detail:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Document not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'

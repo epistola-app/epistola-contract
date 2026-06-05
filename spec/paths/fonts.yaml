@@ -47,11 +47,7 @@ fonts:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Tenant or catalog not found.
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 fonts-slug:
   parameters:
@@ -102,8 +98,4 @@ fonts-slug:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Font family not found.
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'

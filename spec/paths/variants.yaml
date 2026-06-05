@@ -47,11 +47,7 @@ variants:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Template or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
   post:
     operationId: createVariant
@@ -74,21 +70,13 @@ variants:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantDto'
       '400':
-        description: Invalid request
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Template or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 variants-id:
   parameters:
@@ -148,11 +136,7 @@ variants-id:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Variant, template, or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
   patch:
     operationId: updateVariant
@@ -175,21 +159,13 @@ variants-id:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantDto'
       '400':
-        description: Invalid request
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Variant, template, or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
   delete:
     operationId: deleteVariant
@@ -206,17 +182,9 @@ variants-id:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Variant, template, or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        description: Cannot delete the default variant
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 variant-set-default:
   parameters:
@@ -276,11 +244,7 @@ variant-set-default:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Variant, template, or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 variant-draft:
   parameters:
@@ -340,11 +304,7 @@ variant-draft:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Draft, variant, template, or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
   put:
     operationId: upsertVariantDraft
@@ -373,21 +333,13 @@ variant-draft:
             schema:
               $ref: '../components/schemas/versions.yaml#/VersionDto'
       '400':
-        description: Invalid request
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Variant, template, or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 variant-activations:
   parameters:
@@ -447,11 +399,7 @@ variant-activations:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Variant, template, or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 variant-activation-env:
   parameters:
@@ -516,11 +464,7 @@ variant-activation-env:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Activation, variant, template, environment, or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 variant-active:
   parameters:
@@ -590,8 +534,4 @@ variant-active:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: No active version, variant, template, environment, or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'

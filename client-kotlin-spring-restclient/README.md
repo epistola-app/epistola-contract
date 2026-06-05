@@ -133,6 +133,56 @@ val restClient = RestClient.builder()
     .build()
 ```
 
+## Error Handling
+
+The API reports errors as [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457)
+(`Content-Type: application/problem+json`). The machine-readable discriminator is the problem
+**`type`** URI — clients switch on `type`, not on a status code or a separate error code.
+
+By default Spring RestClient throws a raw `RestClientResponseException` whose body you would have
+to parse yourself. The opt-in `installProblemDetailHandler()` builder extension parses the
+problem body and throws a typed **`ProblemDetailException`** instead:
+
+```kotlin
+import app.epistola.client.error.installProblemDetailHandler
+
+val restClient = RestClient.builder()
+    .baseUrl("https://epistola.example.com/api")
+    .requestInterceptor(identity.interceptor())
+    .requestInterceptor(signer.interceptor())
+    .installProblemDetailHandler()                     // <-- opt-in
+    .build()
+```
+
+`ProblemDetailException` extends `RestClientResponseException`, so existing
+`catch (e: RestClientResponseException)` sites keep working. Switch on the `type` slug:
+
+```kotlin
+import app.epistola.client.error.ProblemDetailException
+import app.epistola.client.error.KnownProblemSlugs
+
+try {
+    tenantsApi.getTenant("acme")
+} catch (e: ProblemDetailException) {
+    when (e.typeSlug) {
+        KnownProblemSlugs.NOT_FOUND        -> log.warn("Tenant missing: ${e.detail}")
+        KnownProblemSlugs.FORBIDDEN        -> throw AccessDeniedException(e.detail)
+        KnownProblemSlugs.VALIDATION_ERROR -> e.errors.forEach { println("${it.field}: ${it.message}") }
+        else                               -> throw e   // unknown / framework error
+    }
+}
+```
+
+`ProblemDetailException` exposes `type`, `typeSlug`, `title`, `problemStatus`, `detail`,
+`errors` (field-level validation errors, empty unless it's a validation problem) and
+`isValidationProblem`. See [error-types.md](../docs/error-types.md) for the full list of
+problem `type` slugs.
+
+Error responses that are **not** `application/problem+json` (e.g. an HTML page from a proxy or
+gateway, or an empty body) still surface as a plain `RestClientResponseException` /
+`HttpClientErrorException` / `HttpServerErrorException` — the handler is additive and never
+hides information.
+
 ## Generating Documents
 
 ```kotlin

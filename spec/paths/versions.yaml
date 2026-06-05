@@ -66,11 +66,7 @@ versions:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Variant, template, or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 versions-id:
   parameters:
@@ -138,11 +134,7 @@ versions-id:
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Version, variant, template, or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
   patch:
     operationId: updateVersion
@@ -165,21 +157,13 @@ versions-id:
             schema:
               $ref: '../components/schemas/versions.yaml#/VersionDto'
       '400':
-        description: Invalid request or version is not a draft
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Version, variant, template, or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 version-publish:
   parameters:
@@ -254,21 +238,13 @@ version-publish:
             schema:
               $ref: '../components/schemas/versions.yaml#/VersionDto'
       '400':
-        description: Version is archived or invalid request
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Version, variant, template, environment, or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 version-archive:
   parameters:
@@ -335,24 +311,12 @@ version-archive:
             schema:
               $ref: '../components/schemas/versions.yaml#/VersionDto'
       '400':
-        description: Version is not published (cannot archive drafts or already archived)
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Version, variant, template, or tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        description: Version is still active in one or more environments
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'

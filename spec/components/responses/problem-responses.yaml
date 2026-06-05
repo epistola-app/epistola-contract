@@ -1,0 +1,59 @@
+# Reusable RFC 9457 problem responses, one per canonical problem `type` slug.
+# See docs/error-types.md for the full registry. Authentication/authorization
+# responses (401/403) live in auth-errors.yaml.
+
+ValidationFailedError:
+  description: The request body or parameters failed validation
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ValidationProblemDetail'
+      example:
+        type: https://epistola.app/errors/validation-error
+        title: Bad Request
+        status: 400
+        detail: The request body failed validation
+        errors:
+          - field: name
+            message: must not be blank
+
+NotFoundError:
+  description: The requested resource was not found
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ProblemDetail'
+      example:
+        type: https://epistola.app/errors/not-found
+        title: Not Found
+        status: 404
+        detail: The requested resource was not found
+
+ConflictError:
+  description: The request conflicts with the current state of the resource
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ProblemDetail'
+      example:
+        type: https://epistola.app/errors/conflict
+        title: Conflict
+        status: 409
+        detail: The request conflicts with the current state of the resource
+
+RateLimitedError:
+  description: Too many requests; retry after the period indicated by the Retry-After header
+  headers:
+    Retry-After:
+      description: Seconds to wait before retrying
+      schema:
+        type: integer
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ProblemDetail'
+      example:
+        type: https://epistola.app/errors/rate-limited
+        title: Too Many Requests
+        status: 429
+        detail: Rate limit exceeded

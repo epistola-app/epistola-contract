@@ -1,42 +1,56 @@
-ErrorResponse:
-  type: object
-  description: Standard error response
-  required:
-    - code
-    - message
-  properties:
-    code:
-      type: string
-      description: Machine-readable error code
-      example: NOT_FOUND
-    message:
-      type: string
-      description: Human-readable error message
-      example: Tenant with ID 123 not found
+# RFC 9457 Problem Details for HTTP APIs
+# https://www.rfc-editor.org/rfc/rfc9457
+# (RFC 9457 obsoletes RFC 7807)
 
-ValidationErrorResponse:
+ProblemDetail:
   type: object
-  description: Validation error response with field-level details
+  description: RFC 9457 Problem Details for HTTP APIs
   required:
-    - code
-    - message
-    - errors
+    - type
+    - title
+    - status
   properties:
-    code:
+    type:
       type: string
-      description: Machine-readable error code
-      example: VALIDATION_ERROR
-    message:
+      format: uri
+      default: about:blank
+      description: |
+        URI that identifies the problem type and is the stable, machine-readable
+        discriminator clients should switch on. Application-level errors use a
+        dereferenceable `https://epistola.app/errors/{slug}` URI; framework-level
+        errors with no specific type default to `about:blank`.
+      example: https://epistola.app/errors/not-found
+    title:
       type: string
-      description: General error message
-      example: Validation failed
-    errors:
-      type: array
-      description: List of field-specific validation errors
-      items:
-        $ref: '#/FieldError'
+      description: Short human-readable summary of the problem type
+      example: Not Found
+    status:
+      type: integer
+      description: HTTP status code
+      example: 404
+    detail:
+      type: string
+      description: Human-readable explanation specific to this occurrence
+      example: Tenant with ID 'acme-corp' was not found
+    instance:
+      type: string
+      format: uri-reference
+      description: URI reference that identifies this specific occurrence of the problem
+      example: /api/tenants/acme-corp/catalogs/default/templates?q=invoice
 
-FieldError:
+# Extension for validation errors with field-level details
+ValidationProblemDetail:
+  allOf:
+    - $ref: '#/ProblemDetail'
+    - type: object
+      properties:
+        errors:
+          type: array
+          description: Field-level validation errors
+          items:
+            $ref: '#/ValidationError'
+
+ValidationError:
   type: object
   description: A single field validation error
   required:
@@ -50,6 +64,6 @@ FieldError:
     message:
       type: string
       description: Description of the validation failure
-      example: Name must not be blank
+      example: must not be blank
     rejectedValue:
       description: The value that was rejected (if applicable)

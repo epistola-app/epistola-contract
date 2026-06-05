@@ -37,11 +37,44 @@ info:
     the client library can append additional product tokens to `User-Agent` for their
     own software and override the node ID as needed.
 
+    ## Error Responses
+
+    The API uses [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457)
+    for error responses. Error responses have `Content-Type: application/problem+json`
+    and include the following fields:
+
+    - `type` (string, URI) — identifies the problem type; the stable,
+      machine-readable discriminator clients should switch on
+    - `title` (string) — short human-readable summary
+    - `status` (integer) — HTTP status code
+    - `detail` (string, optional) — human-readable explanation of this occurrence
+    - `instance` (string, URI, optional) — identifies this specific occurrence
+
+    Problem `type` URIs use the `https://epistola.app/errors/{slug}` namespace
+    and resolve to human-readable HTML documentation for that problem type.
+    A response may also carry domain-specific extension members as top-level
+    fields; clients should ignore members they do not recognize.
+
+    For validation errors (`type: .../validation-error`), the response also
+    includes an `errors` array with field-level details.
+
+    The canonical problem `type` slugs are:
+
+    | slug | status | when |
+    | --- | --- | --- |
+    | `validation-error` | 400 | request body or parameters failed validation (carries `errors[]`) |
+    | `bad-request` | 400 | request is malformed or not applicable to the resource state (no `errors[]`) |
+    | `unauthorized` | 401 | missing or invalid authentication credentials |
+    | `forbidden` | 403 | authenticated but not allowed to perform the operation |
+    | `not-found` | 404 | the addressed resource does not exist |
+    | `conflict` | 409 | the request conflicts with the current resource state |
+    | `rate-limited` | 429 | too many requests; see the `Retry-After` header |
+
     ## Authorization
     Access is controlled via roles (`reader`, `editor`, `generator`, `manager`,
     `tenant_control`) and tenant permissions. These are set by an administrator
     when approving a consumer registration.
-  version: "0.6.0"
+  version: "0.7.0"
   contact:
     name: Epistola Team
   license:
@@ -503,13 +536,13 @@ components:
     PartitionAssignment:
       $ref: './spec/components/schemas/generation-collect.yaml#/PartitionAssignment'
 
-    # Error schemas
-    ErrorResponse:
-      $ref: './spec/components/responses/errors.yaml#/ErrorResponse'
-    ValidationErrorResponse:
-      $ref: './spec/components/responses/errors.yaml#/ValidationErrorResponse'
-    FieldError:
-      $ref: './spec/components/responses/errors.yaml#/FieldError'
+    # RFC 9457 Problem Details schemas
+    ProblemDetail:
+      $ref: './spec/components/responses/errors.yaml#/ProblemDetail'
+    ValidationProblemDetail:
+      $ref: './spec/components/responses/errors.yaml#/ValidationProblemDetail'
+    ValidationError:
+      $ref: './spec/components/responses/errors.yaml#/ValidationError'
 
   parameters:
     UserAgent:

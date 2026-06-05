@@ -69,16 +69,17 @@ import-catalog:
       '400':
         description: Invalid ZIP or catalog already exists as SUBSCRIBED
         content:
-          application/vnd.epistola.v1+json:
+          application/problem+json:
             schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+              $ref: '../components/responses/errors.yaml#/ProblemDetail'
+            example:
+              type: https://epistola.app/errors/bad-request
+              title: Bad Request
+              status: 400
+              detail: The uploaded ZIP is not a valid catalog archive
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
-        description: Tenant not found
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ErrorResponse'
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'

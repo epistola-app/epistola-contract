@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Kotlin client: opt-in typed error handling.** A new `app.epistola.client.error` package adds `RestClient.Builder.installProblemDetailHandler()`, which parses `application/problem+json` responses and throws a typed `ProblemDetailException` (extends `RestClientResponseException`, so existing catch sites keep working). The exception exposes the problem `type`, `typeSlug`, `title`, `problemStatus`, `detail`, and field-level `errors`; switch on `typeSlug` (see `KnownProblemSlugs`). Non-problem error bodies still surface as plain `RestClientResponseException`.
+- **Error-type registry.** A new [`docs/error-types.md`](docs/error-types.md) documents the canonical problem `type` slugs (`validation-error`, `bad-request`, `unauthorized`, `forbidden`, `not-found`, `conflict`, `rate-limited`), their status codes, shapes, and meaning; the same table is summarized in the API description. Both module READMEs link to it.
+- **`bad-request` problem type.** Application-level `400` responses that are not field-level validation failures (an invalid catalog ZIP, refreshing a non-URL-sourced code list) now declare the `https://epistola.app/errors/bad-request` `type` in their contract example, so clients can switch on it (`KnownProblemSlugs.BAD_REQUEST`) instead of seeing an undocumented `type`.
+
+### Changed
+
+- **Error responses now reference shared problem-response components per `type`.** Each error response points at a reusable component (`NotFoundError`, `ValidationFailedError`, `ConflictError`, `RateLimitedError`, plus the existing `UnauthorizedError`/`ForbiddenError`) carrying an example with the concrete `type` URI, so the contract states which problem type each operation returns. `429` responses now consistently advertise the `Retry-After` header.
+
+- **Error responses now use RFC 9457 Problem Details.** Error response media types are `application/problem+json`; problem bodies include `type`, `title`, `status`, `detail`, and `instance`. The problem **`type` URI is the machine-readable discriminator** clients switch on (`https://epistola.app/errors/{slug}`, or `about:blank` for framework-level errors) — there is no separate `code` member. Validation errors use the `ValidationProblemDetail` shape with top-level `errors`. (RFC 9457 obsoletes RFC 7807.)
+- **Generated Spring server stubs reuse Spring's native `org.springframework.http.ProblemDetail`** instead of a generated DTO — it serializes to `application/problem+json` via `ResponseEntityExceptionHandler` out of the box. The server module adds an opt-in `app.epistola.api.error.ProblemDetails` helper for building problem bodies (`type`/`errors`) consistent with the contract, and the README documents a reference `@RestControllerAdvice`.
+- **Removed the deprecated pre-Problem-Details error schemas** (`ErrorResponse`, `ValidationErrorResponse`, `FieldError`); they were unreferenced after the Problem Details migration.
+- **Problem `instance` values are documented as URI references.** Runtime responses may use relative `/api/...` paths with query strings, so the schema now uses `format: uri-reference` instead of requiring absolute URIs.
+
+- **Generated Spring server stubs preserve the success media type for bodyless responses.** Post-generation normalization keeps `application/vnd.epistola.v1+json` alongside `application/problem+json` for generated mappings whose success response has no body.
+
 ## [0.6.0] - 2026-05-21
 
 ### Changed

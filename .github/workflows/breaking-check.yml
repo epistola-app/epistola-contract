@@ -38,49 +38,72 @@ jobs:
             cp openapi.yaml .oasdiff/base-openapi.yaml
           fi
 
+      # Run oasdiff directly via its container and write results to files.
+      # This avoids routing the (potentially very large) diff output through
+      # GitHub Actions step outputs / process arguments, which can exceed
+      # ARG_MAX and fail with "Argument list too long".
+      # Informational only: breaking changes are reported in the PR comment, not
+      # gated. This project ships intentional breaking changes under SemVer 0.x
+      # (commits marked `!`), so the check surfaces them for review rather than
+      # blocking the merge. `|| true` keeps a non-zero oasdiff exit from failing
+      # the job.
       - name: Check for breaking changes
-        id: breaking
-        uses: oasdiff/oasdiff-action/breaking@main
-        with:
-          base: .oasdiff/base-openapi.yaml
-          revision: openapi.yaml
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/data" tufin/oasdiff \
+            breaking /data/.oasdiff/base-openapi.yaml /data/openapi.yaml \
+            > .oasdiff/breaking.txt 2>&1 || true
+          # Strip the summary line oasdiff prints when nothing is found so the
+          # comment step can detect "empty" cleanly.
+          if grep -q "^No breaking changes" .oasdiff/breaking.txt; then
+            : > .oasdiff/breaking.txt
+          fi
 
       - name: Generate API changelog
-        id: changelog
-        uses: oasdiff/oasdiff-action/changelog@main
-        with:
-          base: .oasdiff/base-openapi.yaml
-          revision: openapi.yaml
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/data" tufin/oasdiff \
+            changelog /data/.oasdiff/base-openapi.yaml /data/openapi.yaml \
+            > .oasdiff/changelog.txt 2>&1 || true
+          if grep -q "^No changes" .oasdiff/changelog.txt; then
+            : > .oasdiff/changelog.txt
+          fi
 
       - name: Comment on PR
-        if: steps.breaking.outputs.breaking != '' || steps.changelog.outputs.changelog != ''
         uses: actions/github-script@v7
-        env:
-          BREAKING_OUTPUT: ${{ steps.breaking.outputs.breaking }}
-          CHANGELOG_OUTPUT: ${{ steps.changelog.outputs.changelog }}
         with:
           script: |
-            const breaking = process.env.BREAKING_OUTPUT;
-            const changelog = process.env.CHANGELOG_OUTPUT;
+            const fs = require('fs');
+
+            const read = (p) => {
+              try { return fs.readFileSync(p, 'utf8').trim(); }
+              catch { return ''; }
+            };
+
+            // GitHub comment bodies are capped at 65536 chars; truncate to stay well under.
+            const MAX = 50000;
+            const clip = (s) => s.length > MAX
+              ? s.slice(0, MAX) + '\n... (truncated, see workflow logs for full output)'
+              : s;
+
+            const breaking = clip(read('.oasdiff/breaking.txt'));
+            const changelog = clip(read('.oasdiff/changelog.txt'));
 
             let body = '## API Change Report\n\n';
 
-            if (breaking && breaking.trim()) {
+            if (breaking) {
               body += '### Breaking Changes\n\n';
               body += 'The following breaking changes were detected:\n\n';
               body += '```\n' + breaking + '\n```\n\n';
             }
 
-            if (changelog && changelog.trim()) {
+            if (changelog) {
               body += '### Changelog\n\n';
               body += '```\n' + changelog + '\n```\n\n';
             }
 
-            if (!breaking?.trim() && !changelog?.trim()) {
+            if (!breaking && !changelog) {
               body += 'No API changes detected.\n';
             }
 
-            // Find existing comment
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,

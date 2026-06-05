@@ -99,6 +99,18 @@ openApiGenerate {
         ),
     )
 
+    // Reuse Spring's native RFC 9457 type instead of generating a parallel DTO.
+    // `org.springframework.http.ProblemDetail` serializes to `application/problem+json`
+    // out of the box and is produced by `ResponseEntityExceptionHandler`. The `errors`
+    // extension member becomes a dynamic property (set via `setProperty`).
+    // schemaMappings substitutes the schema with the FQN AND skips generating the model.
+    schemaMappings.set(
+        mapOf(
+            "ProblemDetail" to "org.springframework.http.ProblemDetail",
+            "ValidationProblemDetail" to "org.springframework.http.ProblemDetail",
+        ),
+    )
+
     globalProperties.set(
         mapOf(
             "apis" to "",
@@ -106,6 +118,42 @@ openApiGenerate {
             "supportingFiles" to "",
         ),
     )
+}
+
+tasks.openApiGenerate {
+    doLast {
+        // OpenAPI Generator derives Spring `produces` from the union of a method's response
+        // media types. Bodyless 204 success responses contribute none, so for those operations
+        // the only media type left is `application/problem+json` from the error responses —
+        // which the controller never actually returns on success. We normalize the generated
+        // mappings to also accept the success media type.
+        //
+        // NOTE: there is no clean spec- or generator-config-level fix:
+        //   - adding a fake `content` to the 204 lies about the bodyless response and corrupts
+        //     the published spec, the rendered docs, and the mock server;
+        //   - no kotlin-spring config option excludes error responses from `produces` derivation;
+        //   - the generator honours no per-operation produces-override vendor extension;
+        //   - a forked api.mustache template is more fragile than this localized rewrite.
+        // So we post-process here. The `replaced == 0` guard below logs a warning if a generator
+        // upgrade changes the emitted string and the rewrite silently stops matching.
+        var replaced = 0
+        fileTree(generatedDir.get().dir("src/main/kotlin/app/epistola/api")) {
+            include("**/*Api.kt")
+        }.forEach { apiFile ->
+            val source = apiFile.readText()
+            val normalized = source.replace(
+                Regex("""produces\s*=\s*\[\s*"application/problem\+json"\s*]"""),
+                """produces = ["application/vnd.epistola.v1+json", "application/problem+json"]""",
+            )
+            if (normalized != source) {
+                apiFile.writeText(normalized)
+                replaced++
+            }
+        }
+        if (replaced == 0) {
+            logger.warn("no Api.kt files had their produces normalized — the string-replace may be broken")
+        }
+    }
 }
 
 sourceSets {
