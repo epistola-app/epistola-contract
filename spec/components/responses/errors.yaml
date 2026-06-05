@@ -23,7 +23,7 @@ ProblemDetail:
     title:
       type: string
       description: Short human-readable summary of the problem type
-      example: Resource Not Found
+      example: Not Found
     status:
       type: integer
       description: HTTP status code

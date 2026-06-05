@@ -63,6 +63,7 @@ info:
     | slug | status | when |
     | --- | --- | --- |
     | `validation-error` | 400 | request body or parameters failed validation (carries `errors[]`) |
+    | `bad-request` | 400 | request is malformed or not applicable to the resource state (no `errors[]`) |
     | `unauthorized` | 401 | missing or invalid authentication credentials |
     | `forbidden` | 403 | authenticated but not allowed to perform the operation |
     | `not-found` | 404 | the addressed resource does not exist |

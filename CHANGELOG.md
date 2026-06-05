@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Kotlin client: opt-in typed error handling.** A new `app.epistola.client.error` package adds `RestClient.Builder.installProblemDetailHandler()`, which parses `application/problem+json` responses and throws a typed `ProblemDetailException` (extends `RestClientResponseException`, so existing catch sites keep working). The exception exposes the problem `type`, `typeSlug`, `title`, `problemStatus`, `detail`, and field-level `errors`; switch on `typeSlug` (see `KnownProblemSlugs`). Non-problem error bodies still surface as plain `RestClientResponseException`.
-- **Error-type registry.** A new [`docs/error-types.md`](docs/error-types.md) documents the canonical problem `type` slugs (`validation-error`, `unauthorized`, `forbidden`, `not-found`, `conflict`, `rate-limited`), their status codes, shapes, and meaning; the same table is summarized in the API description. Both module READMEs link to it.
+- **Error-type registry.** A new [`docs/error-types.md`](docs/error-types.md) documents the canonical problem `type` slugs (`validation-error`, `bad-request`, `unauthorized`, `forbidden`, `not-found`, `conflict`, `rate-limited`), their status codes, shapes, and meaning; the same table is summarized in the API description. Both module READMEs link to it.
+- **`bad-request` problem type.** Application-level `400` responses that are not field-level validation failures (an invalid catalog ZIP, refreshing a non-URL-sourced code list) now declare the `https://epistola.app/errors/bad-request` `type` in their contract example, so clients can switch on it (`KnownProblemSlugs.BAD_REQUEST`) instead of seeing an undocumented `type`.
 
 ### Changed
 

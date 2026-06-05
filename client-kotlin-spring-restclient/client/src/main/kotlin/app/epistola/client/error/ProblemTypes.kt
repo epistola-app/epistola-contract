@@ -44,6 +44,9 @@ object KnownProblemSlugs {
     /** 400 — the request body or parameters failed validation (`ValidationProblemDetail`). */
     const val VALIDATION_ERROR: String = "validation-error"
 
+    /** 400 — the request is malformed or not applicable to the resource state (no `errors`). */
+    const val BAD_REQUEST: String = "bad-request"
+
     /** 401 — missing or invalid credentials. */
     const val UNAUTHORIZED: String = "unauthorized"
 

@@ -23,6 +23,7 @@ Clients must ignore members they do not recognize.
 | `type` | slug | status | shape | when |
 | --- | --- | --- | --- | --- |
 | `https://epistola.app/errors/validation-error` | `validation-error` | 400 | `ValidationProblemDetail` | the request body or parameters failed validation; the `errors[]` array carries the field-level failures |
+| `https://epistola.app/errors/bad-request` | `bad-request` | 400 | `ProblemDetail` | the request is malformed or not applicable to the resource's current state, but not a field-level validation failure (no `errors[]`) |
 | `https://epistola.app/errors/unauthorized` | `unauthorized` | 401 | `ProblemDetail` | missing or invalid authentication credentials |
 | `https://epistola.app/errors/forbidden` | `forbidden` | 403 | `ProblemDetail` | authenticated, but the caller lacks the required role or tenant permission |
 | `https://epistola.app/errors/not-found` | `not-found` | 404 | `ProblemDetail` | the addressed resource (tenant, catalog, template, …) does not exist |

@@ -101,8 +101,8 @@ openApiGenerate {
 
     // Reuse Spring's native RFC 9457 type instead of generating a parallel DTO.
     // `org.springframework.http.ProblemDetail` serializes to `application/problem+json`
-    // out of the box and is produced by `ResponseEntityExceptionHandler`. Extension
-    // members (`code`, `errors`) become dynamic properties (set via `setProperty`).
+    // out of the box and is produced by `ResponseEntityExceptionHandler`. The `errors`
+    // extension member becomes a dynamic property (set via `setProperty`).
     // schemaMappings substitutes the schema with the FQN AND skips generating the model.
     schemaMappings.set(
         mapOf(
