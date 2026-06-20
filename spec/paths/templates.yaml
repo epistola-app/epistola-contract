@@ -154,6 +154,10 @@ templates-id:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+      '422':
+        $ref: '../components/responses/problem-responses.yaml#/UnprocessableEntityError'
 
   delete:
     operationId: deleteTemplate

@@ -67,3 +67,34 @@ ValidationError:
       example: must not be blank
     rejectedValue:
       description: The value that was rejected (if applicable)
+
+DataModelValidationProblemDetail:
+  allOf:
+    - $ref: '#/ProblemDetail'
+    - type: object
+      properties:
+        validationErrors:
+          type: object
+          description: >-
+            Map of data-example name to the list of failures that example produced
+            when validated against the template's data model.
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/DataModelValidationError'
+
+DataModelValidationError:
+  type: object
+  description: A single data-example validation failure against the data model
+  required:
+    - path
+    - message
+  properties:
+    path:
+      type: string
+      description: JSON pointer/path to the location in the example that failed
+      example: /name
+    message:
+      type: string
+      description: Description of the validation failure
+      example: required property 'name' not found

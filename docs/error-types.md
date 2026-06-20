@@ -27,7 +27,8 @@ Clients must ignore members they do not recognize.
 | `https://epistola.app/errors/unauthorized` | `unauthorized` | 401 | `ProblemDetail` | missing or invalid authentication credentials |
 | `https://epistola.app/errors/forbidden` | `forbidden` | 403 | `ProblemDetail` | authenticated, but the caller lacks the required role or tenant permission |
 | `https://epistola.app/errors/not-found` | `not-found` | 404 | `ProblemDetail` | the addressed resource (tenant, catalog, template, …) does not exist |
-| `https://epistola.app/errors/conflict` | `conflict` | 409 | `ProblemDetail` | the request conflicts with the current state of the resource |
+| `https://epistola.app/errors/conflict` | `conflict` | 409 | `ProblemDetail` | the request conflicts with the current state of the resource (e.g. publishing a backwards-incompatible data-model change without confirmation) |
+| `https://epistola.app/errors/data-model-validation-error` | `data-model-validation-error` | 422 | `ProblemDetail` + `validationErrors` | the request is well-formed but semantically invalid: supplied data examples do not validate against the data model; the `validationErrors` member maps each example name to its failures |
 | `https://epistola.app/errors/rate-limited` | `rate-limited` | 429 | `ProblemDetail` | too many requests; a `Retry-After` header indicates how long to wait |
 
 The slug list is **open**: the API may introduce new `type` values without a major version
