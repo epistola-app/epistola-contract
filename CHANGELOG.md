@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`StencilResource.parameterSchema: Map<String, Any?>?` (optional).** Carries the stencil version's typed input parameters (a JSON Schema object) through catalog export/import so a parametrised stencil keeps its schema on round-trip and templates binding to those parameters stay bound on the receiving side. Optional and additive — a ZIP from a stencil without declared parameters (or a pre-this-version exporter) simply omits it and an older consumer ignores it, so no catalog `schemaVersion` bump is required.
+
 ## [0.7.0] - 2026-06-05
 
 ### Added
