@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **`UpdateTemplateRequest.forceUpdate` description corrected.** The flag confirms publishing a backwards-incompatible (breaking) data-model change (auto-upgrading dependent template versions); it does **not** bypass data-example validation — an incompatible example is still rejected with `422` even when `forceUpdate` is true. (Previously described as "save schema even if data examples don't match.")
+## [0.8.0] - 2026-06-24
+
+### Added
+
+- **`StencilResource.parameterSchema: Map<String, Any?>?` (optional).** Carries the stencil version's typed input parameters (a JSON Schema object) through catalog export/import so a parametrised stencil keeps its schema on round-trip and templates binding to those parameters stay bound on the receiving side. Optional and additive — a ZIP from a stencil without declared parameters (or a pre-this-version exporter) simply omits it and an older consumer ignores it, so no catalog `schemaVersion` bump is required.
 
 ## [0.7.0] - 2026-06-05
 

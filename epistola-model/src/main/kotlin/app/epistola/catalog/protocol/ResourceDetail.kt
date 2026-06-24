@@ -74,6 +74,15 @@ data class ThemeResource(
  * `version` is annotated `required = true` so that consumers reject pre-0.6.0
  * ZIPs at deserialisation time regardless of their `ObjectMapper` config,
  * rather than silently coercing a missing field to `0`.
+ *
+ * `parameterSchema` carries the stencil version's typed input parameters as a
+ * JSON Schema object (`{type:"object", properties, required}`) — the same value
+ * stored on `StencilVersion.parameter_schema`. It is optional and additive: a ZIP
+ * from a stencil without declared parameters (or from an exporter predating this
+ * field) simply omits it, and a consumer that does not understand it ignores it.
+ * Adding it therefore needs no `schemaVersion` bump (see
+ * `docs/adr/0007-catalog-wire-format-migrations.md`). When present it round-trips
+ * so that templates binding to those parameters stay bound after an import.
  */
 data class StencilResource(
     override val slug: String,
@@ -82,6 +91,7 @@ data class StencilResource(
     val description: String? = null,
     val tags: List<String> = emptyList(),
     val content: TemplateDocument,
+    val parameterSchema: Map<String, Any?>? = null,
 ) : CatalogResource {
     override val type: String get() = "stencil"
 }
