@@ -41,6 +41,24 @@ ConflictError:
         status: 409
         detail: The request conflicts with the current state of the resource
 
+UnprocessableEntityError:
+  description: >-
+    The request was well-formed but cannot be processed because its content is
+    semantically invalid (e.g. supplied data examples do not match the data model).
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/DataModelValidationProblemDetail'
+      example:
+        type: https://epistola.app/errors/data-model-validation-error
+        title: Data Model Validation Error
+        status: 422
+        detail: Data examples failed validation against schema
+        validationErrors:
+          "Example 1":
+            - path: /name
+              message: required property 'name' not found
+
 RateLimitedError:
   description: Too many requests; retry after the period indicated by the Retry-After header
   headers:

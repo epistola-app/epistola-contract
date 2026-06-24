@@ -729,7 +729,11 @@ UpdateTemplateRequest:
     forceUpdate:
       type: boolean
       default: false
-      description: If true, save schema even if data examples don't match (returns warnings instead of errors)
+      description: >-
+        When true, confirms publishing a backwards-incompatible (breaking) data-model
+        change; dependent template versions are auto-upgraded. Data examples are always
+        validated against the schema regardless of this flag — an incompatible example
+        is rejected (422) even when forceUpdate is true.
       example: false
 
 TemplateListResponse:
