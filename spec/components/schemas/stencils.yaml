@@ -190,7 +190,9 @@ StencilVersionDto:
     content:
       $ref: './template-model.yaml#/TemplateDocumentDto'
     parameterSchema:
-      type: object
+      type:
+        - object
+        - 'null'
       description: |
         Typed input parameters declared by this stencil version, expressed as a
         JSON Schema object (`{ "type": "object", "properties": {...}, "required": [...] }`).
@@ -367,7 +369,9 @@ CreateStencilRequest:
     content:
       $ref: './template-model.yaml#/TemplateDocumentDto'
     parameterSchema:
-      type: object
+      type:
+        - object
+        - 'null'
       description: |
         Optional typed input parameters for the stencil's initial draft version, as a
         JSON Schema object (`{ "type": "object", "properties": {...}, "required": [...] }`).
@@ -418,7 +422,9 @@ CreateStencilVersionRequest:
     content:
       $ref: './template-model.yaml#/TemplateDocumentDto'
     parameterSchema:
-      type: object
+      type:
+        - object
+        - 'null'
       description: |
         Optional typed input parameters for this draft version, as a JSON Schema
         object (`{ "type": "object", "properties": {...}, "required": [...] }`). Property
@@ -440,13 +446,18 @@ UpdateStencilDraftRequest:
     content:
       $ref: './template-model.yaml#/TemplateDocumentDto'
     parameterSchema:
-      type: object
+      type:
+        - object
+        - 'null'
       description: |
         Optional typed input parameters for this draft version, as a JSON Schema
         object (`{ "type": "object", "properties": {...}, "required": [...] }`). Property
         types are limited to string / number / integer / boolean (optionally
-        `format: date`/`date-time`) or arrays of those primitives. Omit or send null to
-        declare no parameters.
+        `format: date`/`date-time`) or arrays of those primitives.
+
+        Updating a draft is a **full replacement**: this field is applied as-is, so
+        omitting it (or sending null) clears any parameter schema currently on the
+        draft. Send the complete schema (alongside the complete `content`) to keep it.
       example:
         type: object
         properties:
