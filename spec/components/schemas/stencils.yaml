@@ -189,6 +189,24 @@ StencilVersionDto:
       example: published
     content:
       $ref: './template-model.yaml#/TemplateDocumentDto'
+    parameterSchema:
+      type: object
+      description: |
+        Typed input parameters declared by this stencil version, expressed as a
+        JSON Schema object (`{ "type": "object", "properties": {...}, "required": [...] }`).
+        Property types are limited to string / number / integer / boolean (optionally
+        with `format: date` or `date-time`) or arrays of those primitives. Omitted or
+        null means the stencil declares no parameters. When a template embeds this
+        stencil, each parameter is bound to a JSONata expression via the consumer
+        node's `parameterBindings` prop (see `NodeDto.props`).
+      example:
+        type: object
+        properties:
+          recipientName:
+            type: string
+            description: Recipient display name
+        required:
+          - recipientName
     createdAt:
       type: string
       format: date-time
@@ -251,6 +269,14 @@ StencilVersionDto:
             - node-company-name
       themeRef:
         type: inherit
+    parameterSchema:
+      type: object
+      properties:
+        recipientName:
+          type: string
+          description: Recipient display name
+      required:
+        - recipientName
     createdAt: "2026-03-01T10:00:00Z"
     publishedAt: "2026-03-02T09:00:00Z"
     archivedAt: null
@@ -340,6 +366,21 @@ CreateStencilRequest:
         - corporate
     content:
       $ref: './template-model.yaml#/TemplateDocumentDto'
+    parameterSchema:
+      type: object
+      description: |
+        Optional typed input parameters for the stencil's initial draft version, as a
+        JSON Schema object (`{ "type": "object", "properties": {...}, "required": [...] }`).
+        Property types are limited to string / number / integer / boolean (optionally
+        `format: date`/`date-time`) or arrays of those primitives. Omit or send null to
+        declare no parameters.
+      example:
+        type: object
+        properties:
+          recipientName:
+            type: string
+        required:
+          - recipientName
 
 UpdateStencilRequest:
   type: object
@@ -376,6 +417,21 @@ CreateStencilVersionRequest:
   properties:
     content:
       $ref: './template-model.yaml#/TemplateDocumentDto'
+    parameterSchema:
+      type: object
+      description: |
+        Optional typed input parameters for this draft version, as a JSON Schema
+        object (`{ "type": "object", "properties": {...}, "required": [...] }`). Property
+        types are limited to string / number / integer / boolean (optionally
+        `format: date`/`date-time`) or arrays of those primitives. Omit or send null to
+        declare no parameters.
+      example:
+        type: object
+        properties:
+          recipientName:
+            type: string
+        required:
+          - recipientName
 
 UpdateStencilDraftRequest:
   type: object
@@ -383,6 +439,21 @@ UpdateStencilDraftRequest:
   properties:
     content:
       $ref: './template-model.yaml#/TemplateDocumentDto'
+    parameterSchema:
+      type: object
+      description: |
+        Optional typed input parameters for this draft version, as a JSON Schema
+        object (`{ "type": "object", "properties": {...}, "required": [...] }`). Property
+        types are limited to string / number / integer / boolean (optionally
+        `format: date`/`date-time`) or arrays of those primitives. Omit or send null to
+        declare no parameters.
+      example:
+        type: object
+        properties:
+          recipientName:
+            type: string
+        required:
+          - recipientName
 
 StencilUsageDto:
   type: object

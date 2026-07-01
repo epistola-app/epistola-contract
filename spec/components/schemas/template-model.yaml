@@ -227,7 +227,20 @@ NodeDto:
       example: heading
     props:
       type: object
-      description: Type-specific properties (content, expression, columns config, etc.)
+      description: |
+        Type-specific properties (content, expression, columns config, etc.).
+
+        On a `stencil` node these props also carry the parameter wiring for the
+        embedded stencil version:
+
+        - `parameterBindings` — object mapping each declared parameter name to the
+          JSONata expression that produces its value, evaluated against the template's
+          data model at render time (e.g. `{ "recipientName": "customer.name" }`).
+        - `parameterSchemaSnapshot` — a copy of the source stencil version's
+          `parameterSchema` (see `StencilVersionDto.parameterSchema`), captured at
+          insertion so the schema travels with the node.
+        - `paramsAlias` — optional string naming the scope the parameters are exposed
+          under inside the stencil content; defaults to `params`.
       example:
         content: "Invoice {{invoiceNumber}}"
   example:
