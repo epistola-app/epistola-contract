@@ -16,6 +16,7 @@ lint: $(REDOCLY)
 	@echo "==> Validating OpenAPI spec..."
 	$(REDOCLY) lint epistola-api.yaml
 	@scripts/check-error-registry.sh
+	@scripts/check-media-types.sh
 
 # Bundle OpenAPI spec into single file
 bundle: $(REDOCLY)
@@ -62,7 +63,7 @@ breaking: bundle
 	@rm -rf /tmp/epistola-base-spec && mkdir -p /tmp/epistola-base-spec
 	@git archive main -- epistola-api.yaml spec/ 2>/dev/null | tar -xC /tmp/epistola-base-spec || cp -r epistola-api.yaml spec/ /tmp/epistola-base-spec/
 	@cd /tmp/epistola-base-spec && $(CURDIR)/$(REDOCLY) bundle epistola-api.yaml -o openapi.yaml 2>/dev/null
-	oasdiff breaking /tmp/epistola-base-spec/openapi.yaml openapi.yaml
+	oasdiff breaking --flatten-allof --flatten-params /tmp/epistola-base-spec/openapi.yaml openapi.yaml
 
 # Generate API docs and open in browser
 docs: bundle

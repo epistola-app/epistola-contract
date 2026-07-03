@@ -693,36 +693,18 @@ GenerationJobDetail:
         completedAt: "2026-02-01T08:00:03Z"
 
 GenerationJobListResponse:
-  type: object
   description: Paginated list of generation jobs
-  required:
-    - items
-    - page
-    - size
-    - totalElements
-    - totalPages
-  properties:
-    items:
-      type: array
-      description: List of generation jobs on this page
-      items:
-        $ref: '#/DocumentGenerationJobDto'
-    page:
-      type: integer
-      description: Current page number (0-based)
-      example: 0
-    size:
-      type: integer
-      description: Number of items per page
-      example: 20
-    totalElements:
-      type: integer
-      description: Total number of items across all pages
-      example: 1
-    totalPages:
-      type: integer
-      description: Total number of pages
-      example: 1
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: List of generation jobs on this page
+          items:
+            $ref: '#/DocumentGenerationJobDto'
   example:
     items:
       - id: "550e8400-e29b-41d4-a716-446655440000"
@@ -827,36 +809,18 @@ DocumentDto:
     createdBy: null
 
 DocumentListResponse:
-  type: object
   description: Paginated list of documents
-  required:
-    - items
-    - page
-    - size
-    - totalElements
-    - totalPages
-  properties:
-    items:
-      type: array
-      description: List of documents on this page
-      items:
-        $ref: '#/DocumentDto'
-    page:
-      type: integer
-      description: Current page number (0-based)
-      example: 0
-    size:
-      type: integer
-      description: Number of items per page
-      example: 20
-    totalElements:
-      type: integer
-      description: Total number of items across all pages
-      example: 1
-    totalPages:
-      type: integer
-      description: Total number of pages
-      example: 1
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: List of documents on this page
+          items:
+            $ref: '#/DocumentDto'
   example:
     items:
       - id: "770e8400-e29b-41d4-a716-446655440002"

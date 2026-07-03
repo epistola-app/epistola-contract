@@ -147,7 +147,7 @@ data class ClientInfo(
 The `User-Agent` header follows RFC 9110 product tokens:
 
 ```
-epistola-contract/0.3.0 valtimo-epistola-plugin/1.2.0 gzac/5.0.0
+epistola-contract/x.y.z valtimo-epistola-plugin/1.2.0 gzac/5.0.0
 ```
 
 The first token is always `epistola-contract/{version}` (set by the client library).

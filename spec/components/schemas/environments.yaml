@@ -69,16 +69,18 @@ UpdateEnvironmentRequest:
       example: Production (EU)
 
 EnvironmentListResponse:
-  type: object
   description: List of environments
-  required:
-    - items
-  properties:
-    items:
-      type: array
-      description: List of environments
-      items:
-        $ref: '#/EnvironmentDto'
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: List of environments
+          items:
+            $ref: '#/EnvironmentDto'
   example:
     items:
       - id: production
@@ -89,3 +91,7 @@ EnvironmentListResponse:
         tenantId: acme-corp
         name: Staging
         createdAt: "2026-01-16T10:30:00Z"
+    page: 0
+    size: 20
+    totalElements: 2
+    totalPages: 1

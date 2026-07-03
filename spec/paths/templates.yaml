@@ -32,6 +32,8 @@ templates:
         description: Search term for filtering templates by name
         schema:
           type: string
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
     responses:
       '200':
         description: List of templates

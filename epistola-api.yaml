@@ -27,7 +27,7 @@ info:
       The first token **must** be `epistola-contract/{version}` indicating the contract
       version the client was built against. Additional product/version pairs can be
       appended to describe the full software stack.
-      Example: `epistola-contract/0.3.0 valtimo-epistola-plugin/1.2.0 gzac/5.0.0`
+      Example: `epistola-contract/x.y.z valtimo-epistola-plugin/1.2.0 gzac/5.0.0`
     - **`X-EP-Node-Id`** (required) — identifies the specific client node. Use the
       Kubernetes pod name, container ID, or hostname. In local/dev environments,
       the machine hostname is acceptable.
@@ -365,6 +365,10 @@ paths:
 
 components:
   schemas:
+    # Shared building blocks
+    PageMeta:
+      $ref: './spec/components/schemas/common.yaml#/PageMeta'
+
     # Ping/Pong schemas
     PingRequest:
       $ref: './spec/components/schemas/ping.yaml#/PingRequest'
@@ -594,30 +598,15 @@ components:
       $ref: './spec/components/responses/errors.yaml#/DataModelValidationError'
 
   parameters:
-    UserAgent:
-      name: User-Agent
-      in: header
-      required: true
-      description: |
-        Required. Identifies the client software stack using RFC 9110 product tokens
-        (`product/version`). The first token must be `epistola-contract/{version}`
-        indicating the contract version the client was built against. Additional tokens
-        can be appended to describe the full software stack.
-      schema:
-        type: string
-      example: epistola-contract/0.3.0 valtimo-epistola-plugin/1.2.0
-
-    NodeId:
-      name: X-EP-Node-Id
-      in: header
-      required: true
-      description: |
-        Required. Identifies the specific client node for request correlation and
-        diagnostics. Use the Kubernetes pod name, container ID, or hostname.
-        In local/dev environments, the machine hostname is acceptable.
-      schema:
-        type: string
-      example: epistola-cli-pod-7f8b9c
+    # The required client-identity headers (User-Agent, X-EP-Node-Id) are described
+    # normatively in info.description ("Client Identity") rather than modeled per
+    # operation: OpenAPI has no global-parameter mechanism, so referencing them from
+    # every operation would add two arguments to every generated client method and
+    # server interface. The generated clients set both headers automatically.
+    Page:
+      $ref: './spec/components/parameters/pagination.yaml#/Page'
+    Size:
+      $ref: './spec/components/parameters/pagination.yaml#/Size'
 
   securitySchemes:
     bearerAuth:
@@ -646,6 +635,9 @@ components:
       type: apiKey
       in: header
       name: X-API-Key
+      # OpenAPI has no `deprecated` flag for security schemes; this vendor extension
+      # makes the deprecation (also stated in the description) machine-readable.
+      x-deprecated: true
       description: |
         **Deprecated — use JWT Bearer authentication (OAuth or self-signed) instead.**
 

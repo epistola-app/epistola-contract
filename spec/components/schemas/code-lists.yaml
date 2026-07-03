@@ -149,15 +149,17 @@ CodeListEntryDto:
       example: false
 
 CodeListListResponse:
-  type: object
   description: List of code lists.
-  required:
-    - items
-  properties:
-    items:
-      type: array
-      items:
-        $ref: '#/CodeListDto'
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/CodeListDto'
 
 CodeListEntriesResponse:
   type: object

@@ -737,16 +737,18 @@ UpdateTemplateRequest:
       example: false
 
 TemplateListResponse:
-  type: object
   description: List of templates
-  required:
-    - items
-  properties:
-    items:
-      type: array
-      description: List of template summaries
-      items:
-        $ref: '#/TemplateSummaryDto'
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          description: List of template summaries
+          items:
+            $ref: '#/TemplateSummaryDto'
   example:
     items:
       - id: invoice
@@ -754,3 +756,7 @@ TemplateListResponse:
         name: Monthly Invoice
         createdAt: "2026-01-20T09:00:00Z"
         lastModified: "2026-01-22T16:45:00Z"
+    page: 0
+    size: 20
+    totalElements: 1
+    totalPages: 1

@@ -60,11 +60,11 @@ val identity = ClientIdentity.builder()
     .build()
 
 // Produces headers:
-// User-Agent: epistola-contract/0.3.0 valtimo-epistola-plugin/1.2.0 gzac/5.0.0
+// User-Agent: epistola-contract/x.y.z valtimo-epistola-plugin/1.2.0 gzac/5.0.0
 // X-EP-Node-Id: invoice-service-pod-7f8b9c
 
 // Access values
-identity.userAgent       // "epistola-contract/0.3.0 ..."
+identity.userAgent       // "epistola-contract/x.y.z ..."
 identity.nodeId          // "invoice-service-pod-7f8b9c"
 ClientIdentity.contractVersion  // "0.3.0" (from build)
 ```

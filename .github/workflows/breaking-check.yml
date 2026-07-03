@@ -51,7 +51,8 @@ jobs:
       # the job.
       - name: Check for breaking changes
         run: |
-          oasdiff breaking .oasdiff/base-openapi.yaml openapi.yaml \
+          oasdiff breaking --flatten-allof --flatten-params \
+            .oasdiff/base-openapi.yaml openapi.yaml \
             > .oasdiff/breaking.txt 2>&1 || true
           # Strip the summary line oasdiff prints when nothing is found so the
           # comment step can detect "empty" cleanly.
@@ -61,7 +62,8 @@ jobs:
 
       - name: Generate API changelog
         run: |
-          oasdiff changelog .oasdiff/base-openapi.yaml openapi.yaml \
+          oasdiff changelog --flatten-allof --flatten-params \
+            .oasdiff/base-openapi.yaml openapi.yaml \
             > .oasdiff/changelog.txt 2>&1 || true
           if grep -q "^No changes" .oasdiff/changelog.txt; then
             : > .oasdiff/changelog.txt
