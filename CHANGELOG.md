@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Machine-readable problem-type registry (`x-problem-types`).** The canonical problem `type` slugs now live in a top-level `x-problem-types` extension in `epistola-api.yaml` (base URI + slug/status/schema/description per type), fixing live drift where the API description's own table was missing `data-model-validation-error` (422). The prose table in the API description is replaced by a pointer to [`docs/error-types.md`](docs/error-types.md); a new `scripts/check-error-registry.sh` (run by `make lint` and CI) fails when the docs table and the spec registry disagree.
+- **Client `KnownProblemSlugs` is now generated from the spec.** A new `generateProblemSlugs` Gradle task emits the constants from the bundled spec's `x-problem-types`, so the client can no longer drift from the registry; new `ProblemRegistryTest` guard tests in both Kotlin modules assert the remaining hand-written pieces (`TYPE_BASE`, the server's new `ProblemDetails.KnownSlugs` constants) agree with the spec.
+- **`BadRequestError` reusable response.** The `bad-request` problem type now has a shared response component in `problem-responses.yaml` like the other seven types; the two operations that previously declared it inline (catalog import, code-list refresh) reference it.
+
 ### Changed
+
+- **Server no longer generates a `DataModelValidationProblemDetail` DTO.** The schema is now mapped to Spring's native `org.springframework.http.ProblemDetail` (like `ProblemDetail`/`ValidationProblemDetail` already were), matching what the hand-written `ProblemDetails.dataModelValidation(...)` helper actually returns; the orphaned allOf model is suppressed via `.openapi-generator-ignore`.
 
 - **Pinned spec tooling.** `@redocly/cli` (2.36.0) and `@stoplight/prism-cli` (5.15.11) are now exact-pinned in `tools/package.json` with a committed `pnpm-lock.yaml`; the Makefile and all CI workflows use the pinned binaries instead of unpinned `npx @redocly/cli` (which pulled latest on every run). The CI breaking-change check now runs the mise-pinned `oasdiff` binary (same version as local `make breaking`) instead of an untagged `tufin/oasdiff` docker image, and all CI jobs use the mise-pinned Node 24 (previously Node 22 was hardcoded in two workflows and the mock-server image).
 - **Single spec-version parser.** A new `scripts/spec-version.sh` is the one place that parses `info.version` out of `epistola-api.yaml`; the Makefile `release` target, the `calculate-version` action, and the docs/mock-server workflows all use it (previously the same grep/sed pipeline was copy-pasted in five places).

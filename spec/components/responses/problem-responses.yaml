@@ -17,6 +17,20 @@ ValidationFailedError:
           - field: name
             message: must not be blank
 
+BadRequestError:
+  description: >-
+    The request is malformed or not applicable to the resource's current
+    state, but not a field-level validation failure (no `errors[]`)
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ProblemDetail'
+      example:
+        type: https://epistola.app/errors/bad-request
+        title: Bad Request
+        status: 400
+        detail: The request cannot be applied to the resource's current state
+
 NotFoundError:
   description: The requested resource was not found
   content:

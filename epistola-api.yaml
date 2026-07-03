@@ -58,17 +58,9 @@ info:
     For validation errors (`type: .../validation-error`), the response also
     includes an `errors` array with field-level details.
 
-    The canonical problem `type` slugs are:
-
-    | slug | status | when |
-    | --- | --- | --- |
-    | `validation-error` | 400 | request body or parameters failed validation (carries `errors[]`) |
-    | `bad-request` | 400 | request is malformed or not applicable to the resource state (no `errors[]`) |
-    | `unauthorized` | 401 | missing or invalid authentication credentials |
-    | `forbidden` | 403 | authenticated but not allowed to perform the operation |
-    | `not-found` | 404 | the addressed resource does not exist |
-    | `conflict` | 409 | the request conflicts with the current resource state |
-    | `rate-limited` | 429 | too many requests; see the `Retry-After` header |
+    The canonical problem `type` slugs are registered in
+    [`docs/error-types.md`](docs/error-types.md); the machine-readable
+    registry is this document's top-level `x-problem-types` extension.
 
     ## Authorization
     Access is controlled via roles (`reader`, `editor`, `generator`, `manager`,
@@ -84,6 +76,59 @@ info:
 servers:
   - url: /api
     description: Base API path
+
+# Machine-readable registry of the canonical problem `type` slugs
+# (human-facing registry: docs/error-types.md — a CI check keeps the two in
+# sync). The Kotlin client's KnownProblemSlugs constants are generated from
+# this list, and guard tests in both Kotlin modules assert their hand-written
+# error helpers agree with it. The slug list is open: new types may be added
+# without a major version bump, so clients switching on the slug must keep an
+# else branch.
+x-problem-types:
+  base: https://epistola.app/errors/
+  types:
+    - slug: validation-error
+      status: 400
+      schema: ValidationProblemDetail
+      description: >-
+        The request body or parameters failed validation; the `errors[]`
+        array carries the field-level failures.
+    - slug: bad-request
+      status: 400
+      schema: ProblemDetail
+      description: >-
+        The request is malformed or not applicable to the resource's current
+        state, but not a field-level validation failure (no `errors[]`).
+    - slug: unauthorized
+      status: 401
+      schema: ProblemDetail
+      description: Missing or invalid authentication credentials.
+    - slug: forbidden
+      status: 403
+      schema: ProblemDetail
+      description: >-
+        Authenticated, but the caller lacks the required role or tenant
+        permission.
+    - slug: not-found
+      status: 404
+      schema: ProblemDetail
+      description: The addressed resource does not exist.
+    - slug: conflict
+      status: 409
+      schema: ProblemDetail
+      description: The request conflicts with the current state of the resource.
+    - slug: data-model-validation-error
+      status: 422
+      schema: DataModelValidationProblemDetail
+      description: >-
+        The request is well-formed but semantically invalid; the
+        `validationErrors` member maps each data-example name to its failures.
+    - slug: rate-limited
+      status: 429
+      schema: ProblemDetail
+      description: >-
+        Too many requests; the `Retry-After` header indicates how long to
+        wait.
 
 tags:
   - name: System

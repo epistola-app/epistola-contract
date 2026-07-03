@@ -72,6 +72,9 @@ openApiGenerate {
         ),
     )
 
+    // Suppresses models that schemaMappings alone doesn't (see the ignore file's comments)
+    ignoreFileOverride.set("$projectDir/.openapi-generator-ignore")
+
     // Use ObjectNode for generic objects to properly handle null values
     importMappings.set(
         mapOf(
@@ -94,6 +97,7 @@ openApiGenerate {
         mapOf(
             "ProblemDetail" to "org.springframework.http.ProblemDetail",
             "ValidationProblemDetail" to "org.springframework.http.ProblemDetail",
+            "DataModelValidationProblemDetail" to "org.springframework.http.ProblemDetail",
         ),
     )
 

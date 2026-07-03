@@ -67,16 +67,7 @@ import-catalog:
             schema:
               $ref: '../components/schemas/import.yaml#/ImportCatalogResponse'
       '400':
-        description: Invalid ZIP or catalog already exists as SUBSCRIBED
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
-            example:
-              type: https://epistola.app/errors/bad-request
-              title: Bad Request
-              status: 400
-              detail: The uploaded ZIP is not a valid catalog archive
+        $ref: '../components/responses/problem-responses.yaml#/BadRequestError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

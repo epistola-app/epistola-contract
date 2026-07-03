@@ -179,6 +179,70 @@ val generateValidation by tasks.registering {
     }
 }
 
+// --- Problem-slug constants generated from the spec's x-problem-types registry ---
+val generatedProblemSlugsDir = layout.buildDirectory.dir("generated-problem-slugs/src/main/kotlin")
+
+val generateProblemSlugs by tasks.registering {
+    description = "Generates KnownProblemSlugs from the spec's x-problem-types extension"
+
+    inputs.file(bundledSpec)
+    outputs.dir(generatedProblemSlugsDir)
+
+    @Suppress("UNCHECKED_CAST")
+    doLast {
+        val yaml = org.yaml.snakeyaml.Yaml()
+        val spec = yaml.load<Map<String, Any>>(bundledSpec.readText()) as Map<String, Any>
+        val registry = spec["x-problem-types"] as? Map<String, Any>
+            ?: throw GradleException(
+                "bundled spec has no x-problem-types extension — KnownProblemSlugs cannot be generated",
+            )
+        val base = registry["base"] as? String
+            ?: throw GradleException("x-problem-types.base is missing from the bundled spec")
+        val types = (registry["types"] as? List<Map<String, Any>>).orEmpty()
+        if (types.size < 8) {
+            throw GradleException(
+                "x-problem-types lists only ${types.size} problem types (expected at least 8) — " +
+                    "was the registry truncated?",
+            )
+        }
+
+        val constants = types.joinToString("\n\n") { entry ->
+            val slug = entry["slug"] as String
+            val status = entry["status"]
+            val description = (entry["description"] as? String).orEmpty().replace(Regex("\\s+"), " ").trim()
+            val constName = slug.uppercase().replace('-', '_')
+            "    /** $status — $description */\n" +
+                "    const val $constName: String = \"$slug\""
+        }
+
+        val outFile = generatedProblemSlugsDir.get()
+            .file("app/epistola/client/error/KnownProblemSlugs.kt").asFile
+        outFile.parentFile.mkdirs()
+        outFile.writeText(
+            """
+            |// Generated from the bundled OpenAPI spec's x-problem-types extension — do not edit.
+            |package app.epistola.client.error
+            |
+            |/** Base URI from the spec's x-problem-types registry; must equal [ProblemTypes.TYPE_BASE]. */
+            |internal const val GENERATED_PROBLEM_TYPE_BASE: String = "$base"
+            |
+            |/**
+            | * The canonical problem `type` slugs the Epistola API emits, from the contract's
+            | * error-type registry (the spec's `x-problem-types` extension / `docs/error-types.md`).
+            | *
+            | * These are convenience constants for `when (e.typeSlug)` switches. `typeSlug` is deliberately a
+            | * plain `String?` (not an enum) so the API can introduce new problem types without forcing a
+            | * client release — always keep an `else` branch.
+            | */
+            |object KnownProblemSlugs {
+            |$constants
+            |}
+            """.trimMargin() + "\n",
+        )
+        logger.lifecycle("Generated KnownProblemSlugs with ${types.size} slug(s) → ${outFile.relativeTo(project.projectDir)}")
+    }
+}
+
 // Generate a resource file with the contract version so ClientIdentity can read it at runtime.
 // Uses the version from the spec (which is updated to the full version on each release).
 val generateContractVersionResource by tasks.registering {
@@ -203,6 +267,7 @@ sourceSets {
     main {
         kotlin.srcDir(generatedDir.map { it.dir("src/main/kotlin") })
         kotlin.srcDir(generatedValidationDir)
+        kotlin.srcDir(generatedProblemSlugsDir)
         resources.srcDir(layout.buildDirectory.dir("generated-resources"))
     }
 }
@@ -212,7 +277,7 @@ tasks.processResources {
 }
 
 tasks.compileKotlin {
-    dependsOn(generateValidation)
+    dependsOn(generateValidation, generateProblemSlugs)
     compilerOptions {
         apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
         languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
@@ -237,11 +302,11 @@ tasks.test {
 
 // Exclude generated build files from ktlint
 tasks.withType<org.jlleitschuh.gradle.ktlint.tasks.KtLintCheckTask> {
-    dependsOn(generateValidation)
+    dependsOn(generateValidation, generateProblemSlugs)
 }
 
 tasks.withType<org.jlleitschuh.gradle.ktlint.tasks.KtLintFormatTask> {
-    dependsOn(generateValidation)
+    dependsOn(generateValidation, generateProblemSlugs)
 }
 
 // Configure ktlint to exclude generated sources
@@ -253,7 +318,7 @@ configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
 
 // Configure vanniktech plugin's jar tasks to depend on code generation since sources are generated
 tasks.matching { it.name == "plainJavadocJar" || it.name == "sourcesJar" }.configureEach {
-    dependsOn(generateValidation, generateContractVersionResource)
+    dependsOn(generateValidation, generateProblemSlugs, generateContractVersionResource)
 }
 
 // GitHub Packages repository for snapshot publishing (standard Gradle publishing plugin)

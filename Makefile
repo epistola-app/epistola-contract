@@ -15,6 +15,7 @@ all: lint build
 lint: $(REDOCLY)
 	@echo "==> Validating OpenAPI spec..."
 	$(REDOCLY) lint epistola-api.yaml
+	@scripts/check-error-registry.sh
 
 # Bundle OpenAPI spec into single file
 bundle: $(REDOCLY)

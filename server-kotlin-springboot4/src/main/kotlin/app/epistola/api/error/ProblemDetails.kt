@@ -51,6 +51,39 @@ object ProblemDetails {
     fun typeFor(slug: String): URI = URI.create(TYPE_BASE + slug)
 
     /**
+     * The canonical problem `type` slugs from the contract's error-type registry (the spec's
+     * `x-problem-types` extension / `docs/error-types.md`), for use with [typeFor].
+     *
+     * A guard test asserts these agree with the bundled spec — when the registry changes,
+     * update both. The slug list is open: implementations may also emit slugs not listed here.
+     */
+    object KnownSlugs {
+        /** 400 — the request body or parameters failed validation (use [validation]). */
+        const val VALIDATION_ERROR: String = "validation-error"
+
+        /** 400 — malformed or not applicable to the resource state (no `errors`). */
+        const val BAD_REQUEST: String = "bad-request"
+
+        /** 401 — missing or invalid credentials. */
+        const val UNAUTHORIZED: String = "unauthorized"
+
+        /** 403 — authenticated but not allowed to perform the operation. */
+        const val FORBIDDEN: String = "forbidden"
+
+        /** 404 — the addressed resource does not exist. */
+        const val NOT_FOUND: String = "not-found"
+
+        /** 409 — the request conflicts with the current state of the resource. */
+        const val CONFLICT: String = "conflict"
+
+        /** 422 — data examples do not validate against the data model (use [dataModelValidation]). */
+        const val DATA_MODEL_VALIDATION_ERROR: String = "data-model-validation-error"
+
+        /** 429 — too many requests; the client is being rate limited. */
+        const val RATE_LIMITED: String = "rate-limited"
+    }
+
+    /**
      * Builds a [ProblemDetail] for an application-level error. `title` defaults to the status
      * reason phrase; [type] is the machine-readable discriminator and defaults to [BLANK_TYPE]
      * (`about:blank`) when not supplied.
