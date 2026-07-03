@@ -198,16 +198,19 @@ UpdateAttributeRequest:
           type: string
 
 AttributeListResponse:
-  type: object
   description: List of attribute definitions
+  type: object
   required:
     - items
+    - page
   properties:
     items:
       type: array
       description: List of attribute definitions
       items:
         $ref: '#/AttributeDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
   example:
     items:
       - key: locale
@@ -230,3 +233,8 @@ AttributeListResponse:
         readOnly: false
         createdAt: "2026-01-16T10:30:00Z"
         lastModified: "2026-01-16T10:30:00Z"
+    page:
+      number: 0
+      size: 20
+      totalElements: 2
+      totalPages: 1

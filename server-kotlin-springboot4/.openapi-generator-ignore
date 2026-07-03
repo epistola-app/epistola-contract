@@ -1,0 +1,8 @@
+# Patterns (relative to the generator output dir) the generator must not emit.
+#
+# DataModelValidationProblemDetail is schema-mapped to Spring's native
+# org.springframework.http.ProblemDetail in build.gradle.kts. schemaMappings
+# substitutes all references, but the generator still emits the (then
+# unreferenced) model class for allOf-composed schemas — skip it here so dead
+# code doesn't ship in the artifact.
+src/main/kotlin/app/epistola/api/model/DataModelValidationProblemDetail.kt

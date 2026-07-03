@@ -35,6 +35,9 @@ fonts:
       - editor
       - generator
       - manager
+    parameters:
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
     responses:
       '200':
         description: List of font families.

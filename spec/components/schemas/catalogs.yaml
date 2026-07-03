@@ -41,11 +41,14 @@ CatalogListResponse:
   type: object
   required:
     - items
+    - page
   properties:
     items:
       type: array
       items:
         $ref: '#/CatalogDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
 
 CatalogUpgradeDiff:
   type: object

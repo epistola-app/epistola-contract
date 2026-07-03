@@ -1,0 +1,30 @@
+# Shared building blocks used across domain schema files.
+
+# Pagination metadata carried under the `page` property of every list response
+# (Spring PagedModel shape). The request-side page index is the `page` query
+# parameter; the response-side index is `number` here, matching Spring.
+PageMeta:
+  type: object
+  required:
+    - number
+    - size
+    - totalElements
+    - totalPages
+  properties:
+    number:
+      type: integer
+      description: Current page index (0-based)
+      example: 0
+    size:
+      type: integer
+      description: Number of items per page
+      example: 20
+    totalElements:
+      type: integer
+      format: int64
+      description: Total number of elements across all pages
+      example: 1
+    totalPages:
+      type: integer
+      description: Total number of pages
+      example: 1

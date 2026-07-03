@@ -1,0 +1,22 @@
+# Shared pagination query parameters for list endpoints.
+
+Page:
+  name: page
+  in: query
+  required: false
+  description: Page number (0-based)
+  schema:
+    type: integer
+    minimum: 0
+    default: 0
+
+Size:
+  name: size
+  in: query
+  required: false
+  description: Number of items per page
+  schema:
+    type: integer
+    minimum: 1
+    maximum: 100
+    default: 20

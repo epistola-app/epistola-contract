@@ -21,9 +21,8 @@ runs:
       id: calc
       shell: bash
       run: |
-        # Read full spec version (e.g., 1.0.0)
-        SPEC_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+\.[0-9]+)["'"'"']?.*/\1/')
-        API_VERSION=$(echo "$SPEC_VERSION" | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')
+        # Read spec version via the shared parser (single source of truth)
+        eval "$(scripts/spec-version.sh --env)"
         echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
         echo "Spec version: ${SPEC_VERSION}, API version: ${API_VERSION}"
 

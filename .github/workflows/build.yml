@@ -22,6 +22,12 @@ jobs:
       - name: Bundle spec
         uses: ./.github/actions/bundle-spec
 
+      - name: Check error-registry sync
+        run: scripts/check-error-registry.sh
+
+      - name: Check media-type allowlist
+        run: scripts/check-media-types.sh
+
   # Kotlin Spring RestClient build
   kotlin-client:
     name: Kotlin Client (Spring RestClient)

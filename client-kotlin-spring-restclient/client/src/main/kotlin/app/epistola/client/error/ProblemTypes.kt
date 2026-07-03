@@ -32,40 +32,6 @@ object ProblemTypes {
     }
 }
 
-/**
- * The canonical problem `type` slugs the Epistola API emits, as documented in the contract's
- * error-type registry (`docs/error-types.md`).
- *
- * These are convenience constants for `when (e.typeSlug)` switches. `typeSlug` is deliberately a
- * plain `String?` (not an enum) so the API can introduce new problem types without forcing a
- * client release — always keep an `else` branch.
- */
-object KnownProblemSlugs {
-    /** 400 — the request body or parameters failed validation (`ValidationProblemDetail`). */
-    const val VALIDATION_ERROR: String = "validation-error"
-
-    /** 400 — the request is malformed or not applicable to the resource state (no `errors`). */
-    const val BAD_REQUEST: String = "bad-request"
-
-    /** 401 — missing or invalid credentials. */
-    const val UNAUTHORIZED: String = "unauthorized"
-
-    /** 403 — authenticated but not allowed to perform the operation. */
-    const val FORBIDDEN: String = "forbidden"
-
-    /** 404 — the addressed resource does not exist. */
-    const val NOT_FOUND: String = "not-found"
-
-    /** 409 — the request conflicts with the current state of the resource. */
-    const val CONFLICT: String = "conflict"
-
-    /**
-     * 422 — the request is well-formed but semantically invalid: supplied data examples do not
-     * validate against the template's data model (`DataModelValidationProblemDetail`). The
-     * per-example failures are surfaced via [ProblemDetailException.validationErrors].
-     */
-    const val DATA_MODEL_VALIDATION_ERROR: String = "data-model-validation-error"
-
-    /** 429 — too many requests; the client is being rate limited. */
-    const val RATE_LIMITED: String = "rate-limited"
-}
+// KnownProblemSlugs is generated from the spec's x-problem-types extension by the
+// generateProblemSlugs Gradle task (build/generated-problem-slugs). It lives in this
+// package; see ProblemRegistryTest for the guard that keeps it aligned with TYPE_BASE.

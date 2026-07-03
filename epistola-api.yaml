@@ -27,7 +27,7 @@ info:
       The first token **must** be `epistola-contract/{version}` indicating the contract
       version the client was built against. Additional product/version pairs can be
       appended to describe the full software stack.
-      Example: `epistola-contract/0.3.0 valtimo-epistola-plugin/1.2.0 gzac/5.0.0`
+      Example: `epistola-contract/x.y.z valtimo-epistola-plugin/1.2.0 gzac/5.0.0`
     - **`X-EP-Node-Id`** (required) — identifies the specific client node. Use the
       Kubernetes pod name, container ID, or hostname. In local/dev environments,
       the machine hostname is acceptable.
@@ -58,23 +58,15 @@ info:
     For validation errors (`type: .../validation-error`), the response also
     includes an `errors` array with field-level details.
 
-    The canonical problem `type` slugs are:
-
-    | slug | status | when |
-    | --- | --- | --- |
-    | `validation-error` | 400 | request body or parameters failed validation (carries `errors[]`) |
-    | `bad-request` | 400 | request is malformed or not applicable to the resource state (no `errors[]`) |
-    | `unauthorized` | 401 | missing or invalid authentication credentials |
-    | `forbidden` | 403 | authenticated but not allowed to perform the operation |
-    | `not-found` | 404 | the addressed resource does not exist |
-    | `conflict` | 409 | the request conflicts with the current resource state |
-    | `rate-limited` | 429 | too many requests; see the `Retry-After` header |
+    The canonical problem `type` slugs are registered in
+    [`docs/error-types.md`](docs/error-types.md); the machine-readable
+    registry is this document's top-level `x-problem-types` extension.
 
     ## Authorization
     Access is controlled via roles (`reader`, `editor`, `generator`, `manager`,
     `tenant_control`) and tenant permissions. These are set by an administrator
     when approving a consumer registration.
-  version: "0.9.0"
+  version: "0.10.0"
   contact:
     name: Epistola Team
   license:
@@ -84,6 +76,59 @@ info:
 servers:
   - url: /api
     description: Base API path
+
+# Machine-readable registry of the canonical problem `type` slugs
+# (human-facing registry: docs/error-types.md — a CI check keeps the two in
+# sync). The Kotlin client's KnownProblemSlugs constants are generated from
+# this list, and guard tests in both Kotlin modules assert their hand-written
+# error helpers agree with it. The slug list is open: new types may be added
+# without a major version bump, so clients switching on the slug must keep an
+# else branch.
+x-problem-types:
+  base: https://epistola.app/errors/
+  types:
+    - slug: validation-error
+      status: 400
+      schema: ValidationProblemDetail
+      description: >-
+        The request body or parameters failed validation; the `errors[]`
+        array carries the field-level failures.
+    - slug: bad-request
+      status: 400
+      schema: ProblemDetail
+      description: >-
+        The request is malformed or not applicable to the resource's current
+        state, but not a field-level validation failure (no `errors[]`).
+    - slug: unauthorized
+      status: 401
+      schema: ProblemDetail
+      description: Missing or invalid authentication credentials.
+    - slug: forbidden
+      status: 403
+      schema: ProblemDetail
+      description: >-
+        Authenticated, but the caller lacks the required role or tenant
+        permission.
+    - slug: not-found
+      status: 404
+      schema: ProblemDetail
+      description: The addressed resource does not exist.
+    - slug: conflict
+      status: 409
+      schema: ProblemDetail
+      description: The request conflicts with the current state of the resource.
+    - slug: data-model-validation-error
+      status: 422
+      schema: DataModelValidationProblemDetail
+      description: >-
+        The request is well-formed but semantically invalid; the
+        `validationErrors` member maps each data-example name to its failures.
+    - slug: rate-limited
+      status: 429
+      schema: ProblemDetail
+      description: >-
+        Too many requests; the `Retry-After` header indicates how long to
+        wait.
 
 tags:
   - name: System
@@ -320,6 +365,10 @@ paths:
 
 components:
   schemas:
+    # Shared building blocks
+    PageMeta:
+      $ref: './spec/components/schemas/common.yaml#/PageMeta'
+
     # Ping/Pong schemas
     PingRequest:
       $ref: './spec/components/schemas/ping.yaml#/PingRequest'
@@ -549,30 +598,15 @@ components:
       $ref: './spec/components/responses/errors.yaml#/DataModelValidationError'
 
   parameters:
-    UserAgent:
-      name: User-Agent
-      in: header
-      required: true
-      description: |
-        Required. Identifies the client software stack using RFC 9110 product tokens
-        (`product/version`). The first token must be `epistola-contract/{version}`
-        indicating the contract version the client was built against. Additional tokens
-        can be appended to describe the full software stack.
-      schema:
-        type: string
-      example: epistola-contract/0.3.0 valtimo-epistola-plugin/1.2.0
-
-    NodeId:
-      name: X-EP-Node-Id
-      in: header
-      required: true
-      description: |
-        Required. Identifies the specific client node for request correlation and
-        diagnostics. Use the Kubernetes pod name, container ID, or hostname.
-        In local/dev environments, the machine hostname is acceptable.
-      schema:
-        type: string
-      example: epistola-cli-pod-7f8b9c
+    # The required client-identity headers (User-Agent, X-EP-Node-Id) are described
+    # normatively in info.description ("Client Identity") rather than modeled per
+    # operation: OpenAPI has no global-parameter mechanism, so referencing them from
+    # every operation would add two arguments to every generated client method and
+    # server interface. The generated clients set both headers automatically.
+    Page:
+      $ref: './spec/components/parameters/pagination.yaml#/Page'
+    Size:
+      $ref: './spec/components/parameters/pagination.yaml#/Size'
 
   securitySchemes:
     bearerAuth:
@@ -601,6 +635,9 @@ components:
       type: apiKey
       in: header
       name: X-API-Key
+      # OpenAPI has no `deprecated` flag for security schemes; this vendor extension
+      # makes the deprecation (also stated in the description) machine-readable.
+      x-deprecated: true
       description: |
         **Deprecated — use JWT Bearer authentication (OAuth or self-signed) instead.**
 

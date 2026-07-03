@@ -1,9 +1,9 @@
 # Epistola API Mock Server
 # Multi-architecture build using Node.js + Prism CLI
-FROM node:22-alpine
+FROM node:24-alpine
 
-# Install Prism CLI globally
-RUN npm install -g @stoplight/prism-cli@5
+# Install Prism CLI globally (keep the pin in sync with tools/package.json)
+RUN npm install -g @stoplight/prism-cli@5.15.11
 
 # Copy the bundled OpenAPI spec
 COPY openapi.yaml /app/openapi.yaml

@@ -84,8 +84,11 @@ FontListResponse:
   type: object
   required:
     - items
+    - page
   properties:
     items:
       type: array
       items:
         $ref: '#/FontDto'
+    page:
+      $ref: './common.yaml#/PageMeta'

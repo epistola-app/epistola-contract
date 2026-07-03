@@ -5,23 +5,9 @@ plugins {
     alias(libs.plugins.kover)
 }
 
-// Version can be overridden via -Pversion=X (used for snapshots)
-// Otherwise, calculated from OpenAPI spec version + patch version
-val calculatedVersion: String = run {
-    val specFile = file("$rootDir/../epistola-api.yaml")
-    val apiVersion: String = if (specFile.exists()) {
-        val versionRegex = Regex("""^\s*version:\s*["']?(\d+\.\d+)\.\d+["']?\s*$""", RegexOption.MULTILINE)
-        val match = versionRegex.find(specFile.readText())
-        match?.groupValues?.get(1) ?: "0.0"
-    } else {
-        "0.0"
-    }
-    val patchVersion: String = findProperty("patchVersion")?.toString() ?: "0"
-    "$apiVersion.$patchVersion"
-}
+// Sets group + version from the OpenAPI spec (shared across builds)
+apply(from = "$rootDir/../gradle/contract-version.gradle.kts")
 
-group = "app.epistola.contract"
-version = findProperty("version")?.toString()?.takeIf { it != "unspecified" } ?: calculatedVersion
 description = "Epistola API Client for Kotlin using Spring RestClient"
 
 allprojects {
@@ -37,12 +23,15 @@ subprojects {
     apply(plugin = "org.jlleitschuh.gradle.ktlint")
 }
 
+// Captured outside subprojects {} — typed catalog accessors don't resolve inside that closure
+val javaToolchainVersion = libs.versions.java.toolchain.get().toInt()
+
 subprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
 
     configure<JavaPluginExtension> {
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(21))
+            languageVersion.set(JavaLanguageVersion.of(javaToolchainVersion))
         }
     }
 

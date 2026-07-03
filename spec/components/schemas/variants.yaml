@@ -199,16 +199,19 @@ UpdateVariantRequest:
         region: north-america
 
 VariantListResponse:
-  type: object
   description: List of template variants
+  type: object
   required:
     - items
+    - page
   properties:
     items:
       type: array
       description: List of variants
       items:
         $ref: '#/VariantDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
   example:
     items:
       - id: english
@@ -218,10 +221,16 @@ VariantListResponse:
         attributes:
           locale: en-US
           brand: acme
+        isDefault: true
         hasDraft: true
         publishedVersions: [1, 2]
         createdAt: "2026-01-21T10:00:00Z"
         lastModified: "2026-01-28T11:30:00Z"
+    page:
+      number: 0
+      size: 20
+      totalElements: 1
+      totalPages: 1
 
 ActivationDto:
   type: object

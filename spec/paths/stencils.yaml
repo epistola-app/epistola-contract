@@ -37,6 +37,8 @@ stencils:
         description: Filter stencils by tag
         schema:
           type: string
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
     responses:
       '200':
         description: List of stencils
@@ -230,6 +232,8 @@ stencil-versions:
             - draft
             - published
             - archived
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
     responses:
       '200':
         description: List of stencil versions
@@ -538,6 +542,9 @@ stencil-version-usage:
     tags:
       - Stencils
     x-required-roles: [reader, editor, manager]
+    parameters:
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
     responses:
       '200':
         description: List of template usages

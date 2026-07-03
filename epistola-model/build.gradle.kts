@@ -30,7 +30,7 @@ repositories {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion.set(JavaLanguageVersion.of(libs.versions.java.toolchain.get().toInt()))
     }
 }
 
@@ -89,7 +89,7 @@ tasks.named("compileKotlin") {
 
 dependencies {
     // Jackson 2 annotations — compatible with both Jackson 2 (plugin) and Jackson 3 (suite) runtimes
-    api("com.fasterxml.jackson.core:jackson-annotations:2.21")
+    api(libs.jackson.annotations)
 }
 
 tasks.test {

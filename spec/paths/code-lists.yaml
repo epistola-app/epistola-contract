@@ -32,6 +32,9 @@ code-lists:
       - editor
       - generator
       - manager
+    parameters:
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
     responses:
       '200':
         description: List of code lists.
@@ -227,16 +230,7 @@ code-list-refresh:
             schema:
               $ref: '../components/schemas/code-lists.yaml#/CodeListDto'
       '400':
-        description: Code list is not URL-sourced.
-        content:
-          application/problem+json:
-            schema:
-              $ref: '../components/responses/errors.yaml#/ProblemDetail'
-            example:
-              type: https://epistola.app/errors/bad-request
-              title: Bad Request
-              status: 400
-              detail: Code list 'countries' is not URL-sourced and cannot be refreshed
+        $ref: '../components/responses/problem-responses.yaml#/BadRequestError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

@@ -276,16 +276,19 @@ UpdateThemeRequest:
       example: 4
 
 ThemeListResponse:
-  type: object
   description: List of themes
+  type: object
   required:
     - items
+    - page
   properties:
     items:
       type: array
       description: List of themes
       items:
         $ref: '#/ThemeDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
   example:
     items:
       - id: corporate
@@ -324,3 +327,8 @@ ThemeListResponse:
               color: "#666666"
         createdAt: "2026-01-17T11:00:00Z"
         lastModified: "2026-01-18T14:30:00Z"
+    page:
+      number: 0
+      size: 20
+      totalElements: 1
+      totalPages: 1

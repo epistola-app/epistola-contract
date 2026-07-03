@@ -201,16 +201,19 @@ PublishVersionRequest:
       example: production
 
 VersionListResponse:
-  type: object
   description: List of template versions
+  type: object
   required:
     - items
+    - page
   properties:
     items:
       type: array
       description: List of versions
       items:
         $ref: '#/VersionSummaryDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
   example:
     items:
       - id: 1
@@ -225,3 +228,8 @@ VersionListResponse:
         createdAt: "2026-01-26T10:00:00Z"
         publishedAt: "2026-01-28T11:00:00Z"
         archivedAt: null
+    page:
+      number: 0
+      size: 20
+      totalElements: 2
+      totalPages: 1
