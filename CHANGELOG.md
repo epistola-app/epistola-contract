@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-07-03
+
 ### Breaking Changes
 
 - **Pagination metadata moved under a nested `page` object.** Every collection response now carries pagination under a shared `page` object (`spec/components/schemas/common.yaml#/PageMeta`: `number`, `size`, `totalElements`, `totalPages`), matching Spring's `PagedModel` serialization, and every list `GET` accepts the shared `page`/`size` query parameters. Previously only 4 of ~17 list responses were paginated, with the fields flat alongside `items`. The four already-paginated endpoints (tenants, consumers, generation jobs, documents) **break**: their top-level `page`/`size`/`totalElements`/`totalPages` fields move into the `page` object, and the page-index field is renamed `page` → `page.number` (the request query parameter stays `page`). The other ~13 list endpoints gain the `page` object additively. Bounded sub-resource lists (variant activations, stencil upgrade previews) stay unpaginated.
