@@ -61,6 +61,25 @@ class ProblemDetailErrorHandlerTest {
     }
 
     @Test
+    fun `populates per-example validation errors for a data-model validation problem`() {
+        val body = """
+            {"type":"https://epistola.app/errors/data-model-validation-error",
+             "title":"Data Model Validation Error","status":422,
+             "detail":"Data examples failed validation against schema",
+             "validationErrors":{"Example 1":[{"path":"/name","message":"required property 'name' not found"}]}}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.UNPROCESSABLE_ENTITY, body))
+        }
+        assertTrue(ex.isDataModelValidationProblem)
+        assertFalse(ex.isValidationProblem)
+        assertEquals(KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR, ex.typeSlug)
+        assertEquals(1, ex.validationErrors["Example 1"]?.size)
+        assertEquals("/name", ex.validationErrors.getValue("Example 1")[0].path)
+    }
+
+    @Test
     fun `falls back to a plain exception for non-problem error bodies`() {
         val ex = assertFailsWith<RestClientResponseException> {
             handleErrorResponse(response(HttpStatus.INTERNAL_SERVER_ERROR, "gateway boom", MediaType.TEXT_PLAIN))
@@ -91,6 +110,7 @@ class ProblemDetailErrorHandlerTest {
         val parsed = parseProblem(body.toByteArray())
         assertEquals(409, parsed?.problem?.status)
         assertTrue(parsed?.errors?.isEmpty() == true)
+        assertTrue(parsed?.validationErrors?.isEmpty() == true)
     }
 
     @Test

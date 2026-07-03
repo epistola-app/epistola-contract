@@ -67,6 +67,14 @@ ProblemDetails.validation(
     type = ProblemDetails.typeFor("validation-error"),
     errors = listOf(ValidationError(field = "name", message = "must not be blank")),
 )
+
+ProblemDetails.dataModelValidation(
+    status = HttpStatus.UNPROCESSABLE_ENTITY,
+    type = ProblemDetails.typeFor("data-model-validation-error"),
+    validationErrors = mapOf(
+        "Example 1" to listOf(DataModelValidationError(path = "/name", message = "required property 'name' not found")),
+    ),
+)
 ```
 
 ### Reference `@RestControllerAdvice`

@@ -1,5 +1,6 @@
 package app.epistola.api.error
 
+import app.epistola.api.model.DataModelValidationError
 import app.epistola.api.model.ValidationError
 import org.springframework.http.HttpStatus
 import java.net.URI
@@ -37,5 +38,20 @@ class ProblemDetailsTest {
         )
         assertEquals(URI.create("https://epistola.app/errors/validation-error"), problem.type)
         assertEquals(errors, problem.properties?.get("errors"))
+    }
+
+    @Test
+    fun `dataModelValidation carries per-example failures`() {
+        val validationErrors = mapOf(
+            "Example 1" to listOf(DataModelValidationError(path = "/name", message = "required property 'name' not found")),
+        )
+        val problem = ProblemDetails.dataModelValidation(
+            HttpStatus.UNPROCESSABLE_ENTITY,
+            type = ProblemDetails.typeFor("data-model-validation-error"),
+            validationErrors = validationErrors,
+        )
+        assertEquals(URI.create("https://epistola.app/errors/data-model-validation-error"), problem.type)
+        assertEquals(422, problem.status)
+        assertEquals(validationErrors, problem.properties?.get("validationErrors"))
     }
 }

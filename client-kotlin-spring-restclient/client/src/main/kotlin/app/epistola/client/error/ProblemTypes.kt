@@ -59,6 +59,13 @@ object KnownProblemSlugs {
     /** 409 — the request conflicts with the current state of the resource. */
     const val CONFLICT: String = "conflict"
 
+    /**
+     * 422 — the request is well-formed but semantically invalid: supplied data examples do not
+     * validate against the template's data model (`DataModelValidationProblemDetail`). The
+     * per-example failures are surfaced via [ProblemDetailException.validationErrors].
+     */
+    const val DATA_MODEL_VALIDATION_ERROR: String = "data-model-validation-error"
+
     /** 429 — too many requests; the client is being rate limited. */
     const val RATE_LIMITED: String = "rate-limited"
 }

@@ -1,6 +1,7 @@
 package app.epistola.client.error
 
 import app.epistola.client.infrastructure.Serializer
+import app.epistola.client.model.DataModelValidationError
 import app.epistola.client.model.ProblemDetail
 import app.epistola.client.model.ValidationError
 import com.fasterxml.jackson.core.type.TypeReference
@@ -61,6 +62,7 @@ internal fun handleErrorResponse(response: ClientHttpResponse) {
             throw ProblemDetailException(
                 parsed.problem,
                 parsed.errors,
+                parsed.validationErrors,
                 statusCode,
                 statusText,
                 headers,
@@ -78,18 +80,27 @@ internal fun handleErrorResponse(response: ClientHttpResponse) {
     } as RestClientResponseException
 }
 
-/** A parsed problem body: the base [ProblemDetail] plus any field-level validation [errors]. */
-internal class ParsedProblem(val problem: ProblemDetail, val errors: List<ValidationError>)
+/**
+ * A parsed problem body: the base [ProblemDetail] plus the field-level validation [errors]
+ * (`ValidationProblemDetail`) and the per-example [validationErrors] map
+ * (`DataModelValidationProblemDetail`). Both extension collections are empty unless the
+ * corresponding member was present.
+ */
+internal class ParsedProblem(
+    val problem: ProblemDetail,
+    val errors: List<ValidationError>,
+    val validationErrors: Map<String, List<DataModelValidationError>>,
+)
 
 /**
  * Parses a problem+json [bytes] body into a [ParsedProblem] — the base [ProblemDetail] fields plus,
- * when an `errors` array is present, the field-level [ValidationError]s. Returns `null` on any
- * parse failure.
+ * when present, the `errors` array (field-level [ValidationError]s) and the `validationErrors` map
+ * (per-example [DataModelValidationError]s). Returns `null` on any parse failure.
  *
- * The generated `ProblemDetail` and `ValidationProblemDetail` are independent models, so the base
- * problem and the `errors` extension are read separately. Reuses the generated
- * [Serializer.jacksonObjectMapper] (unknown members are ignored), so it tolerates extension members
- * the contract does not model.
+ * The generated `ProblemDetail`, `ValidationProblemDetail`, and `DataModelValidationProblemDetail`
+ * are independent models, so the base problem and each extension are read separately. Reuses the
+ * generated [Serializer.jacksonObjectMapper] (unknown members are ignored), so it tolerates
+ * extension members the contract does not model.
  */
 internal fun parseProblem(bytes: ByteArray): ParsedProblem? = try {
     val mapper = Serializer.jacksonObjectMapper
@@ -101,7 +112,14 @@ internal fun parseProblem(bytes: ByteArray): ParsedProblem? = try {
     } else {
         emptyList()
     }
-    ParsedProblem(problem, errors)
+    val validationErrorsNode = tree.get("validationErrors")
+    val validationErrors: Map<String, List<DataModelValidationError>> =
+        if (validationErrorsNode != null && validationErrorsNode.isObject) {
+            mapper.convertValue(validationErrorsNode, object : TypeReference<Map<String, List<DataModelValidationError>>>() {})
+        } else {
+            emptyMap()
+        }
+    ParsedProblem(problem, errors, validationErrors)
 } catch (_: Exception) {
     null
 }

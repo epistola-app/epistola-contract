@@ -9,12 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`parameterSchema` on stencil-version API schemas.** `StencilVersionDto` (response) and the `CreateStencilRequest`, `CreateStencilVersionRequest`, and `UpdateStencilDraftRequest` request bodies now carry an optional `parameterSchema` object — the stencil version's typed input parameters as a JSON Schema (`{ type, properties, required }`), the same value carried on the catalog `StencilResource.parameterSchema` and stored on the stencil version. Optional and additive: omit or send null to declare no parameters. The `NodeDto.props` description now documents the consumer-side stencil-node prop keys (`parameterBindings`, `parameterSchemaSnapshot`, `paramsAlias`) that bind those parameters within a template.
 - **`data-model-validation-error` problem type (422).** A new canonical problem `type` (`https://epistola.app/errors/data-model-validation-error`) documents semantic-validation failures where supplied data examples do not validate against a template's data model. It carries a `validationErrors` extension member (example name → failures) and is registered in [`docs/error-types.md`](docs/error-types.md) with a reusable `UnprocessableEntityError` response component.
+- **Typed error handling for `data-model-validation-error` in both modules.** The hand-written error helpers now cover the new problem type: the Kotlin client adds `KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR`, surfaces the per-example failures via `ProblemDetailException.validationErrors` (a `Map<String, List<DataModelValidationError>>`) and an `isDataModelValidationProblem` flag; the Kotlin server adds `ProblemDetails.dataModelValidation(...)` and a `VALIDATION_ERRORS_PROPERTY` constant to build the response.
 - **`updateTemplate` now documents `409` and `422` responses.** `PATCH /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}` can return `409` (`conflict`) when a backwards-incompatible data-model change is not confirmed, and `422` (`data-model-validation-error`) when data examples are incompatible with the data model.
 
 ### Changed
 
 - **`UpdateTemplateRequest.forceUpdate` description corrected.** The flag confirms publishing a backwards-incompatible (breaking) data-model change (auto-upgrading dependent template versions); it does **not** bypass data-example validation — an incompatible example is still rejected with `422` even when `forceUpdate` is true. (Previously described as "save schema even if data examples don't match.")
+
 ## [0.8.0] - 2026-06-24
 
 ### Added

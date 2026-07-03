@@ -1,5 +1,6 @@
 package app.epistola.api.error
 
+import app.epistola.api.model.DataModelValidationError
 import app.epistola.api.model.ValidationError
 import org.springframework.http.HttpStatusCode
 import org.springframework.http.ProblemDetail
@@ -43,6 +44,9 @@ object ProblemDetails {
     /** Extension member carrying field-level validation errors. */
     const val ERRORS_PROPERTY: String = "errors"
 
+    /** Extension member carrying per-example data-model validation failures. */
+    const val VALIDATION_ERRORS_PROPERTY: String = "validationErrors"
+
     /** Builds a problem `type` URI from a kebab-case slug, e.g. `typeFor("not-found")`. */
     fun typeFor(slug: String): URI = URI.create(TYPE_BASE + slug)
 
@@ -77,6 +81,23 @@ object ProblemDetails {
     ): ProblemDetail {
         val problem = of(status, type, detail, instance)
         problem.setProperty(ERRORS_PROPERTY, errors)
+        return problem
+    }
+
+    /**
+     * Builds a data-model validation [ProblemDetail] — like [of] plus the [validationErrors]
+     * extension member mapping each data-example name to the failures it produced (the
+     * `DataModelValidationProblemDetail` shape from the contract, `data-model-validation-error`).
+     */
+    fun dataModelValidation(
+        status: HttpStatusCode,
+        type: URI = BLANK_TYPE,
+        validationErrors: Map<String, List<DataModelValidationError>>,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(status, type, detail, instance)
+        problem.setProperty(VALIDATION_ERRORS_PROPERTY, validationErrors)
         return problem
     }
 }
