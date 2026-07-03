@@ -8,23 +8,9 @@ plugins {
     `java-library`
 }
 
-// Version can be overridden via -Pversion=X (used for snapshots)
-// Otherwise, calculated from OpenAPI spec version + patch version
-val calculatedVersion: String = run {
-    val specFile = file("$rootDir/../epistola-api.yaml")
-    val apiVersion: String = if (specFile.exists()) {
-        val versionRegex = Regex("""^\s*version:\s*["']?(\d+\.\d+)\.\d+["']?\s*$""", RegexOption.MULTILINE)
-        val match = versionRegex.find(specFile.readText())
-        match?.groupValues?.get(1) ?: "0.0"
-    } else {
-        "0.0"
-    }
-    val patchVersion: String = findProperty("patchVersion")?.toString() ?: "0"
-    "$apiVersion.$patchVersion"
-}
+// Sets group + version from the OpenAPI spec (shared across builds)
+apply(from = "$rootDir/../gradle/contract-version.gradle.kts")
 
-group = "app.epistola.contract"
-version = findProperty("version")?.toString()?.takeIf { it != "unspecified" } ?: calculatedVersion
 description = "Epistola API Server Interfaces for Kotlin/Spring"
 
 repositories {
@@ -33,7 +19,7 @@ repositories {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion.set(JavaLanguageVersion.of(libs.versions.java.toolchain.get().toInt()))
     }
 }
 
@@ -151,7 +137,10 @@ tasks.openApiGenerate {
             }
         }
         if (replaced == 0) {
-            logger.warn("no Api.kt files had their produces normalized — the string-replace may be broken")
+            throw GradleException(
+                "produces normalization matched no generated Api.kt files — an OpenAPI Generator " +
+                    "upgrade likely changed the emitted `produces = [...]` string; update the regex above",
+            )
         }
     }
 }
@@ -179,11 +168,11 @@ tasks.compileKotlin {
 }
 
 dependencies {
-    implementation(libs.spring.boot.starter.web)
-    implementation(libs.spring.boot.starter.validation)
+    implementation(libs.spring.boot4.starter.web)
+    implementation(libs.spring.boot4.starter.validation)
     implementation(libs.jakarta.validation.api)
-    implementation(libs.jackson.module.kotlin)
-    implementation(libs.jackson.databind)
+    implementation(libs.jackson3.module.kotlin)
+    implementation(libs.jackson3.databind)
 
     testImplementation(kotlin("test"))
 }

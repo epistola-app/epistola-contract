@@ -155,22 +155,27 @@ val generateValidation by tasks.registering {
             }
         }
 
-        if (validations.isNotEmpty()) {
-            val outFile = generatedValidationDir.get()
-                .file("app/epistola/client/validation/ModelValidation.kt").asFile
-            outFile.parentFile.mkdirs()
-            outFile.writeText(
-                buildString {
-                    appendLine("package app.epistola.client.validation")
-                    appendLine()
-                    appendLine("import app.epistola.client.model.*")
-                    appendLine()
-                    append(validations.joinToString("\n\n"))
-                    appendLine()
-                },
+        if (validations.isEmpty()) {
+            throw GradleException(
+                "generateValidation produced no validators — either the bundled spec lost all its " +
+                    "constraints or the schema-walking code above no longer matches the spec structure",
             )
-            logger.lifecycle("Generated validation for ${validations.size} model(s) → ${outFile.relativeTo(project.projectDir)}")
         }
+
+        val outFile = generatedValidationDir.get()
+            .file("app/epistola/client/validation/ModelValidation.kt").asFile
+        outFile.parentFile.mkdirs()
+        outFile.writeText(
+            buildString {
+                appendLine("package app.epistola.client.validation")
+                appendLine()
+                appendLine("import app.epistola.client.model.*")
+                appendLine()
+                append(validations.joinToString("\n\n"))
+                appendLine()
+            },
+        )
+        logger.lifecycle("Generated validation for ${validations.size} model(s) → ${outFile.relativeTo(project.projectDir)}")
     }
 }
 
@@ -215,9 +220,9 @@ tasks.compileKotlin {
 }
 
 dependencies {
-    implementation(libs.spring.boot.starter.web)
-    implementation(libs.jackson.module.kotlin)
-    implementation(libs.jackson.datatype.jsr310)
+    implementation(libs.spring.boot3.starter.web)
+    implementation(libs.jackson2.module.kotlin)
+    implementation(libs.jackson2.datatype.jsr310)
     implementation(libs.nimbus.jose.jwt)
     compileOnly(libs.json.schema.validator)
 
