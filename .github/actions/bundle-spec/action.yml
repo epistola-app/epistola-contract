@@ -14,13 +14,17 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Install pinned spec tools
+      shell: bash
+      run: pnpm -C tools install --frozen-lockfile
+
     - name: Validate OpenAPI spec
       shell: bash
-      run: npx @redocly/cli lint epistola-api.yaml
+      run: tools/node_modules/.bin/redocly lint epistola-api.yaml
 
     - name: Bundle OpenAPI spec
       shell: bash
-      run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
+      run: tools/node_modules/.bin/redocly bundle epistola-api.yaml -o openapi.yaml
 
     - name: Inject version into bundled spec
       if: inputs.version != ''

@@ -1,17 +1,25 @@
 .PHONY: all lint bundle build-client build-server build-epistola-model build clean publish-local breaking mock validate-impl release docs help
 
+# Pinned CLI tools (versions in tools/package.json, locked in tools/pnpm-lock.yaml)
+REDOCLY := tools/node_modules/.bin/redocly
+PRISM := tools/node_modules/.bin/prism
+
+$(REDOCLY): tools/package.json tools/pnpm-lock.yaml
+	@echo "==> Installing pinned tools..."
+	pnpm -C tools install --frozen-lockfile
+
 # Default target - runs what CI runs
 all: lint build
 
 # Validate OpenAPI spec
-lint:
+lint: $(REDOCLY)
 	@echo "==> Validating OpenAPI spec..."
-	npx @redocly/cli lint epistola-api.yaml
+	$(REDOCLY) lint epistola-api.yaml
 
 # Bundle OpenAPI spec into single file
-bundle:
+bundle: $(REDOCLY)
 	@echo "==> Bundling OpenAPI spec..."
-	npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
+	$(REDOCLY) bundle epistola-api.yaml -o openapi.yaml
 	@echo "==> Created openapi.yaml"
 
 # Build all modules
@@ -52,13 +60,13 @@ breaking: bundle
 	@echo "==> Checking for breaking changes against main branch..."
 	@rm -rf /tmp/epistola-base-spec && mkdir -p /tmp/epistola-base-spec
 	@git archive main -- epistola-api.yaml spec/ 2>/dev/null | tar -xC /tmp/epistola-base-spec || cp -r epistola-api.yaml spec/ /tmp/epistola-base-spec/
-	@cd /tmp/epistola-base-spec && npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml 2>/dev/null
+	@cd /tmp/epistola-base-spec && $(CURDIR)/$(REDOCLY) bundle epistola-api.yaml -o openapi.yaml 2>/dev/null
 	oasdiff breaking /tmp/epistola-base-spec/openapi.yaml openapi.yaml
 
 # Generate API docs and open in browser
 docs: bundle
 	@echo "==> Building API documentation..."
-	npx @redocly/cli build-docs openapi.yaml -o /tmp/epistola-api-docs.html
+	$(REDOCLY) build-docs openapi.yaml -o /tmp/epistola-api-docs.html
 	@echo "==> Opening http://localhost:8888/epistola-api-docs.html"
 	@python3 -m http.server 8888 --directory /tmp --bind 0.0.0.0 &>/dev/null &
 	@echo "==> Server running on port 8888. Use Ctrl+C to stop."
@@ -67,13 +75,13 @@ docs: bundle
 mock: bundle
 	@echo "==> Starting Prism mock server on http://localhost:4010..."
 	@echo "==> Use Ctrl+C to stop"
-	npx --prefix tools @stoplight/prism-cli mock openapi.yaml -p 4010
+	$(PRISM) mock openapi.yaml -p 4010
 
 # Validate implementation against spec (requires running server)
 validate-impl: bundle
 	@echo "==> Starting contract validation proxy..."
 	@echo "==> Proxying to $${TARGET_URL:-http://localhost:8080}"
-	npx --prefix tools @stoplight/prism-cli proxy openapi.yaml $${TARGET_URL:-http://localhost:8080} --errors
+	$(PRISM) proxy openapi.yaml $${TARGET_URL:-http://localhost:8080} --errors
 
 # Create a GitHub Release to trigger the release workflow
 release:
@@ -94,8 +102,7 @@ release:
 		echo "Error: local main is not up to date with origin/main. Pull first."; \
 		exit 1; \
 	fi
-	@SPEC_VERSION=$$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+\.[0-9]+)["'"'"']?.*/\1/'); \
-	API_VERSION=$$(echo "$$SPEC_VERSION" | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/'); \
+	@API_VERSION=$$(scripts/spec-version.sh --api); \
 	LATEST_PATCH=-1; \
 	for tag in $$(git tag -l "v$${API_VERSION}.*" 2>/dev/null) $$(git tag -l "*-v$${API_VERSION}.*" 2>/dev/null); do \
 		PATCH=$$(echo "$$tag" | sed -E 's/.*v[0-9]+\.[0-9]+\.([0-9]+)/\1/'); \

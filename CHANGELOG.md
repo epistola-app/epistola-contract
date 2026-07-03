@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Pinned spec tooling.** `@redocly/cli` (2.36.0) and `@stoplight/prism-cli` (5.15.11) are now exact-pinned in `tools/package.json` with a committed `pnpm-lock.yaml`; the Makefile and all CI workflows use the pinned binaries instead of unpinned `npx @redocly/cli` (which pulled latest on every run). The CI breaking-change check now runs the mise-pinned `oasdiff` binary (same version as local `make breaking`) instead of an untagged `tufin/oasdiff` docker image, and all CI jobs use the mise-pinned Node 24 (previously Node 22 was hardcoded in two workflows and the mock-server image).
+- **Single spec-version parser.** A new `scripts/spec-version.sh` is the one place that parses `info.version` out of `epistola-api.yaml`; the Makefile `release` target, the `calculate-version` action, and the docs/mock-server workflows all use it (previously the same grep/sed pipeline was copy-pasted in five places).
+
 ## [0.9.0] - 2026-07-03
 
 ### Added

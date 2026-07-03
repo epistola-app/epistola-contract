@@ -48,12 +48,15 @@ jobs:
           if [ -n "${{ inputs.version }}" ]; then
             VERSION="${{ inputs.version }}"
           else
-            VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+\.[0-9]+)["'"'"']?.*/\1/')
+            VERSION=$(scripts/spec-version.sh --full)
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: tools
 
       - name: Try to download bundled spec from caller
         id: download
@@ -65,7 +68,7 @@ jobs:
 
       - name: Bundle spec locally (fallback)
         if: steps.download.outcome != 'success'
-        run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
+        run: tools/node_modules/.bin/redocly bundle epistola-api.yaml -o openapi.yaml
 
       - name: Copy spec to mock-server directory
         run: cp openapi.yaml mock-server/
@@ -127,7 +130,7 @@ jobs:
           if [ -n "${{ inputs.version }}" ]; then
             VERSION="${{ inputs.version }}"
           else
-            VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+\.[0-9]+)["'"'"']?.*/\1/')
+            VERSION=$(scripts/spec-version.sh --full)
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 

@@ -23,10 +23,11 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_branch || github.ref }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
         with:
-          node-version: '22'
+          install-npm-deps: 'true'
+          npm-working-directory: tools
 
       - name: Extract API version
         id: version
@@ -37,13 +38,13 @@ jobs:
             # Extract version from release tag (e.g., v0.2.5 -> 0.2.5)
             API_VERSION=$(echo "${{ github.event.workflow_run.head_branch }}" | sed 's/^v//')
           else
-            API_VERSION=$(grep -E '^\s*version:' epistola-api.yaml | head -1 | sed -E 's/.*version:\s*["'"'"']?([0-9]+\.[0-9]+\.[0-9]+)["'"'"']?.*/\1/')
+            API_VERSION=$(scripts/spec-version.sh --full)
           fi
           echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
           echo "version_dir=v${API_VERSION}" >> $GITHUB_OUTPUT
 
       - name: Bundle OpenAPI spec
-        run: npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
+        run: tools/node_modules/.bin/redocly bundle epistola-api.yaml -o openapi.yaml
 
       - name: Checkout gh-pages branch
         uses: actions/checkout@v6
