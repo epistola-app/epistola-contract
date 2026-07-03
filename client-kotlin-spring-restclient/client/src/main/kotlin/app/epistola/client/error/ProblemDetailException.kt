@@ -1,5 +1,6 @@
 package app.epistola.client.error
 
+import app.epistola.client.model.DataModelValidationError
 import app.epistola.client.model.ProblemDetail
 import app.epistola.client.model.ValidationError
 import org.springframework.http.HttpHeaders
@@ -22,14 +23,21 @@ import java.nio.charset.Charset
  *
  * The machine-readable discriminator is the problem [type] URI; switch on [typeSlug]. Field-level
  * validation errors (the `ValidationProblemDetail` shape from the contract) are surfaced via
- * [errors] — the generated `ProblemDetail` and `ValidationProblemDetail` models are independent
- * data classes, so the base fields and the `errors` extension are carried separately.
+ * [errors]; per-example data-model validation failures (the `DataModelValidationProblemDetail`
+ * shape, `data-model-validation-error`) are surfaced via [validationErrors] — the generated
+ * `ProblemDetail`, `ValidationProblemDetail`, and `DataModelValidationProblemDetail` models are
+ * independent data classes, so the base fields and each extension are carried separately.
  */
 class ProblemDetailException(
     /** The parsed base problem (`type`, `title`, `status`, `detail`, `instance`). */
     val problem: ProblemDetail,
     /** Field-level validation errors when the body was a `ValidationProblemDetail`, else empty. */
     val errors: List<ValidationError>,
+    /**
+     * Per-example data-model validation failures (example name → failures) when the body was a
+     * `DataModelValidationProblemDetail` (`data-model-validation-error`, 422), else empty.
+     */
+    val validationErrors: Map<String, List<DataModelValidationError>> = emptyMap(),
     statusCode: HttpStatusCode,
     statusText: String,
     headers: HttpHeaders?,
@@ -66,6 +74,9 @@ class ProblemDetailException(
 
     /** True when this problem carried field-level validation errors. */
     val isValidationProblem: Boolean get() = errors.isNotEmpty()
+
+    /** True when this problem carried per-example data-model validation failures. */
+    val isDataModelValidationProblem: Boolean get() = validationErrors.isNotEmpty()
 
     private companion object {
         fun buildMessage(status: HttpStatusCode, problem: ProblemDetail): String = "$status ${problem.title}" + (problem.detail?.let { ": $it" } ?: "")

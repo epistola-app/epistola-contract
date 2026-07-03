@@ -165,18 +165,24 @@ try {
     tenantsApi.getTenant("acme")
 } catch (e: ProblemDetailException) {
     when (e.typeSlug) {
-        KnownProblemSlugs.NOT_FOUND        -> log.warn("Tenant missing: ${e.detail}")
-        KnownProblemSlugs.FORBIDDEN        -> throw AccessDeniedException(e.detail)
-        KnownProblemSlugs.VALIDATION_ERROR -> e.errors.forEach { println("${it.field}: ${it.message}") }
-        else                               -> throw e   // unknown / framework error
+        KnownProblemSlugs.NOT_FOUND                   -> log.warn("Tenant missing: ${e.detail}")
+        KnownProblemSlugs.FORBIDDEN                   -> throw AccessDeniedException(e.detail)
+        KnownProblemSlugs.VALIDATION_ERROR            -> e.errors.forEach { println("${it.field}: ${it.message}") }
+        KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR ->
+            e.validationErrors.forEach { (example, failures) ->
+                failures.forEach { println("$example ${it.path}: ${it.message}") }
+            }
+        else                                          -> throw e   // unknown / framework error
     }
 }
 ```
 
 `ProblemDetailException` exposes `type`, `typeSlug`, `title`, `problemStatus`, `detail`,
-`errors` (field-level validation errors, empty unless it's a validation problem) and
-`isValidationProblem`. See [error-types.md](../docs/error-types.md) for the full list of
-problem `type` slugs.
+`errors` (field-level validation errors, empty unless it's a validation problem),
+`validationErrors` (per-example data-model failures, empty unless it's a
+`data-model-validation-error` problem), `isValidationProblem`, and
+`isDataModelValidationProblem`. See [error-types.md](../docs/error-types.md) for the full list
+of problem `type` slugs.
 
 Error responses that are **not** `application/problem+json` (e.g. an HTML page from a proxy or
 gateway, or an empty body) still surface as a plain `RestClientResponseException` /

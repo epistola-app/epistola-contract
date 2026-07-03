@@ -1,5 +1,6 @@
 package app.epistola.client.error
 
+import app.epistola.client.model.DataModelValidationError
 import app.epistola.client.model.ProblemDetail
 import app.epistola.client.model.ValidationError
 import org.springframework.http.HttpHeaders
@@ -18,10 +19,12 @@ class ProblemDetailExceptionTest {
     private fun exception(
         problem: ProblemDetail,
         errors: List<ValidationError> = emptyList(),
+        validationErrors: Map<String, List<DataModelValidationError>> = emptyMap(),
         body: String = "{}",
     ) = ProblemDetailException(
         problem = problem,
         errors = errors,
+        validationErrors = validationErrors,
         statusCode = HttpStatus.valueOf(problem.status),
         statusText = HttpStatus.valueOf(problem.status).reasonPhrase,
         headers = HttpHeaders(),
@@ -61,6 +64,26 @@ class ProblemDetailExceptionTest {
         val ex = exception(ProblemDetail(title = "Conflict", status = 409))
         assertTrue(ex.errors.isEmpty())
         assertFalse(ex.isValidationProblem)
+        assertTrue(ex.validationErrors.isEmpty())
+        assertFalse(ex.isDataModelValidationProblem)
+    }
+
+    @Test
+    fun `data-model validation problem exposes per-example failures`() {
+        val ex = exception(
+            ProblemDetail(
+                type = URI.create("https://epistola.app/errors/data-model-validation-error"),
+                title = "Data Model Validation Error",
+                status = 422,
+            ),
+            validationErrors = mapOf(
+                "Example 1" to listOf(DataModelValidationError(path = "/name", message = "required property 'name' not found")),
+            ),
+        )
+        assertTrue(ex.isDataModelValidationProblem)
+        assertFalse(ex.isValidationProblem)
+        assertEquals(KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR, ex.typeSlug)
+        assertEquals("/name", ex.validationErrors.getValue("Example 1")[0].path)
     }
 
     @Test

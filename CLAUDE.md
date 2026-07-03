@@ -147,6 +147,28 @@ Tenant
 
 Generated code is NOT committed - rebuilt from spec each time.
 
+### Hand-written code that mirrors the spec (keep in sync)
+
+Most Kotlin is generated, but a small amount of **hand-written** error-handling code
+deliberately mirrors the contract's problem-type registry and must be updated **in the same
+change** whenever you touch that registry. Adding, renaming, or changing a problem `type` in
+`docs/error-types.md` / `spec/components/responses/errors.yaml` is not complete until these are
+updated too:
+
+- **Client** (`client-kotlin-spring-restclient/client/src/main/kotlin/app/epistola/client/error/`):
+  - `ProblemTypes.kt` → add/adjust the `KnownProblemSlugs` constant.
+  - If the problem carries a new extension member (beyond `errors`), extend
+    `ProblemDetailErrorHandler.parseProblem` to read it and surface it on
+    `ProblemDetailException` (with an `isXxxProblem` flag, following `errors`/`validationErrors`).
+  - Update the `when (e.typeSlug)` example and accessor list in the module `README.md`.
+- **Server** (`server-kotlin-springboot4/src/main/kotlin/app/epistola/api/error/ProblemDetails.kt`):
+  - Add a builder + `*_PROPERTY` constant for any new extension member (following
+    `validation` / `ERRORS_PROPERTY` and `dataModelValidation` / `VALIDATION_ERRORS_PROPERTY`).
+  - Update the helper example in the module `README.md`.
+- Register any new problem-detail schema in `epistola-api.yaml` under `components.schemas`
+  (alongside `ProblemDetail` / `ValidationProblemDetail`) so a named model is generated.
+- Add/extend the unit tests in each module's `.../error/` test package.
+
 ## Validation
 
 The spec is validated with Redocly using these rules:

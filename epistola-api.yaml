@@ -543,6 +543,10 @@ components:
       $ref: './spec/components/responses/errors.yaml#/ValidationProblemDetail'
     ValidationError:
       $ref: './spec/components/responses/errors.yaml#/ValidationError'
+    DataModelValidationProblemDetail:
+      $ref: './spec/components/responses/errors.yaml#/DataModelValidationProblemDetail'
+    DataModelValidationError:
+      $ref: './spec/components/responses/errors.yaml#/DataModelValidationError'
 
   parameters:
     UserAgent:
