@@ -81,13 +81,14 @@ FontDto:
       format: date-time
 
 FontListResponse:
-  allOf:
-    - $ref: './common.yaml#/PageMeta'
-    - type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/FontDto'
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/FontDto'
+    page:
+      $ref: './common.yaml#/PageMeta'

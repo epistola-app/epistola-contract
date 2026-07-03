@@ -584,17 +584,18 @@ UpgradePreviewDto:
 
 StencilListResponse:
   description: List of stencils
-  allOf:
-    - $ref: './common.yaml#/PageMeta'
-    - type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          description: List of stencil summaries
-          items:
-            $ref: '#/StencilSummaryDto'
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      description: List of stencil summaries
+      items:
+        $ref: '#/StencilSummaryDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
   example:
     items:
       - id: corporate-header
@@ -607,24 +608,26 @@ StencilListResponse:
         latestPublishedVersion: 1
         createdAt: "2026-03-01T10:00:00Z"
         lastModified: "2026-03-15T14:30:00Z"
-    page: 0
-    size: 20
-    totalElements: 1
-    totalPages: 1
+    page:
+      number: 0
+      size: 20
+      totalElements: 1
+      totalPages: 1
 
 StencilVersionListResponse:
   description: List of stencil versions
-  allOf:
-    - $ref: './common.yaml#/PageMeta'
-    - type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          description: List of stencil version summaries
-          items:
-            $ref: '#/StencilVersionSummaryDto'
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      description: List of stencil version summaries
+      items:
+        $ref: '#/StencilVersionSummaryDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
   example:
     items:
       - id: 1
@@ -637,24 +640,26 @@ StencilVersionListResponse:
         createdAt: "2026-03-15T14:30:00Z"
         publishedAt: null
         archivedAt: null
-    page: 0
-    size: 20
-    totalElements: 2
-    totalPages: 1
+    page:
+      number: 0
+      size: 20
+      totalElements: 2
+      totalPages: 1
 
 StencilUsageListResponse:
   description: List of template usages for a stencil version
-  allOf:
-    - $ref: './common.yaml#/PageMeta'
-    - type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          description: List of template usages
-          items:
-            $ref: '#/StencilUsageDto'
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      description: List of template usages
+      items:
+        $ref: '#/StencilUsageDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
   example:
     items:
       - templateId: monthly-invoice
@@ -662,10 +667,11 @@ StencilUsageListResponse:
         variantId: english
         versionId: 3
         stencilVersion: 1
-    page: 0
-    size: 20
-    totalElements: 1
-    totalPages: 1
+    page:
+      number: 0
+      size: 20
+      totalElements: 1
+      totalPages: 1
 
 UpgradePreviewListResponse:
   type: object

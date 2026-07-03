@@ -123,10 +123,12 @@ When modifying the OpenAPI specification:
 
 ### Conventions
 
-- **Pagination**: list endpoints share one envelope and parameter set — reference
-  `spec/components/schemas/common.yaml#/PageMeta` (via `allOf`) for the response and
-  `spec/components/parameters/pagination.yaml#/Page` + `#/Size` for the query params,
-  rather than redeclaring page/size fields. Bounded sub-resource lists (e.g. variant
+- **Pagination**: list responses are `{ items: [...], page: PageMeta }` — carry the
+  pagination metadata under a `page` property that `$ref`s
+  `spec/components/schemas/common.yaml#/PageMeta` (Spring `PagedModel` shape:
+  `number`, `size`, `totalElements`, `totalPages`), and reference
+  `spec/components/parameters/pagination.yaml#/Page` + `#/Size` for the query params.
+  Don't redeclare page fields inline. Bounded sub-resource lists (e.g. variant
   activations) may stay unpaginated.
 - **Enum casing**: new resource-state enums use **lowercase kebab-case** (e.g.
   `draft`, `published`, `self-signed-jwt`), matching the slug convention. Some older

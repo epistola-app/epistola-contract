@@ -347,13 +347,14 @@ RotatePublicKeyRequest:
 
 ConsumerListResponse:
   description: Paginated list of consumers within a tenant
-  allOf:
-    - $ref: './common.yaml#/PageMeta'
-    - type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/ConsumerDto'
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/ConsumerDto'
+    page:
+      $ref: './common.yaml#/PageMeta'

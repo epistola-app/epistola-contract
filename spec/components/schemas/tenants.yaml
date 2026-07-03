@@ -65,23 +65,25 @@ UpdateTenantRequest:
 
 TenantListResponse:
   description: Paginated list of tenants
-  allOf:
-    - $ref: './common.yaml#/PageMeta'
-    - type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          description: List of tenants on this page
-          items:
-            $ref: '#/TenantDto'
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      description: List of tenants on this page
+      items:
+        $ref: '#/TenantDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
   example:
     items:
       - id: acme-corp
         name: Acme Corporation
         createdAt: "2026-01-15T09:00:00Z"
-    page: 0
-    size: 20
-    totalElements: 1
-    totalPages: 1
+    page:
+      number: 0
+      size: 20
+      totalElements: 1
+      totalPages: 1

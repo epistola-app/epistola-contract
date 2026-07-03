@@ -38,16 +38,17 @@ CatalogDto:
       example: 9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
 
 CatalogListResponse:
-  allOf:
-    - $ref: './common.yaml#/PageMeta'
-    - type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/CatalogDto'
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/CatalogDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
 
 CatalogUpgradeDiff:
   type: object

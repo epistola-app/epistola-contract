@@ -694,17 +694,18 @@ GenerationJobDetail:
 
 GenerationJobListResponse:
   description: Paginated list of generation jobs
-  allOf:
-    - $ref: './common.yaml#/PageMeta'
-    - type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          description: List of generation jobs on this page
-          items:
-            $ref: '#/DocumentGenerationJobDto'
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      description: List of generation jobs on this page
+      items:
+        $ref: '#/DocumentGenerationJobDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
   example:
     items:
       - id: "550e8400-e29b-41d4-a716-446655440000"
@@ -718,10 +719,11 @@ GenerationJobListResponse:
         startedAt: "2026-02-01T08:00:01Z"
         completedAt: "2026-02-01T08:00:03Z"
         progressPercentage: 100.0
-    page: 0
-    size: 20
-    totalElements: 1
-    totalPages: 1
+    page:
+      number: 0
+      size: 20
+      totalElements: 1
+      totalPages: 1
 
 DocumentDto:
   type: object
@@ -810,17 +812,18 @@ DocumentDto:
 
 DocumentListResponse:
   description: Paginated list of documents
-  allOf:
-    - $ref: './common.yaml#/PageMeta'
-    - type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          description: List of documents on this page
-          items:
-            $ref: '#/DocumentDto'
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      description: List of documents on this page
+      items:
+        $ref: '#/DocumentDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
   example:
     items:
       - id: "770e8400-e29b-41d4-a716-446655440002"
@@ -834,7 +837,8 @@ DocumentListResponse:
         sizeBytes: 184320
         createdAt: "2026-02-01T08:00:03Z"
         createdBy: null
-    page: 0
-    size: 20
-    totalElements: 1
-    totalPages: 1
+    page:
+      number: 0
+      size: 20
+      totalElements: 1
+      totalPages: 1

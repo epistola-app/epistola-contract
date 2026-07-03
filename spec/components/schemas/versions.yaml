@@ -202,17 +202,18 @@ PublishVersionRequest:
 
 VersionListResponse:
   description: List of template versions
-  allOf:
-    - $ref: './common.yaml#/PageMeta'
-    - type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          description: List of versions
-          items:
-            $ref: '#/VersionSummaryDto'
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      description: List of versions
+      items:
+        $ref: '#/VersionSummaryDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
   example:
     items:
       - id: 1
@@ -227,7 +228,8 @@ VersionListResponse:
         createdAt: "2026-01-26T10:00:00Z"
         publishedAt: "2026-01-28T11:00:00Z"
         archivedAt: null
-    page: 0
-    size: 20
-    totalElements: 2
-    totalPages: 1
+    page:
+      number: 0
+      size: 20
+      totalElements: 2
+      totalPages: 1

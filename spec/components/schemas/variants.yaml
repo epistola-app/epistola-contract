@@ -200,17 +200,18 @@ UpdateVariantRequest:
 
 VariantListResponse:
   description: List of template variants
-  allOf:
-    - $ref: './common.yaml#/PageMeta'
-    - type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          description: List of variants
-          items:
-            $ref: '#/VariantDto'
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      description: List of variants
+      items:
+        $ref: '#/VariantDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
   example:
     items:
       - id: english
@@ -225,10 +226,11 @@ VariantListResponse:
         publishedVersions: [1, 2]
         createdAt: "2026-01-21T10:00:00Z"
         lastModified: "2026-01-28T11:30:00Z"
-    page: 0
-    size: 20
-    totalElements: 1
-    totalPages: 1
+    page:
+      number: 0
+      size: 20
+      totalElements: 1
+      totalPages: 1
 
 ActivationDto:
   type: object

@@ -150,16 +150,17 @@ CodeListEntryDto:
 
 CodeListListResponse:
   description: List of code lists.
-  allOf:
-    - $ref: './common.yaml#/PageMeta'
-    - type: object
-      required:
-        - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/CodeListDto'
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/CodeListDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
 
 CodeListEntriesResponse:
   type: object
