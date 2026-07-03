@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-07-03
+
 ### Added
 
 - **`parameterSchema` on stencil-version API schemas.** `StencilVersionDto` (response) and the `CreateStencilRequest`, `CreateStencilVersionRequest`, and `UpdateStencilDraftRequest` request bodies now carry an optional `parameterSchema` object — the stencil version's typed input parameters as a JSON Schema (`{ type, properties, required }`), the same value carried on the catalog `StencilResource.parameterSchema` and stored on the stencil version. Optional and additive: omit or send null to declare no parameters. The `NodeDto.props` description now documents the consumer-side stencil-node prop keys (`parameterBindings`, `parameterSchemaSnapshot`, `paramsAlias`) that bind those parameters within a template.
