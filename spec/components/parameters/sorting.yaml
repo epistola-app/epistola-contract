@@ -1,0 +1,29 @@
+# Shared sorting query parameters for list endpoints.
+#
+# Both `sort` and `direction` are shared. `direction` is a fixed asc/desc enum
+# (default desc). `sort` is a free-form string: the set of sortable fields
+# differs per resource, so the server is the authority on which values are
+# accepted (an unsupported value is rejected) and on the per-resource default.
+
+Sort:
+  name: sort
+  in: query
+  required: false
+  description: |
+    Field to sort by. The set of allowed fields depends on the resource; an
+    unsupported value is rejected by the server, which also applies the
+    per-resource default when omitted.
+  schema:
+    type: string
+
+Direction:
+  name: direction
+  in: query
+  required: false
+  description: |
+    Sort direction, applied when a `sort` field is selected. An unsupported value
+    is rejected.
+  schema:
+    type: string
+    enum: [asc, desc]
+    default: desc
