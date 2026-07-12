@@ -78,6 +78,16 @@ PongDetailsDto:
       type: string
       description: The API spec version supported by this server
       example: "0.3.0"
+    minCompatibleApiVersion:
+      type: string
+      description: |
+        The oldest API spec (contract) version this server remains
+        wire-compatible with. Together with `apiVersion` it defines the range of
+        client contract versions the server accepts:
+        `[minCompatibleApiVersion .. apiVersion]`. Derived by the server from the
+        contract it was built against (never hand-maintained); a client can use it
+        to check its own contract version is in range before calling.
+      example: "0.1.0"
     nodeId:
       type: string
       description: Server node identifier (e.g. Kubernetes pod name, hostname)
