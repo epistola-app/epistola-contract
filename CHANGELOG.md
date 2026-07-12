@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-07-10
+
+### Added
+
+- **`sort` and `direction` query parameters on the paginated list endpoints.** Each paginated list `GET` (templates, catalogs, tenants, environments, themes, fonts, attributes, code lists, variants, versions, stencils, stencil versions, stencil usages) now accepts `sort` and `direction`, both defined as shared components in `spec/components/parameters/sorting.yaml`. `sort` (`#/Sort`) is a free-form `string`: the set of sortable fields differs per resource, so the server is the authority on which values it accepts and on the per-resource default when `sort` is omitted; an unsupported value is rejected with `400`. `direction` (`#/Direction`) is an `enum` of `asc`/`desc` defaulting to `desc` (uniform across every endpoint; it applies once a `sort` field is selected), and an unsupported value is likewise rejected with `400`. Each of these list `GET`s documents a `400` response. The non-paginated list endpoints (`listCodeListEntries`, which has its own fixed `sortOrder`/`code` ordering, and `listVariantActivations`, a bounded per-environment set), the document-generation paths (`listGenerationJobs`, `listDocuments`), and `listConsumers` (which does not sort server-side) are intentionally left unchanged. Additive and backward-compatible — existing callers keep the previous ordering, and the response shapes are unchanged.
+
 ## [0.10.0] - 2026-07-03
 
 ### Breaking Changes

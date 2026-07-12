@@ -39,6 +39,8 @@ stencils:
           type: string
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
+      - $ref: '../components/parameters/sorting.yaml#/Sort'
+      - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':
         description: List of stencils
@@ -46,6 +48,8 @@ stencils:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/StencilListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -234,6 +238,8 @@ stencil-versions:
             - archived
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
+      - $ref: '../components/parameters/sorting.yaml#/Sort'
+      - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':
         description: List of stencil versions
@@ -241,6 +247,8 @@ stencil-versions:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/StencilVersionListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -545,6 +553,8 @@ stencil-version-usage:
     parameters:
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
+      - $ref: '../components/parameters/sorting.yaml#/Sort'
+      - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':
         description: List of template usages
@@ -552,6 +562,8 @@ stencil-version-usage:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/StencilUsageListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

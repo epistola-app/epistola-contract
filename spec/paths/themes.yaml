@@ -34,6 +34,8 @@ themes:
           type: string
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
+      - $ref: '../components/parameters/sorting.yaml#/Sort'
+      - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':
         description: List of themes
@@ -41,6 +43,8 @@ themes:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/themes.yaml#/ThemeListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
