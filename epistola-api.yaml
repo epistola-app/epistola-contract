@@ -67,6 +67,16 @@ info:
     `tenant_control`) and tenant permissions. These are set by an administrator
     when approving a consumer registration.
   version: "0.11.0"
+  # Compatibility floor: the OLDEST contract version this spec remains
+  # wire-compatible with. It is the anchor for the version-compatibility matrix —
+  # a server/client built against this contract accepts peers in the range
+  # [x-min-compatible-version .. version]. It is STICKY: it stays put across
+  # non-breaking releases (so the accepted range widens automatically as `version`
+  # climbs) and is raised to the new `version` ONLY when a breaking change lands
+  # (feat! / BREAKING CHANGE). Seeded to the current version at inception; lower it
+  # only once older pairings are empirically verified compatible. Consumers read
+  # this via ServerContractInfo/ClientIdentity — no one hand-maintains a range.
+  x-min-compatible-version: "0.10.0"
   contact:
     name: Epistola Team
   license:

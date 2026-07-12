@@ -164,11 +164,15 @@ val copyOpenApiSpec by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("openapi-resource/openapi"))
 }
 
-// Writes the contract version (the bundled spec's info.version) to a resource file
-// so ServerContractInfo can report it at runtime — mirrors the client build's
-// generateContractVersionResource so both sides expose their version the same way.
-val generateContractVersionResource by tasks.registering {
-    description = "Writes the contract version to a resource file for ServerContractInfo"
+// Writes the contract identity resources (from the bundled spec's info block) so
+// ServerContractInfo can report them at runtime — mirrors the client build so both
+// sides expose the same values the same way:
+//   - epistola-contract-version.txt        ← info.version
+//   - epistola-contract-min-compatible.txt ← info.x-min-compatible-version (the
+//     compatibility floor; falls back to info.version if the extension is absent,
+//     which yields a point range for specs that predate the floor).
+val generateContractInfoResources by tasks.registering {
+    description = "Writes the contract version + compatibility floor to resource files for ServerContractInfo"
     inputs.file(bundledSpec)
     val outputDir = layout.buildDirectory.dir("generated-resources")
     outputs.dir(outputDir)
@@ -177,16 +181,23 @@ val generateContractVersionResource by tasks.registering {
     doLast {
         val yaml = org.yaml.snakeyaml.Yaml()
         val spec = yaml.load<Map<String, Any>>(bundledSpec.readText()) as Map<String, Any>
-        val version = (spec["info"] as Map<String, Any>)["version"] as String
-        val outFile = outputDir.get().file("epistola-contract-version.txt").asFile
-        outFile.parentFile.mkdirs()
-        outFile.writeText(version)
-        logger.lifecycle("Wrote contract version $version → ${outFile.relativeTo(project.projectDir)}")
+        val info = spec["info"] as Map<String, Any>
+        val version = info["version"] as String
+        val minCompatible = (info["x-min-compatible-version"] as String?) ?: version
+        val dir = outputDir.get()
+        fun write(name: String, value: String) {
+            val outFile = dir.file(name).asFile
+            outFile.parentFile.mkdirs()
+            outFile.writeText(value)
+            logger.lifecycle("Wrote $value → ${outFile.relativeTo(project.projectDir)}")
+        }
+        write("epistola-contract-version.txt", version)
+        write("epistola-contract-min-compatible.txt", minCompatible)
     }
 }
 
 tasks.processResources {
-    dependsOn(copyOpenApiSpec, generateContractVersionResource)
+    dependsOn(copyOpenApiSpec, generateContractInfoResources)
 }
 
 tasks.compileKotlin {
@@ -238,7 +249,7 @@ kover {
 
 // Configure vanniktech plugin's jar tasks to depend on openApiGenerate since sources are generated
 tasks.matching { it.name == "plainJavadocJar" || it.name == "sourcesJar" }.configureEach {
-    dependsOn(tasks.openApiGenerate, copyOpenApiSpec, generateContractVersionResource)
+    dependsOn(tasks.openApiGenerate, copyOpenApiSpec, generateContractInfoResources)
 }
 
 // GitHub Packages repository for snapshot publishing (standard Gradle publishing plugin)
