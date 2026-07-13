@@ -184,7 +184,9 @@ RecentUsageFieldImpact:
   properties:
     path:
       type: string
-      description: Dotted schema path that broke
+      description: >
+        Dotted schema path that broke — e.g. `customer.taxId` for a nested field or
+        `items[].sku` for an array element; the document root is reported as `<root>`.
       example: taxId
     reason:
       type: string
