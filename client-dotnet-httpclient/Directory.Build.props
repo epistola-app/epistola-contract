@@ -1,0 +1,17 @@
+<Project>
+
+  <!-- Shared defaults for every project in the .NET client module. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+    <!--
+      Package/assembly version. CI overrides this with -p:Version=<computed> (see
+      the release/snapshot workflows). Locally it defaults to a dev pre-release.
+    -->
+    <Version Condition="'$(Version)' == ''">0.0.0-dev</Version>
+  </PropertyGroup>
+
+</Project>

@@ -119,10 +119,35 @@ jobs:
         working-directory: ${{ matrix.module }}
         run: ./gradlew build -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
+  # Build and test the .NET client before publishing anything (parallels the gradle build job).
+  build-dotnet:
+    needs: validate-and-bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: tools
+
+      - name: Build and test
+        working-directory: client-dotnet-httpclient
+        run: ./generate.sh && dotnet test Epistola.Client.sln -c Release
+
   # Reserve the version by creating a git tag before publishing (release branches only).
   # For GitHub Release events the tag already exists.
   create-tag:
-    needs: [validate-and-bundle, build]
+    needs: [validate-and-bundle, build, build-dotnet]
     if: needs.validate-and-bundle.outputs.is_release_event == 'false'
     runs-on: ubuntu-latest
     permissions:
@@ -138,11 +163,12 @@ jobs:
 
   # Only publish after ALL builds succeed and version tag is reserved
   publish:
-    needs: [validate-and-bundle, build, create-tag]
-    # Always run after build succeeds — create-tag may be skipped for release events
+    needs: [validate-and-bundle, build, build-dotnet, create-tag]
+    # Always run after builds succeed — create-tag may be skipped for release events
     if: |
       always() &&
       needs.build.result == 'success' &&
+      needs.build-dotnet.result == 'success' &&
       (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
@@ -204,12 +230,48 @@ jobs:
           npm version ${{ needs.validate-and-bundle.outputs.release_version }} --no-git-tag-version --allow-same-version
           npm publish --provenance --access public
 
-  # Upload release assets and create GitHub release for release branch pushes
-  finalize-release:
-    needs: [validate-and-bundle, publish]
+  # Publish the .NET client release to NuGet.org (parallels the gradle publish job)
+  publish-dotnet:
+    needs: [validate-and-bundle, build, build-dotnet, create-tag]
     if: |
       always() &&
-      needs.publish.result == 'success'
+      needs.build.result == 'success' &&
+      needs.build-dotnet.result == 'success' &&
+      (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: tools
+
+      - name: Pack and publish to NuGet.org
+        working-directory: client-dotnet-httpclient
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          ./generate.sh
+          dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -p:Version=${{ needs.validate-and-bundle.outputs.release_version }} -o nupkgs
+          dotnet nuget push "nupkgs/*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate || echo "::warning::NuGet publish failed (package may already exist)"
+
+  # Upload release assets and create GitHub release for release branch pushes
+  finalize-release:
+    needs: [validate-and-bundle, publish, publish-dotnet]
+    if: |
+      always() &&
+      needs.publish.result == 'success' &&
+      needs.publish-dotnet.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -267,6 +329,11 @@ jobs:
             ### npm
             ```bash
             npm install @epistola.app/epistola-model@${{ needs.validate-and-bundle.outputs.release_version }}
+            ```
+
+            ### NuGet (.NET)
+            ```bash
+            dotnet add package Epistola.Contract.Client --version ${{ needs.validate-and-bundle.outputs.release_version }}
             ```
 
             ### OpenAPI Spec

@@ -45,6 +45,7 @@ jobs:
       client: ${{ steps.filter.outputs.client }}
       server: ${{ steps.filter.outputs.server }}
       epistola-model: ${{ steps.filter.outputs.epistola-model }}
+      dotnet: ${{ steps.filter.outputs.dotnet }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -67,6 +68,10 @@ jobs:
               - 'server-kotlin-springboot4/**'
             epistola-model:
               - 'epistola-model/**'
+            dotnet:
+              - 'epistola-api.yaml'
+              - 'spec/**'
+              - 'client-dotnet-httpclient/**'
 
   # Build and test modules in parallel before publishing.
   # This prevents half-releases where one module publishes but the other fails.
@@ -176,6 +181,94 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: ./gradlew publishToMavenCentral -Pversion=${{ needs.spec-validation.outputs.snapshot_version }}
+
+  # Build the .NET client before publishing its snapshot
+  build-dotnet:
+    name: Build .NET Client
+    needs: [spec-validation, detect-changes]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if should run
+        id: should_run
+        env:
+          CHANGED: ${{ needs.detect-changes.outputs.dotnet }}
+          SKIP_DETECTION: ${{ inputs.skip_detection }}
+        run: |
+          if [ "$CHANGED" == "true" ] || [ "$SKIP_DETECTION" == "true" ]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "enabled=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: actions/checkout@v6
+
+      - name: Download bundled spec
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
+      - name: Setup tools
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: tools
+
+      - name: Build and test
+        if: steps.should_run.outputs.enabled == 'true'
+        working-directory: client-dotnet-httpclient
+        run: ./generate.sh && dotnet test Epistola.Client.sln -c Release
+
+  # Publish the .NET client snapshot to NuGet.org (prerelease)
+  publish-dotnet:
+    name: Publish .NET Snapshot
+    needs: [spec-validation, detect-changes, build-dotnet]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if should run
+        id: should_run
+        env:
+          CHANGED: ${{ needs.detect-changes.outputs.dotnet }}
+          SKIP_DETECTION: ${{ inputs.skip_detection }}
+        run: |
+          if [ "$CHANGED" == "true" ] || [ "$SKIP_DETECTION" == "true" ]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "enabled=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: actions/checkout@v6
+
+      - name: Download bundled spec
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
+      - name: Setup tools
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: tools
+
+      - name: Pack and publish snapshot to NuGet.org
+        if: steps.should_run.outputs.enabled == 'true'
+        working-directory: client-dotnet-httpclient
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          # NuGet uses lowercase prerelease labels; 0.11-SNAPSHOT -> 0.11.0-snapshot
+          NUGET_VERSION="${{ needs.spec-validation.outputs.snapshot_version }}"
+          NUGET_VERSION="${NUGET_VERSION/SNAPSHOT/snapshot}"
+          ./generate.sh
+          dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -p:Version="$NUGET_VERSION" -o nupkgs
+          dotnet nuget push "nupkgs/*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
   # Publish mock server snapshot when spec changes
   mock-server:

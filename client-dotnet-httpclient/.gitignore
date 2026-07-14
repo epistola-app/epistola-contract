@@ -1,0 +1,13 @@
+# Generated OpenAPI client sources (rebuilt from the spec by generate.sh)
+Generated/
+
+# Build-time generated derived sources (KnownProblemSlugs, ModelValidation, ContractVersion)
+src/Epistola.Client/Generated/
+
+# .NET build output
+bin/
+obj/
+*.user
+
+# Local package output (make publish-local)
+nupkgs/

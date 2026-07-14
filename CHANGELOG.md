@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **.NET (C#) client library (`Epistola.Contract.Client`).** A new `client-dotnet-httpclient/` module generates a full .NET 8 client from the same bundled OpenAPI spec using OpenAPI Generator (`csharp` / `HttpClient`), at full feature parity with the Kotlin client. Consumable by any modern .NET project via NuGet. Hand-written glue mirrors the Kotlin client: `ClientIdentity` (mandatory `User-Agent` / `X-EP-Node-Id` headers), `JwtSigner` (self-signed RSA/EC JWT bearer auth), RFC 9457 problem-detail error handling (`ProblemDetailException` + opt-in `ProblemDetailHandler`, with `KnownProblemSlugs` generated from the spec's `x-problem-types` registry), `ResultCollector` (NDJSON streaming with compression, adaptive polling, and partition routing), and client-side JSON-Schema validation. A build-time generator (`generate.sh` → `Epistola.Client.Gen`) emits `KnownProblemSlugs`, model `Validate()` extensions, and the contract version from the spec — the .NET analogue of the Kotlin `generateProblemSlugs` / `generateValidation` / `generateContractVersionResource` tasks. An `EpistolaMediaTypeHandler` sets the versioned `application/vnd.epistola.v1+json` request media type. Wired into the `Makefile` (`make build-dotnet`) and the build/snapshot/feature-snapshot/release workflows; releases publish to NuGet.org and feature snapshots to GitHub Packages. Requires a new `NUGET_API_KEY` secret and `dotnet` in `.mise.toml`.
+
 ## [0.11.0] - 2026-07-10
 
 ### Added

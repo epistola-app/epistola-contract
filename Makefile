@@ -1,4 +1,4 @@
-.PHONY: all lint bundle build-client build-server build-epistola-model build clean publish-local breaking mock validate-impl release docs help
+.PHONY: all lint bundle build-client build-server build-epistola-model build-dotnet build clean publish-local breaking mock validate-impl release docs help
 
 # Pinned CLI tools (versions in tools/package.json, locked in tools/pnpm-lock.yaml)
 REDOCLY := tools/node_modules/.bin/redocly
@@ -25,7 +25,7 @@ bundle: $(REDOCLY)
 	@echo "==> Created openapi.yaml"
 
 # Build all modules
-build: build-client build-server build-epistola-model
+build: build-client build-server build-epistola-model build-dotnet
 
 # Build Kotlin client
 build-client:
@@ -42,12 +42,18 @@ build-epistola-model:
 	@echo "==> Building template model..."
 	cd epistola-model && ./gradlew build
 
+# Build .NET client (generates from the bundled spec, then builds and tests)
+build-dotnet: bundle
+	@echo "==> Building .NET client..."
+	cd client-dotnet-httpclient && ./generate.sh && dotnet test Epistola.Client.sln -c Release
+
 # Clean all build artifacts
 clean:
 	@echo "==> Cleaning..."
 	cd client-kotlin-spring-restclient && ./gradlew clean
 	cd server-kotlin-springboot4 && ./gradlew clean
 	cd epistola-model && ./gradlew clean
+	cd client-dotnet-httpclient && rm -rf Generated src/Epistola.Client/Generated bin obj src/*/bin src/*/obj test/*/bin test/*/obj
 
 # Publish to local Maven repository (for testing)
 publish-local: build
@@ -56,6 +62,9 @@ publish-local: build
 	cd server-kotlin-springboot4 && ./gradlew publishToMavenLocal
 	cd epistola-model && ./gradlew publishToMavenLocal
 	@echo "==> Published to ~/.m2/repository/app/epistola/contract/"
+	@echo "==> Packing .NET client to client-dotnet-httpclient/nupkgs/..."
+	cd client-dotnet-httpclient && dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -o nupkgs
+	@echo "==> Packed .NET client to client-dotnet-httpclient/nupkgs/"
 
 # Check for breaking changes against main branch
 breaking: bundle
@@ -134,6 +143,7 @@ help:
 	@echo "  build-client         - Build Kotlin client only"
 	@echo "  build-server         - Build Kotlin server only"
 	@echo "  build-epistola-model - Build template model only"
+	@echo "  build-dotnet         - Build .NET client only"
 	@echo "  clean          - Clean all build artifacts"
 	@echo "  publish-local  - Publish to local Maven repository"
 	@echo "  breaking       - Check for breaking API changes against main branch"
