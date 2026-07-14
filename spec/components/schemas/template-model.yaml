@@ -19,9 +19,19 @@ TemplateDocumentDto:
     | 2            | the first `pageheader`    | the second `pageheader`   |
 
     The mapping is purely positional — there is no selector property on the node.
-    Cardinality (max 2) and root-level placement are enforced by the suite's
-    server-side template validator, not by this OpenAPI schema, because `NodeDto`
-    is intentionally generic across all node types.
+
+    ### Page-footer nodes
+
+    Nodes whose `type` is `pagefooter` are the bottom-of-page counterpart: they
+    render at the bottom of every generated page. A document may contain **at
+    most one** `pagefooter` node, also placed at the document root. Its
+    `hideOnFirstPage` prop (boolean) suppresses the footer on the first page;
+    `height` sets the reserved band height (e.g. `"60pt"`).
+
+    Cardinality (max 2 for `pageheader`, max 1 for `pagefooter`) and root-level
+    placement are enforced by the suite's server-side template validator, not by
+    this OpenAPI schema, because `NodeDto` is intentionally generic across all
+    node types.
   required:
     - modelVersion
     - root
@@ -60,7 +70,16 @@ TemplateDocumentDto:
             fontSize: "24pt"
             fontWeight: bold
           props:
-            content: "Invoice {{invoiceNumber}}"
+            content:
+              type: doc
+              content:
+                - type: paragraph
+                  content:
+                    - type: text
+                      text: "Invoice "
+                    - type: expression
+                      attrs:
+                        expression: invoiceNumber
         node-columns:
           id: node-columns
           type: columns
@@ -69,21 +88,59 @@ TemplateDocumentDto:
             - slot-col-1
           styles: {}
           props:
-            columnCount: 2
+            columnSizes:
+              - 1
+              - 1
+            gap: 0
         node-from:
           id: node-from
           type: text
           slots: []
           styles: {}
           props:
-            content: "**From:** Acme Corporation\n1 Enterprise Way\nSpringfield, IL 62704"
+            content:
+              type: doc
+              content:
+                - type: paragraph
+                  content:
+                    - type: text
+                      text: "From:"
+                      marks:
+                        - type: bold
+                    - type: hardBreak
+                    - type: text
+                      text: "Acme Corporation"
+                    - type: hardBreak
+                    - type: text
+                      text: "1 Enterprise Way"
+                    - type: hardBreak
+                    - type: text
+                      text: "Springfield, IL 62704"
         node-to:
           id: node-to
           type: text
           slots: []
           styles: {}
           props:
-            content: "**To:** {{customer.name}}\n{{customer.address.street}}\n{{customer.address.city}}, {{customer.address.postalCode}}"
+            content:
+              type: doc
+              content:
+                - type: paragraph
+                  content:
+                    - type: text
+                      text: "To:"
+                      marks:
+                        - type: bold
+                    - type: hardBreak
+                    - type: expression
+                      attrs:
+                        expression: customer.name
+                    - type: hardBreak
+                    - type: text
+                      text: "{{customer.address.street}}"
+                    - type: hardBreak
+                    - type: text
+                      text: "{{customer.address.city}}, {{customer.address.postalCode}}"
     slots:
       type: object
       additionalProperties:
@@ -134,7 +191,16 @@ TemplateDocumentDto:
           fontSize: "24pt"
           fontWeight: bold
         props:
-          content: "Invoice {{invoiceNumber}}"
+          content:
+            type: doc
+            content:
+              - type: paragraph
+                content:
+                  - type: text
+                    text: "Invoice "
+                  - type: expression
+                    attrs:
+                      expression: invoiceNumber
       node-columns:
         id: node-columns
         type: columns
@@ -143,21 +209,59 @@ TemplateDocumentDto:
           - slot-col-1
         styles: {}
         props:
-          columnCount: 2
+          columnSizes:
+            - 1
+            - 1
+          gap: 0
       node-from:
         id: node-from
         type: text
         slots: []
         styles: {}
         props:
-          content: "**From:** Acme Corporation\n1 Enterprise Way\nSpringfield, IL 62704"
+          content:
+            type: doc
+            content:
+              - type: paragraph
+                content:
+                  - type: text
+                    text: "From:"
+                    marks:
+                      - type: bold
+                  - type: hardBreak
+                  - type: text
+                    text: "Acme Corporation"
+                  - type: hardBreak
+                  - type: text
+                    text: "1 Enterprise Way"
+                  - type: hardBreak
+                  - type: text
+                    text: "Springfield, IL 62704"
       node-to:
         id: node-to
         type: text
         slots: []
         styles: {}
         props:
-          content: "**To:** {{customer.name}}\n{{customer.address.street}}\n{{customer.address.city}}, {{customer.address.postalCode}}"
+          content:
+            type: doc
+            content:
+              - type: paragraph
+                content:
+                  - type: text
+                    text: "To:"
+                    marks:
+                      - type: bold
+                  - type: hardBreak
+                  - type: expression
+                    attrs:
+                      expression: customer.name
+                  - type: hardBreak
+                  - type: text
+                    text: "{{customer.address.street}}"
+                  - type: hardBreak
+                  - type: text
+                    text: "{{customer.address.city}}, {{customer.address.postalCode}}"
     slots:
       slot-root-children:
         id: slot-root-children
@@ -188,8 +292,9 @@ NodeDto:
 
     The `type` field is open-ended; the suite recognises body-flow types such as
     `text`, `container`, `columns`, `table`, and page-decoration types such as
-    `pageheader`. See `TemplateDocumentDto` for the rules that govern `pageheader`
-    placement and the positional first-page / running mapping.
+    `pageheader` and `pagefooter`. See `TemplateDocumentDto` for the rules that
+    govern page-decoration placement and the positional first-page / running
+    mapping.
   required:
     - id
     - type
@@ -228,11 +333,54 @@ NodeDto:
     props:
       type: object
       description: |
-        Type-specific properties (content, expression, columns config, etc.).
+        Type-specific properties (rich-text content, expression config, column
+        sizing, etc.).
 
-        On a `stencil` node these props also carry the parameter wiring for the
-        embedded stencil version:
+        ### Rich-text content (`text` nodes)
 
+        The `content` prop of a `text` node is a rich-text document **object**
+        (ProseMirror document JSON), not a plain string:
+
+        ```json
+        { "type": "doc", "content": [ { "type": "paragraph", "content": [ ... ] } ] }
+        ```
+
+        Block-level entries are `paragraph` or `heading` (with `attrs.level`
+        1–6). Their inline content is a sequence of:
+
+        - `text` runs — `{ "type": "text", "text": "..." }`, optionally with
+          `marks` (e.g. `bold`, `italic`, `underline`, `strike`, `link`).
+          `{{ ... }}` placeholders inside the text are interpolated as JSONata
+          expressions against the input data at render time.
+        - `expression` nodes —
+          `{ "type": "expression", "attrs": { "expression": "<JSONata>" } }`,
+          evaluated against the input data at render time.
+        - `hardBreak` — a line break within the same paragraph.
+
+        ### Layout props (`columns` nodes)
+
+        A `columns` node sizes its columns with `columnSizes` (array of relative
+        weights, one entry per `column-{i}` slot, e.g. `[1, 1]` for two equal
+        columns) and spaces them with `gap` (number).
+
+        ### Image props (`image` nodes)
+
+        An `image` node references an uploaded asset via `assetId` (plus optional
+        `catalogKey` when the asset lives in another catalog) — not a URL. Other
+        props: `alt` (string), `decorative` (boolean), `width` / `height`
+        (unit strings, e.g. `"120pt"`), `aspectRatioLocked` (boolean).
+
+        ### Stencil nodes
+
+        On a `stencil` node the props identify the embedded stencil version and
+        carry its parameter wiring:
+
+        - `stencilId` — slug of the stencil to embed.
+        - `catalogKey` — catalog containing the stencil; null/omitted means the
+          same catalog as the owning template.
+        - `version` — the stencil version number the node is pinned to.
+        - `isDraft` — true when the node tracks the stencil's draft instead of a
+          published version.
         - `parameterBindings` — object mapping each declared parameter name to the
           JSONata expression that produces its value, evaluated against the template's
           data model at render time (e.g. `{ "recipientName": "customer.name" }`).
@@ -242,7 +390,13 @@ NodeDto:
         - `paramsAlias` — optional string naming the scope the parameters are exposed
           under inside the stencil content; defaults to `params`.
       example:
-        content: "Invoice {{invoiceNumber}}"
+        content:
+          type: doc
+          content:
+            - type: paragraph
+              content:
+                - type: text
+                  text: "Invoice {{invoiceNumber}}"
   example:
     id: node-header
     type: text
@@ -251,7 +405,13 @@ NodeDto:
       fontSize: "24pt"
       fontWeight: bold
     props:
-      content: "Invoice {{invoiceNumber}}"
+      content:
+        type: doc
+        content:
+          - type: paragraph
+            content:
+              - type: text
+                text: "Invoice {{invoiceNumber}}"
 
 SlotDto:
   type: object

@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **.NET (C#) client library (`Epistola.Contract.Client`).** A new `client-dotnet-httpclient/` module generates a full .NET 8 client from the same bundled OpenAPI spec using OpenAPI Generator (`csharp` / `HttpClient`), at full feature parity with the Kotlin client and consumable by any modern .NET project via NuGet. See [`client-dotnet-httpclient/CHANGELOG.md`](client-dotnet-httpclient/CHANGELOG.md) for the client's feature list and ongoing history. Wired into the `Makefile` (`make build-dotnet`) and the build/snapshot/feature-snapshot/release workflows; releases publish to NuGet.org via OIDC trusted publishing (no stored API key, mirroring the npm OIDC publish), while snapshots and feature snapshots publish to GitHub Packages (NuGet.org has no transient snapshot feed). Each release also attaches a CycloneDX SBOM (`epistola-dotnet-client-sbom.json`) for the .NET client's dependency closure (`make sbom-dotnet` locally). Requires `dotnet` in `.mise.toml` and a NuGet.org trusted-publisher policy for the `release.yml` workflow.
+### Fixed
+
+- **Template-model examples now match what the suite's renderer actually accepts** (#18). Every `TemplateDocumentDto` example previously showed a `text` node's `props.content` as a markdown-ish string (`"Invoice {{invoiceNumber}}"`); the renderer expects a rich-text document *object* (ProseMirror JSON: `doc` → `paragraph`/`heading` → `text` runs / inline `expression` nodes / `hardBreak`), so a document built from the old examples rendered nothing. The examples in `template-model.yaml`, `versions.yaml`, and `stencils.yaml` are rewritten to the real shape, and `NodeDto.props` now documents it. Two more example fixes in the same sweep: `image` nodes reference an uploaded asset via `assetId` (+ optional `catalogKey`), not a `src` URL, and `columns` nodes are sized with `columnSizes` (relative weights) + `gap`, not `columnCount`.
+
+### Added
+
+- **`NodeDto.props` documents the stencil node's identity props** — `stencilId`, `catalogKey`, `version`, `isDraft` — alongside the previously documented parameter wiring (`parameterBindings`, `parameterSchemaSnapshot`, `paramsAlias`). Without these there was no documented way to state *which* stencil a `stencil` node embeds.
+- **`pagefooter` page-decoration convention documented** in `TemplateDocumentDto`, next to the existing `pageheader` rules: renders at the bottom of every page, at most one per document, placed at the document root, with `height` and `hideOnFirstPage` props.
 
 ## [0.11.0] - 2026-07-10
 
