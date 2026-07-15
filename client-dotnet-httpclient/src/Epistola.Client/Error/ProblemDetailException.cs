@@ -47,7 +47,9 @@ public class ProblemDetailException : ApiException
         HttpStatusCode statusCode,
         string? rawBody,
         Multimap<string, string>? headers)
-        : base((int)statusCode, BuildMessage(statusCode, problem), rawBody, headers)
+        // ApiException is generated and nullable-oblivious; its errorContent/headers are
+        // optional and accept null at runtime, so bridge the nullable values with `!`.
+        : base((int)statusCode, BuildMessage(statusCode, problem), rawBody!, headers!)
     {
         Problem = problem;
         Errors = errors;

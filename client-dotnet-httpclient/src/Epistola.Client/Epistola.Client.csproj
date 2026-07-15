@@ -5,8 +5,13 @@
     <AssemblyName>Epistola.Client</AssemblyName>
     <RootNamespace>Epistola.Client</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- Generated code triggers a lot of doc/nullability warnings; don't fail on them. -->
-    <NoWarn>$(NoWarn);CS1591;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CS0472;CS0219;CS1570;CS1573</NoWarn>
+    <!--
+      CS1591 (missing XML doc) is not required on every member of a generated-heavy library.
+      Nullability warnings are NOT suppressed project-wide — the hand-written glue is kept
+      nullable-clean; only the generated client's nullability noise is silenced, scoped to
+      Generated/ via .editorconfig.
+    -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
 
     <!-- NuGet package metadata -->
     <IsPackable>true</IsPackable>
