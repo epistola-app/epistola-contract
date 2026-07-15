@@ -8,6 +8,8 @@ for identity, authentication, error handling, result collection, and client-side
 It is the .NET counterpart of the Kotlin client and targets **.NET 8** — consumable by any modern
 .NET project (ASP.NET Core, worker services, console apps, …).
 
+Release history: [CHANGELOG.md](CHANGELOG.md).
+
 ## Installation
 
 ```bash
