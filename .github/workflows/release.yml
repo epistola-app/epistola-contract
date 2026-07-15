@@ -264,7 +264,8 @@ jobs:
         id: nuget-login
         uses: NuGet/login@v1
         with:
-          user: ${{ vars.NUGET_USER }}
+          # NuGet.org account the trusted-publisher policy lives under (public, not a secret).
+          user: Epistola
 
       - name: Pack and publish to NuGet.org
         working-directory: client-dotnet-httpclient
