@@ -1,4 +1,4 @@
-.PHONY: all lint bundle build-client build-server build-epistola-model build-dotnet build clean publish-local breaking mock validate-impl release docs help
+.PHONY: all lint bundle build-client build-server build-epistola-model build-dotnet build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
 
 # Pinned CLI tools (versions in tools/package.json, locked in tools/pnpm-lock.yaml)
 REDOCLY := tools/node_modules/.bin/redocly
@@ -46,6 +46,13 @@ build-epistola-model:
 build-dotnet: bundle
 	@echo "==> Building .NET client..."
 	cd client-dotnet-httpclient && ./generate.sh && dotnet test Epistola.Client.sln -c Release
+
+# Generate a CycloneDX SBOM for the .NET client's dependency closure
+sbom-dotnet:
+	@echo "==> Generating .NET client SBOM (CycloneDX)..."
+	@dotnet tool list --global | grep -qi cyclonedx || dotnet tool install --global CycloneDX
+	cd client-dotnet-httpclient && dotnet CycloneDX src/Epistola.Client/Epistola.Client.csproj --output sbom --json --filename epistola-dotnet-client-sbom.json
+	@echo "==> Wrote client-dotnet-httpclient/sbom/epistola-dotnet-client-sbom.json"
 
 # Clean all build artifacts
 clean:
@@ -144,6 +151,7 @@ help:
 	@echo "  build-server         - Build Kotlin server only"
 	@echo "  build-epistola-model - Build template model only"
 	@echo "  build-dotnet         - Build .NET client only"
+	@echo "  sbom-dotnet          - Generate a CycloneDX SBOM for the .NET client"
 	@echo "  clean          - Clean all build artifacts"
 	@echo "  publish-local  - Publish to local Maven repository"
 	@echo "  breaking       - Check for breaking API changes against main branch"

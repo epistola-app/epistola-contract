@@ -11,3 +11,6 @@ obj/
 
 # Local package output (make publish-local)
 nupkgs/
+
+# Local SBOM output (make sbom-dotnet)
+sbom/

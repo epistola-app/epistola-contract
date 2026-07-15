@@ -274,6 +274,22 @@ jobs:
           dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -p:Version=${{ needs.validate-and-bundle.outputs.release_version }} -o nupkgs
           dotnet nuget push "nupkgs/*.nupkg" --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate || echo "::warning::NuGet publish failed (package may already exist)"
 
+      - name: Generate SBOM (CycloneDX)
+        working-directory: client-dotnet-httpclient
+        run: |
+          dotnet tool install --global CycloneDX
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          # SBOM of the shipped package's runtime dependency closure (excludes test/build tooling).
+          dotnet CycloneDX src/Epistola.Client/Epistola.Client.csproj \
+            --output sbom --json --filename epistola-dotnet-client-sbom.json \
+            --set-version ${{ needs.validate-and-bundle.outputs.release_version }}
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-sbom
+          path: client-dotnet-httpclient/sbom/epistola-dotnet-client-sbom.json
+
   # Upload release assets and create GitHub release for release branch pushes
   finalize-release:
     needs: [validate-and-bundle, publish, publish-dotnet]
@@ -290,12 +306,17 @@ jobs:
         with:
           name: openapi-spec
 
-      - name: Upload spec to existing GitHub Release
+      - name: Download .NET SBOM
+        uses: actions/download-artifact@v4
+        with:
+          name: dotnet-sbom
+
+      - name: Upload assets to existing GitHub Release
         if: needs.validate-and-bundle.outputs.is_release_event == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload "${{ github.event.release.tag_name }}" openapi.yaml --clobber --repo "${{ github.repository }}"
+          gh release upload "${{ github.event.release.tag_name }}" openapi.yaml epistola-dotnet-client-sbom.json --clobber --repo "${{ github.repository }}"
 
       - name: Create GitHub Release (release branch)
         if: needs.validate-and-bundle.outputs.is_release_event == 'false'
@@ -303,7 +324,9 @@ jobs:
         with:
           tag_name: v${{ needs.validate-and-bundle.outputs.release_version }}
           name: v${{ needs.validate-and-bundle.outputs.release_version }}
-          files: openapi.yaml
+          files: |
+            openapi.yaml
+            epistola-dotnet-client-sbom.json
           body: |
             ## v${{ needs.validate-and-bundle.outputs.release_version }}
 
@@ -347,6 +370,9 @@ jobs:
 
             ### OpenAPI Spec
             The bundled OpenAPI specification is attached as `openapi.yaml`.
+
+            ### Software Bill of Materials
+            A CycloneDX SBOM for the .NET client's dependency closure is attached as `epistola-dotnet-client-sbom.json`.
           draft: false
           prerelease: false
           generate_release_notes: true
