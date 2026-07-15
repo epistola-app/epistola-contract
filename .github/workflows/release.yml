@@ -239,6 +239,10 @@ jobs:
       needs.build-dotnet.result == 'success' &&
       (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
     runs-on: ubuntu-latest
+    # OIDC trusted publishing to NuGet.org — no stored API key (mirrors the npm OIDC publish).
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -256,14 +260,18 @@ jobs:
           install-npm-deps: 'true'
           npm-working-directory: tools
 
+      - name: NuGet trusted-publishing login (OIDC)
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
       - name: Pack and publish to NuGet.org
         working-directory: client-dotnet-httpclient
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
           ./generate.sh
           dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -p:Version=${{ needs.validate-and-bundle.outputs.release_version }} -o nupkgs
-          dotnet nuget push "nupkgs/*.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate || echo "::warning::NuGet publish failed (package may already exist)"
+          dotnet nuget push "nupkgs/*.nupkg" --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate || echo "::warning::NuGet publish failed (package may already exist)"
 
   # Upload release assets and create GitHub release for release branch pushes
   finalize-release:

@@ -242,6 +242,7 @@ When a fix is needed on an older release:
 
 - Tool setup (Java, Gradle, Node, pnpm) is managed by `.mise.toml` via composite actions in `.github/actions/`
 - npm publishing uses **OIDC authentication** (`id-token: write` permission), not an `NPM_TOKEN` secret — do not add `NODE_AUTH_TOKEN` env vars to npm publish steps
+- NuGet.org publishing (the .NET client) also uses **OIDC trusted publishing** via the `NuGet/login@v1` action (`id-token: write`), not a stored `NUGET_API_KEY` — the account username comes from the `NUGET_USER` repository variable, and a trusted-publisher policy must be configured on nuget.org for this repo. NuGet does not require package signing (nuget.org repository-signs on upload); do not add author-signing certs. Feature snapshots publish to GitHub Packages with `GITHUB_TOKEN`.
 - Maven Central publishing uses GPG signing with in-memory keys (secrets: `OSSRH_USERNAME`, `OSSRH_PASSWORD`, `GPG_PRIVATE_KEY`, `GPG_KEY_ID`, `GPG_PASSPHRASE`)
 
 ## Important Notes
