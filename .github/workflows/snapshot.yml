@@ -224,13 +224,14 @@ jobs:
 
   # Publish the .NET client snapshot to NuGet.org (prerelease)
   publish-dotnet:
-    name: Publish .NET Snapshot
+    name: Publish .NET Snapshot to GitHub Packages
     needs: [spec-validation, detect-changes, build-dotnet]
     runs-on: ubuntu-latest
-    # OIDC trusted publishing to NuGet.org — no stored API key (mirrors the npm OIDC publish).
+    # NuGet.org has no transient snapshot feed and prereleases there are permanent/public,
+    # so snapshots go to GitHub Packages (nuget.org is reserved for releases).
     permissions:
-      id-token: write
       contents: read
+      packages: write
     steps:
       - name: Check if should run
         id: should_run
@@ -261,23 +262,19 @@ jobs:
           install-npm-deps: 'true'
           npm-working-directory: tools
 
-      - name: NuGet trusted-publishing login (OIDC)
-        if: steps.should_run.outputs.enabled == 'true'
-        id: nuget-login
-        uses: NuGet/login@v1
-        with:
-          user: ${{ vars.NUGET_USER }}
-
-      - name: Pack and publish snapshot to NuGet.org
+      - name: Pack and publish snapshot to GitHub Packages
         if: steps.should_run.outputs.enabled == 'true'
         working-directory: client-dotnet-httpclient
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # NuGet uses lowercase prerelease labels; 0.11-SNAPSHOT -> 0.11.0-snapshot
           NUGET_VERSION="${{ needs.spec-validation.outputs.snapshot_version }}"
           NUGET_VERSION="${NUGET_VERSION/SNAPSHOT/snapshot}"
           ./generate.sh
           dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -p:Version="$NUGET_VERSION" -o nupkgs
-          dotnet nuget push "nupkgs/*.nupkg" --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+          dotnet nuget add source --username ${{ github.repository_owner }} --password "$GITHUB_TOKEN" --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          dotnet nuget push "nupkgs/*.nupkg" --source github --api-key "$GITHUB_TOKEN" --skip-duplicate
 
   # Publish mock server snapshot when spec changes
   mock-server:
