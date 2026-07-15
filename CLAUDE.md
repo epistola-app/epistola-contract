@@ -236,6 +236,7 @@ When a fix is needed on an older release:
 
 - Follow conventional commits: `feat(api):`, `fix(spec):`, `docs:`, etc.
 - Update CHANGELOG.md for user-facing changes
+- **Whenever you open a PR, add a corresponding entry to CHANGELOG.md under the `## [Unreleased]` heading** (create the section if it isn't there). The release process promotes `[Unreleased]` to the new version.
 - Never push directly - create commits locally for review
 
 ## CI/CD Notes
