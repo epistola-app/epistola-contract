@@ -264,8 +264,9 @@ jobs:
         id: nuget-login
         uses: NuGet/login@v1
         with:
-          # NuGet.org account the trusted-publisher policy lives under (public, not a secret).
-          user: Epistola
+          # Your personal nuget.org profile name (public, not a secret). This is NOT the package
+          # owner — the trusted-publisher policy selects Epistola as the owner separately.
+          user: sdegroot
 
       - name: Pack and publish to NuGet.org
         working-directory: client-dotnet-httpclient
