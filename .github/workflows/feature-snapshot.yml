@@ -66,3 +66,39 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: ${{ matrix.module }}
         run: ./gradlew ${{ matrix.publish_task }} -Pversion=${{ needs.prepare.outputs.version }}
+
+  # Publish the .NET client feature snapshot to the GitHub Packages NuGet feed
+  publish-dotnet:
+    name: Publish .NET Feature Snapshot
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: tools
+
+      - name: Pack and publish to GitHub Packages
+        working-directory: client-dotnet-httpclient
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # NuGet uses lowercase prerelease labels
+          NUGET_VERSION="${{ needs.prepare.outputs.version }}"
+          NUGET_VERSION="${NUGET_VERSION/SNAPSHOT/snapshot}"
+          ./generate.sh
+          dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -p:Version="$NUGET_VERSION" -o nupkgs
+          dotnet nuget add source --username ${{ github.repository_owner }} --password "$GITHUB_TOKEN" --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          dotnet nuget push "nupkgs/*.nupkg" --source github --api-key "$GITHUB_TOKEN" --skip-duplicate

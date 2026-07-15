@@ -1,0 +1,16 @@
+# OpenAPI Generator config for the Epistola .NET (C#) client.
+# Mirrors the Kotlin client's stock-generator approach: no custom templates,
+# no schemaMappings/typeMappings — only config options.
+#
+# The generated sources land under Generated/src/Epistola.Client/{Api,Model,Client}
+# and are compiled by the hand-written project at src/Epistola.Client.
+targetFramework: net8.0
+packageName: Epistola.Client
+apiPackage: Api
+modelPackage: Model
+library: httpclient
+nullableReferenceTypes: true
+useDateTimeOffset: true
+netCoreProjectFile: true
+# Keep enum member casing predictable for switch statements.
+# (The C# generator uses PascalCase enum members by default.)

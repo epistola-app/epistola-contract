@@ -119,10 +119,35 @@ jobs:
         working-directory: ${{ matrix.module }}
         run: ./gradlew build -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
+  # Build and test the .NET client before publishing anything (parallels the gradle build job).
+  build-dotnet:
+    needs: validate-and-bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: tools
+
+      - name: Build and test
+        working-directory: client-dotnet-httpclient
+        run: ./generate.sh && dotnet test Epistola.Client.sln -c Release
+
   # Reserve the version by creating a git tag before publishing (release branches only).
   # For GitHub Release events the tag already exists.
   create-tag:
-    needs: [validate-and-bundle, build]
+    needs: [validate-and-bundle, build, build-dotnet]
     if: needs.validate-and-bundle.outputs.is_release_event == 'false'
     runs-on: ubuntu-latest
     permissions:
@@ -138,11 +163,12 @@ jobs:
 
   # Only publish after ALL builds succeed and version tag is reserved
   publish:
-    needs: [validate-and-bundle, build, create-tag]
-    # Always run after build succeeds — create-tag may be skipped for release events
+    needs: [validate-and-bundle, build, build-dotnet, create-tag]
+    # Always run after builds succeed — create-tag may be skipped for release events
     if: |
       always() &&
       needs.build.result == 'success' &&
+      needs.build-dotnet.result == 'success' &&
       (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
@@ -204,12 +230,74 @@ jobs:
           npm version ${{ needs.validate-and-bundle.outputs.release_version }} --no-git-tag-version --allow-same-version
           npm publish --provenance --access public
 
-  # Upload release assets and create GitHub release for release branch pushes
-  finalize-release:
-    needs: [validate-and-bundle, publish]
+  # Publish the .NET client release to NuGet.org (parallels the gradle publish job)
+  publish-dotnet:
+    needs: [validate-and-bundle, build, build-dotnet, create-tag]
     if: |
       always() &&
-      needs.publish.result == 'success'
+      needs.build.result == 'success' &&
+      needs.build-dotnet.result == 'success' &&
+      (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
+    runs-on: ubuntu-latest
+    # OIDC trusted publishing to NuGet.org — no stored API key (mirrors the npm OIDC publish).
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: tools
+
+      - name: NuGet trusted-publishing login (OIDC)
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          # Your personal nuget.org profile name (public, not a secret). This is NOT the package
+          # owner — the trusted-publisher policy selects Epistola as the owner separately.
+          user: sdegroot
+
+      - name: Pack and publish to NuGet.org
+        working-directory: client-dotnet-httpclient
+        run: |
+          ./generate.sh
+          dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -p:Version=${{ needs.validate-and-bundle.outputs.release_version }} -o nupkgs
+          dotnet nuget push "nupkgs/*.nupkg" --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate || echo "::warning::NuGet publish failed (package may already exist)"
+
+      - name: Generate SBOM (CycloneDX)
+        working-directory: client-dotnet-httpclient
+        run: |
+          dotnet tool install --global CycloneDX
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          # SBOM of the shipped package's runtime dependency closure (excludes test/build tooling).
+          dotnet CycloneDX src/Epistola.Client/Epistola.Client.csproj \
+            --output sbom --json --filename epistola-dotnet-client-sbom.json \
+            --set-version ${{ needs.validate-and-bundle.outputs.release_version }}
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-sbom
+          path: client-dotnet-httpclient/sbom/epistola-dotnet-client-sbom.json
+
+  # Upload release assets and create GitHub release for release branch pushes
+  finalize-release:
+    needs: [validate-and-bundle, publish, publish-dotnet]
+    if: |
+      always() &&
+      needs.publish.result == 'success' &&
+      needs.publish-dotnet.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -219,12 +307,17 @@ jobs:
         with:
           name: openapi-spec
 
-      - name: Upload spec to existing GitHub Release
+      - name: Download .NET SBOM
+        uses: actions/download-artifact@v4
+        with:
+          name: dotnet-sbom
+
+      - name: Upload assets to existing GitHub Release
         if: needs.validate-and-bundle.outputs.is_release_event == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload "${{ github.event.release.tag_name }}" openapi.yaml --clobber --repo "${{ github.repository }}"
+          gh release upload "${{ github.event.release.tag_name }}" openapi.yaml epistola-dotnet-client-sbom.json --clobber --repo "${{ github.repository }}"
 
       - name: Create GitHub Release (release branch)
         if: needs.validate-and-bundle.outputs.is_release_event == 'false'
@@ -232,7 +325,9 @@ jobs:
         with:
           tag_name: v${{ needs.validate-and-bundle.outputs.release_version }}
           name: v${{ needs.validate-and-bundle.outputs.release_version }}
-          files: openapi.yaml
+          files: |
+            openapi.yaml
+            epistola-dotnet-client-sbom.json
           body: |
             ## v${{ needs.validate-and-bundle.outputs.release_version }}
 
@@ -269,8 +364,16 @@ jobs:
             npm install @epistola.app/epistola-model@${{ needs.validate-and-bundle.outputs.release_version }}
             ```
 
+            ### NuGet (.NET)
+            ```bash
+            dotnet add package Epistola.Contract.Client --version ${{ needs.validate-and-bundle.outputs.release_version }}
+            ```
+
             ### OpenAPI Spec
             The bundled OpenAPI specification is attached as `openapi.yaml`.
+
+            ### Software Bill of Materials
+            A CycloneDX SBOM for the .NET client's dependency closure is attached as `epistola-dotnet-client-sbom.json`.
           draft: false
           prerelease: false
           generate_release_notes: true

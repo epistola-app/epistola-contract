@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>Epistola.Client</AssemblyName>
+    <RootNamespace>Epistola.Client</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!--
+      CS1591 (missing XML doc) is not required on every member of a generated-heavy library.
+      Nullability warnings are NOT suppressed project-wide — the hand-written glue is kept
+      nullable-clean; only the generated client's nullability noise is silenced, scoped to
+      Generated/ via .editorconfig.
+    -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- NuGet package metadata -->
+    <IsPackable>true</IsPackable>
+    <PackageId>Epistola.Contract.Client</PackageId>
+    <Title>Epistola .NET Client</Title>
+    <Description>.NET client library for the Epistola document generation API, using HttpClient. Generated from the Epistola OpenAPI contract, with identity headers, RFC 9457 problem-detail error handling, self-signed JWT auth, NDJSON result collection, and client-side schema validation.</Description>
+    <Authors>Sander de Groot</Authors>
+    <Company>Epistola</Company>
+    <PackageLicenseExpression>EUPL-1.2</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/epistola-app/epistola-contract</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/epistola-app/epistola-contract.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>epistola;openapi;document-generation;client;api</PackageTags>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Generated OpenAPI client sources (produced by generate.sh into ../../Generated). -->
+    <Compile Include="../../Generated/src/Epistola.Client/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Dependencies required by the generated client. -->
+    <PackageReference Include="JsonSubTypes" Version="2.0.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Polly" Version="8.5.0" />
+    <!-- Self-signed JWT auth (JwtSigner). -->
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.0" />
+    <!-- Client-side JSON Schema validation (Newtonsoft-based, matches the client serializer). -->
+    <PackageReference Include="NJsonSchema" Version="11.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Epistola.Client.Tests" />
+  </ItemGroup>
+
+</Project>

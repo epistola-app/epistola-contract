@@ -74,6 +74,30 @@ jobs:
       - name: Build and test
         run: ./gradlew build
 
+  # .NET HttpClient client build
+  dotnet-client:
+    name: .NET Client (HttpClient)
+    needs: spec-validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: tools
+
+      - name: Build and test
+        working-directory: client-dotnet-httpclient
+        run: ./generate.sh && dotnet test Epistola.Client.sln -c Release
+
   # Editor model build (no OpenAPI spec dependency)
   epistola-model:
     name: Editor Model

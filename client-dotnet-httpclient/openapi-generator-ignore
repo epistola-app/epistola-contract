@@ -1,0 +1,15 @@
+# Passed to openapi-generator via --ignore-file-override so it survives the
+# wipe-and-regenerate of the Generated/ directory (which is gitignored).
+#
+# We keep ONLY the generated C# sources (Api/, Model/, Client/). The packaging
+# scaffolding — solution, project files, test project, README, docs, CI helpers —
+# is provided by the hand-written module at src/Epistola.Client instead.
+Epistola.Client.sln
+src/Epistola.Client/Epistola.Client.csproj
+src/Epistola.Client.Test/**
+README.md
+docs/**
+api/**
+appveyor.yml
+git_push.sh
+.gitignore

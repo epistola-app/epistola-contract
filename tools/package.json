@@ -4,6 +4,7 @@
   "private": true,
   "description": "Development tools for Epistola API contract",
   "devDependencies": {
+    "@openapitools/openapi-generator-cli": "2.39.1",
     "@redocly/cli": "2.36.0",
     "@stoplight/prism-cli": "5.15.11"
   }
