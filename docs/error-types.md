@@ -63,6 +63,12 @@ A `validation-error` problem extends the base shape with an `errors` array. Each
 - **Kotlin (Spring RestClient):** opt in with `RestClient.Builder.installProblemDetailHandler()`
   and catch `ProblemDetailException`, switching on `e.typeSlug` (see
   [the client README](../client-kotlin-spring-restclient/README.md#error-handling)).
+- **.NET (HttpClient):** opt in with `EpistolaHttpClientBuilder.InstallProblemDetailHandler()`
+  and catch `ProblemDetailException`, switching on `e.TypeSlug` (see
+  [the client README](../client-dotnet-httpclient/README.md#error-handling)).
+- **Python (urllib3):** opt in with `EpistolaClientBuilder.install_problem_detail_handler()`
+  and catch `ProblemDetailException`, switching on `e.type_slug` (see
+  [the client README](../client-python-urllib3/README.md#error-handling)).
 - **Kotlin (Spring server):** build problem bodies with the opt-in
   `app.epistola.api.error.ProblemDetails` helper (see
   [the server README](../server-kotlin-springboot4/README.md#error-responses)).

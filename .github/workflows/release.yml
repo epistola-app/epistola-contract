@@ -144,10 +144,35 @@ jobs:
         working-directory: client-dotnet-httpclient
         run: ./generate.sh && dotnet test Epistola.Client.sln -c Release
 
+  # Build and test the Python client before publishing anything (parallels the gradle build job).
+  build-python:
+    needs: validate-and-bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: tools
+
+      - name: Build and test
+        working-directory: client-python-urllib3
+        run: ./generate.sh && uv run --group dev pytest
+
   # Reserve the version by creating a git tag before publishing (release branches only).
   # For GitHub Release events the tag already exists.
   create-tag:
-    needs: [validate-and-bundle, build, build-dotnet]
+    needs: [validate-and-bundle, build, build-dotnet, build-python]
     if: needs.validate-and-bundle.outputs.is_release_event == 'false'
     runs-on: ubuntu-latest
     permissions:
@@ -163,12 +188,13 @@ jobs:
 
   # Only publish after ALL builds succeed and version tag is reserved
   publish:
-    needs: [validate-and-bundle, build, build-dotnet, create-tag]
+    needs: [validate-and-bundle, build, build-dotnet, build-python, create-tag]
     # Always run after builds succeed — create-tag may be skipped for release events
     if: |
       always() &&
       needs.build.result == 'success' &&
       needs.build-dotnet.result == 'success' &&
+      needs.build-python.result == 'success' &&
       (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
@@ -232,11 +258,12 @@ jobs:
 
   # Publish the .NET client release to NuGet.org (parallels the gradle publish job)
   publish-dotnet:
-    needs: [validate-and-bundle, build, build-dotnet, create-tag]
+    needs: [validate-and-bundle, build, build-dotnet, build-python, create-tag]
     if: |
       always() &&
       needs.build.result == 'success' &&
       needs.build-dotnet.result == 'success' &&
+      needs.build-python.result == 'success' &&
       (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
     runs-on: ubuntu-latest
     # OIDC trusted publishing to NuGet.org — no stored API key (mirrors the npm OIDC publish).
@@ -291,13 +318,59 @@ jobs:
           name: dotnet-sbom
           path: client-dotnet-httpclient/sbom/epistola-dotnet-client-sbom.json
 
+  # Publish the Python client release to PyPI (parallels the gradle/nuget publish jobs)
+  publish-python:
+    needs: [validate-and-bundle, build, build-dotnet, build-python, create-tag]
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      needs.build-dotnet.result == 'success' &&
+      needs.build-python.result == 'success' &&
+      (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
+    runs-on: ubuntu-latest
+    # OIDC trusted publishing to PyPI — no stored token (mirrors the npm/NuGet OIDC publishes).
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: tools
+
+      - name: Build wheel + sdist
+        working-directory: client-python-urllib3
+        # Version comes from the stamped spec's info.version via generate.sh -> contract_version.py
+        # (release version is already valid PEP 440; no normalisation needed).
+        run: |
+          ./generate.sh
+          uv build
+
+      - name: Publish to PyPI (OIDC trusted publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: client-python-urllib3/dist
+          skip-existing: true
+
   # Upload release assets and create GitHub release for release branch pushes
   finalize-release:
-    needs: [validate-and-bundle, publish, publish-dotnet]
+    needs: [validate-and-bundle, publish, publish-dotnet, publish-python]
     if: |
       always() &&
       needs.publish.result == 'success' &&
-      needs.publish-dotnet.result == 'success'
+      needs.publish-dotnet.result == 'success' &&
+      needs.publish-python.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -367,6 +440,11 @@ jobs:
             ### NuGet (.NET)
             ```bash
             dotnet add package Epistola.Contract.Client --version ${{ needs.validate-and-bundle.outputs.release_version }}
+            ```
+
+            ### pip (Python)
+            ```bash
+            pip install epistola-client==${{ needs.validate-and-bundle.outputs.release_version }}
             ```
 
             ### OpenAPI Spec

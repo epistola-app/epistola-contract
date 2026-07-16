@@ -46,6 +46,7 @@ jobs:
       server: ${{ steps.filter.outputs.server }}
       epistola-model: ${{ steps.filter.outputs.epistola-model }}
       dotnet: ${{ steps.filter.outputs.dotnet }}
+      python: ${{ steps.filter.outputs.python }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -72,6 +73,10 @@ jobs:
               - 'epistola-api.yaml'
               - 'spec/**'
               - 'client-dotnet-httpclient/**'
+            python:
+              - 'epistola-api.yaml'
+              - 'spec/**'
+              - 'client-python-urllib3/**'
 
   # Build and test modules in parallel before publishing.
   # This prevents half-releases where one module publishes but the other fails.
@@ -275,6 +280,117 @@ jobs:
           dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -p:Version="$NUGET_VERSION" -o nupkgs
           dotnet nuget add source --username ${{ github.repository_owner }} --password "$GITHUB_TOKEN" --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
           dotnet nuget push "nupkgs/*.nupkg" --source github --api-key "$GITHUB_TOKEN" --skip-duplicate
+
+  # Build the Python client before publishing its snapshot
+  build-python:
+    name: Build Python Client
+    needs: [spec-validation, detect-changes]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if should run
+        id: should_run
+        env:
+          CHANGED: ${{ needs.detect-changes.outputs.python }}
+          SKIP_DETECTION: ${{ inputs.skip_detection }}
+        run: |
+          if [ "$CHANGED" == "true" ] || [ "$SKIP_DETECTION" == "true" ]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "enabled=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: actions/checkout@v6
+
+      - name: Download bundled spec
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
+      - name: Setup tools
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: tools
+
+      - name: Build and test
+        if: steps.should_run.outputs.enabled == 'true'
+        working-directory: client-python-urllib3
+        run: ./generate.sh && uv run --group dev pytest
+
+  # Publish the Python client snapshot to TestPyPI.
+  # GitHub Packages has no PyPI registry and pypi.org is reserved for releases (prereleases
+  # there are permanent/public), so snapshots go to TestPyPI via OIDC trusted publishing — a
+  # real pip-installable index, symmetric with the release job's pypi.org publish.
+  publish-python:
+    name: Publish Python Snapshot to TestPyPI
+    needs: [spec-validation, detect-changes, build-python]
+    runs-on: ubuntu-latest
+    # OIDC trusted publishing to TestPyPI — no stored token.
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Check if should run
+        id: should_run
+        env:
+          CHANGED: ${{ needs.detect-changes.outputs.python }}
+          SKIP_DETECTION: ${{ inputs.skip_detection }}
+        run: |
+          if [ "$CHANGED" == "true" ] || [ "$SKIP_DETECTION" == "true" ]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "enabled=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: actions/checkout@v6
+
+      - name: Download bundled spec
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
+      - name: Setup tools
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: tools
+
+      - name: Build snapshot wheel + sdist
+        if: steps.should_run.outputs.enabled == 'true'
+        working-directory: client-python-urllib3
+        run: |
+          ./generate.sh
+          # PEP 440 dev version; 0.11-SNAPSHOT -> 0.11.0.dev<run_number>.
+          # GITHUB_RUN_NUMBER is globally unique per workflow run, so each snapshot gets a
+          # distinct, monotonically increasing version that TestPyPI accepts (no local segment).
+          BASE="${{ needs.spec-validation.outputs.snapshot_version }}"
+          BASE="${BASE%-SNAPSHOT}"
+          case "$BASE" in
+            *.*.*) : ;;
+            *.*) BASE="${BASE}.0" ;;
+          esac
+          PY_VERSION="${BASE}.dev${GITHUB_RUN_NUMBER}"
+          echo "Python snapshot version: $PY_VERSION"
+          # hatchling reads the version from the derived contract_version.py
+          sed -i "s/^CONTRACT_VERSION = .*/CONTRACT_VERSION = \"${PY_VERSION}\"/" \
+            src/epistola_client/_generated/contract_version.py
+          uv build
+
+      - name: Publish to TestPyPI (OIDC trusted publishing)
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: client-python-urllib3/dist
+          skip-existing: true
 
   # Publish mock server snapshot when spec changes
   mock-server:

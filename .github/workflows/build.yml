@@ -98,6 +98,30 @@ jobs:
         working-directory: client-dotnet-httpclient
         run: ./generate.sh && dotnet test Epistola.Client.sln -c Release
 
+  # Python urllib3 client build
+  python-client:
+    name: Python Client (urllib3)
+    needs: spec-validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: tools
+
+      - name: Build and test
+        working-directory: client-python-urllib3
+        run: ./generate.sh && uv run --group dev pytest
+
   # Editor model build (no OpenAPI spec dependency)
   epistola-model:
     name: Editor Model
