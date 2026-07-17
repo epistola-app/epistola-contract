@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **.NET (C#) client library (`Epistola.Contract.Client`).** A new `client-dotnet-httpclient/` module generates a full .NET 8 client from the same bundled OpenAPI spec using OpenAPI Generator (`csharp` / `HttpClient`), at full feature parity with the Kotlin client and consumable by any modern .NET project via NuGet. See [`client-dotnet-httpclient/CHANGELOG.md`](client-dotnet-httpclient/CHANGELOG.md) for the client's feature list and ongoing history. Wired into the `Makefile` (`make build-dotnet`) and the build/snapshot/feature-snapshot/release workflows; releases publish to NuGet.org via OIDC trusted publishing (no stored API key, mirroring the npm OIDC publish), while snapshots and feature snapshots publish to GitHub Packages (NuGet.org has no transient snapshot feed). Each release also attaches a CycloneDX SBOM (`epistola-dotnet-client-sbom.json`) for the .NET client's dependency closure (`make sbom-dotnet` locally). Requires `dotnet` in `.mise.toml` and a NuGet.org trusted-publisher policy for the `release.yml` workflow.
 
+### Breaking Changes
+
+- **Variant `title` is now required.** `CreateVariantRequest.title` and `UpdateVariantRequest.title` change from optional, nullable strings to **required, non-nullable** `string`s (`minLength: 1`, `maxLength: 100`). A client must now send a non-blank title when creating or updating a variant. This makes the contract factual: the server already rejects a missing or blank title with `400 problem+json` (field `title`). (epistola-suite #631)
+
+### Changed
+
+- **`VariantDto.title` and `VariantSummaryDto.title` are now required and non-nullable.** The server stores `template_variants.title` as `NOT NULL`, so every variant response carries a non-blank title (`minLength: 1`, `maxLength: 100`). Additive for consumers — a stronger guarantee, not a breaking change.
+
 ## [0.11.0] - 2026-07-10
 
 ### Added
