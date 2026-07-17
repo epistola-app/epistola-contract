@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-07-17
+
 ### Added
 
 - **.NET (C#) client library (`Epistola.Contract.Client`).** A new `client-dotnet-httpclient/` module generates a full .NET 8 client from the same bundled OpenAPI spec using OpenAPI Generator (`csharp` / `HttpClient`), at full feature parity with the Kotlin client and consumable by any modern .NET project via NuGet. See [`client-dotnet-httpclient/CHANGELOG.md`](client-dotnet-httpclient/CHANGELOG.md) for the client's feature list and ongoing history. Wired into the `Makefile` (`make build-dotnet`) and the build/snapshot/feature-snapshot/release workflows; releases publish to NuGet.org via OIDC trusted publishing (no stored API key, mirroring the npm OIDC publish), while snapshots and feature snapshots publish to GitHub Packages (NuGet.org has no transient snapshot feed). Each release also attaches a CycloneDX SBOM (`epistola-dotnet-client-sbom.json`) for the .NET client's dependency closure (`make sbom-dotnet` locally). Requires `dotnet` in `.mise.toml` and a NuGet.org trusted-publisher policy for the `release.yml` workflow.
