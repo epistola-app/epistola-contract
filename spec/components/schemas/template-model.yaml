@@ -28,10 +28,13 @@ TemplateDocumentDto:
     `hideOnFirstPage` prop (boolean) suppresses the footer on the first page;
     `height` sets the reserved band height (e.g. `"60pt"`).
 
-    Cardinality (max 2 for `pageheader`, max 1 for `pagefooter`) and root-level
-    placement are enforced by the suite's server-side template validator, not by
-    this OpenAPI schema, because `NodeDto` is intentionally generic across all
-    node types.
+    The `pageheader` rules (max 2, root-level placement) are enforced by the
+    suite's server-side template validator, not by this OpenAPI schema, because
+    `NodeDto` is intentionally generic across all node types. The `pagefooter`
+    max-1 rule is enforced by the suite's editor only: at render time the
+    renderer uses the first `pagefooter` node it finds and silently ignores any
+    others, so documents authored via the API should still follow the
+    convention.
   required:
     - modelVersion
     - root
