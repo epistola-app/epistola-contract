@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Machine-computed compatibility log (`compatibility-log.json`).** A committed, deterministic record of which released contract versions broke wire compatibility and exactly which operations they broke, generated from the release tags with `oasdiff breaking` (`make compatibility-log` / `scripts/generate-compatibility-log.sh`). It is the anchor-side feed of the cross-repo version-compatibility matrix: joined with a client's declared operations it yields operation-level verdicts ("does any breaking change in this window touch a call this client makes?") instead of the coarse whole-contract floor rule alone.
+
 ## [0.11.0] - 2026-07-10
 
 ### Added

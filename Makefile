@@ -65,6 +65,11 @@ breaking: bundle
 	@cd /tmp/epistola-base-spec && $(CURDIR)/$(REDOCLY) bundle epistola-api.yaml -o openapi.yaml 2>/dev/null
 	oasdiff breaking --flatten-allof --flatten-params /tmp/epistola-base-spec/openapi.yaml openapi.yaml
 
+# Regenerate compatibility-log.json from the release history (one entry per
+# release tag: did it break wire compatibility, and which operations it broke)
+compatibility-log:
+	@scripts/generate-compatibility-log.sh
+
 # Generate API docs and open in browser
 docs: bundle
 	@echo "==> Building API documentation..."

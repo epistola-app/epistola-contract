@@ -1,0 +1,311 @@
+{
+  "schemaVersion": 1,
+  "anchor": "epistola-contract",
+  "generatedBy": "scripts/generate-compatibility-log.sh",
+  "entries": [
+    {
+      "version": "0.1.14",
+      "breaking": false,
+      "brokenOperations": [],
+      "baseline": true
+    },
+    {
+      "version": "0.1.15",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.1.16",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.1.17",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.1.18",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.1.19",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.1.20",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.1.21",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.2.0",
+      "breaking": true,
+      "brokenOperations": [
+        "archiveStencilVersion",
+        "archiveVersion",
+        "createAttribute",
+        "createStencil",
+        "createStencilVersion",
+        "createTemplate",
+        "createTheme",
+        "createVariant",
+        "deleteAttribute",
+        "deleteStencil",
+        "deleteTemplate",
+        "deleteTheme",
+        "deleteVariant",
+        "generateDocument",
+        "generateDocumentBatch",
+        "getActiveVersion",
+        "getAttribute",
+        "getStencil",
+        "getStencilVersion",
+        "getStencilVersionUsage",
+        "getTemplate",
+        "getTheme",
+        "getVariant",
+        "getVariantDraft",
+        "getVersion",
+        "importTemplates",
+        "listAttributes",
+        "listStencilVersions",
+        "listStencils",
+        "listTemplates",
+        "listThemes",
+        "listVariantActivations",
+        "listVariants",
+        "listVersions",
+        "previewDocument",
+        "previewStencilUpgrade",
+        "publishStencilVersion",
+        "publishVersion",
+        "removeVariantActivation",
+        "setDefaultVariant",
+        "updateAttribute",
+        "updateStencil",
+        "updateStencilDraft",
+        "updateTemplate",
+        "updateTheme",
+        "updateVariant",
+        "updateVersion",
+        "upsertVariantDraft",
+        "validateTemplateData"
+      ]
+    },
+    {
+      "version": "0.2.1",
+      "breaking": true,
+      "brokenOperations": [
+        "importTemplates"
+      ]
+    },
+    {
+      "version": "0.2.2",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.2.3",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.2.4",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.2.5",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.2.6",
+      "breaking": true,
+      "brokenOperations": [
+        "archiveStencilVersion",
+        "archiveVersion",
+        "createStencilVersion",
+        "createTheme",
+        "getActiveVersion",
+        "getStencilVersion",
+        "getTheme",
+        "getVariantDraft",
+        "getVersion",
+        "listThemes",
+        "previewStencilUpgrade",
+        "publishStencilVersion",
+        "publishVersion",
+        "updateStencilDraft",
+        "updateTheme",
+        "updateVersion",
+        "upsertVariantDraft"
+      ]
+    },
+    {
+      "version": "0.2.7",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.3.0",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.4.0",
+      "breaking": true,
+      "brokenOperations": [
+        "createAttribute"
+      ]
+    },
+    {
+      "version": "0.5.0",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.5.1",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.5.2",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.5.3",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.6.0",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.7.0",
+      "breaking": true,
+      "brokenOperations": [
+        "approveConsumer",
+        "archiveStencilVersion",
+        "archiveVersion",
+        "cancelGenerationJob",
+        "collectGenerationResults",
+        "createAttribute",
+        "createCodeList",
+        "createEnvironment",
+        "createStencil",
+        "createStencilVersion",
+        "createTemplate",
+        "createTenant",
+        "createTheme",
+        "createVariant",
+        "deleteAttribute",
+        "deleteCodeList",
+        "deleteConsumer",
+        "deleteDocument",
+        "deleteEnvironment",
+        "deleteStencil",
+        "deleteTemplate",
+        "deleteTenant",
+        "deleteTheme",
+        "deleteVariant",
+        "downloadDocument",
+        "generateDocument",
+        "generateDocumentBatch",
+        "getActiveVersion",
+        "getAttribute",
+        "getCodeList",
+        "getConsumer",
+        "getEnvironment",
+        "getFont",
+        "getGenerationJobStatus",
+        "getStencil",
+        "getStencilVersion",
+        "getStencilVersionUsage",
+        "getTemplate",
+        "getTenant",
+        "getTheme",
+        "getVariant",
+        "getVariantDraft",
+        "getVersion",
+        "importCatalog",
+        "listAttributes",
+        "listCatalogs",
+        "listCodeListEntries",
+        "listCodeLists",
+        "listConsumers",
+        "listDocuments",
+        "listEnvironments",
+        "listFonts",
+        "listGenerationJobs",
+        "listStencilVersions",
+        "listStencils",
+        "listTemplates",
+        "listTenants",
+        "listThemes",
+        "listVariantActivations",
+        "listVariants",
+        "listVersions",
+        "previewCatalogUpgrade",
+        "previewDocument",
+        "previewStencilUpgrade",
+        "publishStencilVersion",
+        "publishVersion",
+        "refreshCodeList",
+        "registerConsumer",
+        "rejectConsumer",
+        "removeVariantActivation",
+        "rotatePublicKey",
+        "setDefaultVariant",
+        "updateAttribute",
+        "updateCodeList",
+        "updateConsumer",
+        "updateEnvironment",
+        "updateStencil",
+        "updateStencilDraft",
+        "updateTemplate",
+        "updateTenant",
+        "updateTheme",
+        "updateVariant",
+        "updateVersion",
+        "upsertVariantDraft",
+        "validateTemplateData"
+      ]
+    },
+    {
+      "version": "0.8.0",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.9.0",
+      "breaking": false,
+      "brokenOperations": []
+    },
+    {
+      "version": "0.10.0",
+      "breaking": true,
+      "brokenOperations": [
+        "listConsumers",
+        "listDocuments",
+        "listGenerationJobs",
+        "listTenants"
+      ]
+    },
+    {
+      "version": "0.11.0",
+      "breaking": false,
+      "brokenOperations": []
+    }
+  ]
+}

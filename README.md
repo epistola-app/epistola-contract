@@ -186,6 +186,29 @@ This repository uses a versioning scheme tied to the OpenAPI spec version:
 - `1.0.1` - Second release (bug fix, dependency update)
 - `1.1.0` - First release after API minor version bump (spec changed to 1.1.x)
 
+### Compatibility log ([`compatibility-log.json`](./compatibility-log.json))
+
+The committed `compatibility-log.json` is the machine-computed record of which
+released contract versions **broke wire compatibility**, and exactly which
+operations they broke. It is generated from the release tags — for every
+consecutive pair of releases the two specs are bundled and compared with
+`oasdiff breaking` (the same tool and flags as `make breaking`):
+
+```json
+{ "version": "0.10.0", "breaking": true,
+  "brokenOperations": ["listConsumers", "listDocuments", "listGenerationJobs", "listTenants"] }
+```
+
+Consumers of the log (the version-compatibility matrix in `epistola-suite`)
+join it with a client's declared operations to answer: _does any breaking
+change between the client's contract version and the server's touch an
+operation this client actually uses?_ That gives operation-level verdicts
+instead of a coarse whole-contract rule.
+
+Regenerate after a release with `make compatibility-log` and commit the result.
+The output is deterministic (no timestamps), so a stale log is detectable by
+regenerating and diffing.
+
 ## Development Workflow
 
 ### Day-to-day Development
