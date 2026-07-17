@@ -229,6 +229,31 @@ by the breaking-change workflow):
 
 Breaking changes themselves are never blocked — only an inconsistent spec is.
 
+### Compatibility matrix ([`compatibility/`](./compatibility/))
+
+This repo is also the **home of the cross-artifact compatibility matrix**: the
+contract is the anchor every artifact speaks, so the verdicts are judged and
+published here, neutrally — the suite and external plugins are equal peers.
+Each artifact publishes its own `compatibility.json` feed (servers declare the
+contract version they implement; clients declare the version they target and
+the operations they call); [`compatibility/feeds.txt`](./compatibility/feeds.txt)
+lists the sources.
+
+`compatibility/aggregate.sh` fetches the feeds (best effort — a feed that has
+not shipped yet is skipped, never fatal), joins them with
+`compatibility-log.json`, and writes `compatibility/aggregate.json`;
+`compatibility/render.sh` renders [`compatibility/MATRIX.md`](./compatibility/MATRIX.md).
+A pairing is judged **operation-level** when possible (incompatible only if a
+breaking release between the client's target and the server's contract touches
+an operation the client uses), falling back to the range rule
+(`floor <= target <= serverContract`) otherwise. Outputs are deterministic; the
+`Compatibility Matrix` workflow (daily schedule + manual + on log changes)
+regenerates and commits them, so the matrix has memory and a stable URL.
+
+Verification that a published suite image really *serves* what it declares
+lives in `epistola-suite` (its compatibility smoke workflow) — this repo only
+judges declarations.
+
 ## Development Workflow
 
 ### Day-to-day Development

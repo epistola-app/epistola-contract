@@ -1,0 +1,59 @@
+name: Compatibility Matrix
+
+# The matrix's home: this repo is the anchor every artifact speaks, so the
+# verdicts are judged and published here, neutrally. Each artifact publishes
+# its own compatibility.json feed (see compatibility/feeds.txt); this job
+# fetches them, joins them with compatibility-log.json, renders the table, and
+# commits the result — so the matrix has memory and a stable URL instead of
+# evaporating as CI artifacts. Verification that a published suite image
+# really serves what it declares stays in epistola-suite (its smoke workflow).
+#
+# Cheap by design: fetch a few JSON files + jq. Runs on a daily schedule (to
+# pick up feed changes in the other repos), on manual dispatch, and when the
+# log or the matrix machinery changes here.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "compatibility-log.json"
+      - "compatibility/**"
+
+permissions:
+  contents: write
+
+jobs:
+  aggregate:
+    name: Aggregate & publish matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Aggregate feeds and render matrix
+        run: |
+          compatibility/aggregate.sh
+          compatibility/render.sh
+          {
+            echo "## Compatibility matrix"
+            echo
+            compatibility/render.sh --out -
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Outputs are deterministic (no timestamps), so this commits only when a
+      # feed or the log actually changed. [skip ci] stops the push from
+      # retriggering this workflow via its own paths filter.
+      - name: Commit updated matrix
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add compatibility/aggregate.json compatibility/MATRIX.md
+          if git diff --cached --quiet; then
+            echo "matrix unchanged — nothing to commit"
+          else
+            git commit -m "chore: update compatibility matrix [skip ci]"
+            git push
+          fi

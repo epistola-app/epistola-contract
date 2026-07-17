@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "anchor": "epistola-contract",
+  "rule": "no breaking change in (target .. serverContract] touches a used operation; else floor <= target <= serverContract",
+  "rows": []
+}

@@ -1,0 +1,19 @@
+# Feed sources for the compatibility matrix (compatibility/aggregate.sh).
+#
+# One source per line — a local path or an http(s) URL to an artifact's
+# compatibility.json. Every artifact publishes the same feed format: servers
+# declare the contract version they implement (role "server"), clients declare
+# the contract version they target and the operations they call (role
+# "client"). Fetching is best effort: an unreachable or malformed feed is
+# warned and skipped, so a source can be listed before that side has shipped.
+#
+# A release-tagged raw URL (…/vX.Y.Z/compatibility.json) pins a released
+# artifact as an extra matrix row next to its main-branch state.
+#
+# Blank lines and `#` comments are ignored.
+
+# epistola-suite (server) — the contract version the suite implements.
+https://raw.githubusercontent.com/epistola-app/epistola-suite/main/compatibility.json
+
+# valtimo-epistola-plugin (client) — target contract version + used operations.
+https://raw.githubusercontent.com/epistola-app/valtimo-epistola-plugin/main/compatibility.json
