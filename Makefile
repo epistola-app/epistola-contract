@@ -70,6 +70,11 @@ breaking: bundle
 compatibility-log:
 	@scripts/generate-compatibility-log.sh
 
+# Verify the compatibility floor + log are consistent with the spec history
+# (gated in CI: a breaking change must move info.version and the floor together)
+check-floor:
+	@scripts/check-compatibility-floor.sh
+
 # Generate API docs and open in browser
 docs: bundle
 	@echo "==> Building API documentation..."

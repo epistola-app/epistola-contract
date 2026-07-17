@@ -5,6 +5,9 @@ on:
     paths:
       - 'epistola-api.yaml'
       - 'spec/**'
+      - 'compatibility-log.json'
+      - 'scripts/generate-compatibility-log.sh'
+      - 'scripts/check-compatibility-floor.sh'
 
 jobs:
   breaking-changes:
@@ -132,3 +135,13 @@ jobs:
                 body: body
               });
             }
+
+      # GATED (unlike the informational report above). Breaking changes are
+      # still allowed — this fails only when the spec is INCONSISTENT: a
+      # breaking change without info.version and x-min-compatible-version
+      # moving together, a floor raised without a break, or a stale
+      # compatibility-log.json. The floor is the one hand-maintained value in
+      # the compatibility system; a forgotten bump silently poisons every
+      # downstream verdict, so it is enforced here rather than remembered.
+      - name: Check compatibility floor
+        run: scripts/check-compatibility-floor.sh

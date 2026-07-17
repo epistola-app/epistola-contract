@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CI-gated compatibility floor.** `scripts/check-compatibility-floor.sh` (`make check-floor`, run by the breaking-change workflow) enforces the floor's staircase invariant: a breaking change vs the last release requires `info.version` bumped and `x-min-compatible-version` raised to that new version; without a break the floor must stay put; and `compatibility-log.json` must cover the newest release. Intentional breaking changes stay allowed — only an inconsistent spec (a break without the version and floor moving together, or a floor raised without a break) fails the build. This closes the failure mode where a forgotten floor bump silently turns every downstream compatibility verdict into a false "compatible".
 - **Machine-computed compatibility log (`compatibility-log.json`).** A committed, deterministic record of which released contract versions broke wire compatibility and exactly which operations they broke, generated from the release tags with `oasdiff breaking` (`make compatibility-log` / `scripts/generate-compatibility-log.sh`). It is the anchor-side feed of the cross-repo version-compatibility matrix: joined with a client's declared operations it yields operation-level verdicts ("does any breaking change in this window touch a call this client makes?") instead of the coarse whole-contract floor rule alone.
 
 ## [0.11.0] - 2026-07-10

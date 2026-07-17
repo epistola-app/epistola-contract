@@ -209,6 +209,26 @@ Regenerate after a release with `make compatibility-log` and commit the result.
 The output is deterministic (no timestamps), so a stale log is detectable by
 regenerating and diffing.
 
+### Compatibility floor (gated in CI)
+
+`info.x-min-compatible-version` in `epistola-api.yaml` is the **compatibility
+floor**: the oldest contract version the current spec is still wire-compatible
+with. It moves in a staircase — raised to exactly `info.version` when a release
+ships a breaking change, unchanged otherwise (so the accepted range
+`[floor .. version]` widens across non-breaking releases).
+
+The floor is the one hand-maintained value in the compatibility system, so CI
+enforces it (`make check-floor` / `scripts/check-compatibility-floor.sh`, run
+by the breaking-change workflow):
+
+- breaking changes vs the last release ⇒ `info.version` must be bumped **and**
+  the floor raised to that new version;
+- no breaking changes ⇒ the floor must be unchanged (raising it would falsely
+  exclude working clients);
+- `compatibility-log.json` must cover the newest release.
+
+Breaking changes themselves are never blocked — only an inconsistent spec is.
+
 ## Development Workflow
 
 ### Day-to-day Development
