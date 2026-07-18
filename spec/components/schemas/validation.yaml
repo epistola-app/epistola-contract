@@ -73,3 +73,130 @@ TemplateDataValidationError:
     path: "$.customer.email"
     message: "must be a valid email address"
     keyword: "format"
+
+CheckRecentUsageRequest:
+  type: object
+  description: >
+    Request body for checking a prospective data-model change against recent usage.
+    The candidate schema is validated against the input data of recently generated
+    documents to reveal whether the change would break real recent usage.
+  required:
+    - dataModel
+  properties:
+    dataModel:
+      type: object
+      additionalProperties: true
+      description: The prospective JSON Schema (data model) to test recent usage against
+      example:
+        type: object
+        required:
+          - name
+          - taxId
+        properties:
+          name:
+            type: string
+          taxId:
+            type: string
+  example:
+    dataModel:
+      type: object
+      required: [name, taxId]
+      properties:
+        name:
+          type: string
+        taxId:
+          type: string
+
+RecentUsageImpact:
+  type: object
+  description: >
+    Whether a prospective data-model change would break the input data of recently
+    generated documents. Only regressions are reported — payloads that were valid under
+    the currently-published contract but fail the candidate schema. Values are never
+    echoed; only field paths and counts are returned.
+  required:
+    - applicable
+    - windowDays
+    - sampledDocuments
+    - distinctShapes
+    - failingShapes
+    - failingDocuments
+    - capped
+    - fields
+  properties:
+    applicable:
+      type: boolean
+      description: >
+        Whether a check was performed. False when there is no published baseline or the
+        candidate introduces no destructive change — in those cases nothing recent could
+        regress and all counts are zero.
+      example: true
+    windowDays:
+      type: integer
+      format: int64
+      description: The look-back window used, in days
+      example: 30
+    sampledDocuments:
+      type: integer
+      description: Number of recent documents examined
+      example: 340
+    distinctShapes:
+      type: integer
+      description: Number of distinct payload shapes among the sampled documents
+      example: 5
+    failingShapes:
+      type: integer
+      description: Number of distinct shapes that regress under the candidate schema
+      example: 2
+    failingDocuments:
+      type: integer
+      description: Number of sampled documents that regress under the candidate schema
+      example: 180
+    capped:
+      type: boolean
+      description: True when the sample hit the scan cap and older in-window usage went unchecked
+      example: false
+    fields:
+      type: array
+      description: Per-field breakdown of what broke, most-affected first (paths only, no values)
+      items:
+        $ref: '#/RecentUsageFieldImpact'
+  example:
+    applicable: true
+    windowDays: 30
+    sampledDocuments: 340
+    distinctShapes: 5
+    failingShapes: 2
+    failingDocuments: 180
+    capped: false
+    fields:
+      - path: taxId
+        reason: '"taxId" added as required'
+        failingDocuments: 180
+
+RecentUsageFieldImpact:
+  type: object
+  description: How many recently generated documents break at a single schema path
+  required:
+    - path
+    - reason
+    - failingDocuments
+  properties:
+    path:
+      type: string
+      description: >
+        Dotted schema path that broke — e.g. `customer.taxId` for a nested field or
+        `items[].sku` for an array element; the document root is reported as `<root>`.
+      example: taxId
+    reason:
+      type: string
+      description: Human-readable, schema-derived explanation (never a payload value)
+      example: '"taxId" added as required'
+    failingDocuments:
+      type: integer
+      description: How many sampled documents broke at this path
+      example: 180
+  example:
+    path: taxId
+    reason: '"taxId" added as required'
+    failingDocuments: 180
