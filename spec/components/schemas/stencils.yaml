@@ -250,7 +250,7 @@ StencilVersionDto:
           styles:
             marginBottom: "2sp"
           props:
-            src: "{{company.logo}}"
+            assetId: company-logo
             alt: "Company logo"
         node-company-name:
           id: node-company-name
@@ -260,7 +260,14 @@ StencilVersionDto:
             fontSize: "18pt"
             fontWeight: bold
           props:
-            content: "{{company.name}}"
+            content:
+              type: doc
+              content:
+                - type: paragraph
+                  content:
+                    - type: expression
+                      attrs:
+                        expression: company.name
       slots:
         slot-root-children:
           id: slot-root-children

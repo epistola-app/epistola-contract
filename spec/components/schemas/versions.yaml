@@ -71,7 +71,16 @@ VersionDto:
             fontSize: "24pt"
             fontWeight: bold
           props:
-            content: "Invoice {{invoiceNumber}}"
+            content:
+              type: doc
+              content:
+                - type: paragraph
+                  content:
+                    - type: text
+                      text: "Invoice "
+                    - type: expression
+                      attrs:
+                        expression: invoiceNumber
         node-columns:
           id: node-columns
           type: columns
@@ -80,21 +89,59 @@ VersionDto:
             - slot-col-1
           styles: {}
           props:
-            columnCount: 2
+            columnSizes:
+              - 1
+              - 1
+            gap: 0
         node-from:
           id: node-from
           type: text
           slots: []
           styles: {}
           props:
-            content: "**From:** Acme Corporation\n1 Enterprise Way\nSpringfield, IL 62704"
+            content:
+              type: doc
+              content:
+                - type: paragraph
+                  content:
+                    - type: text
+                      text: "From:"
+                      marks:
+                        - type: bold
+                    - type: hardBreak
+                    - type: text
+                      text: "Acme Corporation"
+                    - type: hardBreak
+                    - type: text
+                      text: "1 Enterprise Way"
+                    - type: hardBreak
+                    - type: text
+                      text: "Springfield, IL 62704"
         node-to:
           id: node-to
           type: text
           slots: []
           styles: {}
           props:
-            content: "**To:** {{customer.name}}\n{{customer.address.street}}\n{{customer.address.city}}, {{customer.address.postalCode}}"
+            content:
+              type: doc
+              content:
+                - type: paragraph
+                  content:
+                    - type: text
+                      text: "To:"
+                      marks:
+                        - type: bold
+                    - type: hardBreak
+                    - type: expression
+                      attrs:
+                        expression: customer.name
+                    - type: hardBreak
+                    - type: text
+                      text: "{{customer.address.street}}"
+                    - type: hardBreak
+                    - type: text
+                      text: "{{customer.address.city}}, {{customer.address.postalCode}}"
       slots:
         slot-root-children:
           id: slot-root-children
