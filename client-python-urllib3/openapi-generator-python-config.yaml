@@ -1,0 +1,13 @@
+# OpenAPI Generator config for the Epistola Python client.
+# Mirrors the Kotlin/.NET clients' stock-generator approach: no custom templates,
+# no schema/type mappings — only config options.
+#
+# The generated sources land under generated/epistola_client_generated/{api,models,...}
+# and are re-exported/wrapped by the hand-written package at src/epistola_client.
+packageName: epistola_client_generated
+library: urllib3
+# pydantic v2 models (generator 7.19.0 default) + urllib3 transport (sync).
+generateSourceCodeOnly: false
+projectName: epistola-client-generated
+# Keep enum member naming predictable for match/switch on problem slugs etc.
+enumPropertyNaming: UPPERCASE

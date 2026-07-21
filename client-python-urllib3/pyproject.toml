@@ -1,0 +1,78 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "epistola-client"
+dynamic = ["version"]
+description = "Python client library for the Epistola document generation API, using urllib3. Generated from the Epistola OpenAPI contract, with identity headers, RFC 9457 problem-detail error handling, self-signed JWT auth, NDJSON result collection, and client-side schema validation."
+readme = "README.md"
+license = "EUPL-1.2"
+requires-python = ">=3.9"
+authors = [{ name = "Sander de Groot" }]
+keywords = ["epistola", "openapi", "document-generation", "client", "api"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    # Generated urllib3 client runtime.
+    "urllib3>=2.1.0,<3.0.0",
+    "python-dateutil>=2.8.2",
+    "pydantic>=2",
+    "typing-extensions>=4.7.1",
+    # Self-signed JWT auth (JwtSigner).
+    "pyjwt[crypto]>=2.8.0",
+    # Client-side JSON Schema validation (TemplateSchemaValidator).
+    "jsonschema>=4.21.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/epistola-app/epistola-contract"
+Repository = "https://github.com/epistola-app/epistola-contract.git"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    # Build-time derived-source generator (gen/generate_derived.py).
+    "PyYAML>=6.0",
+]
+
+# Version is the Epistola contract version (info.version), read from the generated
+# contract_version.py so every client — Kotlin, .NET, Python — versions in lockstep
+# off the spec. For snapshot / feature-snapshot builds, CI rewrites CONTRACT_VERSION
+# to the PEP 440 dev version before building (see .github/workflows). Requires
+# `make bundle && ./generate.sh` to have produced contract_version.py first.
+[tool.hatch.version]
+path = "src/epistola_client/_generated/contract_version.py"
+pattern = 'CONTRACT_VERSION = "(?P<version>[^"]+)"'
+
+# The stock generated package and the derived sources are gitignored (rebuilt from
+# the spec), so hatchling would exclude them from the sdist/wheel by default. Force
+# them in as build artifacts.
+[tool.hatch.build]
+artifacts = [
+    "generated/epistola_client_generated/**/*.py",
+    "generated/epistola_client_generated/py.typed",
+    "src/epistola_client/_generated/**/*.py",
+]
+
+[tool.hatch.build.targets.wheel]
+# Two source roots: the hand-written package (src/) and the stock generated package
+# (generated/). `sources` strips the root prefixes so both land at the wheel root.
+only-include = ["src/epistola_client", "generated/epistola_client_generated"]
+sources = ["src", "generated"]
+# Editable installs (`uv sync`) must expose both source roots on sys.path.
+dev-mode-dirs = ["src", "generated"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/epistola_client",
+    "generated/epistola_client_generated",
+    "README.md",
+    "CHANGELOG.md",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

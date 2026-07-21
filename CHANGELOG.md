@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Python client CI generation.** `client-python-urllib3/generate.sh` now runs its
+  derived-source generator without asking `uv` to install the package first, avoiding the circular
+  hatchling dynamic-version failure where `contract_version.py` had to exist before it could be
+  generated.
+- **Python client packaging checks.** Pull request CI now builds the Python wheel and source
+  distribution after the test suite, so packaging regressions are caught before release or snapshot
+  publishing.
+
+### Changed
+
+- **Python trusted-publisher staging.** The release documentation now records that PyPI/TestPyPI
+  trusted publishers should temporarily be configured under Sander de Groot's personal PyPI account
+  while the Epistola organization approval is pending.
+
 ## [0.12.0] - 2026-07-17
 
 ### Added
@@ -26,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **`VariantDto.title` and `VariantSummaryDto.title` are now required and non-nullable.** The server stores `template_variants.title` as `NOT NULL`, so every variant response carries a non-blank title (`minLength: 1`, `maxLength: 100`). Additive for consumers — a stronger guarantee, not a breaking change.
+
+- **Python client library (`epistola-client`).** A new `client-python-urllib3/` module generates a full Python client from the same bundled OpenAPI spec using OpenAPI Generator (`python` / urllib3, pydantic v2 models), at full feature parity with the Kotlin and .NET clients and consumable by any Python 3.9+ project via pip. It follows the same three-part structure — stock generated code, hand-written glue (identity headers, self-signed JWT auth, RFC 9457 problem-detail handling, NDJSON result collection with murmur3 partition routing, client-side JSON-Schema validation), and build-time derived sources (`contract_version`, `known_problem_slugs`, `model_validation`) generated from the spec's `info.version`, `x-problem-types` registry, and schema constraints. See [`client-python-urllib3/CHANGELOG.md`](client-python-urllib3/CHANGELOG.md) for the client's feature list and ongoing history. Wired into the `Makefile` (`make build-python`) and the build/snapshot/release workflows; releases publish to PyPI via OIDC trusted publishing (no stored token, mirroring the npm/NuGet OIDC publishes), while mainline snapshots publish to TestPyPI (also via OIDC — GitHub Packages has no PyPI registry and pypi.org is reserved for releases). Feature branches build/install locally (`make publish-local`) rather than publishing. Requires `python` and `uv` in `.mise.toml` and trusted-publisher policies on pypi.org (for `release.yml`) and test.pypi.org (for `snapshot.yml`).
 
 ## [0.11.0] - 2026-07-10
 

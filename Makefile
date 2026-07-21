@@ -1,4 +1,4 @@
-.PHONY: all lint bundle build-client build-server build-epistola-model build-dotnet build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
+.PHONY: all lint bundle build-client build-server build-epistola-model build-dotnet build-python build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
 
 # Pinned CLI tools (versions in tools/package.json, locked in tools/pnpm-lock.yaml)
 REDOCLY := tools/node_modules/.bin/redocly
@@ -25,7 +25,7 @@ bundle: $(REDOCLY)
 	@echo "==> Created openapi.yaml"
 
 # Build all modules
-build: build-client build-server build-epistola-model build-dotnet
+build: build-client build-server build-epistola-model build-dotnet build-python
 
 # Build Kotlin client
 build-client:
@@ -47,6 +47,11 @@ build-dotnet: bundle
 	@echo "==> Building .NET client..."
 	cd client-dotnet-httpclient && ./generate.sh && dotnet test Epistola.Client.sln -c Release
 
+# Build Python client (generates from the bundled spec, then builds and tests)
+build-python: bundle
+	@echo "==> Building Python client..."
+	cd client-python-urllib3 && ./generate.sh && uv run --group dev pytest
+
 # Generate a CycloneDX SBOM for the .NET client's dependency closure
 sbom-dotnet:
 	@echo "==> Generating .NET client SBOM (CycloneDX)..."
@@ -61,6 +66,7 @@ clean:
 	cd server-kotlin-springboot4 && ./gradlew clean
 	cd epistola-model && ./gradlew clean
 	cd client-dotnet-httpclient && rm -rf Generated src/Epistola.Client/Generated bin obj src/*/bin src/*/obj test/*/bin test/*/obj
+	cd client-python-urllib3 && rm -rf generated src/epistola_client/_generated dist build .venv .pytest_cache && find . -name __pycache__ -type d -prune -exec rm -rf {} +
 
 # Publish to local Maven repository (for testing)
 publish-local: build
@@ -72,6 +78,9 @@ publish-local: build
 	@echo "==> Packing .NET client to client-dotnet-httpclient/nupkgs/..."
 	cd client-dotnet-httpclient && dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -o nupkgs
 	@echo "==> Packed .NET client to client-dotnet-httpclient/nupkgs/"
+	@echo "==> Building Python client wheel + sdist to client-python-urllib3/dist/..."
+	cd client-python-urllib3 && ./generate.sh && uv build
+	@echo "==> Built Python client to client-python-urllib3/dist/"
 
 # Check for breaking changes against main branch
 breaking: bundle
@@ -151,6 +160,7 @@ help:
 	@echo "  build-server         - Build Kotlin server only"
 	@echo "  build-epistola-model - Build template model only"
 	@echo "  build-dotnet         - Build .NET client only"
+	@echo "  build-python         - Build Python client only"
 	@echo "  sbom-dotnet          - Generate a CycloneDX SBOM for the .NET client"
 	@echo "  clean          - Clean all build artifacts"
 	@echo "  publish-local  - Publish to local Maven repository"

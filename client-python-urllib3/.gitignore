@@ -1,0 +1,16 @@
+# Stock OpenAPI-generated client — regenerated from the spec by generate.sh.
+/generated/
+
+# Derived sources — regenerated from the spec by gen/generate_derived.py.
+/src/epistola_client/_generated/
+
+# Build / packaging artifacts.
+/dist/
+/build/
+*.egg-info/
+
+# Virtualenv / caches.
+/.venv/
+__pycache__/
+.pytest_cache/
+uv.lock

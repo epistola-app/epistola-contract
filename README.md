@@ -63,6 +63,8 @@ epistola-contract/
 │   │   └── build.gradle.kts
 │   ├── build.gradle.kts
 │   └── settings.gradle.kts
+├── client-dotnet-httpclient/          # Generated .NET client (HttpClient)
+├── client-python-urllib3/             # Generated Python client (urllib3)
 ├── server-kotlin-springboot4/            # Generated Spring server stubs
 │   ├── build.gradle.kts
 │   ├── gradle/
@@ -157,6 +159,21 @@ A Kotlin client library using:
 - **Spring RestClient** (Spring Boot 3.2+)
 - **Jackson** for JSON serialization
 - Java 8 date/time handling
+
+### .NET Client (`Epistola.Contract.Client`)
+
+A .NET 8 client library using:
+- **HttpClient** with a composable handler chain
+- Newtonsoft.Json serialization
+- Identity headers, self-signed JWT auth, RFC 9457 problem-detail handling, NDJSON
+  result collection, and client-side schema validation
+
+### Python Client (`epistola-client`)
+
+A Python 3.9+ client library using:
+- **urllib3** transport with **pydantic v2** models
+- Identity headers, self-signed JWT auth, RFC 9457 problem-detail handling, NDJSON
+  result collection, and client-side JSON-Schema validation
 
 ### Kotlin Server (`app.epistola.contract:server-kotlin-springboot4`)
 
@@ -351,6 +368,14 @@ Configure these secrets in your GitHub repository settings:
 | `GPG_PASSPHRASE` | GPG key passphrase |
 | `GPG_KEY_ID` | GPG key ID (last 8 characters) |
 
+### Python Trusted Publishing
+
+The Python client publishes to PyPI/TestPyPI via OIDC trusted publishing. While the
+Epistola PyPI organization is pending approval, configure the `epistola-client` project
+under Sander de Groot's personal PyPI/TestPyPI account. The trusted-publisher records
+still use GitHub owner `epistola-app`, repository `epistola-contract`, and the workflow
+files `release.yml` (PyPI) and `snapshot.yml` (TestPyPI).
+
 ### Local Testing
 
 Use the Makefile to simulate CI locally:
@@ -474,6 +499,38 @@ val validator = TemplateSchemaValidator(templatesApi, cache = myCache)
 
 For batch generation requests, all items are validated and errors are collected into a single exception with indexed paths (e.g. `items[0]/customer/email`, `items[2]/invoiceNumber`).
 
+### .NET Client (NuGet)
+
+```bash
+dotnet add package Epistola.Contract.Client
+```
+
+See [`client-dotnet-httpclient/README.md`](client-dotnet-httpclient/README.md) for identity,
+JWT auth, problem-detail error handling, result collection, and schema validation.
+
+### Python Client (pip)
+
+```bash
+pip install epistola-client
+```
+
+```python
+from epistola_client import EpistolaClientBuilder, ClientIdentity, TemplatesApi
+
+http = (
+    EpistolaClientBuilder()
+    .base_url("https://api.epistola.app")
+    .identity(ClientIdentity.builder().node_id("my-pod").build())
+    .install_problem_detail_handler()
+    .build()
+)
+templates = TemplatesApi(http)
+```
+
+See [`client-python-urllib3/README.md`](client-python-urllib3/README.md) for JWT auth,
+problem-detail error handling (`type_slug` / `KnownProblemSlugs`), NDJSON result collection,
+and client-side schema validation.
+
 ### Kotlin Server (Gradle)
 
 ```kotlin
@@ -506,6 +563,8 @@ All artifacts are built and tested in parallel via GitHub Actions:
 1. **Spec Validation**: Validates OpenAPI spec with Redocly CLI
 2. **Kotlin Client**: Generates and builds the Spring RestClient-based client
 3. **Kotlin Server**: Generates and builds the Spring server stubs
+4. **.NET Client**: Generates, builds, and tests the HttpClient-based client
+5. **Python Client**: Generates, builds, and tests the urllib3-based client
 
 ## License
 

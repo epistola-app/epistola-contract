@@ -1,0 +1,22 @@
+# Passed to openapi-generator via --ignore-file-override so it survives the
+# wipe-and-regenerate of the generated/ directory (which is gitignored).
+#
+# We keep ONLY the generated Python package sources (the epistola_client_generated
+# package). The packaging scaffolding — pyproject/setup.py, tox, README, docs,
+# test scaffolding, git helpers — is provided by the hand-written module at
+# src/epistola_client / the module root instead.
+setup.py
+setup.cfg
+pyproject.toml
+requirements.txt
+test-requirements.txt
+tox.ini
+README.md
+docs/**
+test/**
+tests/**
+.gitignore
+.gitlab-ci.yml
+.travis.yml
+git_push.sh
+.openapi-generator-ignore

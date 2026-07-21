@@ -102,3 +102,7 @@ jobs:
           dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -p:Version="$NUGET_VERSION" -o nupkgs
           dotnet nuget add source --username ${{ github.repository_owner }} --password "$GITHUB_TOKEN" --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
           dotnet nuget push "nupkgs/*.nupkg" --source github --api-key "$GITHUB_TOKEN" --skip-duplicate
+
+  # The Python client has no feature-snapshot publish: for feature branches, build and install
+  # locally instead (`make publish-local`, or `cd client-python-urllib3 && ./generate.sh && uv build`
+  # then `pip install dist/*.whl`). Mainline snapshots still publish to TestPyPI (snapshot.yml).
