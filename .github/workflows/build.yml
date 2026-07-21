@@ -120,7 +120,7 @@ jobs:
 
       - name: Build and test
         working-directory: client-python-urllib3
-        run: ./generate.sh && uv run --group dev pytest
+        run: ./generate.sh && uv run --group dev pytest && uv build
 
   # Editor model build (no OpenAPI spec dependency)
   epistola-model:

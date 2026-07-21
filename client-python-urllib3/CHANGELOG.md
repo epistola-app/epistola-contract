@@ -9,6 +9,19 @@ records contract/spec changes. This file records changes specific to the Python 
 
 ## [Unreleased]
 
+### Fixed
+
+- `generate.sh` now runs the derived-source generator without installing the package first, fixing
+  GitHub Actions failures where hatchling tried to read the generated `contract_version.py` before
+  it existed.
+- Pull request CI now builds the Python wheel and source distribution after tests, so packaging
+  failures are caught before release or snapshot publishing.
+
+### Changed
+
+- Documented that PyPI/TestPyPI trusted publishing should temporarily be configured under Sander de
+  Groot's personal PyPI account while the Epistola organization approval is pending.
+
 ### Added
 
 - **Initial release** — a Python client for the Epistola API, generated from the OpenAPI contract

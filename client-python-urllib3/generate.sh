@@ -51,7 +51,9 @@ find "$GEN_OUT" -mindepth 1 -maxdepth 1 \
 
 echo "==> Generating derived sources (contract_version, known_problem_slugs, model_validation)"
 mkdir -p "$DERIVED_OUT"
-# Run through uv so PyYAML (a dev dependency) is on the path.
-uv run --project "$SCRIPT_DIR" --group dev python "$SCRIPT_DIR/gen/generate_derived.py" "$SPEC" "$DERIVED_OUT"
+# Run the generator in an isolated uv environment. Do not run it as the project:
+# hatchling reads the generated contract_version.py for the package version, and
+# that file is exactly what this step is creating.
+uv run --no-project --with "PyYAML>=6.0" python "$SCRIPT_DIR/gen/generate_derived.py" "$SPEC" "$DERIVED_OUT"
 
 echo "==> Done. Install/test with: uv run --project $SCRIPT_DIR pytest"

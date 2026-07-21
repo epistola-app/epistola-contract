@@ -368,6 +368,14 @@ Configure these secrets in your GitHub repository settings:
 | `GPG_PASSPHRASE` | GPG key passphrase |
 | `GPG_KEY_ID` | GPG key ID (last 8 characters) |
 
+### Python Trusted Publishing
+
+The Python client publishes to PyPI/TestPyPI via OIDC trusted publishing. While the
+Epistola PyPI organization is pending approval, configure the `epistola-client` project
+under Sander de Groot's personal PyPI/TestPyPI account. The trusted-publisher records
+still use GitHub owner `epistola-app`, repository `epistola-contract`, and the workflow
+files `release.yml` (PyPI) and `snapshot.yml` (TestPyPI).
+
 ### Local Testing
 
 Use the Makefile to simulate CI locally:

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Python client CI generation.** `client-python-urllib3/generate.sh` now runs its
+  derived-source generator without asking `uv` to install the package first, avoiding the circular
+  hatchling dynamic-version failure where `contract_version.py` had to exist before it could be
+  generated.
+- **Python client packaging checks.** Pull request CI now builds the Python wheel and source
+  distribution after the test suite, so packaging regressions are caught before release or snapshot
+  publishing.
+
+### Changed
+
+- **Python trusted-publisher staging.** The release documentation now records that PyPI/TestPyPI
+  trusted publishers should temporarily be configured under Sander de Groot's personal PyPI account
+  while the Epistola organization approval is pending.
+
 ## [0.12.0] - 2026-07-17
 
 ### Added
