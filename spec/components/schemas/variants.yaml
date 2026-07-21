@@ -4,6 +4,7 @@ VariantDto:
   required:
     - id
     - templateId
+    - title
     - attributes
     - isDefault
     - hasDraft
@@ -26,9 +27,9 @@ VariantDto:
       description: Slug identifier of the template this variant belongs to
       example: invoice
     title:
-      type:
-        - string
-        - 'null'
+      type: string
+      minLength: 1
+      maxLength: 100
       description: Human-readable title for the variant
       example: English Invoice
     description:
@@ -88,6 +89,7 @@ VariantSummaryDto:
   description: Summary view of a variant for inclusion in template responses
   required:
     - id
+    - title
     - attributes
     - isDefault
     - hasDraft
@@ -101,9 +103,9 @@ VariantSummaryDto:
       description: Slug identifier of the variant
       example: english
     title:
-      type:
-        - string
-        - 'null'
+      type: string
+      minLength: 1
+      maxLength: 100
       description: Human-readable title for the variant
       example: English Invoice
     attributes:
@@ -143,6 +145,7 @@ CreateVariantRequest:
   description: Request body for creating a new variant
   required:
     - id
+    - title
   properties:
     id:
       type: string
@@ -152,9 +155,9 @@ CreateVariantRequest:
       description: Client-provided slug identifier for the variant
       example: english
     title:
-      type:
-        - string
-        - 'null'
+      type: string
+      minLength: 1
+      maxLength: 100
       description: Human-readable title for the variant
       example: English Invoice
     description:
@@ -175,11 +178,13 @@ CreateVariantRequest:
 UpdateVariantRequest:
   type: object
   description: Request body for updating a variant
+  required:
+    - title
   properties:
     title:
-      type:
-        - string
-        - 'null'
+      type: string
+      minLength: 1
+      maxLength: 100
       description: Human-readable title for the variant
       example: English Invoice (Updated)
     description:

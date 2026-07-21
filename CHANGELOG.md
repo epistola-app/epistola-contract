@@ -7,9 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-07-17
+
 ### Added
 
 - **.NET (C#) client library (`Epistola.Contract.Client`).** A new `client-dotnet-httpclient/` module generates a full .NET 8 client from the same bundled OpenAPI spec using OpenAPI Generator (`csharp` / `HttpClient`), at full feature parity with the Kotlin client and consumable by any modern .NET project via NuGet. See [`client-dotnet-httpclient/CHANGELOG.md`](client-dotnet-httpclient/CHANGELOG.md) for the client's feature list and ongoing history. Wired into the `Makefile` (`make build-dotnet`) and the build/snapshot/feature-snapshot/release workflows; releases publish to NuGet.org via OIDC trusted publishing (no stored API key, mirroring the npm OIDC publish), while snapshots and feature snapshots publish to GitHub Packages (NuGet.org has no transient snapshot feed). Each release also attaches a CycloneDX SBOM (`epistola-dotnet-client-sbom.json`) for the .NET client's dependency closure (`make sbom-dotnet` locally). Requires `dotnet` in `.mise.toml` and a NuGet.org trusted-publisher policy for the `release.yml` workflow.
+- **`NodeDto.props` documents the stencil node's identity props** — `stencilId`, `catalogKey`, `version`, `isDraft` — alongside the previously documented parameter wiring (`parameterBindings`, `parameterSchemaSnapshot`, `paramsAlias`). Without these there was no documented way to state *which* stencil a `stencil` node embeds.
+- **`pagefooter` page-decoration convention documented** in `TemplateDocumentDto`, next to the existing `pageheader` rules: renders at the bottom of every page, at most one per document, placed at the document root, with `height` and `hideOnFirstPage` props. Unlike `pageheader` (server-validated), the max-1 rule is enforced by the suite's editor only; the renderer uses the first `pagefooter` and ignores any others.
+
+### Fixed
+
+- **Template-model examples now match what the suite's renderer actually accepts** (#18). Every `TemplateDocumentDto` example previously showed a `text` node's `props.content` as a markdown-ish string (`"Invoice {{invoiceNumber}}"`); the renderer expects a rich-text document *object* (ProseMirror JSON: `doc` → `paragraph`/`heading` → `text` runs / inline `expression` nodes / `hardBreak`), so a document built from the old examples rendered nothing. The examples in `template-model.yaml`, `versions.yaml`, and `stencils.yaml` are rewritten to the real shape, and `NodeDto.props` now documents it. Two more example fixes in the same sweep: `image` nodes reference an uploaded asset via `assetId` (+ optional `catalogKey`), not a `src` URL, and `columns` nodes are sized with `columnSizes` (relative weights) + `gap`, not `columnCount`.
+
+### Breaking Changes
+
+- **Variant `title` is now required.** `CreateVariantRequest.title` and `UpdateVariantRequest.title` change from optional, nullable strings to **required, non-nullable** `string`s (`minLength: 1`, `maxLength: 100`). A client must now send a non-blank title when creating or updating a variant. This makes the contract factual: the server already rejects a missing or blank title with `400 problem+json` (field `title`). (epistola-suite #631)
+
+### Changed
+
+- **`VariantDto.title` and `VariantSummaryDto.title` are now required and non-nullable.** The server stores `template_variants.title` as `NOT NULL`, so every variant response carries a non-blank title (`minLength: 1`, `maxLength: 100`). Additive for consumers — a stronger guarantee, not a breaking change.
 
 - **Python client library (`epistola-client`).** A new `client-python-urllib3/` module generates a full Python client from the same bundled OpenAPI spec using OpenAPI Generator (`python` / urllib3, pydantic v2 models), at full feature parity with the Kotlin and .NET clients and consumable by any Python 3.9+ project via pip. It follows the same three-part structure — stock generated code, hand-written glue (identity headers, self-signed JWT auth, RFC 9457 problem-detail handling, NDJSON result collection with murmur3 partition routing, client-side JSON-Schema validation), and build-time derived sources (`contract_version`, `known_problem_slugs`, `model_validation`) generated from the spec's `info.version`, `x-problem-types` registry, and schema constraints. See [`client-python-urllib3/CHANGELOG.md`](client-python-urllib3/CHANGELOG.md) for the client's feature list and ongoing history. Wired into the `Makefile` (`make build-python`) and the build/snapshot/release workflows; releases publish to PyPI via OIDC trusted publishing (no stored token, mirroring the npm/NuGet OIDC publishes), while mainline snapshots publish to TestPyPI (also via OIDC — GitHub Packages has no PyPI registry and pypi.org is reserved for releases). Feature branches build/install locally (`make publish-local`) rather than publishing. Requires `python` and `uv` in `.mise.toml` and trusted-publisher policies on pypi.org (for `release.yml`) and test.pypi.org (for `snapshot.yml`).
 
