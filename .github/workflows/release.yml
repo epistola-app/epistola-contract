@@ -108,7 +108,7 @@ jobs:
 
       - name: Download bundled spec
         if: matrix.needs_spec
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: openapi-spec
 
@@ -130,7 +130,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download bundled spec
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: openapi-spec
 
@@ -155,7 +155,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download bundled spec
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: openapi-spec
 
@@ -221,7 +221,7 @@ jobs:
 
       - name: Download bundled spec
         if: matrix.needs_spec
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: openapi-spec
 
@@ -245,7 +245,7 @@ jobs:
 
       - name: Setup npm registry
         if: matrix.module == 'epistola-model'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           registry-url: https://registry.npmjs.org
 
@@ -277,7 +277,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download bundled spec
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: openapi-spec
 
@@ -313,7 +313,7 @@ jobs:
             --set-version ${{ needs.validate-and-bundle.outputs.release_version }}
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dotnet-sbom
           path: client-dotnet-httpclient/sbom/epistola-dotnet-client-sbom.json
@@ -339,7 +339,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download bundled spec
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: openapi-spec
 
@@ -376,12 +376,12 @@ jobs:
       contents: write
     steps:
       - name: Download bundled spec
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: openapi-spec
 
       - name: Download .NET SBOM
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: dotnet-sbom
 

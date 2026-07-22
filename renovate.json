@@ -13,6 +13,13 @@
   "lockFileMaintenance": { "enabled": true },
   "packageRules": [
     {
+      "description": "Group GitHub Actions updates separately from library dependencies",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "groupSlug": "github-actions",
+      "labels": ["dependencies", "github-actions"]
+    },
+    {
       "description": "Group all non-major updates into a single PR",
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "all non-major dependencies",

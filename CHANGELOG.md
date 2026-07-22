@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **GitHub Actions Node runtime compatibility.** CI workflows now use Node 24-compatible action
+  majors for artifact transfer, mise setup, npm setup, and Docker image publishing to avoid the
+  Node 20 deprecation warnings emitted by GitHub-hosted runners.
+- **Renovate GitHub Actions grouping.** Renovate now groups GitHub Actions updates separately so
+  runtime/deprecation fixes can be reviewed independently from application dependency updates.
+
 ## [0.13.0] - 2026-07-22
 
 ### Added

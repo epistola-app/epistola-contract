@@ -116,7 +116,7 @@ jobs:
 
       - name: Download bundled spec
         if: steps.should_run.outputs.enabled == 'true' && matrix.needs_spec
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: openapi-spec
 
@@ -168,7 +168,7 @@ jobs:
 
       - name: Download bundled spec
         if: steps.should_run.outputs.enabled == 'true' && matrix.needs_spec
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: openapi-spec
 
@@ -211,7 +211,7 @@ jobs:
 
       - name: Download bundled spec
         if: steps.should_run.outputs.enabled == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: openapi-spec
 
@@ -256,7 +256,7 @@ jobs:
 
       - name: Download bundled spec
         if: steps.should_run.outputs.enabled == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: openapi-spec
 
@@ -305,7 +305,7 @@ jobs:
 
       - name: Download bundled spec
         if: steps.should_run.outputs.enabled == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: openapi-spec
 
@@ -366,7 +366,7 @@ jobs:
 
       - name: Download bundled spec
         if: steps.should_run.outputs.enabled == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: openapi-spec
 
