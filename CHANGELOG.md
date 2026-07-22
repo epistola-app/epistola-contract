@@ -10,10 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Editor component vocabulary in `epistola-model`.** The model artifact now ships the static editor
-  component registry and style registry as npm JSON exports and Maven classpath resources, with a lint
-  guard that validates component examples, child-type references, and style-key references. This makes
-  `epistola-contract` the source for the editor model vocabulary instead of relying on suite-local
-  registry dumps.
+  component registry and style registry as a typed TypeScript facade, raw npm JSON exports, and Maven
+  classpath resources, with a lint guard that validates component examples, child-type references, and
+  style-key references. This makes `epistola-contract` the source for the editor model vocabulary
+  instead of relying on suite-local registry dumps.
 
 ### Fixed
 

@@ -84,6 +84,13 @@
           "description": "Curated TemplateDocument fragments showing realistic usage."
         },
         "parameters": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": true
+            }
+          ],
           "description": "Parameter schema metadata. Null means dynamic per node; an object is a static JSON Schema."
         }
       },
@@ -111,6 +118,14 @@
           "type": "boolean",
           "default": false,
           "description": "If true, the slot name is a pattern and slots are created dynamically."
+        },
+        "locked": {
+          "type": "boolean",
+          "description": "If true, descendants in this slot are locked unless an inner slot is editable."
+        },
+        "editable": {
+          "type": "boolean",
+          "description": "If true, this slot breaks an inherited lock."
         }
       },
       "required": ["name"],
@@ -191,6 +206,7 @@
           "items": { "$ref": "#/$defs/InspectorOption" }
         },
         "defaultValue": {
+          "type": ["array", "boolean", "integer", "number", "object", "string", "null"],
           "description": "Default value for this field when creating new nodes."
         },
         "units": {

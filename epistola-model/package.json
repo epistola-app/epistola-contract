@@ -16,6 +16,10 @@
       "types": "./dist/ts/index.d.ts",
       "default": "./dist/ts/index.js"
     },
+    "./registry": {
+      "types": "./dist/generated/registry.d.ts",
+      "default": "./dist/generated/registry.js"
+    },
     "./schemas/*": "./schemas/*",
     "./registry/*": "./registry/*",
     "./generated/*": {
@@ -24,7 +28,7 @@
     }
   },
   "scripts": {
-    "generate:types": "cd schemas && json2ts --input 'template-document.schema.json' --output '../generated/template-document.ts' --cwd . && json2ts --input 'template-shared.schema.json' --output '../generated/template-shared.ts' --cwd . && json2ts --input 'theme.schema.json' --output '../generated/theme.ts' --cwd . && json2ts --input 'component-manifest.schema.json' --output '../generated/component-manifest.ts' --cwd . && json2ts --input 'style-registry.schema.json' --output '../generated/style-registry.ts' --cwd .",
+    "generate:types": "cd schemas && json2ts --input 'template-document.schema.json' --output '../generated/template-document.ts' --cwd . && json2ts --input 'template-shared.schema.json' --output '../generated/template-shared.ts' --cwd . && json2ts --input 'theme.schema.json' --output '../generated/theme.ts' --cwd . && json2ts --input 'component-manifest.schema.json' --output '../generated/component-manifest.ts' --cwd . && json2ts --input 'style-registry.schema.json' --output '../generated/style-registry.ts' --cwd . && cd .. && node ../scripts/generate-model-registry-ts.mjs",
     "build": "tsc",
     "prepublishOnly": "pnpm generate:types && pnpm build"
   },
