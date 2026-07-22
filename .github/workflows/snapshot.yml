@@ -319,7 +319,21 @@ jobs:
       - name: Build and test
         if: steps.should_run.outputs.enabled == 'true'
         working-directory: client-python-urllib3
-        run: ./generate.sh && uv run --group dev pytest
+        run: |
+          ./generate.sh
+          # PEP 440 dev version; 0.12-SNAPSHOT -> 0.12.0.dev<run_number>.
+          # The package is installed before tests, so stamp the generated version before `uv run`.
+          BASE="${{ needs.spec-validation.outputs.snapshot_version }}"
+          BASE="${BASE%-SNAPSHOT}"
+          case "$BASE" in
+            *.*.*) : ;;
+            *.*) BASE="${BASE}.0" ;;
+          esac
+          PY_VERSION="${BASE}.dev${GITHUB_RUN_NUMBER}"
+          echo "Python snapshot test version: $PY_VERSION"
+          sed -i "s/^CONTRACT_VERSION = .*/CONTRACT_VERSION = \"${PY_VERSION}\"/" \
+            src/epistola_client/_generated/contract_version.py
+          uv run --group dev pytest
 
   # Publish the Python client snapshot to TestPyPI.
   # GitHub Packages has no PyPI registry and pypi.org is reserved for releases (prereleases

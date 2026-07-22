@@ -16,6 +16,8 @@ records contract/spec changes. This file records changes specific to the Python 
   it existed.
 - Pull request CI now builds the Python wheel and source distribution after tests, so packaging
   failures are caught before release or snapshot publishing.
+- Snapshot CI now stamps the generated contract version to a PEP 440 `dev` version before pytest
+  installs the package, matching the TestPyPI publish version.
 
 ### Changed
 
