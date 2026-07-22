@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Shared agent release skill.** The release workflow now lives under `.agents/skills/release`
+  as an agent-neutral source of truth, with Claude and Codex adapters pointing at it and
+  `AGENTS.md` documenting shared skill discovery for future agents.
 - **Editor component vocabulary in `epistola-model`.** The model artifact now ships the static editor
   component registry and style registry as a typed TypeScript facade, raw npm JSON exports, and Maven
   classpath resources, with a lint guard that validates component examples, child-type references, and
