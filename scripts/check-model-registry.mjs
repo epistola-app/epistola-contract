@@ -25,11 +25,15 @@ function requireArray(value, path) {
 const componentRegistry = readJson('epistola-model/registry/component-registry.json');
 const styleRegistry = readJson('epistola-model/registry/style-registry.json');
 
+// The component registry is consumed by epistola-suite, so keep the top-level
+// contract shape explicit before validating relationships between entries.
 if (componentRegistry.schemaVersion !== 1) {
   fail('component-registry.json schemaVersion must be 1');
 }
 requireArray(componentRegistry.components, 'component-registry.json components');
 
+// Collect the canonical style keys first. Component descriptors may opt into all
+// styles or reference a subset, and every referenced key must exist.
 requireArray(styleRegistry.groups, 'style-registry.json groups');
 const styleKeys = new Set();
 for (const [groupIndex, group] of styleRegistry.groups.entries()) {
@@ -45,6 +49,9 @@ for (const [groupIndex, group] of styleRegistry.groups.entries()) {
   }
 }
 
+// Validate each component descriptor independently: required display metadata,
+// editor slots, inspector fields, allowed child mode, style references, and
+// example fragments that suite tooling can load.
 const componentTypes = new Set();
 for (const [index, component] of componentRegistry.components.entries()) {
   const prefix = `component-registry.json components[${index}]`;
@@ -89,6 +96,8 @@ for (const [index, component] of componentRegistry.components.entries()) {
   }
 }
 
+// Validate cross-component references after collecting every component type so
+// ordering in the JSON file does not matter.
 for (const component of componentRegistry.components) {
   const childTypes = component.allowedChildren?.types ?? [];
   for (const childType of childTypes) {

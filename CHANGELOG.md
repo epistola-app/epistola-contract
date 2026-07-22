@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   classpath resources, with a lint guard that validates component examples, child-type references, and
   style-key references. This makes `epistola-contract` the source for the editor model vocabulary
   instead of relying on suite-local registry dumps.
+- **Editor model registry documentation.** The registry split is documented for TypeScript, JVM, and
+  `epistola-suite` consumers, and model schema type generation now lives in a dedicated script instead
+  of a long package script.
 
 ### Fixed
 
