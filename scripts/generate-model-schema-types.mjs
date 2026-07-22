@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Generates TypeScript definitions from the epistola-model JSON Schemas. Keeping
+// this list in a script makes package.json readable and keeps schema generation
+// separate from the registry facade generation.
 import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

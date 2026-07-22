@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Validates the editor component/style registries that epistola-model publishes
+// for suite and other consumers. This is intentionally a lightweight structural
+// guard for cross-file references that JSON Schema alone does not cover well.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';

@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Generates the typed TypeScript facade for the JSON editor registries. The JSON
+// files remain the source of truth; this script gives npm consumers literal
+// component/style unions and typed registry constants.
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
