@@ -17,6 +17,7 @@ lint: $(REDOCLY)
 	$(REDOCLY) lint epistola-api.yaml
 	@scripts/check-error-registry.sh
 	@scripts/check-media-types.sh
+	@node scripts/check-model-registry.mjs
 
 # Bundle OpenAPI spec into single file
 bundle: $(REDOCLY)

@@ -83,6 +83,12 @@ sourceSets.main {
     kotlin.srcDirs(generatedSrcDir)
 }
 
+tasks.named<ProcessResources>("processResources") {
+    from("registry") {
+        into("META-INF/epistola-model")
+    }
+}
+
 tasks.named("compileKotlin") {
     dependsOn("generate")
 }

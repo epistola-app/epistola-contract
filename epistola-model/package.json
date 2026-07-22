@@ -17,6 +17,7 @@
       "default": "./dist/ts/index.js"
     },
     "./schemas/*": "./schemas/*",
+    "./registry/*": "./registry/*",
     "./generated/*": {
       "types": "./dist/generated/*.d.ts",
       "default": "./dist/generated/*.js"
@@ -37,6 +38,7 @@
     "dist/**/*.d.ts.map",
     "ts/**/*.ts",
     "schemas/**/*.json",
+    "registry/**/*.json",
     "generated/**/*.ts"
   ]
 }
