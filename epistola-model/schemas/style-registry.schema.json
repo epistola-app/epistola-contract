@@ -6,13 +6,18 @@
   "type": "object",
 
   "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for the registry file."
+    },
     "groups": {
       "type": "array",
       "items": { "$ref": "#/$defs/StyleGroup" },
       "description": "Ordered list of style property groups."
     }
   },
-  "required": ["groups"],
+  "required": ["schemaVersion", "groups"],
   "additionalProperties": false,
 
   "$defs": {

@@ -175,6 +175,18 @@ A Python 3.9+ client library using:
 - Identity headers, self-signed JWT auth, RFC 9457 problem-detail handling, NDJSON
   result collection, and client-side JSON-Schema validation
 
+### Editor Model (`@epistola.app/epistola-model`)
+
+Portable editor contract data for consumers that need the Epistola editor model:
+- JSON schemas and generated TypeScript types
+- Component and style registries under `epistola-model/registry`
+- Typed TypeScript registry facade exported as
+  `@epistola.app/epistola-model/registry`
+- JVM resources under `META-INF/epistola-model`
+
+See [docs/editor-model-registry.md](docs/editor-model-registry.md) for how the
+registry integrates with `epistola-suite`.
+
 ### Kotlin Server (`app.epistola.contract:server-kotlin-springboot4`)
 
 Spring server interfaces for implementing the API:

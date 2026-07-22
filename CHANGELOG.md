@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Editor component vocabulary in `epistola-model`.** The model artifact now ships the static editor
+  component registry and style registry as a typed TypeScript facade, raw npm JSON exports, and Maven
+  classpath resources, with a lint guard that validates component examples, child-type references, and
+  style-key references. This makes `epistola-contract` the source for the editor model vocabulary
+  instead of relying on suite-local registry dumps.
+- **Editor model registry documentation.** The registry split is documented for TypeScript, JVM, and
+  `epistola-suite` consumers, and model schema type generation now lives in a dedicated script instead
+  of a long package script.
+- **Stronger editor registry validation.** Component examples are now required by schema and the
+  registry guard validates example node/slot references, child rules, style registry versioning, and
+  default style keys.
+
+### Breaking Changes
+
+- **Editor component `parameters` metadata is now explicit.** The registry no longer uses
+  `parameters: null` to mean dynamic per-node parameters. Dynamic components now declare
+  `parameters: { "kind": "dynamic" }`; static parameter schemas use
+  `parameters: { "kind": "static", "schema": { ... } }`; missing `parameters` means no parameter
+  support.
+
 ### Fixed
 
 - **Python client CI generation.** `client-python-urllib3/generate.sh` now runs its
