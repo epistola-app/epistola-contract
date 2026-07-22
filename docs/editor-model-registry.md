@@ -10,7 +10,8 @@ load the same data without depending on suite internals.
   labels, categories, slots, child rules, applicable styles, inspector metadata,
   defaults, and example fragments.
 - `epistola-model/registry/style-registry.json` defines the supported style
-  groups and style keys.
+  groups and style keys. It has its own `schemaVersion` so style metadata can
+  evolve independently from component metadata.
 - `epistola-model/generated/registry.ts` is generated from those JSON files and
   exports typed TypeScript values for npm consumers.
 - The Gradle build packages both JSON files as
@@ -26,6 +27,13 @@ that static metadata onto its runtime registry entries.
 This split keeps the portable contract data in `epistola-model` while allowing
 suite-specific code to keep using functions and classes that cannot live in a
 JSON contract.
+
+Component parameter support is explicit:
+
+- omitted `parameters` means the component has no parameter support
+- `parameters: { "kind": "dynamic" }` means the schema is resolved per node
+- `parameters: { "kind": "static", "schema": { ... } }` means every node of
+  the component type uses the same JSON Schema
 
 ## TypeScript Consumers
 
@@ -73,4 +81,5 @@ node scripts/check-model-registry.mjs
 ```
 
 The validator checks the registry shape, duplicate component/style keys, style
-references, allowed child references, and example fragment structure.
+references, default style keys, allowed child references, and example fragment
+structure.

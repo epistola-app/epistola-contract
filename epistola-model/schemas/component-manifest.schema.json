@@ -81,17 +81,12 @@
         "examples": {
           "type": "array",
           "items": { "$ref": "#/$defs/ComponentExample" },
+          "minItems": 1,
           "description": "Curated TemplateDocument fragments showing realistic usage."
         },
         "parameters": {
-          "oneOf": [
-            { "type": "null" },
-            {
-              "type": "object",
-              "additionalProperties": true
-            }
-          ],
-          "description": "Parameter schema metadata. Null means dynamic per node; an object is a static JSON Schema."
+          "$ref": "#/$defs/ParameterMetadata",
+          "description": "Parameter schema metadata. Omitted means no parameter support."
         }
       },
       "required": [
@@ -102,9 +97,34 @@
         "slots",
         "allowedChildren",
         "applicableStyles",
-        "inspector"
+        "inspector",
+        "examples"
       ],
       "additionalProperties": false
+    },
+    "ParameterMetadata": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "dynamic" }
+          },
+          "required": ["kind"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "static" },
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "required": ["kind", "schema"],
+          "additionalProperties": false
+        }
+      ]
     },
     "SlotTemplate": {
       "type": "object",

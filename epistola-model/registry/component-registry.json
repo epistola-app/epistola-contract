@@ -419,6 +419,7 @@
       "applicableStyles": [
         "padding",
         "margin",
+        "marginBottom",
         "backgroundColor",
         "border",
         "borderRadius",
@@ -586,6 +587,7 @@
       "applicableStyles": [
         "padding",
         "margin",
+        "marginBottom",
         "backgroundColor",
         "border",
         "borderRadius",
@@ -778,6 +780,7 @@
       "applicableStyles": [
         "padding",
         "margin",
+        "marginBottom",
         "backgroundColor",
         "border",
         "borderRadius",
@@ -1088,7 +1091,8 @@
       },
       "applicableStyles": [
         "padding",
-        "margin"
+        "margin",
+        "marginBottom"
       ],
       "inspector": [
         {
@@ -1858,7 +1862,9 @@
         "mode": "none"
       },
       "applicableStyles": [
-        "margin"
+        "margin",
+        "marginTop",
+        "marginBottom"
       ],
       "inspector": [
         {
@@ -2218,8 +2224,8 @@
           }
         },
         {
-          "name": "first-page-and-running",
-          "description": "Two pageheader nodes. The first (declared first in the root slot) renders on page 1 only; the second renders on pages 2..N. Useful for cover-page + running header patterns.",
+          "name": "first-page-cover",
+          "description": "A taller first-page header for cover-page patterns.",
           "fragment": {
             "rootNodeId": "n-pageheader-first",
             "nodes": {
@@ -2259,7 +2265,26 @@
                     ]
                   }
                 }
-              },
+              }
+            },
+            "slots": {
+              "s-pageheader-first-children": {
+                "id": "s-pageheader-first-children",
+                "nodeId": "n-pageheader-first",
+                "name": "children",
+                "children": [
+                  "n-pageheader-first-text"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "name": "running-header",
+          "description": "A compact running header for pages after the cover page.",
+          "fragment": {
+            "rootNodeId": "n-pageheader-rest",
+            "nodes": {
               "n-pageheader-rest": {
                 "id": "n-pageheader-rest",
                 "type": "pageheader",
@@ -2267,7 +2292,8 @@
                   "s-pageheader-rest-children"
                 ],
                 "props": {
-                  "height": "40pt"
+                  "height": "40pt",
+                  "hideOnFirstPage": true
                 }
               },
               "n-pageheader-rest-text": {
@@ -2298,14 +2324,6 @@
               }
             },
             "slots": {
-              "s-pageheader-first-children": {
-                "id": "s-pageheader-first-children",
-                "nodeId": "n-pageheader-first",
-                "name": "children",
-                "children": [
-                  "n-pageheader-first-text"
-                ]
-              },
               "s-pageheader-rest-children": {
                 "id": "s-pageheader-rest-children",
                 "nodeId": "n-pageheader-rest",
@@ -2422,7 +2440,8 @@
       },
       "applicableStyles": [
         "padding",
-        "margin"
+        "margin",
+        "marginBottom"
       ],
       "inspector": [
         {
@@ -2733,7 +2752,9 @@
           }
         }
       ],
-      "parameters": null
+      "parameters": {
+        "kind": "dynamic"
+      }
     }
   ]
 }

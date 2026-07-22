@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "groups": [
     {
       "name": "typography",
@@ -101,6 +102,18 @@
           "key": "margin",
           "label": "Margin",
           "type": "spacing",
+          "units": ["sp", "pt"]
+        },
+        {
+          "key": "marginTop",
+          "label": "Top Margin",
+          "type": "unit",
+          "units": ["sp", "pt"]
+        },
+        {
+          "key": "marginBottom",
+          "label": "Bottom Margin",
+          "type": "unit",
           "units": ["sp", "pt"]
         }
       ]
