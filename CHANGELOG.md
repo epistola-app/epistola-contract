@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Python client packaging checks.** Pull request CI now builds the Python wheel and source
   distribution after the test suite, so packaging regressions are caught before release or snapshot
   publishing.
+- **Python snapshot version stamping.** The snapshot workflow now stamps the Python client to the
+  same PEP 440 `dev` version before test installation as it uses before publishing, so TestPyPI
+  snapshot runs no longer fail on `*-SNAPSHOT` package metadata.
 
 ### Changed
 
