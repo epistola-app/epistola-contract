@@ -72,7 +72,7 @@ info:
     `DOCUMENT_GENERATOR`, `CONTENT_PUBLISHER`, `TENANT_ADMINISTRATOR`) or from
     the roles stored on an API key. Platform-only tenant management uses the
     `TENANT_MANAGER` platform role.
-  version: "0.13.1"
+  version: "0.14.0"
   contact:
     name: Epistola Team
   license:
