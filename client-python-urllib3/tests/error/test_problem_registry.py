@@ -17,6 +17,7 @@ EXPECTED_SLUGS = {
     "VALIDATION_ERROR": "validation-error",
     "BAD_REQUEST": "bad-request",
     "UNAUTHORIZED": "unauthorized",
+    "API_KEY_AUTH_DISABLED": "api-key-auth-disabled",
     "FORBIDDEN": "forbidden",
     "NOT_FOUND": "not-found",
     "CONFLICT": "conflict",

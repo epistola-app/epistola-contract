@@ -67,6 +67,9 @@ object ProblemDetails {
         /** 401 — missing or invalid credentials. */
         const val UNAUTHORIZED: String = "unauthorized"
 
+        /** 401 — API-key authentication is disabled for this deployment. */
+        const val API_KEY_AUTH_DISABLED: String = "api-key-auth-disabled"
+
         /** 403 — authenticated but not allowed to perform the operation. */
         const val FORBIDDEN: String = "forbidden"
 

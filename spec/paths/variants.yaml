@@ -348,6 +348,145 @@ variant-draft:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
+  post:
+    operationId: createVariantDraft
+    summary: Create a variant draft
+    description: Create a new draft version from the latest published version.
+    tags:
+      - Variants
+    x-required-roles: [editor, manager]
+    responses:
+      '201':
+        description: Draft created
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/versions.yaml#/VersionDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+variant-draft-publish:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+    - name: templateId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+    - name: variantId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+  post:
+    operationId: publishVariantDraft
+    summary: Publish the current variant draft
+    description: Publish the variant's current draft version without activating it in an environment.
+    tags:
+      - Variants
+    x-required-roles: [editor, manager]
+    responses:
+      '200':
+        description: Draft published
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/versions.yaml#/VersionDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+variant-draft-discard:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+    - name: templateId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+    - name: variantId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+  post:
+    operationId: discardVariantDraft
+    summary: Discard the current variant draft
+    description: Delete the current draft and return the variant to its latest published version.
+    tags:
+      - Variants
+    x-required-roles: [editor, manager]
+    responses:
+      '204':
+        description: Draft discarded
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
 variant-activations:
   parameters:
     - name: tenantId

@@ -69,9 +69,7 @@ catalog-upgrade-preview:
       added / removed / changed / unchanged resources (each `type/slug`), plus
       any cross-catalog conflicts that would block removals.
 
-      Read-only. The upgrade *action* is intentionally not exposed over REST —
-      upgrades are applied through the UI (mirrors the release-action
-      decision); this endpoint provides read parity only.
+      Read-only. Apply the returned change set with `POST .../upgrade`.
     tags:
       - Catalogs
     x-required-roles: [reader, editor, generator, manager]
@@ -88,3 +86,108 @@ catalog-upgrade-preview:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+catalog-release:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the AUTHORED catalog
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+  post:
+    operationId: releaseCatalog
+    summary: Release an authored catalog
+    description: Cut a new immutable SemVer release for an AUTHORED catalog.
+    tags:
+      - Catalogs
+    x-required-roles: [manager]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/catalogs.yaml#/ReleaseCatalogRequest'
+    responses:
+      '200':
+        description: Catalog released.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/ReleaseCatalogResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+catalog-upgrade:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the SUBSCRIBED catalog
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+  post:
+    operationId: upgradeCatalog
+    summary: Upgrade a subscribed catalog
+    description: |
+      Re-fetch the source catalog and apply an upgrade to an existing SUBSCRIBED
+      catalog. Existing resources are upgraded in place. New resources are only
+      installed when listed in `includeNewSlugs`.
+    tags:
+      - Catalogs
+    x-required-roles: [manager]
+    requestBody:
+      required: false
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/catalogs.yaml#/UpgradeCatalogRequest'
+    responses:
+      '200':
+        description: Upgrade result.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/UpgradeCatalogResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Authorization-header API-key authentication.** The contract now accepts static API keys through
+  `Authorization: ApiKey <key>` while retaining deprecated `X-API-Key` support for existing
+  integrations. The Kotlin, .NET, and Python client helpers can set the new header, and
+  `api-key-auth-disabled` is a canonical Problem Details type for deployments that disable API-key
+  authentication.
+- **Suite-backed API parity for contract and draft lifecycle actions.** The contract now documents
+  data-contract draft/update/publish/list endpoints, variant draft create/publish/discard actions,
+  and code-list entry hide/show toggles that already exist in Epistola Suite.
+- **Catalog-scoped Assets API.** The suite's image/asset capabilities are now represented in the
+  public contract with asset list, upload, content download, and delete endpoints.
+- **Catalog and stencil apply actions.** Authored catalog release, subscribed catalog upgrade apply,
+  and stencil upgrade apply actions are now documented as public API endpoints.
+
 ### Fixed
 
 - **Kotlin server artifact manifests now expose `Implementation-Version`.** The

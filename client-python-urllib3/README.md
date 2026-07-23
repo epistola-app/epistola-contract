@@ -10,6 +10,7 @@ It adds, on top of the stock generated client:
 - **RFC 9457 problem-detail** error handling — typed `ProblemDetailException` with a
   `type_slug` discriminator and generated `KnownProblemSlugs` constants.
 - **Self-signed JWT** authentication (`JwtSigner`), minting a fresh short-lived token per request.
+- **Static API-key** authentication via `Authorization: ApiKey <key>`.
 - **NDJSON result collection** (`ResultCollector`) with adaptive polling, compression, and
   partition-aware routing helpers.
 - **Client-side JSON Schema validation** of template data (`TemplateSchemaValidator`).
@@ -57,6 +58,12 @@ http = (
 templates = TemplatesApi(http)
 template = templates.get_template("acme", "invoices", "invoice")
 ```
+
+For static tenant API keys, use `.api_key("epk_...")` instead of `.jwt_signer(...)`.
+The legacy `X-API-Key` header remains supported for existing integrations, but is deprecated.
+Some Epistola Suite deployments may disable API-key authentication entirely; with
+`.install_problem_detail_handler()`, switch on `e.type_slug == KnownProblemSlugs.API_KEY_AUTH_DISABLED`
+and guide the caller to JWT auth.
 
 ## Error handling
 

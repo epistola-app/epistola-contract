@@ -17,6 +17,7 @@ Typical use::
         .base_url("https://epistola.example.com/api")
         .identity(ClientIdentity.builder().node_id("my-pod").build())
         .jwt_signer(JwtSigner.builder().consumer_id("svc").private_key(key).build())
+        # or .api_key("epk_...") for Authorization: ApiKey <key>
         .install_problem_detail_handler()
         .build()
     )

@@ -119,3 +119,130 @@ CatalogUpgradeDiff:
       type: boolean
       description: True when `conflicts` is non-empty.
       example: false
+
+ReleaseCatalogRequest:
+  type: object
+  required:
+    - releaseVersion
+  properties:
+    releaseVersion:
+      type: string
+      pattern: '^\d+\.\d+\.\d+$'
+      description: Strictly increasing SemVer release label.
+      example: "1.4.0"
+    notes:
+      type:
+        - string
+        - 'null'
+      maxLength: 4000
+      example: Compatibility updates for the municipality catalog.
+
+ReleaseCatalogResponse:
+  type: object
+  required:
+    - version
+    - fingerprint
+    - releasedAt
+    - unchangedContent
+  properties:
+    version:
+      type: string
+      example: "1.4.0"
+    fingerprint:
+      type: string
+      pattern: '^[a-f0-9]{64}$'
+      example: 9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+    previousVersion:
+      type:
+        - string
+        - 'null'
+      example: "1.3.0"
+    releasedAt:
+      type: string
+      format: date-time
+      example: "2026-07-23T10:00:00Z"
+    unchangedContent:
+      type: boolean
+      description: True when the release content matches a previous release fingerprint.
+      example: false
+
+UpgradeCatalogRequest:
+  type: object
+  properties:
+    includeNewSlugs:
+      type: array
+      description: Newly added `type/slug` resources from the preview to install during the upgrade.
+      items:
+        type: string
+      default: []
+      example:
+        - template/cover-letter
+
+UpgradeCatalogResponse:
+  type: object
+  required:
+    - newVersion
+    - installResults
+    - removedResources
+    - aborted
+  properties:
+    previousVersion:
+      type:
+        - string
+        - 'null'
+      example: "1.3.0"
+    newVersion:
+      type: string
+      example: "1.4.0"
+    installResults:
+      type: array
+      items:
+        $ref: '#/CatalogInstallResultDto'
+    removedResources:
+      type: array
+      items:
+        $ref: '#/RemovedCatalogResourceDto'
+    aborted:
+      type: boolean
+      description: True when one or more resource installs failed and the catalog was left unchanged.
+      example: false
+
+CatalogInstallResultDto:
+  type: object
+  required:
+    - type
+    - slug
+    - status
+  properties:
+    type:
+      type: string
+      example: template
+    slug:
+      type: string
+      example: cover-letter
+    status:
+      type: string
+      enum:
+        - INSTALLED
+        - UPDATED
+        - SKIPPED
+        - FAILED
+      example: UPDATED
+    errorMessage:
+      type:
+        - string
+        - 'null'
+      example: null
+
+RemovedCatalogResourceDto:
+  type: object
+  required:
+    - type
+    - slug
+  properties:
+    type:
+      type: string
+      example: theme
+    slug:
+      type: string
+      example: legacy

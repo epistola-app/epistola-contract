@@ -34,6 +34,8 @@ val signer = JwtSigner.builder()
     .build()
 
 // Option B: OAuth — use your IdP's token in a custom interceptor
+// Option C: API key — use Authorization: ApiKey <key>
+val apiKeyAuth = ApiKeyAuth.of("epk_...")
 
 // 3. Create RestClient with interceptors
 val restClient = RestClient.builder()
@@ -114,6 +116,23 @@ val restClient = RestClient.builder()
 // Or create tokens manually
 val jwt: String = signer.createToken()
 ```
+
+### API Key
+
+Static tenant API keys can be sent through the standard `Authorization` header:
+
+```kotlin
+val restClient = RestClient.builder()
+    .baseUrl("https://epistola.example.com/api")
+    .requestInterceptor(identity.interceptor())
+    .requestInterceptor(ApiKeyAuth.of("epk_...").interceptor()) // Authorization: ApiKey <key>
+    .build()
+```
+
+The legacy `X-API-Key` header remains supported for existing integrations, but is deprecated.
+Some Epistola Suite deployments may disable API-key authentication entirely. When that happens,
+the API returns a Problem Details response with `type` slug `api-key-auth-disabled`; switch on the
+slug in `ProblemDetailException` and guide the caller to JWT auth.
 
 Supports RSA (2048+) and EC (P-256) keys. Each token includes `iss`, `iat`, `exp`, and a unique `jti` for replay protection.
 

@@ -71,6 +71,53 @@ public class EpistolaHttpClientBuilderTest
     }
 
     [Fact]
+    public async Task ApiKeyAddsAuthorizationHeader()
+    {
+        HttpRequestMessage? captured = null;
+        var primary = new StubHttpMessageHandler(req =>
+        {
+            captured = req;
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        var http = new EpistolaHttpClientBuilder()
+            .BaseUrl("http://localhost/")
+            .ApiKey("epk_test")
+            .PrimaryHandler(primary)
+            .Build();
+
+        await http.GetAsync("thing");
+
+        Assert.NotNull(captured);
+        Assert.Equal("ApiKey", captured!.Headers.Authorization!.Scheme);
+        Assert.Equal("epk_test", captured.Headers.Authorization.Parameter);
+    }
+
+    [Fact]
+    public async Task JwtSignerWinsWhenJwtAndApiKeyAreBothConfigured()
+    {
+        HttpRequestMessage? captured = null;
+        var primary = new StubHttpMessageHandler(req =>
+        {
+            captured = req;
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+        var signer = JwtSigner.Builder().ConsumerId("c").PrivateKey(RSA.Create(2048)).Build();
+
+        var http = new EpistolaHttpClientBuilder()
+            .BaseUrl("http://localhost/")
+            .ApiKey("epk_test")
+            .JwtSigner(signer)
+            .PrimaryHandler(primary)
+            .Build();
+
+        await http.GetAsync("thing");
+
+        Assert.NotNull(captured);
+        Assert.Equal("Bearer", captured!.Headers.Authorization!.Scheme);
+    }
+
+    [Fact]
     public async Task WithoutProblemHandlerErrorsPassThrough()
     {
         var primary = new StubHttpMessageHandler(_ =>

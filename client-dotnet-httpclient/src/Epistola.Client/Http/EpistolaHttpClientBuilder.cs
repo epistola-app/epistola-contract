@@ -16,6 +16,7 @@ namespace Epistola.Client.Http;
 ///     .BaseUrl("https://epistola.example.com/api")
 ///     .Identity(identity)                 // User-Agent + X-EP-Node-Id
 ///     .JwtSigner(signer)                  // Authorization: Bearer
+///     // or .ApiKey("epk_...")             // Authorization: ApiKey
 ///     .InstallProblemDetailHandler()      // typed ProblemDetailException on problem+json
 ///     .Build();
 ///
@@ -30,6 +31,7 @@ public sealed class EpistolaHttpClientBuilder
     private string? _baseUrl;
     private ClientIdentity? _identity;
     private JwtSigner? _jwtSigner;
+    private ApiKeyAuth? _apiKeyAuth;
     private bool _installProblemDetailHandler;
     private HttpMessageHandler? _primaryHandler;
 
@@ -51,6 +53,13 @@ public sealed class EpistolaHttpClientBuilder
     public EpistolaHttpClientBuilder JwtSigner(JwtSigner signer)
     {
         _jwtSigner = signer;
+        return this;
+    }
+
+    /// <summary>Adds the static API-key authorization handler.</summary>
+    public EpistolaHttpClientBuilder ApiKey(string apiKey)
+    {
+        _apiKeyAuth = ApiKeyAuth.Of(apiKey);
         return this;
     }
 
@@ -83,6 +92,10 @@ public sealed class EpistolaHttpClientBuilder
         if (_jwtSigner != null)
         {
             inner = Wrap(_jwtSigner.Handler(), inner);
+        }
+        else if (_apiKeyAuth != null)
+        {
+            inner = Wrap(_apiKeyAuth.Handler(), inner);
         }
 
         if (_identity != null)

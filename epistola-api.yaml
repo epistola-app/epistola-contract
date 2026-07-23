@@ -9,12 +9,15 @@ info:
     Use `application/vnd.epistola.v1+json` for API version 1.
 
     ## Authentication
-    The API uses JWT Bearer tokens for authentication. Two paths are supported:
-    - **OAuth 2.0** (recommended): Use Client Credentials flow to obtain a JWT from your IdP
-    - **Self-signed JWT**: Register with a public key, then sign short-lived JWTs with your private key
+    The API accepts authentication through the `Authorization` header:
+    - **Bearer JWT**: `Authorization: Bearer <jwt>` using OAuth 2.0 Client Credentials
+      or self-signed JWTs
+    - **API key**: `Authorization: ApiKey <key>` for static tenant API keys
 
-    Both paths use `Authorization: Bearer <jwt>`. Permissions (allowed tenants, roles)
-    are managed in Epistola's consumer record, not in JWT claims.
+    The legacy `X-API-Key` header remains supported for existing integrations, but
+    is deprecated. New API-key integrations should use `Authorization: ApiKey <key>`.
+    Permissions (allowed tenants, roles) are managed in Epistola's consumer record,
+    not in JWT claims.
 
     See the [Authentication Guide](/docs/auth.md) for details.
 
@@ -103,6 +106,13 @@ x-problem-types:
       status: 401
       schema: ProblemDetail
       description: Missing or invalid authentication credentials.
+    - slug: api-key-auth-disabled
+      status: 401
+      schema: ProblemDetail
+      description: >-
+        API-key authentication is disabled for this deployment. Use
+        `Authorization: Bearer <jwt>` instead, or ask an administrator to enable
+        API-key authentication.
     - slug: forbidden
       status: 403
       schema: ProblemDetail
@@ -168,6 +178,8 @@ tags:
     description: Template variant operations (language, brand variations)
   - name: Versions
     description: Template version lifecycle (draft, publish, archive)
+  - name: Contracts
+    description: Template data-contract version lifecycle and compatibility previews
   - name: Stencils
     description: Reusable template component operations (CRUD, versioning, usage tracking)
   - name: Catalogs
@@ -181,10 +193,12 @@ tags:
   - name: Fonts
     description: |
       Font families (tenant + catalog scoped) and the weight/italic faces
-      they ship. Read-only over REST — like image assets, families and their
-      binaries are managed through the UI and catalog exchange only;
+      they ship. Read-only over REST; families and their binaries are managed
+      through the UI and catalog exchange only.
       SUBSCRIBED-catalog families (the bundled `system` fonts) are flagged
       `readOnly: true`.
+  - name: Assets
+    description: Catalog-scoped binary asset metadata, upload, download, and delete operations
   - name: Consumers
     description: |
       Tenant-scoped consumer application registration and lifecycle management.
@@ -210,16 +224,17 @@ tags:
 
       ## Authentication
 
-      Both paths use `Authorization: Bearer <jwt>`. For self-signed JWT consumers,
+      Bearer JWT calls use `Authorization: Bearer <jwt>`. For self-signed JWT consumers,
       the JWT is short-lived (60s) and signed with the consumer's private key.
   - name: Generation
     description: Asynchronous document generation operations
 
-# Global security — either method is accepted.
-# bearerAuth (JWT) is the recommended path. apiKeyAuth is deprecated and
-# retained only for backwards compatibility — it will be removed in a future version.
+# Global security — any method is accepted.
+# bearerAuth (JWT) and authorizationApiKeyAuth are the current Authorization-header
+# paths. apiKeyAuth is deprecated and retained for backwards compatibility.
 security:
   - bearerAuth: []
+  - authorizationApiKeyAuth: []
   - apiKeyAuth: []
 
 paths:
@@ -274,12 +289,22 @@ paths:
     $ref: './spec/paths/code-lists.yaml#/code-list-refresh'
   /tenants/{tenantId}/catalogs/{catalogId}/code-lists/{codeListSlug}/entries:
     $ref: './spec/paths/code-lists.yaml#/code-list-entries'
+  /tenants/{tenantId}/catalogs/{catalogId}/code-lists/{codeListSlug}/entries/{code}/hidden:
+    $ref: './spec/paths/code-lists.yaml#/code-list-entry-hidden'
 
   # Fonts (read-only)
   /tenants/{tenantId}/catalogs/{catalogId}/fonts:
     $ref: './spec/paths/fonts.yaml#/fonts'
   /tenants/{tenantId}/catalogs/{catalogId}/fonts/{fontSlug}:
     $ref: './spec/paths/fonts.yaml#/fonts-slug'
+
+  # Assets
+  /tenants/{tenantId}/catalogs/{catalogId}/assets:
+    $ref: './spec/paths/assets.yaml#/assets'
+  /tenants/{tenantId}/catalogs/{catalogId}/assets/{assetId}:
+    $ref: './spec/paths/assets.yaml#/asset-resource'
+  /tenants/{tenantId}/catalogs/{catalogId}/assets/{assetId}/content:
+    $ref: './spec/paths/assets.yaml#/asset-content'
 
   # Templates
   /tenants/{tenantId}/catalogs/{catalogId}/templates:
@@ -288,6 +313,12 @@ paths:
     $ref: './spec/paths/templates.yaml#/templates-id'
   /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/validate:
     $ref: './spec/paths/templates.yaml#/template-validate'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/contract/draft:
+    $ref: './spec/paths/contracts.yaml#/contract-draft'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/contract/publish:
+    $ref: './spec/paths/contracts.yaml#/contract-publish'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/contract/versions:
+    $ref: './spec/paths/contracts.yaml#/contract-versions'
 
   # Variants
   /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants:
@@ -298,6 +329,10 @@ paths:
     $ref: './spec/paths/variants.yaml#/variant-set-default'
   /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/draft:
     $ref: './spec/paths/variants.yaml#/variant-draft'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/draft/publish:
+    $ref: './spec/paths/variants.yaml#/variant-draft-publish'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/draft/discard:
+    $ref: './spec/paths/variants.yaml#/variant-draft-discard'
   /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/activations:
     $ref: './spec/paths/variants.yaml#/variant-activations'
   /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/activations/{environmentId}:
@@ -320,6 +355,8 @@ paths:
     $ref: './spec/paths/stencils.yaml#/stencils'
   /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}:
     $ref: './spec/paths/stencils.yaml#/stencils-id'
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/upgrade:
+    $ref: './spec/paths/stencils.yaml#/stencil-upgrade'
   /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions:
     $ref: './spec/paths/stencils.yaml#/stencil-versions'
   /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}:
@@ -336,8 +373,12 @@ paths:
   # Catalogs
   /tenants/{tenantId}/catalogs:
     $ref: './spec/paths/catalogs.yaml#/catalogs'
+  /tenants/{tenantId}/catalogs/{catalogId}/release:
+    $ref: './spec/paths/catalogs.yaml#/catalog-release'
   /tenants/{tenantId}/catalogs/{catalogId}/upgrade-preview:
     $ref: './spec/paths/catalogs.yaml#/catalog-upgrade-preview'
+  /tenants/{tenantId}/catalogs/{catalogId}/upgrade:
+    $ref: './spec/paths/catalogs.yaml#/catalog-upgrade'
 
   # Catalog Import
   /tenants/{tenantId}/catalogs/import:
@@ -650,4 +691,18 @@ components:
 
         Static API key for legacy environments. Keys are issued by administrators
         and stored server-side with associated roles and tenant access permissions.
-        API key authentication will be removed in a future API version.
+        Prefer `Authorization: ApiKey <key>` for new API-key integrations.
+
+    authorizationApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: |
+        Static API key sent through the standard `Authorization` header:
+
+        `Authorization: ApiKey <key>`
+
+        The auth scheme token is case-insensitive; examples use `ApiKey`.
+        Keys are issued by administrators and stored server-side with associated
+        roles and tenant access permissions. This is the preferred API-key
+        transport. The legacy `X-API-Key` header remains supported but deprecated.

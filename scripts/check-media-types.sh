@@ -11,13 +11,18 @@ allowed=$(cat <<'EOF'
 application/vnd.epistola.v1+json
 application/vnd.epistola.v1+ndjson
 application/problem+json
+application/octet-stream
 application/pdf
+image/jpeg
+image/png
+image/svg+xml
+image/webp
 multipart/form-data
 EOF
 )
 
 # Every media-type-looking token that appears as a content key or in prose.
-used=$(grep -rhoE '(application|multipart|text)/[a-zA-Z0-9.+_-]+' \
+used=$(grep -rhoE '(application|image|multipart|text)/[a-zA-Z0-9.+_-]+' \
   "$ROOT/spec" "$ROOT/epistola-api.yaml" | sort -u)
 
 unknown=$(comm -23 <(echo "$used") <(echo "$allowed" | sort -u))

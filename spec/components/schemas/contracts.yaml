@@ -1,0 +1,243 @@
+ContractVersionDto:
+  type: object
+  description: Versioned data contract for a template.
+  required:
+    - id
+    - status
+    - dataExamples
+    - createdAt
+  properties:
+    id:
+      type: integer
+      minimum: 1
+      maximum: 200
+      description: Contract version number.
+      example: 2
+    schema:
+      type:
+        - object
+        - 'null'
+      deprecated: true
+      description: Vestigial schema field; validation uses `dataModel`.
+    dataModel:
+      type:
+        - object
+        - 'null'
+      description: JSON Schema used for generation, previews, and validation.
+      example:
+        type: object
+        required:
+          - customer
+        properties:
+          customer:
+            type: object
+            required:
+              - name
+            properties:
+              name:
+                type: string
+    dataExamples:
+      type: array
+      description: Named example payloads used for preview and validation.
+      items:
+        $ref: './templates.yaml#/DataExampleDto'
+      default: []
+    status:
+      type: string
+      enum:
+        - draft
+        - published
+      example: published
+    createdAt:
+      type: string
+      format: date-time
+      example: "2026-07-23T10:00:00Z"
+    publishedAt:
+      type:
+        - string
+        - 'null'
+      format: date-time
+      example: "2026-07-23T10:05:00Z"
+
+ContractVersionSummaryDto:
+  type: object
+  description: Summary view of a template data-contract version.
+  required:
+    - id
+    - status
+    - createdAt
+  properties:
+    id:
+      type: integer
+      minimum: 1
+      maximum: 200
+      example: 2
+    status:
+      type: string
+      enum:
+        - draft
+        - published
+      example: published
+    createdAt:
+      type: string
+      format: date-time
+      example: "2026-07-23T10:00:00Z"
+    publishedAt:
+      type:
+        - string
+        - 'null'
+      format: date-time
+      example: "2026-07-23T10:05:00Z"
+
+ContractVersionListResponse:
+  type: object
+  description: List of template data-contract versions.
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/ContractVersionSummaryDto'
+
+CreateContractDraftResponse:
+  type: object
+  description: Result of creating or returning the current contract draft.
+  required:
+    - id
+    - status
+  properties:
+    id:
+      type: integer
+      minimum: 1
+      maximum: 200
+      example: 3
+    status:
+      type: string
+      enum:
+        - draft
+      example: draft
+
+UpdateContractDraftRequest:
+  type: object
+  description: |
+    Request body for updating a template's draft data contract.
+    A missing draft is created automatically before applying the update.
+  properties:
+    dataModel:
+      type:
+        - object
+        - 'null'
+      description: JSON Schema used for generation, previews, and validation.
+    dataExamples:
+      type: array
+      items:
+        $ref: './templates.yaml#/DataExampleDto'
+    forceUpdate:
+      type: boolean
+      default: false
+      description: Allow updates that are incompatible with existing examples.
+
+UpdateContractDraftResponse:
+  type: object
+  required:
+    - success
+    - id
+    - status
+  properties:
+    success:
+      type: boolean
+      example: true
+    id:
+      type: integer
+      minimum: 1
+      maximum: 200
+      example: 3
+    status:
+      type: string
+      enum:
+        - draft
+      example: draft
+    warnings:
+      type: array
+      items:
+        type: string
+      description: Compatibility or validation warnings raised while updating.
+
+PublishContractRequest:
+  type: object
+  properties:
+    confirmed:
+      type: boolean
+      default: false
+      description: Publish even when the contract update contains breaking changes.
+
+PublishContractResponse:
+  type: object
+  required:
+    - published
+    - compatible
+  properties:
+    published:
+      type: boolean
+      description: True when the draft was published; false when confirmation is required.
+      example: false
+    compatible:
+      type: boolean
+      description: Whether the draft is backwards compatible with the previous published contract.
+      example: false
+    breakingChanges:
+      type: array
+      items:
+        $ref: '#/ContractBreakingChangeDto'
+      default: []
+    incompatibleVersions:
+      type: array
+      items:
+        $ref: '#/IncompatibleTemplateVersionDto'
+      default: []
+
+ContractBreakingChangeDto:
+  type: object
+  required:
+    - type
+    - path
+    - description
+  properties:
+    type:
+      type: string
+      enum:
+        - FIELD_REMOVED
+        - TYPE_CHANGED
+        - REQUIRED_ADDED
+        - MADE_REQUIRED
+        - CONSTRAINT_NARROWED
+      example: MADE_REQUIRED
+    path:
+      type: string
+      example: customer.email
+    description:
+      type: string
+      example: '"email" is now required'
+
+IncompatibleTemplateVersionDto:
+  type: object
+  required:
+    - variantKey
+    - versionId
+    - activeEnvironments
+  properties:
+    variantKey:
+      type: string
+      example: english
+    versionId:
+      type: integer
+      minimum: 1
+      maximum: 200
+      example: 4
+    activeEnvironments:
+      type: array
+      items:
+        type: string
+      example:
+        - production
