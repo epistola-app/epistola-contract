@@ -1,3 +1,5 @@
+import java.util.jar.JarFile
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.spring)
@@ -21,6 +23,39 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(libs.versions.java.toolchain.get().toInt()))
     }
+}
+
+tasks.withType<Jar>().configureEach {
+    manifest {
+        attributes(
+            "Implementation-Title" to "server-kotlin-springboot4",
+            "Implementation-Version" to project.version.toString(),
+        )
+    }
+}
+
+val verifyJarManifest by tasks.registering {
+    val jarTask = tasks.named<Jar>("jar")
+    val jarFile = jarTask.flatMap { it.archiveFile }
+
+    dependsOn(jarTask)
+    inputs.file(jarFile)
+
+    doLast {
+        val implementationVersion =
+            JarFile(jarFile.get().asFile).use { jar ->
+                jar.manifest.mainAttributes.getValue("Implementation-Version")
+            }
+
+        check(implementationVersion == project.version.toString()) {
+            "Expected server-kotlin-springboot4 JAR Implementation-Version=${project.version}, " +
+                "but found $implementationVersion"
+        }
+    }
+}
+
+tasks.check {
+    dependsOn(verifyJarManifest)
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
