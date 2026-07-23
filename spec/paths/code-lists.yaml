@@ -27,11 +27,7 @@ code-lists:
       `readOnly: true`.
     tags:
       - CodeLists
-    x-required-roles:
-      - reader
-      - editor
-      - generator
-      - manager
+    x-required-permissions: [REFERENCE_VIEW]
     parameters:
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
@@ -60,9 +56,7 @@ code-lists:
       409. Duplicate slug within the same tenant + catalog returns 409.
     tags:
       - CodeLists
-    x-required-roles:
-      - editor
-      - manager
+    x-required-permissions: [REFERENCE_EDIT]
     requestBody:
       required: true
       content:
@@ -119,11 +113,7 @@ code-lists-slug:
     summary: Get a code list
     tags:
       - CodeLists
-    x-required-roles:
-      - reader
-      - editor
-      - generator
-      - manager
+    x-required-permissions: [REFERENCE_VIEW]
     responses:
       '200':
         description: Code list.
@@ -145,9 +135,7 @@ code-lists-slug:
       atomically. Updates to a SUBSCRIBED-catalog code list return 409.
     tags:
       - CodeLists
-    x-required-roles:
-      - editor
-      - manager
+    x-required-permissions: [REFERENCE_EDIT]
     requestBody:
       required: true
       content:
@@ -179,8 +167,7 @@ code-lists-slug:
       (unbind it first) or if the catalog is SUBSCRIBED.
     tags:
       - CodeLists
-    x-required-roles:
-      - manager
+    x-required-permissions: [REFERENCE_EDIT]
     responses:
       '204':
         description: Code list deleted.
@@ -223,9 +210,7 @@ code-list-refresh:
       on failure.
     tags:
       - CodeLists
-    x-required-roles:
-      - editor
-      - manager
+    x-required-permissions: [REFERENCE_EDIT]
     responses:
       '200':
         description: Refresh succeeded; returns the updated code list.
@@ -277,11 +262,7 @@ code-list-entries:
       Hidden entries are filtered out unless `includeHidden=true`.
     tags:
       - CodeLists
-    x-required-roles:
-      - reader
-      - editor
-      - generator
-      - manager
+    x-required-permissions: [REFERENCE_VIEW]
     responses:
       '200':
         description: List of entries.
@@ -339,9 +320,7 @@ code-list-entry-hidden:
       `listCodeListEntries` unless `includeHidden=true`.
     tags:
       - CodeLists
-    x-required-roles:
-      - editor
-      - manager
+    x-required-permissions: [REFERENCE_EDIT]
     requestBody:
       required: true
       content:

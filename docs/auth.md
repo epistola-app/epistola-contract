@@ -37,7 +37,7 @@ curl https://api.example.com/api/tenants/acme-corp/templates \
 1. Admin creates an OAuth client in the IdP (client_id + client_secret)
 2. Application obtains a JWT token from the IdP
 3. First request to Epistola auto-registers the consumer as `pending`
-4. Tenant manager approves the consumer (`POST /tenants/{tenantId}/consumers/{id}/approve`), setting roles and optional expiry
+4. Tenant manager approves the consumer (`POST /tenants/{tenantId}/consumers/{id}/approve`), setting permissions and optional expiry
 5. Application can now access resources within that tenant
 
 ### Method 2: Self-Signed JWT
@@ -139,46 +139,41 @@ The `ApiKey` authorization scheme name is case-insensitive as defined by HTTP au
 **Permissions are managed in Epistola, not in JWT claims.** When an administrator approves a consumer, they set:
 
 - **Allowed tenants**: Which tenants the consumer can access (or `["*"]` for all)
-- **Roles**: What operations the consumer can perform
+- **Permissions**: What operations the consumer can perform
 - **Expiry**: When the approval expires (optional)
 
 This applies to both OAuth and self-signed JWT consumers. JWT claims like `roles` or `allowed_tenants` are not used for authorization decisions.
 
-### Roles
+### Roles and Permissions
 
-The API uses five independent roles that can be combined as needed:
+Epistola Suite uses coarse tenant/platform roles to derive fine-grained permissions. The OpenAPI
+contract documents the enforced permission on each operation with `x-required-permissions`; platform
+operations use `x-required-platform-roles`.
 
-| Role | Scope | Description |
-|------|-------|-------------|
-| `reader` | Tenant | Read-only access to resources within allowed tenants |
-| `editor` | Tenant | Create and update resources within allowed tenants |
-| `generator` | Tenant | Submit document generation jobs |
-| `manager` | Tenant | Delete resources, cancel jobs within allowed tenants |
-| `tenant_control` | Platform | Manage tenants and consumers |
+Tenant roles are composable and non-hierarchical:
 
-Roles are **not hierarchical** — they are independent capabilities.
+| Suite role | Grants |
+|------------|--------|
+| `CONTENT_VIEWER` | `TEMPLATE_VIEW`, `DOCUMENT_VIEW`, `THEME_VIEW`, `STENCIL_VIEW`, `REFERENCE_VIEW`, `CATALOG_VIEW`, `BACKUP_VIEW` |
+| `CONTENT_AUTHOR` | `TEMPLATE_EDIT`, `THEME_EDIT`, `STENCIL_EDIT`, `REFERENCE_EDIT` |
+| `DOCUMENT_GENERATOR` | `DOCUMENT_GENERATE` |
+| `CONTENT_PUBLISHER` | `TEMPLATE_PUBLISH`, `STENCIL_PUBLISH` |
+| `TENANT_ADMINISTRATOR` | `TENANT_SETTINGS`, `TENANT_USERS`, `CATALOG_MANAGE`, `BACKUP_CREATE`, `DIAGNOSTICS_VIEW`, `AUDIT_VIEW`, `TENANT_RESTORE` |
 
-### Permission Matrix
+Platform roles:
 
-| Operation | reader | editor | generator | manager | tenant_control |
-|-----------|--------|--------|-----------|---------|----------------|
-| **Templates, Variants, Versions, Themes, Environments** |
-| List / Get | X | X | X | X | |
-| Create / Update | | X | | X | |
-| Delete | | | | X | |
-| **Document Generation** |
-| Submit generation job | | | X | X | |
-| View jobs and results | X | X | X | X | |
-| Cancel job / delete document | | | | X | |
-| **Tenants** |
-| List all tenants | | | | | X |
-| Get tenant (within allowed_tenants) | X | X | X | X | X |
-| Create / Update / Delete | | | | | X |
-| Collect generation results | X | X | X | X | |
-| **Consumers** |
-| Register (self-signed JWT) | — | — | — | — | — |
-| List / Get / Approve / Reject | | | | | X |
-| Rotate own public key | *self* | *self* | *self* | *self* | |
+| Suite platform role | Grants |
+|---------------------|--------|
+| `TENANT_MANAGER` | Create and delete tenants across the platform |
+| `PLATFORM_OBSERVER` | Cross-tenant read-only diagnostics/status observation |
+
+Important: `TENANT_ADMINISTRATOR` does not imply content publish or content edit. Grant
+`CONTENT_AUTHOR` and/or `CONTENT_PUBLISHER` alongside administration when an administrator also
+authors or approves content.
+
+Legacy role names such as `reader`, `editor`, `generator`, `manager`, and `tenant_control` are not
+part of the current Suite authorization vocabulary and should not be emitted by IdPs or API-key
+provisioning flows.
 
 ---
 
@@ -237,7 +232,7 @@ Returned when authenticated but lacking permission:
 Common causes:
 - Consumer status is not `active` (pending, rejected, expired, inactive)
 - Tenant not in consumer's `allowedTenants`
-- Consumer's role lacks permission for the operation
+- Consumer lacks the permission required for the operation
 
 ---
 

@@ -16,7 +16,7 @@ catalogs:
     description: Returns all catalogs (authored and subscribed) for the specified tenant.
     tags:
       - Catalogs
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [CATALOG_VIEW]
     parameters:
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
@@ -72,7 +72,7 @@ catalog-upgrade-preview:
       Read-only. Apply the returned change set with `POST .../upgrade`.
     tags:
       - Catalogs
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [CATALOG_VIEW]
     responses:
       '200':
         description: The upgrade diff.
@@ -113,7 +113,7 @@ catalog-release:
     description: Cut a new immutable SemVer release for an AUTHORED catalog.
     tags:
       - Catalogs
-    x-required-roles: [manager]
+    x-required-permissions: [TEMPLATE_PUBLISH]
     requestBody:
       required: true
       content:
@@ -167,7 +167,7 @@ catalog-upgrade:
       installed when listed in `includeNewSlugs`.
     tags:
       - Catalogs
-    x-required-roles: [manager]
+    x-required-permissions: [CATALOG_MANAGE]
     requestBody:
       required: false
       content:

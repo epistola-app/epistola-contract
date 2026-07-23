@@ -29,7 +29,7 @@ import-catalog:
       Resources are installed in dependency order: assets → attributes → themes → stencils → templates.
     tags:
       - Catalogs
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_EDIT]
     requestBody:
       required: true
       content:

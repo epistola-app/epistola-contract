@@ -16,7 +16,7 @@ info:
 
     The legacy `X-API-Key` header remains supported for existing integrations, but
     is deprecated. New API-key integrations should use `Authorization: ApiKey <key>`.
-    Permissions (allowed tenants, roles) are managed in Epistola's consumer record,
+    Permissions and allowed tenants are managed in Epistola's consumer record,
     not in JWT claims.
 
     See the [Authentication Guide](/docs/auth.md) for details.
@@ -66,9 +66,12 @@ info:
     registry is this document's top-level `x-problem-types` extension.
 
     ## Authorization
-    Access is controlled via roles (`reader`, `editor`, `generator`, `manager`,
-    `tenant_control`) and tenant permissions. These are set by an administrator
-    when approving a consumer registration.
+    Access is controlled via Suite permissions such as `TEMPLATE_VIEW`,
+    `TEMPLATE_EDIT`, `DOCUMENT_GENERATE`, and `CATALOG_MANAGE`. Tenant permissions
+    are derived from the Suite tenant roles (`CONTENT_VIEWER`, `CONTENT_AUTHOR`,
+    `DOCUMENT_GENERATOR`, `CONTENT_PUBLISHER`, `TENANT_ADMINISTRATOR`) or from
+    the roles stored on an API key. Platform-only tenant management uses the
+    `TENANT_MANAGER` platform role.
   version: "0.13.0"
   contact:
     name: Epistola Team
@@ -675,8 +678,8 @@ components:
         your private key. Required claims: `iss` (consumer ID), `exp`,
         `jti` (unique nonce for replay protection).
 
-        In both cases, the JWT proves identity only. Permissions (allowed
-        tenants, roles, expiry) are managed in Epistola's consumer record,
+        In both cases, the JWT proves identity only. Granted permissions,
+        allowed tenants, and expiry are managed in Epistola's consumer record,
         set by an administrator during approval.
 
     apiKeyAuth:
@@ -690,7 +693,7 @@ components:
         **Deprecated — use JWT Bearer authentication (OAuth or self-signed) instead.**
 
         Static API key for legacy environments. Keys are issued by administrators
-        and stored server-side with associated roles and tenant access permissions.
+        and stored server-side with associated Suite roles and tenant access.
         Prefer `Authorization: ApiKey <key>` for new API-key integrations.
 
     authorizationApiKeyAuth:
@@ -704,5 +707,5 @@ components:
 
         The auth scheme token is case-insensitive; examples use `ApiKey`.
         Keys are issued by administrators and stored server-side with associated
-        roles and tenant access permissions. This is the preferred API-key
+        Suite roles and tenant access. This is the preferred API-key
         transport. The legacy `X-API-Key` header remains supported but deprecated.

@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Operation authorization metadata now matches Epistola Suite permissions.** The OpenAPI
+  extensions now use `x-required-permissions`, `x-required-platform-roles`, or
+  `x-required-authentication` instead of the legacy `reader`/`editor`/`generator`/`manager`
+  role labels, aligning the contract with Suite's `Permission`, `TenantRole`, and `PlatformRole`
+  model.
 - **GitHub Actions Node runtime compatibility.** CI workflows now use Node 24-compatible action
   majors for artifact transfer, mise setup, npm setup, and Docker image publishing to avoid the
   Node 20 deprecation warnings emitted by GitHub-hosted runners.

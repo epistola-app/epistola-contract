@@ -87,6 +87,7 @@ generation-collect:
       Recommended: exponential backoff (1s → 2s → 4s → ... → 30s max), reset on results.
     tags:
       - Generation
+    x-required-permissions: [DOCUMENT_GENERATE]
     parameters:
       - name: Accept-Encoding
         in: header

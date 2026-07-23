@@ -16,7 +16,7 @@ environments:
     description: Retrieve all environments configured for a specific tenant.
     tags:
       - Environments
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [TEMPLATE_VIEW]
     parameters:
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
@@ -44,7 +44,7 @@ environments:
     description: Create a new environment for the specified tenant.
     tags:
       - Environments
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TENANT_SETTINGS]
     requestBody:
       required: true
       content:
@@ -96,7 +96,7 @@ environments-id:
     description: Retrieve details of a specific environment.
     tags:
       - Environments
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [TEMPLATE_VIEW]
     responses:
       '200':
         description: Environment details
@@ -117,7 +117,7 @@ environments-id:
     description: Update an existing environment's name.
     tags:
       - Environments
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TENANT_SETTINGS]
     requestBody:
       required: true
       content:
@@ -148,7 +148,7 @@ environments-id:
     description: Delete an environment and all its activations.
     tags:
       - Environments
-    x-required-roles: [manager]
+    x-required-permissions: [TENANT_SETTINGS]
     responses:
       '204':
         description: Environment deleted successfully

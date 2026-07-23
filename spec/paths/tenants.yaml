@@ -5,7 +5,7 @@ tenants:
     description: Retrieve a paginated list of all tenants with optional search filtering.
     tags:
       - Tenants
-    x-required-roles: [tenant_control]
+    x-required-authentication: true
     parameters:
       - name: q
         in: query
@@ -36,7 +36,7 @@ tenants:
     description: Create a new tenant with the given name.
     tags:
       - Tenants
-    x-required-roles: [tenant_control]
+    x-required-platform-roles: [TENANT_MANAGER]
     requestBody:
       required: true
       content:
@@ -75,7 +75,7 @@ tenants-id:
     description: Retrieve details of a specific tenant.
     tags:
       - Tenants
-    x-required-roles: [reader, editor, generator, manager, tenant_control]
+    x-required-authentication: true
     responses:
       '200':
         description: Tenant details
@@ -96,7 +96,7 @@ tenants-id:
     description: Update the name of an existing tenant.
     tags:
       - Tenants
-    x-required-roles: [tenant_control]
+    x-required-permissions: [TENANT_SETTINGS]
     requestBody:
       required: true
       content:
@@ -124,7 +124,7 @@ tenants-id:
     description: Delete a tenant and all associated templates.
     tags:
       - Tenants
-    x-required-roles: [tenant_control]
+    x-required-platform-roles: [TENANT_MANAGER]
     responses:
       '204':
         description: Tenant deleted successfully

@@ -25,7 +25,7 @@ templates:
     description: Retrieve all document templates belonging to a specific tenant.
     tags:
       - Templates
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [TEMPLATE_VIEW]
     parameters:
       - name: q
         in: query
@@ -58,7 +58,7 @@ templates:
     description: Create a new document template for the specified tenant.
     tags:
       - Templates
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_EDIT]
     requestBody:
       required: true
       content:
@@ -117,7 +117,7 @@ templates-id:
     description: Retrieve details of a specific document template including its model and data examples.
     tags:
       - Templates
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [TEMPLATE_VIEW]
     responses:
       '200':
         description: Template details
@@ -138,7 +138,7 @@ templates-id:
     description: Update an existing document template's properties, model, or data examples.
     tags:
       - Templates
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_EDIT]
     requestBody:
       required: true
       content:
@@ -171,7 +171,7 @@ templates-id:
     description: Delete a document template.
     tags:
       - Templates
-    x-required-roles: [manager]
+    x-required-permissions: [TEMPLATE_EDIT]
     responses:
       '204':
         description: Template deleted successfully
@@ -221,7 +221,7 @@ template-validate:
       faster feedback during development and before batch submission.
     tags:
       - Templates
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [TEMPLATE_VIEW]
     requestBody:
       required: true
       content:

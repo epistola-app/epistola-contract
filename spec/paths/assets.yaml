@@ -24,7 +24,7 @@ assets:
       the suite Images UI, which excludes font binaries managed by the Fonts API.
     tags:
       - Assets
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [TEMPLATE_VIEW]
     parameters:
       - name: search
         in: query
@@ -70,7 +70,7 @@ assets:
       `image/svg+xml`, and `image/webp`.
     tags:
       - Assets
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_EDIT]
     requestBody:
       required: true
       content:
@@ -144,7 +144,7 @@ asset-content:
     description: Download raw asset bytes.
     tags:
       - Assets
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [TEMPLATE_VIEW]
     responses:
       '200':
         description: Asset content.
@@ -213,7 +213,7 @@ asset-resource:
       still referenced by templates unless `force=true` is supplied.
     tags:
       - Assets
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_EDIT]
     parameters:
       - name: force
         in: query

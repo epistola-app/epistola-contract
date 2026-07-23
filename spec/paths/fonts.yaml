@@ -30,11 +30,7 @@ fonts:
       and catalog exchange only — there is no create/update/delete over REST.
     tags:
       - Fonts
-    x-required-roles:
-      - reader
-      - editor
-      - generator
-      - manager
+    x-required-permissions: [REFERENCE_VIEW]
     parameters:
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
@@ -88,11 +84,7 @@ fonts-slug:
     summary: Get a font family
     tags:
       - Fonts
-    x-required-roles:
-      - reader
-      - editor
-      - generator
-      - manager
+    x-required-permissions: [REFERENCE_VIEW]
     responses:
       '200':
         description: Font family.

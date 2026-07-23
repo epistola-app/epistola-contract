@@ -43,7 +43,7 @@ versions:
     description: Retrieve all versions of a specific variant (draft, published, archived).
     tags:
       - Versions
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [TEMPLATE_VIEW]
     parameters:
       - name: status
         in: query
@@ -127,7 +127,7 @@ versions-id:
     description: Retrieve details of a specific version including its template model.
     tags:
       - Versions
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [TEMPLATE_VIEW]
     responses:
       '200':
         description: Version details
@@ -148,7 +148,7 @@ versions-id:
     description: Update the template model of a draft version. Only drafts can be updated.
     tags:
       - Versions
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_EDIT]
     requestBody:
       required: true
       content:
@@ -229,7 +229,7 @@ version-publish:
       This single action replaces the previous separate publish + activate workflow.
     tags:
       - Versions
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_PUBLISH]
     requestBody:
       required: true
       content:
@@ -308,7 +308,7 @@ version-archive:
       to be updated to use a different version.
     tags:
       - Versions
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_PUBLISH]
     responses:
       '200':
         description: Version archived successfully

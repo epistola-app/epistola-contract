@@ -72,7 +72,7 @@ consumer-collection:
       with optional filtering by status.
     tags:
       - Consumers
-    x-required-roles: [manager]
+    x-required-permissions: [TENANT_USERS]
     parameters:
       - name: q
         in: query
@@ -128,7 +128,7 @@ consumer-resource:
     description: Retrieve details of a specific consumer in this tenant.
     tags:
       - Consumers
-    x-required-roles: [manager]
+    x-required-permissions: [TENANT_USERS]
     responses:
       '200':
         description: Consumer details
@@ -149,7 +149,7 @@ consumer-resource:
     description: Update a consumer's metadata or permissions within this tenant.
     tags:
       - Consumers
-    x-required-roles: [manager]
+    x-required-permissions: [TENANT_USERS]
     requestBody:
       required: true
       content:
@@ -188,7 +188,7 @@ consumer-resource:
         (orphaned reference).
     tags:
       - Consumers
-    x-required-roles: [manager]
+    x-required-permissions: [TENANT_USERS]
     responses:
       '204':
         description: Consumer deleted
@@ -224,11 +224,12 @@ consumer-approve:
     operationId: approveConsumer
     summary: Approve a pending consumer
     description: |
-      Approve a consumer registration within this tenant. Sets the roles and
-      optional expiry. The consumer transitions from `pending` to `active`.
+      Approve a consumer registration within this tenant. Sets the granted
+      permissions and optional expiry. The consumer transitions from `pending`
+      to `active`.
     tags:
       - Consumers
-    x-required-roles: [manager]
+    x-required-permissions: [TENANT_USERS]
     requestBody:
       required: true
       content:
@@ -280,7 +281,7 @@ consumer-reject:
       to `rejected`. Optionally provide a reason.
     tags:
       - Consumers
-    x-required-roles: [manager]
+    x-required-permissions: [TENANT_USERS]
     requestBody:
       required: false
       content:

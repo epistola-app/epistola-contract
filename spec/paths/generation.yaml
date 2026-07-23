@@ -14,7 +14,7 @@ preview-document:
       - Generated documents are **not stored** — use the async generation endpoints for production use
     tags:
       - Generation
-    x-required-roles: [editor, generator, manager]
+    x-required-permissions: [DOCUMENT_GENERATE]
     parameters:
       - name: tenantId
         in: path
@@ -57,7 +57,7 @@ generate-document:
     description: Submit a request to generate a single PDF document. Returns immediately with a job ID for tracking progress.
     tags:
       - Generation
-    x-required-roles: [generator, manager]
+    x-required-permissions: [DOCUMENT_GENERATE]
     parameters:
       - name: tenantId
         in: path
@@ -95,7 +95,7 @@ generate-batch:
     description: Submit a batch request to generate multiple PDF documents. Returns immediately with a job ID for tracking progress.
     tags:
       - Generation
-    x-required-roles: [generator, manager]
+    x-required-permissions: [DOCUMENT_GENERATE]
     parameters:
       - name: tenantId
         in: path
@@ -133,7 +133,7 @@ jobs:
     description: List all generation jobs for a tenant with optional status filtering
     tags:
       - Generation
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [DOCUMENT_VIEW]
     parameters:
       - name: tenantId
         in: path
@@ -191,7 +191,7 @@ job-detail:
     description: Get detailed status of a generation job including all items and their progress
     tags:
       - Generation
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [DOCUMENT_VIEW]
     responses:
       '200':
         description: Job status with items
@@ -212,7 +212,7 @@ job-detail:
     description: Cancel a pending or in-progress generation job
     tags:
       - Generation
-    x-required-roles: [manager]
+    x-required-permissions: [DOCUMENT_GENERATE]
     responses:
       '204':
         description: Job cancelled successfully
@@ -232,7 +232,7 @@ documents:
     description: List all generated documents for a tenant with optional filtering
     tags:
       - Generation
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [DOCUMENT_VIEW]
     parameters:
       - name: tenantId
         in: path
@@ -298,7 +298,7 @@ document-detail:
     description: Download the PDF content of a generated document
     tags:
       - Generation
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [DOCUMENT_VIEW]
     responses:
       '200':
         description: Document content
@@ -329,7 +329,7 @@ document-detail:
     description: Permanently delete a generated document
     tags:
       - Generation
-    x-required-roles: [manager]
+    x-required-permissions: [DOCUMENT_GENERATE]
     responses:
       '204':
         description: Document deleted successfully

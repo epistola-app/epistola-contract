@@ -26,11 +26,7 @@ attributes:
       Attribute definitions describe the keys that can be used for variant selection.
     tags:
       - Attributes
-    x-required-roles:
-      - reader
-      - editor
-      - generator
-      - manager
+    x-required-permissions: [REFERENCE_VIEW]
     parameters:
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
@@ -57,9 +53,7 @@ attributes:
     description: Create a new attribute definition for the specified tenant.
     tags:
       - Attributes
-    x-required-roles:
-      - editor
-      - manager
+    x-required-permissions: [REFERENCE_EDIT]
     requestBody:
       required: true
       content:
@@ -119,11 +113,7 @@ attributes-key:
     description: Retrieve a specific attribute definition by key.
     tags:
       - Attributes
-    x-required-roles:
-      - reader
-      - editor
-      - generator
-      - manager
+    x-required-permissions: [REFERENCE_VIEW]
     responses:
       '200':
         description: Attribute definition details
@@ -143,9 +133,7 @@ attributes-key:
     description: Update the description of an existing attribute definition.
     tags:
       - Attributes
-    x-required-roles:
-      - editor
-      - manager
+    x-required-permissions: [REFERENCE_EDIT]
     requestBody:
       required: true
       content:
@@ -173,8 +161,7 @@ attributes-key:
     description: Delete an attribute definition. Existing variant attributes using this key are not affected.
     tags:
       - Attributes
-    x-required-roles:
-      - manager
+    x-required-permissions: [REFERENCE_EDIT]
     responses:
       '204':
         description: Attribute definition deleted successfully

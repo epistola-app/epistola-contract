@@ -34,7 +34,7 @@ variants:
     description: Retrieve all variants of a specific template.
     tags:
       - Variants
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [TEMPLATE_VIEW]
     parameters:
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
@@ -62,7 +62,7 @@ variants:
     description: Create a new variant for the specified template with optional tags.
     tags:
       - Variants
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_EDIT]
     requestBody:
       required: true
       content:
@@ -130,7 +130,7 @@ variants-id:
     description: Retrieve details of a specific variant including version summary.
     tags:
       - Variants
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [TEMPLATE_VIEW]
     responses:
       '200':
         description: Variant details
@@ -151,7 +151,7 @@ variants-id:
     description: Update a variant's tags.
     tags:
       - Variants
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_EDIT]
     requestBody:
       required: true
       content:
@@ -180,7 +180,7 @@ variants-id:
     description: Delete a variant and all its versions. Cannot delete the default variant — reassign default first.
     tags:
       - Variants
-    x-required-roles: [manager]
+    x-required-permissions: [TEMPLATE_EDIT]
     responses:
       '204':
         description: Variant deleted successfully
@@ -238,7 +238,7 @@ variant-set-default:
     description: Set a variant as the default for its template. The previous default is cleared.
     tags:
       - Variants
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_EDIT]
     responses:
       '200':
         description: Default variant set successfully
@@ -298,7 +298,7 @@ variant-draft:
     description: Retrieve the current draft version for a variant.
     tags:
       - Variants
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [TEMPLATE_VIEW]
     responses:
       '200':
         description: Draft version
@@ -319,7 +319,7 @@ variant-draft:
     description: Create a new draft or update the existing draft for a variant.
     tags:
       - Variants
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_EDIT]
     requestBody:
       required: true
       content:
@@ -354,7 +354,7 @@ variant-draft:
     description: Create a new draft version from the latest published version.
     tags:
       - Variants
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_EDIT]
     responses:
       '201':
         description: Draft created
@@ -413,7 +413,7 @@ variant-draft-publish:
     description: Publish the variant's current draft version without activating it in an environment.
     tags:
       - Variants
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_PUBLISH]
     responses:
       '200':
         description: Draft published
@@ -472,7 +472,7 @@ variant-draft-discard:
     description: Delete the current draft and return the variant to its latest published version.
     tags:
       - Variants
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_EDIT]
     responses:
       '204':
         description: Draft discarded
@@ -532,7 +532,7 @@ variant-activations:
     description: List which version is active in each environment for this variant.
     tags:
       - Variants
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [TEMPLATE_VIEW]
     responses:
       '200':
         description: List of activations
@@ -601,7 +601,7 @@ variant-activation-env:
     description: Remove the active version for this variant in the specified environment.
     tags:
       - Variants
-    x-required-roles: [manager]
+    x-required-permissions: [TEMPLATE_PUBLISH]
     responses:
       '204':
         description: Activation removed successfully
@@ -657,7 +657,7 @@ variant-active:
     description: Retrieve the active published version for this variant in the specified environment.
     tags:
       - Variants
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [TEMPLATE_VIEW]
     parameters:
       - name: environment
         in: query

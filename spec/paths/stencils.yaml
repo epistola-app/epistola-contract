@@ -25,7 +25,7 @@ stencils:
     description: Retrieve all stencils belonging to a specific tenant, optionally filtered by search term or tags.
     tags:
       - Stencils
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [STENCIL_VIEW]
     parameters:
       - name: q
         in: query
@@ -65,7 +65,7 @@ stencils:
       a draft version (version 1) is automatically created with that content.
     tags:
       - Stencils
-    x-required-roles: [editor, manager]
+    x-required-permissions: [STENCIL_EDIT]
     requestBody:
       required: true
       content:
@@ -126,7 +126,7 @@ stencils-id:
     description: Retrieve details of a specific stencil including its version summaries.
     tags:
       - Stencils
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [STENCIL_VIEW]
     responses:
       '200':
         description: Stencil details
@@ -147,7 +147,7 @@ stencils-id:
     description: Update a stencil's metadata (name, description, tags).
     tags:
       - Stencils
-    x-required-roles: [editor, manager]
+    x-required-permissions: [STENCIL_EDIT]
     requestBody:
       required: true
       content:
@@ -178,7 +178,7 @@ stencils-id:
       copies of this stencil's content are not affected (the embedded content remains).
     tags:
       - Stencils
-    x-required-roles: [manager]
+    x-required-permissions: [STENCIL_EDIT]
     responses:
       '204':
         description: Stencil deleted successfully
@@ -228,7 +228,7 @@ stencil-upgrade:
       changed until the draft is published.
     tags:
       - Stencils
-    x-required-roles: [editor, manager]
+    x-required-permissions: [TEMPLATE_EDIT]
     requestBody:
       required: true
       content:
@@ -289,7 +289,7 @@ stencil-versions:
     description: Retrieve all versions of a specific stencil (draft, published, archived).
     tags:
       - Stencils
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [STENCIL_VIEW]
     parameters:
       - name: status
         in: query
@@ -329,7 +329,7 @@ stencil-versions:
       is copied as a starting point.
     tags:
       - Stencils
-    x-required-roles: [editor, manager]
+    x-required-permissions: [STENCIL_EDIT]
     requestBody:
       required: false
       content:
@@ -396,7 +396,7 @@ stencil-versions-id:
     description: Retrieve details of a specific stencil version including its content.
     tags:
       - Stencils
-    x-required-roles: [reader, editor, generator, manager]
+    x-required-permissions: [STENCIL_VIEW]
     responses:
       '200':
         description: Stencil version details
@@ -417,7 +417,7 @@ stencil-versions-id:
     description: Update the content of a draft stencil version. Only drafts can be updated.
     tags:
       - Stencils
-    x-required-roles: [editor, manager]
+    x-required-permissions: [STENCIL_EDIT]
     requestBody:
       required: true
       content:
@@ -487,7 +487,7 @@ stencil-version-publish:
       nested stencil references.
     tags:
       - Stencils
-    x-required-roles: [editor, manager]
+    x-required-permissions: [STENCIL_PUBLISH]
     responses:
       '200':
         description: Stencil version published successfully
@@ -550,7 +550,7 @@ stencil-version-archive:
       new templates but remain embedded in templates that already use them.
     tags:
       - Stencils
-    x-required-roles: [editor, manager]
+    x-required-permissions: [STENCIL_PUBLISH]
     responses:
       '200':
         description: Stencil version archived successfully
@@ -613,7 +613,7 @@ stencil-version-usage:
       Useful for impact analysis before archiving or when planning bulk upgrades.
     tags:
       - Stencils
-    x-required-roles: [reader, editor, manager]
+    x-required-permissions: [STENCIL_VIEW]
     parameters:
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
@@ -683,7 +683,7 @@ stencil-version-upgrade-preview:
       the stencil content would be replaced.
     tags:
       - Stencils
-    x-required-roles: [editor, manager]
+    x-required-permissions: [STENCIL_VIEW]
     responses:
       '200':
         description: List of upgrade previews
