@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Suite-backed API parity for contract and draft lifecycle actions.** The contract now documents
   data-contract draft/update/publish/list endpoints, variant draft create/publish/discard actions,
   and code-list entry hide/show toggles that already exist in Epistola Suite.
+- **Catalog-scoped Assets API.** The suite's image/asset capabilities are now represented in the
+  public contract with asset list, upload, content download, and delete endpoints.
 
 ### Fixed
 

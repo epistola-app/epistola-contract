@@ -1,0 +1,93 @@
+AssetDto:
+  type: object
+  description: Asset metadata. Binary content is fetched separately through the content endpoint.
+  required:
+    - id
+    - tenantId
+    - catalog
+    - catalogType
+    - readOnly
+    - name
+    - mediaType
+    - mediaCategory
+    - sizeBytes
+    - createdAt
+  properties:
+    id:
+      type: string
+      format: uuid
+      description: Stable asset identifier.
+      example: "4a64f2f9-2c7a-4d26-9cf7-d34c7ce92280"
+    tenantId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      example: acme-corp
+    catalog:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      description: Catalog that owns the asset.
+      example: default
+    catalogType:
+      type: string
+      enum:
+        - AUTHORED
+        - SUBSCRIBED
+      example: AUTHORED
+    readOnly:
+      type: boolean
+      description: True when the asset belongs to a SUBSCRIBED catalog.
+      example: false
+    name:
+      type: string
+      minLength: 1
+      maxLength: 255
+      example: logo.svg
+    mediaType:
+      type: string
+      description: MIME type from the deployment's asset type registry.
+      example: image/svg+xml
+    mediaCategory:
+      type: string
+      enum:
+        - IMAGE
+        - FONT
+        - OTHER
+      description: Broad behavioral class derived from `mediaType`.
+      example: IMAGE
+    sizeBytes:
+      type: integer
+      format: int64
+      minimum: 0
+      maximum: 5242880
+      example: 12482
+    width:
+      type:
+        - integer
+        - 'null'
+      minimum: 1
+      description: Image width in pixels when known; null for SVG and non-images.
+      example: 512
+    height:
+      type:
+        - integer
+        - 'null'
+      minimum: 1
+      description: Image height in pixels when known; null for SVG and non-images.
+      example: 128
+    createdAt:
+      type: string
+      format: date-time
+      example: "2026-07-23T10:00:00Z"
+
+AssetListResponse:
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/AssetDto'
+    page:
+      $ref: './common.yaml#/PageMeta'

@@ -1,0 +1,234 @@
+assets:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+  get:
+    operationId: listAssets
+    summary: List assets in a catalog
+    description: |
+      List asset metadata for a catalog. Use `mediaCategory=IMAGE` to mirror
+      the suite Images UI, which excludes font binaries managed by the Fonts API.
+    tags:
+      - Assets
+    x-required-roles: [reader, editor, generator, manager]
+    parameters:
+      - name: search
+        in: query
+        required: false
+        description: Case-insensitive substring match on asset name.
+        schema:
+          type: string
+          maxLength: 255
+      - name: mediaCategory
+        in: query
+        required: false
+        description: Filter by broad asset category.
+        schema:
+          type: string
+          enum:
+            - IMAGE
+            - FONT
+            - OTHER
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
+    responses:
+      '200':
+        description: List of assets.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/assets.yaml#/AssetListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+  post:
+    operationId: uploadAsset
+    summary: Upload an asset
+    description: |
+      Upload a binary asset into an AUTHORED catalog. The suite currently limits
+      asset content to 5 MiB. Supported MIME types are deployment-configured in
+      the asset type registry; common image types are `image/png`, `image/jpeg`,
+      `image/svg+xml`, and `image/webp`.
+    tags:
+      - Assets
+    x-required-roles: [editor, manager]
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+              - file
+            properties:
+              file:
+                type: string
+                format: binary
+                description: Asset content.
+              name:
+                type: string
+                minLength: 1
+                maxLength: 255
+                description: Optional display name; defaults to the uploaded filename.
+              mediaType:
+                type: string
+                description: Optional MIME override; defaults to the part content type.
+              sensitive:
+                type: boolean
+                default: false
+                description: Store content in a tenant-isolated deduplication scope.
+    responses:
+      '201':
+        description: Asset uploaded.
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/assets.yaml#/AssetDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+asset-content:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+    - name: assetId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  get:
+    operationId: downloadAssetContent
+    summary: Download asset content
+    description: Download raw asset bytes.
+    tags:
+      - Assets
+    x-required-roles: [reader, editor, generator, manager]
+    responses:
+      '200':
+        description: Asset content.
+        headers:
+          Cache-Control:
+            description: Long-lived immutable cache directive for content-addressed assets.
+            schema:
+              type: string
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/svg+xml:
+            schema:
+              type: string
+              format: binary
+          image/webp:
+            schema:
+              type: string
+              format: binary
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+asset-resource:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+    - name: assetId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  delete:
+    operationId: deleteAsset
+    summary: Delete an asset
+    description: |
+      Delete an asset from an AUTHORED catalog. Returns 409 when the asset is
+      still referenced by templates unless `force=true` is supplied.
+    tags:
+      - Assets
+    x-required-roles: [editor, manager]
+    parameters:
+      - name: force
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+    responses:
+      '204':
+        description: Asset deleted.
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
