@@ -9,6 +9,7 @@ Mirrors the Kotlin client's ``RestClient.Builder`` wiring and the .NET
         .base_url("https://epistola.example.com/api")
         .identity(identity)                  # User-Agent + X-EP-Node-Id
         .jwt_signer(signer)                  # Authorization: Bearer
+        .api_key("epk_...")                  # Authorization: ApiKey
         .install_problem_detail_handler()    # typed ProblemDetailException on problem+json
         .build()
     )
@@ -41,10 +42,12 @@ class EpistolaApiClient(ApiClient):
         configuration: Optional[Configuration] = None,
         identity: Optional[ClientIdentity] = None,
         jwt_signer: Optional[JwtSigner] = None,
+        api_key: Optional[str] = None,
         install_problem_detail_handler: bool = False,
     ) -> None:
         super().__init__(configuration=configuration)
         self._jwt_signer = jwt_signer
+        self._api_key = _normalize_api_key(api_key)
         self._install_problem_detail_handler = install_problem_detail_handler
         if identity is not None:
             for name, value in identity.headers().items():
@@ -58,6 +61,8 @@ class EpistolaApiClient(ApiClient):
         headers = dict(self.default_headers)
         if self._jwt_signer is not None:
             headers["Authorization"] = f"Bearer {self._jwt_signer.create_token()}"
+        elif self._api_key is not None:
+            headers["Authorization"] = f"ApiKey {self._api_key}"
         return headers
 
     def param_serialize(self, *args, **kwargs):
@@ -66,6 +71,8 @@ class EpistolaApiClient(ApiClient):
             # Mint a fresh short-lived token per request (mirrors the handler chain in
             # the Kotlin/.NET clients), overriding any auth the generated client set.
             header_params["Authorization"] = f"Bearer {self._jwt_signer.create_token()}"
+        elif self._api_key is not None:
+            header_params["Authorization"] = f"ApiKey {self._api_key}"
         return method, url, header_params, body, post_params
 
     def response_deserialize(self, response_data, response_types_map=None):
@@ -91,6 +98,7 @@ class EpistolaClientBuilder:
         self._base_url: Optional[str] = None
         self._identity: Optional[ClientIdentity] = None
         self._jwt_signer: Optional[JwtSigner] = None
+        self._api_key: Optional[str] = None
         self._install_problem_detail_handler = False
         self._configuration: Optional[Configuration] = None
 
@@ -107,6 +115,11 @@ class EpistolaClientBuilder:
     def jwt_signer(self, signer: JwtSigner) -> "EpistolaClientBuilder":
         """Add the self-signed JWT bearer auth."""
         self._jwt_signer = signer
+        return self
+
+    def api_key(self, api_key: str) -> "EpistolaClientBuilder":
+        """Add static API-key auth via ``Authorization: ApiKey <key>``."""
+        self._api_key = _normalize_api_key(api_key)
         return self
 
     def install_problem_detail_handler(self) -> "EpistolaClientBuilder":
@@ -128,5 +141,15 @@ class EpistolaClientBuilder:
             configuration=configuration,
             identity=self._identity,
             jwt_signer=self._jwt_signer,
+            api_key=self._api_key,
             install_problem_detail_handler=self._install_problem_detail_handler,
         )
+
+
+def _normalize_api_key(api_key: Optional[str]) -> Optional[str]:
+    if api_key is None:
+        return None
+    value = api_key.strip()
+    if not value:
+        raise ValueError("api_key must not be blank")
+    return value

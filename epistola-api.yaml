@@ -9,12 +9,15 @@ info:
     Use `application/vnd.epistola.v1+json` for API version 1.
 
     ## Authentication
-    The API uses JWT Bearer tokens for authentication. Two paths are supported:
-    - **OAuth 2.0** (recommended): Use Client Credentials flow to obtain a JWT from your IdP
-    - **Self-signed JWT**: Register with a public key, then sign short-lived JWTs with your private key
+    The API accepts authentication through the `Authorization` header:
+    - **Bearer JWT**: `Authorization: Bearer <jwt>` using OAuth 2.0 Client Credentials
+      or self-signed JWTs
+    - **API key**: `Authorization: ApiKey <key>` for static tenant API keys
 
-    Both paths use `Authorization: Bearer <jwt>`. Permissions (allowed tenants, roles)
-    are managed in Epistola's consumer record, not in JWT claims.
+    The legacy `X-API-Key` header remains supported for existing integrations, but
+    is deprecated. New API-key integrations should use `Authorization: ApiKey <key>`.
+    Permissions (allowed tenants, roles) are managed in Epistola's consumer record,
+    not in JWT claims.
 
     See the [Authentication Guide](/docs/auth.md) for details.
 
@@ -103,6 +106,13 @@ x-problem-types:
       status: 401
       schema: ProblemDetail
       description: Missing or invalid authentication credentials.
+    - slug: api-key-auth-disabled
+      status: 401
+      schema: ProblemDetail
+      description: >-
+        API-key authentication is disabled for this deployment. Use
+        `Authorization: Bearer <jwt>` instead, or ask an administrator to enable
+        API-key authentication.
     - slug: forbidden
       status: 403
       schema: ProblemDetail
@@ -210,16 +220,17 @@ tags:
 
       ## Authentication
 
-      Both paths use `Authorization: Bearer <jwt>`. For self-signed JWT consumers,
+      Bearer JWT calls use `Authorization: Bearer <jwt>`. For self-signed JWT consumers,
       the JWT is short-lived (60s) and signed with the consumer's private key.
   - name: Generation
     description: Asynchronous document generation operations
 
-# Global security — either method is accepted.
-# bearerAuth (JWT) is the recommended path. apiKeyAuth is deprecated and
-# retained only for backwards compatibility — it will be removed in a future version.
+# Global security — any method is accepted.
+# bearerAuth (JWT) and authorizationApiKeyAuth are the current Authorization-header
+# paths. apiKeyAuth is deprecated and retained for backwards compatibility.
 security:
   - bearerAuth: []
+  - authorizationApiKeyAuth: []
   - apiKeyAuth: []
 
 paths:
@@ -650,4 +661,18 @@ components:
 
         Static API key for legacy environments. Keys are issued by administrators
         and stored server-side with associated roles and tenant access permissions.
-        API key authentication will be removed in a future API version.
+        Prefer `Authorization: ApiKey <key>` for new API-key integrations.
+
+    authorizationApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: |
+        Static API key sent through the standard `Authorization` header:
+
+        `Authorization: ApiKey <key>`
+
+        The auth scheme token is case-insensitive; examples use `ApiKey`.
+        Keys are issued by administrators and stored server-side with associated
+        roles and tenant access permissions. This is the preferred API-key
+        transport. The legacy `X-API-Key` header remains supported but deprecated.

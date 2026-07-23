@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Authorization-header API-key authentication.** The contract now accepts static API keys through
+  `Authorization: ApiKey <key>` while retaining deprecated `X-API-Key` support for existing
+  integrations. The Kotlin, .NET, and Python client helpers can set the new header, and
+  `api-key-auth-disabled` is a canonical Problem Details type for deployments that disable API-key
+  authentication.
+
 ### Fixed
 
 - **Kotlin server artifact manifests now expose `Implementation-Version`.** The

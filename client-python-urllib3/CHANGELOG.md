@@ -26,6 +26,8 @@ records contract/spec changes. This file records changes specific to the Python 
 
 ### Added
 
+- `EpistolaClientBuilder.api_key(...)` now supports `Authorization: ApiKey <key>`
+  authentication. `X-API-Key` remains a server-side compatibility path but is deprecated.
 - **Initial release** — a Python client for the Epistola API, generated from the OpenAPI contract
   with OpenAPI Generator (`python` / urllib3, pydantic v2 models), at feature parity with the Kotlin
   and .NET clients.

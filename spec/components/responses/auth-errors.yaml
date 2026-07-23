@@ -12,6 +12,18 @@ UnauthorizedError:
         status: 401
         detail: Invalid or expired access token
 
+ApiKeyAuthDisabledError:
+  description: API-key authentication is disabled for this deployment
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ProblemDetail'
+      example:
+        type: https://epistola.app/errors/api-key-auth-disabled
+        title: API Key Authentication Disabled
+        status: 401
+        detail: "API-key authentication is disabled for this deployment. Use Authorization: Bearer <jwt>."
+
 ForbiddenError:
   description: Authenticated but insufficient permissions for the requested resource
   content:

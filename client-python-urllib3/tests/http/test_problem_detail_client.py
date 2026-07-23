@@ -68,3 +68,19 @@ def test_content_type_with_charset_is_recognized():
     with pytest.raises(ProblemDetailException) as excinfo:
         client.response_deserialize(resp, {})
     assert excinfo.value.type_slug == "conflict"
+
+
+def test_api_key_auth_header_is_added_to_generated_requests():
+    client = EpistolaClientBuilder().base_url("https://x.example/api").api_key(" epk_test ").build()
+    _, _, headers, _, _ = client.param_serialize("GET", "/tenants", {}, None, [])
+    assert headers["Authorization"] == "ApiKey epk_test"
+
+
+def test_api_key_auth_header_is_available_for_raw_collect_requests():
+    client = EpistolaClientBuilder().api_key("epk_test").build()
+    assert client.epistola_request_headers()["Authorization"] == "ApiKey epk_test"
+
+
+def test_blank_api_key_is_rejected():
+    with pytest.raises(ValueError, match="api_key must not be blank"):
+        EpistolaClientBuilder().api_key(" ")

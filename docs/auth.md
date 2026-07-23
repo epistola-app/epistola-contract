@@ -1,10 +1,10 @@
 # Authentication Guide
 
-The Epistola API uses JWT Bearer tokens for authentication. Two paths are supported depending on your environment.
+The Epistola API accepts authentication through the `Authorization` header. JWT Bearer tokens are recommended for new integrations, and static API keys remain supported.
 
 ## Authentication Methods
 
-### Method 1: OAuth 2.0 (Recommended)
+### Method 1: OAuth 2.0 Bearer JWT (Recommended)
 
 Use the OAuth 2.0 Client Credentials flow to obtain a JWT from your Identity Provider.
 
@@ -110,6 +110,26 @@ curl -X PUT https://api.example.com/api/tenants/acme-corp/consumers/invoice-serv
 
 After rotation, the old key is immediately invalidated.
 
+### Method 3: API Key
+
+Tenant API keys are static credentials issued by an administrator. New API-key integrations should send the key through the `Authorization` header:
+
+```bash
+curl https://api.example.com/api/tenants/acme-corp/templates \
+  -H "Authorization: ApiKey epk_..." \
+  -H "Accept: application/vnd.epistola.v1+json"
+```
+
+The legacy `X-API-Key` header remains supported for existing integrations, but is deprecated:
+
+```bash
+curl https://api.example.com/api/tenants/acme-corp/templates \
+  -H "X-API-Key: epk_..." \
+  -H "Accept: application/vnd.epistola.v1+json"
+```
+
+The `ApiKey` authorization scheme name is case-insensitive as defined by HTTP authentication rules; examples use `ApiKey` for readability.
+
 ---
 
 ## Authorization
@@ -186,8 +206,10 @@ Returned when authentication fails:
 
 ```json
 {
-  "code": "UNAUTHORIZED",
-  "message": "Invalid or expired access token"
+  "type": "https://epistola.app/errors/unauthorized",
+  "title": "Unauthorized",
+  "status": 401,
+  "detail": "Invalid or expired access token"
 }
 ```
 
@@ -196,6 +218,8 @@ Common causes:
 - Expired JWT token
 - Invalid token signature
 - Unknown issuer (consumer not registered)
+- Missing, malformed, disabled, revoked, or expired API key
+- API-key authentication is disabled for the deployment. In that case the problem `type` is `https://epistola.app/errors/api-key-auth-disabled`; clients should switch to `Authorization: Bearer <jwt>` or show a deployment-policy message.
 
 ### 403 Forbidden
 
@@ -203,8 +227,10 @@ Returned when authenticated but lacking permission:
 
 ```json
 {
-  "code": "FORBIDDEN",
-  "message": "Access denied to tenant 'acme-corp'"
+  "type": "https://epistola.app/errors/forbidden",
+  "title": "Forbidden",
+  "status": 403,
+  "detail": "Access denied to tenant 'acme-corp'"
 }
 ```
 
@@ -219,7 +245,8 @@ Common causes:
 
 1. **Use OAuth for production** — Short-lived tokens from a managed IdP
 2. **Use self-signed JWT for simple deployments** — No IdP dependency, but manage key rotation
-3. **Set expiry on consumer approvals** — Forces periodic review of access
-4. **Rotate keys regularly** — For self-signed JWT consumers, rotate at least every 90 days
-5. **Keep JWTs short-lived** — 60 seconds is recommended for self-signed JWTs
-6. **Use unique `jti` values** — Prevents replay attacks on self-signed JWTs
+3. **Use `Authorization: ApiKey <key>` for static keys** — `X-API-Key` remains supported but is deprecated
+4. **Set expiry on consumer approvals** — Forces periodic review of access
+5. **Rotate keys regularly** — For self-signed JWT consumers, rotate at least every 90 days
+6. **Keep JWTs short-lived** — 60 seconds is recommended for self-signed JWTs
+7. **Use unique `jti` values** — Prevents replay attacks on self-signed JWTs

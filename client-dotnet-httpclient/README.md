@@ -68,6 +68,12 @@ X-EP-Node-Id: my-pod-123
 unique `jti` per request. For OAuth 2.0 client-credentials, supply your own bearer handler via
 `EpistolaHttpClientBuilder.PrimaryHandler(...)` or add a `DelegatingHandler` around the chain.
 
+Static tenant API keys can be sent with `.ApiKey("epk_...")`, which sets
+`Authorization: ApiKey <key>`. The legacy `X-API-Key` header remains supported for existing
+integrations, but is deprecated. Some Epistola Suite deployments may disable API-key authentication
+entirely; with `InstallProblemDetailHandler()`, switch on `ProblemDetailException.TypeSlug ==
+KnownProblemSlugs.API_KEY_AUTH_DISABLED` and guide the caller to JWT auth.
+
 ## Error handling
 
 With `InstallProblemDetailHandler()`, `application/problem+json` error responses raise a typed

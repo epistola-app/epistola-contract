@@ -20,6 +20,7 @@ class ProblemRegistryTest {
         assertEquals("validation-error", KnownProblemSlugs.VALIDATION_ERROR)
         assertEquals("bad-request", KnownProblemSlugs.BAD_REQUEST)
         assertEquals("unauthorized", KnownProblemSlugs.UNAUTHORIZED)
+        assertEquals("api-key-auth-disabled", KnownProblemSlugs.API_KEY_AUTH_DISABLED)
         assertEquals("forbidden", KnownProblemSlugs.FORBIDDEN)
         assertEquals("not-found", KnownProblemSlugs.NOT_FOUND)
         assertEquals("conflict", KnownProblemSlugs.CONFLICT)

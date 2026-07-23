@@ -11,6 +11,9 @@ records contract/spec changes. This file records changes specific to the .NET cl
 
 ### Added
 
+- `ApiKeyAuth` and `EpistolaHttpClientBuilder.ApiKey(...)` now support
+  `Authorization: ApiKey <key>` authentication. `X-API-Key` remains a server-side
+  compatibility path but is deprecated.
 - **Initial release** — a .NET 8 client for the Epistola API, generated from the OpenAPI contract
   with OpenAPI Generator (`csharp` / `HttpClient`), at feature parity with the Kotlin client.
   - `ClientIdentity` — mandatory `User-Agent` / `X-EP-Node-Id` headers, built via a fluent builder.
