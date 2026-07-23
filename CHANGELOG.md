@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and code-list entry hide/show toggles that already exist in Epistola Suite.
 - **Catalog-scoped Assets API.** The suite's image/asset capabilities are now represented in the
   public contract with asset list, upload, content download, and delete endpoints.
+- **Catalog and stencil apply actions.** Authored catalog release, subscribed catalog upgrade apply,
+  and stencil upgrade apply actions are now documented as public API endpoints.
 
 ### Fixed
 

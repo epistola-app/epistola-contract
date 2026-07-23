@@ -355,6 +355,8 @@ paths:
     $ref: './spec/paths/stencils.yaml#/stencils'
   /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}:
     $ref: './spec/paths/stencils.yaml#/stencils-id'
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/upgrade:
+    $ref: './spec/paths/stencils.yaml#/stencil-upgrade'
   /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions:
     $ref: './spec/paths/stencils.yaml#/stencil-versions'
   /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}:
@@ -371,8 +373,12 @@ paths:
   # Catalogs
   /tenants/{tenantId}/catalogs:
     $ref: './spec/paths/catalogs.yaml#/catalogs'
+  /tenants/{tenantId}/catalogs/{catalogId}/release:
+    $ref: './spec/paths/catalogs.yaml#/catalog-release'
   /tenants/{tenantId}/catalogs/{catalogId}/upgrade-preview:
     $ref: './spec/paths/catalogs.yaml#/catalog-upgrade-preview'
+  /tenants/{tenantId}/catalogs/{catalogId}/upgrade:
+    $ref: './spec/paths/catalogs.yaml#/catalog-upgrade'
 
   # Catalog Import
   /tenants/{tenantId}/catalogs/import:

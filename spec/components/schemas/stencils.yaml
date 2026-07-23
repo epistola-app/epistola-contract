@@ -589,6 +589,88 @@ UpgradePreviewDto:
       themeRef:
         type: inherit
 
+ApplyStencilUpgradeRequest:
+  type: object
+  description: Request body for upgrading stencil instances inside a template variant draft.
+  required:
+    - templateId
+    - variantId
+    - catalogKey
+    - newVersion
+  properties:
+    templateId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Template containing the variant to upgrade.
+      example: monthly-invoice
+    variantId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      example: english
+    catalogKey:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Catalog containing the template.
+      example: default
+    newVersion:
+      type: integer
+      minimum: 1
+      maximum: 200
+      description: Target stencil version to apply.
+      example: 2
+
+ApplyStencilUpgradeResponse:
+  type: object
+  required:
+    - upgraded
+    - droppedFills
+  properties:
+    upgraded:
+      type: integer
+      minimum: 0
+      description: Number of stencil instances replaced in the draft.
+      example: 2
+    droppedFills:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          $ref: '#/DroppedStencilFillDto'
+      description: Placeholder fills that could not be preserved, keyed by stencil instance node id.
+    droppedBindings:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          type: string
+      description: Parameter bindings that could not be preserved, keyed by stencil instance node id.
+    unboundRequired:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          type: string
+      description: Required parameters left unbound after the upgrade, keyed by stencil instance node id.
+
+DroppedStencilFillDto:
+  type: object
+  required:
+    - name
+    - contentSummary
+  properties:
+    name:
+      type: string
+      example: subtitle
+    contentSummary:
+      type: string
+      example: Previous subtitle text
+
 StencilListResponse:
   description: List of stencils
   type: object
