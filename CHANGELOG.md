@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Kotlin server artifact manifests now expose `Implementation-Version`.** The
+  `server-kotlin-springboot4` JAR now stamps the contract version into its manifest so Epistola
+  Suite can read the generated server-stub version and expose it through `/api/ping` instead of
+  reporting `apiVersion: "unknown"`.
+
 ### Changed
 
 - **GitHub Actions Node runtime compatibility.** CI workflows now use Node 24-compatible action
