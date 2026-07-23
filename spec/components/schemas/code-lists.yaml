@@ -173,6 +173,17 @@ CodeListEntriesResponse:
       items:
         $ref: '#/CodeListEntryDto'
 
+UpdateCodeListEntryHiddenRequest:
+  type: object
+  description: Request body for hiding or showing a single code-list entry.
+  required:
+    - hidden
+  properties:
+    hidden:
+      type: boolean
+      description: True to hide the entry from pickers; false to show it again.
+      example: true
+
 CreateCodeListRequest:
   type: object
   description: |
