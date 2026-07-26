@@ -287,15 +287,19 @@ object TemplateValidator {
         }
         component.properties.forEach { rule ->
             val value = valueAt(props, rule.path) ?: return@forEach
-            val valid = when (rule.type) {
-                "number" -> value is Number || value is JsonNode && value.isNumber
-                "boolean" -> value is Boolean || value is JsonNode && value.isBoolean
-                "array" -> value is List<*> || value is JsonNode && value.isArray
-                "object" -> value is Map<*, *> || value is JsonNode && value.isObject
-                "select" -> stringValue(value)?.let { rule.options.isEmpty() || it in rule.options } == true
-                "expression" -> stringValue(value) != null
-                "text", "unit", "color" -> stringValue(value) != null
-                else -> true
+            val valid = if (component.type == "text" && rule.path == "content") {
+                stringValue(value) != null || value is Map<*, *> || value is JsonNode && value.isObject
+            } else {
+                when (rule.type) {
+                    "number" -> value is Number || value is JsonNode && value.isNumber
+                    "boolean" -> value is Boolean || value is JsonNode && value.isBoolean
+                    "array" -> value is List<*> || value is JsonNode && value.isArray
+                    "object" -> value is Map<*, *> || value is JsonNode && value.isObject
+                    "select" -> stringValue(value)?.let { rule.options.isEmpty() || it in rule.options } == true
+                    "expression" -> stringValue(value) != null
+                    "text", "unit", "color" -> stringValue(value) != null
+                    else -> true
+                }
             }
             if (!valid) {
                 findings.error(TEMPLATE_NODE_PROPERTY_INVALID, "nodes.${node.id}.props.${rule.path}", "property '${rule.path}' has an invalid ${rule.type ?: "value"} shape")

@@ -46,7 +46,7 @@ class TemplateValidatorFixtureTest {
         "UNSUPPORTED_NODE" -> withChild(Node("n-child", "unsupported")) to TemplateValidationContext.EMPTY
         "INVALID_SLOT" -> validDocument().copy(slots = mapOf("s-root" to Slot("s-root", "n-root", "wrong"))) to TemplateValidationContext.EMPTY
         "CHILD_NOT_ALLOWED" -> datatableWith(Node("n-child", "text")) to TemplateValidationContext.EMPTY
-        "INVALID_PROPERTY" -> withChild(Node("n-child", "text", props = mapOf("content" to "old markdown"))) to TemplateValidationContext.EMPTY
+        "INVALID_PROPERTY" -> withChild(Node("n-child", "text", props = mapOf("content" to 42))) to TemplateValidationContext.EMPTY
         "UNKNOWN_STYLE" -> withChild(Node("n-child", "text", styles = mapOf("unknown" to "x"))) to TemplateValidationContext.EMPTY
         "STYLE_NOT_APPLICABLE" -> validDocument().copy(
             nodes = mapOf("n-root" to validDocument().nodes.getValue("n-root").copy(styles = mapOf("color" to "#fff"))),
