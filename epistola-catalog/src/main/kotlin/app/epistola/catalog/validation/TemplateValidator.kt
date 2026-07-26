@@ -37,6 +37,7 @@ import app.epistola.template.model.Node
 import app.epistola.template.model.TemplateDocument
 import app.epistola.template.model.ThemeRefOverride
 import com.dashjoin.jsonata.Jsonata.jsonata
+import tools.jackson.databind.JsonNode
 
 object TemplateValidator {
     private const val MAX_NODES = 500
@@ -287,19 +288,20 @@ object TemplateValidator {
         component.properties.forEach { rule ->
             val value = valueAt(props, rule.path) ?: return@forEach
             val valid = when (rule.type) {
-                "number" -> value is Number
-                "boolean" -> value is Boolean
-                "array" -> value is List<*>
-                "object" -> value is Map<*, *>
-                "select" -> value is String && (rule.options.isEmpty() || value in rule.options)
-                "expression" -> value is String
-                "text", "unit", "color" -> value is String
+                "number" -> value is Number || value is JsonNode && value.isNumber
+                "boolean" -> value is Boolean || value is JsonNode && value.isBoolean
+                "array" -> value is List<*> || value is JsonNode && value.isArray
+                "object" -> value is Map<*, *> || value is JsonNode && value.isObject
+                "select" -> stringValue(value)?.let { rule.options.isEmpty() || it in rule.options } == true
+                "expression" -> stringValue(value) != null
+                "text", "unit", "color" -> stringValue(value) != null
                 else -> true
             }
             if (!valid) {
                 findings.error(TEMPLATE_NODE_PROPERTY_INVALID, "nodes.${node.id}.props.${rule.path}", "property '${rule.path}' has an invalid ${rule.type ?: "value"} shape")
             }
-            if (rule.type == "expression" && value is String && value.isNotBlank() && !validExpression(value)) {
+            val expression = stringValue(value)
+            if (rule.type == "expression" && expression != null && expression.isNotBlank() && !validExpression(expression)) {
                 findings.error(TEMPLATE_EXPRESSION_INVALID, "nodes.${node.id}.props.${rule.path}", "expression '${rule.path}' is not valid JSONata")
             }
         }
@@ -521,9 +523,19 @@ object TemplateValidator {
     ): Any? {
         var current: Any? = root
         path.split('.').forEach { segment ->
-            current = (current as? Map<*, *>)?.get(segment) ?: return null
+            current = when (val value = current) {
+                is Map<*, *> -> value[segment]
+                is JsonNode -> value[segment]
+                else -> null
+            } ?: return null
         }
         return current
+    }
+
+    private fun stringValue(value: Any?): String? = when (value) {
+        is String -> value
+        is JsonNode -> value.takeIf(JsonNode::isString)?.asString()
+        else -> null
     }
 
     private fun validExpression(value: String): Boolean = try {
