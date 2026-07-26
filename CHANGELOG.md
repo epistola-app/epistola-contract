@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matching existing Suite stencil documents.
 - Enforced one canonical ProseMirror document object for text-node content; historical string and
   bare-array representations are intentionally not accepted.
+- Made the public template finding-code set executable so tests guarantee that versioned fixtures
+  cover every stable validation code.
 - Fixed portable template property validation for Jackson 3 tree values, declared directional
   border, directional spacing, font-style, and width styles, aligned table style applicability
   with canonical catalogs, and declared the `pageheader` examples' `hideOnFirstPage` property in

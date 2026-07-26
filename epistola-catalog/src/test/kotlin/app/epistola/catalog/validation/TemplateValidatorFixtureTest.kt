@@ -24,6 +24,13 @@ class TemplateValidatorFixtureTest {
     @Test
     fun `every fixture produces its stable finding code`() {
         val fixture = javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/template-validation.json")!!.use(mapper::readTree)
+        val fixtureCodes = fixture["invalidCases"].map { it["code"].asString() }.toSet()
+
+        assertEquals(
+            TemplateValidationCodes.ALL,
+            fixtureCodes,
+            "versioned fixtures must contain exactly one focused case for every public finding code",
+        )
 
         fixture["invalidCases"].forEach { invalid ->
             val code = invalid["code"].asString()
