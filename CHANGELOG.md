@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The portable catalog replaces the model artifact boundary.** The canonical JVM coordinate is
+  now `app.epistola.contract:epistola-catalog`, the npm package is
+  `@epistola.app/epistola-catalog`, and registry classpath resources live under
+  `META-INF/epistola-catalog`. This is a clean pre-1.0 rename: consumers must migrate their
+  dependency coordinates and resource paths; no duplicate-class compatibility artifact is
+  published.
+
 ## [0.14.0] - 2026-07-23
 
 ### Added

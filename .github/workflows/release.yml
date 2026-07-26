@@ -98,7 +98,7 @@ jobs:
             needs_spec: true
           - module: server-kotlin-springboot4
             needs_spec: true
-          - module: epistola-model
+          - module: epistola-catalog
             needs_spec: false
     steps:
       - name: Checkout
@@ -209,8 +209,8 @@ jobs:
           - module: server-kotlin-springboot4
             artifact_id: server-kotlin-springboot4
             needs_spec: true
-          - module: epistola-model
-            artifact_id: epistola-model
+          - module: epistola-catalog
+            artifact_id: epistola-catalog
             needs_spec: false
     steps:
       - name: Checkout
@@ -239,19 +239,19 @@ jobs:
         run: ./gradlew publishToMavenCentral -Pversion=${{ needs.validate-and-bundle.outputs.release_version }} || echo "::warning::Maven publish failed (artifact may already exist)"
 
       - name: Install npm dependencies
-        if: matrix.module == 'epistola-model'
-        working-directory: epistola-model
+        if: matrix.module == 'epistola-catalog'
+        working-directory: epistola-catalog
         run: pnpm install --frozen-lockfile
 
       - name: Setup npm registry
-        if: matrix.module == 'epistola-model'
+        if: matrix.module == 'epistola-catalog'
         uses: actions/setup-node@v6
         with:
           registry-url: https://registry.npmjs.org
 
       - name: Publish to npm
-        if: matrix.module == 'epistola-model'
-        working-directory: epistola-model
+        if: matrix.module == 'epistola-catalog'
+        working-directory: epistola-catalog
         run: |
           npm version ${{ needs.validate-and-bundle.outputs.release_version }} --no-git-tag-version --allow-same-version
           npm publish --provenance --access public
@@ -420,7 +420,7 @@ jobs:
 
             <dependency>
                 <groupId>app.epistola.contract</groupId>
-                <artifactId>epistola-model</artifactId>
+                <artifactId>epistola-catalog</artifactId>
                 <version>${{ needs.validate-and-bundle.outputs.release_version }}</version>
             </dependency>
             ```
@@ -429,12 +429,12 @@ jobs:
             ```kotlin
             implementation("app.epistola.contract:client-spring3-restclient:${{ needs.validate-and-bundle.outputs.release_version }}")
             implementation("app.epistola.contract:server-kotlin-springboot4:${{ needs.validate-and-bundle.outputs.release_version }}")
-            implementation("app.epistola.contract:epistola-model:${{ needs.validate-and-bundle.outputs.release_version }}")
+            implementation("app.epistola.contract:epistola-catalog:${{ needs.validate-and-bundle.outputs.release_version }}")
             ```
 
             ### npm
             ```bash
-            npm install @epistola.app/epistola-model@${{ needs.validate-and-bundle.outputs.release_version }}
+            npm install @epistola.app/epistola-catalog@${{ needs.validate-and-bundle.outputs.release_version }}
             ```
 
             ### NuGet (.NET)

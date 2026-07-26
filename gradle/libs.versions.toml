@@ -1,5 +1,5 @@
 # Shared version catalog for all three Gradle builds
-# (client-kotlin-spring-restclient, server-kotlin-springboot4, epistola-model).
+# (client-kotlin-spring-restclient, server-kotlin-springboot4, epistola-catalog).
 # Each settings.gradle.kts imports this file explicitly; there are no
 # module-local catalogs. Renovate tracks this single file.
 #
@@ -26,7 +26,7 @@ spring-boot4 = "4.0.2"
 jackson3 = "3.0.4"
 springdoc = "2.8.9"
 jakarta-validation = "3.1.1"
-# epistola-model
+# epistola-catalog
 # (json-kotlin-gradle stays inline in its buildscript block — catalog
 # accessors are not available there; Renovate tracks it in the build file)
 jackson-annotations = "2.21"
@@ -46,7 +46,7 @@ jakarta-validation-api = { module = "jakarta.validation:jakarta.validation-api",
 jackson3-module-kotlin = { module = "tools.jackson.module:jackson-module-kotlin", version.ref = "jackson3" }
 jackson3-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson3" }
 springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
-# epistola-model
+# epistola-catalog
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson-annotations" }
 
 [plugins]

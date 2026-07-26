@@ -12,17 +12,17 @@ function readJson(path) {
   return JSON.parse(readFileSync(resolve(root, path), 'utf8'));
 }
 
-const componentRegistry = readJson('epistola-model/registry/component-registry.json');
-const styleRegistry = readJson('epistola-model/registry/style-registry.json');
+const componentRegistry = readJson('epistola-catalog/registry/component-registry.json');
+const styleRegistry = readJson('epistola-catalog/registry/style-registry.json');
 
 const componentTypes = componentRegistry.components.map((component) => component.type);
 const styleKeys = styleRegistry.groups.flatMap((group) => group.properties.map((property) => property.key));
 
-const target = resolve(root, 'epistola-model/generated/registry.ts');
+const target = resolve(root, 'epistola-catalog/generated/registry.ts');
 mkdirSync(dirname(target), { recursive: true });
 writeFileSync(
   target,
-  `/* Generated from epistola-model/registry/*.json -- do not edit manually. */\n` +
+  `/* Generated from epistola-catalog/registry/*.json -- do not edit manually. */\n` +
     `import type { ComponentRegistry } from './component-manifest.js';\n` +
     `import type { StyleRegistry } from './style-registry.js';\n\n` +
     `export const componentRegistry: ComponentRegistry = ${JSON.stringify(componentRegistry, null, 2)};\n\n` +

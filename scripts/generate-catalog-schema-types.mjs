@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Generates TypeScript definitions from the epistola-model JSON Schemas. Keeping
+// Generates TypeScript definitions from the epistola-catalog JSON Schemas. Keeping
 // this list in a script makes package.json readable and keeps schema generation
 // separate from the registry facade generation.
 import { spawnSync } from 'node:child_process';
@@ -7,7 +7,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const schemasDir = resolve(root, 'epistola-model/schemas');
+const schemasDir = resolve(root, 'epistola-catalog/schemas');
 
 const schemas = [
   ['template-document.schema.json', '../generated/template-document.ts'],

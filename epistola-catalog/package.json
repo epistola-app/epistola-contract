@@ -1,12 +1,12 @@
 {
-  "name": "@epistola.app/epistola-model",
+  "name": "@epistola.app/epistola-catalog",
   "private": false,
   "version": "0.2.4",
   "type": "module",
   "repository": {
     "type": "git",
     "url": "https://github.com/epistola-app/epistola-contract",
-    "directory": "epistola-model"
+    "directory": "epistola-catalog"
   },
   "publishConfig": {
     "access": "public"
@@ -28,7 +28,7 @@
     }
   },
   "scripts": {
-    "generate:types": "node ../scripts/generate-model-schema-types.mjs && node ../scripts/generate-model-registry-ts.mjs",
+    "generate:types": "node ../scripts/generate-catalog-schema-types.mjs && node ../scripts/generate-catalog-registry-ts.mjs",
     "build": "tsc",
     "prepublishOnly": "pnpm generate:types && pnpm build"
   },

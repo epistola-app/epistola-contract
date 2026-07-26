@@ -42,6 +42,7 @@ out/
 
 ### Node ###
 node_modules/
+.pnpm-store/
 dist/
 
 ### Test Coverage ###

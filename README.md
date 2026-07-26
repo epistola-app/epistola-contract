@@ -175,17 +175,29 @@ A Python 3.9+ client library using:
 - Identity headers, self-signed JWT auth, RFC 9457 problem-detail handling, NDJSON
   result collection, and client-side JSON-Schema validation
 
-### Editor Model (`@epistola.app/epistola-model`)
+### Portable Catalog (`app.epistola.contract:epistola-catalog` / `@epistola.app/epistola-catalog`)
 
-Portable editor contract data for consumers that need the Epistola editor model:
+The catalog is the complete portable aggregate and the boundary for release
+versioning, canonical fingerprints, reference resolution, migration, and
+validation. It contains templates, stencils, themes, variants, attributes,
+code lists, fonts, assets, and their shared component/style vocabulary without
+depending on Suite or Exchange implementation code.
+
+The artifact currently provides:
+
+- Kotlin template/theme and catalog protocol types
 - JSON schemas and generated TypeScript types
-- Component and style registries under `epistola-model/registry`
+- Component and style registries under `epistola-catalog/registry`
 - Typed TypeScript registry facade exported as
-  `@epistola.app/epistola-model/registry`
-- JVM resources under `META-INF/epistola-model`
+  `@epistola.app/epistola-catalog/registry`
+- JVM resources under `META-INF/epistola-catalog`
 
-See [docs/editor-model-registry.md](docs/editor-model-registry.md) for how the
-registry integrates with `epistola-suite`.
+This is a clean pre-1.0 coordinate rename. Consumers must replace
+`app.epistola.contract:epistola-model` and
+`@epistola.app/epistola-model`; no duplicate-class compatibility artifact is
+published.
+
+See [docs/catalog-registry.md](docs/catalog-registry.md) for registry details.
 
 ### Kotlin Server (`app.epistola.contract:server-kotlin-springboot4`)
 

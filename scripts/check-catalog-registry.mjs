@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Validates the editor component/style registries that epistola-model publishes
+// Validates the editor component/style registries that epistola-catalog publishes
 // for suite and other consumers. This is intentionally a lightweight structural
 // guard for cross-file references that JSON Schema alone does not cover well.
 import { readFileSync } from 'node:fs';
@@ -46,8 +46,8 @@ function canContain(parentType, childType, componentByType) {
   }
 }
 
-const componentRegistry = readJson('epistola-model/registry/component-registry.json');
-const styleRegistry = readJson('epistola-model/registry/style-registry.json');
+const componentRegistry = readJson('epistola-catalog/registry/component-registry.json');
+const styleRegistry = readJson('epistola-catalog/registry/style-registry.json');
 
 // The component registry is consumed by epistola-suite, so keep the top-level
 // contract shape explicit before validating relationships between entries.

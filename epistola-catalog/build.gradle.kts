@@ -22,7 +22,7 @@ apply<JSONSchemaCodegenPlugin>()
 
 group = "app.epistola.contract"
 version = findProperty("version")?.toString()?.takeIf { it != "unspecified" } ?: "0.1.0-SNAPSHOT"
-description = "Epistola Editor Model — shared document, theme, and component types"
+description = "Epistola portable catalog aggregate and validation contract"
 
 repositories {
     mavenCentral()
@@ -66,6 +66,7 @@ configure<JSONSchemaCodegen> {
 // - ThemeRef: codegen names subtypes A/B instead of Inherit/Override
 // - PageSettings: needs default values for format/orientation which the codegen can't express
 val removeGeneratedOverrides by tasks.registering(Delete::class) {
+    dependsOn("generate")
     delete(generatedSrcDir.map { it.file("app/epistola/template/model/DocumentStyles.kt") })
     delete(generatedSrcDir.map { it.file("app/epistola/template/model/Expression.kt") })
     delete(generatedSrcDir.map { it.file("app/epistola/template/model/TemplateDocument.kt") })
@@ -85,12 +86,12 @@ sourceSets.main {
 
 tasks.named<ProcessResources>("processResources") {
     from("registry") {
-        into("META-INF/epistola-model")
+        into("META-INF/epistola-catalog")
     }
 }
 
 tasks.named("compileKotlin") {
-    dependsOn("generate")
+    dependsOn(removeGeneratedOverrides)
 }
 
 dependencies {
@@ -149,11 +150,11 @@ mavenPublishing {
         signAllPublications()
     }
 
-    coordinates(group.toString(), "epistola-model", version.toString())
+    coordinates(group.toString(), "epistola-catalog", version.toString())
 
     pom {
-        name.set("Epistola Editor Model")
-        description.set("Shared document, theme, and component types for the Epistola editor")
+        name.set("Epistola Catalog")
+        description.set("Portable Epistola catalog models, protocols, registries, validation, migration, and canonicalization")
         url.set("https://github.com/epistola-app/epistola-contract")
 
         licenses {

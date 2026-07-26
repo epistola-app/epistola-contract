@@ -1,4 +1,4 @@
-rootProject.name = "epistola-model"
+rootProject.name = "epistola-catalog"
 
 // All three builds in this repo share the root version catalog.
 dependencyResolutionManagement {

@@ -123,12 +123,12 @@ jobs:
         run: ./generate.sh && uv run --group dev pytest && uv build
 
   # Editor model build (no OpenAPI spec dependency)
-  epistola-model:
+  epistola-catalog:
     name: Editor Model
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: epistola-model
+        working-directory: epistola-catalog
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -137,7 +137,7 @@ jobs:
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: epistola-model
+          npm-working-directory: epistola-catalog
 
       - name: Build and test
         run: ./gradlew build

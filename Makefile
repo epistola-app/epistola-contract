@@ -1,4 +1,4 @@
-.PHONY: all lint bundle build-client build-server build-epistola-model build-dotnet build-python build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
+.PHONY: all lint bundle build-client build-server build-epistola-catalog build-dotnet build-python build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
 
 # Pinned CLI tools (versions in tools/package.json, locked in tools/pnpm-lock.yaml)
 REDOCLY := tools/node_modules/.bin/redocly
@@ -17,7 +17,7 @@ lint: $(REDOCLY)
 	$(REDOCLY) lint epistola-api.yaml
 	@scripts/check-error-registry.sh
 	@scripts/check-media-types.sh
-	@node scripts/check-model-registry.mjs
+	@node scripts/check-catalog-registry.mjs
 
 # Bundle OpenAPI spec into single file
 bundle: $(REDOCLY)
@@ -26,7 +26,7 @@ bundle: $(REDOCLY)
 	@echo "==> Created openapi.yaml"
 
 # Build all modules
-build: build-client build-server build-epistola-model build-dotnet build-python
+build: build-client build-server build-epistola-catalog build-dotnet build-python
 
 # Build Kotlin client
 build-client:
@@ -38,10 +38,10 @@ build-server:
 	@echo "==> Building Kotlin server..."
 	cd server-kotlin-springboot4 && ./gradlew build
 
-# Build template model
-build-epistola-model:
-	@echo "==> Building template model..."
-	cd epistola-model && ./gradlew build
+# Build portable catalog
+build-epistola-catalog:
+	@echo "==> Building portable catalog..."
+	cd epistola-catalog && ./gradlew build
 
 # Build .NET client (generates from the bundled spec, then builds and tests)
 build-dotnet: bundle
@@ -65,7 +65,7 @@ clean:
 	@echo "==> Cleaning..."
 	cd client-kotlin-spring-restclient && ./gradlew clean
 	cd server-kotlin-springboot4 && ./gradlew clean
-	cd epistola-model && ./gradlew clean
+	cd epistola-catalog && ./gradlew clean
 	cd client-dotnet-httpclient && rm -rf Generated src/Epistola.Client/Generated bin obj src/*/bin src/*/obj test/*/bin test/*/obj
 	cd client-python-urllib3 && rm -rf generated src/epistola_client/_generated dist build .venv .pytest_cache && find . -name __pycache__ -type d -prune -exec rm -rf {} +
 
@@ -74,7 +74,7 @@ publish-local: build
 	@echo "==> Publishing to local Maven repository..."
 	cd client-kotlin-spring-restclient && ./gradlew publishToMavenLocal
 	cd server-kotlin-springboot4 && ./gradlew publishToMavenLocal
-	cd epistola-model && ./gradlew publishToMavenLocal
+	cd epistola-catalog && ./gradlew publishToMavenLocal
 	@echo "==> Published to ~/.m2/repository/app/epistola/contract/"
 	@echo "==> Packing .NET client to client-dotnet-httpclient/nupkgs/..."
 	cd client-dotnet-httpclient && dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -o nupkgs
@@ -156,10 +156,10 @@ help:
 	@echo "  all            - Run lint + build (default, mirrors CI)"
 	@echo "  lint           - Validate OpenAPI spec"
 	@echo "  bundle         - Bundle OpenAPI spec into single openapi.yaml"
-	@echo "  build                - Build all modules (client, server, epistola-model)"
+	@echo "  build                - Build all modules (client, server, epistola-catalog)"
 	@echo "  build-client         - Build Kotlin client only"
 	@echo "  build-server         - Build Kotlin server only"
-	@echo "  build-epistola-model - Build template model only"
+	@echo "  build-epistola-catalog - Build portable catalog only"
 	@echo "  build-dotnet         - Build .NET client only"
 	@echo "  build-python         - Build Python client only"
 	@echo "  sbom-dotnet          - Generate a CycloneDX SBOM for the .NET client"
