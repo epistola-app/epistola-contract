@@ -1,0 +1,13 @@
+{
+  "CATALOG_ARCHIVE_INVALID": "input is not a ZIP archive",
+  "CATALOG_ARCHIVE_COMPRESSED_SIZE_EXCEEDED": "compressed input exceeds 10 MiB",
+  "CATALOG_ARCHIVE_EXPANDED_SIZE_EXCEEDED": "expanded entries exceed 20 MiB",
+  "CATALOG_ARCHIVE_ENTRY_COUNT_EXCEEDED": "archive has more than 10000 entries",
+  "CATALOG_ARCHIVE_EXPANSION_RATIO_EXCEEDED": "entry expands by more than 100 to 1",
+  "CATALOG_ARCHIVE_PATH_INVALID": "entry is absolute, traversing, backslashed, or contains NUL",
+  "CATALOG_ARCHIVE_PATH_DUPLICATE": "two entries have the same normalized path",
+  "CATALOG_ARCHIVE_SYMLINK_FORBIDDEN": "entry has a symbolic-link Unix mode",
+  "CATALOG_ARCHIVE_ENCRYPTION_FORBIDDEN": "entry has the encrypted general-purpose bit",
+  "CATALOG_ARCHIVE_REQUIRED_FILE_MISSING": "catalog.json is absent",
+  "CATALOG_ARCHIVE_DOCUMENT_MALFORMED": "manifest or resource detail cannot be decoded"
+}

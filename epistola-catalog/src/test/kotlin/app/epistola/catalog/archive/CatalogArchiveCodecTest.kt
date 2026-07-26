@@ -10,6 +10,7 @@ import app.epistola.catalog.protocol.ThemeResource
 import org.apache.commons.compress.archivers.zip.UnixStat
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
+import tools.jackson.module.kotlin.jsonMapper
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipEntry
@@ -21,6 +22,19 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class CatalogArchiveCodecTest {
+    @Test
+    fun `golden case registry covers every stable archive finding code`() {
+        val fixtureCodes = requireNotNull(
+            javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/archive-validation-cases.json"),
+        ).use(jsonMapper()::readTree).propertyNames().toSet()
+        val publishedCodes = ArchiveValidationCodes::class.java.declaredFields
+            .filter { it.type == String::class.java }
+            .map { it.get(null) as String }
+            .toSet()
+
+        assertEquals(publishedCodes, fixtureCodes)
+    }
+
     @Test
     fun `path normalization rejects absolute drive backslash traversal and nul paths`() {
         assertNull(CatalogArchiveReader.normalizePath("/catalog.json"))
@@ -97,9 +111,11 @@ class CatalogArchiveCodecTest {
 
     @Test
     fun `reader reports required and malformed documents`() {
+        val invalid = CatalogArchiveReader.read(ByteArrayInputStream("not a zip".toByteArray()))
         val missing = CatalogArchiveReader.read(ByteArrayInputStream(zip("other" to byteArrayOf(1))))
         val malformed = CatalogArchiveReader.read(ByteArrayInputStream(zip("catalog.json" to "{".toByteArray())))
 
+        assertCode(invalid, ArchiveValidationCodes.ARCHIVE_INVALID)
         assertCode(missing, ArchiveValidationCodes.ARCHIVE_REQUIRED_FILE_MISSING)
         assertCode(malformed, ArchiveValidationCodes.ARCHIVE_DOCUMENT_MALFORMED)
         assertNull(malformed.archive)
