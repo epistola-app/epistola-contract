@@ -211,11 +211,6 @@ object TemplateValidator {
         document.nodes.values.sortedBy(Node::id).forEach { node ->
             val component = CatalogRegistries.components[node.type] ?: return@forEach
             val actualSlots = node.slots.mapNotNull(document.slots::get)
-            component.slots.filterNot(SlotRule::dynamic).forEach { expected ->
-                if (actualSlots.none { expected.matches(it.name) }) {
-                    findings.error(TEMPLATE_SLOT_INVALID, "nodes.${node.id}.slots", "component '${node.type}' is missing required slot '${expected.name}'")
-                }
-            }
             component.slots.filter(SlotRule::dynamic).forEach { dynamic ->
                 val expectedNames = expectedDynamicSlots(node, dynamic)
                 expectedNames.forEach { expected ->

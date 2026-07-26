@@ -35,4 +35,25 @@ class TemplateValidatorJacksonTreeTest {
             )
         }
     }
+
+    @Test
+    fun `unused static component slots may be omitted`() {
+        val document = TemplateDocument(
+            root = "root",
+            nodes = mapOf(
+                "root" to Node("root", "root", slots = listOf("children")),
+                "stencil" to Node(
+                    "stencil",
+                    "stencil",
+                    props = mapOf("stencilId" to "address", "version" to 1, "isDraft" to false),
+                ),
+            ),
+            slots = mapOf("children" to Slot("children", "root", "children", listOf("stencil"))),
+        )
+
+        assertTrue(
+            TemplateValidator.validate(document).findings
+                .none { it.code == TemplateValidationCodes.TEMPLATE_SLOT_INVALID },
+        )
+    }
 }
