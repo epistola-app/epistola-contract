@@ -47,5 +47,26 @@ class CatalogRegistryValidationTest {
         }
     }
 
+    @Test
+    fun `registry accepts style combinations used by canonical catalogs`() {
+        val table = Node(
+            id = "table",
+            type = "table",
+            styles = mapOf("marginTop" to "1sp"),
+        )
+        val document = TemplateDocument(
+            root = "root",
+            nodes = mapOf(
+                "root" to Node("root", "root", listOf("root-slot")),
+                table.id to table,
+            ),
+            slots = mapOf("root-slot" to Slot("root-slot", "root", "children", listOf(table.id))),
+        )
+
+        val findings = TemplateValidator.validate(document).findings
+            .filter { it.code == TemplateValidationCodes.TEMPLATE_STYLE_NOT_APPLICABLE }
+        assertTrue(findings.isEmpty(), findings.toString())
+    }
+
     private fun JsonNode?.elements(): List<JsonNode> = if (this != null && isArray) toList() else emptyList()
 }

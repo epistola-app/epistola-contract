@@ -587,6 +587,7 @@
       "applicableStyles": [
         "padding",
         "margin",
+        "marginTop",
         "marginBottom",
         "backgroundColor",
         "border",

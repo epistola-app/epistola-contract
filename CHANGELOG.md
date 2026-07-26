@@ -12,8 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enforced one canonical ProseMirror document object for text-node content; historical string and
   bare-array representations are intentionally not accepted.
 - Fixed portable template property validation for Jackson 3 tree values, declared directional
-  border styles, and declared the `pageheader` examples' `hideOnFirstPage` property in the
-  component registry.
+  border, directional spacing, font-style, and width styles, aligned table style applicability
+  with canonical catalogs, and declared the `pageheader` examples' `hideOnFirstPage` property in
+  the component registry.
 ### Changed
 
 - **The portable catalog replaces the model artifact boundary.** The canonical JVM coordinate is
