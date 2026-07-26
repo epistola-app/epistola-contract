@@ -31,6 +31,7 @@ jakarta-validation = "3.1.1"
 # accessors are not available there; Renovate tracks it in the build file)
 jackson-annotations = "2.21"
 jsonata = "0.9.10"
+commons-compress = "1.28.0"
 
 [libraries]
 # client (Spring Boot 3 / Jackson 2)
@@ -51,6 +52,7 @@ springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openap
 # epistola-catalog
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson-annotations" }
 jsonata = { module = "com.dashjoin:jsonata", version.ref = "jsonata" }
+commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commons-compress" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

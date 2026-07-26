@@ -98,7 +98,9 @@ dependencies {
     // Jackson 2 annotations — compatible with both Jackson 2 (plugin) and Jackson 3 (suite) runtimes
     api(libs.jackson.annotations)
     implementation(libs.jackson3.databind)
+    implementation(libs.jackson3.module.kotlin)
     implementation(libs.jsonata)
+    implementation(libs.commons.compress)
     testImplementation(kotlin("test"))
     testImplementation(libs.jackson2.databind)
 }

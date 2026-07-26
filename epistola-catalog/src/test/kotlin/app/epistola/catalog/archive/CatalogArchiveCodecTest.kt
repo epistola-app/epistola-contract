@@ -1,0 +1,193 @@
+package app.epistola.catalog.archive
+
+import app.epistola.catalog.protocol.CatalogInfo
+import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.PublisherInfo
+import app.epistola.catalog.protocol.ReleaseInfo
+import app.epistola.catalog.protocol.ResourceDetail
+import app.epistola.catalog.protocol.ResourceEntry
+import app.epistola.catalog.protocol.ThemeResource
+import org.apache.commons.compress.archivers.zip.UnixStat
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
+import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.util.zip.ZipEntry
+import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+class CatalogArchiveCodecTest {
+    @Test
+    fun `path normalization rejects absolute drive backslash traversal and nul paths`() {
+        assertNull(CatalogArchiveReader.normalizePath("/catalog.json"))
+        assertNull(CatalogArchiveReader.normalizePath("C:/catalog.json"))
+        assertNull(CatalogArchiveReader.normalizePath("resources\\asset\\x"))
+        assertNull(CatalogArchiveReader.normalizePath("resources/../catalog.json"))
+        assertNull(CatalogArchiveReader.normalizePath("resources/\u0000asset"))
+    }
+
+    @Test
+    fun `writer output is deterministic and reader round trips it`() {
+        val first = write(validCatalog())
+        val second = write(validCatalog())
+
+        assertContentEquals(first, second)
+        val result = CatalogArchiveReader.read(ByteArrayInputStream(first))
+        val archive = assertNotNull(result.archive)
+        archive.use {
+            assertTrue(result.findings.isEmpty())
+            assertEquals("example", archive.manifest.catalog.slug)
+            assertEquals(setOf("catalog.json", "resources/theme/default.json"), archive.paths)
+            assertEquals("default", archive.resourceDetails.getValue("theme/default").resource.slug)
+        }
+    }
+
+    @Test
+    fun `reader rejects unsafe paths and duplicate normalized paths`() {
+        val traversal = CatalogArchiveReader.read(ByteArrayInputStream(zip("../catalog.json" to "{}".toByteArray())))
+        val backslashBytes = zip("resources/asset/x" to byteArrayOf(1)).copyOf().also { bytes ->
+            bytes.indices.filter { bytes[it] == '/'.code.toByte() }.forEach { bytes[it] = '\\'.code.toByte() }
+        }
+        val backslash = CatalogArchiveReader.read(ByteArrayInputStream(backslashBytes))
+        val duplicate = CatalogArchiveReader.read(
+            ByteArrayInputStream(zip("catalog.json" to "{}".toByteArray(), "catalog.json" to "{}".toByteArray())),
+        )
+
+        assertCode(traversal, ArchiveValidationCodes.ARCHIVE_PATH_INVALID)
+        assertCode(backslash, ArchiveValidationCodes.ARCHIVE_PATH_INVALID)
+        assertCode(duplicate, ArchiveValidationCodes.ARCHIVE_PATH_DUPLICATE)
+    }
+
+    @Test
+    fun `reader rejects symlink and encrypted entries`() {
+        val symlink = zipEntry("catalog.json", "{}".toByteArray(), UnixStat.LINK_FLAG or 0b111101101)
+        val encrypted = markEncrypted(zip("catalog.json" to "{}".toByteArray()))
+
+        assertCode(CatalogArchiveReader.read(ByteArrayInputStream(symlink)), ArchiveValidationCodes.ARCHIVE_SYMLINK_FORBIDDEN)
+        assertCode(CatalogArchiveReader.read(ByteArrayInputStream(encrypted)), ArchiveValidationCodes.ARCHIVE_ENCRYPTION_FORBIDDEN)
+    }
+
+    @Test
+    fun `reader enforces entry compressed expanded and ratio limits`() {
+        val twoEntries = zip("catalog.json" to "{}".toByteArray(), "extra" to byteArrayOf(1))
+        val expanded = zip("catalog.json" to ByteArray(256) { 1 })
+        val ratio = zip("catalog.json" to ByteArray(10_000))
+
+        assertCode(
+            CatalogArchiveReader.read(ByteArrayInputStream(twoEntries), CatalogArchivePolicy(maxEntries = 1)),
+            ArchiveValidationCodes.ARCHIVE_ENTRY_COUNT_EXCEEDED,
+        )
+        assertCode(
+            CatalogArchiveReader.read(ByteArrayInputStream(twoEntries), CatalogArchivePolicy(maxCompressedBytes = 10)),
+            ArchiveValidationCodes.ARCHIVE_COMPRESSED_SIZE_EXCEEDED,
+        )
+        assertCode(
+            CatalogArchiveReader.read(ByteArrayInputStream(expanded), CatalogArchivePolicy(maxExpandedBytes = 100)),
+            ArchiveValidationCodes.ARCHIVE_EXPANDED_SIZE_EXCEEDED,
+        )
+        assertCode(
+            CatalogArchiveReader.read(ByteArrayInputStream(ratio), CatalogArchivePolicy(maxExpansionRatio = 2.0)),
+            ArchiveValidationCodes.ARCHIVE_EXPANSION_RATIO_EXCEEDED,
+        )
+    }
+
+    @Test
+    fun `reader reports required and malformed documents`() {
+        val missing = CatalogArchiveReader.read(ByteArrayInputStream(zip("other" to byteArrayOf(1))))
+        val malformed = CatalogArchiveReader.read(ByteArrayInputStream(zip("catalog.json" to "{".toByteArray())))
+
+        assertCode(missing, ArchiveValidationCodes.ARCHIVE_REQUIRED_FILE_MISSING)
+        assertCode(malformed, ArchiveValidationCodes.ARCHIVE_DOCUMENT_MALFORMED)
+        assertNull(malformed.archive)
+    }
+
+    private fun validCatalog(): CatalogArchive {
+        val detail = ResourceDetail(4, ThemeResource(slug = "default", name = "Default"))
+        val manifest = CatalogManifest(
+            schemaVersion = 4,
+            catalog = CatalogInfo("example", "Example"),
+            publisher = PublisherInfo("Example"),
+            release = ReleaseInfo("1.0.0"),
+            resources = listOf(
+                ResourceEntry(
+                    type = "theme",
+                    slug = "default",
+                    name = "Default",
+                    detailUrl = "./resources/theme/default.json",
+                ),
+            ),
+        )
+        return CatalogArchive(
+            manifest = manifest,
+            resourceDetails = mapOf("theme/default" to detail),
+            paths = emptySet(),
+            content = ArchiveContentProvider { error("No binary content in fixture") },
+        )
+    }
+
+    private fun write(catalog: CatalogArchive): ByteArray = ByteArrayOutputStream().also { output ->
+        CatalogArchiveWriter.write(catalog, output)
+    }.toByteArray()
+
+    private fun assertCode(
+        result: CatalogArchiveReadResult,
+        code: String,
+    ) {
+        assertNull(result.archive)
+        assertTrue(result.findings.any { it.code == code }, "Expected $code; got ${result.findings}")
+    }
+
+    private fun zip(vararg entries: Pair<String, ByteArray>): ByteArray = ByteArrayOutputStream().also { output ->
+        ZipArchiveOutputStream(output).use { zip ->
+            entries.forEach { (name, bytes) ->
+                zip.putArchiveEntry(ZipArchiveEntry(name))
+                zip.write(bytes)
+                zip.closeArchiveEntry()
+            }
+        }
+    }.toByteArray()
+
+    private fun zipEntry(
+        name: String,
+        bytes: ByteArray,
+        unixMode: Int,
+    ): ByteArray = ByteArrayOutputStream().also { output ->
+        ZipArchiveOutputStream(output).use { zip ->
+            val entry = ZipArchiveEntry(name).apply {
+                method = ZipEntry.DEFLATED
+                this.unixMode = unixMode
+            }
+            zip.putArchiveEntry(entry)
+            zip.write(bytes)
+            zip.closeArchiveEntry()
+        }
+    }.toByteArray()
+
+    private fun markEncrypted(zip: ByteArray): ByteArray = zip.copyOf().also { bytes ->
+        var index = 0
+        while (index <= bytes.size - 4) {
+            val signature = littleEndianInt(bytes, index)
+            val flagOffset = when (signature) {
+                0x04034b50 -> index + 6
+                0x02014b50 -> index + 8
+                else -> null
+            }
+            if (flagOffset != null) {
+                bytes[flagOffset] = (bytes[flagOffset].toInt() or 1).toByte()
+            }
+            index++
+        }
+    }
+
+    private fun littleEndianInt(
+        bytes: ByteArray,
+        offset: Int,
+    ): Int = (bytes[offset].toInt() and 0xff) or
+        ((bytes[offset + 1].toInt() and 0xff) shl 8) or
+        ((bytes[offset + 2].toInt() and 0xff) shl 16) or
+        ((bytes[offset + 3].toInt() and 0xff) shl 24)
+}

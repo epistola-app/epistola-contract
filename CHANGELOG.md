@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   style rules, placeholders, stencil references, parameter schemas/bindings, expressions, themes,
   style presets, and page headers. `TemplateValidationContext` provides a product-neutral resource
   resolution boundary, and versioned fixture metadata covers every finding code.
+- **Safe deterministic catalog archives.** Streaming archive reader/writer APIs now enforce
+  normalized paths, duplicate/symlink/encryption rejection, compressed and expanded size limits,
+  entry-count and expansion-ratio limits, stable metadata/path ordering, and portable binary
+  content providers without exposing filesystem or mapper types.
 
 ## [0.14.0] - 2026-07-23
 
