@@ -2167,6 +2167,11 @@
             "sp"
           ],
           "defaultValue": "60pt"
+        },
+        {
+          "key": "hideOnFirstPage",
+          "label": "Hide on first page",
+          "type": "boolean"
         }
       ],
       "maxInstancesPerDocument": 2,

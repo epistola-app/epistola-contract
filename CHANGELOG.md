@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed the portable component registry so the `pageheader` examples' supported `hideOnFirstPage` property is declared and accepted by shared template validation.
 ### Changed
 
 - **The portable catalog replaces the model artifact boundary.** The canonical JVM coordinate is
