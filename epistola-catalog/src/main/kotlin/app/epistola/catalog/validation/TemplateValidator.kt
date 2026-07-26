@@ -283,7 +283,7 @@ object TemplateValidator {
         component.properties.forEach { rule ->
             val value = valueAt(props, rule.path) ?: return@forEach
             val valid = if (component.type == "text" && rule.path == "content") {
-                stringValue(value) != null || value is Map<*, *> || value is JsonNode && value.isObject
+                validTextContent(value)
             } else {
                 when (rule.type) {
                     "number" -> value is Number || value is JsonNode && value.isNumber
@@ -304,6 +304,12 @@ object TemplateValidator {
                 findings.error(TEMPLATE_EXPRESSION_INVALID, "nodes.${node.id}.props.${rule.path}", "expression '${rule.path}' is not valid JSONata")
             }
         }
+    }
+
+    private fun validTextContent(value: Any?): Boolean = when (value) {
+        is Map<*, *>, is List<*> -> true
+        is JsonNode -> value.isString || value.isObject || value.isArray
+        else -> value is String
     }
 
     private fun validateReferences(

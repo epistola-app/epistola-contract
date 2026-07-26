@@ -14,6 +14,8 @@ class TemplateValidatorJacksonTreeTest {
     fun `text content accepts portable tree and legacy string representations`() {
         listOf(
             mapper.readTree("""{"type":"doc","content":[]}"""),
+            mapper.readTree("""[{"type":"text","text":"Hello"}]"""),
+            listOf(mapOf("type" to "text", "text" to "Hello")),
             "Hello {{name}}",
         ).forEach { content ->
             val document = TemplateDocument(

@@ -140,6 +140,30 @@
           "units": ["pt", "sp"]
         },
         {
+          "key": "borderTop",
+          "label": "Top Border",
+          "type": "border",
+          "units": ["pt", "sp"]
+        },
+        {
+          "key": "borderRight",
+          "label": "Right Border",
+          "type": "border",
+          "units": ["pt", "sp"]
+        },
+        {
+          "key": "borderBottom",
+          "label": "Bottom Border",
+          "type": "border",
+          "units": ["pt", "sp"]
+        },
+        {
+          "key": "borderLeft",
+          "label": "Left Border",
+          "type": "border",
+          "units": ["pt", "sp"]
+        },
+        {
           "key": "borderRadius",
           "label": "Radius",
           "type": "unit",

@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Kept registry-declared static component slots optional when a template does not use them,
   matching existing Suite stencil documents.
-- Fixed portable template property validation for Jackson 3 tree values and the supported legacy string form of text content, and declared the `pageheader` examples' `hideOnFirstPage` property in the component registry.
+- Fixed portable template property validation for Jackson 3 tree values and the supported legacy
+  string and array forms of text content, declared directional border styles, and declared the
+  `pageheader` examples' `hideOnFirstPage` property in the component registry.
 ### Changed
 
 - **The portable catalog replaces the model artifact boundary.** The canonical JVM coordinate is
