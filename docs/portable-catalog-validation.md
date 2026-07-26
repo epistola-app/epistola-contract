@@ -48,6 +48,25 @@ The validator loads component and style rules from the registries packaged at
 Versioned golden fixture metadata is packaged under
 `META-INF/epistola-catalog/fixtures/`.
 
+## Whole-catalog validation
+
+`CatalogValidator.validate(input, policy)` is the complete portable validation entry point for an
+archive stream. It applies `CatalogArchiveReader` safety limits and wire migration before checking
+manifest/detail consistency, required files, resource references, resource-specific invariants,
+data schemas and examples, release metadata, and the canonical fingerprint. I/O failures remain
+exceptions; ordinary invalid content is returned as deterministic findings.
+
+Already-decoded catalogs can use `CatalogValidator.validate(catalog, policy)`, and consumers that
+need to validate one resource can use `ResourceValidator`. Cross-catalog resolution is supplied
+through `CatalogDependencyResolver`; returning `UNKNOWN` deliberately suppresses existence
+findings when the complete dependency graph is unavailable. No dependency version-range logic is
+present because `DependencyRef` does not expose a version or range.
+
+The validator calls `TemplateValidator` for a template's primary model, each variant model, and
+stencil content. The versioned `catalog-validation-cases.json` fixture publishes one focused case
+description for every stable whole-catalog finding code, alongside the wire, migration, hash, and
+archive-safety fixtures.
+
 The public model continues to use Jackson 2 annotations, while mapper
 implementation types stay internal. Jackson 3 databind is an internal runtime
 dependency for Boot 4/Suite-compatible parsing; its relocated `tools.jackson`

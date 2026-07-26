@@ -11,13 +11,11 @@ import app.epistola.catalog.archive.ArchiveValidationCodes.ARCHIVE_PATH_DUPLICAT
 import app.epistola.catalog.archive.ArchiveValidationCodes.ARCHIVE_PATH_INVALID
 import app.epistola.catalog.archive.ArchiveValidationCodes.ARCHIVE_REQUIRED_FILE_MISSING
 import app.epistola.catalog.archive.ArchiveValidationCodes.ARCHIVE_SYMLINK_FORBIDDEN
-import app.epistola.catalog.protocol.CatalogManifest
-import app.epistola.catalog.protocol.ResourceDetail
+import app.epistola.catalog.migration.CatalogMigrationCodes
+import app.epistola.catalog.migration.CatalogMigrationContext
+import app.epistola.catalog.migration.CatalogSchemaMigrator
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipFile
-import tools.jackson.core.JacksonException
-import tools.jackson.module.kotlin.jsonMapper
-import tools.jackson.module.kotlin.kotlinModule
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.IOException
@@ -29,8 +27,6 @@ import java.util.Comparator
 import java.util.zip.ZipException
 
 object CatalogArchiveReader {
-    private val mapper = jsonMapper { addModule(kotlinModule()) }
-
     fun read(
         input: InputStream,
         policy: CatalogArchivePolicy = CatalogArchivePolicy(),
@@ -61,17 +57,33 @@ object CatalogArchiveReader {
                 deleteRecursively(workspace)
                 return CatalogArchiveReadResult(null, findings.sorted())
             }
-            val manifest = bind<CatalogManifest>(manifestPath, "catalog.json", findings)
+            val manifestResult = Files.newInputStream(manifestPath).use(CatalogSchemaMigrator::migrateManifest)
+            findings += manifestResult.findings.map {
+                finding(it.code.archiveCode(), it.path, it.message)
+            }
+            val manifest = manifestResult.value
             if (manifest == null) {
                 deleteRecursively(workspace)
                 return CatalogArchiveReadResult(null, findings.sorted())
             }
-            val details = linkedMapOf<String, ResourceDetail>()
+            val details = linkedMapOf<String, app.epistola.catalog.protocol.ResourceDetail>()
+            val entriesByPath = manifest.resources.associateBy { it.detailUrl.removePrefix("./") }
+            val migrationContext = CatalogMigrationContext(
+                sourceVersion = requireNotNull(manifestResult.sourceVersion),
+                manifest = manifest,
+            )
             extraction.paths.asSequence()
                 .filter { it.startsWith("resources/") && it.endsWith(".json") }
                 .sorted()
                 .forEach { path ->
-                    bind<ResourceDetail>(expandedRoot.resolve(path), path, findings)?.let { detail ->
+                    val declaredType = entriesByPath[path]?.type ?: path.removePrefix("resources/").substringBefore('/')
+                    val result = Files.newInputStream(expandedRoot.resolve(path)).use {
+                        CatalogSchemaMigrator.migrateResourceDetail(declaredType, it, migrationContext, path)
+                    }
+                    findings += result.findings.map {
+                        finding(it.code.archiveCode(), it.path, it.message)
+                    }
+                    result.value?.let { detail ->
                         details[path.removePrefix("resources/").removeSuffix(".json")] = detail
                     }
                 }
@@ -216,21 +228,6 @@ object CatalogArchiveReader {
         return ExtractionResult(true, paths)
     }
 
-    private inline fun <reified T> bind(
-        path: Path,
-        archivePath: String,
-        findings: MutableList<ArchiveValidationFinding>,
-    ): T? = try {
-        Files.newInputStream(path).use { mapper.readValue(it, T::class.java) }
-    } catch (exception: JacksonException) {
-        findings += finding(
-            ARCHIVE_DOCUMENT_MALFORMED,
-            archivePath,
-            "JSON document is malformed or incompatible: ${exception.originalMessage}",
-        )
-        null
-    }
-
     private fun ratio(
         expanded: Long,
         entry: ZipArchiveEntry,
@@ -265,6 +262,12 @@ object CatalogArchiveReader {
         path: String,
         message: String,
     ) = ArchiveValidationFinding(code, path, message)
+
+    private fun String.archiveCode(): String = if (this == CatalogMigrationCodes.SCHEMA_UNKNOWN) {
+        ARCHIVE_DOCUMENT_MALFORMED
+    } else {
+        this
+    }
 
     private data class ExtractionResult(
         val safe: Boolean,

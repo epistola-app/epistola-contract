@@ -32,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `CatalogCanonicalizer` produces stable per-resource hashes and an aggregate fingerprint from
   canonical catalog content rather than ZIP metadata or entry layout. Versioned golden fixtures
   publish the authoritative current wire representation and expected hashes.
+- **Whole-catalog validation.** `CatalogValidator` and `ResourceValidator` now compose archive
+  safety, migration, manifest/detail binding, portable template validation, reference closure,
+  resource-specific checks, example-data validation, SemVer metadata, and canonical fingerprints
+  into deterministic product-neutral reports. The validation policy exposes only portable limits
+  and dependency resolution; Suite persistence, authorization, conflicts, and renderer checks
+  remain outside the artifact.
 
 ## [0.14.0] - 2026-07-23
 
