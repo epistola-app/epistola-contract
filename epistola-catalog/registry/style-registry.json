@@ -44,6 +44,22 @@
           ]
         },
         {
+          "key": "fontStyle",
+          "label": "Style",
+          "type": "select",
+          "inheritable": true,
+          "options": [
+            {
+              "label": "Normal",
+              "value": "normal"
+            },
+            {
+              "label": "Italic",
+              "value": "italic"
+            }
+          ]
+        },
+        {
           "key": "color",
           "label": "Color",
           "type": "color",
@@ -111,8 +127,44 @@
           "units": ["sp", "pt"]
         },
         {
+          "key": "marginRight",
+          "label": "Right Margin",
+          "type": "unit",
+          "units": ["sp", "pt"]
+        },
+        {
           "key": "marginBottom",
           "label": "Bottom Margin",
+          "type": "unit",
+          "units": ["sp", "pt"]
+        },
+        {
+          "key": "marginLeft",
+          "label": "Left Margin",
+          "type": "unit",
+          "units": ["sp", "pt"]
+        },
+        {
+          "key": "paddingTop",
+          "label": "Top Padding",
+          "type": "unit",
+          "units": ["sp", "pt"]
+        },
+        {
+          "key": "paddingRight",
+          "label": "Right Padding",
+          "type": "unit",
+          "units": ["sp", "pt"]
+        },
+        {
+          "key": "paddingBottom",
+          "label": "Bottom Padding",
+          "type": "unit",
+          "units": ["sp", "pt"]
+        },
+        {
+          "key": "paddingLeft",
+          "label": "Left Padding",
           "type": "unit",
           "units": ["sp", "pt"]
         }
@@ -168,6 +220,18 @@
           "label": "Radius",
           "type": "unit",
           "units": ["pt", "sp"]
+        }
+      ]
+    },
+    {
+      "name": "sizing",
+      "label": "Sizing",
+      "properties": [
+        {
+          "key": "width",
+          "label": "Width",
+          "type": "unit",
+          "units": ["%", "sp", "pt"]
         }
       ]
     },

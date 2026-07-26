@@ -307,9 +307,9 @@ object TemplateValidator {
     }
 
     private fun validTextContent(value: Any?): Boolean = when (value) {
-        is Map<*, *>, is List<*> -> true
-        is JsonNode -> value.isString || value.isObject || value.isArray
-        else -> value is String
+        is Map<*, *> -> value["type"] == "doc" && value["content"] is List<*>
+        is JsonNode -> value.isObject && value["type"]?.asString() == "doc" && value["content"]?.isArray == true
+        else -> false
     }
 
     private fun validateReferences(
@@ -389,7 +389,9 @@ object TemplateValidator {
             }
             node.slots.mapNotNull(document.slots::get).flatMap { it.children }.forEach { recurse(it, next) }
         }
-        recurse(document.root, emptySet())
+        if (kind == TemplateDocumentKind.TEMPLATE) {
+            recurse(document.root, emptySet())
+        }
     }
 
     private fun validatePageHeaders(
