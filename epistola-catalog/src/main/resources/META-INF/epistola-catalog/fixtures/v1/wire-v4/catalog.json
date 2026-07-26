@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 4,
+  "catalog": {
+    "slug": "fixture",
+    "name": "Fixture Catalog",
+    "description": "Portable golden fixture"
+  },
+  "publisher": {
+    "name": "Epistola"
+  },
+  "release": {
+    "version": "1.0.0"
+  },
+  "resources": [
+    {
+      "type": "theme",
+      "slug": "default",
+      "name": "Default",
+      "detailUrl": "./resources/theme/default.json"
+    }
+  ],
+  "dependencies": []
+}
