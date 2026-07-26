@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dependency coordinates and resource paths; no duplicate-class compatibility artifact is
   published.
 
+### Added
+
+- **Portable template validation.** `TemplateValidator` now returns deterministic reports with
+  stable codes, severities, paths, and messages for graph integrity, registry-driven component and
+  style rules, placeholders, stencil references, parameter schemas/bindings, expressions, themes,
+  style presets, and page headers. `TemplateValidationContext` provides a product-neutral resource
+  resolution boundary, and versioned fixture metadata covers every finding code.
+
 ## [0.14.0] - 2026-07-23
 
 ### Added

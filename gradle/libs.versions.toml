@@ -30,12 +30,14 @@ jakarta-validation = "3.1.1"
 # (json-kotlin-gradle stays inline in its buildscript block — catalog
 # accessors are not available there; Renovate tracks it in the build file)
 jackson-annotations = "2.21"
+jsonata = "0.9.10"
 
 [libraries]
 # client (Spring Boot 3 / Jackson 2)
 spring-boot3-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "spring-boot3" }
 jackson2-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson2" }
 jackson2-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson2" }
+jackson2-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson2" }
 json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "json-schema-validator" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 nimbus-jose-jwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimbus-jose-jwt" }
@@ -48,6 +50,7 @@ jackson3-databind = { module = "tools.jackson.core:jackson-databind", version.re
 springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
 # epistola-catalog
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson-annotations" }
+jsonata = { module = "com.dashjoin:jsonata", version.ref = "jsonata" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

@@ -97,6 +97,10 @@ tasks.named("compileKotlin") {
 dependencies {
     // Jackson 2 annotations — compatible with both Jackson 2 (plugin) and Jackson 3 (suite) runtimes
     api(libs.jackson.annotations)
+    implementation(libs.jackson3.databind)
+    implementation(libs.jsonata)
+    testImplementation(kotlin("test"))
+    testImplementation(libs.jackson2.databind)
 }
 
 tasks.test {
