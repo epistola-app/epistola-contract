@@ -27,6 +27,10 @@ class TemplateValidatorFixtureTest {
         val fixtureCodes = fixture["invalidCases"].mapTo(mutableSetOf<String>()) { it["code"].asString() }
 
         assertEquals(
+            TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH,
+            fixture["limits"]["maxStencilNestingDepth"].asInt(),
+        )
+        assertEquals(
             TemplateValidationCodes.ALL,
             fixtureCodes,
             "versioned fixtures must contain exactly one focused case for every public finding code",
@@ -65,6 +69,7 @@ class TemplateValidatorFixtureTest {
         "INVALID_PLACEHOLDER_NAME" -> stencilDefinition(placeholder("p-one", "Not Valid")) to TemplateValidationContext.forStencil()
         "NESTED_PLACEHOLDER" -> nestedPlaceholders() to TemplateValidationContext.forStencil()
         "PLACEHOLDER_OUTSIDE_STENCIL" -> stencilDefinition(placeholder("p-one", "body")) to TemplateValidationContext.EMPTY
+        "STENCIL_DEPTH_EXCEEDED" -> stencilChain(TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH + 1) to TemplateValidationContext.EMPTY
         "STENCIL_RECURSION" -> recursiveStencils() to TemplateValidationContext.EMPTY
         "INVALID_STENCIL_REFERENCE" -> withChild(stencil("n-stencil", "")) to TemplateValidationContext.EMPTY
         "STENCIL_NOT_FOUND" -> withChild(stencil("n-stencil", "invoice")) to missingResources()
@@ -160,6 +165,22 @@ class TemplateValidatorFixtureTest {
             slots = base.slots +
                 ("s-outer-children" to Slot("s-outer-children", outer.id, "children", listOf(inner.id))) +
                 ("s-inner-children" to Slot("s-inner-children", inner.id, "children")),
+        )
+    }
+
+    private fun stencilChain(depth: Int): TemplateDocument {
+        val stencils = (0 until depth).map { index -> stencil("s-$index", "stencil-$index") }
+        val base = withChild(stencils.first())
+        return base.copy(
+            nodes = base.nodes + stencils.drop(1).associateBy(Node::id),
+            slots = base.slots + stencils.mapIndexed { index, node ->
+                "${node.id}-children" to Slot(
+                    "${node.id}-children",
+                    node.id,
+                    "children",
+                    stencils.getOrNull(index + 1)?.let { listOf(it.id) }.orEmpty(),
+                )
+            },
         )
     }
 

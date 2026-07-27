@@ -36,3 +36,6 @@ export type {
   Theme,
   BlockStylePreset,
 } from '../generated/theme.js'
+
+/** Maximum number of stencil instances allowed in one ancestor chain. */
+export const MAX_STENCIL_NESTING_DEPTH = 5

@@ -1,5 +1,6 @@
 package app.epistola.catalog.validation
 
+import app.epistola.catalog.validation.TemplateValidationCodes.STENCIL_NESTING_DEPTH_EXCEEDED
 import app.epistola.catalog.validation.TemplateValidationCodes.STENCIL_RECURSION
 import app.epistola.template.model.Node
 import app.epistola.template.model.Slot
@@ -10,6 +11,47 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TemplateValidatorStencilNestingTest {
+    @Test
+    fun `five nested stencil instances are allowed`() {
+        val slugs = Array(TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH) { "stencil-$it" }
+
+        val report = TemplateValidator.validate(nestedStencils(*slugs))
+
+        assertTrue(report.valid, report.findings.toString())
+    }
+
+    @Test
+    fun `sixth nested stencil instance is rejected at its reference`() {
+        val slugs = Array(TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH + 1) { "stencil-$it" }
+
+        val report = TemplateValidator.validate(nestedStencils(*slugs))
+
+        assertFalse(report.valid)
+        assertEquals(
+            listOf(
+                TemplateValidationFinding(
+                    code = STENCIL_NESTING_DEPTH_EXCEEDED,
+                    severity = ValidationSeverity.ERROR,
+                    path = "nodes.stencil-5.props.stencilId",
+                    message = "stencil nesting depth 6 exceeds maximum 5",
+                ),
+            ),
+            report.findings.filter { it.code == STENCIL_NESTING_DEPTH_EXCEEDED },
+        )
+    }
+
+    @Test
+    fun `stencil depth is counted through placeholder fills`() {
+        val report = TemplateValidator.validate(
+            nestedStencilsThroughFills(TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH + 1),
+        )
+
+        assertEquals(
+            listOf("nodes.stencil-5.props.stencilId"),
+            report.findings.filter { it.code == STENCIL_NESTING_DEPTH_EXCEEDED }.map { it.path },
+        )
+    }
+
     @Test
     fun `different stencil instances may nest directly in a template`() {
         val report = TemplateValidator.validate(nestedStencils("address", "contact", "signature"))
@@ -131,6 +173,39 @@ class TemplateValidatorStencilNestingTest {
             )
         }
         return template(nodes, slots, listOf(nodes.first().id))
+    }
+
+    private fun nestedStencilsThroughFills(depth: Int): TemplateDocument {
+        val stencils = (0 until depth).map { index ->
+            stencil("stencil-$index", "stencil-$index", listOf("stencil-$index-children"))
+        }
+        val placeholders = (0 until depth - 1).map { index ->
+            Node(
+                id = "placeholder-$index",
+                type = "placeholder",
+                slots = listOf("placeholder-$index-default", "placeholder-$index-fill"),
+                props = mapOf("name" to "body-$index", "description" to "", "kind" to "block"),
+            )
+        }
+        val slots = stencils.mapIndexed { index, node ->
+            Slot(
+                id = "stencil-$index-children",
+                nodeId = node.id,
+                name = "children",
+                children = placeholders.getOrNull(index)?.let { listOf(it.id) }.orEmpty(),
+            )
+        } + placeholders.flatMapIndexed { index, placeholder ->
+            listOf(
+                Slot("placeholder-$index-default", placeholder.id, "default"),
+                Slot(
+                    "placeholder-$index-fill",
+                    placeholder.id,
+                    "fill",
+                    listOf(stencils[index + 1].id),
+                ),
+            )
+        }
+        return template(stencils + placeholders, slots, listOf(stencils.first().id))
     }
 
     private fun template(

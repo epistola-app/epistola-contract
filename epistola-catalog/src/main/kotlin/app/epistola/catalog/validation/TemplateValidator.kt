@@ -14,6 +14,7 @@ import app.epistola.catalog.validation.TemplateValidationCodes.PLACEHOLDER_NAME_
 import app.epistola.catalog.validation.TemplateValidationCodes.PLACEHOLDER_NAME_INVALID
 import app.epistola.catalog.validation.TemplateValidationCodes.PLACEHOLDER_NESTED_DEFINITION
 import app.epistola.catalog.validation.TemplateValidationCodes.PLACEHOLDER_OUTSIDE_STENCIL
+import app.epistola.catalog.validation.TemplateValidationCodes.STENCIL_NESTING_DEPTH_EXCEEDED
 import app.epistola.catalog.validation.TemplateValidationCodes.STENCIL_RECURSION
 import app.epistola.catalog.validation.TemplateValidationCodes.STENCIL_REFERENCE_INVALID
 import app.epistola.catalog.validation.TemplateValidationCodes.STENCIL_REFERENCE_NOT_FOUND
@@ -367,9 +368,21 @@ object TemplateValidator {
             }
         }
 
-        fun recurse(nodeId: String, stencilIds: Set<String>) {
+        fun recurse(
+            nodeId: String,
+            stencilIds: Set<String>,
+            stencilDepth: Int,
+        ) {
             val node = document.nodes[nodeId] ?: return
-            val next = if (node.type == "stencil") {
+            val nextDepth = if (node.type == "stencil") stencilDepth + 1 else stencilDepth
+            if (nextDepth > TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH) {
+                findings.error(
+                    STENCIL_NESTING_DEPTH_EXCEEDED,
+                    "nodes.${node.id}.props.stencilId",
+                    "stencil nesting depth $nextDepth exceeds maximum ${TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH}",
+                )
+            }
+            val nextIds = if (node.type == "stencil") {
                 val id = node.props?.get("stencilId") as? String
                 if (id != null && id in stencilIds) {
                     findings.error(STENCIL_RECURSION, "nodes.${node.id}.props.stencilId", "stencil '$id' would contain itself transitively")
@@ -378,7 +391,10 @@ object TemplateValidator {
             } else {
                 stencilIds
             }
-            node.slots.mapNotNull(document.slots::get).flatMap { it.children }.forEach { recurse(it, next) }
+            node.slots
+                .mapNotNull(document.slots::get)
+                .flatMap { it.children }
+                .forEach { recurse(it, nextIds, nextDepth) }
         }
         if (kind == TemplateDocumentKind.STENCIL) {
             document.nodes.values
@@ -392,7 +408,7 @@ object TemplateValidator {
                     )
                 }
         } else {
-            recurse(document.root, emptySet())
+            recurse(document.root, emptySet(), 0)
         }
     }
 

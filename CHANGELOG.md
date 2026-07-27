@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Limited template stencil nesting to five instances per ancestor chain, with a stable
+  `STENCIL_NESTING_DEPTH_EXCEEDED` finding, a shared JVM/npm limit, and authoritative boundary
+  fixtures.
 - Removed the implementation-specific npm `/generated/*` entry point, exposed the public theme,
   component, and style types from the `@epistola.app/epistola-catalog` package root, and added a
   package-boundary check that prevents the internal path from becoming public again.
