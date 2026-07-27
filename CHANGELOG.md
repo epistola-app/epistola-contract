@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and retained Suite-compatible nested stencil semantics while rejecting actual stencil recursion.
 - Moved the rich-text reference schemas into the catalog artifact and made catalog example-data
   validation use the full JSON Schema 2020-12 engine and Suite-compatible date-time semantics.
+- Enforced the single current catalog wire model: an older `schemaVersion` is rejected unless a
+  future explicit migration is implemented, even when its JSON happens to bind to the current model.
 - Kept registry-declared static component slots optional when a template does not use them,
   matching existing Suite stencil documents.
 - Enforced one canonical ProseMirror document object for text-node content; historical string and

@@ -18,14 +18,14 @@ class CatalogSchemaMigratorTest {
     }
 
     @Test
-    fun `sub-current current-shape manifest follows transitional Suite behavior`() {
+    fun `sub-current version is rejected even when it resembles the current shape`() {
         val bytes = resource("wire-v4/catalog.json").readAllBytes()
             .toString(Charsets.UTF_8)
             .replace("\"schemaVersion\": 4", "\"schemaVersion\": 3")
             .toByteArray()
         val result = CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(bytes))
 
-        assertTrue(result.valid)
+        assertEquals(CatalogMigrationCodes.SCHEMA_TOO_OLD, result.findings.single().code)
         assertEquals(3, result.sourceVersion)
     }
 

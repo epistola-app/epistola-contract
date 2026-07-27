@@ -44,11 +44,11 @@ object CatalogMigrationCodes {
 /**
  * Portable catalog-wide wire-version gate.
  *
- * The current contract has no historical transform steps:
- * `BASELINE_VERSION == CURRENT_VERSION == 4`. For compatibility with the
- * existing Suite gate, sub-current payloads that already bind to the current
- * shape pass through transitionally; the first real migration will make the
- * baseline gate strict and provide an explicit transform.
+ * The current contract has one supported shape:
+ * `BASELINE_VERSION == CURRENT_VERSION == 4`. Older version labels are not
+ * accepted merely because their payload happens to bind to the current model.
+ * A future wire version must add an explicit migration before its predecessor
+ * can be accepted.
  */
 object CatalogSchemaMigrator {
     private val mapper = jsonMapper { addModule(kotlinModule()) }
@@ -117,7 +117,7 @@ object CatalogSchemaMigrator {
             path,
             "catalog schemaVersion $source is newer than supported version ${CatalogWireSchema.CURRENT_VERSION}",
         )
-        source < CatalogWireSchema.BASELINE_VERSION && HAS_MIGRATIONS -> CatalogMigrationFinding(
+        source < CatalogWireSchema.BASELINE_VERSION -> CatalogMigrationFinding(
             CatalogMigrationCodes.SCHEMA_TOO_OLD,
             path,
             "catalog schemaVersion $source is older than baseline ${CatalogWireSchema.BASELINE_VERSION}",
@@ -151,6 +151,4 @@ object CatalogSchemaMigrator {
         sourceVersion = sourceVersion,
         findings = listOf(CatalogMigrationFinding(code, path, message)),
     )
-
-    private const val HAS_MIGRATIONS = false
 }
