@@ -380,7 +380,18 @@ object TemplateValidator {
             }
             node.slots.mapNotNull(document.slots::get).flatMap { it.children }.forEach { recurse(it, next) }
         }
-        if (kind == TemplateDocumentKind.TEMPLATE) {
+        if (kind == TemplateDocumentKind.STENCIL) {
+            document.nodes.values
+                .filter { it.type == "stencil" }
+                .sortedBy(Node::id)
+                .forEach { node ->
+                    findings.error(
+                        STENCIL_RECURSION,
+                        "nodes.${node.id}.props.stencilId",
+                        "stencil content cannot contain nested stencil references",
+                    )
+                }
+        } else {
             recurse(document.root, emptySet())
         }
     }

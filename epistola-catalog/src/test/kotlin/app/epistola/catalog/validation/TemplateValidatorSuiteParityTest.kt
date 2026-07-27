@@ -126,7 +126,7 @@ class TemplateValidatorSuiteParityTest {
     }
 
     @Test
-    fun `nested stencils are allowed while recursive template instances are rejected`() {
+    fun `nested stencils are allowed in templates while stencil definitions and recursive instances are rejected`() {
         val outer = stencil("outer", "address")
         val nestedDifferent = stencil("nested", "contact")
         val allowed = document(outer).copy(
@@ -142,8 +142,7 @@ class TemplateValidatorSuiteParityTest {
         val recursive = allowed.copy(nodes = allowed.nodes + (nestedSame.id to nestedSame))
         assertFinding(recursive, STENCIL_RECURSION)
 
-        // Suite did not apply template-instance recursion policy to a stencil definition.
-        assertNoFinding(recursive, STENCIL_RECURSION, TemplateValidationContext.forStencil())
+        assertFinding(allowed, STENCIL_RECURSION, TemplateValidationContext.forStencil())
     }
 
     @Test
