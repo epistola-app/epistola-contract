@@ -200,6 +200,8 @@ This is a clean pre-1.0 coordinate rename. Consumers must replace
 published.
 
 See [docs/catalog-registry.md](docs/catalog-registry.md) for registry details.
+See [docs/catalog-compatibility.md](docs/catalog-compatibility.md) for the
+explicit breaking changes and required producer/consumer migrations.
 
 ### Kotlin Server (`app.epistola.contract:server-kotlin-springboot4`)
 

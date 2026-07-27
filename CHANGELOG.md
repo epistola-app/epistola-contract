@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **BREAKING:** Documented the catalog aggregate's explicit pre-1.0 changes and
+  migration actions, including artifact coordinates, npm exports, the strict
+  version-4 wire gate, canonical rich text, complete stencil identities,
+  semantic validation, and the five-level nesting limit.
 - Added portable, version-pinned stencil composition to the catalog specification. Stencil
   resources may contain references to other published stencil versions; standalone and
   whole-catalog validation now enforce exact-version resolution, owner-aware direct and
