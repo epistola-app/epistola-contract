@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Aligned the optional cross-catalog theme key across the Kotlin, JSON Schema, and TypeScript
+  `ThemeRefOverride` contracts, made pull-request CI compile and verify the npm package after type
+  generation, and corrected the wire-version documentation to match the strict version-4 gate.
 - Limited template stencil nesting to five instances per ancestor chain, with a stable
   `STENCIL_NESTING_DEPTH_EXCEEDED` finding, a shared JVM/npm limit, and authoritative boundary
   fixtures.

@@ -84,7 +84,12 @@
           "type": "object",
           "properties": {
             "type": { "const": "override" },
-            "themeId": { "type": "string", "minLength": 1 }
+            "themeId": { "type": "string", "minLength": 1 },
+            "catalogKey": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Catalog containing the theme. Omitted means the same catalog as the owning template."
+            }
           },
           "required": ["type", "themeId"],
           "additionalProperties": false

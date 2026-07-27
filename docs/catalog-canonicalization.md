@@ -6,9 +6,9 @@ import or persistence. The API reports stable migration findings for unsupported
 wire versions and never exposes a JSON mapper.
 
 The current baseline and wire version are both 4. Earlier version numbers have no defined
-historical transform in the contract yet. To preserve the existing Suite behavior during this
-transition, a lower version that already binds to the current shape is accepted. Adding the first
-historical migration must introduce an explicit transform and make the baseline gate strict.
+historical transform in the contract yet, so versions below 4 are rejected even when their JSON
+happens to bind to the current model. Supporting an older wire version requires an explicit,
+tested migration before lowering the baseline gate.
 
 `CatalogCanonicalizer` hashes canonical catalog content. It sorts resources and JSON object keys,
 normalizes numeric JSON representation, includes streamed asset digests and dependency identity,

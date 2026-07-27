@@ -66,6 +66,8 @@ export interface ThemeRefInherit {
 export interface ThemeRefOverride {
   type: 'override'
   themeId: string
+  /** Catalog containing the theme. Omitted means the owning template's catalog. */
+  catalogKey?: string
 }
 
 // ---------------------------------------------------------------------------

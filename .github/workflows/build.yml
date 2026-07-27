@@ -144,3 +144,6 @@ jobs:
 
       - name: Verify TypeScript type generation
         run: pnpm generate:types
+
+      - name: Build and verify npm package
+        run: pnpm build
