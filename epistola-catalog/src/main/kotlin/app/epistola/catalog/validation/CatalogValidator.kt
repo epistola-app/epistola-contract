@@ -178,7 +178,13 @@ object ResourceValidator {
             },
         )
         findings += report.findings.map {
-            CatalogValidationFinding(it.code, it.severity, "$path${it.path.removePrefix("$")}", it.message)
+            val relativePath = it.path.removePrefix("$").removePrefix(".")
+            CatalogValidationFinding(
+                it.code,
+                it.severity,
+                if (relativePath.isEmpty()) path else "$path.$relativePath",
+                it.message,
+            )
         }
     }
 

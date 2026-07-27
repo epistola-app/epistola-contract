@@ -79,9 +79,9 @@ class CatalogValidatorTest {
         val report = CatalogValidator.validate(archive(manifest(resources = entries), details))
         val graphPaths = report.findings.filter { it.code == TemplateValidationCodes.TEMPLATE_GRAPH_INVALID }.map { it.path }
 
-        assertTrue(graphPaths.any { ".templateModel" in it })
-        assertTrue(graphPaths.any { ".variants[0].templateModel" in it })
-        assertTrue(graphPaths.any { ".content" in it })
+        assertTrue(graphPaths.any { it.endsWith(".templateModel.root") }, graphPaths.toString())
+        assertTrue(graphPaths.any { it.endsWith(".variants[0].templateModel.root") }, graphPaths.toString())
+        assertTrue(graphPaths.any { it.endsWith(".content.root") }, graphPaths.toString())
     }
 
     @Test

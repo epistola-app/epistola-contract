@@ -2562,7 +2562,7 @@
       "allowedChildren": {
         "mode": "denylist",
         "types": [
-          "stencil"
+          "root"
         ]
       },
       "applicableStyles": "all",

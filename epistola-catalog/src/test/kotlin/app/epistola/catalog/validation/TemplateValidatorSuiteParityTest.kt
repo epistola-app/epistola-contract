@@ -135,7 +135,8 @@ class TemplateValidatorSuiteParityTest {
                 ("outer-slot" to Slot("outer-slot", outer.id, "children", listOf(nestedDifferent.id))) +
                 ("nested-slot" to Slot("nested-slot", nestedDifferent.id, "children")),
         )
-        assertNoFinding(allowed, STENCIL_RECURSION)
+        val allowedReport = TemplateValidator.validate(allowed)
+        assertTrue(allowedReport.valid, "Nested, non-recursive stencils must remain valid: ${allowedReport.findings}")
 
         val nestedSame = nestedDifferent.copy(props = nestedDifferent.props.orEmpty() + ("stencilId" to "address"))
         val recursive = allowed.copy(nodes = allowed.nodes + (nestedSame.id to nestedSame))
