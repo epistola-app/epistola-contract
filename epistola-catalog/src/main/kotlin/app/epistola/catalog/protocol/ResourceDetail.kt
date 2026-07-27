@@ -83,6 +83,11 @@ data class ThemeResource(
  * Adding it therefore needs no `schemaVersion` bump (see
  * `docs/adr/0007-catalog-wire-format-migrations.md`). When present it round-trips
  * so that templates binding to those parameters stay bound after an import.
+ *
+ * [content] may embed nodes that reference exact published versions of other
+ * stencils. These references form a portable composition graph: validation
+ * requires their version to resolve, rejects direct and transitive recursion,
+ * and limits the complete chain to five stencil levels.
  */
 data class StencilResource(
     override val slug: String,

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added portable, version-pinned stencil composition to the catalog specification. Stencil
+  resources may contain references to other published stencil versions; standalone and
+  whole-catalog validation now enforce exact-version resolution, owner-aware direct and
+  transitive recursion checks, cross-resource cycles, and the shared five-level depth limit.
+  Standalone validation preserves Suite-style draft identities for authoring contexts, while
+  whole-catalog validation rejects draft references at the portable publication boundary.
+  Suite authoring support remains a separate consumer capability.
 - Expanded new catalog fingerprints to V2 so publisher, compatibility, include, and portable
   resource-manifest metadata participate in content identity. Whole-catalog validation continues
   to accept legacy V1 hashes, and the existing `fingerprint(catalog)` API retains its V1 result.
@@ -28,9 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Published the same versioned catalog conformance fixtures in both Maven and npm artifacts from
   one language-neutral fixture tree.
 - Exposed standalone portable parameter-schema validation, corrected nested template finding paths,
-  allowed non-recursive nested stencil instances in templates with direct, transitive,
-  placeholder-fill, sibling, and deterministic regression coverage, and moved the ban on stencil
-  references inside stencil definitions into portable validation.
+  and allowed non-recursive nested stencil instances in templates with direct, transitive,
+  placeholder-fill, sibling, and deterministic regression coverage.
 - Moved the rich-text reference schemas into the catalog artifact and made catalog example-data
   validation use the full JSON Schema 2020-12 engine and Suite-compatible date-time semantics.
 - Enforced the single current catalog wire model: an older `schemaVersion` is rejected unless a

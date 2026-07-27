@@ -37,6 +37,7 @@ data class CatalogResourceReference(
     val slug: String,
     val catalogKey: String? = null,
     val version: Int? = null,
+    val isDraft: Boolean = false,
 )
 
 /**
@@ -49,6 +50,27 @@ data class CatalogResourceReference(
  */
 interface TemplateValidationContext {
     val documentKind: TemplateDocumentKind get() = TemplateDocumentKind.TEMPLATE
+
+    /**
+     * Catalog that owns the document being validated. A null stencil-node
+     * catalogKey resolves to this catalog when comparing reference identity.
+     */
+    val currentCatalogKey: String? get() = null
+
+    /**
+     * Stencil resource whose content is being validated, when applicable.
+     *
+     * Seeding validation with the containing stencil makes direct and
+     * transitive self-reference detectable even though stencil resource
+     * content uses a synthetic root node rather than an outer stencil node.
+     */
+    val containingStencil: CatalogResourceReference? get() = null
+
+    /**
+     * Whether authoring references may target draft stencil versions.
+     * Portable catalog validation overrides this to false.
+     */
+    val allowDraftStencilReferences: Boolean get() = true
 
     fun resolveResource(reference: CatalogResourceReference): ResourceResolution = ResourceResolution.UNKNOWN
 
@@ -66,8 +88,16 @@ interface TemplateValidationContext {
     companion object {
         val EMPTY: TemplateValidationContext = object : TemplateValidationContext {}
 
-        fun forStencil(): TemplateValidationContext = object : TemplateValidationContext {
+        fun forStencil(
+            stencilId: String? = null,
+            catalogKey: String? = null,
+            version: Int? = null,
+        ): TemplateValidationContext = object : TemplateValidationContext {
             override val documentKind: TemplateDocumentKind = TemplateDocumentKind.STENCIL
+            override val currentCatalogKey: String? = catalogKey
+            override val containingStencil: CatalogResourceReference? = stencilId?.let {
+                CatalogResourceReference("stencil", it, catalogKey, version)
+            }
         }
     }
 }

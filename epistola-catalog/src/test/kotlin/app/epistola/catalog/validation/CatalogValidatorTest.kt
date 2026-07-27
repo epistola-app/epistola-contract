@@ -127,6 +127,110 @@ class CatalogValidatorTest {
     }
 
     @Test
+    fun `catalog accepts exact version pinned stencil composition`() {
+        val address = StencilResource("address", "Address", 2, content = validDocument())
+        val letter = StencilResource(
+            "letter",
+            "Letter",
+            1,
+            content = documentWithStencil("nested-address", "address", 2),
+        )
+
+        val report = validateStencils(letter, address)
+
+        assertTrue(report.valid, report.findings.toString())
+        assertTrue(report.findings.isEmpty())
+    }
+
+    @Test
+    fun `catalog rejects a nested stencil version that is not present`() {
+        val address = StencilResource("address", "Address", 2, content = validDocument())
+        val letter = StencilResource(
+            "letter",
+            "Letter",
+            1,
+            content = documentWithStencil("nested-address", "address", 1),
+        )
+
+        val report = validateStencils(letter, address)
+
+        assertEquals(
+            listOf("resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilId"),
+            report.findings
+                .filter { it.code == TemplateValidationCodes.STENCIL_REFERENCE_NOT_FOUND }
+                .map { it.path },
+        )
+    }
+
+    @Test
+    fun `catalog rejects direct stencil resource self reference`() {
+        val letter = StencilResource(
+            "letter",
+            "Letter",
+            1,
+            content = documentWithStencil("nested-letter", "letter", 1),
+        )
+
+        val report = validateStencils(letter)
+
+        assertEquals(
+            listOf("resources/stencil/letter.json.resource.content.nodes.nested-letter.props.stencilId"),
+            report.findings.filter { it.code == TemplateValidationCodes.STENCIL_RECURSION }.map { it.path },
+        )
+    }
+
+    @Test
+    fun `catalog rejects transitive recursion across stencil resources`() {
+        val letter = StencilResource(
+            "letter",
+            "Letter",
+            1,
+            content = documentWithStencil("nested-address", "address", 1),
+        )
+        val address = StencilResource(
+            "address",
+            "Address",
+            1,
+            content = documentWithStencil("nested-letter", "letter", 1),
+        )
+
+        val report = validateStencils(letter, address)
+
+        assertEquals(
+            listOf(
+                "resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilId",
+            ),
+            report.findings.filter { it.code == TemplateValidationCodes.STENCIL_RECURSION }.map { it.path },
+        )
+    }
+
+    @Test
+    fun `golden composition fixture matches whole catalog outcomes`() {
+        val fixture = fixture("stencil-composition-validation.json").use(mapper::readTree)
+
+        fixture["validCases"]
+            .filter { it["scope"].asString() == "catalog" }
+            .forEach { valid ->
+                val report = compositionCatalogScenario(valid["scenario"].asString())
+                assertTrue(report.valid, "${valid["scenario"].asString()}: ${report.findings}")
+            }
+        fixture["invalidCases"]
+            .filter { it["scope"].asString() == "catalog" }
+            .forEach { invalid ->
+                val report = compositionCatalogScenario(invalid["scenario"].asString())
+                val expected: List<Pair<String, String>> = invalid["expectedFindings"].toList().map {
+                    Pair(it["code"].asString(), it["path"].asString())
+                }
+                val actual: List<Pair<String, String>> = report.findings.map { it.code to it.path }
+                assertEquals(
+                    expected,
+                    actual,
+                    invalid["scenario"].asString(),
+                )
+            }
+    }
+
+    @Test
     fun `template resource theme reference must resolve`() {
         val template = TemplateResource(
             "invoice",
@@ -276,6 +380,108 @@ class CatalogValidatorTest {
         nodes = mapOf("n-root" to Node("n-root", "root", slots = listOf("s-root"))),
         slots = mapOf("s-root" to Slot("s-root", "n-root", "children")),
     )
+
+    private fun documentWithStencil(
+        nodeId: String,
+        slug: String,
+        version: Int,
+        isDraft: Boolean = false,
+    ): TemplateDocument {
+        val nested = Node(
+            nodeId,
+            "stencil",
+            slots = listOf("$nodeId-children"),
+            props = mapOf(
+                "stencilId" to slug,
+                "version" to version,
+                "isDraft" to isDraft,
+            ),
+        )
+        return validDocument().copy(
+            nodes = validDocument().nodes + (nested.id to nested),
+            slots = validDocument().slots +
+                ("s-root" to Slot("s-root", "n-root", "children", listOf(nested.id))) +
+                ("$nodeId-children" to Slot("$nodeId-children", nested.id, "children")),
+        )
+    }
+
+    private fun validateStencils(vararg stencils: StencilResource): CatalogValidationReport {
+        val details = stencils.associate { stencil ->
+            "stencil/${stencil.slug}" to ResourceDetail(4, stencil)
+        }
+        val entries = stencils.map { stencil ->
+            ResourceEntry(
+                "stencil",
+                stencil.slug,
+                stencil.name,
+                detailUrl = "./resources/stencil/${stencil.slug}.json",
+            )
+        }
+        return CatalogValidator.validate(archive(manifest(resources = entries), details))
+    }
+
+    private fun compositionCatalogScenario(scenario: String): CatalogValidationReport = when (scenario) {
+        "CATALOG_REFERENCE_MATCHES_EXACT_VERSION" -> validateStencils(
+            StencilResource(
+                "letter",
+                "Letter",
+                1,
+                content = documentWithStencil("nested-address", "address", 2),
+            ),
+            StencilResource("address", "Address", 2, content = validDocument()),
+        )
+        "CATALOG_REFERENCE_VERSION_MISMATCH" -> validateStencils(
+            StencilResource(
+                "letter",
+                "Letter",
+                1,
+                content = documentWithStencil("nested-address", "address", 1),
+            ),
+            StencilResource("address", "Address", 2, content = validDocument()),
+        )
+        "CATALOG_REFERENCE_TARGETS_DRAFT" -> validateStencils(
+            StencilResource(
+                "letter",
+                "Letter",
+                1,
+                content = documentWithStencil("nested-address", "address", 2, isDraft = true),
+            ),
+            StencilResource("address", "Address", 2, content = validDocument()),
+        )
+        "CATALOG_TRANSITIVE_RESOURCE_CYCLE" -> validateStencils(
+            StencilResource(
+                "letter",
+                "Letter",
+                1,
+                content = documentWithStencil("nested-address", "address", 1),
+            ),
+            StencilResource(
+                "address",
+                "Address",
+                1,
+                content = documentWithStencil("nested-letter", "letter", 1),
+            ),
+        )
+        "CATALOG_COMPOSITION_AT_DEPTH_LIMIT" ->
+            validateStencils(*stencilChain(TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH))
+        "CATALOG_COMPOSITION_EXCEEDS_DEPTH" ->
+            validateStencils(*stencilChain(TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH + 1))
+        else -> error("Unknown catalog composition fixture scenario: $scenario")
+    }
+
+    private fun stencilChain(depth: Int): Array<StencilResource> = Array(depth) { index ->
+        val next = index + 1
+        StencilResource(
+            slug = "stencil-$index",
+            name = "Stencil $index",
+            version = 1,
+            content = if (next < depth) {
+                documentWithStencil("nested-stencil-$next", "stencil-$next", 1)
+            } else {
+                validDocument()
+            },
+        )
+    }
 
     private fun CatalogValidationReport.codes() = findings.map(CatalogValidationFinding::code).toSet()
 

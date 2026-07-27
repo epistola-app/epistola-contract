@@ -35,9 +35,24 @@ val report = TemplateValidator.validate(document, context)
 ```
 
 `TemplateValidationContext` resolves catalog-scoped resources, dynamic
-parameter schemas, and effective style presets. A lookup can return `UNKNOWN`
+parameter schemas, and effective style presets. For stencil resource content,
+`currentCatalogKey` and `containingStencil` identify the owning resource so
+the validator can distinguish cross-catalog references from direct or
+transitive self-reference. A lookup can return `UNKNOWN`
 when a consumer is intentionally validating without the full catalog graph;
 only an explicit `MISSING` result produces a missing-reference finding.
+
+Stencil composition is part of the portable specification. Standalone
+template validation understands both authored draft references and references
+to exact published stencil versions; the context resolver receives the
+`isDraft` identity. Whole-catalog validation is the publication boundary and
+therefore rejects draft references. It requires portable references to declare
+`isDraft=false` and pin an exact version.
+
+Standalone validation counts the containing stencil as nesting level one and
+rejects a repeated ancestor identity or a chain deeper than five. Consumers
+may expose a smaller authoring feature set while still accepting and
+round-tripping conforming catalog content.
 
 All findings contain a stable string code, `ERROR` or `WARNING` severity,
 document-relative path, and human-readable message. Reports are deduplicated
@@ -65,10 +80,13 @@ present because `DependencyRef` does not expose a version or range.
 
 The validator calls `TemplateValidator` for a template's primary model, each variant model, and
 stencil content. It rejects unsupported template `modelVersion` values, validates the parameter
-schema published by every stencil resource, and resolves a template resource's declared theme.
+schema published by every stencil resource, resolves a template resource's declared theme, checks
+same-catalog stencil references against the exact exported version, and rejects direct or
+transitive cycles across stencil resources.
 The versioned `catalog-validation-cases.json` fixture publishes one focused case description for
 every stable whole-catalog finding code, alongside the wire, migration, hash, and archive-safety
-fixtures.
+fixtures. `stencil-composition-validation.json` publishes the authoritative valid and invalid
+outcomes for nested stencil definitions.
 
 The public model continues to use Jackson 2 annotations, while mapper
 implementation types stay internal. Jackson 3 databind is an internal runtime

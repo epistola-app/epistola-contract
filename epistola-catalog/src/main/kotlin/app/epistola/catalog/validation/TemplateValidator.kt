@@ -60,7 +60,7 @@ object TemplateValidator {
         validateReferences(document, context, findings)
         validatePageHeaders(document, findings)
         if (safeGraph) {
-            validatePlaceholders(document, context.documentKind, findings)
+            validatePlaceholders(document, context, findings)
         }
         context.resolveStylePresets(document)?.let { presets ->
             document.nodes.values.sortedBy(Node::id).forEach { node ->
@@ -311,6 +311,12 @@ object TemplateValidator {
         else -> false
     }
 
+    private fun booleanValue(value: Any?): Boolean? = when (value) {
+        is Boolean -> value
+        is JsonNode -> if (value.isBoolean) value.asBoolean() else null
+        else -> null
+    }
+
     private fun validateReferences(
         document: TemplateDocument,
         context: TemplateValidationContext,
@@ -326,12 +332,33 @@ object TemplateValidator {
             val stencilId = node.props?.get("stencilId") as? String
             val catalogKey = node.props?.get("catalogKey") as? String
             val version = (node.props?.get("version") as? Number)?.toInt()
-            if (stencilId == null || !slugRegex.matches(stencilId) || version != null && version <= 0) {
-                findings.error(STENCIL_REFERENCE_INVALID, "nodes.${node.id}.props.stencilId", "stencil reference requires a valid stencilId and positive version")
+            val isDraft = booleanValue(node.props?.get("isDraft"))
+            if (stencilId == null || !slugRegex.matches(stencilId) || version == null || version <= 0) {
+                findings.error(
+                    STENCIL_REFERENCE_INVALID,
+                    "nodes.${node.id}.props.stencilId",
+                    "stencil reference requires a valid stencilId and positive version",
+                )
+            } else if (isDraft == null) {
+                findings.error(
+                    STENCIL_REFERENCE_INVALID,
+                    "nodes.${node.id}.props.isDraft",
+                    "stencil reference must declare whether it targets a draft",
+                )
+            } else if (isDraft && !context.allowDraftStencilReferences) {
+                findings.error(
+                    STENCIL_REFERENCE_INVALID,
+                    "nodes.${node.id}.props.isDraft",
+                    "portable catalog content cannot reference draft stencils",
+                )
             } else {
-                val reference = CatalogResourceReference("stencil", stencilId, catalogKey, version)
+                val reference = CatalogResourceReference("stencil", stencilId, catalogKey, version, isDraft)
                 if (context.resolveResource(reference) == ResourceResolution.MISSING) {
-                    findings.error(STENCIL_REFERENCE_NOT_FOUND, "nodes.${node.id}.props.stencilId", "stencil '$stencilId' does not exist in the catalog context")
+                    findings.error(
+                        STENCIL_REFERENCE_NOT_FOUND,
+                        "nodes.${node.id}.props.stencilId",
+                        "stencil '$stencilId' version $version does not exist in the catalog context",
+                    )
                 }
             }
         }
@@ -339,9 +366,10 @@ object TemplateValidator {
 
     private fun validatePlaceholders(
         document: TemplateDocument,
-        kind: TemplateDocumentKind,
+        context: TemplateValidationContext,
         findings: MutableList<TemplateValidationFinding>,
     ) {
+        val kind = context.documentKind
         val parentByNode = document.slots.values.flatMap { slot -> slot.children.map { it to slot.nodeId } }.toMap()
         fun ancestors(nodeId: String): List<Node> {
             val result = mutableListOf<Node>()
@@ -377,7 +405,7 @@ object TemplateValidator {
 
         fun recurse(
             nodeId: String,
-            stencilIds: Set<String>,
+            stencilIds: Set<StencilIdentity>,
             stencilDepth: Int,
         ) {
             val node = document.nodes[nodeId] ?: return
@@ -391,10 +419,16 @@ object TemplateValidator {
             }
             val nextIds = if (node.type == "stencil") {
                 val id = node.props?.get("stencilId") as? String
-                if (id != null && id in stencilIds) {
+                val identity = id?.let {
+                    StencilIdentity(
+                        catalogKey = node.props["catalogKey"] as? String ?: context.currentCatalogKey,
+                        slug = it,
+                    )
+                }
+                if (identity != null && identity in stencilIds) {
                     findings.error(STENCIL_RECURSION, "nodes.${node.id}.props.stencilId", "stencil '$id' would contain itself transitively")
                 }
-                if (id == null) stencilIds else stencilIds + id
+                if (identity == null) stencilIds else stencilIds + identity
             } else {
                 stencilIds
             }
@@ -403,21 +437,18 @@ object TemplateValidator {
                 .flatMap { it.children }
                 .forEach { recurse(it, nextIds, nextDepth) }
         }
-        if (kind == TemplateDocumentKind.STENCIL) {
-            document.nodes.values
-                .filter { it.type == "stencil" }
-                .sortedBy(Node::id)
-                .forEach { node ->
-                    findings.error(
-                        STENCIL_RECURSION,
-                        "nodes.${node.id}.props.stencilId",
-                        "stencil content cannot contain nested stencil references",
-                    )
-                }
-        } else {
-            recurse(document.root, emptySet(), 0)
-        }
+        val containingStencil = context.containingStencil
+        val initialIdentities = containingStencil?.let {
+            setOf(StencilIdentity(it.catalogKey ?: context.currentCatalogKey, it.slug))
+        }.orEmpty()
+        val initialDepth = if (kind == TemplateDocumentKind.STENCIL) 1 else 0
+        recurse(document.root, initialIdentities, initialDepth)
     }
+
+    private data class StencilIdentity(
+        val catalogKey: String?,
+        val slug: String,
+    )
 
     private fun validatePageHeaders(
         document: TemplateDocument,
@@ -454,7 +485,7 @@ object TemplateValidator {
                 findings.error(NODE_PARAMETER_BINDINGS_INVALID_SHAPE, "nodes.${node.id}.props.parameterBindings", "parameterBindings must be an object of paramName to expression entries")
                 return@forEach
             }
-            val bindings = raw as? Map<*, *>
+            val bindings = raw
             bindings.orEmpty().entries.sortedBy { it.key.toString() }.forEach { (rawName, rawExpression) ->
                 val name = rawName as? String
                 if (name == null || !parameterNameRegex.matches(name)) {

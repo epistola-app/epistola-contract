@@ -17,6 +17,7 @@ import app.epistola.catalog.protocol.ResourceEntry
 import app.epistola.catalog.protocol.StencilResource
 import app.epistola.catalog.protocol.TemplateResource
 import app.epistola.catalog.protocol.ThemeResource
+import app.epistola.template.model.Node
 import app.epistola.template.model.TemplateDocument
 import com.networknt.schema.InputFormat
 import com.networknt.schema.SchemaRegistry
@@ -112,7 +113,7 @@ object ResourceValidator {
         when (resource) {
             is TemplateResource -> validateTemplate(resource, context, "$path.resource", findings)
             is StencilResource -> {
-                validateDocument(resource.content, context, "$path.resource.content", true, findings)
+                validateDocument(resource.content, context, "$path.resource.content", resource, findings)
                 resource.parameterSchema?.let { schema ->
                     appendTemplateFindings(
                         ParameterSchemaValidator.validate(schema, "$path.resource.parameterSchema"),
@@ -138,13 +139,13 @@ object ResourceValidator {
         resource.themeId?.let { themeId ->
             validateReference("theme", themeId, resource.themeCatalogKey, context, "$path.themeId", findings)
         }
-        validateDocument(resource.templateModel, context, "$path.templateModel", false, findings)
+        validateDocument(resource.templateModel, context, "$path.templateModel", null, findings)
         val variantIds = mutableSetOf<String>()
         resource.variants.forEachIndexed { index, variant ->
             if (!variantIds.add(variant.id)) {
                 findings.error(CatalogValidationCodes.TEMPLATE_VARIANT_ID_DUPLICATE, "$path.variants[$index].id", "variant id '${variant.id}' is duplicated")
             }
-            variant.templateModel?.let { validateDocument(it, context, "$path.variants[$index].templateModel", false, findings) }
+            variant.templateModel?.let { validateDocument(it, context, "$path.variants[$index].templateModel", null, findings) }
         }
         val defaults = resource.variants.count { it.isDefault }
         if (defaults > 1) {
@@ -179,22 +180,21 @@ object ResourceValidator {
         document: TemplateDocument,
         context: ResourceValidationContext,
         path: String,
-        stencil: Boolean,
+        containingStencil: StencilResource?,
         findings: MutableList<CatalogValidationFinding>,
     ) {
         val report = TemplateValidator.validate(
             document,
             object : TemplateValidationContext {
-                override val documentKind = if (stencil) TemplateDocumentKind.STENCIL else TemplateDocumentKind.TEMPLATE
-
-                override fun resolveResource(reference: CatalogResourceReference): ResourceResolution = if (
-                    reference.catalogKey == null ||
-                    reference.catalogKey == context.catalogKey
-                ) {
-                    if ("${reference.type}/${reference.slug}" in context.resources) ResourceResolution.PRESENT else ResourceResolution.MISSING
-                } else {
-                    context.dependencyResolver.resolve(reference)
+                override val documentKind =
+                    if (containingStencil == null) TemplateDocumentKind.TEMPLATE else TemplateDocumentKind.STENCIL
+                override val currentCatalogKey: String = context.catalogKey
+                override val containingStencil: CatalogResourceReference? = containingStencil?.let {
+                    CatalogResourceReference("stencil", it.slug, context.catalogKey, it.version)
                 }
+                override val allowDraftStencilReferences: Boolean = false
+
+                override fun resolveResource(reference: CatalogResourceReference): ResourceResolution = resolveReference(reference, context)
             },
         )
         appendTemplateFindings(report, findings, path)
@@ -328,14 +328,29 @@ object ResourceValidator {
         path: String,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        val resolution = if (catalogKey == null || catalogKey == context.catalogKey) {
-            if ("$type/$slug" in context.resources) ResourceResolution.PRESENT else ResourceResolution.MISSING
-        } else {
-            context.dependencyResolver.resolve(CatalogResourceReference(type, slug, catalogKey))
-        }
+        val resolution = resolveReference(CatalogResourceReference(type, slug, catalogKey), context)
         if (resolution == ResourceResolution.MISSING) {
             findings.error(CatalogValidationCodes.RESOURCE_REFERENCE_MISSING, path, "$type resource '$slug' cannot be resolved")
         }
+    }
+
+    private fun resolveReference(
+        reference: CatalogResourceReference,
+        context: ResourceValidationContext,
+    ): ResourceResolution {
+        if (reference.catalogKey != null && reference.catalogKey != context.catalogKey) {
+            return context.dependencyResolver.resolve(reference)
+        }
+        val resource = context.resources["${reference.type}/${reference.slug}"]
+            ?: return ResourceResolution.MISSING
+        if (
+            reference.type == "stencil" &&
+            reference.version != null &&
+            (resource as? StencilResource)?.version != reference.version
+        ) {
+            return ResourceResolution.MISSING
+        }
+        return ResourceResolution.PRESENT
     }
 
     private val SLUG = Regex("^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -418,7 +433,90 @@ object CatalogValidator {
         catalog.resourceDetails.toSortedMap().forEach { (key, detail) ->
             findings += ResourceValidator.validate(detail, context, "resources/$key.json").findings
         }
-        return CatalogValidationReport(findings.sorted())
+        validateStencilComposition(resources, manifest.catalog.slug, findings)
+        return CatalogValidationReport(findings.distinct().sorted())
+    }
+
+    private fun validateStencilComposition(
+        resources: Map<String, CatalogResource>,
+        catalogKey: String,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        val stencils = resources.values
+            .filterIsInstance<StencilResource>()
+            .associateBy { StencilResourceIdentity(it.slug, it.version) }
+        val edges = stencils.mapValues { (_, stencil) ->
+            val parentByNode = stencil.content.slots.values
+                .flatMap { slot -> slot.children.map { child -> child to slot.nodeId } }
+                .toMap()
+
+            fun hasStencilAncestor(node: Node): Boolean {
+                val visited = mutableSetOf<String>()
+                var parentId = parentByNode[node.id]
+                while (parentId != null && visited.add(parentId)) {
+                    val parent = stencil.content.nodes[parentId] ?: return false
+                    if (parent.type == "stencil") return true
+                    parentId = parentByNode[parent.id]
+                }
+                return false
+            }
+
+            stencil.content.nodes.values
+                .filter { it.type == "stencil" && !hasStencilAncestor(it) }
+                .sortedBy(Node::id)
+                .mapNotNull { node ->
+                    val slug = node.props?.get("stencilId") as? String ?: return@mapNotNull null
+                    val version = (node.props["version"] as? Number)?.toInt() ?: return@mapNotNull null
+                    val referenceCatalog = node.props["catalogKey"] as? String ?: catalogKey
+                    if (referenceCatalog != catalogKey) return@mapNotNull null
+                    StencilCompositionEdge(
+                        target = StencilResourceIdentity(slug, version),
+                        path = "resources/stencil/${stencil.slug}.json.resource.content.nodes.${node.id}.props.stencilId",
+                    )
+                }
+        }
+        val greatestDepth = mutableMapOf<StencilResourceIdentity, Int>()
+
+        fun visit(
+            current: StencilResourceIdentity,
+            ancestors: Set<StencilResourceIdentity>,
+            depth: Int,
+        ) {
+            edges[current].orEmpty().forEach { edge ->
+                val target = edge.target
+                if (target in ancestors) {
+                    findings.error(
+                        TemplateValidationCodes.STENCIL_RECURSION,
+                        edge.path,
+                        "stencil '${target.slug}' would contain itself transitively",
+                    )
+                    return@forEach
+                }
+                val nextDepth = depth + 1
+                if (nextDepth > TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH) {
+                    findings.error(
+                        TemplateValidationCodes.STENCIL_NESTING_DEPTH_EXCEEDED,
+                        edge.path,
+                        "stencil nesting depth $nextDepth exceeds maximum ${TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH}",
+                    )
+                    return@forEach
+                }
+                if (target in stencils) {
+                    val previousDepth = greatestDepth[target] ?: 0
+                    if (nextDepth > previousDepth) {
+                        greatestDepth[target] = nextDepth
+                        visit(target, ancestors + target, nextDepth)
+                    }
+                }
+            }
+        }
+
+        stencils.keys.sortedWith(compareBy({ it.slug }, { it.version })).forEach { stencil ->
+            if ((greatestDepth[stencil] ?: 0) < 1) {
+                greatestDepth[stencil] = 1
+                visit(stencil, setOf(stencil), 1)
+            }
+        }
     }
 
     private fun validateRelease(
@@ -489,6 +587,16 @@ object CatalogValidator {
         "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
     )
     private val SHA256 = Regex("^[0-9a-f]{64}$")
+
+    private data class StencilResourceIdentity(
+        val slug: String,
+        val version: Int,
+    )
+
+    private data class StencilCompositionEdge(
+        val target: StencilResourceIdentity,
+        val path: String,
+    )
 }
 
 private object PortableJsonSchema {
