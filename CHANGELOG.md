@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Removed the implementation-specific npm `/generated/*` entry point, exposed the public theme,
+  component, and style types from the `@epistola.app/epistola-catalog` package root, and added a
+  package-boundary check that prevents the internal path from becoming public again.
 - Published the same versioned catalog conformance fixtures in both Maven and npm artifacts from
   one language-neutral fixture tree.
 - Exposed standalone portable parameter-schema validation, corrected nested template finding paths,

@@ -188,6 +188,8 @@ The artifact currently provides:
 - Kotlin template/theme and catalog protocol types
 - JSON schemas and generated TypeScript types
 - Component and style registries under `epistola-catalog/registry`
+- Canonical model, theme, component, and style types exported from
+  `@epistola.app/epistola-catalog`
 - Typed TypeScript registry facade exported as
   `@epistola.app/epistola-catalog/registry`
 - JVM resources under `META-INF/epistola-catalog`

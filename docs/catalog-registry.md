@@ -37,7 +37,18 @@ Component parameter support is explicit:
 
 ## TypeScript Consumers
 
-Consumers can import the generated facade:
+Public model, theme, component, and style types are exported from the package
+root. The fact that some declarations are generated is an internal build detail:
+
+```ts
+import type {
+  ComponentRegistry,
+  StyleRegistry,
+  Theme,
+} from '@epistola.app/epistola-catalog';
+```
+
+Consumers can import the registry values from their semantic facade:
 
 ```ts
 import {

@@ -22,15 +22,11 @@
     },
     "./schemas/*": "./schemas/*",
     "./fixtures/*": "./fixtures/*",
-    "./registry/*": "./registry/*",
-    "./generated/*": {
-      "types": "./dist/generated/*.d.ts",
-      "default": "./dist/generated/*.js"
-    }
+    "./registry/*": "./registry/*"
   },
   "scripts": {
     "generate:types": "node ../scripts/generate-catalog-schema-types.mjs && node ../scripts/generate-catalog-registry-ts.mjs",
-    "build": "tsc",
+    "build": "tsc && node scripts/check-npm-exports.mjs",
     "prepublishOnly": "pnpm generate:types && pnpm build"
   },
   "devDependencies": {
