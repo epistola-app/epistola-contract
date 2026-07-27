@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Exposed standalone portable parameter-schema validation, corrected nested template finding paths,
   and retained Suite-compatible nested stencil semantics while rejecting actual stencil recursion.
+- Moved the rich-text reference schemas into the catalog artifact and made catalog example-data
+  validation use the full JSON Schema 2020-12 engine and Suite-compatible date-time semantics.
 - Kept registry-declared static component slots optional when a template does not use them,
   matching existing Suite stencil documents.
 - Enforced one canonical ProseMirror document object for text-node content; historical string and

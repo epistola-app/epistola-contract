@@ -88,6 +88,9 @@ tasks.named<ProcessResources>("processResources") {
     from("registry") {
         into("META-INF/epistola-catalog")
     }
+    from("schemas") {
+        into("META-INF/epistola-catalog/schemas")
+    }
 }
 
 tasks.named("compileKotlin") {
@@ -101,6 +104,7 @@ dependencies {
     implementation(libs.jackson3.module.kotlin)
     implementation(libs.jsonata)
     implementation(libs.commons.compress)
+    implementation(libs.networknt.json.schema.validator)
     testImplementation(kotlin("test"))
     testImplementation(libs.jackson2.databind)
 }

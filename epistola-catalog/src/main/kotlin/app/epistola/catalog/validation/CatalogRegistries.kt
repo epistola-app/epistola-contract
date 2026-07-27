@@ -51,12 +51,7 @@ internal object CatalogRegistries {
                 },
                 allowedChildrenMode = component["allowedChildren"]?.get("mode")?.asString() ?: "all",
                 allowedChildren = component["allowedChildren"]?.get("types").orEmpty().map { it.asString() }.toSet(),
-                applicableStyles = when {
-                    component["applicableStyles"]?.isString == true -> null
-                    component["applicableStyles"]?.isArray == true ->
-                        component["applicableStyles"].map { it.asString() }.toSet()
-                    else -> emptySet()
-                },
+                applicableStyles = applicableStyles(component),
                 properties = propertyRules(component),
             )
         }
@@ -67,6 +62,15 @@ internal object CatalogRegistries {
             .orEmpty()
             .flatMap { group -> group["properties"].orEmpty().map { it["key"].asString() } }
             .toSet()
+    }
+
+    private fun applicableStyles(component: JsonNode): Set<String>? {
+        val value = component["applicableStyles"]
+        if (value?.isString == true) return null
+        if (value?.isArray == true) {
+            return value.mapTo(linkedSetOf<String>()) { it.asString() }
+        }
+        return emptySet()
     }
 
     private fun propertyRules(component: JsonNode): List<PropertyRule> {

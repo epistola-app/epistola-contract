@@ -32,6 +32,7 @@ jakarta-validation = "3.1.1"
 jackson-annotations = "2.21"
 jsonata = "0.9.10"
 commons-compress = "1.28.0"
+networknt-json-schema = "3.0.5"
 
 [libraries]
 # client (Spring Boot 3 / Jackson 2)
@@ -53,6 +54,7 @@ springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openap
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson-annotations" }
 jsonata = { module = "com.dashjoin:jsonata", version.ref = "jsonata" }
 commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commons-compress" }
+networknt-json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "networknt-json-schema" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

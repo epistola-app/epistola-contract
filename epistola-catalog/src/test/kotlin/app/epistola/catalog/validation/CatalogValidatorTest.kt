@@ -9,6 +9,7 @@ import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CodeListBindingRef
 import app.epistola.catalog.protocol.CodeListEntryEntry
 import app.epistola.catalog.protocol.CodeListResource
+import app.epistola.catalog.protocol.DataExampleEntry
 import app.epistola.catalog.protocol.FontResource
 import app.epistola.catalog.protocol.FontVariantEntry
 import app.epistola.catalog.protocol.PublisherInfo
@@ -125,6 +126,52 @@ class CatalogValidatorTest {
         assertTrue(CatalogValidationCodes.FONT_VARIANT_INVALID in report.codes())
         assertTrue(CatalogValidationCodes.FONT_VARIANT_DUPLICATE in report.codes())
         assertTrue(CatalogValidationCodes.RESOURCE_REFERENCE_MISSING in report.codes())
+    }
+
+    @Test
+    fun `example validation supports full schemas rich text refs and local datetimes`() {
+        val dataModel = mapOf(
+            "type" to "object",
+            "properties" to mapOf(
+                "title" to mapOf("type" to "string", "minLength" to 3),
+                "when" to mapOf("type" to "string", "format" to "date-time"),
+                "body" to mapOf("\$ref" to "https://epistola.app/schemas/richtext-inline-v1.json"),
+            ),
+            "required" to listOf("title", "when", "body"),
+        )
+        val richText = mapOf(
+            "type" to "doc",
+            "content" to listOf(
+                mapOf(
+                    "type" to "paragraph",
+                    "content" to listOf(mapOf("type" to "text", "text" to "Hello")),
+                ),
+            ),
+        )
+        val resource = TemplateResource(
+            "invoice",
+            "Invoice",
+            dataModel = dataModel,
+            dataExamples = listOf(
+                DataExampleEntry(
+                    "invalid-title",
+                    mapOf("title" to "x", "when" to "2026-07-27T10:30", "body" to richText),
+                ),
+            ),
+            templateModel = validDocument(),
+            variants = emptyList(),
+        )
+        val key = "template/invoice"
+        val detail = ResourceDetail(4, resource)
+        val report = CatalogValidator.validate(
+            archive(
+                manifest(resources = listOf(ResourceEntry("template", "invoice", "Invoice", detailUrl = "./resources/$key.json"))),
+                mapOf(key to detail),
+            ),
+        )
+
+        assertTrue(CatalogValidationCodes.TEMPLATE_DATA_SCHEMA_INVALID !in report.codes(), report.findings.toString())
+        assertTrue(CatalogValidationCodes.TEMPLATE_DATA_EXAMPLE_INVALID in report.codes(), report.findings.toString())
     }
 
     @Test

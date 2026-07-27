@@ -17,6 +17,14 @@ import app.epistola.catalog.protocol.StencilResource
 import app.epistola.catalog.protocol.TemplateResource
 import app.epistola.catalog.protocol.ThemeResource
 import app.epistola.template.model.TemplateDocument
+import com.networknt.schema.InputFormat
+import com.networknt.schema.SchemaRegistry
+import com.networknt.schema.SpecificationVersion
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ArrayNode
+import tools.jackson.databind.node.ObjectNode
+import tools.jackson.module.kotlin.jsonMapper
+import tools.jackson.module.kotlin.kotlinModule
 import java.io.InputStream
 import java.net.URI
 import java.time.OffsetDateTime
@@ -452,56 +460,59 @@ object CatalogValidator {
 }
 
 private object PortableJsonSchema {
-    private val supportedTypes = setOf("object", "array", "string", "number", "integer", "boolean", "null")
-
-    fun checkSchema(schema: Map<String, Any?>): List<String> {
-        val errors = mutableListOf<String>()
-        val type = schema["type"]
-        if (type != null && type !is String) errors += "schema type must be a string"
-        if (type is String && type !in supportedTypes) errors += "schema type '$type' is unsupported"
-        val properties = schema["properties"]
-        if (properties != null && properties !is Map<*, *>) errors += "schema properties must be an object"
-        val required = schema["required"]
-        if (required != null && (required !is List<*> || required.any { it !is String })) errors += "schema required must be an array of strings"
-        if (properties is Map<*, *> && required is List<*>) {
-            required.filterIsInstance<String>().filterNot(properties::containsKey).forEach { errors += "required property '$it' is not declared" }
-        }
-        return errors
+    private val mapper = jsonMapper { addModule(kotlinModule()) }
+    private val schemaRegistry = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12) { builder ->
+        builder.schemas(
+            listOf(
+                "https://epistola.app/schemas/richtext-inline-v1.json",
+                "https://epistola.app/schemas/richtext-block-v1.json",
+            ).associateWith { id ->
+                val filename = id.substringAfterLast("/")
+                requireNotNull(
+                    PortableJsonSchema::class.java.getResource(
+                        "/META-INF/epistola-catalog/schemas/$filename",
+                    ),
+                ) { "Missing bundled catalog schema $filename" }.readText()
+            },
+        )
     }
+
+    fun checkSchema(schema: Map<String, Any?>): List<String> = runCatching {
+        schemaRegistry.getSchema(mapper.writeValueAsString(schema))
+    }.fold(
+        onSuccess = { emptyList() },
+        onFailure = { listOf("invalid JSON Schema: ${it.message}") },
+    )
 
     fun validate(
         value: Any?,
         schema: Map<String, Any?>,
-        path: String = "$",
     ): List<String> {
-        val errors = mutableListOf<String>()
-        when (schema["type"] as? String) {
-            "object" -> if (value !is Map<*, *>) errors += "$path must be an object"
-            "array" -> if (value !is List<*>) errors += "$path must be an array"
-            "string" -> if (value !is String) errors += "$path must be a string"
-            "number" -> if (value !is Number) errors += "$path must be a number"
-            "integer" -> if (value !is Byte && value !is Short && value !is Int && value !is Long) errors += "$path must be an integer"
-            "boolean" -> if (value !is Boolean) errors += "$path must be a boolean"
-            "null" -> if (value != null) errors += "$path must be null"
-        }
-        if (value is Map<*, *>) {
-            val required = (schema["required"] as? List<*>)?.filterIsInstance<String>().orEmpty()
-            required.filterNot(value::containsKey).forEach { errors += "$path.$it is required" }
-            val properties = schema["properties"] as? Map<*, *>
-            properties.orEmpty().forEach { (key, childSchema) ->
-                if (key is String && childSchema is Map<*, *> && value.containsKey(key)) {
-                    @Suppress("UNCHECKED_CAST")
-                    errors += validate(value[key], childSchema as Map<String, Any?>, "$path.$key")
-                }
-            }
-        }
-        if (value is List<*>) {
-            @Suppress("UNCHECKED_CAST")
-            val items = schema["items"] as? Map<String, Any?>
-            if (items != null) value.forEachIndexed { index, item -> errors += validate(item, items, "$path[$index]") }
-        }
-        return errors
+        val schemaNode = mapper.valueToTree<ObjectNode>(schema)
+        relaxDateTimeInPlace(schemaNode)
+        val jsonSchema = schemaRegistry.getSchema(mapper.writeValueAsString(schemaNode))
+        return jsonSchema.validate(mapper.writeValueAsString(value), InputFormat.JSON)
+            .map { "${it.instanceLocation}: ${it.message}" }
+            .sorted()
     }
+
+    private fun relaxDateTimeInPlace(node: JsonNode) {
+        when (node) {
+            is ObjectNode -> {
+                val format = node.get("format")
+                if (format?.isString == true && format.asString() == "date-time") {
+                    node.remove("format")
+                    if (!node.has("pattern")) node.put("pattern", LENIENT_DATE_TIME_PATTERN)
+                }
+                node.properties().forEach { (_, child) -> relaxDateTimeInPlace(child) }
+            }
+            is ArrayNode -> node.forEach(::relaxDateTimeInPlace)
+            else -> Unit
+        }
+    }
+
+    private const val LENIENT_DATE_TIME_PATTERN =
+        "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})?$"
 }
 
 private fun MutableList<CatalogValidationFinding>.error(
