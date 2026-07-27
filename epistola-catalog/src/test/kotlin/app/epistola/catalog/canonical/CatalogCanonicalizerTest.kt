@@ -3,6 +3,8 @@ package app.epistola.catalog.canonical
 import app.epistola.catalog.archive.ArchiveContentProvider
 import app.epistola.catalog.archive.CatalogArchive
 import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.CompatibilityInfo
+import app.epistola.catalog.protocol.IncludeEntry
 import app.epistola.catalog.protocol.ResourceDetail
 import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
@@ -19,7 +21,14 @@ class CatalogCanonicalizerTest {
         val archive = goldenArchive()
         val expected = resource("fingerprints.json").use(mapper::readTree)
 
-        assertEquals(expected["catalogFingerprint"].asString(), CatalogCanonicalizer.fingerprint(archive).value)
+        assertEquals(
+            expected["catalogFingerprint"].asString(),
+            CatalogCanonicalizer.fingerprint(archive).value,
+        )
+        assertEquals(
+            expected["currentCatalogFingerprint"].asString(),
+            CatalogCanonicalizer.currentFingerprint(archive).value,
+        )
         assertEquals(
             expected["resourceFingerprints"]["theme/default"].asString(),
             CatalogCanonicalizer.perResourceFingerprints(archive).getValue("theme/default"),
@@ -47,7 +56,7 @@ class CatalogCanonicalizerTest {
             },
         )
 
-        assertEquals(CatalogCanonicalizer.fingerprint(original), CatalogCanonicalizer.fingerprint(reordered))
+        assertEquals(CatalogCanonicalizer.currentFingerprint(original), CatalogCanonicalizer.currentFingerprint(reordered))
         assertEquals(
             CatalogCanonicalizer.perResourceFingerprints(original),
             CatalogCanonicalizer.perResourceFingerprints(reordered),
@@ -59,10 +68,32 @@ class CatalogCanonicalizerTest {
         val first = assetArchive("first".toByteArray())
         val second = assetArchive("second".toByteArray())
 
-        assertNotEquals(CatalogCanonicalizer.fingerprint(first), CatalogCanonicalizer.fingerprint(second))
+        assertNotEquals(CatalogCanonicalizer.currentFingerprint(first), CatalogCanonicalizer.currentFingerprint(second))
         assertNotEquals(
             CatalogCanonicalizer.perResourceFingerprints(first),
             CatalogCanonicalizer.perResourceFingerprints(second),
+        )
+    }
+
+    @Test
+    fun `compatibility and includes participate in catalog fingerprints`() {
+        val original = goldenArchive()
+        val changedCompatibility = original.copyWithManifest(
+            original.manifest.copy(compatibility = CompatibilityInfo(">=2.0.0")),
+        )
+        val changedIncludes = original.copyWithManifest(
+            original.manifest.copy(includes = listOf(IncludeEntry("https://example.test/catalog.json"))),
+        )
+
+        assertNotEquals(CatalogCanonicalizer.currentFingerprint(original), CatalogCanonicalizer.currentFingerprint(changedCompatibility))
+        assertNotEquals(CatalogCanonicalizer.currentFingerprint(original), CatalogCanonicalizer.currentFingerprint(changedIncludes))
+        assertEquals(
+            CatalogCanonicalizer.fingerprint(original),
+            CatalogCanonicalizer.fingerprint(changedCompatibility),
+        )
+        assertEquals(
+            CatalogCanonicalizer.fingerprint(original),
+            CatalogCanonicalizer.fingerprint(changedIncludes),
         )
     }
 
@@ -93,6 +124,13 @@ class CatalogCanonicalizerTest {
             },
         )
     }
+
+    private fun CatalogArchive.copyWithManifest(manifest: CatalogManifest) = CatalogArchive(
+        manifest = manifest,
+        resourceDetails = resourceDetails,
+        paths = paths,
+        content = content,
+    )
 
     private fun resource(path: String) = requireNotNull(javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/$path"))
 }

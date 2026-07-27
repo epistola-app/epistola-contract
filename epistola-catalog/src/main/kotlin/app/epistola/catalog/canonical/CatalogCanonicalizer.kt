@@ -17,22 +17,112 @@ import java.security.MessageDigest
 @JvmInline
 value class CatalogFingerprint(val value: String)
 
+enum class CatalogFingerprintVersion {
+    V1,
+    V2,
+}
+
 object CatalogCanonicalizer {
     private val mapper = jsonMapper { addModule(kotlinModule()) }
     private val decimalReader = mapper.reader().with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
 
-    fun fingerprint(catalog: CatalogArchive): CatalogFingerprint {
+    /**
+     * Produces the legacy V1 fingerprint for source and binary compatibility.
+     *
+     * New fingerprints should be produced with [currentFingerprint].
+     */
+    fun fingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V1)
+
+    /** Produces the current V2 fingerprint, including portable manifest semantics. */
+    fun currentFingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V2)
+
+    fun fingerprint(
+        catalog: CatalogArchive,
+        version: CatalogFingerprintVersion,
+    ): CatalogFingerprint {
         val entries = entries(catalog)
-        val canonical = buildString {
-            append(catalog.manifest.catalog.identityLine())
-            entries.sortedBy(Entry::key).forEach { entry ->
-                append(entry.key).append(' ')
-                    .append(entry.canonicalJson).append(' ')
-                    .append(entry.assetHash).append('\n')
-            }
-            append("deps ").append(canonicalDependencies(catalog.manifest.dependencies)).append('\n')
+        val canonical = when (version) {
+            CatalogFingerprintVersion.V1 -> canonicalV1(catalog, entries)
+            CatalogFingerprintVersion.V2 -> canonicalV2(catalog, entries)
         }
         return CatalogFingerprint(sha256(canonical.byteInputStream()))
+    }
+
+    private fun canonicalV1(
+        catalog: CatalogArchive,
+        entries: List<Entry>,
+    ): String = buildString {
+        append(catalog.manifest.catalog.identityLine())
+        appendEntries(entries)
+        append("deps ").append(canonicalDependenciesV1(catalog.manifest.dependencies)).append('\n')
+    }
+
+    private fun canonicalV2(
+        catalog: CatalogArchive,
+        entries: List<Entry>,
+    ): String = buildString {
+        append("manifest ")
+            .append(canonicalManifestJson(catalog))
+            .append('\n')
+        appendEntries(entries)
+    }
+
+    private fun StringBuilder.appendEntries(entries: List<Entry>) {
+        entries.sortedBy(Entry::key).forEach { entry ->
+            append(entry.key).append(' ')
+                .append(entry.canonicalJson).append(' ')
+                .append(entry.assetHash).append('\n')
+        }
+    }
+
+    private fun canonicalManifestJson(catalog: CatalogArchive): String {
+        val manifest = catalog.manifest
+        val canonical = linkedMapOf<String, Any?>(
+            "catalog" to manifest.catalog,
+            "publisher" to manifest.publisher,
+            "compatibility" to manifest.compatibility,
+            "includes" to manifest.includes.orEmpty().sortedWith(compareBy({ it.url }, { it.description })),
+            "resources" to manifest.resources
+                .sortedWith(compareBy({ it.type }, { it.slug }))
+                .map { resource ->
+                    linkedMapOf(
+                        "type" to resource.type,
+                        "slug" to resource.slug,
+                        "name" to resource.name,
+                        "description" to resource.description,
+                        "compatibility" to resource.compatibility,
+                    )
+                },
+            "dependencies" to canonicalDependenciesV2(manifest.dependencies),
+        )
+        return mapper.writeValueAsString(sortKeys(mapper.valueToTree(canonical)))
+    }
+
+    private fun canonicalDependenciesV2(dependencies: List<DependencyRef>?): List<Map<String, Any?>> = dependencies.orEmpty()
+        .map { dependency ->
+            val (type, catalogKey) = dependency.identity()
+            linkedMapOf(
+                "type" to type,
+                "catalogKey" to catalogKey.takeIf(String::isNotEmpty),
+                "slug" to dependency.slug,
+            )
+        }
+        .sortedWith(compareBy({ it["type"].toString() }, { it["catalogKey"].toString() }, { it["slug"].toString() }))
+
+    private fun canonicalDependenciesV1(dependencies: List<DependencyRef>?): String = dependencies.orEmpty()
+        .map { dependency ->
+            val (type, catalogKey) = dependency.identity()
+            "$type|$catalogKey|${dependency.slug}"
+        }
+        .sorted()
+        .joinToString(";")
+
+    private fun DependencyRef.identity(): Pair<String, String> = when (this) {
+        is DependencyRef.Theme -> "theme" to catalogKey
+        is DependencyRef.Stencil -> "stencil" to catalogKey
+        is DependencyRef.CodeList -> "codeList" to catalogKey
+        is DependencyRef.Font -> "font" to catalogKey
+        is DependencyRef.Asset -> "asset" to ""
     }
 
     fun perResourceFingerprints(catalog: CatalogArchive): Map<String, String> = entries(catalog).sortedBy(Entry::key).associate { entry ->
@@ -64,20 +154,6 @@ object CatalogCanonicalizer {
             assetHash = assetHash,
         )
     }
-
-    private fun canonicalDependencies(dependencies: List<DependencyRef>?): String = dependencies.orEmpty()
-        .map { dependency ->
-            val (type, catalogKey) = when (dependency) {
-                is DependencyRef.Theme -> "theme" to dependency.catalogKey
-                is DependencyRef.Stencil -> "stencil" to dependency.catalogKey
-                is DependencyRef.CodeList -> "codeList" to dependency.catalogKey
-                is DependencyRef.Font -> "font" to dependency.catalogKey
-                is DependencyRef.Asset -> "asset" to ""
-            }
-            "$type|$catalogKey|${dependency.slug}"
-        }
-        .sorted()
-        .joinToString(";")
 
     private fun CatalogInfo.identityLine(): String = "$slug $name ${description.orEmpty()}\n"
 

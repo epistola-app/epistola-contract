@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Expanded new catalog fingerprints to V2 so publisher, compatibility, include, and portable
+  resource-manifest metadata participate in content identity. Whole-catalog validation continues
+  to accept legacy V1 hashes, and the existing `fingerprint(catalog)` API retains its V1 result.
+  Existing stored fingerprints, callers, and installations therefore remain valid; new
+  fingerprints can opt into the corrected semantics through `currentFingerprint(catalog)`.
 - **Validation tightening:** Whole-catalog validation now rejects stencil resources with invalid
   parameter schemas, template documents whose `modelVersion` is not `1`, and template resource
   themes that explicitly resolve as missing. Existing installed data is not modified, but a

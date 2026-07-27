@@ -2,6 +2,8 @@ package app.epistola.catalog.validation
 
 import app.epistola.catalog.archive.ArchiveContentProvider
 import app.epistola.catalog.archive.CatalogArchive
+import app.epistola.catalog.canonical.CatalogCanonicalizer
+import app.epistola.catalog.canonical.CatalogFingerprintVersion
 import app.epistola.catalog.protocol.AssetResource
 import app.epistola.catalog.protocol.AttributeResource
 import app.epistola.catalog.protocol.CatalogInfo
@@ -39,6 +41,24 @@ class CatalogValidatorTest {
         val archive = archive(manifest, mapOf("theme/default" to detail))
 
         assertEquals(emptyList(), CatalogValidator.validate(archive).findings)
+    }
+
+    @Test
+    fun `legacy and current catalog fingerprints both remain valid`() {
+        val withoutFingerprint = archive(manifest(), emptyMap())
+        CatalogFingerprintVersion.entries.forEach { version ->
+            val fingerprint = CatalogCanonicalizer.fingerprint(withoutFingerprint, version).value
+            val catalog = archive(
+                manifest(release = ReleaseInfo("1.0.0", fingerprint = fingerprint)),
+                emptyMap(),
+            )
+            val report = CatalogValidator.validate(catalog)
+
+            assertTrue(
+                report.findings.none { it.code == CatalogValidationCodes.RELEASE_FINGERPRINT_MISMATCH },
+                "$version: ${report.findings}",
+            )
+        }
     }
 
     @Test
