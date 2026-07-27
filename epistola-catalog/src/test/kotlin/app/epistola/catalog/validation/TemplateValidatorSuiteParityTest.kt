@@ -64,6 +64,18 @@ class TemplateValidatorSuiteParityTest {
     }
 
     @Test
+    fun `unsupported document model version is rejected`() {
+        val report = TemplateValidator.validate(document().copy(modelVersion = 2))
+
+        assertTrue(
+            report.findings.any {
+                it.code == TEMPLATE_GRAPH_INVALID && it.path == "modelVersion"
+            },
+            report.findings.toString(),
+        )
+    }
+
+    @Test
     fun `unsupported node type remains a distinct portable finding`() {
         assertFinding(document(Node("child", "not-a-component")), TEMPLATE_NODE_TYPE_UNSUPPORTED)
     }

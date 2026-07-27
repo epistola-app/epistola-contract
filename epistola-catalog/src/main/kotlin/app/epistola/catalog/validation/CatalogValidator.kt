@@ -110,7 +110,15 @@ object ResourceValidator {
         }
         when (resource) {
             is TemplateResource -> validateTemplate(resource, context, "$path.resource", findings)
-            is StencilResource -> validateDocument(resource.content, context, "$path.resource.content", true, findings)
+            is StencilResource -> {
+                validateDocument(resource.content, context, "$path.resource.content", true, findings)
+                resource.parameterSchema?.let { schema ->
+                    appendTemplateFindings(
+                        ParameterSchemaValidator.validate(schema, "$path.resource.parameterSchema"),
+                        findings,
+                    )
+                }
+            }
             is ThemeResource -> validateTheme(resource, context, "$path.resource", findings)
             is AttributeResource -> validateAttribute(resource, context, "$path.resource", findings)
             is CodeListResource -> validateCodeList(resource, "$path.resource", findings)
@@ -126,6 +134,9 @@ object ResourceValidator {
         path: String,
         findings: MutableList<CatalogValidationFinding>,
     ) {
+        resource.themeId?.let { themeId ->
+            validateReference("theme", themeId, resource.themeCatalogKey, context, "$path.themeId", findings)
+        }
         validateDocument(resource.templateModel, context, "$path.templateModel", false, findings)
         val variantIds = mutableSetOf<String>()
         resource.variants.forEachIndexed { index, variant ->
@@ -185,12 +196,24 @@ object ResourceValidator {
                 }
             },
         )
+        appendTemplateFindings(report, findings, path)
+    }
+
+    private fun appendTemplateFindings(
+        report: TemplateValidationReport,
+        findings: MutableList<CatalogValidationFinding>,
+        path: String? = null,
+    ) {
         findings += report.findings.map {
             val relativePath = it.path.removePrefix("$").removePrefix(".")
             CatalogValidationFinding(
                 it.code,
                 it.severity,
-                if (relativePath.isEmpty()) path else "$path.$relativePath",
+                when {
+                    path == null -> relativePath
+                    relativePath.isEmpty() -> path
+                    else -> "$path.$relativePath"
+                },
                 it.message,
             )
         }

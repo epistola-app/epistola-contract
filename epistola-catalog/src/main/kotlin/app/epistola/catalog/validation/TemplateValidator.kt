@@ -47,6 +47,13 @@ object TemplateValidator {
         context: TemplateValidationContext = TemplateValidationContext.EMPTY,
     ): TemplateValidationReport {
         val findings = mutableListOf<TemplateValidationFinding>()
+        if (document.modelVersion != 1) {
+            findings.error(
+                TEMPLATE_GRAPH_INVALID,
+                "modelVersion",
+                "template document modelVersion ${document.modelVersion} is unsupported; expected 1",
+            )
+        }
         val safeGraph = validateGraph(document, findings)
         validateRegistryRules(document, findings)
         validateBindings(document, context, findings)

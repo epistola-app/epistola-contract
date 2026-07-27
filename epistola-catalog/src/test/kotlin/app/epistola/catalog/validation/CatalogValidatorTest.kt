@@ -86,6 +86,48 @@ class CatalogValidatorTest {
     }
 
     @Test
+    fun `stencil parameter schema is validated as catalog content`() {
+        val stencil = StencilResource(
+            "address",
+            "Address",
+            1,
+            content = validDocument(),
+            parameterSchema = mapOf("type" to "array"),
+        )
+        val key = "stencil/address"
+        val detail = ResourceDetail(4, stencil)
+        val report = CatalogValidator.validate(
+            archive(
+                manifest(resources = listOf(ResourceEntry("stencil", "address", "Address", detailUrl = "./resources/$key.json"))),
+                mapOf(key to detail),
+            ),
+        )
+
+        assertTrue(TemplateValidationCodes.PARAMETER_SCHEMA_INVALID_TYPE in report.codes(), report.findings.toString())
+    }
+
+    @Test
+    fun `template resource theme reference must resolve`() {
+        val template = TemplateResource(
+            "invoice",
+            "Invoice",
+            themeId = "missing",
+            templateModel = validDocument(),
+            variants = emptyList(),
+        )
+        val key = "template/invoice"
+        val detail = ResourceDetail(4, template)
+        val report = CatalogValidator.validate(
+            archive(
+                manifest(resources = listOf(ResourceEntry("template", "invoice", "Invoice", detailUrl = "./resources/$key.json"))),
+                mapOf(key to detail),
+            ),
+        )
+
+        assertTrue(CatalogValidationCodes.RESOURCE_REFERENCE_MISSING in report.codes(), report.findings.toString())
+    }
+
+    @Test
     fun `resource validators cover references schemas lists fonts assets and attributes`() {
         val template = TemplateResource(
             "invoice",

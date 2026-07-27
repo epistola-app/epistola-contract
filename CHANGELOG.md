@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Validation tightening:** Whole-catalog validation now rejects stencil resources with invalid
+  parameter schemas, template documents whose `modelVersion` is not `1`, and template resource
+  themes that explicitly resolve as missing. Existing installed data is not modified, but a
+  previously accepted invalid catalog can fail when it is re-imported or explicitly revalidated.
 - Aligned the optional cross-catalog theme key across the Kotlin, JSON Schema, and TypeScript
   `ThemeRefOverride` contracts, made pull-request CI compile and verify the npm package after type
   generation, and corrected the wire-version documentation to match the strict version-4 gate.

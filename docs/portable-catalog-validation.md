@@ -64,9 +64,11 @@ findings when the complete dependency graph is unavailable. No dependency versio
 present because `DependencyRef` does not expose a version or range.
 
 The validator calls `TemplateValidator` for a template's primary model, each variant model, and
-stencil content. The versioned `catalog-validation-cases.json` fixture publishes one focused case
-description for every stable whole-catalog finding code, alongside the wire, migration, hash, and
-archive-safety fixtures.
+stencil content. It rejects unsupported template `modelVersion` values, validates the parameter
+schema published by every stencil resource, and resolves a template resource's declared theme.
+The versioned `catalog-validation-cases.json` fixture publishes one focused case description for
+every stable whole-catalog finding code, alongside the wire, migration, hash, and archive-safety
+fixtures.
 
 The public model continues to use Jackson 2 annotations, while mapper
 implementation types stay internal. Jackson 3 databind is an internal runtime
