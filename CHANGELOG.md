@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Published the same versioned catalog conformance fixtures in both Maven and npm artifacts from
+  one language-neutral fixture tree.
 - Exposed standalone portable parameter-schema validation, corrected nested template finding paths,
   and retained Suite-compatible nested stencil semantics while rejecting actual stencil recursion.
 - Moved the rich-text reference schemas into the catalog artifact and made catalog example-data

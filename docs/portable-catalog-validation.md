@@ -46,7 +46,8 @@ and sorted by path, code, then message.
 The validator loads component and style rules from the registries packaged at
 `META-INF/epistola-catalog`; it does not maintain a second component vocabulary.
 Versioned golden fixture metadata is packaged under
-`META-INF/epistola-catalog/fixtures/`.
+`META-INF/epistola-catalog/fixtures/` in Maven and
+`@epistola.app/epistola-catalog/fixtures/` in npm.
 
 ## Whole-catalog validation
 

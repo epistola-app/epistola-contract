@@ -91,6 +91,9 @@ tasks.named<ProcessResources>("processResources") {
     from("schemas") {
         into("META-INF/epistola-catalog/schemas")
     }
+    from("fixtures") {
+        into("META-INF/epistola-catalog/fixtures")
+    }
 }
 
 tasks.named("compileKotlin") {

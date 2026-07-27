@@ -17,4 +17,5 @@ Therefore equivalent archives have identical fingerprints even when their entry 
 compression, or JSON property order differ.
 
 Authoritative versioned inputs and expected hashes are published below
-`META-INF/epistola-catalog/fixtures/v1`.
+`META-INF/epistola-catalog/fixtures/v1` in the Maven artifact and
+`@epistola.app/epistola-catalog/fixtures/v1/*` in the npm artifact.
