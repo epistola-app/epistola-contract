@@ -21,6 +21,13 @@ storage so central-directory metadata can be checked without buffering the
 complete archive in memory. The returned archive owns that storage and must be
 closed.
 
+`CatalogArchive.paths` contains normalized regular files that can be opened
+through `ArchiveContentProvider`. Explicit ZIP directory entries are accepted,
+safety-checked, included in duplicate and entry-count enforcement, and then
+omitted from `paths`; they are not readable content. A future explicit
+directory metadata model is tracked in
+[issue #54](https://github.com/epistola-app/epistola-contract/issues/54).
+
 Archive-safety and malformed-content failures are returned as stable findings.
 Transient or local I/O failures remain `IOException`s and are not mislabeled as
 invalid catalog content.

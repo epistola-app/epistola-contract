@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added a small executable, language-neutral catalog conformance suite with actual valid and
+  invalid catalog files plus exact expected reports, and distinguished those fixtures from the
+  exhaustive finding-code registries and Kotlin unit tests.
 - Defined `CatalogArchive.paths` as regular readable files only. Explicit ZIP directory entries
   remain safety-checked and count toward archive limits, but no longer appear as content paths.
 - Hardened catalog publication by validating release tags and source branches, failing on

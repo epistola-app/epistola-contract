@@ -25,7 +25,7 @@ import kotlin.test.assertTrue
 
 class CatalogArchiveCodecTest {
     @Test
-    fun `golden case registry covers every stable archive finding code`() {
+    fun `finding code registry covers every stable archive finding code`() {
         val fixtureCodes = requireNotNull(
             javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/archive-validation-cases.json"),
         ).use(jsonMapper()::readTree).propertyNames().toSet()

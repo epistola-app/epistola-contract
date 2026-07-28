@@ -24,6 +24,7 @@ import app.epistola.catalog.protocol.VariantEntry
 import app.epistola.template.model.Node
 import app.epistola.template.model.Slot
 import app.epistola.template.model.TemplateDocument
+import tools.jackson.databind.JsonNode
 import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
 import java.io.ByteArrayInputStream
@@ -41,6 +42,40 @@ class CatalogValidatorTest {
         val archive = archive(manifest, mapOf("theme/default" to detail))
 
         assertEquals(emptyList(), CatalogValidator.validate(archive).findings)
+    }
+
+    @Test
+    fun `published conformance catalogs produce their expected reports`() {
+        val index = fixture("conformance/catalog-cases.json").use(mapper::readTree)
+
+        index["cases"].forEach { case ->
+            val id = case["id"].asString()
+            val root = case["root"].asString()
+            val expectedReport = case["expectedReport"].asString()
+            val files = case["files"].mapTo(linkedSetOf()) { it.asString() }
+            val manifest = fixture("$root/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
+            val details = files
+                .asSequence()
+                .filter { it.startsWith("resources/") && it.endsWith(".json") }
+                .associate { path ->
+                    val key = path.removePrefix("resources/").removeSuffix(".json")
+                    key to fixture("$root/$path").use { mapper.readValue(it, ResourceDetail::class.java) }
+                }
+            val archive = CatalogArchive(
+                manifest,
+                details,
+                files,
+                ArchiveContentProvider { path ->
+                    require(path in files) { "Conformance fixture '$id' has no file '$path'" }
+                    fixture("$root/$path")
+                },
+            )
+            val report = CatalogValidator.validate(archive)
+            val expected = fixture("$root/$expectedReport").use(mapper::readTree)
+
+            assertEquals(expected["valid"].asBoolean(), report.valid, id)
+            assertEquals(expected["findings"], mapper.valueToTree<JsonNode>(report.findings), id)
+        }
     }
 
     @Test
@@ -341,7 +376,7 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `golden case registry covers every stable catalog finding code`() {
+    fun `finding code registry covers every stable catalog finding code`() {
         val fixtureCodes = fixture("catalog-validation-cases.json").use(mapper::readTree).propertyNames().toSet()
         val publishedCodes = CatalogValidationCodes::class.java.declaredFields
             .filter { it.type == String::class.java }

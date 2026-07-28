@@ -60,7 +60,7 @@ and sorted by path, code, then message.
 
 The validator loads component and style rules from the registries packaged at
 `META-INF/epistola-catalog`; it does not maintain a second component vocabulary.
-Versioned golden fixture metadata is packaged under
+Versioned fixture data is packaged under
 `META-INF/epistola-catalog/fixtures/` in Maven and
 `@epistola.app/epistola-catalog/fixtures/` in npm.
 
@@ -83,10 +83,19 @@ stencil content. It rejects unsupported template `modelVersion` values, validate
 schema published by every stencil resource, resolves a template resource's declared theme, checks
 same-catalog stencil references against the exact exported version, and rejects direct or
 transitive cycles across stencil resources.
-The versioned `catalog-validation-cases.json` fixture publishes one focused case description for
-every stable whole-catalog finding code, alongside the wire, migration, hash, and archive-safety
-fixtures. `stencil-composition-validation.json` publishes the authoritative valid and invalid
-outcomes for nested stencil definitions.
+The versioned `conformance/catalog-cases.json` index publishes a small executable conformance
+suite. Every entry identifies a directory containing the actual `catalog.json`, actual resource
+files, and an exact `expected-report.json`. The initial set covers a minimal valid catalog, a
+missing detail document, and a missing catalog-scoped reference. These files are language-neutral:
+another JVM implementation, a Python validator, or a browser client can load the same inputs and
+compare its complete ordered report with the expected result.
+
+`catalog-validation-cases.json` and `archive-validation-cases.json` are finding-code registries,
+not executable catalog inputs. They ensure stable public codes stay inventoried, while focused
+Kotlin unit tests provide detailed implementation coverage. The smaller conformance suite is
+deliberately made of genuine portable inputs and can grow when a behavior needs to be locked
+across languages. `stencil-composition-validation.json` separately publishes the authoritative
+valid and invalid outcomes for nested stencil definitions.
 
 The public model continues to use Jackson 2 annotations, while mapper
 implementation types stay internal. Jackson 3 databind is an internal runtime
