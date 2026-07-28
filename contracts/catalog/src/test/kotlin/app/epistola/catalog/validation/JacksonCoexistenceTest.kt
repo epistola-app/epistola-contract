@@ -22,7 +22,7 @@ class JacksonCoexistenceTest {
         val presetJson = ObjectMapper().writeValueAsString(
             BlockStylePreset(
                 label = "Body",
-                styles = mapOf("fontSize" to 12, "fontFamily" to null),
+                styles = mapOf("fontSize" to 12, "fontFamily" to "Inter"),
                 applicableTo = listOf("text"),
             ),
         )

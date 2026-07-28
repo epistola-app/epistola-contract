@@ -49,7 +49,7 @@ data class PageSettings(
  */
 data class BlockStylePreset(
     val label: String,
-    val styles: Map<String, Any?>,
+    val styles: Map<String, Any>,
     val applicableTo: List<String>? = null,
 )
 
