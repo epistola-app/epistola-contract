@@ -26,7 +26,30 @@ import java.nio.file.Path
 import java.util.Comparator
 import java.util.zip.ZipException
 
+/**
+ * Safe decoder for portable catalog ZIP streams.
+ *
+ * Input is copied to bounded temporary storage and expanded entry by entry.
+ * Absolute paths, traversal, backslashes, NUL bytes, duplicate normalized
+ * paths, symbolic links, and encrypted entries are rejected before a
+ * [CatalogArchive] is exposed. Manifest and resource documents pass through
+ * [CatalogSchemaMigrator], so wire-version failures are returned as findings.
+ *
+ * Temporary files live until the returned archive is closed.
+ */
 object CatalogArchiveReader {
+    /**
+     * Reads, checks, and binds one catalog archive.
+     *
+     * Ordinary unsafe or malformed input is represented in
+     * [CatalogArchiveReadResult.findings]. A non-null archive must be closed by
+     * the caller. The supplied [input] is consumed and closed.
+     *
+     * @param input ZIP content to consume sequentially.
+     * @param policy safety limits applied before and during extraction.
+     * @throws IllegalArgumentException when [policy] contains invalid limits.
+     * @throws IOException for unrecoverable storage or stream failures.
+     */
     fun read(
         input: InputStream,
         policy: CatalogArchivePolicy = CatalogArchivePolicy(),

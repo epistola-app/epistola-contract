@@ -31,33 +31,68 @@ import java.io.InputStream
 import java.net.URI
 import java.time.OffsetDateTime
 
+/**
+ * Stable diagnostic returned by resource or whole-catalog validation.
+ *
+ * Paths are rooted at `catalog.json`, `resources/...`, or `archive` and remain
+ * deterministic across runs.
+ */
 data class CatalogValidationFinding(
+    /** Machine-readable contract code. */
     val code: String,
+    /** Whether the finding prevents portable acceptance. */
     val severity: ValidationSeverity,
+    /** Deterministic path to the invalid value or document. */
     val path: String,
+    /** Human-readable explanation for logs and user interfaces. */
     val message: String,
 )
 
+/** Deterministically ordered aggregate of catalog validation findings. */
 data class CatalogValidationReport(
     val findings: List<CatalogValidationFinding>,
 ) {
+    /** True when [findings] contains no errors. */
     val valid: Boolean get() = findings.none { it.severity == ValidationSeverity.ERROR }
 }
 
+/**
+ * Consumer boundary for references whose target lives outside the catalog.
+ *
+ * Implementations must not perform persistence or authorization changes.
+ * Returning [ResourceResolution.UNKNOWN] leaves the reference unchecked;
+ * returning [ResourceResolution.MISSING] produces a stable finding.
+ */
 fun interface CatalogDependencyResolver {
+    /** Resolves one external resource identity. */
     fun resolve(reference: CatalogResourceReference): ResourceResolution
 
     companion object {
+        /** Resolver used when no external catalog graph is available. */
         val UNKNOWN = CatalogDependencyResolver { ResourceResolution.UNKNOWN }
     }
 }
 
+/**
+ * Portable whole-catalog validation configuration.
+ *
+ * @property archive limits used when validating a ZIP stream.
+ * @property dependencyResolver lookup boundary for external resource closure.
+ * @property verifyFingerprint whether a declared release fingerprint must
+ *   equal a supported canonical fingerprint.
+ */
 data class CatalogValidationPolicy(
     val archive: CatalogArchivePolicy = CatalogArchivePolicy(),
     val dependencyResolver: CatalogDependencyResolver = CatalogDependencyResolver.UNKNOWN,
     val verifyFingerprint: Boolean = true,
 )
 
+/**
+ * Stable finding codes owned by whole-catalog and resource validation.
+ *
+ * Template-specific findings retain their [TemplateValidationCodes] values
+ * when aggregated into a catalog report.
+ */
 object CatalogValidationCodes {
     const val MANIFEST_SCHEMA_UNSUPPORTED = "CATALOG_MANIFEST_SCHEMA_UNSUPPORTED"
     const val MANIFEST_RESOURCE_DUPLICATE = "CATALOG_MANIFEST_RESOURCE_DUPLICATE"
@@ -92,6 +127,14 @@ object CatalogValidationCodes {
     const val TEMPLATE_VARIANT_DEFAULT_INVALID = "CATALOG_TEMPLATE_VARIANT_DEFAULT_INVALID"
 }
 
+/**
+ * In-memory catalog graph supplied to [ResourceValidator].
+ *
+ * @property catalogKey identity used for same-catalog references.
+ * @property resources resources keyed by `type/slug`.
+ * @property paths normalized archive paths available through the catalog.
+ * @property dependencyResolver lookup boundary for other catalogs.
+ */
 data class ResourceValidationContext(
     val catalogKey: String,
     val resources: Map<String, CatalogResource>,
@@ -99,7 +142,20 @@ data class ResourceValidationContext(
     val dependencyResolver: CatalogDependencyResolver = CatalogDependencyResolver.UNKNOWN,
 )
 
+/**
+ * Validates the portable semantics of one bound resource detail.
+ *
+ * This validator assumes archive decoding and manifest/detail binding are
+ * handled by [CatalogValidator]. It validates resource-specific schemas,
+ * references, templates, stencils, themes, variants, attributes, code lists,
+ * fonts, assets, and examples without Suite persistence concerns.
+ */
 object ResourceValidator {
+    /**
+     * Validates [detail] at a deterministic archive [path].
+     *
+     * Ordinary semantic failures are returned as findings rather than thrown.
+     */
     fun validate(
         detail: ResourceDetail,
         context: ResourceValidationContext,
@@ -357,7 +413,29 @@ object ResourceValidator {
     private val MEDIA_TYPE = Regex("^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$")
 }
 
+/**
+ * Entry point for complete portable catalog validation.
+ *
+ * The stream overload first invokes
+ * [app.epistola.catalog.archive.CatalogArchiveReader], while the in-memory
+ * overload validates manifest/detail consistency, release metadata,
+ * dependency closure, every resource, nested template documents, stencil
+ * composition, and canonical fingerprints.
+ *
+ * Suite-specific authorization, persistence, conflict handling, installed
+ * dependency policy, rendering, and publication state intentionally remain
+ * outside this validator.
+ */
 object CatalogValidator {
+    /**
+     * Safely decodes and validates a catalog ZIP stream.
+     *
+     * Archive and semantic findings are combined in deterministic order. The
+     * input is consumed and closed by the archive reader.
+     *
+     * @throws java.io.IOException for unrecoverable stream or temporary-storage
+     *   failures.
+     */
     fun validate(
         input: InputStream,
         policy: CatalogValidationPolicy = CatalogValidationPolicy(),
@@ -372,6 +450,11 @@ object CatalogValidator {
         }
     }
 
+    /**
+     * Validates an already decoded [catalog].
+     *
+     * The caller retains ownership and must close [catalog] when appropriate.
+     */
     fun validate(
         catalog: CatalogArchive,
         policy: CatalogValidationPolicy = CatalogValidationPolicy(),

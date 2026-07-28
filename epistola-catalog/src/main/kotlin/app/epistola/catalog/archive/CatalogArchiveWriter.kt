@@ -14,6 +14,15 @@ import java.io.OutputStream
 import java.util.zip.Deflater
 import java.util.zip.ZipEntry
 
+/**
+ * Deterministic encoder for portable catalog archives.
+ *
+ * Entries are written in normalized lexical order with stable timestamps,
+ * regular-file Unix modes, UTF-8 names, and a stable compression level.
+ * Binary assets are copied from [CatalogArchive.content] without loading them
+ * in full. Fingerprints deliberately do not depend on these ZIP bytes; use
+ * [app.epistola.catalog.canonical.CatalogCanonicalizer] for content identity.
+ */
 object CatalogArchiveWriter {
     private val mapper = jsonMapper {
         addModule(kotlinModule())
@@ -21,6 +30,17 @@ object CatalogArchiveWriter {
         enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
     }
 
+    /**
+     * Writes [catalog] to [output] subject to [policy].
+     *
+     * The writer emits `catalog.json`, every resource detail, and every asset
+     * referenced by an [AssetResource]. [output] is closed when ZIP encoding
+     * completes or fails.
+     *
+     * @throws IllegalArgumentException when limits are invalid or exceeded,
+     *   an asset path is unsafe, or referenced content cannot be provided.
+     * @throws java.io.IOException when an input asset or [output] fails.
+     */
     fun write(
         catalog: CatalogArchive,
         output: OutputStream,

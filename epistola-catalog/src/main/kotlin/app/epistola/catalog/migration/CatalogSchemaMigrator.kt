@@ -9,30 +9,48 @@ import tools.jackson.module.kotlin.kotlinModule
 import java.io.IOException
 import java.io.InputStream
 
+/**
+ * Supported portable catalog wire-version interval.
+ *
+ * A version is accepted only when an explicit migration path exists from
+ * [BASELINE_VERSION] through [CURRENT_VERSION].
+ */
 object CatalogWireSchema {
     const val CURRENT_VERSION: Int = 4
     const val BASELINE_VERSION: Int = 4
 }
 
+/** Stable diagnostic explaining why a wire document could not be migrated. */
 data class CatalogMigrationFinding(
     val code: String,
     val path: String,
     val message: String,
 )
 
+/**
+ * Outcome of parsing, version-gating, migrating, and binding one JSON document.
+ *
+ * Ordinary malformed or unsupported input produces findings and a null
+ * [value]. Unrecoverable I/O remains exceptional.
+ */
 data class CatalogMigrationResult<T>(
     val value: T?,
     val sourceVersion: Int?,
     val findings: List<CatalogMigrationFinding>,
 ) {
+    /** True when a value was bound without migration findings. */
     val valid: Boolean get() = value != null && findings.isEmpty()
 }
 
+/**
+ * Manifest state required to migrate and bind a resource detail consistently.
+ */
 data class CatalogMigrationContext(
     val sourceVersion: Int,
     val manifest: CatalogManifest,
 )
 
+/** Stable finding codes emitted by [CatalogSchemaMigrator]. */
 object CatalogMigrationCodes {
     const val SCHEMA_UNKNOWN = "CATALOG_SCHEMA_UNKNOWN"
     const val SCHEMA_TOO_NEW = "CATALOG_SCHEMA_TOO_NEW"
@@ -53,6 +71,13 @@ object CatalogMigrationCodes {
 object CatalogSchemaMigrator {
     private val mapper = jsonMapper { addModule(kotlinModule()) }
 
+    /**
+     * Parses and migrates `catalog.json` to the current [CatalogManifest].
+     *
+     * [input] is consumed but not closed by this method.
+     *
+     * @throws IOException when the stream cannot be read.
+     */
     fun migrateManifest(input: InputStream): CatalogMigrationResult<CatalogManifest> {
         val tree = parse(input) ?: return failure(CatalogMigrationCodes.SCHEMA_UNKNOWN, "catalog.json", "manifest is not a JSON object")
         val source = schemaVersion(tree) ?: return failure(
@@ -64,6 +89,16 @@ object CatalogSchemaMigrator {
         return bind(tree, CatalogManifest::class.java, source, "catalog.json")
     }
 
+    /**
+     * Parses and migrates one resource detail using its owning manifest.
+     *
+     * The document's schema version must match [context], and its resource
+     * discriminator must match [declaredType]. [path] is copied into findings
+     * so callers retain deterministic archive locations.
+     *
+     * @throws IllegalArgumentException when [declaredType] is blank.
+     * @throws IOException when the stream cannot be read.
+     */
     fun migrateResourceDetail(
         declaredType: String,
         input: InputStream,

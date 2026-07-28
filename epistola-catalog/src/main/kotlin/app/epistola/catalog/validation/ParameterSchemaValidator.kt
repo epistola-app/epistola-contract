@@ -20,6 +20,16 @@ object ParameterSchemaValidator {
     private val reservedSuffixes = listOf("_index", "_first", "_last")
     private val primitiveTypes = setOf("string", "number", "integer", "boolean")
 
+    /**
+     * Validates the supported JSON Schema subset.
+     *
+     * Supported properties are primitive values or arrays of primitives;
+     * string formats are limited to `date` and `date-time`. The validator also
+     * checks reserved names, required-property closure, and default values.
+     *
+     * @param schema schema object to inspect without mutating it.
+     * @param path finding-path prefix used by the embedding resource.
+     */
     fun validate(
         schema: Map<String, Any?>,
         path: String = "parameterSchema",

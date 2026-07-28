@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Expanded Kotlin API documentation for archive ownership and safety, migration outcomes,
+  canonical fingerprints, validation contexts and reports, resource models, deterministic
+  ordering, and the boundary between portable catalog behavior and Suite-specific policy.
 - Preserved the editor's established stencil-reference semantics by treating an omitted `isDraft`
   property as non-draft during portable validation. Explicit non-boolean values remain invalid,
   and portable catalog validation still rejects explicit draft references.

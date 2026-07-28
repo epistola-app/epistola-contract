@@ -3,35 +3,72 @@ package app.epistola.catalog.validation
 import app.epistola.template.model.Node
 import app.epistola.template.model.TemplateDocument
 
+/** Severity shared by portable template and whole-catalog findings. */
 enum class ValidationSeverity {
+    /** Invalid portable content that must be corrected before acceptance. */
     ERROR,
+
+    /** Suspicious but portable content that consumers may still accept. */
     WARNING,
 }
 
+/**
+ * Stable, product-neutral diagnostic returned by [TemplateValidator].
+ *
+ * Findings are values rather than exceptions so validation can continue after
+ * ordinary content errors and report every independently detectable problem.
+ */
 data class TemplateValidationFinding(
+    /** Machine-readable identifier from [TemplateValidationCodes]. */
     val code: String,
+    /** Whether the finding prevents the document from being valid. */
     val severity: ValidationSeverity,
+    /** Deterministic property path within the template document. */
     val path: String,
+    /** Human-readable explanation for logs and user interfaces. */
     val message: String,
 )
 
+/** Deterministically ordered result of portable template validation. */
 data class TemplateValidationReport(
     val findings: List<TemplateValidationFinding>,
 ) {
+    /** True when [findings] contains no errors. */
     val valid: Boolean get() = findings.none { it.severity == ValidationSeverity.ERROR }
 }
 
+/** Semantic role of the document currently being validated. */
 enum class TemplateDocumentKind {
+    /** A complete template or variant template. */
     TEMPLATE,
+
+    /** Reusable stencil content with stencil-only placeholder rules. */
     STENCIL,
 }
 
+/**
+ * Result of resolving a catalog-scoped reference through a consumer adapter.
+ */
 enum class ResourceResolution {
+    /** The referenced resource exists and is usable. */
     PRESENT,
+
+    /** The consumer can authoritatively say the resource does not exist. */
     MISSING,
+
+    /** The consumer did not have enough catalog context to decide. */
     UNKNOWN,
 }
 
+/**
+ * Product-neutral identity of a resource referenced by template content.
+ *
+ * @property type portable resource discriminator such as `stencil` or `theme`.
+ * @property slug resource slug within its catalog.
+ * @property catalogKey owning catalog; null means the current catalog.
+ * @property version exact stencil version, when the reference is versioned.
+ * @property isDraft whether authoring explicitly targets a mutable draft.
+ */
 data class CatalogResourceReference(
     val type: String,
     val slug: String,
@@ -49,6 +86,7 @@ data class CatalogResourceReference(
  * catalog graph.
  */
 interface TemplateValidationContext {
+    /** Controls template-only versus stencil-only validation rules. */
     val documentKind: TemplateDocumentKind get() = TemplateDocumentKind.TEMPLATE
 
     /**
@@ -72,8 +110,21 @@ interface TemplateValidationContext {
      */
     val allowDraftStencilReferences: Boolean get() = true
 
+    /**
+     * Resolves a theme, stencil, or other catalog-scoped reference.
+     *
+     * Return [ResourceResolution.UNKNOWN] when existence cannot be checked.
+     * Validators only emit a not-found finding for [ResourceResolution.MISSING].
+     */
     fun resolveResource(reference: CatalogResourceReference): ResourceResolution = ResourceResolution.UNKNOWN
 
+    /**
+     * Resolves the parameter schema used to validate a stencil node's bindings.
+     *
+     * The default reads the immutable `parameterSchemaSnapshot` embedded in
+     * node properties. Authoring consumers may override this to refresh a
+     * draft schema before validation.
+     */
     fun resolveParameterSchema(
         node: Node,
         document: TemplateDocument,
@@ -86,8 +137,16 @@ interface TemplateValidationContext {
     fun resolveStylePresets(document: TemplateDocument): Set<String>? = null
 
     companion object {
+        /** Context for standalone structural validation without lookups. */
         val EMPTY: TemplateValidationContext = object : TemplateValidationContext {}
 
+        /**
+         * Creates a standalone stencil context.
+         *
+         * Supplying [stencilId] seeds self-reference detection. Catalog and
+         * version are optional when validating content that has not yet been
+         * assigned a portable identity.
+         */
         fun forStencil(
             stencilId: String? = null,
             catalogKey: String? = null,
@@ -102,10 +161,19 @@ interface TemplateValidationContext {
     }
 }
 
+/** Portable limits that consumers must enforce consistently. */
 object TemplateValidationLimits {
+    /** Maximum complete composition chain, counting the outer stencil. */
     const val MAX_STENCIL_NESTING_DEPTH = 5
 }
 
+/**
+ * Stable finding-code registry for [TemplateValidator] and
+ * [ParameterSchemaValidator].
+ *
+ * Codes are compatibility-sensitive API. Additions require a matching golden
+ * fixture; existing values must not be repurposed.
+ */
 object TemplateValidationCodes {
     const val TEMPLATE_GRAPH_INVALID = "TEMPLATE_GRAPH_INVALID"
     const val TEMPLATE_NODE_TYPE_UNSUPPORTED = "TEMPLATE_NODE_TYPE_UNSUPPORTED"
@@ -146,6 +214,7 @@ object TemplateValidationCodes {
     const val PAGEHEADER_ROOT_MISSING = "PAGEHEADER_ROOT_MISSING"
     const val PAGEHEADER_NOT_AT_ROOT = "PAGEHEADER_NOT_AT_ROOT"
 
+    /** Complete published code set, used to enforce fixture coverage. */
     val ALL: Set<String> = setOf(
         TEMPLATE_GRAPH_INVALID,
         TEMPLATE_NODE_TYPE_UNSUPPORTED,

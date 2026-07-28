@@ -21,6 +21,11 @@ typealias DocumentStyles = Map<String, Any>
  * `orientation` carry standard A4 portrait defaults; `margins` is null when
  * not set so callers can distinguish "use cascade default" from "explicit
  * margins".
+ *
+ * @property format physical page format before orientation is applied.
+ * @property orientation portrait or landscape page orientation.
+ * @property margins optional explicit page margins in the schema's unit.
+ * @property backgroundColor optional document background color.
  */
 data class PageSettings(
     val format: PageFormat = PageFormat.A4,
@@ -34,6 +39,9 @@ data class PageSettings(
  *
  * Defined manually because the codegen tool cannot express default parameter values,
  * and existing stored templates omit `language` (defaulting to jsonata).
+ *
+ * @property raw expression source exactly as authored.
+ * @property language evaluator language; currently defaults to JSONata.
  */
 data class Expression(
     val raw: String,
@@ -57,6 +65,14 @@ data class Expression(
  * Stores a flat, normalized graph of [Node]s and [Slot]s keyed by ID.
  * The `root` field points to the top-level node; traversal follows
  * node -> slot -> children.
+ *
+ * @property modelVersion normalized editor-model version; currently `1`.
+ * @property root ID of the single root node.
+ * @property nodes complete node map, whose keys must equal [Node.id].
+ * @property slots complete slot map, whose keys must equal [Slot.id].
+ * @property themeRef inherited or explicit theme selection.
+ * @property pageSettingsOverride document-level page-setting overrides.
+ * @property documentStylesOverride document-level style overrides.
  */
 data class TemplateDocument(
     val modelVersion: Int = 1,

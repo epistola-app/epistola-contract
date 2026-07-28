@@ -14,14 +14,33 @@ import tools.jackson.module.kotlin.kotlinModule
 import java.io.InputStream
 import java.security.MessageDigest
 
+/**
+ * Lowercase SHA-256 identity of canonical catalog content.
+ *
+ * This is a content identifier, not a digest of the encoded ZIP file.
+ */
 @JvmInline
 value class CatalogFingerprint(val value: String)
 
+/**
+ * Versioned canonicalization algorithms accepted by the contract.
+ *
+ * V1 is retained for fingerprints already stored by older producers. V2 is
+ * the current algorithm and includes portable manifest semantics.
+ */
 enum class CatalogFingerprintVersion {
     V1,
     V2,
 }
 
+/**
+ * Produces deterministic catalog and per-resource content representations.
+ *
+ * Canonicalization sorts object keys and resource/dependency collections,
+ * normalizes numeric JSON parsing, hashes asset bytes while streaming, and
+ * excludes volatile release metadata. ZIP entry order, timestamps, and
+ * compression never affect the result.
+ */
 object CatalogCanonicalizer {
     private val mapper = jsonMapper { addModule(kotlinModule()) }
     private val decimalReader = mapper.reader().with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
@@ -36,6 +55,11 @@ object CatalogCanonicalizer {
     /** Produces the current V2 fingerprint, including portable manifest semantics. */
     fun currentFingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V2)
 
+    /**
+     * Produces a catalog fingerprint using an explicitly selected algorithm.
+     *
+     * @throws java.io.IOException when referenced archive content cannot be read.
+     */
     fun fingerprint(
         catalog: CatalogArchive,
         version: CatalogFingerprintVersion,
@@ -125,10 +149,20 @@ object CatalogCanonicalizer {
         is DependencyRef.Asset -> "asset" to ""
     }
 
+    /**
+     * Returns a stable SHA-256 for every `type/slug` resource.
+     *
+     * Asset resource fingerprints include the referenced binary bytes.
+     */
     fun perResourceFingerprints(catalog: CatalogArchive): Map<String, String> = entries(catalog).sortedBy(Entry::key).associate { entry ->
         entry.key to sha256((entry.canonicalJson + "\u0000" + entry.assetHash).byteInputStream())
     }
 
+    /**
+     * Serializes only the resource payload with recursively sorted object keys.
+     *
+     * The surrounding [ResourceDetail.schemaVersion] is intentionally omitted.
+     */
     fun canonicalResourceJson(detail: ResourceDetail): String = mapper.writeValueAsString(sortKeys(mapper.valueToTree(detail.resource)))
 
     private fun entries(catalog: CatalogArchive): List<Entry> = catalog.resourceDetails.map { (key, detail) ->

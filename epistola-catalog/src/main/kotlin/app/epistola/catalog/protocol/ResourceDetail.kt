@@ -7,8 +7,10 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
 /**
- * Wire format for a single resource detail JSON fetched from a catalog's detailUrl.
- * Matches the schema defined in docs/exchange.md.
+ * Portable JSON envelope for one resource declared by [CatalogManifest].
+ *
+ * @property schemaVersion wire version, which must match the owning manifest.
+ * @property resource discriminated resource payload.
  */
 data class ResourceDetail(
     val schemaVersion: Int,
@@ -26,7 +28,10 @@ data class ResourceDetail(
 )
 
 /**
- * Base type for all catalog resources. Discriminated by the `type` field.
+ * Base type for all portable catalog resources.
+ *
+ * Jackson discriminates concrete payloads using the existing `type` property.
+ * Every resource has a catalog-local [slug] and human-readable [name].
  */
 sealed interface CatalogResource {
     val type: String
@@ -34,6 +39,13 @@ sealed interface CatalogResource {
     val name: String
 }
 
+/**
+ * Exported template, including its data contract and optional variants.
+ *
+ * [templateModel] is always validated. Every non-null
+ * [VariantEntry.templateModel] is independently validated using the same
+ * catalog-scoped resource context.
+ */
 data class TemplateResource(
     override val slug: String,
     override val name: String,
@@ -47,6 +59,12 @@ data class TemplateResource(
     override val type: String get() = "template"
 }
 
+/**
+ * Theme styles and page defaults portable between catalog consumers.
+ *
+ * Style keys and preset usage are checked against the registries shipped in
+ * this artifact.
+ */
 data class ThemeResource(
     override val slug: String,
     override val name: String,
@@ -101,6 +119,12 @@ data class StencilResource(
     override val type: String get() = "stencil"
 }
 
+/**
+ * Variant attribute definition.
+ *
+ * An attribute either declares [allowedValues] directly or binds a
+ * [CodeListResource] through [codeListBinding]; using both is invalid.
+ */
 data class AttributeResource(
     override val slug: String,
     override val name: String,
@@ -155,6 +179,7 @@ data class CodeListResource(
     override val type: String get() = "codeList"
 }
 
+/** One stable value in a [CodeListResource]. */
 data class CodeListEntryEntry(
     val code: String,
     val label: String,
@@ -162,6 +187,13 @@ data class CodeListEntryEntry(
     val hidden: Boolean = false,
 )
 
+/**
+ * Metadata for a binary file carried in the same archive.
+ *
+ * [contentUrl] identifies the normalized archive path. Binary bytes remain
+ * available through [app.epistola.catalog.archive.ArchiveContentProvider] and
+ * participate in per-resource and catalog fingerprints.
+ */
 data class AssetResource(
     override val slug: String,
     override val name: String,
@@ -204,11 +236,18 @@ data class FontVariantEntry(
     val assetSlug: String,
 )
 
+/** Named example payload checked against [TemplateResource.dataModel]. */
 data class DataExampleEntry(
     val name: String,
     val data: Map<String, Any?>,
 )
 
+/**
+ * One selectable template variant.
+ *
+ * A null [templateModel] inherits the template's base model. At most one
+ * variant may set [isDefault].
+ */
 data class VariantEntry(
     val id: String,
     val title: String? = null,

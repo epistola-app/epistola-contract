@@ -34,6 +34,19 @@ import app.epistola.template.model.ThemeRefOverride
 import com.dashjoin.jsonata.Jsonata.jsonata
 import tools.jackson.databind.JsonNode
 
+/**
+ * Portable validator for normalized Epistola template documents.
+ *
+ * Validation covers graph integrity, component and style registries, slot
+ * cardinality and allowed children, property shapes, expressions,
+ * placeholders, page headers, stencil references, parameter bindings, theme
+ * references, recursion, and nesting depth. Consumer-owned resource lookups
+ * enter only through [TemplateValidationContext].
+ *
+ * Ordinary invalid content never throws. Findings are de-duplicated and sorted
+ * by path, code, and message so JVM consumers and golden fixtures observe the
+ * same deterministic report.
+ */
 object TemplateValidator {
     private const val MAX_NODES = 500
     private const val MAX_SLOTS = 750
@@ -42,6 +55,15 @@ object TemplateValidator {
     private val parameterNameRegex = Regex("^[a-z][a-zA-Z0-9_]{0,63}$")
     private val reservedAliases = setOf("sys", "item", "index")
 
+    /**
+     * Validates [document] using optional catalog resolution [context].
+     *
+     * [TemplateValidationContext.EMPTY] performs all intrinsic validation and
+     * suppresses findings that require authoritative external resolution.
+     *
+     * @return a complete deterministic report; inspect
+     *   [TemplateValidationReport.valid] for acceptance.
+     */
     fun validate(
         document: TemplateDocument,
         context: TemplateValidationContext = TemplateValidationContext.EMPTY,

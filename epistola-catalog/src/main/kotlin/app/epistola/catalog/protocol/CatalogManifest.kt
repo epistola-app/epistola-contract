@@ -4,8 +4,21 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
 /**
- * Wire format for the catalog manifest JSON served at a catalog URL.
- * Matches the schema defined in docs/exchange.md.
+ * Portable `catalog.json` manifest and resource index.
+ *
+ * The manifest describes catalog identity and release metadata, then binds
+ * each declared resource to a separate [ResourceDetail] document. It contains
+ * portable contract state only; Exchange publication state and Suite install
+ * state are not represented.
+ *
+ * @property schemaVersion portable catalog wire version.
+ * @property catalog stable catalog identity and display metadata.
+ * @property publisher descriptive publisher metadata, not publisher authority.
+ * @property release version and optional canonical content fingerprint.
+ * @property compatibility optional consumer compatibility declaration.
+ * @property includes optional linked catalog documents retained by the format.
+ * @property resources complete resource-detail index.
+ * @property dependencies explicit references to resources outside this catalog.
  */
 data class CatalogManifest(
     val schemaVersion: Int,
@@ -42,21 +55,38 @@ data class CatalogManifest(
     JsonSubTypes.Type(value = DependencyRef.Font::class, name = "font"),
 )
 sealed class DependencyRef {
+    /** Resource slug within the dependency's namespace. */
     abstract val slug: String
 
+    /** Theme in another catalog. */
     data class Theme(val catalogKey: String, override val slug: String) : DependencyRef()
+
+    /** Stencil in another catalog. */
     data class Stencil(val catalogKey: String, override val slug: String) : DependencyRef()
+
+    /** Asset in the consumer's asset namespace. */
     data class Asset(override val slug: String) : DependencyRef()
+
+    /** Code list in another catalog. */
     data class CodeList(val catalogKey: String, override val slug: String) : DependencyRef()
+
+    /** Font family in another catalog. */
     data class Font(val catalogKey: String, override val slug: String) : DependencyRef()
 }
 
+/** Stable catalog identity and human-readable metadata. */
 data class CatalogInfo(
     val slug: String,
     val name: String,
     val description: String? = null,
 )
 
+/**
+ * Descriptive publisher metadata carried by an exported catalog.
+ *
+ * This does not grant Exchange publishing authority or encode organization
+ * ownership.
+ */
 data class PublisherInfo(
     val name: String,
     val url: String? = null,
@@ -79,15 +109,28 @@ data class ReleaseInfo(
     val fingerprint: String? = null,
 )
 
+/**
+ * Optional declaration of Epistola versions understood by the producer.
+ *
+ * Interpretation and enforcement are consumer policy; the portable validator
+ * only preserves the value.
+ */
 data class CompatibilityInfo(
     val epistolaVersions: String? = null,
 )
 
+/** Additional catalog document linked from the manifest. */
 data class IncludeEntry(
     val url: String,
     val description: String? = null,
 )
 
+/**
+ * Manifest entry binding a resource identity to its detail document.
+ *
+ * [detailUrl] is archive-relative and whole-catalog validation requires it to
+ * resolve to `resources/{type}/{slug}.json`.
+ */
 data class ResourceEntry(
     val type: String,
     val slug: String,
