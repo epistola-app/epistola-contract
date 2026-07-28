@@ -1,0 +1,714 @@
+openapi: 3.1.0
+info:
+  title: Epistola API
+  description: |
+    Document template management API for Epistola Suite.
+
+    ## Versioning
+    This API uses header-based versioning via the Accept header.
+    Use `application/vnd.epistola.v1+json` for API version 1.
+
+    ## Authentication
+    The API accepts authentication through the `Authorization` header:
+    - **Bearer JWT**: `Authorization: Bearer <jwt>` using OAuth 2.0 Client Credentials
+      or self-signed JWTs
+    - **API key**: `Authorization: ApiKey <key>` for static tenant API keys
+
+    The legacy `X-API-Key` header remains supported for existing integrations, but
+    is deprecated. New API-key integrations should use `Authorization: ApiKey <key>`.
+    Permissions and allowed tenants are managed in Epistola's consumer record,
+    not in JWT claims.
+
+    See the [Authentication Guide](/docs/auth.md) for details.
+
+    ## Client Identity
+
+    All requests must include the following headers for client identification:
+
+    - **`User-Agent`** (required) — identifies the client software stack using standard
+      [RFC 9110 §10.1.5](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent) product tokens.
+      The first token **must** be `epistola-contract/{version}` indicating the contract
+      version the client was built against. Additional product/version pairs can be
+      appended to describe the full software stack.
+      Example: `epistola-contract/x.y.z valtimo-epistola-plugin/1.2.0 gzac/5.0.0`
+    - **`X-EP-Node-Id`** (required) — identifies the specific client node. Use the
+      Kubernetes pod name, container ID, or hostname. In local/dev environments,
+      the machine hostname is acceptable.
+
+    The generated Epistola client libraries set both headers automatically — `User-Agent`
+    with the contract version, and `X-EP-Node-Id` with the hostname. Consumers wrapping
+    the client library can append additional product tokens to `User-Agent` for their
+    own software and override the node ID as needed.
+
+    ## Error Responses
+
+    The API uses [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457)
+    for error responses. Error responses have `Content-Type: application/problem+json`
+    and include the following fields:
+
+    - `type` (string, URI) — identifies the problem type; the stable,
+      machine-readable discriminator clients should switch on
+    - `title` (string) — short human-readable summary
+    - `status` (integer) — HTTP status code
+    - `detail` (string, optional) — human-readable explanation of this occurrence
+    - `instance` (string, URI, optional) — identifies this specific occurrence
+
+    Problem `type` URIs use the `https://epistola.app/errors/{slug}` namespace
+    and resolve to human-readable HTML documentation for that problem type.
+    A response may also carry domain-specific extension members as top-level
+    fields; clients should ignore members they do not recognize.
+
+    For validation errors (`type: .../validation-error`), the response also
+    includes an `errors` array with field-level details.
+
+    The canonical problem `type` slugs are registered in
+    [`docs/error-types.md`](docs/error-types.md); the machine-readable
+    registry is this document's top-level `x-problem-types` extension.
+
+    ## Authorization
+    Access is controlled via Suite permissions such as `TEMPLATE_VIEW`,
+    `TEMPLATE_EDIT`, `DOCUMENT_GENERATE`, and `CATALOG_MANAGE`. Tenant permissions
+    are derived from the Suite tenant roles (`CONTENT_VIEWER`, `CONTENT_AUTHOR`,
+    `DOCUMENT_GENERATOR`, `CONTENT_PUBLISHER`, `TENANT_ADMINISTRATOR`) or from
+    the roles stored on an API key. Platform-only tenant management uses the
+    `TENANT_MANAGER` platform role.
+  version: "0.14.0"
+x-epistola-catalog-contract:
+  wireSchemaVersion: 4
+  templateModelVersion: 1
+  contact:
+    name: Epistola Team
+  license:
+    name: EUPL-1.2
+    identifier: EUPL-1.2
+
+servers:
+  - url: /api
+    description: Base API path
+
+# Machine-readable registry of the canonical problem `type` slugs
+# (human-facing registry: docs/error-types.md — a CI check keeps the two in
+# sync). The Kotlin client's KnownProblemSlugs constants are generated from
+# this list, and guard tests in both Kotlin modules assert their hand-written
+# error helpers agree with it. The slug list is open: new types may be added
+# without a major version bump, so clients switching on the slug must keep an
+# else branch.
+x-problem-types:
+  base: https://epistola.app/errors/
+  types:
+    - slug: validation-error
+      status: 400
+      schema: ValidationProblemDetail
+      description: >-
+        The request body or parameters failed validation; the `errors[]`
+        array carries the field-level failures.
+    - slug: bad-request
+      status: 400
+      schema: ProblemDetail
+      description: >-
+        The request is malformed or not applicable to the resource's current
+        state, but not a field-level validation failure (no `errors[]`).
+    - slug: unauthorized
+      status: 401
+      schema: ProblemDetail
+      description: Missing or invalid authentication credentials.
+    - slug: api-key-auth-disabled
+      status: 401
+      schema: ProblemDetail
+      description: >-
+        API-key authentication is disabled for this deployment. Use
+        `Authorization: Bearer <jwt>` instead, or ask an administrator to enable
+        API-key authentication.
+    - slug: forbidden
+      status: 403
+      schema: ProblemDetail
+      description: >-
+        Authenticated, but the caller lacks the required role or tenant
+        permission.
+    - slug: not-found
+      status: 404
+      schema: ProblemDetail
+      description: The addressed resource does not exist.
+    - slug: conflict
+      status: 409
+      schema: ProblemDetail
+      description: The request conflicts with the current state of the resource.
+    - slug: data-model-validation-error
+      status: 422
+      schema: DataModelValidationProblemDetail
+      description: >-
+        The request is well-formed but semantically invalid; the
+        `validationErrors` member maps each data-example name to its failures.
+    - slug: rate-limited
+      status: 429
+      schema: ProblemDetail
+      description: >-
+        Too many requests; the `Retry-After` header indicates how long to
+        wait.
+
+tags:
+  - name: System
+    description: |
+      System-level endpoints for health checking and metadata exchange.
+
+      ## Ping / Pong
+
+      The `POST /ping` endpoint enables bidirectional metadata exchange between
+      clients and the server. It serves two purposes:
+
+      1. **Health checking** — Any client (including load balancers and monitoring
+         probes) can send an unauthenticated ping to verify the server is alive.
+         The response contains only `status` and `timestamp`.
+
+      2. **Metadata exchange** — Authenticated clients receive a full response
+         including server version, API spec version, and node identity. Clients
+         can also send their own metadata (name, version, node ID) in the request
+         body for server-side logging and diagnostics.
+
+      ### Recommended ping intervals
+
+      - **On startup**: Always ping once before making business requests.
+      - **Periodic**: Every 30–60 seconds for ongoing health monitoring.
+      - **After failures**: Ping to check server availability before retrying.
+  - name: Tenants
+    description: Multi-tenant management operations
+  - name: Templates
+    description: Document template operations
+  - name: Themes
+    description: Reusable style collections for templates
+  - name: Environments
+    description: Tenant environment configuration (staging, production, etc.)
+  - name: Attributes
+    description: Attribute definitions for variant selection criteria
+  - name: Variants
+    description: Template variant operations (language, brand variations)
+  - name: Versions
+    description: Template version lifecycle (draft, publish, archive)
+  - name: Contracts
+    description: Template data-contract version lifecycle and compatibility previews
+  - name: Stencils
+    description: Reusable template component operations (CRUD, versioning, usage tracking)
+  - name: Catalogs
+    description: Catalog import and management operations
+  - name: CodeLists
+    description: |
+      Reusable `{code, label}` collections that attributes can bind to.
+      Code lists are tenant + catalog scoped; SUBSCRIBED-catalog code
+      lists (e.g. the bundled `system` catalog's BCP-47, ISO 639-1,
+      ISO 3166-1 alpha-2) are read-only — PATCH/DELETE return 409.
+  - name: Fonts
+    description: |
+      Font families (tenant + catalog scoped) and the weight/italic faces
+      they ship. Read-only over REST; families and their binaries are managed
+      through the UI and catalog exchange only.
+      SUBSCRIBED-catalog families (the bundled `system` fonts) are flagged
+      `readOnly: true`.
+  - name: Assets
+    description: Catalog-scoped binary asset metadata, upload, download, and delete operations
+  - name: Consumers
+    description: |
+      Tenant-scoped consumer application registration and lifecycle management.
+
+      Each tenant independently manages which applications can access their resources.
+      The same application can register in multiple tenants with separate approvals.
+
+      ## Onboarding
+
+      Two registration paths are supported:
+
+      - **Self-signed JWT**: Application calls `POST /tenants/{tenantId}/consumers/register`
+        with a public key. Created as `pending` until a tenant manager approves.
+      - **OAuth**: First authenticated request to a tenant auto-registers the consumer
+        as `pending`. A tenant manager must approve before resources are accessible.
+
+      ## Permissions
+
+      Consumers declare what permissions they need at registration time (or via
+      OAuth scopes). The tenant manager reviews and grants equal or fewer permissions
+      on approval. Permissions are per-resource (`read`, `write`, `publish`) and
+      managed in Epistola's consumer record.
+
+      ## Authentication
+
+      Bearer JWT calls use `Authorization: Bearer <jwt>`. For self-signed JWT consumers,
+      the JWT is short-lived (60s) and signed with the consumer's private key.
+  - name: Generation
+    description: Asynchronous document generation operations
+
+# Global security — any method is accepted.
+# bearerAuth (JWT) and authorizationApiKeyAuth are the current Authorization-header
+# paths. apiKeyAuth is deprecated and retained for backwards compatibility.
+security:
+  - bearerAuth: []
+  - authorizationApiKeyAuth: []
+  - apiKeyAuth: []
+
+paths:
+  # System
+  /ping:
+    $ref: './paths/ping.yaml#/ping'
+
+  # Tenants
+  /tenants:
+    $ref: './paths/tenants.yaml#/tenants'
+  /tenants/{tenantId}:
+    $ref: './paths/tenants.yaml#/tenants-id'
+
+  # Consumers (tenant-scoped)
+  /tenants/{tenantId}/consumers/register:
+    $ref: './paths/consumers.yaml#/consumer-register'
+  /tenants/{tenantId}/consumers:
+    $ref: './paths/consumers.yaml#/consumer-collection'
+  /tenants/{tenantId}/consumers/{consumerId}:
+    $ref: './paths/consumers.yaml#/consumer-resource'
+  /tenants/{tenantId}/consumers/{consumerId}/approve:
+    $ref: './paths/consumers.yaml#/consumer-approve'
+  /tenants/{tenantId}/consumers/{consumerId}/reject:
+    $ref: './paths/consumers.yaml#/consumer-reject'
+  /tenants/{tenantId}/consumers/{consumerId}/public-key:
+    $ref: './paths/consumers.yaml#/consumer-public-key'
+
+  # Themes
+  /tenants/{tenantId}/catalogs/{catalogId}/themes:
+    $ref: './paths/themes.yaml#/themes'
+  /tenants/{tenantId}/catalogs/{catalogId}/themes/{themeId}:
+    $ref: './paths/themes.yaml#/themes-id'
+
+  # Environments
+  /tenants/{tenantId}/environments:
+    $ref: './paths/environments.yaml#/environments'
+  /tenants/{tenantId}/environments/{environmentId}:
+    $ref: './paths/environments.yaml#/environments-id'
+
+  # Attributes
+  /tenants/{tenantId}/catalogs/{catalogId}/attributes:
+    $ref: './paths/attributes.yaml#/attributes'
+  /tenants/{tenantId}/catalogs/{catalogId}/attributes/{attributeKey}:
+    $ref: './paths/attributes.yaml#/attributes-key'
+
+  # Code lists
+  /tenants/{tenantId}/catalogs/{catalogId}/code-lists:
+    $ref: './paths/code-lists.yaml#/code-lists'
+  /tenants/{tenantId}/catalogs/{catalogId}/code-lists/{codeListSlug}:
+    $ref: './paths/code-lists.yaml#/code-lists-slug'
+  /tenants/{tenantId}/catalogs/{catalogId}/code-lists/{codeListSlug}/refresh:
+    $ref: './paths/code-lists.yaml#/code-list-refresh'
+  /tenants/{tenantId}/catalogs/{catalogId}/code-lists/{codeListSlug}/entries:
+    $ref: './paths/code-lists.yaml#/code-list-entries'
+  /tenants/{tenantId}/catalogs/{catalogId}/code-lists/{codeListSlug}/entries/{code}/hidden:
+    $ref: './paths/code-lists.yaml#/code-list-entry-hidden'
+
+  # Fonts (read-only)
+  /tenants/{tenantId}/catalogs/{catalogId}/fonts:
+    $ref: './paths/fonts.yaml#/fonts'
+  /tenants/{tenantId}/catalogs/{catalogId}/fonts/{fontSlug}:
+    $ref: './paths/fonts.yaml#/fonts-slug'
+
+  # Assets
+  /tenants/{tenantId}/catalogs/{catalogId}/assets:
+    $ref: './paths/assets.yaml#/assets'
+  /tenants/{tenantId}/catalogs/{catalogId}/assets/{assetId}:
+    $ref: './paths/assets.yaml#/asset-resource'
+  /tenants/{tenantId}/catalogs/{catalogId}/assets/{assetId}/content:
+    $ref: './paths/assets.yaml#/asset-content'
+
+  # Templates
+  /tenants/{tenantId}/catalogs/{catalogId}/templates:
+    $ref: './paths/templates.yaml#/templates'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}:
+    $ref: './paths/templates.yaml#/templates-id'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/validate:
+    $ref: './paths/templates.yaml#/template-validate'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/contract/draft:
+    $ref: './paths/contracts.yaml#/contract-draft'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/contract/publish:
+    $ref: './paths/contracts.yaml#/contract-publish'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/contract/versions:
+    $ref: './paths/contracts.yaml#/contract-versions'
+
+  # Variants
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants:
+    $ref: './paths/variants.yaml#/variants'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}:
+    $ref: './paths/variants.yaml#/variants-id'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/set-default:
+    $ref: './paths/variants.yaml#/variant-set-default'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/draft:
+    $ref: './paths/variants.yaml#/variant-draft'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/draft/publish:
+    $ref: './paths/variants.yaml#/variant-draft-publish'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/draft/discard:
+    $ref: './paths/variants.yaml#/variant-draft-discard'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/activations:
+    $ref: './paths/variants.yaml#/variant-activations'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/activations/{environmentId}:
+    $ref: './paths/variants.yaml#/variant-activation-env'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/active:
+    $ref: './paths/variants.yaml#/variant-active'
+
+  # Versions
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/versions:
+    $ref: './paths/versions.yaml#/versions'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/versions/{versionId}:
+    $ref: './paths/versions.yaml#/versions-id'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/publish:
+    $ref: './paths/versions.yaml#/version-publish'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/archive:
+    $ref: './paths/versions.yaml#/version-archive'
+
+  # Stencils
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils:
+    $ref: './paths/stencils.yaml#/stencils'
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}:
+    $ref: './paths/stencils.yaml#/stencils-id'
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/upgrade:
+    $ref: './paths/stencils.yaml#/stencil-upgrade'
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions:
+    $ref: './paths/stencils.yaml#/stencil-versions'
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}:
+    $ref: './paths/stencils.yaml#/stencil-versions-id'
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}/publish:
+    $ref: './paths/stencils.yaml#/stencil-version-publish'
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}/archive:
+    $ref: './paths/stencils.yaml#/stencil-version-archive'
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}/usage:
+    $ref: './paths/stencils.yaml#/stencil-version-usage'
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}/upgrade-preview:
+    $ref: './paths/stencils.yaml#/stencil-version-upgrade-preview'
+
+  # Catalogs
+  /tenants/{tenantId}/catalogs:
+    $ref: './paths/catalogs.yaml#/catalogs'
+  /tenants/{tenantId}/catalogs/{catalogId}/release:
+    $ref: './paths/catalogs.yaml#/catalog-release'
+  /tenants/{tenantId}/catalogs/{catalogId}/upgrade-preview:
+    $ref: './paths/catalogs.yaml#/catalog-upgrade-preview'
+  /tenants/{tenantId}/catalogs/{catalogId}/upgrade:
+    $ref: './paths/catalogs.yaml#/catalog-upgrade'
+
+  # Catalog Import
+  /tenants/{tenantId}/catalogs/import:
+    $ref: './paths/import.yaml#/import-catalog'
+
+  # Document Preview & Generation
+  /tenants/{tenantId}/documents/preview:
+    $ref: './paths/generation.yaml#/preview-document'
+  /tenants/{tenantId}/documents/generate:
+    $ref: './paths/generation.yaml#/generate-document'
+  /tenants/{tenantId}/documents/generate/batch:
+    $ref: './paths/generation.yaml#/generate-batch'
+  /tenants/{tenantId}/documents/jobs:
+    $ref: './paths/generation.yaml#/jobs'
+  /tenants/{tenantId}/documents/jobs/{requestId}:
+    $ref: './paths/generation.yaml#/job-detail'
+  /tenants/{tenantId}/documents:
+    $ref: './paths/generation.yaml#/documents'
+  /tenants/{tenantId}/documents/{documentId}:
+    $ref: './paths/generation.yaml#/document-detail'
+
+  # Generation Result Collection
+  /tenants/{tenantId}/generation/collect:
+    $ref: './paths/generation-collect.yaml#/generation-collect'
+
+components:
+  schemas:
+    # Shared building blocks
+    PageMeta:
+      $ref: './components/schemas/common.yaml#/PageMeta'
+
+    # Ping/Pong schemas
+    PingRequest:
+      $ref: './components/schemas/ping.yaml#/PingRequest'
+    PongResponse:
+      $ref: './components/schemas/ping.yaml#/PongResponse'
+    PongDetailsDto:
+      $ref: './components/schemas/ping.yaml#/PongDetailsDto'
+
+    # Consumer schemas
+    ConsumerDto:
+      $ref: './components/schemas/consumers.yaml#/ConsumerDto'
+    ConsumerNodeDto:
+      $ref: './components/schemas/consumers.yaml#/ConsumerNodeDto'
+    ConsumerPermissions:
+      $ref: './components/schemas/consumers.yaml#/ConsumerPermissions'
+    RegisterConsumerRequest:
+      $ref: './components/schemas/consumers.yaml#/RegisterConsumerRequest'
+    ApproveConsumerRequest:
+      $ref: './components/schemas/consumers.yaml#/ApproveConsumerRequest'
+    RejectConsumerRequest:
+      $ref: './components/schemas/consumers.yaml#/RejectConsumerRequest'
+    UpdateConsumerRequest:
+      $ref: './components/schemas/consumers.yaml#/UpdateConsumerRequest'
+    RotatePublicKeyRequest:
+      $ref: './components/schemas/consumers.yaml#/RotatePublicKeyRequest'
+    ConsumerListResponse:
+      $ref: './components/schemas/consumers.yaml#/ConsumerListResponse'
+
+    # Tenant schemas
+    TenantDto:
+      $ref: './components/schemas/tenants.yaml#/TenantDto'
+    CreateTenantRequest:
+      $ref: './components/schemas/tenants.yaml#/CreateTenantRequest'
+    UpdateTenantRequest:
+      $ref: './components/schemas/tenants.yaml#/UpdateTenantRequest'
+    TenantListResponse:
+      $ref: './components/schemas/tenants.yaml#/TenantListResponse'
+
+    # Theme schemas
+    ThemeDto:
+      $ref: './components/schemas/themes.yaml#/ThemeDto'
+    DocumentStyles:
+      $ref: '../catalog/schemas/template-shared.schema.json#/$defs/DocumentStyles'
+    PageSettings:
+      $ref: '../catalog/schemas/template-shared.schema.json#/$defs/PageSettings'
+    Margins:
+      $ref: '../catalog/schemas/template-shared.schema.json#/$defs/Margins'
+    CreateThemeRequest:
+      $ref: './components/schemas/themes.yaml#/CreateThemeRequest'
+    UpdateThemeRequest:
+      $ref: './components/schemas/themes.yaml#/UpdateThemeRequest'
+    ThemeListResponse:
+      $ref: './components/schemas/themes.yaml#/ThemeListResponse'
+
+    # Environment schemas
+    EnvironmentDto:
+      $ref: './components/schemas/environments.yaml#/EnvironmentDto'
+    CreateEnvironmentRequest:
+      $ref: './components/schemas/environments.yaml#/CreateEnvironmentRequest'
+    UpdateEnvironmentRequest:
+      $ref: './components/schemas/environments.yaml#/UpdateEnvironmentRequest'
+    EnvironmentListResponse:
+      $ref: './components/schemas/environments.yaml#/EnvironmentListResponse'
+
+    # Template schemas
+    TemplateDto:
+      $ref: './components/schemas/templates.yaml#/TemplateDto'
+    TemplateSummaryDto:
+      $ref: './components/schemas/templates.yaml#/TemplateSummaryDto'
+    CreateTemplateRequest:
+      $ref: './components/schemas/templates.yaml#/CreateTemplateRequest'
+    UpdateTemplateRequest:
+      $ref: './components/schemas/templates.yaml#/UpdateTemplateRequest'
+    TemplateListResponse:
+      $ref: './components/schemas/templates.yaml#/TemplateListResponse'
+    DataExampleDto:
+      $ref: './components/schemas/templates.yaml#/DataExampleDto'
+
+    # Import schemas
+    CatalogDto:
+      $ref: './components/schemas/catalogs.yaml#/CatalogDto'
+    CatalogListResponse:
+      $ref: './components/schemas/catalogs.yaml#/CatalogListResponse'
+    CatalogUpgradeDiff:
+      $ref: './components/schemas/catalogs.yaml#/CatalogUpgradeDiff'
+
+    # Code list schemas
+    CodeListDto:
+      $ref: './components/schemas/code-lists.yaml#/CodeListDto'
+    CodeListEntryDto:
+      $ref: './components/schemas/code-lists.yaml#/CodeListEntryDto'
+    CodeListListResponse:
+      $ref: './components/schemas/code-lists.yaml#/CodeListListResponse'
+    CodeListEntriesResponse:
+      $ref: './components/schemas/code-lists.yaml#/CodeListEntriesResponse'
+    CreateCodeListRequest:
+      $ref: './components/schemas/code-lists.yaml#/CreateCodeListRequest'
+    UpdateCodeListRequest:
+      $ref: './components/schemas/code-lists.yaml#/UpdateCodeListRequest'
+    ImportCatalogResponse:
+      $ref: './components/schemas/import.yaml#/ImportCatalogResponse'
+    ImportTemplateResultDto:
+      $ref: './components/schemas/import.yaml#/ImportTemplateResultDto'
+
+    # Validation schemas
+    ValidateTemplateDataRequest:
+      $ref: './components/schemas/validation.yaml#/ValidateTemplateDataRequest'
+    TemplateDataValidationResult:
+      $ref: './components/schemas/validation.yaml#/TemplateDataValidationResult'
+    TemplateDataValidationError:
+      $ref: './components/schemas/validation.yaml#/TemplateDataValidationError'
+
+    # Variant schemas
+    VariantDto:
+      $ref: './components/schemas/variants.yaml#/VariantDto'
+    VariantSummaryDto:
+      $ref: './components/schemas/variants.yaml#/VariantSummaryDto'
+    CreateVariantRequest:
+      $ref: './components/schemas/variants.yaml#/CreateVariantRequest'
+    UpdateVariantRequest:
+      $ref: './components/schemas/variants.yaml#/UpdateVariantRequest'
+    VariantListResponse:
+      $ref: './components/schemas/variants.yaml#/VariantListResponse'
+    ActivationDto:
+      $ref: './components/schemas/variants.yaml#/ActivationDto'
+    ActivationListResponse:
+      $ref: './components/schemas/variants.yaml#/ActivationListResponse'
+
+    # Stencil schemas
+    StencilDto:
+      $ref: './components/schemas/stencils.yaml#/StencilDto'
+    StencilSummaryDto:
+      $ref: './components/schemas/stencils.yaml#/StencilSummaryDto'
+    StencilVersionDto:
+      $ref: './components/schemas/stencils.yaml#/StencilVersionDto'
+    StencilVersionSummaryDto:
+      $ref: './components/schemas/stencils.yaml#/StencilVersionSummaryDto'
+    CreateStencilRequest:
+      $ref: './components/schemas/stencils.yaml#/CreateStencilRequest'
+    UpdateStencilRequest:
+      $ref: './components/schemas/stencils.yaml#/UpdateStencilRequest'
+    CreateStencilVersionRequest:
+      $ref: './components/schemas/stencils.yaml#/CreateStencilVersionRequest'
+    UpdateStencilDraftRequest:
+      $ref: './components/schemas/stencils.yaml#/UpdateStencilDraftRequest'
+    StencilUsageDto:
+      $ref: './components/schemas/stencils.yaml#/StencilUsageDto'
+    UpgradePreviewDto:
+      $ref: './components/schemas/stencils.yaml#/UpgradePreviewDto'
+    StencilListResponse:
+      $ref: './components/schemas/stencils.yaml#/StencilListResponse'
+    StencilVersionListResponse:
+      $ref: './components/schemas/stencils.yaml#/StencilVersionListResponse'
+    StencilUsageListResponse:
+      $ref: './components/schemas/stencils.yaml#/StencilUsageListResponse'
+    UpgradePreviewListResponse:
+      $ref: './components/schemas/stencils.yaml#/UpgradePreviewListResponse'
+
+    # Template model schemas
+    TemplateDocument:
+      $ref: '../catalog/schemas/template-document.schema.json'
+    Node:
+      $ref: '../catalog/schemas/template-document.schema.json#/$defs/Node'
+    Slot:
+      $ref: '../catalog/schemas/template-document.schema.json#/$defs/Slot'
+    ThemeRef:
+      $ref: '../catalog/schemas/template-shared.schema.json#/$defs/ThemeRef'
+    BlockStylePreset:
+      $ref: '../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
+
+    # Version schemas
+    VersionDto:
+      $ref: './components/schemas/versions.yaml#/VersionDto'
+    VersionSummaryDto:
+      $ref: './components/schemas/versions.yaml#/VersionSummaryDto'
+    UpdateDraftRequest:
+      $ref: './components/schemas/versions.yaml#/UpdateDraftRequest'
+    PublishVersionRequest:
+      $ref: './components/schemas/versions.yaml#/PublishVersionRequest'
+    VersionListResponse:
+      $ref: './components/schemas/versions.yaml#/VersionListResponse'
+
+    # Generation schemas
+    PreviewDocumentRequest:
+      $ref: './components/schemas/generation.yaml#/PreviewDocumentRequest'
+    GenerateDocumentRequest:
+      $ref: './components/schemas/generation.yaml#/GenerateDocumentRequest'
+    BatchGenerationItem:
+      $ref: './components/schemas/generation.yaml#/BatchGenerationItem'
+    GenerateBatchRequest:
+      $ref: './components/schemas/generation.yaml#/GenerateBatchRequest'
+    GenerationJobResponse:
+      $ref: './components/schemas/generation.yaml#/GenerationJobResponse'
+    DocumentGenerationItemDto:
+      $ref: './components/schemas/generation.yaml#/DocumentGenerationItemDto'
+    DocumentGenerationJobDto:
+      $ref: './components/schemas/generation.yaml#/DocumentGenerationJobDto'
+    GenerationJobDetail:
+      $ref: './components/schemas/generation.yaml#/GenerationJobDetail'
+    GenerationJobListResponse:
+      $ref: './components/schemas/generation.yaml#/GenerationJobListResponse'
+    DocumentDto:
+      $ref: './components/schemas/generation.yaml#/DocumentDto'
+    DocumentListResponse:
+      $ref: './components/schemas/generation.yaml#/DocumentListResponse'
+
+    # Generation collection schemas
+    CollectRequest:
+      $ref: './components/schemas/generation-collect.yaml#/CollectRequest'
+    GenerationResult:
+      $ref: './components/schemas/generation-collect.yaml#/GenerationResult'
+    CollectMeta:
+      $ref: './components/schemas/generation-collect.yaml#/CollectMeta'
+    PartitionAssignment:
+      $ref: './components/schemas/generation-collect.yaml#/PartitionAssignment'
+
+    # RFC 9457 Problem Details schemas
+    ProblemDetail:
+      $ref: './components/responses/errors.yaml#/ProblemDetail'
+    ValidationProblemDetail:
+      $ref: './components/responses/errors.yaml#/ValidationProblemDetail'
+    ValidationError:
+      $ref: './components/responses/errors.yaml#/ValidationError'
+    DataModelValidationProblemDetail:
+      $ref: './components/responses/errors.yaml#/DataModelValidationProblemDetail'
+    DataModelValidationError:
+      $ref: './components/responses/errors.yaml#/DataModelValidationError'
+
+  parameters:
+    # The required client-identity headers (User-Agent, X-EP-Node-Id) are described
+    # normatively in info.description ("Client Identity") rather than modeled per
+    # operation: OpenAPI has no global-parameter mechanism, so referencing them from
+    # every operation would add two arguments to every generated client method and
+    # server interface. The generated clients set both headers automatically.
+    Page:
+      $ref: './components/parameters/pagination.yaml#/Page'
+    Size:
+      $ref: './components/parameters/pagination.yaml#/Size'
+    # Shared sort params. `sort` is a free-form string (allowed fields and the
+    # per-resource default are enforced server-side); `direction` is asc/desc,
+    # default desc.
+    Sort:
+      $ref: './components/parameters/sorting.yaml#/Sort'
+    Direction:
+      $ref: './components/parameters/sorting.yaml#/Direction'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Bearer token. Two authentication paths are supported:
+
+        **OAuth (recommended for environments with an IdP):**
+        Obtain a token via OAuth 2.0 Client Credentials flow from your
+        Identity Provider (Keycloak, Azure AD, or any OIDC-compliant IdP).
+        The JWT `client_id` claim identifies the consumer.
+
+        **Self-signed JWT (no IdP required):**
+        Register via `POST /consumers/register` with a public key.
+        After admin approval, create short-lived JWTs (60s) signed with
+        your private key. Required claims: `iss` (consumer ID), `exp`,
+        `jti` (unique nonce for replay protection).
+
+        In both cases, the JWT proves identity only. Granted permissions,
+        allowed tenants, and expiry are managed in Epistola's consumer record,
+        set by an administrator during approval.
+
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      # OpenAPI has no `deprecated` flag for security schemes; this vendor extension
+      # makes the deprecation (also stated in the description) machine-readable.
+      x-deprecated: true
+      description: |
+        **Deprecated — use JWT Bearer authentication (OAuth or self-signed) instead.**
+
+        Static API key for legacy environments. Keys are issued by administrators
+        and stored server-side with associated Suite roles and tenant access.
+        Prefer `Authorization: ApiKey <key>` for new API-key integrations.
+
+    authorizationApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: |
+        Static API key sent through the standard `Authorization` header:
+
+        `Authorization: ApiKey <key>`
+
+        The auth scheme token is case-insensitive; examples use `ApiKey`.
+        Keys are issued by administrators and stored server-side with associated
+        Suite roles and tenant access. This is the preferred API-key
+        transport. The legacy `X-API-Key` header remains supported but deprecated.

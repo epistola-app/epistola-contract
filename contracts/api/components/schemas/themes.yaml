@@ -1,0 +1,252 @@
+ThemeDto:
+  type: object
+  description: A theme defines reusable styling that can be applied across multiple templates
+  required:
+    - id
+    - tenantId
+    - name
+    - documentStyles
+    - createdAt
+    - lastModified
+  properties:
+    id:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 20
+      description: Slug identifier of the theme (e.g., "corporate")
+      example: corporate
+    tenantId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 63
+      description: Slug identifier of the tenant this theme belongs to
+      example: acme-corp
+    name:
+      type: string
+      description: Name of the theme
+      example: Corporate Theme
+    description:
+      type: string
+      description: Optional description of the theme
+      example: Default corporate branding with Acme colors and fonts
+    documentStyles:
+      $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/DocumentStyles'
+    pageSettings:
+      $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/PageSettings'
+    blockStylePresets:
+      type: object
+      additionalProperties:
+        $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
+      description: Named block style presets (like CSS classes). Key is the preset name.
+      example:
+        heading:
+          label: Heading
+          styles:
+            fontSize: "18pt"
+            fontWeight: bold
+          applicableTo:
+            - text
+        caption:
+          label: Caption
+          styles:
+            fontSize: "9pt"
+            color: "#666666"
+    spacingUnit:
+      type: number
+      minimum: 1
+      maximum: 16
+      description: |
+        Base spacing unit in points for the spacing scale system. All sp values
+        are multiples of this value (e.g., with spacingUnit=4, 2sp resolves
+        to 8pt). Null means default (4pt).
+      example: 4
+    createdAt:
+      type: string
+      format: date-time
+      description: Timestamp when the theme was created
+      example: "2026-01-17T11:00:00Z"
+    lastModified:
+      type: string
+      format: date-time
+      description: Timestamp when the theme was last modified
+      example: "2026-01-18T14:30:00Z"
+  example:
+    id: corporate
+    tenantId: acme-corp
+    name: Corporate Theme
+    description: Default corporate branding with Acme colors and fonts
+    documentStyles:
+      fontFamily: Helvetica
+      fontSize: "12pt"
+      fontWeight: normal
+      color: "#333333"
+      lineHeight: "1.5"
+      letterSpacing: "0.5pt"
+      textAlign: left
+    pageSettings:
+      format: A4
+      orientation: portrait
+      margins:
+        top: 20
+        right: 20
+        bottom: 20
+        left: 20
+    blockStylePresets:
+      heading:
+        label: Heading
+        styles:
+          fontSize: "18pt"
+          fontWeight: bold
+          marginBottom: "4sp"
+        applicableTo:
+          - text
+      caption:
+        label: Caption
+        styles:
+          fontSize: "9pt"
+          color: "#666666"
+    spacingUnit: 4
+    createdAt: "2026-01-17T11:00:00Z"
+    lastModified: "2026-01-18T14:30:00Z"
+
+CreateThemeRequest:
+  type: object
+  description: Request body for creating a new theme
+  required:
+    - id
+    - name
+  properties:
+    id:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 20
+      description: Client-provided slug identifier for the theme
+      example: corporate
+    name:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: Name of the theme
+      example: Corporate Theme
+    description:
+      type: string
+      description: Optional description of the theme
+      example: Default corporate branding with Acme colors and fonts
+    documentStyles:
+      $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/DocumentStyles'
+    pageSettings:
+      $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/PageSettings'
+    blockStylePresets:
+      type: object
+      additionalProperties:
+        $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
+      description: Named block style presets. Key is the preset name.
+      example:
+        heading:
+          label: Heading
+          styles:
+            fontSize: "18pt"
+            fontWeight: bold
+    spacingUnit:
+      type: number
+      minimum: 1
+      maximum: 16
+      description: Base spacing unit in points. Null means default (4pt).
+      example: 4
+
+UpdateThemeRequest:
+  type: object
+  description: Request body for updating a theme (partial update)
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: New name for the theme
+      example: Corporate Theme v2
+    description:
+      type:
+        - string
+        - 'null'
+      description: New description for the theme (null to clear)
+      example: Updated corporate branding for 2026
+    documentStyles:
+      $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/DocumentStyles'
+    pageSettings:
+      $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/PageSettings'
+    blockStylePresets:
+      type:
+        - object
+        - 'null'
+      additionalProperties:
+        $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
+      description: Named block style presets (null to clear). Key is the preset name.
+    spacingUnit:
+      type:
+        - number
+        - 'null'
+      minimum: 1
+      maximum: 16
+      description: Base spacing unit in points (null to reset to default 4pt).
+      example: 4
+
+ThemeListResponse:
+  description: List of themes
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      description: List of themes
+      items:
+        $ref: '#/ThemeDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
+  example:
+    items:
+      - id: corporate
+        tenantId: acme-corp
+        name: Corporate Theme
+        description: Default corporate branding with Acme colors and fonts
+        documentStyles:
+          fontFamily: Helvetica
+          fontSize: "12pt"
+          fontWeight: normal
+          color: "#333333"
+          lineHeight: "1.5"
+          letterSpacing: "0.5pt"
+          textAlign: left
+        pageSettings:
+          format: A4
+          orientation: portrait
+          margins:
+            top: 20
+            right: 20
+            bottom: 20
+            left: 20
+        blockStylePresets:
+          heading:
+            label: Heading
+            styles:
+              fontSize: "18pt"
+              fontWeight: bold
+              marginBottom: "4sp"
+            applicableTo:
+              - text
+          caption:
+            label: Caption
+            styles:
+              fontSize: "9pt"
+              color: "#666666"
+        createdAt: "2026-01-17T11:00:00Z"
+        lastModified: "2026-01-18T14:30:00Z"
+    page:
+      number: 0
+      size: 20
+      totalElements: 1
+      totalPages: 1

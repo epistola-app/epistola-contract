@@ -1,12 +1,15 @@
-.PHONY: all lint bundle build-client build-server build-epistola-catalog build-dotnet build-python build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
+.PHONY: all lint bundle build-client build-server build-catalog build-epistola-catalog build-dotnet build-python build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
 
-# Pinned CLI tools (versions in tools/package.json, locked in tools/pnpm-lock.yaml)
-REDOCLY := tools/node_modules/.bin/redocly
-PRISM := tools/node_modules/.bin/prism
+API_DIR := contracts/api
+API_SPEC := $(API_DIR)/openapi.yaml
+API_BUNDLE := $(API_DIR)/build/openapi.yaml
+API_TOOLS := $(API_DIR)/tools
+REDOCLY := $(API_TOOLS)/node_modules/.bin/redocly
+PRISM := $(API_TOOLS)/node_modules/.bin/prism
 
-$(REDOCLY): tools/package.json tools/pnpm-lock.yaml
+$(REDOCLY): $(API_TOOLS)/package.json $(API_TOOLS)/pnpm-lock.yaml
 	@echo "==> Installing pinned tools..."
-	pnpm -C tools install --frozen-lockfile
+	pnpm -C $(API_TOOLS) install --frozen-lockfile
 
 # Default target - runs what CI runs
 all: lint build
@@ -14,91 +17,100 @@ all: lint build
 # Validate OpenAPI spec
 lint: $(REDOCLY)
 	@echo "==> Validating OpenAPI spec..."
-	$(REDOCLY) lint epistola-api.yaml
-	@scripts/check-error-registry.sh
-	@scripts/check-media-types.sh
-	@node scripts/check-catalog-registry.mjs
+	$(REDOCLY) lint $(API_SPEC) --config $(API_DIR)/redocly.yaml
+	@$(API_DIR)/scripts/check-error-registry.sh
+	@$(API_DIR)/scripts/check-media-types.sh
+	@node contracts/catalog/scripts/check-registry.mjs
 
 # Bundle OpenAPI spec into single file
 bundle: $(REDOCLY)
 	@echo "==> Bundling OpenAPI spec..."
-	$(REDOCLY) bundle epistola-api.yaml -o openapi.yaml
-	@echo "==> Created openapi.yaml"
+	@mkdir -p $(dir $(API_BUNDLE))
+	$(REDOCLY) bundle $(API_SPEC) -o $(API_BUNDLE)
+	@node $(API_DIR)/scripts/normalize-bundle.mjs $(API_BUNDLE)
+	@echo "==> Created $(API_BUNDLE)"
 
 # Build all modules
-build: build-client build-server build-epistola-catalog build-dotnet build-python
+build: build-client build-server build-catalog build-dotnet build-python
 
 # Build Kotlin client
 build-client:
 	@echo "==> Building Kotlin client..."
-	cd client-kotlin-spring-restclient && ./gradlew build
+	cd $(API_DIR)/clients/kotlin-spring-restclient && ./gradlew build
 
 # Build Kotlin server
 build-server:
 	@echo "==> Building Kotlin server..."
-	cd server-kotlin-springboot4 && ./gradlew build
+	cd $(API_DIR)/server-stubs/kotlin-springboot4 && ./gradlew build
 
 # Build portable catalog
-build-epistola-catalog:
+build-catalog:
 	@echo "==> Building portable catalog..."
-	cd epistola-catalog && ./gradlew build sourcesJar dokkaJavadocJar
-	cd epistola-catalog && pnpm install --frozen-lockfile
-	cd epistola-catalog && pnpm generate:types
-	cd epistola-catalog && pnpm build
-	cd epistola-catalog && npm pack --dry-run
+	cd contracts/catalog && ./gradlew build sourcesJar dokkaJavadocJar
+	cd contracts/catalog && pnpm install --frozen-lockfile
+	cd contracts/catalog && pnpm generate:types
+	cd contracts/catalog && pnpm build
+	cd contracts/catalog && npm pack --dry-run
+
+# Backwards-compatible target name.
+build-epistola-catalog: build-catalog
 
 # Build .NET client (generates from the bundled spec, then builds and tests)
 build-dotnet: bundle
 	@echo "==> Building .NET client..."
-	cd client-dotnet-httpclient && ./generate.sh && dotnet test Epistola.Client.sln -c Release
+	cd $(API_DIR)/clients/dotnet-httpclient && ./generate.sh && dotnet test Epistola.Client.sln -c Release
 
 # Build Python client (generates from the bundled spec, then builds and tests)
 build-python: bundle
 	@echo "==> Building Python client..."
-	cd client-python-urllib3 && ./generate.sh && uv run --group dev pytest
+	cd $(API_DIR)/clients/python-urllib3 && ./generate.sh && uv run --group dev pytest
 
 # Generate a CycloneDX SBOM for the .NET client's dependency closure
 sbom-dotnet:
 	@echo "==> Generating .NET client SBOM (CycloneDX)..."
 	@dotnet tool list --global | grep -qi cyclonedx || dotnet tool install --global CycloneDX
-	cd client-dotnet-httpclient && dotnet CycloneDX src/Epistola.Client/Epistola.Client.csproj --output sbom --json --filename epistola-dotnet-client-sbom.json
-	@echo "==> Wrote client-dotnet-httpclient/sbom/epistola-dotnet-client-sbom.json"
+	cd $(API_DIR)/clients/dotnet-httpclient && dotnet CycloneDX src/Epistola.Client/Epistola.Client.csproj --output sbom --json --filename epistola-dotnet-client-sbom.json
+	@echo "==> Wrote $(API_DIR)/clients/dotnet-httpclient/sbom/epistola-dotnet-client-sbom.json"
 
 # Clean all build artifacts
 clean:
 	@echo "==> Cleaning..."
-	cd client-kotlin-spring-restclient && ./gradlew clean
-	cd server-kotlin-springboot4 && ./gradlew clean
-	cd epistola-catalog && ./gradlew clean
-	cd client-dotnet-httpclient && rm -rf Generated src/Epistola.Client/Generated bin obj src/*/bin src/*/obj test/*/bin test/*/obj
-	cd client-python-urllib3 && rm -rf generated src/epistola_client/_generated dist build .venv .pytest_cache && find . -name __pycache__ -type d -prune -exec rm -rf {} +
+	cd $(API_DIR)/clients/kotlin-spring-restclient && ./gradlew clean
+	cd $(API_DIR)/server-stubs/kotlin-springboot4 && ./gradlew clean
+	cd contracts/catalog && ./gradlew clean
+	cd $(API_DIR)/clients/dotnet-httpclient && rm -rf Generated src/Epistola.Client/Generated bin obj src/*/bin src/*/obj test/*/bin test/*/obj
+	cd $(API_DIR)/clients/python-urllib3 && rm -rf generated src/epistola_client/_generated dist build .venv .pytest_cache && find . -name __pycache__ -type d -prune -exec rm -rf {} +
 
 # Publish to local Maven repository (for testing)
 publish-local: build
 	@echo "==> Publishing to local Maven repository..."
-	cd client-kotlin-spring-restclient && ./gradlew publishToMavenLocal
-	cd server-kotlin-springboot4 && ./gradlew publishToMavenLocal
-	cd epistola-catalog && ./gradlew publishToMavenLocal
+	cd $(API_DIR)/clients/kotlin-spring-restclient && ./gradlew publishToMavenLocal
+	cd $(API_DIR)/server-stubs/kotlin-springboot4 && ./gradlew publishToMavenLocal
+	cd contracts/catalog && ./gradlew publishToMavenLocal
 	@echo "==> Published to ~/.m2/repository/app/epistola/contract/"
-	@echo "==> Packing .NET client to client-dotnet-httpclient/nupkgs/..."
-	cd client-dotnet-httpclient && dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -o nupkgs
-	@echo "==> Packed .NET client to client-dotnet-httpclient/nupkgs/"
-	@echo "==> Building Python client wheel + sdist to client-python-urllib3/dist/..."
-	cd client-python-urllib3 && ./generate.sh && uv build
-	@echo "==> Built Python client to client-python-urllib3/dist/"
+	@echo "==> Packing .NET client..."
+	cd $(API_DIR)/clients/dotnet-httpclient && dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -o nupkgs
+	@echo "==> Building Python client..."
+	cd $(API_DIR)/clients/python-urllib3 && ./generate.sh && uv build
 
 # Check for breaking changes against main branch
 breaking: bundle
 	@echo "==> Checking for breaking changes against main branch..."
 	@rm -rf /tmp/epistola-base-spec && mkdir -p /tmp/epistola-base-spec
-	@git archive main -- epistola-api.yaml spec/ 2>/dev/null | tar -xC /tmp/epistola-base-spec || cp -r epistola-api.yaml spec/ /tmp/epistola-base-spec/
-	@cd /tmp/epistola-base-spec && $(CURDIR)/$(REDOCLY) bundle epistola-api.yaml -o openapi.yaml 2>/dev/null
-	oasdiff breaking --flatten-allof --flatten-params /tmp/epistola-base-spec/openapi.yaml openapi.yaml
+	@if git cat-file -e main:contracts/api/openapi.yaml 2>/dev/null; then \
+		git archive main -- contracts/api/openapi.yaml contracts/api/paths contracts/api/components contracts/catalog/schemas | tar -xC /tmp/epistola-base-spec; \
+		BASE_SPEC=contracts/api/openapi.yaml; \
+	else \
+		git archive main -- epistola-api.yaml spec | tar -xC /tmp/epistola-base-spec; \
+		BASE_SPEC=epistola-api.yaml; \
+	fi; \
+	cd /tmp/epistola-base-spec && $(CURDIR)/$(REDOCLY) bundle $$BASE_SPEC -o openapi.yaml
+	oasdiff breaking --flatten-allof --flatten-params /tmp/epistola-base-spec/openapi.yaml $(API_BUNDLE)
 
 # Generate API docs and open in browser
 docs: bundle
 	@echo "==> Building API documentation..."
-	$(REDOCLY) build-docs openapi.yaml -o /tmp/epistola-api-docs.html
+	$(REDOCLY) build-docs $(API_BUNDLE) -o /tmp/epistola-api-docs.html
 	@echo "==> Opening http://localhost:8888/epistola-api-docs.html"
 	@python3 -m http.server 8888 --directory /tmp --bind 0.0.0.0 &>/dev/null &
 	@echo "==> Server running on port 8888. Use Ctrl+C to stop."
@@ -107,13 +119,13 @@ docs: bundle
 mock: bundle
 	@echo "==> Starting Prism mock server on http://localhost:4010..."
 	@echo "==> Use Ctrl+C to stop"
-	$(PRISM) mock openapi.yaml -p 4010
+	$(PRISM) mock $(API_BUNDLE) -p 4010
 
 # Validate implementation against spec (requires running server)
 validate-impl: bundle
 	@echo "==> Starting contract validation proxy..."
 	@echo "==> Proxying to $${TARGET_URL:-http://localhost:8080}"
-	$(PRISM) proxy openapi.yaml $${TARGET_URL:-http://localhost:8080} --errors
+	$(PRISM) proxy $(API_BUNDLE) $${TARGET_URL:-http://localhost:8080} --errors
 
 # Create a GitHub Release to trigger the release workflow
 release:
@@ -134,7 +146,7 @@ release:
 		echo "Error: local main is not up to date with origin/main. Pull first."; \
 		exit 1; \
 	fi
-	@API_VERSION=$$(scripts/spec-version.sh --api); \
+	@API_VERSION=$$($(API_DIR)/scripts/spec-version.sh --api); \
 	LATEST_PATCH=-1; \
 	for tag in $$(git tag -l "v$${API_VERSION}.*" 2>/dev/null) $$(git tag -l "*-v$${API_VERSION}.*" 2>/dev/null); do \
 		PATCH=$$(echo "$$tag" | sed -E 's/.*v[0-9]+\.[0-9]+\.([0-9]+)/\1/'); \
@@ -145,8 +157,8 @@ release:
 	NEXT_PATCH=$$((LATEST_PATCH + 1)); \
 	VERSION="$${API_VERSION}.$${NEXT_PATCH}"; \
 	echo "==> Updating spec version to $$VERSION"; \
-	sed -i -E "s/(^\s*version:\s*[\"']?)[0-9]+\.[0-9]+\.[0-9]+([\"']?)/\1$$VERSION\2/" epistola-api.yaml; \
-	git add epistola-api.yaml; \
+	sed -i -E "s/(^\s*version:\s*[\"']?)[0-9]+\.[0-9]+\.[0-9]+([\"']?)/\1$$VERSION\2/" $(API_SPEC); \
+	git add $(API_SPEC); \
 	git commit -m "release: bump spec version to $$VERSION"; \
 	git push origin main; \
 	echo "==> Creating release v$$VERSION"; \
@@ -160,10 +172,10 @@ help:
 	@echo "  all            - Run lint + build (default, mirrors CI)"
 	@echo "  lint           - Validate OpenAPI spec"
 	@echo "  bundle         - Bundle OpenAPI spec into single openapi.yaml"
-	@echo "  build                - Build all modules (client, server, epistola-catalog)"
+	@echo "  build                - Build all modules (clients, server, catalog)"
 	@echo "  build-client         - Build Kotlin client only"
 	@echo "  build-server         - Build Kotlin server only"
-	@echo "  build-epistola-catalog - Build portable catalog only"
+	@echo "  build-catalog        - Build portable catalog only"
 	@echo "  build-dotnet         - Build .NET client only"
 	@echo "  build-python         - Build Python client only"
 	@echo "  sbom-dotnet          - Generate a CycloneDX SBOM for the .NET client"

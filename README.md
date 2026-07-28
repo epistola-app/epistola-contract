@@ -1,6 +1,13 @@
 # Epistola Contract
 
-Contract-first API repository for [Epistola](https://github.com/epistola-app/epistola). This repository owns the OpenAPI specification and generates both client libraries and server stubs.
+Contract repository for [Epistola](https://github.com/epistola-app/epistola). It owns two
+related but independently consumable specifications:
+
+- `contracts/api`: the REST API contract, plus generated clients, server stubs, and tooling.
+- `contracts/catalog`: the stable portable catalog contract, its schemas, and language bindings.
+
+The API may refer directly to catalog schemas. The catalog remains the compatibility boundary:
+API evolution must not silently change catalog validation or its published interfaces.
 
 ## API Documentation
 
@@ -42,38 +49,33 @@ Each documentation page includes a version selector dropdown, allowing users to 
 
 ## Overview
 
-This repository follows the **contract-first** approach:
-1. The OpenAPI specification (`epistola-api.yaml`) is the single source of truth
-2. Client libraries and server stubs are generated from the spec during build
-3. Generated code is NOT committed - it's created fresh each build
+This repository follows a contract-first approach:
+
+1. Authored specifications live below `contracts/`.
+2. API clients and server stubs are generated during the build.
+3. Generated code and the bundled OpenAPI document are not committed.
 
 ## Repository Structure
 
 ```
 epistola-contract/
-├── epistola-api.yaml                  # OpenAPI specification (source of truth)
-├── redocly.yaml                       # Spec validation config
-├── spec/                              # OpenAPI spec components
-│   ├── paths/                         # Path definitions
-│   └── components/
-│       ├── schemas/                   # Data models
-│       └── responses/                 # Response definitions
-├── client-kotlin-spring-restclient/   # Generated Kotlin client (Spring RestClient)
-│   ├── client/
-│   │   └── build.gradle.kts
-│   ├── build.gradle.kts
-│   └── settings.gradle.kts
-├── client-dotnet-httpclient/          # Generated .NET client (HttpClient)
-├── client-python-urllib3/             # Generated Python client (urllib3)
-├── server-kotlin-springboot4/            # Generated Spring server stubs
-│   ├── build.gradle.kts
-│   ├── gradle/
-│   └── settings.gradle.kts
+├── contracts/
+│   ├── api/
+│   │   ├── openapi.yaml               # Authored REST API entry point
+│   │   ├── paths/                     # Endpoint definitions
+│   │   ├── components/                # API schemas and responses
+│   │   ├── clients/                   # Kotlin, .NET, and Python clients
+│   │   ├── server-stubs/              # Generated server contracts
+│   │   ├── docs/                      # API design documentation
+│   │   └── tools/                     # Pinned API build tools
+│   └── catalog/
+│       ├── schemas/                   # Stable catalog JSON Schemas
+│       ├── src/                       # Kotlin catalog implementation
+│       ├── src-ts/                    # TypeScript catalog implementation
+│       └── docs/                      # Catalog contract documentation
 ├── .github/workflows/
-│   ├── build.yml                      # Build all artifacts in parallel
-│   ├── release.yml                    # Release to Maven Central
-│   └── docs.yml                       # Deploy API docs to GitHub Pages
-├── Makefile                           # Local build commands
+├── gradle/                            # Shared dependency versions
+├── Makefile                           # Repository-wide commands
 ├── CHANGELOG.md
 └── README.md
 ```
@@ -108,13 +110,13 @@ brew install mise
 ### Validate OpenAPI Spec
 
 ```bash
-npx @redocly/cli lint epistola-api.yaml
+make lint
 ```
 
 ### Build Kotlin Client
 
 ```bash
-cd client-kotlin-spring-restclient
+cd contracts/api/clients/kotlin-spring-restclient
 ./gradlew build
 ```
 
@@ -128,19 +130,15 @@ This will:
 Before building, you must bundle the modular OpenAPI spec into a single file:
 
 ```bash
-npx @redocly/cli bundle epistola-api.yaml -o openapi.yaml
-```
-
-Or use the Makefile:
-
-```bash
 make bundle
 ```
+
+The generated bundle is written to `contracts/api/build/openapi.yaml`.
 
 ### Build Kotlin Server Stubs
 
 ```bash
-cd server-kotlin-springboot4
+cd contracts/api/server-stubs/kotlin-springboot4
 ./gradlew build
 ```
 
@@ -149,7 +147,7 @@ This will:
 2. Compile the generated code
 3. Run tests
 
-**Note:** The build will fail if `openapi.yaml` doesn't exist. Run the bundle step first.
+**Note:** The build will fail if the bundled specification does not exist. Run `make bundle` first.
 
 ## Generated Artifacts
 
@@ -187,7 +185,7 @@ The artifact currently provides:
 
 - Kotlin template/theme and catalog protocol types
 - JSON schemas and generated TypeScript types
-- Component and style registries under `epistola-catalog/registry`
+- Component and style registries under `contracts/catalog/registry`
 - Canonical model, theme, component, and style types exported from
   `@epistola.app/epistola-catalog`
 - Typed TypeScript registry facade exported as
@@ -199,8 +197,8 @@ This is a clean pre-1.0 coordinate rename. Consumers must replace
 `@epistola.app/epistola-model`; no duplicate-class compatibility artifact is
 published.
 
-See [docs/catalog-registry.md](docs/catalog-registry.md) for registry details.
-See [docs/catalog-compatibility.md](docs/catalog-compatibility.md) for the
+See [contracts/catalog/docs/catalog-registry.md](contracts/catalog/docs/catalog-registry.md) for registry details.
+See [contracts/catalog/docs/catalog-compatibility.md](contracts/catalog/docs/catalog-compatibility.md) for the
 explicit breaking changes and required producer/consumer migrations.
 
 ### Kotlin Server (`app.epistola.contract:server-kotlin-springboot4`)
@@ -217,7 +215,7 @@ This repository uses a versioning scheme tied to the OpenAPI spec version:
 
 **Format**: `{API_MAJOR}.{API_MINOR}.{PATCH}`
 
-- **API_MAJOR.API_MINOR**: Read automatically from `epistola-api.yaml`
+- **API_MAJOR.API_MINOR**: Read automatically from `contracts/api/openapi.yaml`
 - **PATCH**: Calculated from git tags (highest existing + 1)
 
 ### How it works
@@ -339,7 +337,7 @@ git push -u origin release/1.0
 
 # 2. Back on main, bump the spec version
 git checkout main
-# Edit epistola-api.yaml: version: 1.0.0 -> 2.0.0
+# Edit contracts/api/openapi.yaml: version: 1.0.0 -> 2.0.0
 git commit -am "feat(spec): bump API version to 2.0.0"
 ```
 
@@ -559,7 +557,7 @@ For batch generation requests, all items are validated and errors are collected 
 dotnet add package Epistola.Contract.Client
 ```
 
-See [`client-dotnet-httpclient/README.md`](client-dotnet-httpclient/README.md) for identity,
+See the [.NET client README](contracts/api/clients/dotnet-httpclient/README.md) for identity,
 JWT auth, problem-detail error handling, result collection, and schema validation.
 
 ### Python Client (pip)
@@ -581,7 +579,7 @@ http = (
 templates = TemplatesApi(http)
 ```
 
-See [`client-python-urllib3/README.md`](client-python-urllib3/README.md) for JWT auth,
+See the [Python client README](contracts/api/clients/python-urllib3/README.md) for JWT auth,
 problem-detail error handling (`type_slug` / `KnownProblemSlugs`), NDJSON result collection,
 and client-side schema validation.
 

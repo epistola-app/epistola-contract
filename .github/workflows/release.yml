@@ -47,7 +47,7 @@ jobs:
             exit 1
           fi
           TAG_API_VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
-          eval "$(scripts/spec-version.sh --env)"
+          eval "$(contracts/api/scripts/spec-version.sh --env)"
           if [ "$TAG_API_VERSION" != "$API_VERSION" ]; then
             echo "::error::Release tag API version ($TAG_API_VERSION) does not match spec API version ($API_VERSION)"
             exit 1
@@ -126,11 +126,11 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - module: client-kotlin-spring-restclient
+          - module: contracts/api/clients/kotlin-spring-restclient
             needs_spec: true
-          - module: server-kotlin-springboot4
+          - module: contracts/api/server-stubs/kotlin-springboot4
             needs_spec: true
-          - module: epistola-catalog
+          - module: contracts/catalog
             needs_spec: false
     steps:
       - name: Checkout
@@ -143,28 +143,29 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
 
       - name: Build and test
-        if: matrix.module != 'epistola-catalog'
+        if: matrix.module != 'contracts/catalog'
         working-directory: ${{ matrix.module }}
         run: ./gradlew build -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
       - name: Build and test catalog Maven artifacts
-        if: matrix.module == 'epistola-catalog'
-        working-directory: epistola-catalog
+        if: matrix.module == 'contracts/catalog'
+        working-directory: contracts/catalog
         run: ./gradlew build sourcesJar dokkaJavadocJar -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
       - name: Install catalog npm dependencies
-        if: matrix.module == 'epistola-catalog'
-        working-directory: epistola-catalog
+        if: matrix.module == 'contracts/catalog'
+        working-directory: contracts/catalog
         run: pnpm install --frozen-lockfile
 
       - name: Build and pack catalog npm artifact
-        if: matrix.module == 'epistola-catalog'
-        working-directory: epistola-catalog
+        if: matrix.module == 'contracts/catalog'
+        working-directory: contracts/catalog
         run: |
           npm version ${{ needs.validate-and-bundle.outputs.release_version }} --no-git-tag-version --allow-same-version
           pnpm generate:types
@@ -173,20 +174,20 @@ jobs:
           npm pack --pack-destination release/npm
 
       - name: Verify catalog release artifacts
-        if: matrix.module == 'epistola-catalog'
-        working-directory: epistola-catalog
+        if: matrix.module == 'contracts/catalog'
+        working-directory: contracts/catalog
         run: |
           TARBALL=$(find release/npm -maxdepth 1 -name '*.tgz' -print -quit)
-          ../scripts/check-catalog-release-artifacts.sh \
+          scripts/check-release-artifacts.sh \
             "${{ needs.validate-and-bundle.outputs.release_version }}" \
             "$PWD/$TARBALL"
 
       - name: Upload tested catalog npm artifact
-        if: matrix.module == 'epistola-catalog'
+        if: matrix.module == 'contracts/catalog'
         uses: actions/upload-artifact@v7
         with:
           name: npm-epistola-catalog-${{ needs.validate-and-bundle.outputs.release_version }}
-          path: epistola-catalog/release/npm/*.tgz
+          path: contracts/catalog/release/npm/*.tgz
           if-no-files-found: error
           retention-days: 7
 
@@ -204,15 +205,16 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: tools
+          npm-working-directory: contracts/api/tools
 
       - name: Build and test
-        working-directory: client-dotnet-httpclient
+        working-directory: contracts/api/clients/dotnet-httpclient
         run: ./generate.sh && dotnet test Epistola.Client.sln -c Release
 
   # Build and test the Python client before publishing anything (parallels the gradle build job).
@@ -229,15 +231,16 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: tools
+          npm-working-directory: contracts/api/tools
 
       - name: Build and test
-        working-directory: client-python-urllib3
+        working-directory: contracts/api/clients/python-urllib3
         run: ./generate.sh && uv run --group dev pytest
 
   # Reserve the version by creating a git tag before publishing (release branches only).
@@ -274,13 +277,13 @@ jobs:
     strategy:
       matrix:
         include:
-          - module: client-kotlin-spring-restclient
+          - module: contracts/api/clients/kotlin-spring-restclient
             artifact_id: client-spring3-restclient
             needs_spec: true
-          - module: server-kotlin-springboot4
+          - module: contracts/api/server-stubs/kotlin-springboot4
             artifact_id: server-kotlin-springboot4
             needs_spec: true
-          - module: epistola-catalog
+          - module: contracts/catalog
             artifact_id: epistola-catalog
             needs_spec: false
     steps:
@@ -295,6 +298,7 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
@@ -310,21 +314,21 @@ jobs:
         run: ./gradlew publishToMavenCentral -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
       - name: Download tested catalog npm artifact
-        if: matrix.module == 'epistola-catalog'
+        if: matrix.module == 'contracts/catalog'
         uses: actions/download-artifact@v7
         with:
           name: npm-epistola-catalog-${{ needs.validate-and-bundle.outputs.release_version }}
-          path: epistola-catalog/release/npm
+          path: contracts/catalog/release/npm
 
       - name: Setup npm registry
-        if: matrix.module == 'epistola-catalog'
+        if: matrix.module == 'contracts/catalog'
         uses: actions/setup-node@v6
         with:
           registry-url: https://registry.npmjs.org
 
       - name: Publish to npm
-        if: matrix.module == 'epistola-catalog'
-        working-directory: epistola-catalog
+        if: matrix.module == 'contracts/catalog'
+        working-directory: contracts/catalog
         run: npm publish release/npm/*.tgz --provenance --access public
 
   # Publish the .NET client release to NuGet.org (parallels the gradle publish job)
@@ -351,12 +355,13 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: tools
+          npm-working-directory: contracts/api/tools
 
       - name: NuGet trusted-publishing login (OIDC)
         id: nuget-login
@@ -367,14 +372,14 @@ jobs:
           user: sdegroot
 
       - name: Pack and publish to NuGet.org
-        working-directory: client-dotnet-httpclient
+        working-directory: contracts/api/clients/dotnet-httpclient
         run: |
           ./generate.sh
           dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -p:Version=${{ needs.validate-and-bundle.outputs.release_version }} -o nupkgs
           dotnet nuget push "nupkgs/*.nupkg" --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Generate SBOM (CycloneDX)
-        working-directory: client-dotnet-httpclient
+        working-directory: contracts/api/clients/dotnet-httpclient
         run: |
           dotnet tool install --global CycloneDX
           export PATH="$PATH:$HOME/.dotnet/tools"
@@ -387,7 +392,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: dotnet-sbom
-          path: client-dotnet-httpclient/sbom/epistola-dotnet-client-sbom.json
+          path: contracts/api/clients/dotnet-httpclient/sbom/epistola-dotnet-client-sbom.json
 
   # Publish the Python client release to PyPI (parallels the gradle/nuget publish jobs)
   publish-python:
@@ -413,15 +418,16 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: tools
+          npm-working-directory: contracts/api/tools
 
       - name: Build wheel + sdist
-        working-directory: client-python-urllib3
+        working-directory: contracts/api/clients/python-urllib3
         # Version comes from the stamped spec's info.version via generate.sh -> contract_version.py
         # (release version is already valid PEP 440; no normalisation needed).
         run: |
@@ -431,7 +437,7 @@ jobs:
       - name: Publish to PyPI (OIDC trusted publishing)
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: client-python-urllib3/dist
+          packages-dir: contracts/api/clients/python-urllib3/dist
           skip-existing: true
 
   # Verify the public catalog artifacts from clean consumers before finalizing the release.
@@ -513,6 +519,7 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Download .NET SBOM
         uses: actions/download-artifact@v7
@@ -524,7 +531,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload "${{ github.event.release.tag_name }}" openapi.yaml epistola-dotnet-client-sbom.json --clobber --repo "${{ github.repository }}"
+          gh release upload "${{ github.event.release.tag_name }}" contracts/api/build/openapi.yaml epistola-dotnet-client-sbom.json --clobber --repo "${{ github.repository }}"
 
       - name: Create GitHub Release (release branch)
         if: needs.validate-and-bundle.outputs.is_release_event == 'false'
@@ -533,7 +540,7 @@ jobs:
           tag_name: v${{ needs.validate-and-bundle.outputs.release_version }}
           name: v${{ needs.validate-and-bundle.outputs.release_version }}
           files: |
-            openapi.yaml
+            contracts/api/build/openapi.yaml
             epistola-dotnet-client-sbom.json
           body: |
             ## v${{ needs.validate-and-bundle.outputs.release_version }}

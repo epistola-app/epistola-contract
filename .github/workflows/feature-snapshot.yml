@@ -39,13 +39,13 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - module: client-kotlin-spring-restclient
+          - module: contracts/api/clients/kotlin-spring-restclient
             needs_spec: true
             publish_task: ':client:publishAllPublicationsToGitHubPackagesRepository'
-          - module: server-kotlin-springboot4
+          - module: contracts/api/server-stubs/kotlin-springboot4
             needs_spec: true
             publish_task: 'publishAllPublicationsToGitHubPackagesRepository'
-          - module: epistola-catalog
+          - module: contracts/catalog
             needs_spec: false
             publish_task: 'publishAllPublicationsToGitHubPackagesRepository'
     steps:
@@ -57,6 +57,7 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
@@ -83,15 +84,16 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: tools
+          npm-working-directory: contracts/api/tools
 
       - name: Pack and publish to GitHub Packages
-        working-directory: client-dotnet-httpclient
+        working-directory: contracts/api/clients/dotnet-httpclient
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -104,5 +106,6 @@ jobs:
           dotnet nuget push "nupkgs/*.nupkg" --source github --api-key "$GITHUB_TOKEN" --skip-duplicate
 
   # The Python client has no feature-snapshot publish: for feature branches, build and install
-  # locally instead (`make publish-local`, or `cd client-python-urllib3 && ./generate.sh && uv build`
+  # locally instead (`make publish-local`, or
+  # `cd contracts/api/clients/python-urllib3 && ./generate.sh && uv build`
   # then `pip install dist/*.whl`). Mainline snapshots still publish to TestPyPI (snapshot.yml).

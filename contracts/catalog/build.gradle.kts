@@ -1,0 +1,208 @@
+import net.pwall.json.kotlin.codegen.gradle.JSONSchemaCodegen
+import net.pwall.json.kotlin.codegen.gradle.JSONSchemaCodegenPlugin
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("net.pwall.json:json-kotlin-gradle:0.121")
+    }
+}
+
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.kover)
+    alias(libs.plugins.dokka)
+    alias(libs.plugins.maven.publish)
+    `java-library`
+}
+
+apply<JSONSchemaCodegenPlugin>()
+
+group = "app.epistola.contract"
+version = findProperty("version")?.toString()?.takeIf { it != "unspecified" } ?: "0.1.0-SNAPSHOT"
+description = "Epistola portable catalog aggregate and validation contract"
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(libs.versions.java.toolchain.get().toInt()))
+    }
+}
+
+val generatedSrcDir = layout.buildDirectory.dir("generated-sources/kotlin")
+
+configure<JSONSchemaCodegen> {
+    configFile.set(file("src/main/resources/codegen-config.json"))
+    packageName.set("app.epistola.template.model")
+    generatorComment.set("Generated from JSON Schema — do not edit manually")
+    outputDir.set(generatedSrcDir.map { it.asFile })
+
+    inputs {
+        // template-shared.schema.json has only $defs, no root type
+        inputComposite {
+            file.set(file("schemas/template-shared.schema.json"))
+            pointer.set("/\$defs")
+            // Exclude string-only types that are just aliases, not useful as generated classes
+            exclude.set(listOf("NodeId", "SlotId"))
+        }
+
+        // Root-level schemas with their own $defs
+        inputFile(file("schemas/template-document.schema.json"))
+        inputFile(file("schemas/theme.schema.json"))
+        inputFile(file("schemas/component-manifest.schema.json"))
+        inputFile(file("schemas/style-registry.schema.json"))
+    }
+}
+
+// Remove generated types that need manual definitions:
+// - DocumentStyles: open map type (Map<String, Any>) which the codegen can't express
+// - Expression: needs a default value for `language` (jsonata) which the codegen can't express
+// - TemplateDocument: codegen produces empty inner classes for nodes/slots maps, not Map<String, Node>
+// - ThemeRef: codegen names subtypes A/B instead of Inherit/Override
+// - PageSettings: needs default values for format/orientation which the codegen can't express
+val removeGeneratedOverrides by tasks.registering(Delete::class) {
+    dependsOn("generate")
+    delete(generatedSrcDir.map { it.file("app/epistola/template/model/DocumentStyles.kt") })
+    delete(generatedSrcDir.map { it.file("app/epistola/template/model/Expression.kt") })
+    delete(generatedSrcDir.map { it.file("app/epistola/template/model/TemplateDocument.kt") })
+    delete(generatedSrcDir.map { it.file("app/epistola/template/model/ThemeRef.kt") })
+    delete(generatedSrcDir.map { it.file("app/epistola/template/model/PageSettings.kt") })
+}
+
+tasks.named("generate") {
+    finalizedBy(removeGeneratedOverrides)
+    // json-kotlin-gradle uses Task.project at execution time — not config-cache compatible
+    notCompatibleWithConfigurationCache("json-kotlin-gradle accesses Task.project at execution time")
+}
+
+sourceSets.main {
+    kotlin.srcDirs(generatedSrcDir)
+}
+
+tasks.named<ProcessResources>("processResources") {
+    from("registry") {
+        into("META-INF/epistola-catalog")
+    }
+    from("schemas") {
+        into("META-INF/epistola-catalog/schemas")
+    }
+    from("fixtures") {
+        into("META-INF/epistola-catalog/fixtures")
+    }
+}
+
+tasks.named("compileKotlin") {
+    dependsOn(removeGeneratedOverrides)
+}
+
+dependencies {
+    // Jackson 2 annotations — compatible with both Jackson 2 (plugin) and Jackson 3 (suite) runtimes
+    api(libs.jackson.annotations)
+    implementation(libs.jackson3.databind)
+    implementation(libs.jackson3.module.kotlin)
+    implementation(libs.jsonata)
+    implementation(libs.commons.compress)
+    implementation(libs.networknt.json.schema.validator)
+    testImplementation(kotlin("test"))
+    testImplementation(libs.jackson2.databind)
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+// Configure ktlint to exclude generated sources
+configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
+    filter {
+        exclude { it.file.path.contains("/build/") }
+    }
+}
+
+kover {
+    reports {
+        total {
+            xml {
+                onCheck = false
+            }
+            html {
+                onCheck = false
+            }
+        }
+    }
+}
+
+dokka {
+    dokkaPublications.html {
+        moduleName.set("Epistola Catalog")
+        moduleVersion.set(project.version.toString())
+    }
+    dokkaSourceSets.main {
+        sourceLink {
+            localDirectory.set(file("src/main/kotlin"))
+            remoteUrl.set(uri("https://github.com/epistola-app/epistola-contract/tree/main/contracts/catalog/src/main/kotlin"))
+            remoteLineSuffix.set("#L")
+        }
+    }
+}
+
+// The source artifact includes schema-generated Kotlin types.
+tasks.matching { it.name == "sourcesJar" }.configureEach {
+    dependsOn("generate", removeGeneratedOverrides)
+}
+
+// GitHub Packages repository for snapshot publishing (standard Gradle publishing plugin)
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/epistola-app/epistola-contract")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: ""
+                password = System.getenv("GITHUB_TOKEN") ?: ""
+            }
+        }
+    }
+}
+
+mavenPublishing {
+    publishToMavenCentral(automaticRelease = true)
+
+    // Only sign when GPG credentials are available (CI or release builds)
+    if (project.findProperty("signing.keyId") != null || System.getenv("ORG_GRADLE_PROJECT_signingInMemoryKey") != null) {
+        signAllPublications()
+    }
+
+    coordinates(group.toString(), "epistola-catalog", version.toString())
+
+    pom {
+        name.set("Epistola Catalog")
+        description.set("Portable Epistola catalog models, protocols, registries, validation, migration, and canonicalization")
+        url.set("https://github.com/epistola-app/epistola-contract")
+
+        licenses {
+            license {
+                name.set("EUPL-1.2")
+                url.set("https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12")
+            }
+        }
+
+        developers {
+            developer {
+                id.set("sdegroot")
+                name.set("Sander de Groot")
+            }
+        }
+
+        scm {
+            connection.set("scm:git:git://github.com/epistola-app/epistola-contract.git")
+            developerConnection.set("scm:git:ssh://github.com/epistola-app/epistola-contract.git")
+            url.set("https://github.com/epistola-app/epistola-contract")
+        }
+    }
+}

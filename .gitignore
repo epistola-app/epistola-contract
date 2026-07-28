@@ -50,3 +50,5 @@ coverage/
 
 ### Generated files ###
 openapi.yaml
+!/contracts/api/openapi.yaml
+/contracts/api/build/

@@ -48,7 +48,7 @@ jobs:
           if [ -n "${{ inputs.version }}" ]; then
             VERSION="${{ inputs.version }}"
           else
-            VERSION=$(scripts/spec-version.sh --full)
+            VERSION=$(contracts/api/scripts/spec-version.sh --full)
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
@@ -56,7 +56,7 @@ jobs:
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: tools
+          npm-working-directory: contracts/api/tools
 
       - name: Try to download bundled spec from caller
         id: download
@@ -64,14 +64,18 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
         continue-on-error: true
 
       - name: Bundle spec locally (fallback)
         if: steps.download.outcome != 'success'
-        run: tools/node_modules/.bin/redocly bundle epistola-api.yaml -o openapi.yaml
+        run: |
+          mkdir -p contracts/api/build
+          contracts/api/tools/node_modules/.bin/redocly bundle contracts/api/openapi.yaml -o contracts/api/build/openapi.yaml
+          node contracts/api/scripts/normalize-bundle.mjs contracts/api/build/openapi.yaml
 
       - name: Copy spec to mock-server directory
-        run: cp openapi.yaml mock-server/
+        run: cp contracts/api/build/openapi.yaml contracts/api/mock-server/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -93,7 +97,7 @@ jobs:
         id: build
         uses: docker/build-push-action@v7
         with:
-          context: mock-server
+          context: contracts/api/mock-server
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
@@ -130,7 +134,7 @@ jobs:
           if [ -n "${{ inputs.version }}" ]; then
             VERSION="${{ inputs.version }}"
           else
-            VERSION=$(scripts/spec-version.sh --full)
+            VERSION=$(contracts/api/scripts/spec-version.sh --full)
           fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 

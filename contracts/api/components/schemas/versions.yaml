@@ -1,0 +1,282 @@
+VersionDto:
+  type: object
+  description: Template version with content and lifecycle state. The id field IS the version number (1-200).
+  required:
+    - id
+    - variantId
+    - status
+    - createdAt
+  properties:
+    id:
+      type: integer
+      minimum: 1
+      maximum: 200
+      description: Version identifier (also the version number, 1-200)
+      example: 1
+    variantId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of the variant this version belongs to
+      example: english
+    templateModel:
+      $ref: '../../../catalog/schemas/template-document.schema.json'
+    status:
+      type: string
+      enum:
+        - draft
+        - published
+        - archived
+      description: Lifecycle status of this version
+      example: published
+    createdAt:
+      type: string
+      format: date-time
+      description: Timestamp when the version was created
+      example: "2026-01-22T09:00:00Z"
+    publishedAt:
+      type:
+        - string
+        - 'null'
+      format: date-time
+      description: Timestamp when the version was published
+      example: "2026-01-25T14:00:00Z"
+    archivedAt:
+      type:
+        - string
+        - 'null'
+      format: date-time
+      description: Timestamp when the version was archived
+      example: null
+  example:
+    id: 1
+    variantId: english
+    templateModel:
+      modelVersion: 1
+      root: node-root
+      nodes:
+        node-root:
+          id: node-root
+          type: container
+          slots:
+            - slot-root-children
+          styles: {}
+          props: {}
+        node-header:
+          id: node-header
+          type: text
+          slots: []
+          styles:
+            fontSize: "24pt"
+            fontWeight: bold
+          props:
+            content:
+              type: doc
+              content:
+                - type: paragraph
+                  content:
+                    - type: text
+                      text: "Invoice "
+                    - type: expression
+                      attrs:
+                        expression: invoiceNumber
+        node-columns:
+          id: node-columns
+          type: columns
+          slots:
+            - slot-col-0
+            - slot-col-1
+          styles: {}
+          props:
+            columnSizes:
+              - 1
+              - 1
+            gap: 0
+        node-from:
+          id: node-from
+          type: text
+          slots: []
+          styles: {}
+          props:
+            content:
+              type: doc
+              content:
+                - type: paragraph
+                  content:
+                    - type: text
+                      text: "From:"
+                      marks:
+                        - type: bold
+                    - type: hardBreak
+                    - type: text
+                      text: "Acme Corporation"
+                    - type: hardBreak
+                    - type: text
+                      text: "1 Enterprise Way"
+                    - type: hardBreak
+                    - type: text
+                      text: "Springfield, IL 62704"
+        node-to:
+          id: node-to
+          type: text
+          slots: []
+          styles: {}
+          props:
+            content:
+              type: doc
+              content:
+                - type: paragraph
+                  content:
+                    - type: text
+                      text: "To:"
+                      marks:
+                        - type: bold
+                    - type: hardBreak
+                    - type: expression
+                      attrs:
+                        expression: customer.name
+                    - type: hardBreak
+                    - type: text
+                      text: "{{customer.address.street}}"
+                    - type: hardBreak
+                    - type: text
+                      text: "{{customer.address.city}}, {{customer.address.postalCode}}"
+      slots:
+        slot-root-children:
+          id: slot-root-children
+          nodeId: node-root
+          name: children
+          children:
+            - node-header
+            - node-columns
+        slot-col-0:
+          id: slot-col-0
+          nodeId: node-columns
+          name: column-0
+          children:
+            - node-from
+        slot-col-1:
+          id: slot-col-1
+          nodeId: node-columns
+          name: column-1
+          children:
+            - node-to
+      themeRef:
+        type: inherit
+    status: published
+    createdAt: "2026-01-22T09:00:00Z"
+    publishedAt: "2026-01-25T14:00:00Z"
+    archivedAt: null
+
+VersionSummaryDto:
+  type: object
+  description: Summary view of a version for list displays. The id field IS the version number (1-200).
+  required:
+    - id
+    - variantId
+    - status
+    - createdAt
+  properties:
+    id:
+      type: integer
+      minimum: 1
+      maximum: 200
+      description: Version identifier (also the version number, 1-200)
+      example: 1
+    variantId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of the variant this version belongs to
+      example: english
+    status:
+      type: string
+      enum:
+        - draft
+        - published
+        - archived
+      description: Lifecycle status of this version
+      example: published
+    createdAt:
+      type: string
+      format: date-time
+      description: Timestamp when the version was created
+      example: "2026-01-22T09:00:00Z"
+    publishedAt:
+      type:
+        - string
+        - 'null'
+      format: date-time
+      description: Timestamp when the version was published
+      example: "2026-01-25T14:00:00Z"
+    archivedAt:
+      type:
+        - string
+        - 'null'
+      format: date-time
+      description: Timestamp when the version was archived
+      example: null
+  example:
+    id: 1
+    variantId: english
+    status: published
+    createdAt: "2026-01-22T09:00:00Z"
+    publishedAt: "2026-01-25T14:00:00Z"
+    archivedAt: null
+
+UpdateDraftRequest:
+  type: object
+  description: Request body for updating a draft version
+  properties:
+    templateModel:
+      $ref: '../../../catalog/schemas/template-document.schema.json'
+
+PublishVersionRequest:
+  type: object
+  description: Request body for publishing a version to an environment
+  required:
+    - environmentId
+  properties:
+    environmentId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 30
+      description: Slug identifier of the target environment
+      example: production
+
+VersionListResponse:
+  description: List of template versions
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      description: List of versions
+      items:
+        $ref: '#/VersionSummaryDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
+  example:
+    items:
+      - id: 1
+        variantId: english
+        status: published
+        createdAt: "2026-01-22T09:00:00Z"
+        publishedAt: "2026-01-25T14:00:00Z"
+        archivedAt: null
+      - id: 2
+        variantId: english
+        status: published
+        createdAt: "2026-01-26T10:00:00Z"
+        publishedAt: "2026-01-28T11:00:00Z"
+        archivedAt: null
+    page:
+      number: 0
+      size: 20
+      totalElements: 2
+      totalPages: 1

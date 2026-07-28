@@ -22,7 +22,7 @@ runs:
       shell: bash
       run: |
         # Read spec version via the shared parser (single source of truth)
-        eval "$(scripts/spec-version.sh --env)"
+        eval "$(contracts/api/scripts/spec-version.sh --env)"
         echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
         echo "Spec version: ${SPEC_VERSION}, API version: ${API_VERSION}"
 
