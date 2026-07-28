@@ -27,6 +27,7 @@ bundle: $(REDOCLY)
 	@echo "==> Bundling OpenAPI spec..."
 	@mkdir -p $(dir $(API_BUNDLE))
 	$(REDOCLY) bundle $(API_SPEC) -o $(API_BUNDLE)
+	@node $(API_DIR)/scripts/normalize-bundle.mjs $(API_BUNDLE)
 	@echo "==> Created $(API_BUNDLE)"
 
 # Build all modules

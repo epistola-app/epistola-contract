@@ -4,10 +4,15 @@ All notable changes to the `epistola-client` PyPI package are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This package's
 version tracks the Epistola contract version (`info.version` in the OpenAPI spec), so it releases in
-lockstep with the other generated artifacts; the repository-level [CHANGELOG](../CHANGELOG.md)
+lockstep with the other generated artifacts; the repository-level [CHANGELOG](../../../../CHANGELOG.md)
 records contract/spec changes. This file records changes specific to the Python client library.
 
 ## [Unreleased]
+
+### Changed
+
+- **Breaking:** Generated portable template models now use the catalog contract's canonical names
+  without the `_dto` suffix.
 
 ### Fixed
 

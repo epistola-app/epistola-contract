@@ -8,10 +8,10 @@ import app.epistola.client.model.CreateTenantRequest
 import app.epistola.client.model.DocumentDto
 import app.epistola.client.model.GenerateBatchRequest
 import app.epistola.client.model.GenerateDocumentRequest
-import app.epistola.client.model.NodeDto
-import app.epistola.client.model.SlotDto
-import app.epistola.client.model.TemplateDocumentDto
-import app.epistola.client.model.ThemeRefDto
+import app.epistola.client.model.Node
+import app.epistola.client.model.Slot
+import app.epistola.client.model.TemplateDocument
+import app.epistola.client.model.ThemeRef
 import app.epistola.client.model.UpdateTenantRequest
 import app.epistola.client.model.VersionDto
 import java.time.OffsetDateTime
@@ -189,17 +189,19 @@ class ModelValidationTest {
             variantId = "english",
             status = VersionDto.Status.PUBLISHED,
             createdAt = now,
-            templateModel = TemplateDocumentDto(
-                modelVersion = TemplateDocumentDto.ModelVersion._1,
+            templateModel = TemplateDocument(
+                modelVersion = 1,
                 root = "node-root",
                 nodes = mapOf(
-                    "node-root" to NodeDto(id = "node-root", type = "container", slots = listOf("slot-root")),
-                    "node-header" to NodeDto(id = "node-header", type = "text", slots = emptyList()),
+                    "node-root" to Node(id = "node-root", type = "container", slots = listOf("slot-root")),
+                    "node-header" to Node(id = "node-header", type = "text", slots = emptyList()),
                 ),
                 slots = mapOf(
-                    "slot-root" to SlotDto(id = "slot-root", nodeId = "node-root", name = "children", children = listOf("node-header")),
+                    "slot-root" to Slot(id = "slot-root", nodeId = "node-root", name = "children", children = listOf("node-header")),
                 ),
-                themeRef = ThemeRefDto(type = ThemeRefDto.Type.INHERIT),
+                // OpenAPI Generator flattens the catalog's oneOf and requires themeId
+                // even for the inherit branch.
+                themeRef = ThemeRef(type = "inherit", themeId = "inherited"),
             ),
             publishedAt = now,
         )

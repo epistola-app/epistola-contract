@@ -73,6 +73,9 @@ info:
     the roles stored on an API key. Platform-only tenant management uses the
     `TENANT_MANAGER` platform role.
   version: "0.14.0"
+x-epistola-catalog-contract:
+  wireSchemaVersion: 4
+  templateModelVersion: 1
   contact:
     name: Epistola Team
   license:
@@ -454,12 +457,12 @@ components:
     # Theme schemas
     ThemeDto:
       $ref: './components/schemas/themes.yaml#/ThemeDto'
-    DocumentStylesDto:
-      $ref: './components/schemas/themes.yaml#/DocumentStylesDto'
-    PageSettingsDto:
-      $ref: './components/schemas/themes.yaml#/PageSettingsDto'
-    MarginsDto:
-      $ref: './components/schemas/themes.yaml#/MarginsDto'
+    DocumentStyles:
+      $ref: '../catalog/schemas/template-shared.schema.json#/$defs/DocumentStyles'
+    PageSettings:
+      $ref: '../catalog/schemas/template-shared.schema.json#/$defs/PageSettings'
+    Margins:
+      $ref: '../catalog/schemas/template-shared.schema.json#/$defs/Margins'
     CreateThemeRequest:
       $ref: './components/schemas/themes.yaml#/CreateThemeRequest'
     UpdateThemeRequest:
@@ -572,16 +575,16 @@ components:
       $ref: './components/schemas/stencils.yaml#/UpgradePreviewListResponse'
 
     # Template model schemas
-    TemplateDocumentDto:
-      $ref: './components/schemas/template-model.yaml#/TemplateDocumentDto'
-    NodeDto:
-      $ref: './components/schemas/template-model.yaml#/NodeDto'
-    SlotDto:
-      $ref: './components/schemas/template-model.yaml#/SlotDto'
-    ThemeRefDto:
-      $ref: './components/schemas/template-model.yaml#/ThemeRefDto'
-    BlockStylePresetDto:
-      $ref: './components/schemas/template-model.yaml#/BlockStylePresetDto'
+    TemplateDocument:
+      $ref: '../catalog/schemas/template-document.schema.json'
+    Node:
+      $ref: '../catalog/schemas/template-document.schema.json#/$defs/Node'
+    Slot:
+      $ref: '../catalog/schemas/template-document.schema.json#/$defs/Slot'
+    ThemeRef:
+      $ref: '../catalog/schemas/template-shared.schema.json#/$defs/ThemeRef'
+    BlockStylePreset:
+      $ref: '../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
 
     # Version schemas
     VersionDto:

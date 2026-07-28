@@ -188,7 +188,7 @@ StencilVersionDto:
       description: Lifecycle status of this version
       example: published
     content:
-      $ref: './template-model.yaml#/TemplateDocumentDto'
+      $ref: '../../../catalog/schemas/template-document.schema.json'
     parameterSchema:
       type:
         - object
@@ -200,7 +200,7 @@ StencilVersionDto:
         with `format: date` or `date-time`) or arrays of those primitives. Omitted or
         null means the stencil declares no parameters. When a template embeds this
         stencil, each parameter is bound to a JSONata expression via the consumer
-        node's `parameterBindings` prop (see `NodeDto.props`).
+        node's `parameterBindings` prop (see `Node.props`).
       example:
         type: object
         properties:
@@ -374,7 +374,7 @@ CreateStencilRequest:
         - header
         - corporate
     content:
-      $ref: './template-model.yaml#/TemplateDocumentDto'
+      $ref: '../../../catalog/schemas/template-document.schema.json'
     parameterSchema:
       type:
         - object
@@ -427,7 +427,7 @@ CreateStencilVersionRequest:
   description: Request body for creating a new draft version of a stencil
   properties:
     content:
-      $ref: './template-model.yaml#/TemplateDocumentDto'
+      $ref: '../../../catalog/schemas/template-document.schema.json'
     parameterSchema:
       type:
         - object
@@ -451,7 +451,7 @@ UpdateStencilDraftRequest:
   description: Request body for updating a draft stencil version
   properties:
     content:
-      $ref: './template-model.yaml#/TemplateDocumentDto'
+      $ref: '../../../catalog/schemas/template-document.schema.json'
     parameterSchema:
       type:
         - object
@@ -565,9 +565,9 @@ UpgradePreviewDto:
       description: Target stencil version for the upgrade
       example: 2
     before:
-      $ref: './template-model.yaml#/TemplateDocumentDto'
+      $ref: '../../../catalog/schemas/template-document.schema.json'
     after:
-      $ref: './template-model.yaml#/TemplateDocumentDto'
+      $ref: '../../../catalog/schemas/template-document.schema.json'
   example:
     templateId: monthly-invoice
     variantId: english

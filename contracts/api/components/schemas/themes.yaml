@@ -32,13 +32,13 @@ ThemeDto:
       description: Optional description of the theme
       example: Default corporate branding with Acme colors and fonts
     documentStyles:
-      $ref: '#/DocumentStylesDto'
+      $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/DocumentStyles'
     pageSettings:
-      $ref: '#/PageSettingsDto'
+      $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/PageSettings'
     blockStylePresets:
       type: object
       additionalProperties:
-        $ref: './template-model.yaml#/BlockStylePresetDto'
+        $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
       description: Named block style presets (like CSS classes). Key is the preset name.
       example:
         heading:
@@ -111,88 +111,6 @@ ThemeDto:
     createdAt: "2026-01-17T11:00:00Z"
     lastModified: "2026-01-18T14:30:00Z"
 
-DocumentStylesDto:
-  type: object
-  description: |
-    Document-level style overrides. Open object — the available style properties are
-    driven by the style registry (e.g. fontFamily, fontSize, color, lineHeight, etc.).
-    Keys are camelCase CSS property names, values are strings.
-
-    **Supported units:**
-    - `pt` — points (1/72 inch). The native PDF unit, used for all sizes.
-    - `sp` — spacing scale. Multiplier of the theme's `spacingUnit` (default 4pt).
-      Example: `"2sp"` = 2 × 4pt = 8pt.
-    - `mm` — millimeters. Used for page margins only.
-
-    Examples: `"12pt"`, `"2sp"`, `"1.5sp"`.
-  example:
-    fontFamily: Helvetica
-    fontSize: "12pt"
-    fontWeight: normal
-    color: "#333333"
-    lineHeight: "1.5"
-    letterSpacing: "0.5pt"
-    textAlign: left
-
-PageSettingsDto:
-  type: object
-  description: Page layout settings
-  properties:
-    format:
-      type: string
-      enum: [A4, Letter, Custom]
-      description: Page format
-      example: A4
-    orientation:
-      type: string
-      enum: [portrait, landscape]
-      description: Page orientation
-      example: portrait
-    margins:
-      $ref: '#/MarginsDto'
-    backgroundColor:
-      type: string
-      description: Page background color (CSS color value)
-      example: "#ffffff"
-  example:
-    format: A4
-    orientation: portrait
-    margins:
-      top: 40
-      right: 40
-      bottom: 40
-      left: 40
-
-MarginsDto:
-  type: object
-  description: Page margins in millimeters
-  properties:
-    top:
-      type: integer
-      minimum: 0
-      description: Top margin in mm
-      example: 40
-    right:
-      type: integer
-      minimum: 0
-      description: Right margin in mm
-      example: 40
-    bottom:
-      type: integer
-      minimum: 0
-      description: Bottom margin in mm
-      example: 40
-    left:
-      type: integer
-      minimum: 0
-      description: Left margin in mm
-      example: 40
-  example:
-    top: 40
-    right: 40
-    bottom: 40
-    left: 40
-
 CreateThemeRequest:
   type: object
   description: Request body for creating a new theme
@@ -218,13 +136,13 @@ CreateThemeRequest:
       description: Optional description of the theme
       example: Default corporate branding with Acme colors and fonts
     documentStyles:
-      $ref: '#/DocumentStylesDto'
+      $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/DocumentStyles'
     pageSettings:
-      $ref: '#/PageSettingsDto'
+      $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/PageSettings'
     blockStylePresets:
       type: object
       additionalProperties:
-        $ref: './template-model.yaml#/BlockStylePresetDto'
+        $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
       description: Named block style presets. Key is the preset name.
       example:
         heading:
@@ -256,15 +174,15 @@ UpdateThemeRequest:
       description: New description for the theme (null to clear)
       example: Updated corporate branding for 2026
     documentStyles:
-      $ref: '#/DocumentStylesDto'
+      $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/DocumentStyles'
     pageSettings:
-      $ref: '#/PageSettingsDto'
+      $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/PageSettings'
     blockStylePresets:
       type:
         - object
         - 'null'
       additionalProperties:
-        $ref: './template-model.yaml#/BlockStylePresetDto'
+        $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
       description: Named block style presets (null to clear). Key is the preset name.
     spacingUnit:
       type:

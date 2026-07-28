@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **BREAKING (REST API):** Replaced the API's duplicate portable template-model DTO schemas with
+  direct references to the catalog contract. Generated API models now use the canonical names
+  `TemplateDocument`, `Node`, `Slot`, `ThemeRef`, `PageSettings`, `Margins`, `DocumentStyles`, and
+  `BlockStylePreset` instead of their `*Dto` variants. Catalog schemas, validation behavior,
+  package exports, and published coordinates are unchanged.
 - Reorganized the REST API as the self-contained `contracts/api` domain, co-locating its authored
   specification, documentation, build tooling, generated clients, server stubs, and mock server.
   The bundled specification is now generated at `contracts/api/build/openapi.yaml`; published

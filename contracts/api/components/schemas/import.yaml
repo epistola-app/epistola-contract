@@ -97,7 +97,7 @@ ImportTemplateDto:
       items:
         $ref: './templates.yaml#/DataExampleDto'
     templateModel:
-      $ref: './template-model.yaml#/TemplateDocumentDto'
+      $ref: '../../../catalog/schemas/template-document.schema.json'
     variants:
       type: array
       minItems: 1
@@ -188,7 +188,7 @@ ImportVariantDto:
       default: false
       description: Whether this variant is the default variant for the template. Exactly one variant per template must have isDefault=true.
     templateModel:
-      $ref: './template-model.yaml#/TemplateDocumentDto'
+      $ref: '../../../catalog/schemas/template-document.schema.json'
   example:
     id: default
     title: Standaard

@@ -13,12 +13,19 @@ The catalog is a separate compatibility boundary. An API-breaking change is curr
 but it must not change catalog validation or its published Kotlin, TypeScript, npm, or Maven
 interfaces.
 
+`x-epistola-catalog-contract` in `openapi.yaml` records the catalog wire and template-model
+versions expected by this API.
+
 ## Derived projects
 
 - `clients/` contains generated client libraries and their handwritten extensions.
 - `server-stubs/` contains generated server contracts.
 - `mock-server/` packages the bundled API for Prism.
 - `build/openapi.yaml` is the generated, self-contained API bundle and is not committed.
+
+Bundling removes embedded JSON Schema identifiers from the generated OpenAPI document and
+normalizes Redocly's filename-derived component name. This adaptation is limited to the generated
+bundle; the canonical catalog schemas retain their identifiers unchanged.
 
 From the repository root:
 

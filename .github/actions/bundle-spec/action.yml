@@ -27,6 +27,7 @@ runs:
       run: |
         mkdir -p contracts/api/build
         contracts/api/tools/node_modules/.bin/redocly bundle contracts/api/openapi.yaml -o contracts/api/build/openapi.yaml
+        node contracts/api/scripts/normalize-bundle.mjs contracts/api/build/openapi.yaml
 
     - name: Inject version into bundled spec
       if: inputs.version != ''

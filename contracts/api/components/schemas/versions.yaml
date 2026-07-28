@@ -21,7 +21,7 @@ VersionDto:
       description: Slug identifier of the variant this version belongs to
       example: english
     templateModel:
-      $ref: './template-model.yaml#/TemplateDocumentDto'
+      $ref: '../../../catalog/schemas/template-document.schema.json'
     status:
       type: string
       enum:
@@ -231,7 +231,7 @@ UpdateDraftRequest:
   description: Request body for updating a draft version
   properties:
     templateModel:
-      $ref: './template-model.yaml#/TemplateDocumentDto'
+      $ref: '../../../catalog/schemas/template-document.schema.json'
 
 PublishVersionRequest:
   type: object
