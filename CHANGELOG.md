@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Made the Kotlin Spring server artifact reuse the catalog's Kotlin data classes for portable
+  template and theme values instead of generating a second JVM representation. The server POM now
+  exposes `epistola-catalog` transitively, and `BlockStylePreset` is a strongly typed catalog model.
 - **BREAKING (REST API):** Replaced the API's duplicate portable template-model DTO schemas with
   direct references to the catalog contract. Generated API models now use the canonical names
   `TemplateDocument`, `Node`, `Slot`, `ThemeRef`, `PageSettings`, `Margins`, `DocumentStyles`, and

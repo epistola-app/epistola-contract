@@ -1,5 +1,6 @@
 package app.epistola.catalog.validation
 
+import app.epistola.template.model.BlockStylePreset
 import app.epistola.template.model.Node
 import app.epistola.template.model.Slot
 import app.epistola.template.model.TemplateDocument
@@ -18,9 +19,18 @@ class JacksonCoexistenceTest {
         )
 
         val jackson2Json = ObjectMapper().writeValueAsString(document)
+        val presetJson = ObjectMapper().writeValueAsString(
+            BlockStylePreset(
+                label = "Body",
+                styles = mapOf("fontSize" to 12, "fontFamily" to null),
+                applicableTo = listOf("text"),
+            ),
+        )
         val report = TemplateValidator.validate(document)
 
         assertContains(jackson2Json, "\"root\":\"n-root\"")
+        assertContains(presetJson, "\"fontSize\":12")
+        assertContains(presetJson, "\"applicableTo\":[\"text\"]")
         assertTrue(report.valid)
         assertTrue(Class.forName("tools.jackson.databind.json.JsonMapper").name.startsWith("tools.jackson"))
     }

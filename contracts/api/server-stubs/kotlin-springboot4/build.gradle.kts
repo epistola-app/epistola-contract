@@ -54,8 +54,29 @@ val verifyJarManifest by tasks.registering {
     }
 }
 
+val generatedPom = layout.buildDirectory.file("publications/maven/pom-default.xml")
+val verifyCatalogPomDependency by tasks.registering {
+    dependsOn("generatePomFileForMavenPublication")
+    inputs.file(generatedPom)
+
+    doLast {
+        val pom = generatedPom.get().asFile.readText()
+        val expectedDependency =
+            """
+            <groupId>app.epistola.contract</groupId>
+                  <artifactId>epistola-catalog</artifactId>
+                  <version>${project.version}</version>
+                  <scope>compile</scope>
+            """.trimIndent()
+
+        check(pom.contains(expectedDependency)) {
+            "Published server POM must expose epistola-catalog:${project.version} as a compile dependency"
+        }
+    }
+}
+
 tasks.check {
-    dependsOn(verifyJarManifest)
+    dependsOn(verifyJarManifest, verifyCatalogPomDependency)
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
@@ -123,6 +144,10 @@ openApiGenerate {
         ),
     )
 
+    // Reuse the portable catalog's Kotlin data classes in server signatures.
+    // Other generated language clients still receive native models from the
+    // same OpenAPI schemas; this mapping applies only to the JVM server artifact.
+    //
     // Reuse Spring's native RFC 9457 type instead of generating a parallel DTO.
     // `org.springframework.http.ProblemDetail` serializes to `application/problem+json`
     // out of the box and is produced by `ResponseEntityExceptionHandler`. The `errors`
@@ -130,6 +155,16 @@ openApiGenerate {
     // schemaMappings substitutes the schema with the FQN AND skips generating the model.
     schemaMappings.set(
         mapOf(
+            "TemplateDocument" to "app.epistola.template.model.TemplateDocument",
+            "Node" to "app.epistola.template.model.Node",
+            "Slot" to "app.epistola.template.model.Slot",
+            "ThemeRef" to "app.epistola.template.model.ThemeRef",
+            "PageSettings" to "app.epistola.template.model.PageSettings",
+            "Margins" to "app.epistola.template.model.Margins",
+            "PageFormat" to "app.epistola.template.model.PageFormat",
+            "Orientation" to "app.epistola.template.model.Orientation",
+            "DocumentStyles" to "app.epistola.template.model.DocumentStyles",
+            "BlockStylePreset" to "app.epistola.template.model.BlockStylePreset",
             "ProblemDetail" to "org.springframework.http.ProblemDetail",
             "ValidationProblemDetail" to "org.springframework.http.ProblemDetail",
             "DataModelValidationProblemDetail" to "org.springframework.http.ProblemDetail",
@@ -207,6 +242,8 @@ tasks.compileKotlin {
 }
 
 dependencies {
+    api("app.epistola.contract:epistola-catalog:${project.version}")
+
     implementation(libs.spring.boot4.starter.web)
     implementation(libs.spring.boot4.starter.validation)
     implementation(libs.jakarta.validation.api)

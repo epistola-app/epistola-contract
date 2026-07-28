@@ -284,8 +284,7 @@ object ResourceValidator {
     ) {
         validateFontRefs(resource.documentStyles, context, "$path.documentStyles", findings)
         resource.blockStylePresets.orEmpty().forEach { (name, value) ->
-            @Suppress("UNCHECKED_CAST")
-            validateFontRefs(value as? Map<String, Any?>, context, "$path.blockStylePresets.$name", findings)
+            validateFontRefs(value.styles, context, "$path.blockStylePresets.$name.styles", findings)
         }
         if (resource.spacingUnit != null && (!resource.spacingUnit.isFinite() || resource.spacingUnit <= 0)) {
             findings.error(CatalogValidationCodes.TEMPLATE_DATA_SCHEMA_INVALID, "$path.spacingUnit", "spacingUnit must be a positive finite number")

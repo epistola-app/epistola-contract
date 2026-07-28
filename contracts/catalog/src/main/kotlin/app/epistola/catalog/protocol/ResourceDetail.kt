@@ -1,5 +1,6 @@
 package app.epistola.catalog.protocol
 
+import app.epistola.template.model.BlockStylePreset
 import app.epistola.template.model.PageSettings
 import app.epistola.template.model.TemplateDocument
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -71,7 +72,7 @@ data class ThemeResource(
     val description: String? = null,
     val documentStyles: Map<String, Any?>? = null,
     val pageSettings: PageSettings? = null,
-    val blockStylePresets: Map<String, Any?>? = null,
+    val blockStylePresets: Map<String, BlockStylePreset>? = null,
     val spacingUnit: Float? = null,
 ) : CatalogResource {
     override val type: String get() = "theme"

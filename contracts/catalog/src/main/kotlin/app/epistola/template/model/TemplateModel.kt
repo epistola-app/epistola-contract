@@ -35,6 +35,25 @@ data class PageSettings(
 )
 
 /**
+ * A named set of reusable block styles.
+ *
+ * The preset name is the key in the owning theme's preset map; this value carries
+ * only the portable presentation metadata and styles. Consumers may apply
+ * additional product-specific rules, but the wire representation belongs to the
+ * catalog contract.
+ *
+ * @property label human-readable label shown to authors.
+ * @property styles CSS-like properties declared by the catalog style registry.
+ * @property applicableTo component type keys that may use the preset; null or an
+ * empty list means every compatible component.
+ */
+data class BlockStylePreset(
+    val label: String,
+    val styles: Map<String, Any?>,
+    val applicableTo: List<String>? = null,
+)
+
+/**
  * An expression with a language identifier.
  *
  * Defined manually because the codegen tool cannot express default parameter values,
