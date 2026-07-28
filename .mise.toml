@@ -7,3 +7,4 @@ dotnet = "8.0.423"
 python = "3.13"
 "github:astral-sh/uv" = "0.11.29"
 "ubi:oasdiff/oasdiff" = "1.18.1"
+"pipx:reuse" = { version = "6.2.0", extras = "charset-normalizer" }

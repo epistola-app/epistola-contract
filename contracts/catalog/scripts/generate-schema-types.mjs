@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// SPDX-FileCopyrightText: Epistola Nederland B.V.
+//
+// SPDX-License-Identifier: EUPL-1.2
+
 // Generates TypeScript definitions from the epistola-catalog JSON Schemas. Keeping
 // this list in a script makes package.json readable and keeps schema generation
 // separate from the registry facade generation.

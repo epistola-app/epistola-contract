@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """Self-signed JWT authentication."""
 
 from epistola_client.auth.jwt_signer import JwtSigner

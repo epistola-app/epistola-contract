@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """Tests for JwtSigner (self-signed JWT minting)."""
 
 import datetime

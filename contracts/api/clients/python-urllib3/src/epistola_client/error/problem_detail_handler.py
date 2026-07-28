@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """Parses ``application/problem+json`` bodies into a :class:`ProblemDetailException`.
 
 The handler itself is installed on the client via the Epistola client builder, which

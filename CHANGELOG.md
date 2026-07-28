@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added REUSE-compliant EUPL-1.2 licensing metadata, automated SPDX header insertion, and a
+  pull-request CI check that prevents unlicensed files from being introduced.
+
 ## [0.15.0] - 2026-07-28
 
 - Made the Kotlin Spring server artifact reuse the catalog's Kotlin data classes for portable

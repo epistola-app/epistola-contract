@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """Client identity headers (User-Agent + X-EP-Node-Id)."""
 
 from epistola_client.identity.client_identity import ClientIdentity

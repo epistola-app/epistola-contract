@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 # Verifies the exact Maven and npm artifacts prepared for an epistola-catalog release.
 set -euo pipefail
 

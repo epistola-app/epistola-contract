@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Epistola Nederland B.V.
+//
+// SPDX-License-Identifier: EUPL-1.2
+
 package app.epistola.client.validation.schema
 
 import app.epistola.client.api.TemplatesApi

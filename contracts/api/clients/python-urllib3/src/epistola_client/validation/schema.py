@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """Validates template data against the JSON Schema defined on the template.
 
 Fetches the template from the server on first use and caches the compiled schema.

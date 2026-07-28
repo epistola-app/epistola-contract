@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """Client identity headers required on every Epistola API request.
 
 The ``User-Agent`` always starts with ``epistola-contract/{contractVersion}``.

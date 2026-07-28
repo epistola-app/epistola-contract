@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// SPDX-FileCopyrightText: Epistola Nederland B.V.
+//
+// SPDX-License-Identifier: EUPL-1.2
+
 
 /**
  * Post-process the generated, self-contained OpenAPI bundle for downstream tooling.

@@ -8,6 +8,19 @@ on:
     types: [opened, synchronize, labeled]
 
 jobs:
+  license:
+    name: Check License Metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup tools
+        uses: jdx/mise-action@v4
+
+      - name: Check license metadata
+        run: make license-check
+
   # OpenAPI spec validation and bundling
   spec-validation:
     name: Validate OpenAPI Spec

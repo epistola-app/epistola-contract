@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 # Fails when the human-facing problem-type registry (docs/error-types.md) and
 # the machine-readable one (x-problem-types in openapi.yaml) disagree.
 # The Kotlin modules are guarded separately: the client generates its constants

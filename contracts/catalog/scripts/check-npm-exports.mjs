@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Epistola Nederland B.V.
+//
+// SPDX-License-Identifier: EUPL-1.2
+
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 

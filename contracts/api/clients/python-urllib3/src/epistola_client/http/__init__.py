@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """HTTP client assembly (base URL, identity, JWT, problem-detail handling)."""
 
 from epistola_client.http.client import EpistolaApiClient, EpistolaClientBuilder

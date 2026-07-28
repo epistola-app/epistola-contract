@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Epistola Nederland B.V.
+//
+// SPDX-License-Identifier: EUPL-1.2
+
 package app.epistola.template.model
 
 import com.fasterxml.jackson.annotation.JsonSubTypes

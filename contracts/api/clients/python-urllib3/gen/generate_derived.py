@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """Build-time generator: reads the bundled OpenAPI spec and emits three derived
 source modules into the hand-written package. Mirrors the Kotlin build's
 generateProblemSlugs / generateValidation / generateContractVersionResource tasks

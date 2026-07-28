@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// SPDX-FileCopyrightText: Epistola Nederland B.V.
+//
+// SPDX-License-Identifier: EUPL-1.2
+
 // Validates the editor component/style registries that epistola-catalog publishes
 // for suite and other consumers. This is intentionally a lightweight structural
 // guard for cross-file references that JSON Schema alone does not cover well.

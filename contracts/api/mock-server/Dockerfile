@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 # Epistola API Mock Server
 # Multi-architecture build using Node.js + Prism CLI
 FROM node:24-alpine

@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// SPDX-FileCopyrightText: Epistola Nederland B.V.
+//
+// SPDX-License-Identifier: EUPL-1.2
+
 // Generates the typed TypeScript facade for the JSON editor registries. The JSON
 // files remain the source of truth; this script gives npm consumers literal
 // component/style unions and typed registry constants.

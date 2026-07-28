@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Epistola Nederland B.V.
+//
+// SPDX-License-Identifier: EUPL-1.2
+
 // Shared version calculation for the contract-derived Gradle builds
 // (the Kotlin API client and server stub projects).
 //

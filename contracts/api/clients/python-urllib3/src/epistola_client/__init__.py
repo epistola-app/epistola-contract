@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """Epistola Python client.
 
 Re-exports the stock generated client (API classes, models, exceptions) from

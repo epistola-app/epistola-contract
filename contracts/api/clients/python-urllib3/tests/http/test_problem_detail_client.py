@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """Tests for EpistolaApiClient.response_deserialize — the installed problem handler."""
 
 import json

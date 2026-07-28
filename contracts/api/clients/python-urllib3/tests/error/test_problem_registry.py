@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """Guard test: the hand-written problem-type constants must not drift from the
 build-time generated ones (which come straight from the spec's x-problem-types).
 

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """Typed exception carrying a parsed RFC 9457 problem-detail body."""
 
 from __future__ import annotations

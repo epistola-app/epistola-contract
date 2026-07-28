@@ -1,0 +1,46 @@
+version = 1
+SPDX-PackageName = "Epistola Contract"
+SPDX-PackageSupplier = "Epistola Nederland B.V."
+SPDX-PackageDownloadLocation = "https://github.com/epistola-app/epistola-contract"
+
+[[annotations]]
+path = [
+  "*.md",
+  "**/*.md",
+  "**/*.html",
+  "**/*.xml",
+  "**/*.yaml",
+  "**/*.yml",
+  "*.json",
+  "**/*.json",
+  "*.toml",
+  "**/*.toml",
+  "**/*.csproj",
+  "**/*.props",
+  "**/*.sln",
+  "**/.editorconfig",
+  ".gitattributes",
+  "**/.gitignore",
+  "**/.nojekyll",
+  ".github/CODEOWNERS",
+  ".husky/commit-msg",
+  ".husky/commitlint.config.js",
+  "LICENSE",
+  "Makefile",
+  "**/.openapi-generator-ignore",
+  "**/openapi-generator-ignore",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "Epistola Nederland B.V."
+SPDX-License-Identifier = "EUPL-1.2"
+
+[[annotations]]
+path = [
+  "**/gradle-wrapper.jar",
+  "**/gradle-wrapper.properties",
+  "**/gradlew",
+  "**/gradlew.bat",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "Gradle, Inc."
+SPDX-License-Identifier = "Apache-2.0"

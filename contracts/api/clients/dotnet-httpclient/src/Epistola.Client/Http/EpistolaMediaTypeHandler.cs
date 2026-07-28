@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Epistola Nederland B.V.
+//
+// SPDX-License-Identifier: EUPL-1.2
+
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;

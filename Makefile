@@ -1,4 +1,4 @@
-.PHONY: all lint bundle build-client build-server build-catalog build-epistola-catalog build-dotnet build-python build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
+.PHONY: all lint license license-check bundle build-client build-server build-catalog build-epistola-catalog build-dotnet build-python build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
 
 API_DIR := contracts/api
 API_SPEC := $(API_DIR)/openapi.yaml
@@ -13,6 +13,17 @@ $(REDOCLY): $(API_TOOLS)/package.json $(API_TOOLS)/pnpm-lock.yaml
 
 # Default target - runs what CI runs
 all: lint build
+
+# Add SPDX headers to first-party source files.
+license:
+	@echo "==> Adding missing SPDX license headers..."
+	@python3 scripts/license-headers.py --fix
+
+# Verify source headers and REUSE metadata.
+license-check:
+	@echo "==> Checking SPDX license metadata..."
+	@python3 scripts/license-headers.py --check
+	@mise exec -- reuse --no-multiprocessing lint
 
 # Validate OpenAPI spec
 lint: $(REDOCLY)
@@ -171,6 +182,8 @@ help:
 	@echo "Available targets:"
 	@echo "  all            - Run lint + build (default, mirrors CI)"
 	@echo "  lint           - Validate OpenAPI spec"
+	@echo "  license        - Add missing SPDX license headers"
+	@echo "  license-check  - Verify SPDX headers and REUSE metadata"
 	@echo "  bundle         - Bundle OpenAPI spec into single openapi.yaml"
 	@echo "  build                - Build all modules (clients, server, catalog)"
 	@echo "  build-client         - Build Kotlin client only"

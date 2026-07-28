@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """Creates and signs short-lived JWTs for self-signed JWT authentication with Epistola.
 
 Each token contains:

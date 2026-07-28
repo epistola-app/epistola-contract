@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """RFC 9457 problem-detail error handling for the Epistola client."""
 
 from epistola_client.error.problem_detail_exception import ProblemDetailException

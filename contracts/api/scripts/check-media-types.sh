@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 # Guards against typo'd or unversioned media types creeping into the spec.
 # OpenAPI cannot $ref a content-type key, so consistency is enforced by this
 # allowlist check instead. Add a genuinely new media type here deliberately.

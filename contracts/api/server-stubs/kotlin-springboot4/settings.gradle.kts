@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Epistola Nederland B.V.
+//
+// SPDX-License-Identifier: EUPL-1.2
+
 rootProject.name = "server-kotlin-springboot4"
 
 // The generated Spring interfaces expose catalog Kotlin types in their public

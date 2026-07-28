@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """Constants and helpers describing the Epistola RFC 9457 problem ``type`` URI scheme.
 
 Intentionally duplicated from the server module's problem-type base: the client is

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """Assembles an :class:`ApiClient` with the Epistola behaviours and hands it to the
 generated API classes (each generated ``*Api`` accepts an ``ApiClient``).
 

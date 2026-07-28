@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: Epistola Nederland B.V.
+//
+// SPDX-License-Identifier: EUPL-1.2
+
 import net.pwall.json.kotlin.codegen.gradle.JSONSchemaCodegen
 import net.pwall.json.kotlin.codegen.gradle.JSONSchemaCodegenPlugin
 

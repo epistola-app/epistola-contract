@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
 """Tests for ResultCollector: murmur3 hashing, partition routing, and builder guards."""
 
 import pytest
