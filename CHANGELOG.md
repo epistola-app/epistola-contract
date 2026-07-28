@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Defined `CatalogArchive.paths` as regular readable files only. Explicit ZIP directory entries
+  remain safety-checked and count toward archive limits, but no longer appear as content paths.
 - Hardened catalog publication by validating release tags and source branches, failing on
   Maven/NuGet publication errors, preflighting and reusing the exact tested npm tarball,
   verifying the public Maven/npm artifacts from clean consumers, and documenting the renamed

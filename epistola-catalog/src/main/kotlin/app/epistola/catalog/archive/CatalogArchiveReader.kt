@@ -176,7 +176,8 @@ object CatalogArchiveReader {
         policy: CatalogArchivePolicy,
         findings: MutableList<ArchiveValidationFinding>,
     ): ExtractionResult {
-        val paths = linkedSetOf<String>()
+        val seenPaths = linkedSetOf<String>()
+        val filePaths = linkedSetOf<String>()
         var totalExpanded = 0L
         var entryCount = 0
         ZipFile.builder().setFile(archiveFile.toFile()).get().use { zip ->
@@ -189,32 +190,33 @@ object CatalogArchiveReader {
                         "archive",
                         "archive contains more than ${policy.maxEntries} entries",
                     )
-                    return ExtractionResult(false, paths)
+                    return ExtractionResult(false, filePaths)
                 }
                 val encodedName = entry.rawName?.toString(StandardCharsets.UTF_8) ?: entry.name
                 val originalName = if (entry.isDirectory) encodedName.removeSuffix("/") else encodedName
                 val normalized = normalizePath(originalName)
                 if (normalized == null) {
                     findings += finding(ARCHIVE_PATH_INVALID, originalName, "archive entry path is unsafe")
-                    return ExtractionResult(false, paths)
+                    return ExtractionResult(false, filePaths)
                 }
-                if (!paths.add(normalized)) {
+                if (!seenPaths.add(normalized)) {
                     findings += finding(ARCHIVE_PATH_DUPLICATE, normalized, "archive contains a duplicate normalized path")
-                    return ExtractionResult(false, paths)
+                    return ExtractionResult(false, filePaths)
                 }
                 if (entry.isUnixSymlink) {
                     findings += finding(ARCHIVE_SYMLINK_FORBIDDEN, normalized, "symbolic-link entries are forbidden")
-                    return ExtractionResult(false, paths)
+                    return ExtractionResult(false, filePaths)
                 }
                 if (entry.generalPurposeBit.usesEncryption()) {
                     findings += finding(ARCHIVE_ENCRYPTION_FORBIDDEN, normalized, "encrypted entries are forbidden")
-                    return ExtractionResult(false, paths)
+                    return ExtractionResult(false, filePaths)
                 }
                 if (entry.isDirectory) continue
+                filePaths += normalized
                 val target = expandedRoot.resolve(normalized).normalize()
                 if (!target.startsWith(expandedRoot)) {
                     findings += finding(ARCHIVE_PATH_INVALID, normalized, "archive entry escapes the extraction root")
-                    return ExtractionResult(false, paths)
+                    return ExtractionResult(false, filePaths)
                 }
                 Files.createDirectories(target.parent)
                 var entryExpanded = 0L
@@ -232,7 +234,7 @@ object CatalogArchiveReader {
                                     normalized,
                                     "expanded archive exceeds ${policy.maxExpandedBytes} bytes",
                                 )
-                                return ExtractionResult(false, paths)
+                                return ExtractionResult(false, filePaths)
                             }
                             if (ratio(entryExpanded, entry) > policy.maxExpansionRatio) {
                                 findings += finding(
@@ -240,7 +242,7 @@ object CatalogArchiveReader {
                                     normalized,
                                     "entry expansion ratio exceeds ${policy.maxExpansionRatio}:1",
                                 )
-                                return ExtractionResult(false, paths)
+                                return ExtractionResult(false, filePaths)
                             }
                             output.write(buffer, 0, read)
                         }
@@ -248,7 +250,7 @@ object CatalogArchiveReader {
                 }
             }
         }
-        return ExtractionResult(true, paths)
+        return ExtractionResult(true, filePaths)
     }
 
     private fun ratio(

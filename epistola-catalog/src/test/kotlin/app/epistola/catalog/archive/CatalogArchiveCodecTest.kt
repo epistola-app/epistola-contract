@@ -63,6 +63,26 @@ class CatalogArchiveCodecTest {
     }
 
     @Test
+    fun `reader accepts explicit directories but exposes regular files only`() {
+        val input = zip(
+            "resources/" to byteArrayOf(),
+            "resources/theme/" to byteArrayOf(),
+            "catalog.json" to fixtureBytes("wire-v4/catalog.json"),
+            "resources/theme/default.json" to fixtureBytes("wire-v4/resources/theme/default.json"),
+        )
+
+        val result = CatalogArchiveReader.read(ByteArrayInputStream(input))
+        val archive = assertNotNull(result.archive)
+        archive.use {
+            assertTrue(result.findings.isEmpty())
+            assertEquals(
+                setOf("catalog.json", "resources/theme/default.json"),
+                archive.paths,
+            )
+        }
+    }
+
+    @Test
     fun `writer streams deterministic asset content and reader exposes it`() {
         val content = "portable asset".toByteArray()
         val first = write(assetCatalog("./assets/logo.bin", content))
@@ -231,6 +251,10 @@ class CatalogArchiveCodecTest {
         assertNull(result.archive)
         assertTrue(result.findings.any { it.code == code }, "Expected $code; got ${result.findings}")
     }
+
+    private fun fixtureBytes(path: String): ByteArray = requireNotNull(
+        javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/$path"),
+    ).use { it.readAllBytes() }
 
     private fun zip(vararg entries: Pair<String, ByteArray>): ByteArray = ByteArrayOutputStream().also { output ->
         ZipArchiveOutputStream(output).use { zip ->
