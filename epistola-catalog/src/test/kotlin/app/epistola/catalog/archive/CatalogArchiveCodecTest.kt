@@ -1,5 +1,6 @@
 package app.epistola.catalog.archive
 
+import app.epistola.catalog.protocol.AssetResource
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.PublisherInfo
@@ -17,6 +18,7 @@ import java.util.zip.ZipEntry
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -57,6 +59,41 @@ class CatalogArchiveCodecTest {
             assertEquals("example", archive.manifest.catalog.slug)
             assertEquals(setOf("catalog.json", "resources/theme/default.json"), archive.paths)
             assertEquals("default", archive.resourceDetails.getValue("theme/default").resource.slug)
+        }
+    }
+
+    @Test
+    fun `writer streams deterministic asset content and reader exposes it`() {
+        val content = "portable asset".toByteArray()
+        val first = write(assetCatalog("./assets/logo.bin", content))
+        val second = write(assetCatalog("./assets/logo.bin", content))
+
+        assertContentEquals(first, second)
+        CatalogArchiveReader.read(ByteArrayInputStream(first)).archive!!.use { archive ->
+            assertEquals(
+                setOf("assets/logo.bin", "catalog.json", "resources/asset/logo.json"),
+                archive.paths,
+            )
+            assertContentEquals(
+                content,
+                archive.content.open("assets/logo.bin").use { it.readAllBytes() },
+            )
+        }
+    }
+
+    @Test
+    fun `writer rejects unsafe asset paths and configured output limits`() {
+        assertFailsWith<IllegalArgumentException> {
+            write(assetCatalog("../logo.bin", byteArrayOf(1)))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            write(validCatalog(), CatalogArchivePolicy(maxEntries = 1))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            write(validCatalog(), CatalogArchivePolicy(maxExpandedBytes = 1))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            write(validCatalog(), CatalogArchivePolicy(maxCompressedBytes = 1))
         }
     }
 
@@ -145,8 +182,46 @@ class CatalogArchiveCodecTest {
         )
     }
 
-    private fun write(catalog: CatalogArchive): ByteArray = ByteArrayOutputStream().also { output ->
-        CatalogArchiveWriter.write(catalog, output)
+    private fun assetCatalog(
+        contentUrl: String,
+        bytes: ByteArray,
+    ): CatalogArchive {
+        val detail = ResourceDetail(
+            4,
+            AssetResource(
+                slug = "logo",
+                name = "Logo",
+                mediaType = "application/octet-stream",
+                contentUrl = contentUrl,
+            ),
+        )
+        val manifest = CatalogManifest(
+            schemaVersion = 4,
+            catalog = CatalogInfo("example", "Example"),
+            publisher = PublisherInfo("Example"),
+            release = ReleaseInfo("1.0.0"),
+            resources = listOf(
+                ResourceEntry(
+                    type = "asset",
+                    slug = "logo",
+                    name = "Logo",
+                    detailUrl = "./resources/asset/logo.json",
+                ),
+            ),
+        )
+        return CatalogArchive(
+            manifest = manifest,
+            resourceDetails = mapOf("asset/logo" to detail),
+            paths = setOf("assets/logo.bin"),
+            content = ArchiveContentProvider { ByteArrayInputStream(bytes) },
+        )
+    }
+
+    private fun write(
+        catalog: CatalogArchive,
+        policy: CatalogArchivePolicy = CatalogArchivePolicy(),
+    ): ByteArray = ByteArrayOutputStream().also { output ->
+        CatalogArchiveWriter.write(catalog, output, policy)
     }.toByteArray()
 
     private fun assertCode(
