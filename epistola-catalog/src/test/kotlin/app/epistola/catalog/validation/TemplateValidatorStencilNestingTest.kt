@@ -217,24 +217,24 @@ class TemplateValidatorStencilNestingTest {
     }
 
     @Test
-    fun `nested stencil references require an exact published version`() {
+    fun `nested stencil references require a valid exact version and boolean draft flag`() {
         val missingVersion = stencil("missing-version", "address", listOf("missing-children")).copy(
             props = mapOf("stencilId" to "address", "isDraft" to false),
         )
         val zeroVersion = stencil("zero-version", "contact", listOf("zero-children")).copy(
             props = mapOf("stencilId" to "contact", "version" to 0, "isDraft" to false),
         )
-        val missingDraftFlag = stencil("missing-draft-flag", "footer", listOf("missing-draft-children")).copy(
-            props = mapOf("stencilId" to "footer", "version" to 1),
+        val invalidDraftFlag = stencil("invalid-draft-flag", "footer", listOf("invalid-draft-children")).copy(
+            props = mapOf("stencilId" to "footer", "version" to 1, "isDraft" to "false"),
         )
         val document = template(
-            nodes = listOf(missingVersion, zeroVersion, missingDraftFlag),
+            nodes = listOf(missingVersion, zeroVersion, invalidDraftFlag),
             slots = listOf(
                 Slot("missing-children", missingVersion.id, "children"),
                 Slot("zero-children", zeroVersion.id, "children"),
-                Slot("missing-draft-children", missingDraftFlag.id, "children"),
+                Slot("invalid-draft-children", invalidDraftFlag.id, "children"),
             ),
-            rootChildren = listOf(missingVersion.id, zeroVersion.id, missingDraftFlag.id),
+            rootChildren = listOf(missingVersion.id, zeroVersion.id, invalidDraftFlag.id),
         )
 
         val report = TemplateValidator.validate(
@@ -244,12 +244,39 @@ class TemplateValidatorStencilNestingTest {
 
         assertEquals(
             listOf(
-                "nodes.missing-draft-flag.props.isDraft",
+                "nodes.invalid-draft-flag.props.isDraft",
                 "nodes.missing-version.props.stencilId",
                 "nodes.zero-version.props.stencilId",
             ),
             report.findings.filter { it.code == STENCIL_REFERENCE_INVALID }.map { it.path },
         )
+    }
+
+    @Test
+    fun `missing stencil draft flag means published`() {
+        val published = stencil("published", "address", listOf("published-children")).copy(
+            props = mapOf("stencilId" to "address", "version" to 3),
+        )
+        val document = template(
+            nodes = listOf(published),
+            slots = listOf(Slot("published-children", published.id, "children")),
+            rootChildren = listOf(published.id),
+        )
+        var resolved: CatalogResourceReference? = null
+        val report = TemplateValidator.validate(
+            document,
+            object : TemplateValidationContext {
+                override val documentKind = TemplateDocumentKind.STENCIL
+
+                override fun resolveResource(reference: CatalogResourceReference): ResourceResolution {
+                    resolved = reference
+                    return ResourceResolution.PRESENT
+                }
+            },
+        )
+
+        assertTrue(report.valid, report.findings.toString())
+        assertEquals(CatalogResourceReference("stencil", "address", version = 3, isDraft = false), resolved)
     }
 
     @Test

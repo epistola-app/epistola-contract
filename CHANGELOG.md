@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Preserved the editor's established stencil-reference semantics by treating an omitted `isDraft`
+  property as non-draft during portable validation. Explicit non-boolean values remain invalid,
+  and portable catalog validation still rejects explicit draft references.
 - **BREAKING:** Documented the catalog aggregate's explicit pre-1.0 changes and
   migration actions, including artifact coordinates, npm exports, the strict
   version-4 wire gate, canonical rich text, complete stencil identities,

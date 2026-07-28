@@ -332,7 +332,11 @@ object TemplateValidator {
             val stencilId = node.props?.get("stencilId") as? String
             val catalogKey = node.props?.get("catalogKey") as? String
             val version = (node.props?.get("version") as? Number)?.toInt()
-            val isDraft = booleanValue(node.props?.get("isDraft"))
+            val isDraft = if (node.props?.containsKey("isDraft") == true) {
+                booleanValue(node.props["isDraft"])
+            } else {
+                false
+            }
             if (stencilId == null || !slugRegex.matches(stencilId) || version == null || version <= 0) {
                 findings.error(
                     STENCIL_REFERENCE_INVALID,
@@ -343,7 +347,7 @@ object TemplateValidator {
                 findings.error(
                     STENCIL_REFERENCE_INVALID,
                     "nodes.${node.id}.props.isDraft",
-                    "stencil reference must declare whether it targets a draft",
+                    "stencil reference isDraft must be a boolean when present",
                 )
             } else if (isDraft && !context.allowDraftStencilReferences) {
                 findings.error(
