@@ -14,6 +14,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.kover)
+    alias(libs.plugins.dokka)
     alias(libs.plugins.maven.publish)
     `java-library`
 }
@@ -136,8 +137,22 @@ kover {
     }
 }
 
-// Configure vanniktech plugin's jar tasks to depend on generate since sources are generated
-tasks.matching { it.name == "plainJavadocJar" || it.name == "sourcesJar" }.configureEach {
+dokka {
+    dokkaPublications.html {
+        moduleName.set("Epistola Catalog")
+        moduleVersion.set(project.version.toString())
+    }
+    dokkaSourceSets.main {
+        sourceLink {
+            localDirectory.set(file("src/main/kotlin"))
+            remoteUrl.set(uri("https://github.com/epistola-app/epistola-contract/tree/main/epistola-catalog/src/main/kotlin"))
+            remoteLineSuffix.set("#L")
+        }
+    }
+}
+
+// The source artifact includes schema-generated Kotlin types.
+tasks.matching { it.name == "sourcesJar" }.configureEach {
     dependsOn("generate", removeGeneratedOverrides)
 }
 

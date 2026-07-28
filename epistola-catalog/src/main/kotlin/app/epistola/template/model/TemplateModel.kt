@@ -123,7 +123,7 @@ data class Slot(
  *
  * JSON wire format uses a `type` discriminator:
  *   `{"type": "inherit"}` → [ThemeRef.Inherit]
- *   `{"type": "override", "themeId": "my-theme"}` → [ThemeRef.Override]
+ *   `{"type": "override", "themeId": "my-theme"}` → [ThemeRefOverride]
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(
