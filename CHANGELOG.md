@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-07-28
+
 - Made the Kotlin Spring server artifact reuse the catalog's Kotlin data classes for portable
   template and theme values instead of generating a second JVM representation. The server POM now
   exposes `epistola-catalog` transitively, and `BlockStylePreset` is a strongly typed catalog model.
