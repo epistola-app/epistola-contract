@@ -1,0 +1,95 @@
+{
+  "fixtureVersion": 1,
+  "description": "Authoritative outcomes for stencil composition and the portable catalog publication boundary.",
+  "maxStencilNestingDepth": 5,
+  "validCases": [
+    {
+      "scope": "template",
+      "scenario": "STENCIL_DEFINITION_REFERENCES_DISTINCT_STENCIL"
+    },
+    {
+      "scope": "template",
+      "scenario": "STENCIL_DEFINITION_REFERENCES_DRAFT"
+    },
+    {
+      "scope": "catalog",
+      "scenario": "CATALOG_REFERENCE_MATCHES_EXACT_VERSION"
+    },
+    {
+      "scope": "catalog",
+      "scenario": "CATALOG_COMPOSITION_AT_DEPTH_LIMIT"
+    }
+  ],
+  "invalidCases": [
+    {
+      "scope": "template",
+      "scenario": "STENCIL_DEFINITION_REFERENCES_ITSELF",
+      "expectedFindings": [
+        {
+          "code": "STENCIL_RECURSION",
+          "path": "nodes.stencil-0.props.stencilId"
+        }
+      ]
+    },
+    {
+      "scope": "template",
+      "scenario": "STENCIL_DEFINITION_REFERENCES_ITSELF_TRANSITIVELY",
+      "expectedFindings": [
+        {
+          "code": "STENCIL_RECURSION",
+          "path": "nodes.stencil-1.props.stencilId"
+        }
+      ]
+    },
+    {
+      "scope": "template",
+      "scenario": "STENCIL_DEFINITION_EXCEEDS_DEPTH",
+      "expectedFindings": [
+        {
+          "code": "STENCIL_NESTING_DEPTH_EXCEEDED",
+          "path": "nodes.stencil-4.props.stencilId"
+        }
+      ]
+    },
+    {
+      "scope": "catalog",
+      "scenario": "CATALOG_REFERENCE_VERSION_MISMATCH",
+      "expectedFindings": [
+        {
+          "code": "STENCIL_REFERENCE_NOT_FOUND",
+          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilId"
+        }
+      ]
+    },
+    {
+      "scope": "catalog",
+      "scenario": "CATALOG_REFERENCE_TARGETS_DRAFT",
+      "expectedFindings": [
+        {
+          "code": "STENCIL_REFERENCE_INVALID",
+          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.isDraft"
+        }
+      ]
+    },
+    {
+      "scope": "catalog",
+      "scenario": "CATALOG_TRANSITIVE_RESOURCE_CYCLE",
+      "expectedFindings": [
+        {
+          "code": "STENCIL_RECURSION",
+          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilId"
+        }
+      ]
+    },
+    {
+      "scope": "catalog",
+      "scenario": "CATALOG_COMPOSITION_EXCEEDS_DEPTH",
+      "expectedFindings": [
+        {
+          "code": "STENCIL_NESTING_DEPTH_EXCEEDED",
+          "path": "resources/stencil/stencil-4.json.resource.content.nodes.nested-stencil-5.props.stencilId"
+        }
+      ]
+    }
+  ]
+}

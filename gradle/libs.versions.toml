@@ -1,5 +1,5 @@
 # Shared version catalog for all three Gradle builds
-# (client-kotlin-spring-restclient, server-kotlin-springboot4, epistola-model).
+# (client-kotlin-spring-restclient, server-kotlin-springboot4, epistola-catalog).
 # Each settings.gradle.kts imports this file explicitly; there are no
 # module-local catalogs. Renovate tracks this single file.
 #
@@ -11,6 +11,7 @@
 kotlin = "2.3.10"
 ktlint = "14.0.1"
 kover = "0.9.6"
+dokka = "2.2.0"
 openapi-generator = "7.19.0"
 maven-publish = "0.36.0"
 # Published libraries stay consumable on JDK 21; do not bump to match the mise JDK.
@@ -26,16 +27,20 @@ spring-boot4 = "4.0.2"
 jackson3 = "3.0.4"
 springdoc = "2.8.9"
 jakarta-validation = "3.1.1"
-# epistola-model
+# epistola-catalog
 # (json-kotlin-gradle stays inline in its buildscript block — catalog
 # accessors are not available there; Renovate tracks it in the build file)
 jackson-annotations = "2.21"
+jsonata = "0.9.10"
+commons-compress = "1.28.0"
+networknt-json-schema = "3.0.5"
 
 [libraries]
 # client (Spring Boot 3 / Jackson 2)
 spring-boot3-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "spring-boot3" }
 jackson2-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson2" }
 jackson2-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson2" }
+jackson2-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson2" }
 json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "json-schema-validator" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 nimbus-jose-jwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimbus-jose-jwt" }
@@ -46,13 +51,17 @@ jakarta-validation-api = { module = "jakarta.validation:jakarta.validation-api",
 jackson3-module-kotlin = { module = "tools.jackson.module:jackson-module-kotlin", version.ref = "jackson3" }
 jackson3-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson3" }
 springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
-# epistola-model
+# epistola-catalog
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson-annotations" }
+jsonata = { module = "com.dashjoin:jsonata", version.ref = "jsonata" }
+commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commons-compress" }
+networknt-json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "networknt-json-schema" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 openapi-generator = { id = "org.openapi.generator", version.ref = "openapi-generator" }
 maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }

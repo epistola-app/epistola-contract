@@ -44,7 +44,7 @@ jobs:
       spec: ${{ steps.filter.outputs.spec }}
       client: ${{ steps.filter.outputs.client }}
       server: ${{ steps.filter.outputs.server }}
-      epistola-model: ${{ steps.filter.outputs.epistola-model }}
+      epistola-catalog: ${{ steps.filter.outputs.epistola-catalog }}
       dotnet: ${{ steps.filter.outputs.dotnet }}
       python: ${{ steps.filter.outputs.python }}
     steps:
@@ -67,8 +67,8 @@ jobs:
               - 'epistola-api.yaml'
               - 'spec/**'
               - 'server-kotlin-springboot4/**'
-            epistola-model:
-              - 'epistola-model/**'
+            epistola-catalog:
+              - 'epistola-catalog/**'
             dotnet:
               - 'epistola-api.yaml'
               - 'spec/**'
@@ -94,8 +94,8 @@ jobs:
           - module: server-kotlin-springboot4
             filter: server
             needs_spec: true
-          - module: epistola-model
-            filter: epistola-model
+          - module: epistola-catalog
+            filter: epistola-catalog
             needs_spec: false
     steps:
       - name: Check if should run
@@ -145,9 +145,9 @@ jobs:
             artifact_id: server-kotlin-springboot4
             filter: server
             needs_spec: true
-          - module: epistola-model
-            artifact_id: epistola-model
-            filter: epistola-model
+          - module: epistola-catalog
+            artifact_id: epistola-catalog
+            filter: epistola-catalog
             needs_spec: false
     steps:
       - name: Check if should run

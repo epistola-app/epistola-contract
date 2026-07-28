@@ -7,6 +7,107 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added a small executable, language-neutral catalog conformance suite with actual valid and
+  invalid catalog files plus exact expected reports, and distinguished those fixtures from the
+  exhaustive finding-code registries and Kotlin unit tests.
+- Defined `CatalogArchive.paths` as regular readable files only. Explicit ZIP directory entries
+  remain safety-checked and count toward archive limits, but no longer appear as content paths.
+- Hardened catalog publication by validating release tags and source branches, failing on
+  Maven/NuGet publication errors, preflighting and reusing the exact tested npm tarball,
+  verifying the public Maven/npm artifacts from clean consumers, and documenting the renamed
+  npm package's one-time trusted-publisher bootstrap.
+- Published the Kotlin KDoc as a non-empty Dokka API documentation JAR and added release-artifact
+  checks for Maven coordinates, catalog classes, registries, schemas, fixtures, sources, npm
+  metadata, and package exports.
+- Expanded Kotlin API documentation for archive ownership and safety, migration outcomes,
+  canonical fingerprints, validation contexts and reports, resource models, deterministic
+  ordering, and the boundary between portable catalog behavior and Suite-specific policy.
+- Preserved the editor's established stencil-reference semantics by treating an omitted `isDraft`
+  property as non-draft during portable validation. Explicit non-boolean values remain invalid,
+  and portable catalog validation still rejects explicit draft references.
+- **BREAKING:** Documented the catalog aggregate's explicit pre-1.0 changes and
+  migration actions, including artifact coordinates, npm exports, the strict
+  version-4 wire gate, canonical rich text, complete stencil identities,
+  semantic validation, and the five-level nesting limit.
+- Added portable, version-pinned stencil composition to the catalog specification. Stencil
+  resources may contain references to other published stencil versions; standalone and
+  whole-catalog validation now enforce exact-version resolution, owner-aware direct and
+  transitive recursion checks, cross-resource cycles, and the shared five-level depth limit.
+  Standalone validation preserves Suite-style draft identities for authoring contexts, while
+  whole-catalog validation rejects draft references at the portable publication boundary.
+  Suite authoring support remains a separate consumer capability.
+- Expanded new catalog fingerprints to V2 so publisher, compatibility, include, and portable
+  resource-manifest metadata participate in content identity. Whole-catalog validation continues
+  to accept legacy V1 hashes, and the existing `fingerprint(catalog)` API retains its V1 result.
+  Existing stored fingerprints, callers, and installations therefore remain valid; new
+  fingerprints can opt into the corrected semantics through `currentFingerprint(catalog)`.
+- **Validation tightening:** Whole-catalog validation now rejects stencil resources with invalid
+  parameter schemas, template documents whose `modelVersion` is not `1`, and template resource
+  themes that explicitly resolve as missing. Existing installed data is not modified, but a
+  previously accepted invalid catalog can fail when it is re-imported or explicitly revalidated.
+- Aligned the optional cross-catalog theme key across the Kotlin, JSON Schema, and TypeScript
+  `ThemeRefOverride` contracts, made pull-request CI compile and verify the npm package after type
+  generation, and corrected the wire-version documentation to match the strict version-4 gate.
+- Limited template stencil nesting to five instances per ancestor chain, with a stable
+  `STENCIL_NESTING_DEPTH_EXCEEDED` finding, a shared JVM/npm limit, and authoritative boundary
+  fixtures.
+- Removed the implementation-specific npm `/generated/*` entry point, exposed the public theme,
+  component, and style types from the `@epistola.app/epistola-catalog` package root, and added a
+  package-boundary check that prevents the internal path from becoming public again.
+- Published the same versioned catalog conformance fixtures in both Maven and npm artifacts from
+  one language-neutral fixture tree.
+- Exposed standalone portable parameter-schema validation, corrected nested template finding paths,
+  and allowed non-recursive nested stencil instances in templates with direct, transitive,
+  placeholder-fill, sibling, and deterministic regression coverage.
+- Moved the rich-text reference schemas into the catalog artifact and made catalog example-data
+  validation use the full JSON Schema 2020-12 engine and Suite-compatible date-time semantics.
+- Enforced the single current catalog wire model: an older `schemaVersion` is rejected unless a
+  future explicit migration is implemented, even when its JSON happens to bind to the current model.
+- Kept registry-declared static component slots optional when a template does not use them,
+  matching existing Suite stencil documents.
+- Enforced one canonical ProseMirror document object for text-node content; historical string and
+  bare-array representations are intentionally not accepted.
+- Made the public template finding-code set executable so tests guarantee that versioned fixtures
+  cover every stable validation code.
+- Included JavaScript source maps in the packed npm catalog so consumers do not receive dangling
+  source-map references.
+- Fixed portable template property validation for Jackson 3 tree values, declared directional
+  border, directional spacing, font-style, and width styles, aligned table style applicability
+  with canonical catalogs, and declared the `pageheader` examples' `hideOnFirstPage` property in
+  the component registry.
+### Changed
+
+- **The portable catalog replaces the model artifact boundary.** The canonical JVM coordinate is
+  now `app.epistola.contract:epistola-catalog`, the npm package is
+  `@epistola.app/epistola-catalog`, and registry classpath resources live under
+  `META-INF/epistola-catalog`. This is a clean pre-1.0 rename: consumers must migrate their
+  dependency coordinates and resource paths; no duplicate-class compatibility artifact is
+  published.
+
+### Added
+
+- **Portable template validation.** `TemplateValidator` now returns deterministic reports with
+  stable codes, severities, paths, and messages for graph integrity, registry-driven component and
+  style rules, placeholders, stencil references, parameter schemas/bindings, expressions, themes,
+  style presets, and page headers. `TemplateValidationContext` provides a product-neutral resource
+  resolution boundary, and versioned fixture metadata covers every finding code.
+- **Safe deterministic catalog archives.** Streaming archive reader/writer APIs now enforce
+  normalized paths, duplicate/symlink/encryption rejection, compressed and expanded size limits,
+  entry-count and expansion-ratio limits, stable metadata/path ordering, and portable binary
+  content providers without exposing filesystem or mapper types. Versioned fixture metadata and
+  executable cases cover every stable archive finding code.
+- **Portable catalog migration and canonical fingerprints.** `CatalogSchemaMigrator` centralizes
+  wire-version gating and current-model binding behind stream-based APIs, while
+  `CatalogCanonicalizer` produces stable per-resource hashes and an aggregate fingerprint from
+  canonical catalog content rather than ZIP metadata or entry layout. Versioned golden fixtures
+  publish the authoritative current wire representation and expected hashes.
+- **Whole-catalog validation.** `CatalogValidator` and `ResourceValidator` now compose archive
+  safety, migration, manifest/detail binding, portable template validation, reference closure,
+  resource-specific checks, example-data validation, SemVer metadata, and canonical fingerprints
+  into deterministic product-neutral reports. The validation policy exposes only portable limits
+  and dependency resolution; Suite persistence, authorization, conflicts, and renderer checks
+  remain outside the artifact.
+
 ## [0.14.0] - 2026-07-23
 
 ### Added

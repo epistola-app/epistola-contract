@@ -1,0 +1,47 @@
+{
+  "name": "@epistola.app/epistola-catalog",
+  "private": false,
+  "version": "0.2.4",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/epistola-app/epistola-contract",
+    "directory": "epistola-catalog"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/ts/index.d.ts",
+      "default": "./dist/ts/index.js"
+    },
+    "./registry": {
+      "types": "./dist/generated/registry.d.ts",
+      "default": "./dist/generated/registry.js"
+    },
+    "./schemas/*": "./schemas/*",
+    "./fixtures/*": "./fixtures/*",
+    "./registry/*": "./registry/*"
+  },
+  "scripts": {
+    "generate:types": "node ../scripts/generate-catalog-schema-types.mjs && node ../scripts/generate-catalog-registry-ts.mjs",
+    "build": "tsc && node scripts/check-npm-exports.mjs",
+    "prepublishOnly": "pnpm generate:types && pnpm build"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "^15.0.4",
+    "typescript": "~5.9.3"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map",
+    "ts/**/*.ts",
+    "schemas/**/*.json",
+    "fixtures/**/*.json",
+    "registry/**/*.json",
+    "generated/**/*.ts"
+  ]
+}

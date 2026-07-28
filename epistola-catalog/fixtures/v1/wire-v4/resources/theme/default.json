@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 4,
+  "resource": {
+    "type": "theme",
+    "slug": "default",
+    "name": "Default",
+    "description": null,
+    "documentStyles": {
+      "fontSize": "10pt",
+      "color": "#111111"
+    },
+    "pageSettings": null,
+    "blockStylePresets": null,
+    "spacingUnit": 1.20
+  }
+}

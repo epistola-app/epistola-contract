@@ -1,0 +1,31 @@
+{
+  "formatVersion": 1,
+  "cases": [
+    {
+      "id": "valid-minimal",
+      "root": "conformance/catalog/valid-minimal",
+      "expectedReport": "expected-report.json",
+      "files": [
+        "catalog.json",
+        "resources/theme/default.json"
+      ]
+    },
+    {
+      "id": "missing-resource-detail",
+      "root": "conformance/catalog/missing-resource-detail",
+      "expectedReport": "expected-report.json",
+      "files": [
+        "catalog.json"
+      ]
+    },
+    {
+      "id": "missing-resource-reference",
+      "root": "conformance/catalog/missing-resource-reference",
+      "expectedReport": "expected-report.json",
+      "files": [
+        "catalog.json",
+        "resources/attribute/locale.json"
+      ]
+    }
+  ]
+}

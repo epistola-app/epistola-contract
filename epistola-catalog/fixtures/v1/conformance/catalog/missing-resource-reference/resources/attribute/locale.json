@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 4,
+  "resource": {
+    "type": "attribute",
+    "slug": "locale",
+    "name": "Locale",
+    "allowedValues": [],
+    "codeListBinding": {
+      "slug": "countries"
+    }
+  }
+}

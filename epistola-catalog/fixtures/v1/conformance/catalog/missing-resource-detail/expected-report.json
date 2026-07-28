@@ -1,0 +1,11 @@
+{
+  "valid": false,
+  "findings": [
+    {
+      "code": "CATALOG_MANIFEST_DETAIL_MISSING",
+      "severity": "ERROR",
+      "path": "resources/theme/default.json",
+      "message": "manifest resource 'theme/default' has no detail document"
+    }
+  ]
+}

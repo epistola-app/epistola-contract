@@ -36,15 +36,47 @@ jobs:
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
 
-      - name: Extract version from release tag
+      - name: Validate release source and extract version
         if: github.event_name == 'release'
         id: tag_version
         run: |
           TAG_NAME="${{ github.event.release.tag_name }}"
           VERSION="${TAG_NAME#v}"
-          API_VERSION=$(echo "$VERSION" | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')
+          if [[ ! "$TAG_NAME" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            echo "::error::Release tag must be a SemVer tag such as v0.14.0 or v0.14.0-rc.1"
+            exit 1
+          fi
+          TAG_API_VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+          eval "$(scripts/spec-version.sh --env)"
+          if [ "$TAG_API_VERSION" != "$API_VERSION" ]; then
+            echo "::error::Release tag API version ($TAG_API_VERSION) does not match spec API version ($API_VERSION)"
+            exit 1
+          fi
+
+          git fetch origin \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/heads/release/*:refs/remotes/origin/release/*'
+          RELEASE_COMMIT="${GITHUB_SHA}^{commit}"
+          ALLOWED_SOURCE=false
+          while IFS= read -r ref; do
+            if git merge-base --is-ancestor "$RELEASE_COMMIT" "$ref"; then
+              echo "Release commit is contained in ${ref#refs/remotes/origin/}"
+              ALLOWED_SOURCE=true
+              break
+            fi
+          done < <(
+            {
+              echo refs/remotes/origin/main
+              git for-each-ref --format='%(refname)' refs/remotes/origin/release/
+            }
+          )
+          if [ "$ALLOWED_SOURCE" != true ]; then
+            echo "::error::Release commit must be contained in main or a release/* branch"
+            exit 1
+          fi
+
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
+          echo "api_version=${TAG_API_VERSION}" >> $GITHUB_OUTPUT
           echo "Release version from tag: ${VERSION}"
 
       - name: Calculate version for release branch
@@ -98,7 +130,7 @@ jobs:
             needs_spec: true
           - module: server-kotlin-springboot4
             needs_spec: true
-          - module: epistola-model
+          - module: epistola-catalog
             needs_spec: false
     steps:
       - name: Checkout
@@ -116,8 +148,47 @@ jobs:
         uses: ./.github/actions/setup-build-tools
 
       - name: Build and test
+        if: matrix.module != 'epistola-catalog'
         working-directory: ${{ matrix.module }}
         run: ./gradlew build -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
+
+      - name: Build and test catalog Maven artifacts
+        if: matrix.module == 'epistola-catalog'
+        working-directory: epistola-catalog
+        run: ./gradlew build sourcesJar dokkaJavadocJar -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
+
+      - name: Install catalog npm dependencies
+        if: matrix.module == 'epistola-catalog'
+        working-directory: epistola-catalog
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and pack catalog npm artifact
+        if: matrix.module == 'epistola-catalog'
+        working-directory: epistola-catalog
+        run: |
+          npm version ${{ needs.validate-and-bundle.outputs.release_version }} --no-git-tag-version --allow-same-version
+          pnpm generate:types
+          pnpm build
+          mkdir -p release/npm
+          npm pack --pack-destination release/npm
+
+      - name: Verify catalog release artifacts
+        if: matrix.module == 'epistola-catalog'
+        working-directory: epistola-catalog
+        run: |
+          TARBALL=$(find release/npm -maxdepth 1 -name '*.tgz' -print -quit)
+          ../scripts/check-catalog-release-artifacts.sh \
+            "${{ needs.validate-and-bundle.outputs.release_version }}" \
+            "$PWD/$TARBALL"
+
+      - name: Upload tested catalog npm artifact
+        if: matrix.module == 'epistola-catalog'
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-epistola-catalog-${{ needs.validate-and-bundle.outputs.release_version }}
+          path: epistola-catalog/release/npm/*.tgz
+          if-no-files-found: error
+          retention-days: 7
 
   # Build and test the .NET client before publishing anything (parallels the gradle build job).
   build-dotnet:
@@ -209,8 +280,8 @@ jobs:
           - module: server-kotlin-springboot4
             artifact_id: server-kotlin-springboot4
             needs_spec: true
-          - module: epistola-model
-            artifact_id: epistola-model
+          - module: epistola-catalog
+            artifact_id: epistola-catalog
             needs_spec: false
     steps:
       - name: Checkout
@@ -236,25 +307,25 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.GPG_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
-        run: ./gradlew publishToMavenCentral -Pversion=${{ needs.validate-and-bundle.outputs.release_version }} || echo "::warning::Maven publish failed (artifact may already exist)"
+        run: ./gradlew publishToMavenCentral -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
-      - name: Install npm dependencies
-        if: matrix.module == 'epistola-model'
-        working-directory: epistola-model
-        run: pnpm install --frozen-lockfile
+      - name: Download tested catalog npm artifact
+        if: matrix.module == 'epistola-catalog'
+        uses: actions/download-artifact@v7
+        with:
+          name: npm-epistola-catalog-${{ needs.validate-and-bundle.outputs.release_version }}
+          path: epistola-catalog/release/npm
 
       - name: Setup npm registry
-        if: matrix.module == 'epistola-model'
+        if: matrix.module == 'epistola-catalog'
         uses: actions/setup-node@v6
         with:
           registry-url: https://registry.npmjs.org
 
       - name: Publish to npm
-        if: matrix.module == 'epistola-model'
-        working-directory: epistola-model
-        run: |
-          npm version ${{ needs.validate-and-bundle.outputs.release_version }} --no-git-tag-version --allow-same-version
-          npm publish --provenance --access public
+        if: matrix.module == 'epistola-catalog'
+        working-directory: epistola-catalog
+        run: npm publish release/npm/*.tgz --provenance --access public
 
   # Publish the .NET client release to NuGet.org (parallels the gradle publish job)
   publish-dotnet:
@@ -300,7 +371,7 @@ jobs:
         run: |
           ./generate.sh
           dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -p:Version=${{ needs.validate-and-bundle.outputs.release_version }} -o nupkgs
-          dotnet nuget push "nupkgs/*.nupkg" --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate || echo "::warning::NuGet publish failed (package may already exist)"
+          dotnet nuget push "nupkgs/*.nupkg" --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Generate SBOM (CycloneDX)
         working-directory: client-dotnet-httpclient
@@ -363,14 +434,77 @@ jobs:
           packages-dir: client-python-urllib3/dist
           skip-existing: true
 
+  # Verify the public catalog artifacts from clean consumers before finalizing the release.
+  verify-catalog-release:
+    needs: [validate-and-bundle, publish]
+    if: needs.publish.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node and Java
+        uses: ./.github/actions/setup-build-tools
+
+      - name: Wait for Maven Central catalog artifacts
+        env:
+          VERSION: ${{ needs.validate-and-bundle.outputs.release_version }}
+        run: |
+          BASE="https://repo1.maven.org/maven2/app/epistola/contract/epistola-catalog/$VERSION"
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent --show-error "$BASE/epistola-catalog-$VERSION.pom" --output catalog.pom &&
+               curl --fail --silent --show-error "$BASE/epistola-catalog-$VERSION.jar" --output catalog.jar &&
+               curl --fail --silent --show-error "$BASE/epistola-catalog-$VERSION-javadoc.jar" --output catalog-javadoc.jar; then
+              break
+            fi
+            if [ "$attempt" -eq 20 ]; then
+              echo "::error::Catalog $VERSION did not become available from Maven Central"
+              exit 1
+            fi
+            sleep 30
+          done
+          grep -F '<artifactId>epistola-catalog</artifactId>' catalog.pom
+          unzip -Z1 catalog.jar | grep -Fx 'app/epistola/catalog/validation/CatalogValidator.class'
+          unzip -Z1 catalog.jar | grep -Fx 'META-INF/epistola-catalog/component-registry.json'
+          unzip -Z1 catalog-javadoc.jar | grep -Fx 'index.html'
+
+      - name: Wait for and consume npm catalog artifact
+        env:
+          VERSION: ${{ needs.validate-and-bundle.outputs.release_version }}
+        run: |
+          for attempt in $(seq 1 20); do
+            PUBLISHED=$(npm view "@epistola.app/epistola-catalog@$VERSION" version 2>/dev/null || true)
+            if [ "$PUBLISHED" = "$VERSION" ]; then
+              break
+            fi
+            if [ "$attempt" -eq 20 ]; then
+              echo "::error::Catalog $VERSION did not become available from npm"
+              exit 1
+            fi
+            sleep 30
+          done
+          CONSUMER=$(mktemp -d)
+          cd "$CONSUMER"
+          npm init --yes
+          npm install --ignore-scripts --no-audit --no-fund "@epistola.app/epistola-catalog@$VERSION"
+          node --input-type=module <<'NODE'
+          import { MAX_STENCIL_NESTING_DEPTH } from '@epistola.app/epistola-catalog'
+          import { componentRegistry, styleRegistry } from '@epistola.app/epistola-catalog/registry'
+
+          if (MAX_STENCIL_NESTING_DEPTH !== 5) throw new Error('unexpected stencil nesting limit')
+          if (!componentRegistry?.components?.length) throw new Error('component registry is empty')
+          if (!styleRegistry?.groups?.length) throw new Error('style registry is empty')
+          NODE
+
   # Upload release assets and create GitHub release for release branch pushes
   finalize-release:
-    needs: [validate-and-bundle, publish, publish-dotnet, publish-python]
+    needs: [validate-and-bundle, publish, publish-dotnet, publish-python, verify-catalog-release]
     if: |
       always() &&
       needs.publish.result == 'success' &&
       needs.publish-dotnet.result == 'success' &&
-      needs.publish-python.result == 'success'
+      needs.publish-python.result == 'success' &&
+      needs.verify-catalog-release.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -420,7 +554,7 @@ jobs:
 
             <dependency>
                 <groupId>app.epistola.contract</groupId>
-                <artifactId>epistola-model</artifactId>
+                <artifactId>epistola-catalog</artifactId>
                 <version>${{ needs.validate-and-bundle.outputs.release_version }}</version>
             </dependency>
             ```
@@ -429,12 +563,12 @@ jobs:
             ```kotlin
             implementation("app.epistola.contract:client-spring3-restclient:${{ needs.validate-and-bundle.outputs.release_version }}")
             implementation("app.epistola.contract:server-kotlin-springboot4:${{ needs.validate-and-bundle.outputs.release_version }}")
-            implementation("app.epistola.contract:epistola-model:${{ needs.validate-and-bundle.outputs.release_version }}")
+            implementation("app.epistola.contract:epistola-catalog:${{ needs.validate-and-bundle.outputs.release_version }}")
             ```
 
             ### npm
             ```bash
-            npm install @epistola.app/epistola-model@${{ needs.validate-and-bundle.outputs.release_version }}
+            npm install @epistola.app/epistola-catalog@${{ needs.validate-and-bundle.outputs.release_version }}
             ```
 
             ### NuGet (.NET)

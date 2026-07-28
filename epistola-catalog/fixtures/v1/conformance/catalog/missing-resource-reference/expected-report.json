@@ -1,0 +1,11 @@
+{
+  "valid": false,
+  "findings": [
+    {
+      "code": "CATALOG_RESOURCE_REFERENCE_MISSING",
+      "severity": "ERROR",
+      "path": "resources/attribute/locale.json.resource.codeListBinding",
+      "message": "codeList resource 'countries' cannot be resolved"
+    }
+  ]
+}
