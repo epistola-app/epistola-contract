@@ -831,8 +831,8 @@ If added, the protobuf module would be a new Gradle subproject:
 
 ```
 epistola-contract/
-├── client-kotlin-spring-restclient/    # OpenAPI → Kotlin client
-├── server-kotlin-springboot4/          # OpenAPI → Spring server stubs
+├── clients/kotlin-spring-restclient/   # OpenAPI → Kotlin client
+├── server-stubs/kotlin-springboot4/    # OpenAPI → Spring server stubs
 ├── grpc-kotlin-protobuf/               # Protobuf → gRPC stubs (new)
 │   ├── build.gradle.kts
 │   └── src/main/proto/

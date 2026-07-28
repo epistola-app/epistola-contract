@@ -106,5 +106,6 @@ jobs:
           dotnet nuget push "nupkgs/*.nupkg" --source github --api-key "$GITHUB_TOKEN" --skip-duplicate
 
   # The Python client has no feature-snapshot publish: for feature branches, build and install
-  # locally instead (`make publish-local`, or `cd client-python-urllib3 && ./generate.sh && uv build`
+  # locally instead (`make publish-local`, or
+  # `cd contracts/api/clients/python-urllib3 && ./generate.sh && uv build`
   # then `pip install dist/*.whl`). Mainline snapshots still publish to TestPyPI (snapshot.yml).
