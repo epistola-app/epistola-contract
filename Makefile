@@ -17,7 +17,7 @@ lint: $(REDOCLY)
 	$(REDOCLY) lint epistola-api.yaml
 	@scripts/check-error-registry.sh
 	@scripts/check-media-types.sh
-	@node scripts/check-catalog-registry.mjs
+	@node contracts/catalog/scripts/check-registry.mjs
 
 # Bundle OpenAPI spec into single file
 bundle: $(REDOCLY)
@@ -41,11 +41,11 @@ build-server:
 # Build portable catalog
 build-epistola-catalog:
 	@echo "==> Building portable catalog..."
-	cd epistola-catalog && ./gradlew build sourcesJar dokkaJavadocJar
-	cd epistola-catalog && pnpm install --frozen-lockfile
-	cd epistola-catalog && pnpm generate:types
-	cd epistola-catalog && pnpm build
-	cd epistola-catalog && npm pack --dry-run
+	cd contracts/catalog && ./gradlew build sourcesJar dokkaJavadocJar
+	cd contracts/catalog && pnpm install --frozen-lockfile
+	cd contracts/catalog && pnpm generate:types
+	cd contracts/catalog && pnpm build
+	cd contracts/catalog && npm pack --dry-run
 
 # Build .NET client (generates from the bundled spec, then builds and tests)
 build-dotnet: bundle
@@ -69,7 +69,7 @@ clean:
 	@echo "==> Cleaning..."
 	cd client-kotlin-spring-restclient && ./gradlew clean
 	cd server-kotlin-springboot4 && ./gradlew clean
-	cd epistola-catalog && ./gradlew clean
+	cd contracts/catalog && ./gradlew clean
 	cd client-dotnet-httpclient && rm -rf Generated src/Epistola.Client/Generated bin obj src/*/bin src/*/obj test/*/bin test/*/obj
 	cd client-python-urllib3 && rm -rf generated src/epistola_client/_generated dist build .venv .pytest_cache && find . -name __pycache__ -type d -prune -exec rm -rf {} +
 
@@ -78,7 +78,7 @@ publish-local: build
 	@echo "==> Publishing to local Maven repository..."
 	cd client-kotlin-spring-restclient && ./gradlew publishToMavenLocal
 	cd server-kotlin-springboot4 && ./gradlew publishToMavenLocal
-	cd epistola-catalog && ./gradlew publishToMavenLocal
+	cd contracts/catalog && ./gradlew publishToMavenLocal
 	@echo "==> Published to ~/.m2/repository/app/epistola/contract/"
 	@echo "==> Packing .NET client to client-dotnet-httpclient/nupkgs/..."
 	cd client-dotnet-httpclient && dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -o nupkgs

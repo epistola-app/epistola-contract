@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Reorganized the portable catalog as the self-contained `contracts/catalog` domain, co-locating
+  its schemas, registries, fixtures, implementation, documentation, scripts, and build metadata
+  without changing published coordinates, exports, resource paths, or wire behavior.
 - Added a small executable, language-neutral catalog conformance suite with actual valid and
   invalid catalog files plus exact expected reports, and distinguished those fixtures from the
   exhaustive finding-code registries and Kotlin unit tests.

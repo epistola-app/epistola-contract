@@ -6,13 +6,13 @@ consumers can load the same data without depending on Suite internals.
 
 ## Files
 
-- `epistola-catalog/registry/component-registry.json` defines component types,
+- `contracts/catalog/registry/component-registry.json` defines component types,
   labels, categories, slots, child rules, applicable styles, inspector metadata,
   defaults, and example fragments.
-- `epistola-catalog/registry/style-registry.json` defines the supported style
+- `contracts/catalog/registry/style-registry.json` defines the supported style
   groups and style keys. It has its own `schemaVersion` so style metadata can
   evolve independently from component metadata.
-- `epistola-catalog/generated/registry.ts` is generated from those JSON files and
+- `contracts/catalog/generated/registry.ts` is generated from those JSON files and
   exports typed TypeScript values for npm consumers.
 - The Gradle build packages both JSON files as
   `META-INF/epistola-catalog/*.json` for JVM consumers.
@@ -81,14 +81,14 @@ the same contract registry as the editor package.
 Run catalog type generation after editing schemas or registry JSON:
 
 ```bash
-cd epistola-catalog
+cd contracts/catalog
 pnpm generate:types
 ```
 
 Validate the registries from the repository root:
 
 ```bash
-node scripts/check-catalog-registry.mjs
+node contracts/catalog/scripts/check-registry.mjs
 ```
 
 The validator checks the registry shape, duplicate component/style keys, style

@@ -7,7 +7,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const schemasDir = resolve(root, 'epistola-catalog/schemas');
+const schemasDir = resolve(root, 'schemas');
 
 const schemas = [
   ['template-document.schema.json', '../generated/template-document.ts'],

@@ -128,7 +128,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: epistola-catalog
+        working-directory: contracts/catalog
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -137,7 +137,7 @@ jobs:
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: epistola-catalog
+          npm-working-directory: contracts/catalog
 
       - name: Build and test
         run: ./gradlew build sourcesJar dokkaJavadocJar

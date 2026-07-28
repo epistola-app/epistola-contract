@@ -187,7 +187,7 @@ The artifact currently provides:
 
 - Kotlin template/theme and catalog protocol types
 - JSON schemas and generated TypeScript types
-- Component and style registries under `epistola-catalog/registry`
+- Component and style registries under `contracts/catalog/registry`
 - Canonical model, theme, component, and style types exported from
   `@epistola.app/epistola-catalog`
 - Typed TypeScript registry facade exported as
@@ -199,8 +199,8 @@ This is a clean pre-1.0 coordinate rename. Consumers must replace
 `@epistola.app/epistola-model`; no duplicate-class compatibility artifact is
 published.
 
-See [docs/catalog-registry.md](docs/catalog-registry.md) for registry details.
-See [docs/catalog-compatibility.md](docs/catalog-compatibility.md) for the
+See [contracts/catalog/docs/catalog-registry.md](contracts/catalog/docs/catalog-registry.md) for registry details.
+See [contracts/catalog/docs/catalog-compatibility.md](contracts/catalog/docs/catalog-compatibility.md) for the
 explicit breaking changes and required producer/consumer migrations.
 
 ### Kotlin Server (`app.epistola.contract:server-kotlin-springboot4`)

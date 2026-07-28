@@ -10,7 +10,7 @@ fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$1"
 NPM_TARBALL="$2"
-LIBS="$ROOT/epistola-catalog/build/libs"
+LIBS="$ROOT/build/libs"
 
 MAIN_JAR="$LIBS/epistola-catalog-$VERSION.jar"
 SOURCES_JAR="$LIBS/epistola-catalog-$VERSION-sources.jar"

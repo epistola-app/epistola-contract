@@ -130,7 +130,7 @@ jobs:
             needs_spec: true
           - module: server-kotlin-springboot4
             needs_spec: true
-          - module: epistola-catalog
+          - module: contracts/catalog
             needs_spec: false
     steps:
       - name: Checkout
@@ -148,23 +148,23 @@ jobs:
         uses: ./.github/actions/setup-build-tools
 
       - name: Build and test
-        if: matrix.module != 'epistola-catalog'
+        if: matrix.module != 'contracts/catalog'
         working-directory: ${{ matrix.module }}
         run: ./gradlew build -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
       - name: Build and test catalog Maven artifacts
-        if: matrix.module == 'epistola-catalog'
-        working-directory: epistola-catalog
+        if: matrix.module == 'contracts/catalog'
+        working-directory: contracts/catalog
         run: ./gradlew build sourcesJar dokkaJavadocJar -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
       - name: Install catalog npm dependencies
-        if: matrix.module == 'epistola-catalog'
-        working-directory: epistola-catalog
+        if: matrix.module == 'contracts/catalog'
+        working-directory: contracts/catalog
         run: pnpm install --frozen-lockfile
 
       - name: Build and pack catalog npm artifact
-        if: matrix.module == 'epistola-catalog'
-        working-directory: epistola-catalog
+        if: matrix.module == 'contracts/catalog'
+        working-directory: contracts/catalog
         run: |
           npm version ${{ needs.validate-and-bundle.outputs.release_version }} --no-git-tag-version --allow-same-version
           pnpm generate:types
@@ -173,20 +173,20 @@ jobs:
           npm pack --pack-destination release/npm
 
       - name: Verify catalog release artifacts
-        if: matrix.module == 'epistola-catalog'
-        working-directory: epistola-catalog
+        if: matrix.module == 'contracts/catalog'
+        working-directory: contracts/catalog
         run: |
           TARBALL=$(find release/npm -maxdepth 1 -name '*.tgz' -print -quit)
-          ../scripts/check-catalog-release-artifacts.sh \
+          scripts/check-release-artifacts.sh \
             "${{ needs.validate-and-bundle.outputs.release_version }}" \
             "$PWD/$TARBALL"
 
       - name: Upload tested catalog npm artifact
-        if: matrix.module == 'epistola-catalog'
+        if: matrix.module == 'contracts/catalog'
         uses: actions/upload-artifact@v7
         with:
           name: npm-epistola-catalog-${{ needs.validate-and-bundle.outputs.release_version }}
-          path: epistola-catalog/release/npm/*.tgz
+          path: contracts/catalog/release/npm/*.tgz
           if-no-files-found: error
           retention-days: 7
 
@@ -280,7 +280,7 @@ jobs:
           - module: server-kotlin-springboot4
             artifact_id: server-kotlin-springboot4
             needs_spec: true
-          - module: epistola-catalog
+          - module: contracts/catalog
             artifact_id: epistola-catalog
             needs_spec: false
     steps:
@@ -310,21 +310,21 @@ jobs:
         run: ./gradlew publishToMavenCentral -Pversion=${{ needs.validate-and-bundle.outputs.release_version }}
 
       - name: Download tested catalog npm artifact
-        if: matrix.module == 'epistola-catalog'
+        if: matrix.module == 'contracts/catalog'
         uses: actions/download-artifact@v7
         with:
           name: npm-epistola-catalog-${{ needs.validate-and-bundle.outputs.release_version }}
-          path: epistola-catalog/release/npm
+          path: contracts/catalog/release/npm
 
       - name: Setup npm registry
-        if: matrix.module == 'epistola-catalog'
+        if: matrix.module == 'contracts/catalog'
         uses: actions/setup-node@v6
         with:
           registry-url: https://registry.npmjs.org
 
       - name: Publish to npm
-        if: matrix.module == 'epistola-catalog'
-        working-directory: epistola-catalog
+        if: matrix.module == 'contracts/catalog'
+        working-directory: contracts/catalog
         run: npm publish release/npm/*.tgz --provenance --access public
 
   # Publish the .NET client release to NuGet.org (parallels the gradle publish job)

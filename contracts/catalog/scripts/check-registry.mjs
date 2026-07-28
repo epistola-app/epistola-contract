@@ -46,8 +46,8 @@ function canContain(parentType, childType, componentByType) {
   }
 }
 
-const componentRegistry = readJson('epistola-catalog/registry/component-registry.json');
-const styleRegistry = readJson('epistola-catalog/registry/style-registry.json');
+const componentRegistry = readJson('registry/component-registry.json');
+const styleRegistry = readJson('registry/style-registry.json');
 
 // The component registry is consumed by epistola-suite, so keep the top-level
 // contract shape explicit before validating relationships between entries.

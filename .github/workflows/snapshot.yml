@@ -68,7 +68,7 @@ jobs:
               - 'spec/**'
               - 'server-kotlin-springboot4/**'
             epistola-catalog:
-              - 'epistola-catalog/**'
+              - 'contracts/catalog/**'
             dotnet:
               - 'epistola-api.yaml'
               - 'spec/**'
@@ -94,7 +94,7 @@ jobs:
           - module: server-kotlin-springboot4
             filter: server
             needs_spec: true
-          - module: epistola-catalog
+          - module: contracts/catalog
             filter: epistola-catalog
             needs_spec: false
     steps:
@@ -145,7 +145,7 @@ jobs:
             artifact_id: server-kotlin-springboot4
             filter: server
             needs_spec: true
-          - module: epistola-catalog
+          - module: contracts/catalog
             artifact_id: epistola-catalog
             filter: epistola-catalog
             needs_spec: false

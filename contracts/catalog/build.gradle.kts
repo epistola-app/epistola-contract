@@ -145,7 +145,7 @@ dokka {
     dokkaSourceSets.main {
         sourceLink {
             localDirectory.set(file("src/main/kotlin"))
-            remoteUrl.set(uri("https://github.com/epistola-app/epistola-contract/tree/main/epistola-catalog/src/main/kotlin"))
+            remoteUrl.set(uri("https://github.com/epistola-app/epistola-contract/tree/main/contracts/catalog/src/main/kotlin"))
             remoteLineSuffix.set("#L")
         }
     }
