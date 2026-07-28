@@ -124,7 +124,7 @@ jobs:
 
   # Editor model build (no OpenAPI spec dependency)
   epistola-catalog:
-    name: Editor Model
+    name: Epistola Catalog
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -140,10 +140,12 @@ jobs:
           npm-working-directory: epistola-catalog
 
       - name: Build and test
-        run: ./gradlew build
+        run: ./gradlew build sourcesJar dokkaJavadocJar
 
       - name: Verify TypeScript type generation
         run: pnpm generate:types
 
       - name: Build and verify npm package
-        run: pnpm build
+        run: |
+          pnpm build
+          npm pack --dry-run

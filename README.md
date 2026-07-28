@@ -253,15 +253,15 @@ This repository uses a versioning scheme tied to the OpenAPI spec version:
    - No release happens yet (main requires manual release)
 
 5. **Release from main** (when ready)
-   - Go to Actions → Release to Maven Central → Run workflow
-   - Select module(s) to release
+   - Create and publish a GitHub release for the intended version
+   - The release workflow publishes all artifacts and verifies the catalog artifacts
 
 ### Workflow Diagram
 
 ```
 feature/xyz ──► PR ──► main (build only)
                          │
-                         ├──► manual release trigger ──► Maven Central
+                         ├──► published GitHub release ──► publish all artifacts
                          │
                          └──► backport:release/1.0 label
                                       │
@@ -272,7 +272,7 @@ feature/xyz ──► PR ──► main (build only)
                               merge to release/1.0
                                       │
                                       ▼
-                              auto-release to Maven Central
+                              auto-release and catalog verification
 ```
 
 ### When to Release
@@ -290,24 +290,31 @@ feature/xyz ──► PR ──► main (build only)
 
 ## Release Workflow
 
-Artifacts are published to Maven Central via GitHub Actions. Releases can only be triggered from `main` or `release/*` branches.
+GitHub Actions publishes the Maven, npm, NuGet, PyPI, and container artifacts.
+Releases can only be triggered from `main` or `release/*` branches.
 
 ### Release Process
 
-**Automatic releases:** Push to any `release/*` branch triggers a release of both modules.
+**Automatic releases:** Push to any `release/*` branch triggers a release of all artifacts.
 
 **Manual releases:**
-1. Go to **Actions** > **Release to Maven Central**
-2. Select the branch (`main` or `release/*`)
-3. Click **Run workflow**
-4. Select the module to release
+1. Merge all release changes to `main`.
+2. Prepare the changelog and exact spec version.
+3. Create and publish the corresponding GitHub release, for example with
+   `gh release create v0.14.1 --title v0.14.1 --generate-notes`.
+4. The published GitHub release triggers `.github/workflows/release.yml`.
 
 The workflow will:
 1. **Validate** - Ensure branch version matches spec version (for release branches)
 2. **Calculate version** - Read API version from spec, calculate patch from existing tags
-3. **Build and test** - Run full build with calculated version
-4. **Publish** - Sign and publish to Maven Central
-5. **Create release** - Create GitHub release with:
+3. **Build and test** - Run the full build with the calculated version
+4. **Preflight artifacts** - Generate Kotlin API documentation and build, pack,
+   and inspect the exact npm tarball before publishing anything
+5. **Publish** - Sign and publish to Maven Central, npm, NuGet, and PyPI;
+   publication errors fail the workflow
+6. **Verify** - Resolve the catalog from Maven Central and npm using clean
+   consumers and inspect the published registries and API documentation
+7. **Finalize** - Attach release assets and release notes containing:
    - Release notes
    - Maven coordinates
    - Bundled `openapi.yaml` (single-file spec with all refs resolved)
@@ -395,6 +402,25 @@ Configure these secrets in your GitHub repository settings:
 | `GPG_PRIVATE_KEY` | GPG private key for signing (armor format) |
 | `GPG_PASSPHRASE` | GPG key passphrase |
 | `GPG_KEY_ID` | GPG key ID (last 8 characters) |
+
+### npm Trusted Publishing
+
+`@epistola.app/epistola-catalog` publishes through npm trusted publishing
+rather than a long-lived token. Configure its npm package settings with:
+
+- Provider: GitHub Actions
+- Organization: `epistola-app`
+- Repository: `epistola-contract`
+- Workflow: `release.yml`
+- Allowed action: `npm publish`
+
+Trusted-publisher configuration is package-specific. The configuration for
+the former `@epistola.app/epistola-model` package does not authorize the
+renamed package. Because npm exposes trusted-publisher settings only after the
+package exists, bootstrap the new name once with a narrowly scoped token and a
+prerelease such as `0.14.1-rc.1` under the `next` tag. Configure and verify
+trusted publishing immediately afterwards, then revoke the bootstrap token.
+Normal releases require no npm token.
 
 ### Python Trusted Publishing
 

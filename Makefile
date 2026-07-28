@@ -41,7 +41,11 @@ build-server:
 # Build portable catalog
 build-epistola-catalog:
 	@echo "==> Building portable catalog..."
-	cd epistola-catalog && ./gradlew build
+	cd epistola-catalog && ./gradlew build sourcesJar dokkaJavadocJar
+	cd epistola-catalog && pnpm install --frozen-lockfile
+	cd epistola-catalog && pnpm generate:types
+	cd epistola-catalog && pnpm build
+	cd epistola-catalog && npm pack --dry-run
 
 # Build .NET client (generates from the bundled spec, then builds and tests)
 build-dotnet: bundle

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Hardened catalog publication by validating release tags and source branches, failing on
+  Maven/NuGet publication errors, preflighting and reusing the exact tested npm tarball,
+  verifying the public Maven/npm artifacts from clean consumers, and documenting the renamed
+  npm package's one-time trusted-publisher bootstrap.
+- Published the Kotlin KDoc as a non-empty Dokka API documentation JAR and added release-artifact
+  checks for Maven coordinates, catalog classes, registries, schemas, fixtures, sources, npm
+  metadata, and package exports.
 - Expanded Kotlin API documentation for archive ownership and safety, migration outcomes,
   canonical fingerprints, validation contexts and reports, resource models, deterministic
   ordering, and the boundary between portable catalog behavior and Suite-specific policy.
