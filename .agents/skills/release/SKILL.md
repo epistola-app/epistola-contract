@@ -24,12 +24,12 @@ echo "Latest: $LATEST_TAG"
 git log "$LATEST_TAG"..HEAD --oneline
 ```
 
-The version is derived from `epistola-api.yaml` (`info.version`) which defines the `MAJOR.MINOR`.
+The version is derived from `contracts/api/openapi.yaml` (`info.version`) which defines the `MAJOR.MINOR`.
 The patch number is auto-incremented based on existing git tags.
 
 Apply semantic versioning:
 
-- API-breaking changes: bump **MAJOR** or **MINOR** in `epistola-api.yaml`.
+- API-breaking changes: bump **MAJOR** or **MINOR** in `contracts/api/openapi.yaml`.
 - Non-breaking changes: patch is auto-incremented from existing tags.
 
 ### 2. Prepare the changelog
@@ -48,7 +48,7 @@ docs: update changelog for vX.Y.Z release
 
 ### 3. Update the spec version
 
-Update `info.version` in `epistola-api.yaml` to the full release version, for example `0.3.1`.
+Update `info.version` in `contracts/api/openapi.yaml` to the full release version, for example `0.3.1`.
 This ensures the spec always reflects the exact release version, which is baked into the clients'
 `User-Agent` header (`epistola-contract/X.Y.Z`).
 

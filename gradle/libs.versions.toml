@@ -1,5 +1,5 @@
 # Shared version catalog for all three Gradle builds
-# (client-kotlin-spring-restclient, server-kotlin-springboot4, epistola-catalog).
+# (the Kotlin API client, server stubs, and catalog).
 # Each settings.gradle.kts imports this file explicitly; there are no
 # module-local catalogs. Renovate tracks this single file.
 #

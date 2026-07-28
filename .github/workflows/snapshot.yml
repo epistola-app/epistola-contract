@@ -57,26 +57,36 @@ jobs:
         with:
           filters: |
             spec:
-              - 'epistola-api.yaml'
-              - 'spec/**'
+              - 'contracts/api/openapi.yaml'
+              - 'contracts/api/paths/**'
+              - 'contracts/api/components/**'
+              - 'contracts/catalog/schemas/**'
             client:
-              - 'epistola-api.yaml'
-              - 'spec/**'
-              - 'client-kotlin-spring-restclient/**'
+              - 'contracts/api/openapi.yaml'
+              - 'contracts/api/paths/**'
+              - 'contracts/api/components/**'
+              - 'contracts/catalog/schemas/**'
+              - 'contracts/api/clients/kotlin-spring-restclient/**'
             server:
-              - 'epistola-api.yaml'
-              - 'spec/**'
-              - 'server-kotlin-springboot4/**'
+              - 'contracts/api/openapi.yaml'
+              - 'contracts/api/paths/**'
+              - 'contracts/api/components/**'
+              - 'contracts/catalog/schemas/**'
+              - 'contracts/api/server-stubs/kotlin-springboot4/**'
             epistola-catalog:
               - 'contracts/catalog/**'
             dotnet:
-              - 'epistola-api.yaml'
-              - 'spec/**'
-              - 'client-dotnet-httpclient/**'
+              - 'contracts/api/openapi.yaml'
+              - 'contracts/api/paths/**'
+              - 'contracts/api/components/**'
+              - 'contracts/catalog/schemas/**'
+              - 'contracts/api/clients/dotnet-httpclient/**'
             python:
-              - 'epistola-api.yaml'
-              - 'spec/**'
-              - 'client-python-urllib3/**'
+              - 'contracts/api/openapi.yaml'
+              - 'contracts/api/paths/**'
+              - 'contracts/api/components/**'
+              - 'contracts/catalog/schemas/**'
+              - 'contracts/api/clients/python-urllib3/**'
 
   # Build and test modules in parallel before publishing.
   # This prevents half-releases where one module publishes but the other fails.
@@ -88,10 +98,10 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - module: client-kotlin-spring-restclient
+          - module: contracts/api/clients/kotlin-spring-restclient
             filter: client
             needs_spec: true
-          - module: server-kotlin-springboot4
+          - module: contracts/api/server-stubs/kotlin-springboot4
             filter: server
             needs_spec: true
           - module: contracts/catalog
@@ -119,6 +129,7 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         if: steps.should_run.outputs.enabled == 'true'
@@ -137,11 +148,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - module: client-kotlin-spring-restclient
+          - module: contracts/api/clients/kotlin-spring-restclient
             artifact_id: client-spring3-restclient
             filter: client
             needs_spec: true
-          - module: server-kotlin-springboot4
+          - module: contracts/api/server-stubs/kotlin-springboot4
             artifact_id: server-kotlin-springboot4
             filter: server
             needs_spec: true
@@ -171,6 +182,7 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         if: steps.should_run.outputs.enabled == 'true'
@@ -214,17 +226,18 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         if: steps.should_run.outputs.enabled == 'true'
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: tools
+          npm-working-directory: contracts/api/tools
 
       - name: Build and test
         if: steps.should_run.outputs.enabled == 'true'
-        working-directory: client-dotnet-httpclient
+        working-directory: contracts/api/clients/dotnet-httpclient
         run: ./generate.sh && dotnet test Epistola.Client.sln -c Release
 
   # Publish the .NET client snapshot to NuGet.org (prerelease)
@@ -259,17 +272,18 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         if: steps.should_run.outputs.enabled == 'true'
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: tools
+          npm-working-directory: contracts/api/tools
 
       - name: Pack and publish snapshot to GitHub Packages
         if: steps.should_run.outputs.enabled == 'true'
-        working-directory: client-dotnet-httpclient
+        working-directory: contracts/api/clients/dotnet-httpclient
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -308,17 +322,18 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         if: steps.should_run.outputs.enabled == 'true'
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: tools
+          npm-working-directory: contracts/api/tools
 
       - name: Build and test
         if: steps.should_run.outputs.enabled == 'true'
-        working-directory: client-python-urllib3
+        working-directory: contracts/api/clients/python-urllib3
         run: |
           ./generate.sh
           # PEP 440 dev version; 0.12-SNAPSHOT -> 0.12.0.dev<run_number>.
@@ -369,17 +384,18 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         if: steps.should_run.outputs.enabled == 'true'
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: tools
+          npm-working-directory: contracts/api/tools
 
       - name: Build snapshot wheel + sdist
         if: steps.should_run.outputs.enabled == 'true'
-        working-directory: client-python-urllib3
+        working-directory: contracts/api/clients/python-urllib3
         run: |
           ./generate.sh
           # PEP 440 dev version; 0.11-SNAPSHOT -> 0.11.0.dev<run_number>.
@@ -403,7 +419,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
-          packages-dir: client-python-urllib3/dist
+          packages-dir: contracts/api/clients/python-urllib3/dist
           skip-existing: true
 
   # Publish mock server snapshot when spec changes

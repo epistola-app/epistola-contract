@@ -125,9 +125,9 @@ When modifying the OpenAPI specification:
 
 - **Pagination**: list responses are `{ items: [...], page: PageMeta }` — carry the
   pagination metadata under a `page` property that `$ref`s
-  `spec/components/schemas/common.yaml#/PageMeta` (Spring `PagedModel` shape:
+  `contracts/api/components/schemas/common.yaml#/PageMeta` (Spring `PagedModel` shape:
   `number`, `size`, `totalElements`, `totalPages`), and reference
-  `spec/components/parameters/pagination.yaml#/Page` + `#/Size` for the query params.
+  `contracts/api/components/parameters/pagination.yaml#/Page` + `#/Size` for the query params.
   Don't redeclare page fields inline. Bounded sub-resource lists (e.g. variant
   activations) may stay unpaginated.
 - **Enum casing**: new resource-state enums use **lowercase kebab-case** (e.g.
@@ -137,8 +137,8 @@ When modifying the OpenAPI specification:
   `UP`/`DEGRADED`); these are retained as-is because changing enum values is breaking.
   Do not introduce new SCREAMING_SNAKE enums. Enums carrying industry-standard names
   (`A4`/`Letter`) or sample payload data are exempt.
-- **Problem types**: see [error-types.md](docs/error-types.md) and the
-  `x-problem-types` extension in `epistola-api.yaml` — the machine-readable registry
+- **Problem types**: see [error-types.md](contracts/api/docs/error-types.md) and the
+  `x-problem-types` extension in `contracts/api/openapi.yaml` — the machine-readable registry
   that the client constants are generated from and CI checks against.
 
 ### Testing

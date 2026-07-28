@@ -12,8 +12,8 @@ Epistola is a document template management and generation system. This repositor
 
 ```
 epistola-contract/
-├── epistola-api.yaml              # Root OpenAPI spec (source of truth)
-├── spec/                          # Modular OpenAPI components
+├── contracts/api/openapi.yaml              # Root OpenAPI spec (source of truth)
+├── contracts/api/                # REST API contract and derived projects
 │   ├── paths/                     # Endpoint definitions
 │   │   ├── templates.yaml
 │   │   ├── variants.yaml
@@ -23,8 +23,8 @@ epistola-contract/
 │   └── components/
 │       ├── schemas/               # Data models (DTOs, requests, responses)
 │       └── responses/             # Shared error responses
-├── client-kotlin-spring-restclient/  # Generated Kotlin client
-├── server-kotlin-springboot4/        # Generated Spring server stubs
+│   ├── clients/kotlin-spring-restclient/  # Generated Kotlin client
+│   └── server-stubs/kotlin-springboot4/   # Generated Spring server stubs
 ├── openapi.yaml                   # Bundled spec (generated, gitignored)
 ├── Makefile                       # Build commands
 └── redocly.yaml                   # Spec validation rules
@@ -44,9 +44,9 @@ make breaking   # Check for breaking changes vs main
 
 ### Adding a New Endpoint
 
-1. **Add path definition** to the appropriate file in `spec/paths/`
-2. **Add schemas** to `spec/components/schemas/` (create new file if needed)
-3. **Reference in epistola-api.yaml**:
+1. **Add path definition** to the appropriate file in `contracts/api/paths/`
+2. **Add schemas** to `contracts/api/components/schemas/` (create new file if needed)
+3. **Reference in contracts/api/openapi.yaml**:
    - Add path reference under `paths:`
    - Add schema references under `components: schemas:`
 4. **Validate**: `make lint`
@@ -56,7 +56,7 @@ make breaking   # Check for breaking changes vs main
 
 Each schema file contains related types. Example structure:
 ```yaml
-# spec/components/schemas/example.yaml
+# contracts/api/components/schemas/example.yaml
 ExampleDto:
   type: object
   required:
@@ -80,7 +80,7 @@ CreateExampleRequest:
 ### Path File Pattern
 
 ```yaml
-# spec/paths/example.yaml
+# contracts/api/paths/example.yaml
 example-collection:
   parameters:
     - name: tenantId
@@ -142,30 +142,30 @@ Tenant
 
 ### Generated Code Location
 
-- Client: `client-kotlin-spring-restclient/client/build/generated/`
-- Server: `server-kotlin-springboot4/build/generated/`
+- Client: `contracts/api/clients/kotlin-spring-restclient/client/build/generated/`
+- Server: `contracts/api/server-stubs/kotlin-springboot4/build/generated/`
 
 Generated code is NOT committed - rebuilt from spec each time.
 
 ### The problem-type registry and code that follows it
 
 The machine-readable problem-type registry is the **`x-problem-types` extension** at the top
-of `epistola-api.yaml`. Automation keeps most consumers aligned with it:
+of `contracts/api/openapi.yaml`. Automation keeps most consumers aligned with it:
 
 - The client's `KnownProblemSlugs` is **generated** from it (`generateProblemSlugs` task) —
   do not edit it by hand.
-- `scripts/check-error-registry.sh` (run by `make lint` and CI) fails when
-  `docs/error-types.md` disagrees with `x-problem-types`.
+- `contracts/api/scripts/check-error-registry.sh` (run by `make lint` and CI) fails when
+  `contracts/api/docs/error-types.md` disagrees with `x-problem-types`.
 - Guard tests (`ProblemRegistryTest` in each module's `.../error/` test package) fail when the
   hand-written helpers drift from the registry.
 
 When you add, rename, or change a problem `type`, update in the same change:
 
-- `x-problem-types` in `epistola-api.yaml` AND the table in `docs/error-types.md` (the check
+- `x-problem-types` in `contracts/api/openapi.yaml` AND the table in `contracts/api/docs/error-types.md` (the check
   script holds them together).
-- The response components in `spec/components/responses/problem-responses.yaml` /
+- The response components in `contracts/api/components/responses/problem-responses.yaml` /
   `auth-errors.yaml`, and any new problem-detail schema in `errors.yaml` (register it in
-  `epistola-api.yaml` under `components.schemas`; if it should reuse Spring's native
+  `contracts/api/openapi.yaml` under `components.schemas`; if it should reuse Spring's native
   `ProblemDetail` on the server, add it to `schemaMappings` in the server `build.gradle.kts` —
   and to `.openapi-generator-ignore` if it is allOf-composed).
 - **Server** `ProblemDetails.kt`: the `KnownSlugs` constant, plus a builder + `*_PROPERTY`
@@ -212,8 +212,8 @@ gh release create v0.2.0 --title "v0.2.0" --generate-notes
 ```
 
 `make release` performs these steps:
-1. Reads the major.minor from `epistola-api.yaml` and auto-increments the patch from existing git tags
-2. Updates `info.version` in `epistola-api.yaml` to the full release version (e.g. `0.3.1`)
+1. Reads the major.minor from `contracts/api/openapi.yaml` and auto-increments the patch from existing git tags
+2. Updates `info.version` in `contracts/api/openapi.yaml` to the full release version (e.g. `0.3.1`)
 3. Commits the spec update and pushes to main
 4. Creates the GitHub Release with the version tag
 
@@ -221,7 +221,7 @@ For example, if the spec says `0.3.0` and the latest tag is `v0.3.0`, the next r
 
 ### Bumping the API Version
 
-To release a new major/minor version, update `info.version` in `epistola-api.yaml` (e.g., from `0.2.0` to `0.3.0`) and then `make release`. The release process will auto-calculate the patch.
+To release a new major/minor version, update `info.version` in `contracts/api/openapi.yaml` (e.g., from `0.2.0` to `0.3.0`) and then `make release`. The release process will auto-calculate the patch.
 
 ### Hotfixing Older Versions
 
@@ -249,6 +249,6 @@ When a fix is needed on an older release:
 ## Important Notes
 
 - `openapi.yaml` is gitignored - always regenerate with `make bundle`
-- The API version in `epistola-api.yaml` drives artifact versioning
+- The API version in `contracts/api/openapi.yaml` drives artifact versioning
 - All IDs use slug format (kebab-case, 3-63 chars)
 - Timestamps use ISO 8601 format (`date-time`)

@@ -23,10 +23,10 @@ jobs:
         uses: ./.github/actions/bundle-spec
 
       - name: Check error-registry sync
-        run: scripts/check-error-registry.sh
+        run: contracts/api/scripts/check-error-registry.sh
 
       - name: Check media-type allowlist
-        run: scripts/check-media-types.sh
+        run: contracts/api/scripts/check-media-types.sh
 
   # Kotlin Spring RestClient build
   kotlin-client:
@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: client-kotlin-spring-restclient
+        working-directory: contracts/api/clients/kotlin-spring-restclient
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -44,6 +44,7 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
@@ -58,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: server-kotlin-springboot4
+        working-directory: contracts/api/server-stubs/kotlin-springboot4
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -67,6 +68,7 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
@@ -87,15 +89,16 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: tools
+          npm-working-directory: contracts/api/tools
 
       - name: Build and test
-        working-directory: client-dotnet-httpclient
+        working-directory: contracts/api/clients/dotnet-httpclient
         run: ./generate.sh && dotnet test Epistola.Client.sln -c Release
 
   # Python urllib3 client build
@@ -111,15 +114,16 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: openapi-spec
+          path: contracts/api/build
 
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: tools
+          npm-working-directory: contracts/api/tools
 
       - name: Build and test
-        working-directory: client-python-urllib3
+        working-directory: contracts/api/clients/python-urllib3
         run: ./generate.sh && uv run --group dev pytest && uv build
 
   # Editor model build (no OpenAPI spec dependency)

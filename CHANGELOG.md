@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Reorganized the REST API as the self-contained `contracts/api` domain, co-locating its authored
+  specification, documentation, build tooling, generated clients, server stubs, and mock server.
+  The bundled specification is now generated at `contracts/api/build/openapi.yaml`; published
+  artifact names and coordinates are unchanged.
 - Reorganized the portable catalog as the self-contained `contracts/catalog` domain, co-locating
   its schemas, registries, fixtures, implementation, documentation, scripts, and build metadata
   without changing published coordinates, exports, resource paths, or wire behavior.

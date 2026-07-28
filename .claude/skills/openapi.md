@@ -13,10 +13,10 @@ The OpenAPI specification is modular:
 
 ```
 epistola-contract/
-├── epistola-api.yaml           # Main entry point - paths and schema refs
+├── contracts/api/openapi.yaml           # Main entry point - paths and schema refs
 ├── openapi.yaml                # Bundled output (generated, not edited)
 ├── redocly.yaml                # Validation configuration
-└── spec/
+└── contracts/api/
     ├── paths/                  # Endpoint definitions
     │   ├── tenants.yaml
     │   ├── templates.yaml
@@ -42,15 +42,15 @@ epistola-contract/
 
 | Change Type | Edit This File |
 |-------------|----------------|
-| New endpoint | `spec/paths/<resource>.yaml` + register in `epistola-api.yaml` |
-| New resource (CRUD) | Create files in both `spec/paths/` and `spec/components/schemas/` |
-| New schema/DTO | `spec/components/schemas/<resource>.yaml` + register in `epistola-api.yaml` |
-| Error responses | `spec/components/responses/errors.yaml` |
-| API metadata | `epistola-api.yaml` (info section) |
+| New endpoint | `contracts/api/paths/<resource>.yaml` + register in `contracts/api/openapi.yaml` |
+| New resource (CRUD) | Create files in both `contracts/api/paths/` and `contracts/api/components/schemas/` |
+| New schema/DTO | `contracts/api/components/schemas/<resource>.yaml` + register in `contracts/api/openapi.yaml` |
+| Error responses | `contracts/api/components/responses/errors.yaml` |
+| API metadata | `contracts/api/openapi.yaml` (info section) |
 
 ## Adding New Endpoints
 
-### 1. Create path definition in `spec/paths/<resource>.yaml`
+### 1. Create path definition in `contracts/api/paths/<resource>.yaml`
 
 Follow this pattern for a collection resource:
 
@@ -116,15 +116,15 @@ widgets:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
 ```
 
-### 2. Register the path in `epistola-api.yaml`
+### 2. Register the path in `contracts/api/openapi.yaml`
 
 ```yaml
 paths:
   # Widgets
   /v1/tenants/{tenantId}/widgets:
-    $ref: './spec/paths/widgets.yaml#/widgets'
+    $ref: './contracts/api/paths/widgets.yaml#/widgets'
   /v1/tenants/{tenantId}/widgets/{widgetId}:
-    $ref: './spec/paths/widgets.yaml#/widgets-id'
+    $ref: './contracts/api/paths/widgets.yaml#/widgets-id'
 ```
 
 ### Path Naming Conventions
@@ -148,7 +148,7 @@ paths:
 
 ## Adding New Schemas
 
-### Create schema in `spec/components/schemas/<resource>.yaml`
+### Create schema in `contracts/api/components/schemas/<resource>.yaml`
 
 Follow existing patterns:
 
@@ -226,20 +226,20 @@ WidgetListResponse:
       type: integer
 ```
 
-### Register schemas in `epistola-api.yaml`
+### Register schemas in `contracts/api/openapi.yaml`
 
 ```yaml
 components:
   schemas:
     # Widget schemas
     WidgetDto:
-      $ref: './spec/components/schemas/widgets.yaml#/WidgetDto'
+      $ref: './contracts/api/components/schemas/widgets.yaml#/WidgetDto'
     CreateWidgetRequest:
-      $ref: './spec/components/schemas/widgets.yaml#/CreateWidgetRequest'
+      $ref: './contracts/api/components/schemas/widgets.yaml#/CreateWidgetRequest'
     UpdateWidgetRequest:
-      $ref: './spec/components/schemas/widgets.yaml#/UpdateWidgetRequest'
+      $ref: './contracts/api/components/schemas/widgets.yaml#/UpdateWidgetRequest'
     WidgetListResponse:
-      $ref: './spec/components/schemas/widgets.yaml#/WidgetListResponse'
+      $ref: './contracts/api/components/schemas/widgets.yaml#/WidgetListResponse'
 ```
 
 ### Schema Naming Conventions
@@ -286,7 +286,7 @@ components:
 
 ### Error Responses
 
-Use existing patterns from `spec/components/responses/errors.yaml`:
+Use existing patterns from `contracts/api/components/responses/errors.yaml`:
 
 ```yaml
 # Simple error
@@ -336,11 +336,11 @@ Use `make breaking` to check for breaking changes before merging.
 
 ### Add a new CRUD resource
 
-1. Create `spec/paths/<resource>.yaml` with collection and item paths
-2. Create `spec/components/schemas/<resource>.yaml` with DTO, requests, list response
-3. Register paths in `epistola-api.yaml` under `paths:`
-4. Register schemas in `epistola-api.yaml` under `components.schemas:`
-5. Add a tag in `epistola-api.yaml` under `tags:`
+1. Create `contracts/api/paths/<resource>.yaml` with collection and item paths
+2. Create `contracts/api/components/schemas/<resource>.yaml` with DTO, requests, list response
+3. Register paths in `contracts/api/openapi.yaml` under `paths:`
+4. Register schemas in `contracts/api/openapi.yaml` under `components.schemas:`
+5. Add a tag in `contracts/api/openapi.yaml` under `tags:`
 6. Run `make lint` to validate
 7. Run `make breaking` to check for breaking changes
 
@@ -445,6 +445,6 @@ make validate-impl
 - [ ] Request body schema is defined with validation
 - [ ] Success response schema is defined
 - [ ] Error responses (400, 404, etc.) are included
-- [ ] Schemas are registered in `epistola-api.yaml`
+- [ ] Schemas are registered in `contracts/api/openapi.yaml`
 - [ ] `make lint` passes
 - [ ] `make breaking` shows no unexpected breaking changes

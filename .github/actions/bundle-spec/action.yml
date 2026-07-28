@@ -16,28 +16,30 @@ runs:
   steps:
     - name: Install pinned spec tools
       shell: bash
-      run: pnpm -C tools install --frozen-lockfile
+      run: pnpm -C contracts/api/tools install --frozen-lockfile
 
     - name: Validate OpenAPI spec
       shell: bash
-      run: tools/node_modules/.bin/redocly lint epistola-api.yaml
+      run: contracts/api/tools/node_modules/.bin/redocly lint contracts/api/openapi.yaml --config contracts/api/redocly.yaml
 
     - name: Bundle OpenAPI spec
       shell: bash
-      run: tools/node_modules/.bin/redocly bundle epistola-api.yaml -o openapi.yaml
+      run: |
+        mkdir -p contracts/api/build
+        contracts/api/tools/node_modules/.bin/redocly bundle contracts/api/openapi.yaml -o contracts/api/build/openapi.yaml
 
     - name: Inject version into bundled spec
       if: inputs.version != ''
       shell: bash
       run: |
-        sed -i "0,/^\s*version:/{s/^\(\s*version:\s*\).*/\1\"${{ inputs.version }}\"/}" openapi.yaml
-        echo "Set openapi.yaml version to ${{ inputs.version }}"
-        grep 'version:' openapi.yaml | head -1
+        sed -i "0,/^\s*version:/{s/^\(\s*version:\s*\).*/\1\"${{ inputs.version }}\"/}" contracts/api/build/openapi.yaml
+        echo "Set bundled OpenAPI version to ${{ inputs.version }}"
+        grep 'version:' contracts/api/build/openapi.yaml | head -1
 
     - name: Upload bundled spec
       if: inputs.upload-artifact == 'true'
       uses: actions/upload-artifact@v7
       with:
         name: openapi-spec
-        path: openapi.yaml
+        path: contracts/api/build/openapi.yaml
         retention-days: 1

@@ -3,8 +3,10 @@ name: API Breaking Change Check
 on:
   pull_request:
     paths:
-      - 'epistola-api.yaml'
-      - 'spec/**'
+      - 'contracts/api/openapi.yaml'
+      - 'contracts/api/paths/**'
+      - 'contracts/api/components/**'
+      - 'contracts/catalog/schemas/**'
 
 jobs:
   breaking-changes:
@@ -22,21 +24,29 @@ jobs:
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: tools
+          npm-working-directory: contracts/api/tools
 
       - name: Bundle current spec
-        run: tools/node_modules/.bin/redocly bundle epistola-api.yaml -o openapi.yaml
+        run: |
+          mkdir -p contracts/api/build
+          contracts/api/tools/node_modules/.bin/redocly bundle contracts/api/openapi.yaml -o contracts/api/build/openapi.yaml
 
       - name: Get base branch spec
         run: |
-          mkdir -p .oasdiff
-          git show origin/${{ github.base_ref }}:epistola-api.yaml > .oasdiff/base-spec.yaml 2>/dev/null || echo "No base spec found"
-          if [ -f .oasdiff/base-spec.yaml ]; then
-            # Bundle needs the spec/ directory from the base branch too
-            git archive origin/${{ github.base_ref }} -- spec/ 2>/dev/null | tar -xC .oasdiff/ || true
-            tools/node_modules/.bin/redocly bundle .oasdiff/base-spec.yaml -o .oasdiff/base-openapi.yaml 2>/dev/null || cp .oasdiff/base-spec.yaml .oasdiff/base-openapi.yaml
+          mkdir -p .oasdiff/base
+          if git cat-file -e "origin/${{ github.base_ref }}:contracts/api/openapi.yaml" 2>/dev/null; then
+            git archive "origin/${{ github.base_ref }}" -- contracts/api/openapi.yaml contracts/api/paths contracts/api/components contracts/catalog/schemas | tar -xC .oasdiff/base
+            BASE_SPEC=.oasdiff/base/contracts/api/openapi.yaml
+          elif git cat-file -e "origin/${{ github.base_ref }}:epistola-api.yaml" 2>/dev/null; then
+            git archive "origin/${{ github.base_ref }}" -- epistola-api.yaml spec | tar -xC .oasdiff/base
+            BASE_SPEC=.oasdiff/base/epistola-api.yaml
           else
-            cp openapi.yaml .oasdiff/base-openapi.yaml
+            BASE_SPEC=
+          fi
+          if [ -n "$BASE_SPEC" ]; then
+            contracts/api/tools/node_modules/.bin/redocly bundle "$BASE_SPEC" -o .oasdiff/base-openapi.yaml
+          else
+            cp contracts/api/build/openapi.yaml .oasdiff/base-openapi.yaml
           fi
 
       # oasdiff comes from mise (see mise.toml), so local `make breaking` and CI
@@ -52,7 +62,7 @@ jobs:
       - name: Check for breaking changes
         run: |
           oasdiff breaking --flatten-allof --flatten-params \
-            .oasdiff/base-openapi.yaml openapi.yaml \
+            .oasdiff/base-openapi.yaml contracts/api/build/openapi.yaml \
             > .oasdiff/breaking.txt 2>&1 || true
           # Strip the summary line oasdiff prints when nothing is found so the
           # comment step can detect "empty" cleanly.
@@ -63,7 +73,7 @@ jobs:
       - name: Generate API changelog
         run: |
           oasdiff changelog --flatten-allof --flatten-params \
-            .oasdiff/base-openapi.yaml openapi.yaml \
+            .oasdiff/base-openapi.yaml contracts/api/build/openapi.yaml \
             > .oasdiff/changelog.txt 2>&1 || true
           if grep -q "^No changes" .oasdiff/changelog.txt; then
             : > .oasdiff/changelog.txt

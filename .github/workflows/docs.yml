@@ -27,7 +27,7 @@ jobs:
         uses: ./.github/actions/setup-build-tools
         with:
           install-npm-deps: 'true'
-          npm-working-directory: tools
+          npm-working-directory: contracts/api/tools
 
       - name: Extract API version
         id: version
@@ -38,13 +38,15 @@ jobs:
             # Extract version from release tag (e.g., v0.2.5 -> 0.2.5)
             API_VERSION=$(echo "${{ github.event.workflow_run.head_branch }}" | sed 's/^v//')
           else
-            API_VERSION=$(scripts/spec-version.sh --full)
+            API_VERSION=$(contracts/api/scripts/spec-version.sh --full)
           fi
           echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
           echo "version_dir=v${API_VERSION}" >> $GITHUB_OUTPUT
 
       - name: Bundle OpenAPI spec
-        run: tools/node_modules/.bin/redocly bundle epistola-api.yaml -o openapi.yaml
+        run: |
+          mkdir -p contracts/api/build
+          contracts/api/tools/node_modules/.bin/redocly bundle contracts/api/openapi.yaml -o contracts/api/build/openapi.yaml
 
       - name: Checkout gh-pages branch
         uses: actions/checkout@v6
@@ -59,7 +61,7 @@ jobs:
           VERSION_DIR: ${{ steps.version.outputs.version_dir }}
         run: |
           mkdir -p "gh-pages/${VERSION_DIR}"
-          cp openapi.yaml "gh-pages/${VERSION_DIR}/"
+          cp contracts/api/build/openapi.yaml "gh-pages/${VERSION_DIR}/openapi.yaml"
 
           # Create Redoc page with version selector
           cat > "gh-pages/${VERSION_DIR}/index.html" << EOF
