@@ -190,7 +190,7 @@ class ModelValidationTest {
             status = VersionDto.Status.PUBLISHED,
             createdAt = now,
             templateModel = TemplateDocument(
-                modelVersion = 1,
+                modelVersion = TemplateDocument.ModelVersion._1,
                 root = "node-root",
                 nodes = mapOf(
                     "node-root" to Node(id = "node-root", type = "container", slots = listOf("slot-root")),
@@ -199,9 +199,7 @@ class ModelValidationTest {
                 slots = mapOf(
                     "slot-root" to Slot(id = "slot-root", nodeId = "node-root", name = "children", children = listOf("node-header")),
                 ),
-                // OpenAPI Generator flattens the catalog's oneOf and requires themeId
-                // even for the inherit branch.
-                themeRef = ThemeRef(type = "inherit", themeId = "inherited"),
+                themeRef = ThemeRef(type = ThemeRef.Type.INHERIT),
             ),
             publishedAt = now,
         )

@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `TemplateDocument`, `Node`, `Slot`, `ThemeRef`, `PageSettings`, `Margins`, `DocumentStyles`, and
   `BlockStylePreset` instead of their `*Dto` variants. Catalog schemas, validation behavior,
   package exports, and published coordinates are unchanged.
+- Kept the generated Kotlin API client and server models strongly typed when consuming the
+  catalog schemas: `modelVersion` remains integer-backed, and inherited theme references no
+  longer incorrectly require override-only fields.
 - Reorganized the REST API as the self-contained `contracts/api` domain, co-locating its authored
   specification, documentation, build tooling, generated clients, server stubs, and mock server.
   The bundled specification is now generated at `contracts/api/build/openapi.yaml`; published
