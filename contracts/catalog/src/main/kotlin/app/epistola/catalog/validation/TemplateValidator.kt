@@ -268,12 +268,22 @@ object TemplateValidator {
             node.styles.orEmpty().toSortedMap().forEach { (key, _) ->
                 if (key !in CatalogRegistries.styleKeys) {
                     findings.error(TEMPLATE_STYLE_UNKNOWN, "nodes.${node.id}.styles.$key", "style '$key' is not defined by the catalog style registry")
-                } else if (component.applicableStyles != null && key !in component.applicableStyles) {
+                } else if (!isStyleApplicable(key, component.applicableStyles)) {
                     findings.error(TEMPLATE_STYLE_NOT_APPLICABLE, "nodes.${node.id}.styles.$key", "style '$key' is not applicable to component '${node.type}'")
                 }
             }
         }
     }
+
+    /**
+     * Component style allowlists use family prefixes, matching the editor:
+     * `padding` includes `paddingTop`, and `border` includes `borderRadius`.
+     * Unknown prefixed keys are still rejected by the style registry check above.
+     */
+    private fun isStyleApplicable(
+        key: String,
+        applicableStyles: Set<String>?,
+    ): Boolean = applicableStyles == null || applicableStyles.any(key::startsWith)
 
     private fun expectedDynamicSlots(
         node: Node,
