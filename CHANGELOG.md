@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-07-29
+
 - **BREAKING (catalog):** Advanced the portable catalog wire format to v5 and replaced
   stencil `isDraft` flags with exact `draftVersion` provenance. Version 4 archives migrate
   explicitly with stale-marker notices, writers emit only v5, and semantic V3 fingerprints
