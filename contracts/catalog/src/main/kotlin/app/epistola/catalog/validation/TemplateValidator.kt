@@ -300,7 +300,15 @@ object TemplateValidator {
         val props = node.props ?: return
         val allowedTopLevel = component.properties.map { it.path.substringBefore('.') }.toMutableSet()
         if (component.type == "stencil") {
-            allowedTopLevel += setOf("parameterBindings", "paramsAlias", "parameterSchemaSnapshot")
+            allowedTopLevel += setOf(
+                "stencilId",
+                "catalogKey",
+                "version",
+                "draftVersion",
+                "parameterBindings",
+                "paramsAlias",
+                "parameterSchemaSnapshot",
+            )
         }
         props.keys.sorted().filterNot(allowedTopLevel::contains).forEach { key ->
             findings.error(TEMPLATE_NODE_PROPERTY_INVALID, "nodes.${node.id}.props.$key", "property '$key' is not declared by component '${node.type}'")

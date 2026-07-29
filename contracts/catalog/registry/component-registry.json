@@ -2569,9 +2569,7 @@
       "inspector": [],
       "defaultProps": {
         "stencilId": null,
-        "catalogKey": null,
-        "version": null,
-        "draftVersion": null
+        "catalogKey": null
       },
       "examples": [
         {
