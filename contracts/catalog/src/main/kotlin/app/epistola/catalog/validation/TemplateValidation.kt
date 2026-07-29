@@ -71,14 +71,15 @@ enum class ResourceResolution {
  * @property slug resource slug within its catalog.
  * @property catalogKey owning catalog; null means the current catalog.
  * @property version exact stencil version, when the reference is versioned.
- * @property isDraft whether authoring explicitly targets a mutable draft.
+ * @property draftVersion exact mutable draft version, when authoring targets a
+ *   draft. [version] remains the published base when one exists.
  */
 data class CatalogResourceReference(
     val type: String,
     val slug: String,
     val catalogKey: String? = null,
     val version: Int? = null,
-    val isDraft: Boolean = false,
+    val draftVersion: Int? = null,
 )
 
 /**

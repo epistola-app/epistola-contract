@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 4,
+  "resource": {
+    "type": "stencil",
+    "slug": "letter",
+    "name": "Letter",
+    "version": 3,
+    "content": {
+      "modelVersion": 1,
+      "root": "root",
+      "nodes": {
+        "root": {
+          "id": "root",
+          "type": "root",
+          "slots": ["children"]
+        },
+        "nested": {
+          "id": "nested",
+          "type": "stencil",
+          "slots": [],
+          "props": {
+            "stencilId": "address",
+            "version": 3,
+            "isDraft": true
+          }
+        }
+      },
+      "slots": {
+        "children": {
+          "id": "children",
+          "nodeId": "root",
+          "name": "children",
+          "children": ["nested"]
+        }
+      },
+      "themeRef": {
+        "type": "inherit"
+      }
+    }
+  }
+}

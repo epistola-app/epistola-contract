@@ -45,9 +45,9 @@ only an explicit `MISSING` result produces a missing-reference finding.
 Stencil composition is part of the portable specification. Standalone
 template validation understands both authored draft references and references
 to exact published stencil versions; the context resolver receives the
-`isDraft` identity. Whole-catalog validation is the publication boundary and
+exact `draftVersion` identity. Whole-catalog validation is the publication boundary and
 therefore rejects draft references. It requires portable references to declare
-`isDraft=false` and pin an exact version.
+omit `draftVersion` and pin an exact published `version`.
 
 Standalone validation counts the containing stencil as nesting level one and
 rejects a repeated ancestor identity or a chain deeper than five. Consumers

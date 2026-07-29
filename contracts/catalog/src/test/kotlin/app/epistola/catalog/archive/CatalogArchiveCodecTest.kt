@@ -29,6 +29,19 @@ import kotlin.test.assertTrue
 
 class CatalogArchiveCodecTest {
     @Test
+    fun `writer rejects non-current catalog versions`() {
+        val current = validCatalog()
+        val legacy = CatalogArchive(
+            manifest = current.manifest.copy(schemaVersion = 4),
+            resourceDetails = current.resourceDetails.mapValues { (_, detail) -> detail.copy(schemaVersion = 4) },
+            paths = current.paths,
+            content = current.content,
+        )
+
+        assertFailsWith<IllegalArgumentException> { write(legacy) }
+    }
+
+    @Test
     fun `finding code registry covers every stable archive finding code`() {
         val fixtureCodes = requireNotNull(
             javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/archive-validation-cases.json"),
@@ -183,9 +196,9 @@ class CatalogArchiveCodecTest {
     }
 
     private fun validCatalog(): CatalogArchive {
-        val detail = ResourceDetail(4, ThemeResource(slug = "default", name = "Default"))
+        val detail = ResourceDetail(5, ThemeResource(slug = "default", name = "Default"))
         val manifest = CatalogManifest(
-            schemaVersion = 4,
+            schemaVersion = 5,
             catalog = CatalogInfo("example", "Example"),
             publisher = PublisherInfo("Example"),
             release = ReleaseInfo("1.0.0"),
@@ -211,7 +224,7 @@ class CatalogArchiveCodecTest {
         bytes: ByteArray,
     ): CatalogArchive {
         val detail = ResourceDetail(
-            4,
+            5,
             AssetResource(
                 slug = "logo",
                 name = "Logo",
@@ -220,7 +233,7 @@ class CatalogArchiveCodecTest {
             ),
         )
         val manifest = CatalogManifest(
-            schemaVersion = 4,
+            schemaVersion = 5,
             catalog = CatalogInfo("example", "Example"),
             publisher = PublisherInfo("Example"),
             release = ReleaseInfo("1.0.0"),

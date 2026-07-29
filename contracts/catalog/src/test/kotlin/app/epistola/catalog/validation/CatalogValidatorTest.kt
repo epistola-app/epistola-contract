@@ -41,8 +41,8 @@ class CatalogValidatorTest {
 
     @Test
     fun `golden current catalog is valid`() {
-        val manifest = fixture("wire-v4/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
-        val detail = fixture("wire-v4/resources/theme/default.json").use { mapper.readValue(it, ResourceDetail::class.java) }
+        val manifest = fixture("wire-v5/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
+        val detail = fixture("wire-v5/resources/theme/default.json").use { mapper.readValue(it, ResourceDetail::class.java) }
         val archive = archive(manifest, mapOf("theme/default" to detail))
 
         assertEquals(emptyList(), CatalogValidator.validate(archive).findings)
@@ -130,8 +130,8 @@ class CatalogValidatorTest {
         )
         val stencil = StencilResource("address", "Address", 1, content = invalid)
         val details = mapOf(
-            "template/invoice" to ResourceDetail(4, template),
-            "stencil/address" to ResourceDetail(4, stencil),
+            "template/invoice" to ResourceDetail(5, template),
+            "stencil/address" to ResourceDetail(5, stencil),
         )
         val entries = details.map { (key, detail) ->
             ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
@@ -154,7 +154,7 @@ class CatalogValidatorTest {
             parameterSchema = mapOf("type" to "array"),
         )
         val key = "stencil/address"
-        val detail = ResourceDetail(4, stencil)
+        val detail = ResourceDetail(5, stencil)
         val report = CatalogValidator.validate(
             archive(
                 manifest(resources = listOf(ResourceEntry("stencil", "address", "Address", detailUrl = "./resources/$key.json"))),
@@ -279,7 +279,7 @@ class CatalogValidatorTest {
             variants = emptyList(),
         )
         val key = "template/invoice"
-        val detail = ResourceDetail(4, template)
+        val detail = ResourceDetail(5, template)
         val report = CatalogValidator.validate(
             archive(
                 manifest(resources = listOf(ResourceEntry("template", "invoice", "Invoice", detailUrl = "./resources/$key.json"))),
@@ -315,7 +315,7 @@ class CatalogValidatorTest {
                 listOf(FontVariantEntry(0, false, "missing"), FontVariantEntry(0, false, "missing")),
             ),
         )
-        val details = resources.associate { "${it.type}/${it.slug}" to ResourceDetail(4, it) }
+        val details = resources.associate { "${it.type}/${it.slug}" to ResourceDetail(5, it) }
         val entries = details.map { (key, detail) ->
             ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
         }
@@ -367,7 +367,7 @@ class CatalogValidatorTest {
             variants = emptyList(),
         )
         val key = "template/invoice"
-        val detail = ResourceDetail(4, resource)
+        val detail = ResourceDetail(5, resource)
         val report = CatalogValidator.validate(
             archive(
                 manifest(resources = listOf(ResourceEntry("template", "invoice", "Invoice", detailUrl = "./resources/$key.json"))),
@@ -394,7 +394,7 @@ class CatalogValidatorTest {
         release: ReleaseInfo = ReleaseInfo("1.0.0"),
         resources: List<ResourceEntry> = emptyList(),
     ) = CatalogManifest(
-        4,
+        5,
         CatalogInfo("fixture", "Fixture"),
         PublisherInfo("Epistola"),
         release,
@@ -424,17 +424,17 @@ class CatalogValidatorTest {
         nodeId: String,
         slug: String,
         version: Int,
-        isDraft: Boolean = false,
+        draftVersion: Int? = null,
     ): TemplateDocument {
         val nested = Node(
             nodeId,
             "stencil",
             slots = listOf("$nodeId-children"),
-            props = mapOf(
-                "stencilId" to slug,
-                "version" to version,
-                "isDraft" to isDraft,
-            ),
+            props = buildMap {
+                put("stencilId", slug)
+                put("version", version)
+                draftVersion?.let { put("draftVersion", it) }
+            },
         )
         return validDocument().copy(
             nodes = validDocument().nodes + (nested.id to nested),
@@ -446,7 +446,7 @@ class CatalogValidatorTest {
 
     private fun validateStencils(vararg stencils: StencilResource): CatalogValidationReport {
         val details = stencils.associate { stencil ->
-            "stencil/${stencil.slug}" to ResourceDetail(4, stencil)
+            "stencil/${stencil.slug}" to ResourceDetail(5, stencil)
         }
         val entries = stencils.map { stencil ->
             ResourceEntry(
@@ -483,7 +483,7 @@ class CatalogValidatorTest {
                 "letter",
                 "Letter",
                 1,
-                content = documentWithStencil("nested-address", "address", 2, isDraft = true),
+                content = documentWithStencil("nested-address", "address", 2, draftVersion = 3),
             ),
             StencilResource("address", "Address", 2, content = validDocument()),
         )

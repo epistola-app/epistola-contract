@@ -17,11 +17,13 @@ timestamps, release versions, resource URLs, and ZIP metadata. Therefore equival
 identical fingerprints even when their entry order, timestamps, compression, or JSON property order
 differ.
 
-The current canonical form is V2. `CatalogCanonicalizer.currentFingerprint(catalog)` produces V2.
+The current canonical form is V3. `CatalogCanonicalizer.currentFingerprint(catalog)` produces V3.
 The existing `fingerprint(catalog)` method continues to produce V1 for source, binary, and
 behavioral compatibility, and the versioned overload supports explicit selection. Whole-catalog
-validation accepts both V2 and the legacy V1 hash so existing installed catalogs remain valid;
-newly generated fingerprints should always use `currentFingerprint`.
+validation accepts V3 plus V2 and V1 legacy hashes so existing installed catalogs remain valid;
+newly generated fingerprints should always use `currentFingerprint`. V3 normalizes the catalog-v4
+`isDraft:false` syntax to catalog-v5 version provenance. `matchesFingerprint` accepts V1, V2, V3,
+and the equivalent legacy-v4 projection so a syntax-only migration does not create false drift.
 
 Authoritative versioned inputs and expected hashes are published below
 `META-INF/epistola-catalog/fixtures/v1` in the Maven artifact and

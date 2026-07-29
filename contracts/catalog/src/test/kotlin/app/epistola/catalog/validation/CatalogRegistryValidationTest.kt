@@ -72,5 +72,39 @@ class CatalogRegistryValidationTest {
         assertTrue(findings.isEmpty(), findings.toString())
     }
 
+    @Test
+    fun `registry expands applicable style families like the editor`() {
+        val cases = listOf(
+            Node("columns", "columns", styles = mapOf("paddingTop" to "1sp")),
+            Node("image", "image", styles = mapOf("paddingTop" to "1sp")),
+            Node("datalist", "datalist", styles = mapOf("marginLeft" to "1sp")),
+        )
+
+        cases.forEach { node ->
+            val findings = TemplateValidator.validate(documentWith(node)).findings
+                .filter { it.code == TemplateValidationCodes.TEMPLATE_STYLE_NOT_APPLICABLE }
+            assertTrue(findings.isEmpty(), "${node.type}: $findings")
+        }
+    }
+
+    @Test
+    fun `registry still rejects a known style outside the component families`() {
+        val columns = Node("columns", "columns", styles = mapOf("fontSize" to "12pt"))
+
+        val findings = TemplateValidator.validate(documentWith(columns)).findings
+            .filter { it.code == TemplateValidationCodes.TEMPLATE_STYLE_NOT_APPLICABLE }
+
+        assertTrue(findings.isNotEmpty(), findings.toString())
+    }
+
+    private fun documentWith(node: Node) = TemplateDocument(
+        root = "root",
+        nodes = mapOf(
+            "root" to Node("root", "root", listOf("root-slot")),
+            node.id to node,
+        ),
+        slots = mapOf("root-slot" to Slot("root-slot", "root", "children", listOf(node.id))),
+    )
+
     private fun JsonNode?.elements(): List<JsonNode> = if (this != null && isArray) toList() else emptyList()
 }

@@ -323,7 +323,7 @@ class TemplateValidatorSuiteParityTest {
         id = id,
         type = "stencil",
         slots = listOf("$id-slot"),
-        props = mapOf("stencilId" to slug, "version" to 1, "isDraft" to false),
+        props = mapOf("stencilId" to slug, "version" to 1),
     )
 
     private fun placeholder(id: String, name: String): Node = Node(
@@ -347,7 +347,6 @@ class TemplateValidatorSuiteParityTest {
         val props = mutableMapOf<String, Any?>(
             "stencilId" to "address",
             "version" to 1,
-            "isDraft" to false,
             "parameterBindings" to parameterBindings,
         )
         paramsAlias?.let { props["paramsAlias"] = it }

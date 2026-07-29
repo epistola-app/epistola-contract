@@ -268,12 +268,22 @@ object TemplateValidator {
             node.styles.orEmpty().toSortedMap().forEach { (key, _) ->
                 if (key !in CatalogRegistries.styleKeys) {
                     findings.error(TEMPLATE_STYLE_UNKNOWN, "nodes.${node.id}.styles.$key", "style '$key' is not defined by the catalog style registry")
-                } else if (component.applicableStyles != null && key !in component.applicableStyles) {
+                } else if (!isStyleApplicable(key, component.applicableStyles)) {
                     findings.error(TEMPLATE_STYLE_NOT_APPLICABLE, "nodes.${node.id}.styles.$key", "style '$key' is not applicable to component '${node.type}'")
                 }
             }
         }
     }
+
+    /**
+     * Component style allowlists use family prefixes, matching the editor:
+     * `padding` includes `paddingTop`, and `border` includes `borderRadius`.
+     * Unknown prefixed keys are still rejected by the style registry check above.
+     */
+    private fun isStyleApplicable(
+        key: String,
+        applicableStyles: Set<String>?,
+    ): Boolean = applicableStyles == null || applicableStyles.any(key::startsWith)
 
     private fun expectedDynamicSlots(
         node: Node,
@@ -300,7 +310,15 @@ object TemplateValidator {
         val props = node.props ?: return
         val allowedTopLevel = component.properties.map { it.path.substringBefore('.') }.toMutableSet()
         if (component.type == "stencil") {
-            allowedTopLevel += setOf("parameterBindings", "paramsAlias", "parameterSchemaSnapshot")
+            allowedTopLevel += setOf(
+                "stencilId",
+                "catalogKey",
+                "version",
+                "draftVersion",
+                "parameterBindings",
+                "paramsAlias",
+                "parameterSchemaSnapshot",
+            )
         }
         props.keys.sorted().filterNot(allowedTopLevel::contains).forEach { key ->
             findings.error(TEMPLATE_NODE_PROPERTY_INVALID, "nodes.${node.id}.props.$key", "property '$key' is not declared by component '${node.type}'")
@@ -337,9 +355,9 @@ object TemplateValidator {
         else -> false
     }
 
-    private fun booleanValue(value: Any?): Boolean? = when (value) {
-        is Boolean -> value
-        is JsonNode -> if (value.isBoolean) value.asBoolean() else null
+    private fun positiveIntValue(value: Any?): Int? = when (value) {
+        is Number -> value.toInt().takeIf { value.toDouble() == it.toDouble() && it > 0 }
+        is JsonNode -> if (value.isIntegralNumber) value.asInt().takeIf { it > 0 } else null
         else -> null
     }
 
@@ -357,38 +375,51 @@ object TemplateValidator {
         document.nodes.values.filter { it.type == "stencil" }.sortedBy(Node::id).forEach { node ->
             val stencilId = node.props?.get("stencilId") as? String
             val catalogKey = node.props?.get("catalogKey") as? String
-            val version = (node.props?.get("version") as? Number)?.toInt()
-            val isDraft = if (node.props?.containsKey("isDraft") == true) {
-                booleanValue(node.props["isDraft"])
-            } else {
-                false
-            }
-            if (stencilId == null || !slugRegex.matches(stencilId) || version == null || version <= 0) {
-                findings.error(
+            val version = positiveIntValue(node.props?.get("version"))
+            val draftVersion = positiveIntValue(node.props?.get("draftVersion"))
+            val hasVersion = node.props?.containsKey("version") == true
+            val hasDraftVersion = node.props?.containsKey("draftVersion") == true
+            when {
+                node.props?.containsKey("isDraft") == true -> findings.error(
+                    STENCIL_REFERENCE_INVALID,
+                    "nodes.${node.id}.props.isDraft",
+                    "stencil reference isDraft is not supported in catalog v5; use draftVersion",
+                )
+                stencilId == null || !slugRegex.matches(stencilId) -> findings.error(
                     STENCIL_REFERENCE_INVALID,
                     "nodes.${node.id}.props.stencilId",
-                    "stencil reference requires a valid stencilId and positive version",
+                    "stencil reference requires a valid stencilId",
                 )
-            } else if (isDraft == null) {
-                findings.error(
+                (hasVersion && version == null) || (hasDraftVersion && draftVersion == null) -> findings.error(
                     STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props.isDraft",
-                    "stencil reference isDraft must be a boolean when present",
+                    "nodes.${node.id}.props",
+                    "stencil reference version and draftVersion must be positive integers when present",
                 )
-            } else if (isDraft && !context.allowDraftStencilReferences) {
-                findings.error(
+                version == null && draftVersion == null -> findings.error(
                     STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props.isDraft",
-                    "portable catalog content cannot reference draft stencils",
+                    "nodes.${node.id}.props",
+                    "stencil reference requires a positive version or draftVersion",
                 )
-            } else {
-                val reference = CatalogResourceReference("stencil", stencilId, catalogKey, version, isDraft)
-                if (context.resolveResource(reference) == ResourceResolution.MISSING) {
-                    findings.error(
-                        STENCIL_REFERENCE_NOT_FOUND,
-                        "nodes.${node.id}.props.stencilId",
-                        "stencil '$stencilId' version $version does not exist in the catalog context",
-                    )
+                draftVersion != null && !context.allowDraftStencilReferences -> findings.error(
+                    STENCIL_REFERENCE_INVALID,
+                    "nodes.${node.id}.props.draftVersion",
+                    "portable catalog content cannot reference draft stencil versions",
+                )
+                !context.allowDraftStencilReferences && version == null -> findings.error(
+                    STENCIL_REFERENCE_INVALID,
+                    "nodes.${node.id}.props.version",
+                    "portable catalog content must reference a positive published version",
+                )
+                else -> {
+                    val reference = CatalogResourceReference("stencil", stencilId, catalogKey, version, draftVersion)
+                    if (context.resolveResource(reference) == ResourceResolution.MISSING) {
+                        val exactVersion = draftVersion ?: version
+                        findings.error(
+                            STENCIL_REFERENCE_NOT_FOUND,
+                            "nodes.${node.id}.props.stencilId",
+                            "stencil '$stencilId' version $exactVersion does not exist in the catalog context",
+                        )
+                    }
                 }
             }
         }

@@ -85,6 +85,7 @@ object CatalogArchiveReader {
                 return CatalogArchiveReadResult(null, findings.sorted())
             }
             val manifestResult = Files.newInputStream(manifestPath).use(CatalogSchemaMigrator::migrateManifest)
+            val migrationNotices = manifestResult.notices.toMutableList()
             findings += manifestResult.findings.map {
                 finding(it.code.archiveCode(), it.path, it.message)
             }
@@ -110,6 +111,7 @@ object CatalogArchiveReader {
                     findings += result.findings.map {
                         finding(it.code.archiveCode(), it.path, it.message)
                     }
+                    migrationNotices += result.notices
                     result.value?.let { detail ->
                         details[path.removePrefix("resources/").removeSuffix(".json")] = detail
                     }
@@ -129,7 +131,11 @@ object CatalogArchiveReader {
                 },
                 closeAction = { deleteRecursively(workspace) },
             )
-            return CatalogArchiveReadResult(archive, findings.sorted())
+            return CatalogArchiveReadResult(
+                archive,
+                findings.sorted(),
+                migrationNotices.sortedWith(compareBy({ it.path }, { it.code }, { it.message })),
+            )
         } catch (exception: ZipException) {
             deleteRecursively(workspace)
             return CatalogArchiveReadResult(

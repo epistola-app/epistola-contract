@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **BREAKING (catalog):** Advanced the portable catalog wire format to v5 and replaced
+  stencil `isDraft` flags with exact `draftVersion` provenance. Version 4 archives migrate
+  explicitly with stale-marker notices, writers emit only v5, and semantic V3 fingerprints
+  preserve legacy release compatibility.
+- Fixed component style validation to expand style-family allowlists exactly like the editor, so
+  valid side-specific values such as `paddingTop` and `marginLeft` remain importable.
 - Added REUSE-compliant EUPL-1.2 licensing metadata, automated SPDX header insertion, and a
   pull-request CI check that prevents unlicensed files from being introduced.
 

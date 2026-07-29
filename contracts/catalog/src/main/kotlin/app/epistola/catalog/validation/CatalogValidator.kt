@@ -8,7 +8,6 @@ import app.epistola.catalog.archive.CatalogArchive
 import app.epistola.catalog.archive.CatalogArchivePolicy
 import app.epistola.catalog.archive.CatalogArchiveReader
 import app.epistola.catalog.canonical.CatalogCanonicalizer
-import app.epistola.catalog.canonical.CatalogFingerprintVersion
 import app.epistola.catalog.migration.CatalogWireSchema
 import app.epistola.catalog.protocol.AssetResource
 import app.epistola.catalog.protocol.AttributeResource
@@ -623,9 +622,7 @@ object CatalogValidator {
             if (!SHA256.matches(it)) {
                 findings.error(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID, "catalog.json.release.fingerprint", "fingerprint must be a lowercase SHA-256 hex string")
             } else if (policy.verifyFingerprint) {
-                val accepted = CatalogFingerprintVersion.entries
-                    .mapTo(mutableSetOf()) { version -> CatalogCanonicalizer.fingerprint(catalog, version).value }
-                if (it !in accepted) {
+                if (!CatalogCanonicalizer.matchesFingerprint(catalog, it)) {
                     findings.error(
                         CatalogValidationCodes.RELEASE_FINGERPRINT_MISMATCH,
                         "catalog.json.release.fingerprint",
