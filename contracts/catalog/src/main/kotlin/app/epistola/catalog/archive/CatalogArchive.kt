@@ -4,6 +4,7 @@
 
 package app.epistola.catalog.archive
 
+import app.epistola.catalog.migration.CatalogMigrationNotice
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.ResourceDetail
 import java.io.InputStream
@@ -74,6 +75,7 @@ data class ArchiveValidationFinding(
 data class CatalogArchiveReadResult(
     val archive: CatalogArchive?,
     val findings: List<ArchiveValidationFinding>,
+    val migrationNotices: List<CatalogMigrationNotice> = emptyList(),
 ) {
     /** True only when an archive was decoded and no findings were produced. */
     val valid: Boolean get() = archive != null && findings.isEmpty()

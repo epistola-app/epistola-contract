@@ -67,7 +67,7 @@
       "expectedFindings": [
         {
           "code": "STENCIL_REFERENCE_INVALID",
-          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.isDraft"
+          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.draftVersion"
         }
       ]
     },

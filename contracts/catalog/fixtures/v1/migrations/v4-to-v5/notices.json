@@ -1,0 +1,7 @@
+[
+  {
+    "code": "CATALOG_STALE_DRAFT_MARKER_REMOVED",
+    "path": "resources/stencil/letter.json.resource.content.nodes.nested.props.isDraft",
+    "message": "removed stale catalog-v4 draft marker; the published version and embedded content were preserved"
+  }
+]

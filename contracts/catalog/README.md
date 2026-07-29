@@ -15,7 +15,7 @@ canonicalization, migrations, and archive handling.
 | Semantic validation and archive behavior | [`src/main/kotlin/`](src/main/kotlin/) |
 | TypeScript public facade | [`ts/`](ts/) and generated sources in [`generated/`](generated/) |
 
-The catalog currently uses wire `schemaVersion: 4` and template
+The catalog currently writes wire `schemaVersion: 5`, migrates version 4, and uses template
 `modelVersion: 1`. Published Maven and npm artifacts are released on the
 repository's coordinated release train.
 

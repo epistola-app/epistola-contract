@@ -29,12 +29,13 @@ value class CatalogFingerprint(val value: String)
 /**
  * Versioned canonicalization algorithms accepted by the contract.
  *
- * V1 is retained for fingerprints already stored by older producers. V2 is
- * the current algorithm and includes portable manifest semantics.
+ * V1 and V2 are retained for fingerprints already stored by older producers.
+ * V3 is the current semantic catalog-v5 algorithm.
  */
 enum class CatalogFingerprintVersion {
     V1,
     V2,
+    V3,
 }
 
 /**
@@ -56,8 +57,8 @@ object CatalogCanonicalizer {
      */
     fun fingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V1)
 
-    /** Produces the current V2 fingerprint, including portable manifest semantics. */
-    fun currentFingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V2)
+    /** Produces the current semantic V3 fingerprint. */
+    fun currentFingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V3)
 
     /**
      * Produces a catalog fingerprint using an explicitly selected algorithm.
@@ -68,12 +69,28 @@ object CatalogCanonicalizer {
         catalog: CatalogArchive,
         version: CatalogFingerprintVersion,
     ): CatalogFingerprint {
-        val entries = entries(catalog)
+        val entries = if (version == CatalogFingerprintVersion.V3) semanticEntries(catalog) else entries(catalog)
         val canonical = when (version) {
             CatalogFingerprintVersion.V1 -> canonicalV1(catalog, entries)
             CatalogFingerprintVersion.V2 -> canonicalV2(catalog, entries)
+            CatalogFingerprintVersion.V3 -> canonicalV2(catalog, entries)
         }
         return CatalogFingerprint(sha256(canonical.byteInputStream()))
+    }
+
+    /**
+     * Whether [expected] identifies the catalog under a current or legacy
+     * canonical form, including catalog-v4's explicit `isDraft:false` syntax.
+     */
+    fun matchesFingerprint(
+        catalog: CatalogArchive,
+        expected: String,
+    ): Boolean {
+        val exact = CatalogFingerprintVersion.entries.mapTo(mutableSetOf()) { fingerprint(catalog, it).value }
+        val projected = legacyV4Entries(catalog)
+        exact += sha256(canonicalV1(catalog, projected).byteInputStream())
+        exact += sha256(canonicalV2(catalog, projected).byteInputStream())
+        return expected in exact
     }
 
     private fun canonicalV1(
@@ -162,6 +179,11 @@ object CatalogCanonicalizer {
         entry.key to sha256((entry.canonicalJson + "\u0000" + entry.assetHash).byteInputStream())
     }
 
+    /** Returns semantic catalog-v5 hashes for every `type/slug` resource. */
+    fun currentPerResourceFingerprints(catalog: CatalogArchive): Map<String, String> = semanticEntries(catalog).sortedBy(Entry::key).associate { entry ->
+        entry.key to sha256((entry.canonicalJson + "\u0000" + entry.assetHash).byteInputStream())
+    }
+
     /**
      * Serializes only the resource payload with recursively sorted object keys.
      *
@@ -191,6 +213,65 @@ object CatalogCanonicalizer {
             canonicalJson = mapper.writeValueAsString(sortKeys(resourceNode)),
             assetHash = assetHash,
         )
+    }
+
+    private fun semanticEntries(catalog: CatalogArchive): List<Entry> = catalog.resourceDetails.map { (key, detail) ->
+        val resourceNode = normalizeStencilProvenance(resourceNode(catalog, key, detail), legacyV4 = false)
+        Entry(
+            key = key,
+            canonicalJson = mapper.writeValueAsString(sortKeys(resourceNode)),
+            assetHash = assetHash(catalog, detail),
+        )
+    }
+
+    private fun legacyV4Entries(catalog: CatalogArchive): List<Entry> = catalog.resourceDetails.map { (key, detail) ->
+        val resourceNode = normalizeStencilProvenance(resourceNode(catalog, key, detail), legacyV4 = true)
+        Entry(
+            key = key,
+            canonicalJson = mapper.writeValueAsString(sortKeys(resourceNode)),
+            assetHash = assetHash(catalog, detail),
+        )
+    }
+
+    private fun assetHash(
+        catalog: CatalogArchive,
+        detail: ResourceDetail,
+    ): String = (detail.resource as? AssetResource)?.let { asset ->
+        val path = asset.contentUrl.removePrefix("./")
+        if (path in catalog.paths) catalog.content.open(path).use(::sha256) else "MISSING"
+    }.orEmpty()
+
+    private fun resourceNode(
+        catalog: CatalogArchive,
+        key: String,
+        detail: ResourceDetail,
+    ): JsonNode {
+        val detailPath = "resources/$key.json"
+        return if (detailPath in catalog.paths) {
+            catalog.content.open(detailPath).use { input -> decimalReader.readTree(input).get("resource") }
+        } else {
+            mapper.valueToTree(detail.resource)
+        }
+    }
+
+    private fun normalizeStencilProvenance(
+        node: JsonNode,
+        legacyV4: Boolean,
+    ): JsonNode = when (node) {
+        is ObjectNode -> mapper.createObjectNode().also { normalized ->
+            node.propertyNames().forEach { name ->
+                normalized.set(name, normalizeStencilProvenance(node[name], legacyV4))
+            }
+            if (normalized["type"]?.asString() == "stencil" && normalized["props"] is ObjectNode) {
+                val props = normalized["props"] as ObjectNode
+                props.remove("isDraft")
+                if (legacyV4 && props["draftVersion"] == null) props.put("isDraft", false)
+            }
+        }
+        is ArrayNode -> mapper.createArrayNode().also { normalized ->
+            node.forEach { normalized.add(normalizeStencilProvenance(it, legacyV4)) }
+        }
+        else -> node
     }
 
     private fun CatalogInfo.identityLine(): String = "$slug $name ${description.orEmpty()}\n"

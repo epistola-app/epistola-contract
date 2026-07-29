@@ -203,7 +203,6 @@ class TemplateValidatorStencilNestingTest {
                 "catalogKey" to "shared",
                 "stencilId" to "letter",
                 "version" to 1,
-                "isDraft" to false,
             ),
         )
         val document = template(
@@ -221,24 +220,24 @@ class TemplateValidatorStencilNestingTest {
     }
 
     @Test
-    fun `nested stencil references require a valid exact version and boolean draft flag`() {
+    fun `nested stencil references require valid exact version provenance`() {
         val missingVersion = stencil("missing-version", "address", listOf("missing-children")).copy(
-            props = mapOf("stencilId" to "address", "isDraft" to false),
+            props = mapOf("stencilId" to "address"),
         )
         val zeroVersion = stencil("zero-version", "contact", listOf("zero-children")).copy(
-            props = mapOf("stencilId" to "contact", "version" to 0, "isDraft" to false),
+            props = mapOf("stencilId" to "contact", "version" to 0),
         )
-        val invalidDraftFlag = stencil("invalid-draft-flag", "footer", listOf("invalid-draft-children")).copy(
-            props = mapOf("stencilId" to "footer", "version" to 1, "isDraft" to "false"),
+        val invalidDraftVersion = stencil("invalid-draft-version", "footer", listOf("invalid-draft-children")).copy(
+            props = mapOf("stencilId" to "footer", "version" to 1, "draftVersion" to "2"),
         )
         val document = template(
-            nodes = listOf(missingVersion, zeroVersion, invalidDraftFlag),
+            nodes = listOf(missingVersion, zeroVersion, invalidDraftVersion),
             slots = listOf(
                 Slot("missing-children", missingVersion.id, "children"),
                 Slot("zero-children", zeroVersion.id, "children"),
-                Slot("invalid-draft-children", invalidDraftFlag.id, "children"),
+                Slot("invalid-draft-children", invalidDraftVersion.id, "children"),
             ),
-            rootChildren = listOf(missingVersion.id, zeroVersion.id, invalidDraftFlag.id),
+            rootChildren = listOf(missingVersion.id, zeroVersion.id, invalidDraftVersion.id),
         )
 
         val report = TemplateValidator.validate(
@@ -248,9 +247,9 @@ class TemplateValidatorStencilNestingTest {
 
         assertEquals(
             listOf(
-                "nodes.invalid-draft-flag.props.isDraft",
-                "nodes.missing-version.props.stencilId",
-                "nodes.zero-version.props.stencilId",
+                "nodes.invalid-draft-version.props",
+                "nodes.missing-version.props",
+                "nodes.zero-version.props",
             ),
             report.findings.filter { it.code == STENCIL_REFERENCE_INVALID }.map { it.path },
         )
@@ -280,13 +279,13 @@ class TemplateValidatorStencilNestingTest {
         )
 
         assertTrue(report.valid, report.findings.toString())
-        assertEquals(CatalogResourceReference("stencil", "address", version = 3, isDraft = false), resolved)
+        assertEquals(CatalogResourceReference("stencil", "address", version = 3), resolved)
     }
 
     @Test
     fun `draft stencil reference is valid during authoring and exposed to the resolver`() {
         val draft = stencil("draft", "address", listOf("draft-children")).copy(
-            props = mapOf("stencilId" to "address", "version" to 3, "isDraft" to true),
+            props = mapOf("stencilId" to "address", "version" to 3, "draftVersion" to 4),
         )
         val document = template(
             nodes = listOf(draft),
@@ -307,7 +306,7 @@ class TemplateValidatorStencilNestingTest {
         )
 
         assertTrue(report.valid, report.findings.toString())
-        assertEquals(CatalogResourceReference("stencil", "address", version = 3, isDraft = true), resolved)
+        assertEquals(CatalogResourceReference("stencil", "address", version = 3, draftVersion = 4), resolved)
     }
 
     @Test
@@ -399,7 +398,7 @@ class TemplateValidatorStencilNestingTest {
                 document.copy(
                     nodes = document.nodes + (
                         node.id to node.copy(
-                            props = node.props.orEmpty() + ("isDraft" to true),
+                            props = node.props.orEmpty() + ("draftVersion" to 2),
                         )
                         ),
                 ),
@@ -469,7 +468,6 @@ class TemplateValidatorStencilNestingTest {
         props = mapOf(
             "stencilId" to slug,
             "version" to 1,
-            "isDraft" to false,
         ),
     )
 }

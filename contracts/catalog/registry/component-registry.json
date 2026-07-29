@@ -2571,7 +2571,7 @@
         "stencilId": null,
         "catalogKey": null,
         "version": null,
-        "isDraft": false
+        "draftVersion": null
       },
       "examples": [
         {
@@ -2589,8 +2589,7 @@
                 "props": {
                   "stencilId": "letter-shell",
                   "catalogKey": "epistola-demo",
-                  "version": 1,
-                  "isDraft": false
+                  "version": 1
                 }
               },
               "n-stencil-letter-ph": {
@@ -2669,8 +2668,7 @@
                 "props": {
                   "stencilId": "letter-shell",
                   "catalogKey": "epistola-demo",
-                  "version": 1,
-                  "isDraft": false
+                  "version": 1
                 }
               },
               "n-stencil-letter-ov-ph": {

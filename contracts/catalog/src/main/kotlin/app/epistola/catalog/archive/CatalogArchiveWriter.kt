@@ -4,6 +4,7 @@
 
 package app.epistola.catalog.archive
 
+import app.epistola.catalog.migration.CatalogWireSchema
 import app.epistola.catalog.protocol.AssetResource
 import org.apache.commons.compress.archivers.zip.Zip64Mode
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
@@ -51,6 +52,12 @@ object CatalogArchiveWriter {
         policy: CatalogArchivePolicy = CatalogArchivePolicy(),
     ) {
         require(policy.maxExpandedBytes > 0)
+        require(catalog.manifest.schemaVersion == CatalogWireSchema.CURRENT_VERSION) {
+            "catalog archive writer only emits schemaVersion ${CatalogWireSchema.CURRENT_VERSION}"
+        }
+        require(catalog.resourceDetails.values.all { it.schemaVersion == CatalogWireSchema.CURRENT_VERSION }) {
+            "catalog resource details must all use schemaVersion ${CatalogWireSchema.CURRENT_VERSION}"
+        }
         val jsonEntries = buildMap {
             put("catalog.json", mapper.writeValueAsBytes(catalog.manifest))
             catalog.resourceDetails.toSortedMap().forEach { (key, detail) ->

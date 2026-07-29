@@ -20,12 +20,19 @@ import java.io.InputStream
  * [BASELINE_VERSION] through [CURRENT_VERSION].
  */
 object CatalogWireSchema {
-    const val CURRENT_VERSION: Int = 4
+    const val CURRENT_VERSION: Int = 5
     const val BASELINE_VERSION: Int = 4
 }
 
 /** Stable diagnostic explaining why a wire document could not be migrated. */
 data class CatalogMigrationFinding(
+    val code: String,
+    val path: String,
+    val message: String,
+)
+
+/** Non-fatal diagnostic describing a successful migration conversion. */
+data class CatalogMigrationNotice(
     val code: String,
     val path: String,
     val message: String,
@@ -41,6 +48,7 @@ data class CatalogMigrationResult<T>(
     val value: T?,
     val sourceVersion: Int?,
     val findings: List<CatalogMigrationFinding>,
+    val notices: List<CatalogMigrationNotice> = emptyList(),
 ) {
     /** True when a value was bound without migration findings. */
     val valid: Boolean get() = value != null && findings.isEmpty()
@@ -61,19 +69,18 @@ object CatalogMigrationCodes {
     const val SCHEMA_TOO_OLD = "CATALOG_SCHEMA_TOO_OLD"
     const val SCHEMA_VERSION_MISMATCH = "CATALOG_SCHEMA_VERSION_MISMATCH"
     const val RESOURCE_TYPE_MISMATCH = "CATALOG_RESOURCE_TYPE_MISMATCH"
+    const val DRAFT_MARKER_INVALID = "CATALOG_DRAFT_MARKER_INVALID"
+    const val STALE_DRAFT_MARKER_REMOVED = "CATALOG_STALE_DRAFT_MARKER_REMOVED"
 }
 
 /**
  * Portable catalog-wide wire-version gate.
  *
- * The current contract has one supported shape:
- * `BASELINE_VERSION == CURRENT_VERSION == 4`. Older version labels are not
- * accepted merely because their payload happens to bind to the current model.
- * A future wire version must add an explicit migration before its predecessor
- * can be accepted.
+ * Catalog v4 is the migration baseline and v5 is the only emitted shape.
  */
 object CatalogSchemaMigrator {
     private val mapper = jsonMapper { addModule(kotlinModule()) }
+    private val migrations: List<CatalogSchemaMigration> = listOf(CatalogV4ToV5Migration())
 
     /**
      * Parses and migrates `catalog.json` to the current [CatalogManifest].
@@ -90,7 +97,9 @@ object CatalogSchemaMigrator {
             "manifest schemaVersion is missing or is not an integer",
         )
         versionFinding(source, "catalog.json.schemaVersion")?.let { return CatalogMigrationResult(null, source, listOf(it)) }
-        return bind(tree, CatalogManifest::class.java, source, "catalog.json")
+        val migration = migrate(source) { step -> step.migrateManifest(tree) }
+        if (migration.findings.isNotEmpty()) return CatalogMigrationResult(null, source, migration.findings, migration.notices)
+        return bind(tree, CatalogManifest::class.java, source, "catalog.json", migration.notices)
     }
 
     /**
@@ -134,7 +143,9 @@ object CatalogSchemaMigrator {
             )
         }
         versionFinding(source, "$path.schemaVersion")?.let { return CatalogMigrationResult(null, source, listOf(it)) }
-        return bind(tree, ResourceDetail::class.java, source, path)
+        val migration = migrate(source) { step -> step.migrateResource(tree, path) }
+        if (migration.findings.isNotEmpty()) return CatalogMigrationResult(null, source, migration.findings, migration.notices)
+        return bind(tree, ResourceDetail::class.java, source, path, migration.notices)
     }
 
     private fun parse(input: InputStream): ObjectNode? = try {
@@ -169,8 +180,9 @@ object CatalogSchemaMigrator {
         type: Class<T>,
         source: Int,
         path: String,
+        notices: List<CatalogMigrationNotice> = emptyList(),
     ): CatalogMigrationResult<T> = try {
-        CatalogMigrationResult(mapper.treeToValue(tree, type), source, emptyList())
+        CatalogMigrationResult(mapper.treeToValue(tree, type), source, emptyList(), notices)
     } catch (exception: JacksonException) {
         failure(
             CatalogMigrationCodes.SCHEMA_UNKNOWN,
@@ -190,4 +202,24 @@ object CatalogSchemaMigrator {
         sourceVersion = sourceVersion,
         findings = listOf(CatalogMigrationFinding(code, path, message)),
     )
+
+    private fun migrate(
+        sourceVersion: Int,
+        apply: (CatalogSchemaMigration) -> CatalogMigrationStepResult,
+    ): CatalogMigrationStepResult {
+        val findings = mutableListOf<CatalogMigrationFinding>()
+        val notices = mutableListOf<CatalogMigrationNotice>()
+        var version = sourceVersion
+        while (version < CatalogWireSchema.CURRENT_VERSION) {
+            val migration = requireNotNull(migrations.singleOrNull { it.fromVersion == version }) {
+                "missing catalog migration from schemaVersion $version"
+            }
+            val result = apply(migration)
+            findings += result.findings
+            notices += result.notices
+            if (result.findings.isNotEmpty()) break
+            version = migration.toVersion
+        }
+        return CatalogMigrationStepResult(findings, notices)
+    }
 }

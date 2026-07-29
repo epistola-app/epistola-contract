@@ -10,12 +10,17 @@ import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CompatibilityInfo
 import app.epistola.catalog.protocol.IncludeEntry
 import app.epistola.catalog.protocol.ResourceDetail
+import app.epistola.catalog.protocol.StencilResource
+import app.epistola.template.model.Node
+import app.epistola.template.model.Slot
+import app.epistola.template.model.TemplateDocument
 import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
 import java.io.ByteArrayInputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 
 class CatalogCanonicalizerTest {
     private val mapper = jsonMapper { addModule(kotlinModule()) }
@@ -101,6 +106,27 @@ class CatalogCanonicalizerTest {
         )
     }
 
+    @Test
+    fun `catalog v4 draft flag syntax is semantically equivalent to catalog v5 provenance`() {
+        val legacy = stencilArchive(4, mapOf("stencilId" to "address", "version" to 3, "isDraft" to false))
+        val current = stencilArchive(5, mapOf("stencilId" to "address", "version" to 3))
+
+        assertEquals(
+            CatalogCanonicalizer.currentFingerprint(legacy),
+            CatalogCanonicalizer.currentFingerprint(current),
+        )
+        assertEquals(
+            CatalogCanonicalizer.currentPerResourceFingerprints(legacy),
+            CatalogCanonicalizer.currentPerResourceFingerprints(current),
+        )
+        assertTrue(
+            CatalogCanonicalizer.matchesFingerprint(
+                current,
+                CatalogCanonicalizer.fingerprint(legacy).value,
+            ),
+        )
+    }
+
     private fun goldenArchive(): CatalogArchive {
         val manifest = resource("wire-v4/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
         val detail = resource("wire-v4/resources/theme/default.json").use { mapper.readValue(it, ResourceDetail::class.java) }
@@ -126,6 +152,31 @@ class CatalogCanonicalizerTest {
             content = ArchiveContentProvider { path ->
                 ByteArrayInputStream(if (path.endsWith(".json")) json else bytes)
             },
+        )
+    }
+
+    private fun stencilArchive(
+        schemaVersion: Int,
+        props: Map<String, Any?>,
+    ): CatalogArchive {
+        val content = TemplateDocument(
+            root = "root",
+            nodes = mapOf(
+                "root" to Node("root", "root", listOf("root-children")),
+                "nested" to Node("nested", "stencil", props = props),
+            ),
+            slots = mapOf("root-children" to Slot("root-children", "root", "children", listOf("nested"))),
+        )
+        val detail = ResourceDetail(
+            schemaVersion,
+            StencilResource("letter", "Letter", 1, content = content),
+        )
+        val bytes = mapper.writeValueAsBytes(detail)
+        return CatalogArchive(
+            manifest = goldenArchive().manifest.copy(schemaVersion = schemaVersion, resources = emptyList()),
+            resourceDetails = mapOf("stencil/letter" to detail),
+            paths = setOf("resources/stencil/letter.json"),
+            content = ArchiveContentProvider { ByteArrayInputStream(bytes) },
         )
     }
 
