@@ -60,9 +60,15 @@ internal class CatalogV4ToV5Migration : CatalogSchemaMigration {
         when {
             node.isObject -> {
                 val objectNode = node as ObjectNode
-                if (objectNode["type"]?.asString() == "stencil" && objectNode["props"]?.isObject == true) {
-                    val props = objectNode["props"] as ObjectNode
-                    val marker = props["isDraft"]
+                val type = objectNode["type"]
+                val props = objectNode["props"]
+                if (
+                    type?.isString == true &&
+                    type.asString() == "stencil" &&
+                    props?.isObject == true
+                ) {
+                    val propsNode = props as ObjectNode
+                    val marker = propsNode["isDraft"]
                     if (marker != null && !marker.isBoolean) {
                         findings += CatalogMigrationFinding(
                             CatalogMigrationCodes.DRAFT_MARKER_INVALID,
@@ -76,7 +82,7 @@ internal class CatalogV4ToV5Migration : CatalogSchemaMigration {
                             "removed stale catalog-v4 draft marker; the published version and embedded content were preserved",
                         )
                     }
-                    props.remove("isDraft")
+                    propsNode.remove("isDraft")
                 }
                 objectNode.propertyNames().toList().sorted().forEach { name ->
                     visit(objectNode[name], "$path.$name", findings, notices)
