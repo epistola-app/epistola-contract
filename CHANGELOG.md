@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-07-30
+
 - Fixed catalog v4-to-v5 migration of resources containing JSON Schema objects whose `type`
   property is itself an object, while preserving recursive stencil `isDraft` handling.
 
