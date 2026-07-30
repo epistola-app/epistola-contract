@@ -5,6 +5,15 @@
     "slug": "letter",
     "name": "Letter",
     "version": 3,
+    "parameterSchema": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Type activiteit"
+        }
+      }
+    },
     "content": {
       "modelVersion": 1,
       "root": "root",

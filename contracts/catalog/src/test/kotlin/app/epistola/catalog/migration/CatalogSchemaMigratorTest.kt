@@ -5,6 +5,7 @@
 package app.epistola.catalog.migration
 
 import app.epistola.catalog.protocol.CatalogManifest
+import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
 import java.io.ByteArrayInputStream
@@ -104,6 +105,35 @@ class CatalogSchemaMigratorTest {
         assertTrue(result.valid)
         assertEquals(expected.value, result.value)
         assertEquals(expectedNotices, mapper.valueToTree(result.notices))
+    }
+
+    @Test
+    fun `v4 migration preserves object-valued type properties in JSON Schema`() {
+        val tree = mapper.readTree(
+            """
+            {
+              "schemaVersion": 4,
+              "resource": {
+                "parameterSchema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "description": "Type activiteit"
+                    }
+                  }
+                }
+              }
+            }
+            """.trimIndent(),
+        ) as ObjectNode
+        val parameterSchema = tree["resource"]["parameterSchema"].toString()
+
+        val result = CatalogV4ToV5Migration().migrateResource(tree, "resources/stencil/letter.json")
+
+        assertTrue(result.findings.isEmpty())
+        assertTrue(result.notices.isEmpty())
+        assertEquals(parameterSchema, tree["resource"]["parameterSchema"].toString())
     }
 
     @Test
