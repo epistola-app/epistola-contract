@@ -11,6 +11,7 @@ import app.epistola.catalog.protocol.CompatibilityInfo
 import app.epistola.catalog.protocol.IncludeEntry
 import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.StencilResource
+import app.epistola.catalog.protocol.TemplateResource
 import app.epistola.template.model.Node
 import app.epistola.template.model.Slot
 import app.epistola.template.model.TemplateDocument
@@ -127,6 +128,21 @@ class CatalogCanonicalizerTest {
         )
     }
 
+    @Test
+    fun `semantic fingerprints preserve JSON Schema properties named type`() {
+        val original = templateArchive("Type activiteit")
+        val changed = templateArchive("Gewijzigd type activiteit")
+
+        val fingerprint = CatalogCanonicalizer.currentFingerprint(original)
+
+        assertTrue(CatalogCanonicalizer.matchesFingerprint(original, fingerprint.value))
+        assertEquals(
+            setOf("template/permit-confirmation"),
+            CatalogCanonicalizer.currentPerResourceFingerprints(original).keys,
+        )
+        assertNotEquals(fingerprint, CatalogCanonicalizer.currentFingerprint(changed))
+    }
+
     private fun goldenArchive(): CatalogArchive {
         val manifest = resource("wire-v4/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
         val detail = resource("wire-v4/resources/theme/default.json").use { mapper.readValue(it, ResourceDetail::class.java) }
@@ -177,6 +193,46 @@ class CatalogCanonicalizerTest {
             resourceDetails = mapOf("stencil/letter" to detail),
             paths = setOf("resources/stencil/letter.json"),
             content = ArchiveContentProvider { ByteArrayInputStream(bytes) },
+        )
+    }
+
+    private fun templateArchive(typeDescription: String): CatalogArchive {
+        val document = TemplateDocument(
+            root = "root",
+            nodes = mapOf("root" to Node("root", "root")),
+            slots = emptyMap(),
+        )
+        val detail = ResourceDetail(
+            schemaVersion = 5,
+            resource = TemplateResource(
+                slug = "permit-confirmation",
+                name = "Permit confirmation",
+                dataModel = mapOf(
+                    "type" to "object",
+                    "properties" to mapOf(
+                        "activities" to mapOf(
+                            "type" to "array",
+                            "items" to mapOf(
+                                "type" to "object",
+                                "properties" to mapOf(
+                                    "type" to mapOf(
+                                        "type" to "string",
+                                        "description" to typeDescription,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+                templateModel = document,
+                variants = emptyList(),
+            ),
+        )
+        return CatalogArchive(
+            manifest = goldenArchive().manifest.copy(schemaVersion = 5, resources = emptyList()),
+            resourceDetails = mapOf("template/permit-confirmation" to detail),
+            paths = emptySet(),
+            content = ArchiveContentProvider { error("unexpected archive content read") },
         )
     }
 

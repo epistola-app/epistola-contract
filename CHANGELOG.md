@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed semantic catalog fingerprinting for resources containing JSON Schema objects whose `type`
+  property is itself an object, matching the existing v4-to-v5 import migration guard.
+
 ## [1.0.0] - 2026-07-30
 
 - Declared the Epistola contract stable with its first major release.
