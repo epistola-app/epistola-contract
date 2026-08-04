@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-08-04
+
 - Fixed semantic catalog fingerprinting for resources containing JSON Schema objects whose `type`
   property is itself an object, matching the existing v4-to-v5 import migration guard.
 
