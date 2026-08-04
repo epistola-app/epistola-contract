@@ -262,7 +262,8 @@ object CatalogCanonicalizer {
             node.propertyNames().forEach { name ->
                 normalized.set(name, normalizeStencilProvenance(node[name], legacyV4))
             }
-            if (normalized["type"]?.asString() == "stencil" && normalized["props"] is ObjectNode) {
+            val type = normalized["type"]
+            if (type?.isString == true && type.asString() == "stencil" && normalized["props"] is ObjectNode) {
                 val props = normalized["props"] as ObjectNode
                 props.remove("isDraft")
                 if (legacyV4 && props["draftVersion"] == null) props.put("isDraft", false)
