@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kept `CatalogInfo` lean by omitting JVM-only destructuring and legacy `copy` shims; consumers
   recompile when upgrading while its three-argument Kotlin construction shape remains
   source-compatible.
+- Added an optional `pdfaEnabled` field to `TemplateResource`, recording whether a template
+  renders PDF/A-compliant output. Absent on the wire defaults to `true`, preserving the
+  behavior of catalogs from exporters that predate this field. Additive and round-trip
+  compatible, so it needs no `schemaVersion` bump.
 
 ## [1.0.1] - 2026-08-04
 
