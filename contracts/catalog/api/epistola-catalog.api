@@ -1423,4 +1423,3 @@ public final class app/epistola/template/model/ThemeRefOverride : app/epistola/t
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
-
