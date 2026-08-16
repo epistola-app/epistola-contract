@@ -5,10 +5,10 @@ pass manifest and resource-detail streams through `CatalogSchemaMigrator` before
 import or persistence. The API reports stable migration findings for unsupported or inconsistent
 wire versions and never exposes a JSON mapper.
 
-The current baseline and wire version are both 4. Earlier version numbers have no defined
-historical transform in the contract yet, so versions below 4 are rejected even when their JSON
-happens to bind to the current model. Supporting an older wire version requires an explicit,
-tested migration before lowering the baseline gate.
+The migration baseline is wire version 4 and the current wire version is 6. Version 4 migrates to
+5 and then 6; version 5 migrates directly to 6. Versions below 4 and above 6 are rejected even when
+their JSON happens to bind to the current model. The v5-to-v6 migration supplies `nl-NL` as the
+default language and an empty keyword set when those fields are absent.
 
 `CatalogCanonicalizer` hashes canonical catalog content. It sorts resources and JSON object keys,
 normalizes numeric JSON representation, includes streamed asset digests, dependency identity,
@@ -17,13 +17,14 @@ timestamps, release versions, resource URLs, and ZIP metadata. Therefore equival
 identical fingerprints even when their entry order, timestamps, compression, or JSON property order
 differ.
 
-The current canonical form is V3. `CatalogCanonicalizer.currentFingerprint(catalog)` produces V3.
+The current canonical form is V4. `CatalogCanonicalizer.currentFingerprint(catalog)` produces V4.
 The existing `fingerprint(catalog)` method continues to produce V1 for source, binary, and
 behavioral compatibility, and the versioned overload supports explicit selection. Whole-catalog
-validation accepts V3 plus V2 and V1 legacy hashes so existing installed catalogs remain valid;
-newly generated fingerprints should always use `currentFingerprint`. V3 normalizes the catalog-v4
-`isDraft:false` syntax to catalog-v5 version provenance. `matchesFingerprint` accepts V1, V2, V3,
-and the equivalent legacy-v4 projection so a syntax-only migration does not create false drift.
+validation uses the source wire version: v4/v5 input accepts V1 through V3 and the equivalent
+legacy-v4 projection, while native v6 input must carry V4. New fingerprints should always use
+`currentFingerprint`. V3 retains the semantic v5 resource projection. V4 adds an algorithm domain
+prefix and includes `defaultLanguage`, sorted exact-case `keywords`, and catalog presentation asset
+references. Re-exporting a migrated catalog replaces a present legacy fingerprint with V4.
 
 Authoritative versioned inputs and expected hashes are published below
 `META-INF/epistola-catalog/fixtures/v1` in the Maven artifact and
