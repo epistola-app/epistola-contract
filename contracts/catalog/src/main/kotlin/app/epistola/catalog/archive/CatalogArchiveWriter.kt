@@ -4,6 +4,7 @@
 
 package app.epistola.catalog.archive
 
+import app.epistola.catalog.canonical.CatalogCanonicalizer
 import app.epistola.catalog.migration.CatalogWireSchema
 import app.epistola.catalog.protocol.AssetResource
 import org.apache.commons.compress.archivers.zip.Zip64Mode
@@ -58,8 +59,17 @@ object CatalogArchiveWriter {
         require(catalog.resourceDetails.values.all { it.schemaVersion == CatalogWireSchema.CURRENT_VERSION }) {
             "catalog resource details must all use schemaVersion ${CatalogWireSchema.CURRENT_VERSION}"
         }
+        val manifest = if (catalog.sourceSchemaVersion < CatalogWireSchema.CURRENT_VERSION && catalog.manifest.release.fingerprint != null) {
+            catalog.manifest.copy(
+                release = catalog.manifest.release.copy(
+                    fingerprint = CatalogCanonicalizer.currentFingerprint(catalog).value,
+                ),
+            )
+        } else {
+            catalog.manifest
+        }
         val jsonEntries = buildMap {
-            put("catalog.json", mapper.writeValueAsBytes(catalog.manifest))
+            put("catalog.json", mapper.writeValueAsBytes(manifest))
             catalog.resourceDetails.toSortedMap().forEach { (key, detail) ->
                 put("resources/$key.json", mapper.writeValueAsBytes(detail))
             }

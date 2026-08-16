@@ -23,16 +23,18 @@ class CatalogSchemaMigratorTest {
 
         assertTrue(result.valid)
         assertEquals(4, result.sourceVersion)
-        assertEquals(5, assertNotNull(result.value).schemaVersion)
+        assertEquals(6, assertNotNull(result.value).schemaVersion)
         assertEquals("fixture", result.value.catalog.slug)
+        assertEquals("nl-NL", result.value.catalog.defaultLanguage)
+        assertEquals(emptySet(), result.value.catalog.keywords)
     }
 
     @Test
     fun `current golden wire version binds without migration`() {
-        val result = CatalogSchemaMigrator.migrateManifest(resource("wire-v5/catalog.json"))
+        val result = CatalogSchemaMigrator.migrateManifest(resource("wire-v6/catalog.json"))
 
         assertTrue(result.valid)
-        assertEquals(5, result.sourceVersion)
+        assertEquals(6, result.sourceVersion)
         assertTrue(result.notices.isEmpty())
         assertEquals("fixture", assertNotNull(result.value).catalog.slug)
     }
@@ -51,11 +53,39 @@ class CatalogSchemaMigratorTest {
 
     @Test
     fun `newer and malformed manifests return findings`() {
-        val tooNew = minimalManifest(6)
+        val tooNew = minimalManifest(7)
         val malformed = CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream("{".toByteArray()))
 
         assertEquals(CatalogMigrationCodes.SCHEMA_TOO_NEW, tooNew.findings.single().code)
         assertEquals(CatalogMigrationCodes.SCHEMA_UNKNOWN, malformed.findings.single().code)
+    }
+
+    @Test
+    fun `v5 migration supplies optional discovery metadata`() {
+        val result = CatalogSchemaMigrator.migrateManifest(resource("wire-v5/catalog.json"))
+        val catalog = assertNotNull(result.value).catalog
+        val tree = resource("wire-v5/catalog.json").use(mapper::readTree) as ObjectNode
+        val step = CatalogV5ToV6Migration().migrateManifest(tree)
+
+        assertTrue(result.valid)
+        assertEquals(5, result.sourceVersion)
+        assertEquals("nl-NL", catalog.defaultLanguage)
+        assertEquals(emptySet(), catalog.keywords)
+        assertEquals(CatalogMigrationCodes.DEFAULT_LANGUAGE_ADDED, result.notices.single().code)
+        assertEquals(resource("migrations/v5-to-v6/manifest-expected.json").use(mapper::readTree), tree)
+        assertEquals(resource("migrations/v5-to-v6/notices.json").use(mapper::readTree), mapper.valueToTree(step.notices))
+    }
+
+    @Test
+    fun `keyword wire validation preserves exact text and rejects malformed arrays before binding`() {
+        val valid = v6ManifestWithKeywords("Government", "government")
+        val duplicate = v6ManifestWithKeywords("documents", "documents")
+        val untrimmed = v6ManifestWithKeywords(" documents ")
+
+        assertEquals(setOf("Government", "government"), assertNotNull(valid.value).catalog.keywords)
+        assertEquals(CatalogMigrationCodes.KEYWORD_DUPLICATE, duplicate.findings.single().code)
+        assertEquals("catalog.json.catalog.keywords[1]", duplicate.findings.single().path)
+        assertEquals(CatalogMigrationCodes.KEYWORD_INVALID, untrimmed.findings.single().code)
     }
 
     @Test
@@ -162,6 +192,15 @@ class CatalogSchemaMigratorTest {
         val json = """
             {"schemaVersion":$version,"catalog":{"slug":"x","name":"X"},"publisher":{"name":"X"},
             "release":{"version":"1.0.0"},"resources":[]}
+        """.trimIndent()
+        return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(json.toByteArray()))
+    }
+
+    private fun v6ManifestWithKeywords(vararg keywords: String): CatalogMigrationResult<CatalogManifest> {
+        val encoded = keywords.joinToString(",") { mapper.writeValueAsString(it) }
+        val json = """
+            {"schemaVersion":6,"catalog":{"slug":"x","name":"X","keywords":[$encoded]},
+            "publisher":{"name":"X"},"release":{"version":"1.0.0"},"resources":[]}
         """.trimIndent()
         return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(json.toByteArray()))
     }

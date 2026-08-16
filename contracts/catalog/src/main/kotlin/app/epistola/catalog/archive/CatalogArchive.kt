@@ -46,6 +46,9 @@ class CatalogArchive(
     val content: ArchiveContentProvider,
     private val closeAction: () -> Unit = {},
 ) : AutoCloseable {
+    /** Original wire version before migration; used for legacy fingerprint verification. */
+    internal var sourceSchemaVersion: Int = manifest.schemaVersion
+
     /** Releases backing storage owned by this archive. Safe to call once. */
     override fun close() = closeAction()
 }

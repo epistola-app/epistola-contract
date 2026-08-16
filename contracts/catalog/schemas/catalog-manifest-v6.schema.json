@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epistola.app/schemas/catalog-manifest-v6.schema.json",
+  "title": "CatalogManifest",
+  "description": "Portable Epistola catalog manifest at wire version 6.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "const": 6 },
+    "catalog": { "$ref": "#/$defs/CatalogInfo" },
+    "publisher": { "$ref": "#/$defs/PublisherInfo" },
+    "release": { "$ref": "#/$defs/ReleaseInfo" },
+    "compatibility": { "oneOf": [{ "$ref": "#/$defs/CompatibilityInfo" }, { "type": "null" }] },
+    "includes": {
+      "oneOf": [
+        { "type": "array", "items": { "$ref": "#/$defs/IncludeEntry" } },
+        { "type": "null" }
+      ]
+    },
+    "resources": { "type": "array", "items": { "$ref": "#/$defs/ResourceEntry" } },
+    "dependencies": {
+      "oneOf": [
+        { "type": "array", "items": { "$ref": "#/$defs/DependencyRef" } },
+        { "type": "null" }
+      ]
+    }
+  },
+  "required": ["schemaVersion", "catalog", "publisher", "release", "resources"],
+  "additionalProperties": false,
+  "$defs": {
+    "CatalogInfo": {
+      "type": "object",
+      "properties": {
+        "slug": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": ["string", "null"] },
+        "defaultLanguage": {
+          "type": ["string", "null"],
+          "pattern": "^\\S(?:.*\\S)?$"
+        },
+        "keywords": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "pattern": "^\\S(?:.*\\S)?$" },
+              "uniqueItems": true
+            },
+            { "type": "null" }
+          ]
+        },
+        "presentation": {
+          "oneOf": [{ "$ref": "#/$defs/CatalogPresentation" }, { "type": "null" }]
+        }
+      },
+      "required": ["slug", "name"],
+      "additionalProperties": false
+    },
+    "CatalogPresentation": {
+      "type": "object",
+      "properties": {
+        "iconAssetSlug": { "type": ["string", "null"] },
+        "imageAssetSlugs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "PublisherInfo": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": ["string", "null"] }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    },
+    "ReleaseInfo": {
+      "type": "object",
+      "properties": {
+        "version": { "type": "string" },
+        "releasedAt": { "type": ["string", "null"] },
+        "fingerprint": { "type": ["string", "null"] }
+      },
+      "required": ["version"],
+      "additionalProperties": false
+    },
+    "CompatibilityInfo": {
+      "type": "object",
+      "properties": {
+        "epistolaVersions": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "IncludeEntry": {
+      "type": "object",
+      "properties": {
+        "url": { "type": "string" },
+        "description": { "type": ["string", "null"] }
+      },
+      "required": ["url"],
+      "additionalProperties": false
+    },
+    "ResourceEntry": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "slug": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": ["string", "null"] },
+        "updatedAt": { "type": ["string", "null"] },
+        "detailUrl": { "type": "string" },
+        "compatibility": { "oneOf": [{ "$ref": "#/$defs/CompatibilityInfo" }, { "type": "null" }] }
+      },
+      "required": ["type", "slug", "name", "detailUrl"],
+      "additionalProperties": false
+    },
+    "DependencyRef": {
+      "oneOf": [
+        { "$ref": "#/$defs/CatalogDependencyRef" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "asset" },
+            "slug": { "type": "string" }
+          },
+          "required": ["type", "slug"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "CatalogDependencyRef": {
+      "type": "object",
+      "properties": {
+        "type": { "enum": ["theme", "stencil", "codeList", "font"] },
+        "catalogKey": { "type": "string" },
+        "slug": { "type": "string" }
+      },
+      "required": ["type", "catalogKey", "slug"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -4,8 +4,12 @@
 
 package app.epistola.catalog.protocol
 
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import java.util.Collections
+import java.util.TreeSet
 
 /**
  * Portable `catalog.json` manifest and resource index.
@@ -78,11 +82,100 @@ sealed class DependencyRef {
     data class Font(val catalogKey: String, override val slug: String) : DependencyRef()
 }
 
-/** Stable catalog identity and human-readable metadata. */
-data class CatalogInfo(
+/**
+ * Stable catalog identity, human-readable metadata, and authored discovery metadata.
+ *
+ * The legacy constructor, destructuring functions, and three-argument [copy] method
+ * intentionally retain the JVM surface published in 1.0.1. Use [create] or
+ * [copyWithMetadata] when setting catalog-v6 metadata.
+ */
+class CatalogInfo private constructor(
     val slug: String,
     val name: String,
-    val description: String? = null,
+    val description: String?,
+    val defaultLanguage: String?,
+    keywords: Set<String>,
+    val presentation: CatalogPresentation?,
+) {
+    /** Deterministically ordered, immutable authored catalog keywords. */
+    val keywords: Set<String> = immutableSortedSet(keywords)
+
+    /** Source- and binary-compatible constructor retained from catalog 1.0.1. */
+    constructor(slug: String, name: String, description: String? = null) :
+        this(slug, name, description, null, emptySet(), null)
+
+    operator fun component1(): String = slug
+
+    operator fun component2(): String = name
+
+    operator fun component3(): String? = description
+
+    operator fun component4(): String? = defaultLanguage
+
+    operator fun component5(): Set<String> = keywords
+
+    operator fun component6(): CatalogPresentation? = presentation
+
+    /** Legacy copy shape; v6 metadata is retained when identity fields change. */
+    fun copy(
+        slug: String = this.slug,
+        name: String = this.name,
+        description: String? = this.description,
+    ): CatalogInfo = CatalogInfo(slug, name, description, defaultLanguage, keywords, presentation)
+
+    /** Copies the catalog while replacing any catalog-v6 metadata. */
+    fun copyWithMetadata(
+        defaultLanguage: String? = this.defaultLanguage,
+        keywords: Set<String> = this.keywords,
+        presentation: CatalogPresentation? = this.presentation,
+    ): CatalogInfo = CatalogInfo(slug, name, description, defaultLanguage, keywords, presentation)
+
+    override fun equals(other: Any?): Boolean = this === other ||
+        other is CatalogInfo &&
+        slug == other.slug &&
+        name == other.name &&
+        description == other.description &&
+        defaultLanguage == other.defaultLanguage &&
+        keywords == other.keywords &&
+        presentation == other.presentation
+
+    override fun hashCode(): Int {
+        var result = slug.hashCode()
+        result = 31 * result + name.hashCode()
+        result = 31 * result + (description?.hashCode() ?: 0)
+        result = 31 * result + (defaultLanguage?.hashCode() ?: 0)
+        result = 31 * result + keywords.hashCode()
+        result = 31 * result + (presentation?.hashCode() ?: 0)
+        return result
+    }
+
+    override fun toString(): String = "CatalogInfo(slug=$slug, name=$name, description=$description, " +
+        "defaultLanguage=$defaultLanguage, keywords=$keywords, presentation=$presentation)"
+
+    companion object {
+        /** Creates a catalog identity with optional catalog-v6 metadata. */
+        @JvmStatic
+        @JsonCreator
+        fun create(
+            @JsonProperty("slug") slug: String,
+            @JsonProperty("name") name: String,
+            @JsonProperty("description") description: String? = null,
+            @JsonProperty("defaultLanguage") defaultLanguage: String? = null,
+            @JsonProperty("keywords") keywords: Set<String>? = null,
+            @JsonProperty("presentation") presentation: CatalogPresentation? = null,
+        ): CatalogInfo = CatalogInfo(slug, name, description, defaultLanguage, keywords.orEmpty(), presentation)
+
+        private fun immutableSortedSet(values: Set<String>): Set<String> = when {
+            values.isEmpty() -> emptySet()
+            else -> Collections.unmodifiableSet(TreeSet(values))
+        }
+    }
+}
+
+/** Optional authored icon and ordered gallery references for a catalog. */
+data class CatalogPresentation(
+    val iconAssetSlug: String? = null,
+    val imageAssetSlugs: List<String> = emptyList(),
 )
 
 /**

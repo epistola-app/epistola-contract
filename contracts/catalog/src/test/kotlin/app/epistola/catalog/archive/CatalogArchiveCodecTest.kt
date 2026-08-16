@@ -4,6 +4,8 @@
 
 package app.epistola.catalog.archive
 
+import app.epistola.catalog.canonical.CatalogCanonicalizer
+import app.epistola.catalog.canonical.CatalogFingerprintVersion
 import app.epistola.catalog.protocol.AssetResource
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogManifest
@@ -12,6 +14,7 @@ import app.epistola.catalog.protocol.ReleaseInfo
 import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.ResourceEntry
 import app.epistola.catalog.protocol.ThemeResource
+import app.epistola.catalog.validation.CatalogValidator
 import org.apache.commons.compress.archivers.zip.UnixStat
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
@@ -76,6 +79,30 @@ class CatalogArchiveCodecTest {
             assertEquals("example", archive.manifest.catalog.slug)
             assertEquals(setOf("catalog.json", "resources/theme/default.json"), archive.paths)
             assertEquals("default", archive.resourceDetails.getValue("theme/default").resource.slug)
+        }
+    }
+
+    @Test
+    fun `re-exporting a migrated catalog replaces its legacy fingerprint with v4`() {
+        val legacyZip = zip(
+            "catalog.json" to fixtureBytes("wire-v5/catalog.json"),
+            "resources/theme/default.json" to fixtureBytes("wire-v5/resources/theme/default.json"),
+        )
+        val migrated = assertNotNull(CatalogArchiveReader.read(ByteArrayInputStream(legacyZip)).archive)
+        migrated.use { source ->
+            val legacyFingerprint = CatalogCanonicalizer.fingerprint(source, CatalogFingerprintVersion.V3).value
+            val withLegacyFingerprint = CatalogArchive(
+                manifest = source.manifest.copy(release = source.manifest.release.copy(fingerprint = legacyFingerprint)),
+                resourceDetails = source.resourceDetails,
+                paths = source.paths,
+                content = source.content,
+            ).also { it.sourceSchemaVersion = 5 }
+
+            CatalogArchiveReader.read(ByteArrayInputStream(write(withLegacyFingerprint))).archive!!.use { rewritten ->
+                assertEquals(6, rewritten.sourceSchemaVersion)
+                assertEquals(CatalogCanonicalizer.currentFingerprint(rewritten).value, rewritten.manifest.release.fingerprint)
+                assertTrue(CatalogValidator.validate(rewritten).valid)
+            }
         }
     }
 
@@ -196,9 +223,9 @@ class CatalogArchiveCodecTest {
     }
 
     private fun validCatalog(): CatalogArchive {
-        val detail = ResourceDetail(5, ThemeResource(slug = "default", name = "Default"))
+        val detail = ResourceDetail(6, ThemeResource(slug = "default", name = "Default"))
         val manifest = CatalogManifest(
-            schemaVersion = 5,
+            schemaVersion = 6,
             catalog = CatalogInfo("example", "Example"),
             publisher = PublisherInfo("Example"),
             release = ReleaseInfo("1.0.0"),
@@ -224,7 +251,7 @@ class CatalogArchiveCodecTest {
         bytes: ByteArray,
     ): CatalogArchive {
         val detail = ResourceDetail(
-            5,
+            6,
             AssetResource(
                 slug = "logo",
                 name = "Logo",
@@ -233,7 +260,7 @@ class CatalogArchiveCodecTest {
             ),
         )
         val manifest = CatalogManifest(
-            schemaVersion = 5,
+            schemaVersion = 6,
             catalog = CatalogInfo("example", "Example"),
             publisher = PublisherInfo("Example"),
             release = ReleaseInfo("1.0.0"),

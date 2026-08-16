@@ -11,6 +11,7 @@ import app.epistola.catalog.canonical.CatalogCanonicalizer
 import app.epistola.catalog.migration.CatalogWireSchema
 import app.epistola.catalog.protocol.AssetResource
 import app.epistola.catalog.protocol.AttributeResource
+import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogResource
 import app.epistola.catalog.protocol.CodeListResource
 import app.epistola.catalog.protocol.DependencyRef
@@ -33,6 +34,7 @@ import tools.jackson.module.kotlin.kotlinModule
 import java.io.InputStream
 import java.net.URI
 import java.time.OffsetDateTime
+import java.util.Locale
 
 /**
  * Stable diagnostic returned by resource or whole-catalog validation.
@@ -114,6 +116,13 @@ object CatalogValidationCodes {
     const val RELEASE_TIMESTAMP_INVALID = "CATALOG_RELEASE_TIMESTAMP_INVALID"
     const val RELEASE_FINGERPRINT_INVALID = "CATALOG_RELEASE_FINGERPRINT_INVALID"
     const val RELEASE_FINGERPRINT_MISMATCH = "CATALOG_RELEASE_FINGERPRINT_MISMATCH"
+    const val DEFAULT_LANGUAGE_INVALID = "CATALOG_DEFAULT_LANGUAGE_INVALID"
+    const val KEYWORD_INVALID = "CATALOG_KEYWORD_INVALID"
+    const val KEYWORD_DUPLICATE = "CATALOG_KEYWORD_DUPLICATE"
+    const val PRESENTATION_ASSET_MISSING = "CATALOG_PRESENTATION_ASSET_MISSING"
+    const val PRESENTATION_RESOURCE_NOT_ASSET = "CATALOG_PRESENTATION_RESOURCE_NOT_ASSET"
+    const val PRESENTATION_ASSET_MEDIA_TYPE_INVALID = "CATALOG_PRESENTATION_ASSET_MEDIA_TYPE_INVALID"
+    const val PRESENTATION_IMAGE_DUPLICATE = "CATALOG_PRESENTATION_IMAGE_DUPLICATE"
     const val ASSET_PATH_INVALID = "CATALOG_ASSET_PATH_INVALID"
     const val ASSET_FILE_MISSING = "CATALOG_ASSET_FILE_MISSING"
     const val ASSET_MEDIA_TYPE_INVALID = "CATALOG_ASSET_MEDIA_TYPE_INVALID"
@@ -514,6 +523,7 @@ object CatalogValidator {
             }
         }
         val resources = catalog.resourceDetails.mapValues { it.value.resource }
+        validateCatalogInfo(manifest.catalog, resources, findings)
         val context = ResourceValidationContext(manifest.catalog.slug, resources, catalog.paths, policy.dependencyResolver)
         catalog.resourceDetails.toSortedMap().forEach { (key, detail) ->
             findings += ResourceValidator.validate(detail, context, "resources/$key.json").findings
@@ -622,7 +632,12 @@ object CatalogValidator {
             if (!SHA256.matches(it)) {
                 findings.error(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID, "catalog.json.release.fingerprint", "fingerprint must be a lowercase SHA-256 hex string")
             } else if (policy.verifyFingerprint) {
-                if (!CatalogCanonicalizer.matchesFingerprint(catalog, it)) {
+                val matches = if (catalog.sourceSchemaVersion >= CatalogWireSchema.CURRENT_VERSION) {
+                    CatalogCanonicalizer.matchesFingerprint(catalog, it, app.epistola.catalog.canonical.CatalogFingerprintVersion.V4)
+                } else {
+                    CatalogCanonicalizer.matchesFingerprint(catalog, it)
+                }
+                if (!matches) {
                     findings.error(
                         CatalogValidationCodes.RELEASE_FINGERPRINT_MISMATCH,
                         "catalog.json.release.fingerprint",
@@ -635,6 +650,80 @@ object CatalogValidator {
             if (runCatching { URI(include.url) }.getOrNull()?.isAbsolute != true) {
                 findings.error(CatalogValidationCodes.MANIFEST_DETAIL_PATH_INVALID, "catalog.json.includes[$index].url", "include URL must be absolute")
             }
+        }
+    }
+
+    private fun validateCatalogInfo(
+        catalog: CatalogInfo,
+        resources: Map<String, CatalogResource>,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        catalog.defaultLanguage?.let { language ->
+            val valid = language.isNotBlank() &&
+                language == language.trim() &&
+                runCatching {
+                    Locale.Builder().setLanguageTag(language).build()
+                }.isSuccess
+            if (!valid) {
+                findings.error(
+                    CatalogValidationCodes.DEFAULT_LANGUAGE_INVALID,
+                    "catalog.json.catalog.defaultLanguage",
+                    "defaultLanguage must be a structurally valid BCP 47 language tag",
+                )
+            }
+        }
+        catalog.keywords.forEachIndexed { index, keyword ->
+            if (keyword.isBlank() || keyword != keyword.trim()) {
+                findings.error(
+                    CatalogValidationCodes.KEYWORD_INVALID,
+                    "catalog.json.catalog.keywords[$index]",
+                    "keyword must be nonblank and must not contain leading or trailing whitespace",
+                )
+            }
+        }
+        val presentation = catalog.presentation ?: return
+        presentation.iconAssetSlug?.let { slug ->
+            validatePresentationAsset(slug, "catalog.json.catalog.presentation.iconAssetSlug", resources, findings)
+        }
+        val seen = mutableSetOf<String>()
+        presentation.imageAssetSlugs.forEachIndexed { index, slug ->
+            val path = "catalog.json.catalog.presentation.imageAssetSlugs[$index]"
+            if (!seen.add(slug)) {
+                findings.error(
+                    CatalogValidationCodes.PRESENTATION_IMAGE_DUPLICATE,
+                    path,
+                    "gallery asset '$slug' is duplicated",
+                )
+            }
+            validatePresentationAsset(slug, path, resources, findings)
+        }
+    }
+
+    private fun validatePresentationAsset(
+        slug: String,
+        path: String,
+        resources: Map<String, CatalogResource>,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        val asset = resources["asset/$slug"] as? AssetResource
+        if (asset == null) {
+            val code = if (resources.values.any { it.slug == slug }) {
+                CatalogValidationCodes.PRESENTATION_RESOURCE_NOT_ASSET
+            } else {
+                CatalogValidationCodes.PRESENTATION_ASSET_MISSING
+            }
+            val message = if (code == CatalogValidationCodes.PRESENTATION_RESOURCE_NOT_ASSET) {
+                "presentation reference '$slug' does not resolve to an asset resource"
+            } else {
+                "presentation asset '$slug' cannot be resolved"
+            }
+            findings.error(code, path, message)
+        } else if (!asset.mediaType.substringBefore('/').equals("image", ignoreCase = true)) {
+            findings.error(
+                CatalogValidationCodes.PRESENTATION_ASSET_MEDIA_TYPE_INVALID,
+                path,
+                "presentation asset '$slug' must declare an image media type",
+            )
         }
     }
 

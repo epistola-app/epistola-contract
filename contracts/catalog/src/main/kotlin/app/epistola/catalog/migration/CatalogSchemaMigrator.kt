@@ -20,7 +20,7 @@ import java.io.InputStream
  * [BASELINE_VERSION] through [CURRENT_VERSION].
  */
 object CatalogWireSchema {
-    const val CURRENT_VERSION: Int = 5
+    const val CURRENT_VERSION: Int = 6
     const val BASELINE_VERSION: Int = 4
 }
 
@@ -71,16 +71,22 @@ object CatalogMigrationCodes {
     const val RESOURCE_TYPE_MISMATCH = "CATALOG_RESOURCE_TYPE_MISMATCH"
     const val DRAFT_MARKER_INVALID = "CATALOG_DRAFT_MARKER_INVALID"
     const val STALE_DRAFT_MARKER_REMOVED = "CATALOG_STALE_DRAFT_MARKER_REMOVED"
+    const val DEFAULT_LANGUAGE_ADDED = "CATALOG_DEFAULT_LANGUAGE_ADDED"
+    const val KEYWORD_INVALID = "CATALOG_KEYWORD_INVALID"
+    const val KEYWORD_DUPLICATE = "CATALOG_KEYWORD_DUPLICATE"
 }
 
 /**
  * Portable catalog-wide wire-version gate.
  *
- * Catalog v4 is the migration baseline and v5 is the only emitted shape.
+ * Catalog v4 is the migration baseline and v6 is the only emitted shape.
  */
 object CatalogSchemaMigrator {
     private val mapper = jsonMapper { addModule(kotlinModule()) }
-    private val migrations: List<CatalogSchemaMigration> = listOf(CatalogV4ToV5Migration())
+    private val migrations: List<CatalogSchemaMigration> = listOf(
+        CatalogV4ToV5Migration(),
+        CatalogV5ToV6Migration(),
+    )
 
     /**
      * Parses and migrates `catalog.json` to the current [CatalogManifest].
@@ -99,6 +105,8 @@ object CatalogSchemaMigrator {
         versionFinding(source, "catalog.json.schemaVersion")?.let { return CatalogMigrationResult(null, source, listOf(it)) }
         val migration = migrate(source) { step -> step.migrateManifest(tree) }
         if (migration.findings.isNotEmpty()) return CatalogMigrationResult(null, source, migration.findings, migration.notices)
+        val wireFindings = validateManifestWireValues(tree)
+        if (wireFindings.isNotEmpty()) return CatalogMigrationResult(null, source, wireFindings, migration.notices)
         return bind(tree, CatalogManifest::class.java, source, "catalog.json", migration.notices)
     }
 
@@ -157,6 +165,32 @@ object CatalogSchemaMigrator {
     }
 
     private fun schemaVersion(tree: ObjectNode): Int? = tree["schemaVersion"]?.takeIf { it.isIntegralNumber }?.asInt()
+
+    private fun validateManifestWireValues(tree: ObjectNode): List<CatalogMigrationFinding> {
+        val keywords = tree["catalog"]?.get("keywords")?.takeIf { it.isArray } ?: return emptyList()
+        val findings = mutableListOf<CatalogMigrationFinding>()
+        val seen = mutableSetOf<String>()
+        keywords.forEachIndexed { index, node ->
+            if (!node.isString) return@forEachIndexed
+            val keyword = node.asString()
+            val path = "catalog.json.catalog.keywords[$index]"
+            if (keyword.isBlank() || keyword != keyword.trim()) {
+                findings += CatalogMigrationFinding(
+                    CatalogMigrationCodes.KEYWORD_INVALID,
+                    path,
+                    "keyword must be nonblank and must not contain leading or trailing whitespace",
+                )
+            }
+            if (!seen.add(keyword)) {
+                findings += CatalogMigrationFinding(
+                    CatalogMigrationCodes.KEYWORD_DUPLICATE,
+                    path,
+                    "keyword '$keyword' is duplicated",
+                )
+            }
+        }
+        return findings
+    }
 
     private fun versionFinding(
         source: Int,

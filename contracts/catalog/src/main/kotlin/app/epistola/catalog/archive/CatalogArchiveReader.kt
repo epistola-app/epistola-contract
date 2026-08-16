@@ -130,7 +130,7 @@ object CatalogArchiveReader {
                     BufferedInputStream(Files.newInputStream(resolved))
                 },
                 closeAction = { deleteRecursively(workspace) },
-            )
+            ).also { it.sourceSchemaVersion = requireNotNull(manifestResult.sourceVersion) }
             return CatalogArchiveReadResult(
                 archive,
                 findings.sorted(),

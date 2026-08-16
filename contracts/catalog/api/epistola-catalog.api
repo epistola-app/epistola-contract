@@ -98,6 +98,7 @@ public final class app/epistola/catalog/canonical/CatalogCanonicalizer {
 	public final fun fingerprint-ckFLro4 (Lapp/epistola/catalog/archive/CatalogArchive;)Ljava/lang/String;
 	public final fun fingerprint-oFYUIcE (Lapp/epistola/catalog/archive/CatalogArchive;Lapp/epistola/catalog/canonical/CatalogFingerprintVersion;)Ljava/lang/String;
 	public final fun matchesFingerprint (Lapp/epistola/catalog/archive/CatalogArchive;Ljava/lang/String;)Z
+	public final fun matchesFingerprint (Lapp/epistola/catalog/archive/CatalogArchive;Ljava/lang/String;Lapp/epistola/catalog/canonical/CatalogFingerprintVersion;)Z
 	public final fun perResourceFingerprints (Lapp/epistola/catalog/archive/CatalogArchive;)Ljava/util/Map;
 }
 
@@ -119,14 +120,18 @@ public final class app/epistola/catalog/canonical/CatalogFingerprintVersion : ja
 	public static final field V1 Lapp/epistola/catalog/canonical/CatalogFingerprintVersion;
 	public static final field V2 Lapp/epistola/catalog/canonical/CatalogFingerprintVersion;
 	public static final field V3 Lapp/epistola/catalog/canonical/CatalogFingerprintVersion;
+	public static final field V4 Lapp/epistola/catalog/canonical/CatalogFingerprintVersion;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lapp/epistola/catalog/canonical/CatalogFingerprintVersion;
 	public static fun values ()[Lapp/epistola/catalog/canonical/CatalogFingerprintVersion;
 }
 
 public final class app/epistola/catalog/migration/CatalogMigrationCodes {
+	public static final field DEFAULT_LANGUAGE_ADDED Ljava/lang/String;
 	public static final field DRAFT_MARKER_INVALID Ljava/lang/String;
 	public static final field INSTANCE Lapp/epistola/catalog/migration/CatalogMigrationCodes;
+	public static final field KEYWORD_DUPLICATE Ljava/lang/String;
+	public static final field KEYWORD_INVALID Ljava/lang/String;
 	public static final field RESOURCE_TYPE_MISMATCH Ljava/lang/String;
 	public static final field SCHEMA_TOO_NEW Ljava/lang/String;
 	public static final field SCHEMA_TOO_OLD Ljava/lang/String;
@@ -252,19 +257,35 @@ public final class app/epistola/catalog/protocol/AttributeResource : app/epistol
 }
 
 public final class app/epistola/catalog/protocol/CatalogInfo {
+	public static final field Companion Lapp/epistola/catalog/protocol/CatalogInfo$Companion;
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Lapp/epistola/catalog/protocol/CatalogPresentation;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/util/Set;
+	public final fun component6 ()Lapp/epistola/catalog/protocol/CatalogPresentation;
 	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lapp/epistola/catalog/protocol/CatalogInfo;
 	public static synthetic fun copy$default (Lapp/epistola/catalog/protocol/CatalogInfo;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lapp/epistola/catalog/protocol/CatalogInfo;
+	public final fun copyWithMetadata (Ljava/lang/String;Ljava/util/Set;Lapp/epistola/catalog/protocol/CatalogPresentation;)Lapp/epistola/catalog/protocol/CatalogInfo;
+	public static synthetic fun copyWithMetadata$default (Lapp/epistola/catalog/protocol/CatalogInfo;Ljava/lang/String;Ljava/util/Set;Lapp/epistola/catalog/protocol/CatalogPresentation;ILjava/lang/Object;)Lapp/epistola/catalog/protocol/CatalogInfo;
+	public static final fun create (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Lapp/epistola/catalog/protocol/CatalogPresentation;)Lapp/epistola/catalog/protocol/CatalogInfo;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDefaultLanguage ()Ljava/lang/String;
 	public final fun getDescription ()Ljava/lang/String;
+	public final fun getKeywords ()Ljava/util/Set;
 	public final fun getName ()Ljava/lang/String;
+	public final fun getPresentation ()Lapp/epistola/catalog/protocol/CatalogPresentation;
 	public final fun getSlug ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class app/epistola/catalog/protocol/CatalogInfo$Companion {
+	public final fun create (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Lapp/epistola/catalog/protocol/CatalogPresentation;)Lapp/epistola/catalog/protocol/CatalogInfo;
+	public static synthetic fun create$default (Lapp/epistola/catalog/protocol/CatalogInfo$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Lapp/epistola/catalog/protocol/CatalogPresentation;ILjava/lang/Object;)Lapp/epistola/catalog/protocol/CatalogInfo;
 }
 
 public final class app/epistola/catalog/protocol/CatalogManifest {
@@ -289,6 +310,21 @@ public final class app/epistola/catalog/protocol/CatalogManifest {
 	public final fun getRelease ()Lapp/epistola/catalog/protocol/ReleaseInfo;
 	public final fun getResources ()Ljava/util/List;
 	public final fun getSchemaVersion ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class app/epistola/catalog/protocol/CatalogPresentation {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;)Lapp/epistola/catalog/protocol/CatalogPresentation;
+	public static synthetic fun copy$default (Lapp/epistola/catalog/protocol/CatalogPresentation;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lapp/epistola/catalog/protocol/CatalogPresentation;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getIconAssetSlug ()Ljava/lang/String;
+	public final fun getImageAssetSlugs ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -704,17 +740,24 @@ public final class app/epistola/catalog/validation/CatalogValidationCodes {
 	public static final field ASSET_PATH_INVALID Ljava/lang/String;
 	public static final field ATTRIBUTE_VALUES_CONFLICT Ljava/lang/String;
 	public static final field CODE_LIST_CODE_DUPLICATE Ljava/lang/String;
+	public static final field DEFAULT_LANGUAGE_INVALID Ljava/lang/String;
 	public static final field DEPENDENCY_DUPLICATE Ljava/lang/String;
 	public static final field DEPENDENCY_REFERENCE_MISSING Ljava/lang/String;
 	public static final field FONT_KIND_INVALID Ljava/lang/String;
 	public static final field FONT_VARIANT_DUPLICATE Ljava/lang/String;
 	public static final field FONT_VARIANT_INVALID Ljava/lang/String;
 	public static final field INSTANCE Lapp/epistola/catalog/validation/CatalogValidationCodes;
+	public static final field KEYWORD_DUPLICATE Ljava/lang/String;
+	public static final field KEYWORD_INVALID Ljava/lang/String;
 	public static final field MANIFEST_DETAIL_MISSING Ljava/lang/String;
 	public static final field MANIFEST_DETAIL_PATH_INVALID Ljava/lang/String;
 	public static final field MANIFEST_DETAIL_UNDECLARED Ljava/lang/String;
 	public static final field MANIFEST_RESOURCE_DUPLICATE Ljava/lang/String;
 	public static final field MANIFEST_SCHEMA_UNSUPPORTED Ljava/lang/String;
+	public static final field PRESENTATION_ASSET_MEDIA_TYPE_INVALID Ljava/lang/String;
+	public static final field PRESENTATION_ASSET_MISSING Ljava/lang/String;
+	public static final field PRESENTATION_IMAGE_DUPLICATE Ljava/lang/String;
+	public static final field PRESENTATION_RESOURCE_NOT_ASSET Ljava/lang/String;
 	public static final field RELEASE_FINGERPRINT_INVALID Ljava/lang/String;
 	public static final field RELEASE_FINGERPRINT_MISMATCH Ljava/lang/String;
 	public static final field RELEASE_TIMESTAMP_INVALID Ljava/lang/String;

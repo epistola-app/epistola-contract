@@ -44,6 +44,7 @@ export type {
 export type {
   CatalogManifest,
   CatalogInfo,
+  CatalogPresentation,
   PublisherInfo,
   ReleaseInfo,
   CompatibilityInfo,
