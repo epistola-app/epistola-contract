@@ -41,5 +41,34 @@ export type {
   BlockStylePreset,
 } from '../generated/theme.js'
 
+export type {
+  CatalogManifest,
+  CatalogInfo,
+  PublisherInfo,
+  ReleaseInfo,
+  CompatibilityInfo,
+  IncludeEntry,
+  ResourceEntry,
+  DependencyRef,
+  CatalogDependencyRef,
+} from '../generated/catalog-manifest.js'
+
+export type {
+  ResourceDetail,
+  CatalogResource,
+  TemplateResource,
+  ThemeResource,
+  StencilResource,
+  AttributeResource,
+  AssetResource,
+  CodeListResource,
+  FontResource,
+  CodeListBindingRef,
+  CodeListEntryEntry,
+  FontVariantEntry,
+  DataExampleEntry,
+  VariantEntry,
+} from '../generated/resource-detail.js'
+
 /** Maximum number of stencil instances allowed in one ancestor chain. */
 export const MAX_STENCIL_NESTING_DEPTH = 5

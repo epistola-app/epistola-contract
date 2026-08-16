@@ -14,6 +14,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const schemasDir = resolve(root, 'schemas');
 
 const schemas = [
+  ['catalog-manifest.schema.json', '../generated/catalog-manifest.ts'],
+  ['resource-detail.schema.json', '../generated/resource-detail.ts'],
   ['template-document.schema.json', '../generated/template-document.ts'],
   ['template-shared.schema.json', '../generated/template-shared.ts'],
   ['theme.schema.json', '../generated/theme.ts'],

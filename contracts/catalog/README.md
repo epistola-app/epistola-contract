@@ -19,6 +19,10 @@ The catalog currently writes wire `schemaVersion: 5`, migrates version 4, and us
 `modelVersion: 1`. Published Maven and npm artifacts are released on the
 repository's coordinated release train.
 
+The versioned `catalog-manifest-v5.schema.json` and `resource-detail-v5.schema.json` files define
+the complete catalog wire shape. Their unversioned counterparts point at the current wire version,
+and the npm package root exports TypeScript declarations generated from those schemas.
+
 ## Build
 
 ```bash
