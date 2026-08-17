@@ -44,5 +44,6 @@ make build-epistola-catalog
 - [Archive format](docs/catalog-archive.md)
 - [Canonicalization and fingerprints](docs/catalog-canonicalization.md)
 - [Compatibility](docs/catalog-compatibility.md)
+- [JVM ABI compatibility](docs/jvm-abi-compatibility.md)
 - [Registry](docs/catalog-registry.md)
 - [Portable validation](docs/portable-catalog-validation.md)

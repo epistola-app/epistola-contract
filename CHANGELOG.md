@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Added a committed Kotlin JVM ABI baseline so minor catalog releases cannot silently remove
-  binary-compatible public APIs.
+  binary-compatible public APIs, with a maintainer guide for reviewing and updating the snapshot.
 - Added complete, versioned portable catalog manifest and resource-detail JSON Schemas, generated
   public TypeScript wire types, and shared Kotlin/TypeScript wire fixture checks.
 
