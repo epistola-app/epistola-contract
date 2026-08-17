@@ -110,12 +110,6 @@ class CatalogInfo private constructor(
 
     operator fun component3(): String? = description
 
-    operator fun component4(): String? = defaultLanguage
-
-    operator fun component5(): Set<String> = keywords
-
-    operator fun component6(): CatalogPresentation? = presentation
-
     /** Legacy copy shape; v6 metadata is retained when identity fields change. */
     fun copy(
         slug: String = this.slug,

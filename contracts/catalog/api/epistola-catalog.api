@@ -264,9 +264,6 @@ public final class app/epistola/catalog/protocol/CatalogInfo {
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/String;
-	public final fun component4 ()Ljava/lang/String;
-	public final fun component5 ()Ljava/util/Set;
-	public final fun component6 ()Lapp/epistola/catalog/protocol/CatalogPresentation;
 	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lapp/epistola/catalog/protocol/CatalogInfo;
 	public static synthetic fun copy$default (Lapp/epistola/catalog/protocol/CatalogInfo;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lapp/epistola/catalog/protocol/CatalogInfo;
 	public final fun copyWithMetadata (Ljava/lang/String;Ljava/util/Set;Lapp/epistola/catalog/protocol/CatalogPresentation;)Lapp/epistola/catalog/protocol/CatalogInfo;
@@ -1466,3 +1463,4 @@ public final class app/epistola/template/model/ThemeRefOverride : app/epistola/t
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
+

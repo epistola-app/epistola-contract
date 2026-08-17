@@ -48,6 +48,10 @@ class CatalogWireParityTest {
         )
 
         assertEquals(listOf("documents", "zoning"), info.keywords.toList())
+        val (slug, name, description) = info
+        assertEquals("fixture", slug)
+        assertEquals("Fixture", name)
+        assertEquals(null, description)
         assertFailsWith<UnsupportedOperationException> {
             @Suppress("UNCHECKED_CAST")
             (info.keywords as MutableSet<String>).add("mutable")
