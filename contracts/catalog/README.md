@@ -19,6 +19,10 @@ The catalog currently writes wire `schemaVersion: 5`, migrates version 4, and us
 `modelVersion: 1`. Published Maven and npm artifacts are released on the
 repository's coordinated release train.
 
+The versioned `catalog-manifest-v5.schema.json` and `resource-detail-v5.schema.json` files define
+the complete catalog wire shape. Their unversioned counterparts point at the current wire version,
+and the npm package root exports TypeScript declarations generated from those schemas.
+
 ## Build
 
 ```bash
@@ -40,5 +44,6 @@ make build-epistola-catalog
 - [Archive format](docs/catalog-archive.md)
 - [Canonicalization and fingerprints](docs/catalog-canonicalization.md)
 - [Compatibility](docs/catalog-compatibility.md)
+- [JVM ABI compatibility](docs/jvm-abi-compatibility.md)
 - [Registry](docs/catalog-registry.md)
 - [Portable validation](docs/portable-catalog-validation.md)

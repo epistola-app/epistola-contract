@@ -26,10 +26,12 @@
   },
   "scripts": {
     "generate:types": "node scripts/generate-schema-types.mjs && node scripts/generate-registry-ts.mjs",
-    "build": "tsc && node scripts/check-npm-exports.mjs",
+    "check:wire": "node scripts/check-wire-fixtures.mjs && tsc -p tsconfig.wire-tests.json",
+    "build": "tsc && pnpm check:wire && node scripts/check-npm-exports.mjs",
     "prepublishOnly": "pnpm generate:types && pnpm build"
   },
   "devDependencies": {
+    "ajv": "^8.20.0",
     "json-schema-to-typescript": "^15.0.4",
     "typescript": "~5.9.3"
   },

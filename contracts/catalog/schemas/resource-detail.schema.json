@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epistola.app/schemas/resource-detail.schema.json",
+  "title": "ResourceDetail",
+  "$ref": "resource-detail-v5.schema.json"
+}

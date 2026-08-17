@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epistola.app/schemas/resource-detail-v5.schema.json",
+  "title": "ResourceDetail",
+  "description": "Portable Epistola resource detail at wire version 5.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "const": 5 },
+    "resource": { "$ref": "#/$defs/CatalogResource" }
+  },
+  "required": ["schemaVersion", "resource"],
+  "additionalProperties": false,
+  "$defs": {
+    "CatalogResource": {
+      "oneOf": [
+        { "$ref": "#/$defs/TemplateResource" },
+        { "$ref": "#/$defs/ThemeResource" },
+        { "$ref": "#/$defs/StencilResource" },
+        { "$ref": "#/$defs/AttributeResource" },
+        { "$ref": "#/$defs/AssetResource" },
+        { "$ref": "#/$defs/CodeListResource" },
+        { "$ref": "#/$defs/FontResource" }
+      ]
+    },
+    "TemplateResource": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "template" },
+        "slug": { "type": "string" },
+        "name": { "type": "string" },
+        "themeId": { "type": ["string", "null"] },
+        "themeCatalogKey": { "type": ["string", "null"] },
+        "dataModel": { "type": ["object", "null"] },
+        "dataExamples": {
+          "oneOf": [
+            { "type": "array", "items": { "$ref": "#/$defs/DataExampleEntry" } },
+            { "type": "null" }
+          ]
+        },
+        "templateModel": { "$ref": "template-document.schema.json" },
+        "variants": { "type": "array", "items": { "$ref": "#/$defs/VariantEntry" } }
+      },
+      "required": ["type", "slug", "name", "templateModel", "variants"],
+      "additionalProperties": false
+    },
+    "ThemeResource": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "theme" },
+        "slug": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": ["string", "null"] },
+        "documentStyles": { "type": ["object", "null"] },
+        "pageSettings": {
+          "oneOf": [
+            { "$ref": "template-shared.schema.json#/$defs/PageSettings" },
+            { "type": "null" }
+          ]
+        },
+        "blockStylePresets": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": { "$ref": "theme.schema.json#/$defs/BlockStylePreset" }
+            },
+            { "type": "null" }
+          ]
+        },
+        "spacingUnit": { "type": ["number", "null"] }
+      },
+      "required": ["type", "slug", "name"],
+      "additionalProperties": false
+    },
+    "StencilResource": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "stencil" },
+        "slug": { "type": "string" },
+        "name": { "type": "string" },
+        "version": { "type": "integer" },
+        "description": { "type": ["string", "null"] },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "content": { "$ref": "template-document.schema.json" },
+        "parameterSchema": { "type": ["object", "null"] }
+      },
+      "required": ["type", "slug", "name", "version", "content"],
+      "additionalProperties": false
+    },
+    "AttributeResource": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "attribute" },
+        "slug": { "type": "string" },
+        "name": { "type": "string" },
+        "allowedValues": { "type": "array", "items": { "type": "string" } },
+        "codeListBinding": {
+          "oneOf": [{ "$ref": "#/$defs/CodeListBindingRef" }, { "type": "null" }]
+        }
+      },
+      "required": ["type", "slug", "name"],
+      "additionalProperties": false
+    },
+    "AssetResource": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "asset" },
+        "slug": { "type": "string" },
+        "name": { "type": "string" },
+        "mediaType": { "type": "string" },
+        "width": { "type": ["integer", "null"] },
+        "height": { "type": ["integer", "null"] },
+        "contentUrl": { "type": "string" }
+      },
+      "required": ["type", "slug", "name", "mediaType", "contentUrl"],
+      "additionalProperties": false
+    },
+    "CodeListResource": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "codeList" },
+        "slug": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": ["string", "null"] },
+        "entries": { "type": "array", "items": { "$ref": "#/$defs/CodeListEntryEntry" } }
+      },
+      "required": ["type", "slug", "name", "entries"],
+      "additionalProperties": false
+    },
+    "FontResource": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "font" },
+        "slug": { "type": "string" },
+        "name": { "type": "string" },
+        "kind": { "type": "string" },
+        "variants": { "type": "array", "items": { "$ref": "#/$defs/FontVariantEntry" } }
+      },
+      "required": ["type", "slug", "name", "kind", "variants"],
+      "additionalProperties": false
+    },
+    "CodeListBindingRef": {
+      "type": "object",
+      "properties": {
+        "catalogKey": { "type": ["string", "null"] },
+        "slug": { "type": "string" }
+      },
+      "required": ["slug"],
+      "additionalProperties": false
+    },
+    "CodeListEntryEntry": {
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "label": { "type": "string" },
+        "sortOrder": { "type": "integer" },
+        "hidden": { "type": "boolean" }
+      },
+      "required": ["code", "label"],
+      "additionalProperties": false
+    },
+    "FontVariantEntry": {
+      "type": "object",
+      "properties": {
+        "weight": { "type": "integer" },
+        "italic": { "type": "boolean" },
+        "assetSlug": { "type": "string" }
+      },
+      "required": ["weight", "italic", "assetSlug"],
+      "additionalProperties": false
+    },
+    "DataExampleEntry": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "data": { "type": "object" }
+      },
+      "required": ["name", "data"],
+      "additionalProperties": false
+    },
+    "VariantEntry": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": ["string", "null"] },
+        "attributes": {
+          "oneOf": [
+            { "type": "object", "additionalProperties": { "type": "string" } },
+            { "type": "null" }
+          ]
+        },
+        "templateModel": {
+          "oneOf": [{ "$ref": "template-document.schema.json" }, { "type": "null" }]
+        },
+        "isDefault": { "type": "boolean" }
+      },
+      "required": ["id"],
+      "additionalProperties": false
+    }
+  }
+}
