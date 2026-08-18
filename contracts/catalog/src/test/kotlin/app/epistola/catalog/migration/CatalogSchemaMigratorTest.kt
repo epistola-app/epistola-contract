@@ -27,6 +27,7 @@ class CatalogSchemaMigratorTest {
         assertEquals("fixture", result.value.catalog.slug)
         assertEquals(emptyList(), result.value.catalog.attributes)
         assertEquals(emptySet(), result.value.catalog.keywords)
+        assertEquals(null, result.value.catalog.license)
     }
 
     @Test
@@ -71,6 +72,7 @@ class CatalogSchemaMigratorTest {
         assertEquals(5, result.sourceVersion)
         assertEquals(emptyList(), catalog.attributes)
         assertEquals(emptySet(), catalog.keywords)
+        assertEquals(null, catalog.license)
         assertTrue(result.notices.isEmpty())
         assertEquals(resource("migrations/v5-to-v6/manifest-expected.json").use(mapper::readTree), tree)
         assertEquals(resource("migrations/v5-to-v6/notices.json").use(mapper::readTree), mapper.valueToTree(step.notices))
