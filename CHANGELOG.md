@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Added a committed Kotlin JVM ABI baseline so minor catalog releases cannot silently remove
-  binary-compatible public APIs, with a maintainer guide for reviewing and updating the snapshot.
+- Added a committed Kotlin JVM ABI baseline so changes to the generated JVM surface are explicit in
+  review, with a maintainer guide defining catalog JSON as the versioned compatibility boundary and
+  the Kotlin artifact as a recompile-on-upgrade API.
 - Classified generated JVM `.api` snapshots through repository-level REUSE metadata so license
   validation does not require unsupported inline comments in ABI baseline files.
 - Added complete, versioned portable catalog manifest and resource-detail JSON Schemas, generated
@@ -19,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the domain-separated V4 catalog fingerprint over v6 discovery metadata while preserving
   legacy V1-V3 verification for source v4/v5 archives and recomputing present legacy fingerprints
   when migrated catalogs are re-exported.
+- Removed JVM-only `CatalogInfo` destructuring and legacy `copy` shims; consumers recompile when
+  upgrading while the existing three-argument Kotlin construction shape remains source-compatible.
 
 ## [1.0.1] - 2026-08-04
 

@@ -38,7 +38,7 @@ class CatalogWireParityTest {
     }
 
     @Test
-    fun `legacy catalog info operations preserve additive v6 metadata`() {
+    fun `catalog info factory normalizes additive v6 metadata`() {
         val info = CatalogInfo.create(
             slug = "fixture",
             name = "Fixture",
@@ -48,17 +48,23 @@ class CatalogWireParityTest {
         )
 
         assertEquals(listOf("documents", "zoning"), info.keywords.toList())
-        val (slug, name, description) = info
-        assertEquals("fixture", slug)
-        assertEquals("Fixture", name)
-        assertEquals(null, description)
         assertFailsWith<UnsupportedOperationException> {
             @Suppress("UNCHECKED_CAST")
             (info.keywords as MutableSet<String>).add("mutable")
         }
-        assertEquals(info.defaultLanguage, info.copy(name = "Renamed").defaultLanguage)
-        assertEquals(info.keywords, info.copy(name = "Renamed").keywords)
-        assertEquals(info.presentation, info.copy(name = "Renamed").presentation)
+        assertEquals("en-GB", info.copyWithMetadata(defaultLanguage = "en-GB").defaultLanguage)
+    }
+
+    @Test
+    fun `legacy catalog info constructor remains source compatible`() {
+        val info = CatalogInfo("fixture", "Fixture")
+
+        assertEquals("fixture", info.slug)
+        assertEquals("Fixture", info.name)
+        assertEquals(null, info.description)
+        assertEquals(null, info.defaultLanguage)
+        assertEquals(emptySet(), info.keywords)
+        assertEquals(null, info.presentation)
     }
 
     @Test

@@ -85,9 +85,8 @@ sealed class DependencyRef {
 /**
  * Stable catalog identity, human-readable metadata, and authored discovery metadata.
  *
- * The legacy constructor, destructuring functions, and three-argument [copy] method
- * intentionally retain the JVM surface published in 1.0.1. Use [create] or
- * [copyWithMetadata] when setting catalog-v6 metadata.
+ * The three-argument constructor preserves source compatibility for existing producers. Use
+ * [create] or [copyWithMetadata] when setting catalog-v6 metadata.
  */
 class CatalogInfo private constructor(
     val slug: String,
@@ -100,22 +99,9 @@ class CatalogInfo private constructor(
     /** Deterministically ordered, immutable authored catalog keywords. */
     val keywords: Set<String> = immutableSortedSet(keywords)
 
-    /** Source- and binary-compatible constructor retained from catalog 1.0.1. */
+    /** Source-compatible constructor retained from catalog 1.0.1. */
     constructor(slug: String, name: String, description: String? = null) :
         this(slug, name, description, null, emptySet(), null)
-
-    operator fun component1(): String = slug
-
-    operator fun component2(): String = name
-
-    operator fun component3(): String? = description
-
-    /** Legacy copy shape; v6 metadata is retained when identity fields change. */
-    fun copy(
-        slug: String = this.slug,
-        name: String = this.name,
-        description: String? = this.description,
-    ): CatalogInfo = CatalogInfo(slug, name, description, defaultLanguage, keywords, presentation)
 
     /** Copies the catalog while replacing any catalog-v6 metadata. */
     fun copyWithMetadata(

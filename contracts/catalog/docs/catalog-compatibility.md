@@ -34,9 +34,10 @@ that still emits the older stencil-resource shape.
 - Existing V1 through V3 catalog fingerprints remain accepted when reading legacy v4/v5 input.
   Native v6 catalogs use V4 through `currentFingerprint`; the existing `fingerprint` API retains
   its V1 result and the new exact-version overload is additive.
-- The published JVM ABI retains the 1.0.1 `CatalogInfo` constructor, getters, destructuring methods,
-  and three-field `copy` method. New discovery metadata is exposed through additive members,
-  `create`, and `copyWithMetadata`.
+- The 1.0.1 `CatalogInfo(slug, name, description)` construction shape remains source-compatible.
+  New discovery metadata is exposed through `create` and `copyWithMetadata`. Consumers must
+  recompile when upgrading the Kotlin artifact; drop-in compatibility with JVM bytecode compiled
+  against an older JAR is not part of the catalog compatibility guarantee.
 - Nested published-stencil composition is additive at the portable contract
   level. A consumer may expose a smaller authoring feature set while still
   recognizing the portable model.
@@ -65,3 +66,8 @@ artifact can ship as a backwards-compatible minor release. Producers should popu
 `defaultLanguage` and may populate discovery and presentation metadata. A future artifact major
 may make selected fields required after consumers have adopted v6; that tightening must not be
 backported to the 1.x contract.
+
+Here, backwards compatibility applies to catalog JSON. Common Kotlin construction and property-access
+patterns remain source-compatible where practical, but the Kotlin API is a recompile-on-upgrade
+boundary. Epistola Suite and Exchange recompile against each upgrade; the 1.x artifact does not
+promise that an already-compiled JVM application can replace the catalog JAR without recompilation.
