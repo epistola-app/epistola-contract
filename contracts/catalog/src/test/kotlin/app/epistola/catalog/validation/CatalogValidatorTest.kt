@@ -9,9 +9,11 @@ import app.epistola.catalog.archive.CatalogArchive
 import app.epistola.catalog.canonical.CatalogCanonicalizer
 import app.epistola.catalog.canonical.CatalogFingerprintVersion
 import app.epistola.catalog.protocol.AssetResource
+import app.epistola.catalog.protocol.AttributeAssignment
 import app.epistola.catalog.protocol.AttributeResource
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.CatalogPresentation
 import app.epistola.catalog.protocol.CodeListBindingRef
 import app.epistola.catalog.protocol.CodeListEntryEntry
 import app.epistola.catalog.protocol.CodeListResource
@@ -41,8 +43,8 @@ class CatalogValidatorTest {
 
     @Test
     fun `golden current catalog is valid`() {
-        val manifest = fixture("wire-v5/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
-        val detail = fixture("wire-v5/resources/theme/default.json").use { mapper.readValue(it, ResourceDetail::class.java) }
+        val manifest = fixture("wire-v6/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
+        val detail = fixture("wire-v6/resources/theme/default.json").use { mapper.readValue(it, ResourceDetail::class.java) }
         val archive = archive(manifest, mapOf("theme/default" to detail))
 
         assertEquals(emptyList(), CatalogValidator.validate(archive).findings)
@@ -83,7 +85,7 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `legacy and current catalog fingerprints both remain valid`() {
+    fun `legacy source catalogs and current catalogs use their versioned fingerprint rules`() {
         val withoutFingerprint = archive(manifest(), emptyMap())
         CatalogFingerprintVersion.entries.forEach { version ->
             val fingerprint = CatalogCanonicalizer.fingerprint(withoutFingerprint, version).value
@@ -91,6 +93,7 @@ class CatalogValidatorTest {
                 manifest(release = ReleaseInfo("1.0.0", fingerprint = fingerprint)),
                 emptyMap(),
             )
+            if (version != CatalogFingerprintVersion.V4) catalog.sourceSchemaVersion = 5
             val report = CatalogValidator.validate(catalog)
 
             assertTrue(
@@ -98,6 +101,92 @@ class CatalogValidatorTest {
                 "$version: ${report.findings}",
             )
         }
+    }
+
+    @Test
+    fun `catalog discovery metadata accepts qualified generic attributes and case-sensitive keywords`() {
+        val catalog = CatalogInfo.create(
+            "fixture",
+            "Fixture",
+            attributes = listOf(
+                AttributeAssignment("system", "locale", "en_US"),
+                AttributeAssignment("fixture", "brand", ""),
+            ),
+            keywords = setOf("Government", "government"),
+        )
+
+        val report = CatalogValidator.validate(archive(manifest(catalog = catalog), emptyMap()))
+
+        assertTrue(report.valid, report.findings.toString())
+    }
+
+    @Test
+    fun `catalog discovery metadata rejects malformed and duplicate attribute identities`() {
+        val catalog = CatalogInfo.create(
+            "fixture",
+            "Fixture",
+            attributes = listOf(
+                AttributeAssignment("System", "locale", "nl-NL"),
+                AttributeAssignment("system", "bad_key", "one"),
+                AttributeAssignment("system", "bad_key", "two"),
+            ),
+            keywords = setOf(" documents "),
+        )
+
+        val report = CatalogValidator.validate(archive(manifest(catalog = catalog), emptyMap()))
+
+        assertTrue(CatalogValidationCodes.CATALOG_ATTRIBUTE_IDENTITY_INVALID in report.codes(), report.findings.toString())
+        assertTrue(CatalogValidationCodes.CATALOG_ATTRIBUTE_DUPLICATE in report.codes(), report.findings.toString())
+        assertTrue(CatalogValidationCodes.KEYWORD_INVALID in report.codes(), report.findings.toString())
+    }
+
+    @Test
+    fun `catalog presentation resolves same-catalog image assets`() {
+        val details = mapOf(
+            "asset/icon" to ResourceDetail(6, AssetResource("icon", "Icon", "image/svg+xml", contentUrl = "./resources/asset/icon.svg")),
+            "asset/hero" to ResourceDetail(6, AssetResource("hero", "Hero", "IMAGE/PNG", contentUrl = "./resources/asset/hero.png")),
+        )
+        val entries = details.map { (key, detail) ->
+            ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
+        }
+        val catalog = CatalogInfo.create(
+            "fixture",
+            "Fixture",
+            presentation = CatalogPresentation("icon", listOf("icon", "hero")),
+        )
+
+        val report = CatalogValidator.validate(
+            archive(
+                manifest(catalog = catalog, resources = entries),
+                details,
+                setOf("resources/asset/icon.svg", "resources/asset/hero.png"),
+            ),
+        )
+
+        assertTrue(report.valid, report.findings.toString())
+    }
+
+    @Test
+    fun `catalog presentation reports missing non-asset non-image and duplicate references`() {
+        val details = mapOf(
+            "theme/not-asset" to ResourceDetail(6, app.epistola.catalog.protocol.ThemeResource("not-asset", "Theme")),
+            "asset/document" to ResourceDetail(6, AssetResource("document", "Document", "application/pdf", contentUrl = "./document.pdf")),
+        )
+        val entries = details.map { (key, detail) ->
+            ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
+        }
+        val catalog = CatalogInfo.create(
+            "fixture",
+            "Fixture",
+            presentation = CatalogPresentation("missing", listOf("not-asset", "document", "document")),
+        )
+
+        val report = CatalogValidator.validate(archive(manifest(catalog = catalog, resources = entries), details))
+
+        assertTrue(CatalogValidationCodes.PRESENTATION_ASSET_MISSING in report.codes())
+        assertTrue(CatalogValidationCodes.PRESENTATION_RESOURCE_NOT_ASSET in report.codes())
+        assertTrue(CatalogValidationCodes.PRESENTATION_ASSET_MEDIA_TYPE_INVALID in report.codes())
+        assertTrue(CatalogValidationCodes.PRESENTATION_IMAGE_DUPLICATE in report.codes())
     }
 
     @Test
@@ -130,8 +219,8 @@ class CatalogValidatorTest {
         )
         val stencil = StencilResource("address", "Address", 1, content = invalid)
         val details = mapOf(
-            "template/invoice" to ResourceDetail(5, template),
-            "stencil/address" to ResourceDetail(5, stencil),
+            "template/invoice" to ResourceDetail(6, template),
+            "stencil/address" to ResourceDetail(6, stencil),
         )
         val entries = details.map { (key, detail) ->
             ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
@@ -154,7 +243,7 @@ class CatalogValidatorTest {
             parameterSchema = mapOf("type" to "array"),
         )
         val key = "stencil/address"
-        val detail = ResourceDetail(5, stencil)
+        val detail = ResourceDetail(6, stencil)
         val report = CatalogValidator.validate(
             archive(
                 manifest(resources = listOf(ResourceEntry("stencil", "address", "Address", detailUrl = "./resources/$key.json"))),
@@ -279,7 +368,7 @@ class CatalogValidatorTest {
             variants = emptyList(),
         )
         val key = "template/invoice"
-        val detail = ResourceDetail(5, template)
+        val detail = ResourceDetail(6, template)
         val report = CatalogValidator.validate(
             archive(
                 manifest(resources = listOf(ResourceEntry("template", "invoice", "Invoice", detailUrl = "./resources/$key.json"))),
@@ -315,7 +404,7 @@ class CatalogValidatorTest {
                 listOf(FontVariantEntry(0, false, "missing"), FontVariantEntry(0, false, "missing")),
             ),
         )
-        val details = resources.associate { "${it.type}/${it.slug}" to ResourceDetail(5, it) }
+        val details = resources.associate { "${it.type}/${it.slug}" to ResourceDetail(6, it) }
         val entries = details.map { (key, detail) ->
             ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
         }
@@ -367,7 +456,7 @@ class CatalogValidatorTest {
             variants = emptyList(),
         )
         val key = "template/invoice"
-        val detail = ResourceDetail(5, resource)
+        val detail = ResourceDetail(6, resource)
         val report = CatalogValidator.validate(
             archive(
                 manifest(resources = listOf(ResourceEntry("template", "invoice", "Invoice", detailUrl = "./resources/$key.json"))),
@@ -393,9 +482,10 @@ class CatalogValidatorTest {
     private fun manifest(
         release: ReleaseInfo = ReleaseInfo("1.0.0"),
         resources: List<ResourceEntry> = emptyList(),
+        catalog: CatalogInfo = CatalogInfo("fixture", "Fixture"),
     ) = CatalogManifest(
-        5,
-        CatalogInfo("fixture", "Fixture"),
+        6,
+        catalog,
         PublisherInfo("Epistola"),
         release,
         resources = resources,
@@ -404,8 +494,9 @@ class CatalogValidatorTest {
     private fun archive(
         manifest: CatalogManifest,
         details: Map<String, ResourceDetail>,
+        additionalPaths: Set<String> = emptySet(),
     ): CatalogArchive {
-        val paths = details.keys.mapTo(mutableSetOf("catalog.json")) { "resources/$it.json" }
+        val paths = details.keys.mapTo(mutableSetOf("catalog.json")) { "resources/$it.json" } + additionalPaths
         return CatalogArchive(
             manifest,
             details,
@@ -446,7 +537,7 @@ class CatalogValidatorTest {
 
     private fun validateStencils(vararg stencils: StencilResource): CatalogValidationReport {
         val details = stencils.associate { stencil ->
-            "stencil/${stencil.slug}" to ResourceDetail(5, stencil)
+            "stencil/${stencil.slug}" to ResourceDetail(6, stencil)
         }
         val entries = stencils.map { stencil ->
             ResourceEntry(

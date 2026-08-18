@@ -15,13 +15,13 @@ canonicalization, migrations, and archive handling.
 | Semantic validation and archive behavior | [`src/main/kotlin/`](src/main/kotlin/) |
 | TypeScript public facade | [`ts/`](ts/) and generated sources in [`generated/`](generated/) |
 
-The catalog currently writes wire `schemaVersion: 5`, migrates version 4, and uses template
+The catalog currently writes wire `schemaVersion: 6`, migrates versions 4 and 5, and uses template
 `modelVersion: 1`. Published Maven and npm artifacts are released on the
 repository's coordinated release train.
 
-The versioned `catalog-manifest-v5.schema.json` and `resource-detail-v5.schema.json` files define
-the complete catalog wire shape. Their unversioned counterparts point at the current wire version,
-and the npm package root exports TypeScript declarations generated from those schemas.
+The versioned v5 and v6 manifest and resource-detail schemas preserve each accepted wire shape.
+Their unversioned counterparts point at v6, and the npm package root exports TypeScript declarations
+generated from the current schemas.
 
 ## Build
 
@@ -44,6 +44,5 @@ make build-epistola-catalog
 - [Archive format](docs/catalog-archive.md)
 - [Canonicalization and fingerprints](docs/catalog-canonicalization.md)
 - [Compatibility](docs/catalog-compatibility.md)
-- [JVM ABI compatibility](docs/jvm-abi-compatibility.md)
 - [Registry](docs/catalog-registry.md)
 - [Portable validation](docs/portable-catalog-validation.md)

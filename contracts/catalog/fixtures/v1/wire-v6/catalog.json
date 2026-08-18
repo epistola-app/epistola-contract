@@ -3,7 +3,16 @@
   "catalog": {
     "slug": "fixture",
     "name": "Fixture Catalog",
-    "description": "Minimal valid conformance catalog"
+    "description": "Portable golden fixture",
+    "attributes": [
+      {
+        "catalog": "system",
+        "key": "locale",
+        "value": "nl-NL"
+      }
+    ],
+    "keywords": ["documents", "government"],
+    "presentation": null
   },
   "publisher": {
     "name": "Epistola"

@@ -29,13 +29,14 @@ value class CatalogFingerprint(val value: String)
 /**
  * Versioned canonicalization algorithms accepted by the contract.
  *
- * V1 and V2 are retained for fingerprints already stored by older producers.
- * V3 is the current semantic catalog-v5 algorithm.
+ * V1 through V3 are retained for fingerprints already stored by older producers.
+ * V4 is the current catalog-v6 algorithm and includes authored discovery metadata.
  */
 enum class CatalogFingerprintVersion {
     V1,
     V2,
     V3,
+    V4,
 }
 
 /**
@@ -57,8 +58,8 @@ object CatalogCanonicalizer {
      */
     fun fingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V1)
 
-    /** Produces the current semantic V3 fingerprint. */
-    fun currentFingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V3)
+    /** Produces the current catalog-v6 V4 fingerprint. */
+    fun currentFingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V4)
 
     /**
      * Produces a catalog fingerprint using an explicitly selected algorithm.
@@ -69,11 +70,16 @@ object CatalogCanonicalizer {
         catalog: CatalogArchive,
         version: CatalogFingerprintVersion,
     ): CatalogFingerprint {
-        val entries = if (version == CatalogFingerprintVersion.V3) semanticEntries(catalog) else entries(catalog)
+        val entries = when (version) {
+            CatalogFingerprintVersion.V1, CatalogFingerprintVersion.V2 -> entries(catalog)
+            CatalogFingerprintVersion.V3 -> semanticEntries(catalog)
+            CatalogFingerprintVersion.V4 -> currentEntries(catalog)
+        }
         val canonical = when (version) {
             CatalogFingerprintVersion.V1 -> canonicalV1(catalog, entries)
-            CatalogFingerprintVersion.V2 -> canonicalV2(catalog, entries)
-            CatalogFingerprintVersion.V3 -> canonicalV2(catalog, entries)
+            CatalogFingerprintVersion.V2 -> canonicalV2(catalog, entries, includeV6Metadata = false)
+            CatalogFingerprintVersion.V3 -> canonicalV2(catalog, entries, includeV6Metadata = false)
+            CatalogFingerprintVersion.V4 -> canonicalV4(catalog, entries)
         }
         return CatalogFingerprint(sha256(canonical.byteInputStream()))
     }
@@ -89,9 +95,16 @@ object CatalogCanonicalizer {
         val exact = CatalogFingerprintVersion.entries.mapTo(mutableSetOf()) { fingerprint(catalog, it).value }
         val projected = legacyV4Entries(catalog)
         exact += sha256(canonicalV1(catalog, projected).byteInputStream())
-        exact += sha256(canonicalV2(catalog, projected).byteInputStream())
+        exact += sha256(canonicalV2(catalog, projected, includeV6Metadata = false).byteInputStream())
         return expected in exact
     }
+
+    /** Whether [expected] matches one explicitly selected canonical algorithm. */
+    fun matchesFingerprint(
+        catalog: CatalogArchive,
+        expected: String,
+        version: CatalogFingerprintVersion,
+    ): Boolean = fingerprint(catalog, version).value == expected
 
     private fun canonicalV1(
         catalog: CatalogArchive,
@@ -105,11 +118,20 @@ object CatalogCanonicalizer {
     private fun canonicalV2(
         catalog: CatalogArchive,
         entries: List<Entry>,
+        includeV6Metadata: Boolean,
     ): String = buildString {
         append("manifest ")
-            .append(canonicalManifestJson(catalog))
+            .append(canonicalManifestJson(catalog, includeV6Metadata))
             .append('\n')
         appendEntries(entries)
+    }
+
+    private fun canonicalV4(
+        catalog: CatalogArchive,
+        entries: List<Entry>,
+    ): String = buildString {
+        append("algorithm sha256-v4\n")
+        append(canonicalV2(catalog, entries, includeV6Metadata = true))
     }
 
     private fun StringBuilder.appendEntries(entries: List<Entry>) {
@@ -120,10 +142,13 @@ object CatalogCanonicalizer {
         }
     }
 
-    private fun canonicalManifestJson(catalog: CatalogArchive): String {
+    private fun canonicalManifestJson(
+        catalog: CatalogArchive,
+        includeV6Metadata: Boolean,
+    ): String {
         val manifest = catalog.manifest
         val canonical = linkedMapOf<String, Any?>(
-            "catalog" to manifest.catalog,
+            "catalog" to canonicalCatalogInfo(manifest.catalog, includeV6Metadata),
             "publisher" to manifest.publisher,
             "compatibility" to manifest.compatibility,
             "includes" to manifest.includes.orEmpty().sortedWith(compareBy({ it.url }, { it.description })),
@@ -141,6 +166,30 @@ object CatalogCanonicalizer {
             "dependencies" to canonicalDependenciesV2(manifest.dependencies),
         )
         return mapper.writeValueAsString(sortKeys(mapper.valueToTree(canonical)))
+    }
+
+    private fun canonicalCatalogInfo(
+        catalog: CatalogInfo,
+        includeV6Metadata: Boolean,
+    ): Map<String, Any?> = linkedMapOf<String, Any?>(
+        "slug" to catalog.slug,
+        "name" to catalog.name,
+        "description" to catalog.description,
+    ).apply {
+        if (includeV6Metadata) {
+            put(
+                "attributes",
+                catalog.attributes.sortedWith(compareBy({ it.catalog }, { it.key })).map { attribute ->
+                    linkedMapOf(
+                        "catalog" to attribute.catalog,
+                        "key" to attribute.key,
+                        "value" to attribute.value,
+                    )
+                },
+            )
+            put("keywords", catalog.keywords.sorted())
+            put("presentation", catalog.presentation?.takeUnless { it.iconAssetSlug == null && it.imageAssetSlugs.isEmpty() })
+        }
     }
 
     private fun canonicalDependenciesV2(dependencies: List<DependencyRef>?): List<Map<String, Any?>> = dependencies.orEmpty()
@@ -179,7 +228,7 @@ object CatalogCanonicalizer {
         entry.key to sha256((entry.canonicalJson + "\u0000" + entry.assetHash).byteInputStream())
     }
 
-    /** Returns semantic catalog-v5 hashes for every `type/slug` resource. */
+    /** Returns current semantic hashes for every `type/slug` resource. */
     fun currentPerResourceFingerprints(catalog: CatalogArchive): Map<String, String> = semanticEntries(catalog).sortedBy(Entry::key).associate { entry ->
         entry.key to sha256((entry.canonicalJson + "\u0000" + entry.assetHash).byteInputStream())
     }
@@ -217,6 +266,15 @@ object CatalogCanonicalizer {
 
     private fun semanticEntries(catalog: CatalogArchive): List<Entry> = catalog.resourceDetails.map { (key, detail) ->
         val resourceNode = normalizeStencilProvenance(resourceNode(catalog, key, detail), legacyV4 = false)
+        Entry(
+            key = key,
+            canonicalJson = mapper.writeValueAsString(sortKeys(resourceNode)),
+            assetHash = assetHash(catalog, detail),
+        )
+    }
+
+    private fun currentEntries(catalog: CatalogArchive): List<Entry> = catalog.resourceDetails.map { (key, detail) ->
+        val resourceNode = normalizeStencilProvenance(mapper.valueToTree(detail.resource), legacyV4 = false)
         Entry(
             key = key,
             canonicalJson = mapper.writeValueAsString(sortKeys(resourceNode)),

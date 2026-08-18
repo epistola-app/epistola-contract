@@ -72,6 +72,15 @@ manifest/detail consistency, required files, resource references, resource-speci
 data schemas and examples, release metadata, and the canonical fingerprint. I/O failures remain
 exceptions; ordinary invalid content is returned as deterministic findings.
 
+For wire v6 discovery metadata, catalog attributes use an explicit `catalog`, `key`, and `value`.
+Catalog and key follow the normal lowercase slug syntax, and a catalog may assign each qualified
+attribute at most once. Attribute values remain generic: Suite and Exchange validate them against
+the referenced attribute definition. Keywords preserve authored case and text, must be trimmed and
+nonblank, and may not contain exact duplicates. Catalog icon and ordered gallery slugs resolve only
+against image assets in the same catalog; missing resources, non-assets, non-image media types, and
+duplicate gallery entries have separate stable finding codes. The icon may also appear in the
+gallery.
+
 Already-decoded catalogs can use `CatalogValidator.validate(catalog, policy)`, and consumers that
 need to validate one resource can use `ResourceValidator`. Cross-catalog resolution is supplied
 through `CatalogDependencyResolver`; returning `UNKNOWN` deliberately suppresses existence

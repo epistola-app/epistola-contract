@@ -61,7 +61,6 @@ SKIP_NAMES = {
 }
 
 SKIP_EXTENSIONS = {
-    ".api",
     ".bat",
     ".csproj",
     ".html",

@@ -6,7 +6,10 @@ package app.epistola.catalog.canonical
 
 import app.epistola.catalog.archive.ArchiveContentProvider
 import app.epistola.catalog.archive.CatalogArchive
+import app.epistola.catalog.protocol.AttributeAssignment
+import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.CatalogPresentation
 import app.epistola.catalog.protocol.CompatibilityInfo
 import app.epistola.catalog.protocol.IncludeEntry
 import app.epistola.catalog.protocol.ResourceDetail
@@ -39,6 +42,13 @@ class CatalogCanonicalizerTest {
             expected["currentCatalogFingerprint"].asString(),
             CatalogCanonicalizer.currentFingerprint(archive).value,
         )
+        CatalogFingerprintVersion.entries.forEach { version ->
+            assertEquals(
+                expected["catalogFingerprints"][version.name].asString(),
+                CatalogCanonicalizer.fingerprint(archive, version).value,
+                version.name,
+            )
+        }
         assertEquals(
             expected["resourceFingerprints"]["theme/default"].asString(),
             CatalogCanonicalizer.perResourceFingerprints(archive).getValue("theme/default"),
@@ -104,6 +114,40 @@ class CatalogCanonicalizerTest {
         assertEquals(
             CatalogCanonicalizer.fingerprint(original),
             CatalogCanonicalizer.fingerprint(changedIncludes),
+        )
+    }
+
+    @Test
+    fun `v4 fingerprints include catalog v6 discovery metadata`() {
+        val original = goldenArchive()
+        val locale = AttributeAssignment("system", "locale", "nl-NL")
+        val brand = AttributeAssignment("system", "brand", "epistola")
+        val baseInfo = CatalogInfo.create("fixture", "Fixture", attributes = listOf(locale, brand))
+        val base = original.copyWithManifest(original.manifest.copy(schemaVersion = 6, catalog = baseInfo))
+        val keyword = base.copyWithManifest(
+            base.manifest.copy(catalog = baseInfo.copyWithMetadata(keywords = setOf("government"))),
+        )
+        val attribute = base.copyWithManifest(
+            base.manifest.copy(
+                catalog = baseInfo.copyWithMetadata(
+                    attributes = listOf(AttributeAssignment("system", "locale", "en-GB"), brand),
+                ),
+            ),
+        )
+        val reordered = base.copyWithManifest(
+            base.manifest.copy(catalog = baseInfo.copyWithMetadata(attributes = listOf(brand, locale))),
+        )
+        val presentation = base.copyWithManifest(
+            base.manifest.copy(catalog = baseInfo.copyWithMetadata(presentation = CatalogPresentation("icon"))),
+        )
+
+        assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(keyword))
+        assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(attribute))
+        assertEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(reordered))
+        assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(presentation))
+        assertEquals(
+            CatalogCanonicalizer.fingerprint(base, CatalogFingerprintVersion.V3),
+            CatalogCanonicalizer.fingerprint(keyword, CatalogFingerprintVersion.V3),
         )
     }
 
@@ -203,7 +247,7 @@ class CatalogCanonicalizerTest {
             slots = emptyMap(),
         )
         val detail = ResourceDetail(
-            schemaVersion = 5,
+            schemaVersion = 6,
             resource = TemplateResource(
                 slug = "permit-confirmation",
                 name = "Permit confirmation",
@@ -229,7 +273,7 @@ class CatalogCanonicalizerTest {
             ),
         )
         return CatalogArchive(
-            manifest = goldenArchive().manifest.copy(schemaVersion = 5, resources = emptyList()),
+            manifest = goldenArchive().manifest.copy(schemaVersion = 6, resources = emptyList()),
             resourceDetails = mapOf("template/permit-confirmation" to detail),
             paths = emptySet(),
             content = ArchiveContentProvider { error("unexpected archive content read") },
