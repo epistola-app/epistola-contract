@@ -12,7 +12,13 @@
       }
     ],
     "keywords": ["documents", "government"],
-    "presentation": null
+    "presentation": null,
+    "license": {
+      "name": "Creative Commons Attribution 4.0 International",
+      "spdxExpression": "CC-BY-4.0",
+      "url": "https://creativecommons.org/licenses/by/4.0/",
+      "copyrightText": "Copyright 2026 Example Publisher"
+    }
   },
   "publisher": {
     "name": "Epistola"

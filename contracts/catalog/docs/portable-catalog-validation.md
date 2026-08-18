@@ -81,6 +81,11 @@ against image assets in the same catalog; missing resources, non-assets, non-ima
 duplicate gallery entries have separate stable finding codes. The icon may also appear in the
 gallery.
 
+Optional catalog-wide license metadata requires a trimmed, nonblank display name. SPDX expressions
+and copyright text, when supplied, must also be trimmed and nonblank; the contract preserves but
+does not resolve or legally interpret SPDX expressions. License URLs must be absolute HTTP or HTTPS
+URLs. Resource-level license overrides are not part of wire v6.
+
 Already-decoded catalogs can use `CatalogValidator.validate(catalog, policy)`, and consumers that
 need to validate one resource can use `ResourceValidator`. Cross-catalog resolution is supplied
 through `CatalogDependencyResolver`; returning `UNKNOWN` deliberately suppresses existence

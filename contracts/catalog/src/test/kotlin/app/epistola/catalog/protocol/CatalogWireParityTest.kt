@@ -45,6 +45,7 @@ class CatalogWireParityTest {
             attributes = listOf(AttributeAssignment("system", "locale", "nl-NL")),
             keywords = linkedSetOf("zoning", "documents"),
             presentation = CatalogPresentation("icon", listOf("hero")),
+            license = CatalogLicense("Creative Commons Attribution 4.0 International", "CC-BY-4.0"),
         )
 
         assertEquals(listOf("documents", "zoning"), info.keywords.toList())
@@ -61,6 +62,7 @@ class CatalogWireParityTest {
             info.copyWithMetadata(attributes = listOf(AttributeAssignment("system", "locale", "en-GB")))
                 .attributes.single().value,
         )
+        assertEquals("CC-BY-4.0", info.copyWithMetadata().license?.spdxExpression)
     }
 
     @Test
@@ -73,6 +75,7 @@ class CatalogWireParityTest {
         assertEquals(emptyList(), info.attributes)
         assertEquals(emptySet(), info.keywords)
         assertEquals(null, info.presentation)
+        assertEquals(null, info.license)
     }
 
     @Test

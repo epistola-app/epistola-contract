@@ -8,6 +8,7 @@ import app.epistola.catalog.archive.ArchiveContentProvider
 import app.epistola.catalog.archive.CatalogArchive
 import app.epistola.catalog.protocol.AttributeAssignment
 import app.epistola.catalog.protocol.CatalogInfo
+import app.epistola.catalog.protocol.CatalogLicense
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogPresentation
 import app.epistola.catalog.protocol.CompatibilityInfo
@@ -140,11 +141,15 @@ class CatalogCanonicalizerTest {
         val presentation = base.copyWithManifest(
             base.manifest.copy(catalog = baseInfo.copyWithMetadata(presentation = CatalogPresentation("icon"))),
         )
+        val license = base.copyWithManifest(
+            base.manifest.copy(catalog = baseInfo.copyWithMetadata(license = CatalogLicense("Proprietary"))),
+        )
 
         assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(keyword))
         assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(attribute))
         assertEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(reordered))
         assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(presentation))
+        assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(license))
         assertEquals(
             CatalogCanonicalizer.fingerprint(base, CatalogFingerprintVersion.V3),
             CatalogCanonicalizer.fingerprint(keyword, CatalogFingerprintVersion.V3),

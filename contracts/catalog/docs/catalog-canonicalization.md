@@ -24,8 +24,8 @@ validation uses the source wire version: v4/v5 input accepts V1 through V3 and t
 legacy-v4 projection, while native v6 input must carry V4. New fingerprints should always use
 `currentFingerprint`. V3 retains the semantic v5 resource projection. V4 adds an algorithm domain
 prefix and includes qualified catalog attributes sorted by catalog and key, sorted exact-case
-`keywords`, and catalog presentation asset references. Re-exporting a migrated catalog replaces a
-present legacy fingerprint with V4.
+`keywords`, catalog presentation asset references, and catalog-wide license metadata. Re-exporting
+a migrated catalog replaces a present legacy fingerprint with V4.
 
 Authoritative versioned inputs and expected hashes are published below
 `META-INF/epistola-catalog/fixtures/v1` in the Maven artifact and

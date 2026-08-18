@@ -5,6 +5,7 @@
 import type {
   AssetResource,
   AttributeAssignment,
+  CatalogLicense,
   CatalogManifest,
   CatalogPresentation,
   ResourceDetail,
@@ -18,6 +19,7 @@ const manifest: CatalogManifest = {
     name: 'Fixture',
     attributes: [{ catalog: 'system', key: 'locale', value: 'nl-NL' }],
     keywords: ['documents'],
+    license: { name: 'Creative Commons Attribution 4.0 International', spdxExpression: 'CC-BY-4.0' },
   },
   publisher: { name: 'Epistola' },
   release: { version: '1.0.0' },
@@ -25,6 +27,7 @@ const manifest: CatalogManifest = {
 }
 
 const locale: AttributeAssignment = { catalog: 'system', key: 'locale', value: 'nl-NL' }
+const license: CatalogLicense = { name: 'Proprietary', url: 'https://example.test/license' }
 
 const presentation: CatalogPresentation = { iconAssetSlug: 'logo', imageAssetSlugs: ['hero'] }
 
@@ -41,6 +44,7 @@ const acceptsTemplate = (resource: TemplateResource): TemplateResource => resour
 
 void manifest
 void locale
+void license
 void presentation
 void detail
 void acceptsTemplate
