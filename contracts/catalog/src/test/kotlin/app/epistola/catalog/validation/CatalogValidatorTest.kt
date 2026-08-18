@@ -9,6 +9,7 @@ import app.epistola.catalog.archive.CatalogArchive
 import app.epistola.catalog.canonical.CatalogCanonicalizer
 import app.epistola.catalog.canonical.CatalogFingerprintVersion
 import app.epistola.catalog.protocol.AssetResource
+import app.epistola.catalog.protocol.AttributeAssignment
 import app.epistola.catalog.protocol.AttributeResource
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogManifest
@@ -103,36 +104,40 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `catalog discovery metadata accepts BCP 47 tags and case-sensitive keywords`() {
-        listOf("nl-NL", "en", "zh-Hant-TW", "x-private").forEach { language ->
-            val catalog = CatalogInfo.create(
-                "fixture",
-                "Fixture",
-                defaultLanguage = language,
-                keywords = setOf("Government", "government"),
-            )
+    fun `catalog discovery metadata accepts qualified generic attributes and case-sensitive keywords`() {
+        val catalog = CatalogInfo.create(
+            "fixture",
+            "Fixture",
+            attributes = listOf(
+                AttributeAssignment("system", "locale", "en_US"),
+                AttributeAssignment("fixture", "brand", ""),
+            ),
+            keywords = setOf("Government", "government"),
+        )
 
-            val report = CatalogValidator.validate(archive(manifest(catalog = catalog), emptyMap()))
+        val report = CatalogValidator.validate(archive(manifest(catalog = catalog), emptyMap()))
 
-            assertTrue(report.valid, "$language: ${report.findings}")
-        }
+        assertTrue(report.valid, report.findings.toString())
     }
 
     @Test
-    fun `catalog discovery metadata rejects malformed language tags and keywords`() {
-        listOf("", " en", "en_US").forEach { language ->
-            val catalog = CatalogInfo.create(
-                "fixture",
-                "Fixture",
-                defaultLanguage = language,
-                keywords = setOf(" documents "),
-            )
+    fun `catalog discovery metadata rejects malformed and duplicate attribute identities`() {
+        val catalog = CatalogInfo.create(
+            "fixture",
+            "Fixture",
+            attributes = listOf(
+                AttributeAssignment("System", "locale", "nl-NL"),
+                AttributeAssignment("system", "bad_key", "one"),
+                AttributeAssignment("system", "bad_key", "two"),
+            ),
+            keywords = setOf(" documents "),
+        )
 
-            val report = CatalogValidator.validate(archive(manifest(catalog = catalog), emptyMap()))
+        val report = CatalogValidator.validate(archive(manifest(catalog = catalog), emptyMap()))
 
-            assertTrue(CatalogValidationCodes.DEFAULT_LANGUAGE_INVALID in report.codes(), report.findings.toString())
-            assertTrue(CatalogValidationCodes.KEYWORD_INVALID in report.codes(), report.findings.toString())
-        }
+        assertTrue(CatalogValidationCodes.CATALOG_ATTRIBUTE_IDENTITY_INVALID in report.codes(), report.findings.toString())
+        assertTrue(CatalogValidationCodes.CATALOG_ATTRIBUTE_DUPLICATE in report.codes(), report.findings.toString())
+        assertTrue(CatalogValidationCodes.KEYWORD_INVALID in report.codes(), report.findings.toString())
     }
 
     @Test

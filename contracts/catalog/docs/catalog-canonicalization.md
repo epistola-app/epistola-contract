@@ -7,8 +7,8 @@ wire versions and never exposes a JSON mapper.
 
 The migration baseline is wire version 4 and the current wire version is 6. Version 4 migrates to
 5 and then 6; version 5 migrates directly to 6. Versions below 4 and above 6 are rejected even when
-their JSON happens to bind to the current model. The v5-to-v6 migration supplies `nl-NL` as the
-default language and an empty keyword set when those fields are absent.
+their JSON happens to bind to the current model. The v5-to-v6 migration supplies empty catalog
+attribute and keyword collections when those fields are absent; it does not invent a locale.
 
 `CatalogCanonicalizer` hashes canonical catalog content. It sorts resources and JSON object keys,
 normalizes numeric JSON representation, includes streamed asset digests, dependency identity,
@@ -23,8 +23,9 @@ behavioral compatibility, and the versioned overload supports explicit selection
 validation uses the source wire version: v4/v5 input accepts V1 through V3 and the equivalent
 legacy-v4 projection, while native v6 input must carry V4. New fingerprints should always use
 `currentFingerprint`. V3 retains the semantic v5 resource projection. V4 adds an algorithm domain
-prefix and includes `defaultLanguage`, sorted exact-case `keywords`, and catalog presentation asset
-references. Re-exporting a migrated catalog replaces a present legacy fingerprint with V4.
+prefix and includes qualified catalog attributes sorted by catalog and key, sorted exact-case
+`keywords`, and catalog presentation asset references. Re-exporting a migrated catalog replaces a
+present legacy fingerprint with V4.
 
 Authoritative versioned inputs and expected hashes are published below
 `META-INF/epistola-catalog/fixtures/v1` in the Maven artifact and

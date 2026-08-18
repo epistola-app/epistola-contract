@@ -25,7 +25,7 @@ class CatalogSchemaMigratorTest {
         assertEquals(4, result.sourceVersion)
         assertEquals(6, assertNotNull(result.value).schemaVersion)
         assertEquals("fixture", result.value.catalog.slug)
-        assertEquals("nl-NL", result.value.catalog.defaultLanguage)
+        assertEquals(emptyList(), result.value.catalog.attributes)
         assertEquals(emptySet(), result.value.catalog.keywords)
     }
 
@@ -61,7 +61,7 @@ class CatalogSchemaMigratorTest {
     }
 
     @Test
-    fun `v5 migration supplies optional discovery metadata`() {
+    fun `v5 migration supplies empty optional discovery metadata without inventing attributes`() {
         val result = CatalogSchemaMigrator.migrateManifest(resource("wire-v5/catalog.json"))
         val catalog = assertNotNull(result.value).catalog
         val tree = resource("wire-v5/catalog.json").use(mapper::readTree) as ObjectNode
@@ -69,9 +69,9 @@ class CatalogSchemaMigratorTest {
 
         assertTrue(result.valid)
         assertEquals(5, result.sourceVersion)
-        assertEquals("nl-NL", catalog.defaultLanguage)
+        assertEquals(emptyList(), catalog.attributes)
         assertEquals(emptySet(), catalog.keywords)
-        assertEquals(CatalogMigrationCodes.DEFAULT_LANGUAGE_ADDED, result.notices.single().code)
+        assertTrue(result.notices.isEmpty())
         assertEquals(resource("migrations/v5-to-v6/manifest-expected.json").use(mapper::readTree), tree)
         assertEquals(resource("migrations/v5-to-v6/notices.json").use(mapper::readTree), mapper.valueToTree(step.notices))
     }

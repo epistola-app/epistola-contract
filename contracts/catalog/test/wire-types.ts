@@ -4,6 +4,7 @@
 
 import type {
   AssetResource,
+  AttributeAssignment,
   CatalogManifest,
   CatalogPresentation,
   ResourceDetail,
@@ -15,13 +16,15 @@ const manifest: CatalogManifest = {
   catalog: {
     slug: 'fixture',
     name: 'Fixture',
-    defaultLanguage: 'nl-NL',
+    attributes: [{ catalog: 'system', key: 'locale', value: 'nl-NL' }],
     keywords: ['documents'],
   },
   publisher: { name: 'Epistola' },
   release: { version: '1.0.0' },
   resources: [],
 }
+
+const locale: AttributeAssignment = { catalog: 'system', key: 'locale', value: 'nl-NL' }
 
 const presentation: CatalogPresentation = { iconAssetSlug: 'logo', imageAssetSlugs: ['hero'] }
 
@@ -37,6 +40,7 @@ const detail: ResourceDetail = { schemaVersion: 6, resource: asset }
 const acceptsTemplate = (resource: TemplateResource): TemplateResource => resource
 
 void manifest
+void locale
 void presentation
 void detail
 void acceptsTemplate

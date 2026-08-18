@@ -177,7 +177,16 @@ object CatalogCanonicalizer {
         "description" to catalog.description,
     ).apply {
         if (includeV6Metadata) {
-            put("defaultLanguage", catalog.defaultLanguage)
+            put(
+                "attributes",
+                catalog.attributes.sortedWith(compareBy({ it.catalog }, { it.key })).map { attribute ->
+                    linkedMapOf(
+                        "catalog" to attribute.catalog,
+                        "key" to attribute.key,
+                        "value" to attribute.value,
+                    )
+                },
+            )
             put("keywords", catalog.keywords.sorted())
             put("presentation", catalog.presentation?.takeUnless { it.iconAssetSlug == null && it.imageAssetSlugs.isEmpty() })
         }

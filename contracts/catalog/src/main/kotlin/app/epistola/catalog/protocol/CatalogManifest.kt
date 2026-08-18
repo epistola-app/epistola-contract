@@ -92,30 +92,33 @@ class CatalogInfo private constructor(
     val slug: String,
     val name: String,
     val description: String?,
-    val defaultLanguage: String?,
+    attributes: List<AttributeAssignment>,
     keywords: Set<String>,
     val presentation: CatalogPresentation?,
 ) {
+    /** Immutable attributes applied to this catalog, preserving authored order. */
+    val attributes: List<AttributeAssignment> = Collections.unmodifiableList(attributes.toList())
+
     /** Deterministically ordered, immutable authored catalog keywords. */
     val keywords: Set<String> = immutableSortedSet(keywords)
 
     /** Source-compatible constructor retained from catalog 1.0.1. */
     constructor(slug: String, name: String, description: String? = null) :
-        this(slug, name, description, null, emptySet(), null)
+        this(slug, name, description, emptyList(), emptySet(), null)
 
     /** Copies the catalog while replacing any catalog-v6 metadata. */
     fun copyWithMetadata(
-        defaultLanguage: String? = this.defaultLanguage,
+        attributes: List<AttributeAssignment> = this.attributes,
         keywords: Set<String> = this.keywords,
         presentation: CatalogPresentation? = this.presentation,
-    ): CatalogInfo = CatalogInfo(slug, name, description, defaultLanguage, keywords, presentation)
+    ): CatalogInfo = CatalogInfo(slug, name, description, attributes, keywords, presentation)
 
     override fun equals(other: Any?): Boolean = this === other ||
         other is CatalogInfo &&
         slug == other.slug &&
         name == other.name &&
         description == other.description &&
-        defaultLanguage == other.defaultLanguage &&
+        attributes == other.attributes &&
         keywords == other.keywords &&
         presentation == other.presentation
 
@@ -123,14 +126,14 @@ class CatalogInfo private constructor(
         var result = slug.hashCode()
         result = 31 * result + name.hashCode()
         result = 31 * result + (description?.hashCode() ?: 0)
-        result = 31 * result + (defaultLanguage?.hashCode() ?: 0)
+        result = 31 * result + attributes.hashCode()
         result = 31 * result + keywords.hashCode()
         result = 31 * result + (presentation?.hashCode() ?: 0)
         return result
     }
 
     override fun toString(): String = "CatalogInfo(slug=$slug, name=$name, description=$description, " +
-        "defaultLanguage=$defaultLanguage, keywords=$keywords, presentation=$presentation)"
+        "attributes=$attributes, keywords=$keywords, presentation=$presentation)"
 
     companion object {
         /** Creates a catalog identity with optional catalog-v6 metadata. */
@@ -140,10 +143,10 @@ class CatalogInfo private constructor(
             @JsonProperty("slug") slug: String,
             @JsonProperty("name") name: String,
             @JsonProperty("description") description: String? = null,
-            @JsonProperty("defaultLanguage") defaultLanguage: String? = null,
+            @JsonProperty("attributes") attributes: List<AttributeAssignment>? = null,
             @JsonProperty("keywords") keywords: Set<String>? = null,
             @JsonProperty("presentation") presentation: CatalogPresentation? = null,
-        ): CatalogInfo = CatalogInfo(slug, name, description, defaultLanguage, keywords.orEmpty(), presentation)
+        ): CatalogInfo = CatalogInfo(slug, name, description, attributes.orEmpty(), keywords.orEmpty(), presentation)
 
         private fun immutableSortedSet(values: Set<String>): Set<String> = when {
             values.isEmpty() -> emptySet()
@@ -151,6 +154,13 @@ class CatalogInfo private constructor(
         }
     }
 }
+
+/** A qualified attribute value applied to a catalog. */
+data class AttributeAssignment(
+    val catalog: String,
+    val key: String,
+    val value: String,
+)
 
 /** Optional authored icon and ordered gallery references for a catalog. */
 data class CatalogPresentation(

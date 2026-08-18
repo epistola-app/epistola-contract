@@ -34,7 +34,6 @@ import tools.jackson.module.kotlin.kotlinModule
 import java.io.InputStream
 import java.net.URI
 import java.time.OffsetDateTime
-import java.util.Locale
 
 /**
  * Stable diagnostic returned by resource or whole-catalog validation.
@@ -116,7 +115,8 @@ object CatalogValidationCodes {
     const val RELEASE_TIMESTAMP_INVALID = "CATALOG_RELEASE_TIMESTAMP_INVALID"
     const val RELEASE_FINGERPRINT_INVALID = "CATALOG_RELEASE_FINGERPRINT_INVALID"
     const val RELEASE_FINGERPRINT_MISMATCH = "CATALOG_RELEASE_FINGERPRINT_MISMATCH"
-    const val DEFAULT_LANGUAGE_INVALID = "CATALOG_DEFAULT_LANGUAGE_INVALID"
+    const val CATALOG_ATTRIBUTE_IDENTITY_INVALID = "CATALOG_ATTRIBUTE_IDENTITY_INVALID"
+    const val CATALOG_ATTRIBUTE_DUPLICATE = "CATALOG_ATTRIBUTE_DUPLICATE"
     const val KEYWORD_INVALID = "CATALOG_KEYWORD_INVALID"
     const val KEYWORD_DUPLICATE = "CATALOG_KEYWORD_DUPLICATE"
     const val PRESENTATION_ASSET_MISSING = "CATALOG_PRESENTATION_ASSET_MISSING"
@@ -658,17 +658,28 @@ object CatalogValidator {
         resources: Map<String, CatalogResource>,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        catalog.defaultLanguage?.let { language ->
-            val valid = language.isNotBlank() &&
-                language == language.trim() &&
-                runCatching {
-                    Locale.Builder().setLanguageTag(language).build()
-                }.isSuccess
-            if (!valid) {
+        val seenAttributes = mutableSetOf<Pair<String, String>>()
+        catalog.attributes.forEachIndexed { index, attribute ->
+            val path = "catalog.json.catalog.attributes[$index]"
+            if (!ATTRIBUTE_IDENTITY.matches(attribute.catalog)) {
                 findings.error(
-                    CatalogValidationCodes.DEFAULT_LANGUAGE_INVALID,
-                    "catalog.json.catalog.defaultLanguage",
-                    "defaultLanguage must be a structurally valid BCP 47 language tag",
+                    CatalogValidationCodes.CATALOG_ATTRIBUTE_IDENTITY_INVALID,
+                    "$path.catalog",
+                    "attribute catalog must contain lowercase letters, digits, and hyphens",
+                )
+            }
+            if (!ATTRIBUTE_IDENTITY.matches(attribute.key)) {
+                findings.error(
+                    CatalogValidationCodes.CATALOG_ATTRIBUTE_IDENTITY_INVALID,
+                    "$path.key",
+                    "attribute key must contain lowercase letters, digits, and hyphens",
+                )
+            }
+            if (!seenAttributes.add(attribute.catalog to attribute.key)) {
+                findings.error(
+                    CatalogValidationCodes.CATALOG_ATTRIBUTE_DUPLICATE,
+                    path,
+                    "attribute '${attribute.catalog}.${attribute.key}' is duplicated",
                 )
             }
         }
@@ -759,6 +770,7 @@ object CatalogValidator {
         "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
     )
     private val SHA256 = Regex("^[0-9a-f]{64}$")
+    private val ATTRIBUTE_IDENTITY = Regex("^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 
     private data class StencilResourceIdentity(
         val slug: String,

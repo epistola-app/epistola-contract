@@ -45,7 +45,7 @@ for (const [schemaName, fixtureName] of cases) {
 
 const validateV6Manifest = ajv.getSchema('https://epistola.app/schemas/catalog-manifest-v6.schema.json');
 const optionalMetadata = await readJson('fixtures/v1/wire-v6/catalog.json');
-delete optionalMetadata.catalog.defaultLanguage;
+delete optionalMetadata.catalog.attributes;
 delete optionalMetadata.catalog.keywords;
 delete optionalMetadata.catalog.presentation;
 assert.equal(validateV6Manifest(optionalMetadata), true, 'catalog v6 discovery metadata remains optional in 1.x');
@@ -54,4 +54,13 @@ for (const keywords of [['documents', 'documents'], [' documents '], ['']]) {
   const invalid = await readJson('fixtures/v1/wire-v6/catalog.json');
   invalid.catalog.keywords = keywords;
   assert.equal(validateV6Manifest(invalid), false, `invalid keyword array was accepted: ${JSON.stringify(keywords)}`);
+}
+
+for (const attribute of [
+  { catalog: 'System', key: 'locale', value: 'nl-NL' },
+  { catalog: 'system', key: 'bad_key', value: 'nl-NL' },
+]) {
+  const invalid = await readJson('fixtures/v1/wire-v6/catalog.json');
+  invalid.catalog.attributes = [attribute];
+  assert.equal(validateV6Manifest(invalid), false, `invalid catalog attribute was accepted: ${JSON.stringify(attribute)}`);
 }

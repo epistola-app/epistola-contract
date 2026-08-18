@@ -4,7 +4,13 @@
     "slug": "fixture",
     "name": "Fixture Catalog",
     "description": "Portable golden fixture",
-    "defaultLanguage": "nl-NL",
+    "attributes": [
+      {
+        "catalog": "system",
+        "key": "locale",
+        "value": "nl-NL"
+      }
+    ],
     "keywords": ["documents", "government"],
     "presentation": null
   },

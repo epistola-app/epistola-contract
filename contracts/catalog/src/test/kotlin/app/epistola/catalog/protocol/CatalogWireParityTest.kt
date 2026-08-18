@@ -42,7 +42,7 @@ class CatalogWireParityTest {
         val info = CatalogInfo.create(
             slug = "fixture",
             name = "Fixture",
-            defaultLanguage = "nl-NL",
+            attributes = listOf(AttributeAssignment("system", "locale", "nl-NL")),
             keywords = linkedSetOf("zoning", "documents"),
             presentation = CatalogPresentation("icon", listOf("hero")),
         )
@@ -52,7 +52,15 @@ class CatalogWireParityTest {
             @Suppress("UNCHECKED_CAST")
             (info.keywords as MutableSet<String>).add("mutable")
         }
-        assertEquals("en-GB", info.copyWithMetadata(defaultLanguage = "en-GB").defaultLanguage)
+        assertFailsWith<UnsupportedOperationException> {
+            @Suppress("UNCHECKED_CAST")
+            (info.attributes as MutableList<AttributeAssignment>).add(AttributeAssignment("system", "brand", "epistola"))
+        }
+        assertEquals(
+            "en-GB",
+            info.copyWithMetadata(attributes = listOf(AttributeAssignment("system", "locale", "en-GB")))
+                .attributes.single().value,
+        )
     }
 
     @Test
@@ -62,7 +70,7 @@ class CatalogWireParityTest {
         assertEquals("fixture", info.slug)
         assertEquals("Fixture", info.name)
         assertEquals(null, info.description)
-        assertEquals(null, info.defaultLanguage)
+        assertEquals(emptyList(), info.attributes)
         assertEquals(emptySet(), info.keywords)
         assertEquals(null, info.presentation)
     }

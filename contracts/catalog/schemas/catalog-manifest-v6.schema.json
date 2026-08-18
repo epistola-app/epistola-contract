@@ -33,9 +33,9 @@
         "slug": { "type": "string" },
         "name": { "type": "string" },
         "description": { "type": ["string", "null"] },
-        "defaultLanguage": {
-          "type": ["string", "null"],
-          "pattern": "^\\S(?:.*\\S)?$"
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/AttributeAssignment" }
         },
         "keywords": {
           "oneOf": [
@@ -52,6 +52,22 @@
         }
       },
       "required": ["slug", "name"],
+      "additionalProperties": false
+    },
+    "AttributeAssignment": {
+      "type": "object",
+      "properties": {
+        "catalog": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        "value": { "type": "string" }
+      },
+      "required": ["catalog", "key", "value"],
       "additionalProperties": false
     },
     "CatalogPresentation": {
