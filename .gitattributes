@@ -1,3 +1,2 @@
 *.jar binary
-*.api whitespace=-blank-at-eof
 CHANGELOG.md merge=union

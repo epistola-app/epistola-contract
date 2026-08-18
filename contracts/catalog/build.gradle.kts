@@ -39,13 +39,6 @@ java {
     }
 }
 
-kotlin {
-    @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
-    abiValidation {
-        enabled.set(true)
-    }
-}
-
 val generatedSrcDir = layout.buildDirectory.dir("generated-sources/kotlin")
 
 configure<JSONSchemaCodegen> {

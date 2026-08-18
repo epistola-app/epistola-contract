@@ -7,7 +7,6 @@ SPDX-PackageDownloadLocation = "https://github.com/epistola-app/epistola-contrac
 path = [
   "*.md",
   "**/*.md",
-  "**/*.api",
   "**/*.html",
   "**/*.xml",
   "**/*.yaml",
