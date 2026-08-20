@@ -189,6 +189,17 @@ object CatalogCanonicalizer {
             )
             put("keywords", catalog.keywords.sorted())
             put("presentation", catalog.presentation?.takeUnless { it.iconAssetSlug == null && it.imageAssetSlugs.isEmpty() })
+            put(
+                "license",
+                catalog.license?.let { license ->
+                    linkedMapOf(
+                        "name" to license.name,
+                        "spdxExpression" to license.spdxExpression,
+                        "url" to license.url,
+                        "copyrightText" to license.copyrightText,
+                    )
+                },
+            )
         }
     }
 

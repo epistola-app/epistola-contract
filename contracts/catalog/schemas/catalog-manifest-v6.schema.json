@@ -49,6 +49,9 @@
         },
         "presentation": {
           "oneOf": [{ "$ref": "#/$defs/CatalogPresentation" }, { "type": "null" }]
+        },
+        "license": {
+          "oneOf": [{ "$ref": "#/$defs/CatalogLicense" }, { "type": "null" }]
         }
       },
       "required": ["slug", "name"],
@@ -80,6 +83,30 @@
           "uniqueItems": true
         }
       },
+      "additionalProperties": false
+    },
+    "CatalogLicense": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^\\S(?:.*\\S)?$"
+        },
+        "spdxExpression": {
+          "type": ["string", "null"],
+          "pattern": "^\\S(?:.*\\S)?$"
+        },
+        "url": {
+          "type": ["string", "null"],
+          "pattern": "^https?://\\S+$"
+        },
+        "copyrightText": {
+          "type": ["string", "null"],
+          "pattern": "^\\S(?:.*\\S)?$"
+        }
+      },
+      "required": ["name"],
       "additionalProperties": false
     },
     "PublisherInfo": {

@@ -61,11 +61,13 @@ migration before the older version is accepted. Do not silently bind an older
 version to newer classes or add compatibility defaults that make an incomplete
 reference appear published.
 
-Wire v6 intentionally keeps `attributes`, `keywords`, and `presentation` optional so the artifact
-can ship as a backwards-compatible minor release. Catalog attributes describe the catalog using
-the same qualified attribute vocabulary as other Epistola entities; no attribute, including
-`system.locale`, is mandatory. A future artifact major may make selected fields required after
-consumers have adopted v6; that tightening must not be backported to the 1.x contract.
+Wire v6 intentionally keeps `attributes`, `keywords`, `presentation`, and `license` optional so the
+artifact can ship as a backwards-compatible minor release. Catalog attributes describe the catalog
+using the same qualified attribute vocabulary as other Epistola entities; no attribute, including
+`system.locale`, is mandatory. An omitted license means that the portable catalog makes no license
+declaration; it does not mean public domain or unrestricted use. A future artifact major may make
+selected fields required after consumers have adopted v6; that tightening must not be backported to
+the 1.x contract.
 
 Here, backwards compatibility applies to catalog JSON. Common Kotlin construction and property-access
 patterns remain source-compatible where practical, but the Kotlin API is a recompile-on-upgrade

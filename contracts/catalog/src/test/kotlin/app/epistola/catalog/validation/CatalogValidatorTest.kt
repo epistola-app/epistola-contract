@@ -12,6 +12,7 @@ import app.epistola.catalog.protocol.AssetResource
 import app.epistola.catalog.protocol.AttributeAssignment
 import app.epistola.catalog.protocol.AttributeResource
 import app.epistola.catalog.protocol.CatalogInfo
+import app.epistola.catalog.protocol.CatalogLicense
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogPresentation
 import app.epistola.catalog.protocol.CodeListBindingRef
@@ -138,6 +139,40 @@ class CatalogValidatorTest {
         assertTrue(CatalogValidationCodes.CATALOG_ATTRIBUTE_IDENTITY_INVALID in report.codes(), report.findings.toString())
         assertTrue(CatalogValidationCodes.CATALOG_ATTRIBUTE_DUPLICATE in report.codes(), report.findings.toString())
         assertTrue(CatalogValidationCodes.KEYWORD_INVALID in report.codes(), report.findings.toString())
+    }
+
+    @Test
+    fun `catalog license accepts standard and custom terms`() {
+        listOf(
+            CatalogLicense(
+                name = "Creative Commons Attribution 4.0 International",
+                spdxExpression = "CC-BY-4.0",
+                url = "https://creativecommons.org/licenses/by/4.0/",
+                copyrightText = "Copyright 2026 Example Publisher",
+            ),
+            CatalogLicense(name = "Proprietary"),
+        ).forEach { license ->
+            val catalog = CatalogInfo.create("fixture", "Fixture", license = license)
+            val report = CatalogValidator.validate(archive(manifest(catalog = catalog), emptyMap()))
+
+            assertTrue(report.valid, report.findings.toString())
+        }
+    }
+
+    @Test
+    fun `catalog license rejects malformed metadata`() {
+        listOf(
+            CatalogLicense(name = " "),
+            CatalogLicense(name = "Example", spdxExpression = " CC-BY-4.0"),
+            CatalogLicense(name = "Example", url = "mailto:legal@example.test"),
+            CatalogLicense(name = "Example", url = "https:terms"),
+            CatalogLicense(name = "Example", copyrightText = " copyright "),
+        ).forEach { license ->
+            val catalog = CatalogInfo.create("fixture", "Fixture", license = license)
+            val report = CatalogValidator.validate(archive(manifest(catalog = catalog), emptyMap()))
+
+            assertTrue(CatalogValidationCodes.CATALOG_LICENSE_INVALID in report.codes(), report.findings.toString())
+        }
     }
 
     @Test

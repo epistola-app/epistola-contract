@@ -18,6 +18,7 @@
   "CATALOG_RELEASE_FINGERPRINT_MISMATCH": "release fingerprint differs from canonical content",
   "CATALOG_ATTRIBUTE_IDENTITY_INVALID": "catalog attribute uses a malformed catalog or key",
   "CATALOG_ATTRIBUTE_DUPLICATE": "catalog repeats a qualified attribute assignment",
+  "CATALOG_LICENSE_INVALID": "catalog license metadata is malformed",
   "CATALOG_KEYWORD_INVALID": "catalog keyword is blank or has surrounding whitespace",
   "CATALOG_KEYWORD_DUPLICATE": "catalog keyword is duplicated",
   "CATALOG_PRESENTATION_ASSET_MISSING": "presentation asset does not exist",

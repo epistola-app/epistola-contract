@@ -48,6 +48,7 @@ const optionalMetadata = await readJson('fixtures/v1/wire-v6/catalog.json');
 delete optionalMetadata.catalog.attributes;
 delete optionalMetadata.catalog.keywords;
 delete optionalMetadata.catalog.presentation;
+delete optionalMetadata.catalog.license;
 assert.equal(validateV6Manifest(optionalMetadata), true, 'catalog v6 discovery metadata remains optional in 1.x');
 
 for (const keywords of [['documents', 'documents'], [' documents '], ['']]) {
@@ -63,4 +64,14 @@ for (const attribute of [
   const invalid = await readJson('fixtures/v1/wire-v6/catalog.json');
   invalid.catalog.attributes = [attribute];
   assert.equal(validateV6Manifest(invalid), false, `invalid catalog attribute was accepted: ${JSON.stringify(attribute)}`);
+}
+
+for (const license of [
+  { name: '' },
+  { name: 'Example', url: 'not-a-url' },
+  { name: 'Example', spdxExpression: ' CC-BY-4.0' },
+]) {
+  const invalid = await readJson('fixtures/v1/wire-v6/catalog.json');
+  invalid.catalog.license = license;
+  assert.equal(validateV6Manifest(invalid), false, `invalid catalog license was accepted: ${JSON.stringify(license)}`);
 }

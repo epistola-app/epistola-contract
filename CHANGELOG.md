@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the domain-separated V4 catalog fingerprint over v6 discovery metadata while preserving
   legacy V1-V3 verification for source v4/v5 archives and recomputing present legacy fingerprints
   when migrated catalogs are re-exported.
+- Added optional catalog-wide license metadata with a required display name and optional SPDX
+  expression, license URL, and copyright text, included in v6 canonical fingerprints; v4/v5
+  migrations preserve its unspecified state.
 - Kept `CatalogInfo` lean by omitting JVM-only destructuring and legacy `copy` shims; consumers
   recompile when upgrading while its three-argument Kotlin construction shape remains
   source-compatible.

@@ -117,6 +117,7 @@ object CatalogValidationCodes {
     const val RELEASE_FINGERPRINT_MISMATCH = "CATALOG_RELEASE_FINGERPRINT_MISMATCH"
     const val CATALOG_ATTRIBUTE_IDENTITY_INVALID = "CATALOG_ATTRIBUTE_IDENTITY_INVALID"
     const val CATALOG_ATTRIBUTE_DUPLICATE = "CATALOG_ATTRIBUTE_DUPLICATE"
+    const val CATALOG_LICENSE_INVALID = "CATALOG_LICENSE_INVALID"
     const val KEYWORD_INVALID = "CATALOG_KEYWORD_INVALID"
     const val KEYWORD_DUPLICATE = "CATALOG_KEYWORD_DUPLICATE"
     const val PRESENTATION_ASSET_MISSING = "CATALOG_PRESENTATION_ASSET_MISSING"
@@ -690,6 +691,48 @@ object CatalogValidator {
                     "catalog.json.catalog.keywords[$index]",
                     "keyword must be nonblank and must not contain leading or trailing whitespace",
                 )
+            }
+        }
+        catalog.license?.let { license ->
+            if (license.name.isBlank() || license.name != license.name.trim()) {
+                findings.error(
+                    CatalogValidationCodes.CATALOG_LICENSE_INVALID,
+                    "catalog.json.catalog.license.name",
+                    "license name must be nonblank and must not contain leading or trailing whitespace",
+                )
+            }
+            license.spdxExpression?.let { expression ->
+                if (expression.isBlank() || expression != expression.trim()) {
+                    findings.error(
+                        CatalogValidationCodes.CATALOG_LICENSE_INVALID,
+                        "catalog.json.catalog.license.spdxExpression",
+                        "SPDX expression must be nonblank and must not contain leading or trailing whitespace",
+                    )
+                }
+            }
+            license.url?.let { url ->
+                val uri = runCatching { URI(url) }.getOrNull()
+                if (
+                    url != url.trim() ||
+                    uri?.isAbsolute != true ||
+                    uri.scheme?.lowercase() !in setOf("http", "https") ||
+                    uri.host.isNullOrBlank()
+                ) {
+                    findings.error(
+                        CatalogValidationCodes.CATALOG_LICENSE_INVALID,
+                        "catalog.json.catalog.license.url",
+                        "license URL must be an absolute HTTP or HTTPS URL without surrounding whitespace",
+                    )
+                }
+            }
+            license.copyrightText?.let { copyright ->
+                if (copyright.isBlank() || copyright != copyright.trim()) {
+                    findings.error(
+                        CatalogValidationCodes.CATALOG_LICENSE_INVALID,
+                        "catalog.json.catalog.license.copyrightText",
+                        "copyright text must be nonblank and must not contain leading or trailing whitespace",
+                    )
+                }
             }
         }
         val presentation = catalog.presentation ?: return
