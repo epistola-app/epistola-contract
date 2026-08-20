@@ -118,7 +118,8 @@
       "applicableStyles": "all",
       "inspector": [],
       "defaultStyles": {
-        "marginBottom": "1.5sp"
+        "marginBottom": "1.5sp",
+        "listItemSpacing": "0.5sp"
       },
       "defaultProps": {
         "content": null
@@ -252,7 +253,8 @@
         }
       ],
       "defaultStyles": {
-        "marginBottom": "1.5sp"
+        "marginBottom": "1.5sp",
+        "listItemSpacing": "0.5sp"
       },
       "defaultProps": {
         "binding": ""
@@ -1590,7 +1592,8 @@
         "border",
         "borderRadius",
         "keepTogether",
-        "keepWithNext"
+        "keepWithNext",
+        "listItemSpacing"
       ],
       "inspector": [
         {
@@ -1668,6 +1671,9 @@
           ]
         }
       ],
+      "defaultStyles": {
+        "listItemSpacing": "0.5sp"
+      },
       "defaultProps": {
         "expression": {
           "raw": "",
@@ -1804,6 +1810,9 @@
                 "slots": [
                   "s-datalist-styled-template"
                 ],
+                "styles": {
+                  "listItemSpacing": "1sp"
+                },
                 "props": {
                   "expression": {
                     "raw": "tags",

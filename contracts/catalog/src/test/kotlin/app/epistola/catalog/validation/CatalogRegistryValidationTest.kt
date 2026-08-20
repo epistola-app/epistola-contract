@@ -88,6 +88,21 @@ class CatalogRegistryValidationTest {
     }
 
     @Test
+    fun `registry accepts list item spacing on every list producing component`() {
+        val cases = listOf(
+            Node("text", "text", styles = mapOf("listItemSpacing" to "0sp")),
+            Node("rich-text", "richTextVariable", styles = mapOf("listItemSpacing" to "0.5sp")),
+            Node("data-list", "datalist", styles = mapOf("listItemSpacing" to "1sp")),
+        )
+
+        cases.forEach { node ->
+            val findings = TemplateValidator.validate(documentWith(node)).findings
+                .filter { it.code == TemplateValidationCodes.TEMPLATE_STYLE_UNKNOWN || it.code == TemplateValidationCodes.TEMPLATE_STYLE_NOT_APPLICABLE }
+            assertTrue(findings.isEmpty(), "${node.type}: $findings")
+        }
+    }
+
+    @Test
     fun `registry still rejects a known style outside the component families`() {
         val columns = Node("columns", "columns", styles = mapOf("fontSize" to "12pt"))
 

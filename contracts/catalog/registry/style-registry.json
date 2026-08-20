@@ -121,6 +121,13 @@
           "units": ["sp", "pt"]
         },
         {
+          "key": "listItemSpacing",
+          "label": "List Item Spacing",
+          "type": "unit",
+          "units": ["sp", "pt"],
+          "inheritable": true
+        },
+        {
           "key": "marginTop",
           "label": "Top Margin",
           "type": "unit",
