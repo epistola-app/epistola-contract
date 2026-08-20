@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-20
+
 - Documented the planned contract 2.0 requirement that every template data contract contains at
   least one valid named data example, including the explicit migration and re-export policy for
   legacy catalogs without examples; current 1.x and wire v6 behavior remains unchanged.
