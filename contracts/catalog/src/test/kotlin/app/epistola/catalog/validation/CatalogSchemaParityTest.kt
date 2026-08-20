@@ -6,6 +6,7 @@ package app.epistola.catalog.validation
 
 import tools.jackson.module.kotlin.jsonMapper
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class CatalogSchemaParityTest {
@@ -17,5 +18,16 @@ class CatalogSchemaParityTest {
         val overrideProperties = schema["\$defs"]["ThemeRef"]["oneOf"][1]["properties"]
 
         assertTrue(overrideProperties.has("catalogKey"), overrideProperties.toString())
+    }
+
+    @Test
+    fun `template resource schema exposes pdfa enabled with the Kotlin default`() {
+        val schema = requireNotNull(
+            javaClass.getResourceAsStream("/META-INF/epistola-catalog/schemas/resource-detail-v6.schema.json"),
+        ).use(jsonMapper()::readTree)
+        val property = schema["\$defs"]["TemplateResource"]["properties"]["pdfaEnabled"]
+
+        assertEquals("boolean", property["type"].asString())
+        assertTrue(property["default"].asBoolean())
     }
 }

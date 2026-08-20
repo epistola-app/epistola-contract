@@ -30,6 +30,7 @@
         "name": { "type": "string" },
         "themeId": { "type": ["string", "null"] },
         "themeCatalogKey": { "type": ["string", "null"] },
+        "pdfaEnabled": { "type": "boolean", "default": true },
         "dataModel": { "type": ["object", "null"] },
         "dataExamples": {
           "oneOf": [

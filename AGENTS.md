@@ -23,3 +23,15 @@ small adapters that point at the shared skill.
 
 - Have you thoroughly tested?
 - Have you applied local formatting rules?
+
+## Catalog Contract Parity
+
+When changing the public catalog wire model, keep every contract representation in sync:
+
+- Update the Kotlin protocol model and its tests.
+- Update the current versioned JSON Schema under `contracts/catalog/schemas`.
+- Regenerate the ignored TypeScript definitions with `pnpm generate:types` from
+  `contracts/catalog` to verify the schema produces the intended public types; do not edit
+  generated files by hand.
+- Update versioned fixtures and parity/conformance tests where the wire behavior changes.
+- Run both the JVM catalog tests and the npm wire/build checks before committing.

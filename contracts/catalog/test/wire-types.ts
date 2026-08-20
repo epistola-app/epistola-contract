@@ -41,6 +41,7 @@ const asset: AssetResource = {
 
 const detail: ResourceDetail = { schemaVersion: 6, resource: asset }
 const acceptsTemplate = (resource: TemplateResource): TemplateResource => resource
+const pdfaEnabled: TemplateResource['pdfaEnabled'] = false
 
 void manifest
 void locale
@@ -48,3 +49,4 @@ void license
 void presentation
 void detail
 void acceptsTemplate
+void pdfaEnabled

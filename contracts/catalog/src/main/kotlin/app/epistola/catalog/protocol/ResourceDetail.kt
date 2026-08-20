@@ -50,12 +50,20 @@ sealed interface CatalogResource {
  * [templateModel] is always validated. Every non-null
  * [VariantEntry.templateModel] is independently validated using the same
  * catalog-scoped resource context.
+ *
+ * [pdfaEnabled] records whether the template renders PDF/A-compliant output.
+ * It is optional and additive: absent on the wire means `true`, which
+ * preserves the behaviour of catalogs from exporters that predate this
+ * field. A consumer that does not understand it ignores it. Adding it
+ * therefore needs no `schemaVersion` bump (see "Future wire evolution" in
+ * `contracts/catalog/docs/catalog-compatibility.md`).
  */
 data class TemplateResource(
     override val slug: String,
     override val name: String,
     val themeId: String? = null,
     val themeCatalogKey: String? = null,
+    val pdfaEnabled: Boolean = true,
     val dataModel: Map<String, Any?>? = null,
     val dataExamples: List<DataExampleEntry>? = null,
     val templateModel: TemplateDocument,
