@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   renders PDF/A-compliant output. Absent on the wire defaults to `true`, preserving the
   behavior of catalogs from exporters that predate this field. Additive and round-trip
   compatible, so it needs no `schemaVersion` bump.
+- Documented and tested the required parity between Kotlin catalog models, versioned JSON
+  Schemas, generated TypeScript definitions, and wire fixtures.
 
 ## [1.0.1] - 2026-08-04
 
