@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Documented the planned contract 2.0 requirement that every template data contract contains at
+  least one valid named data example, including the explicit migration and re-export policy for
+  legacy catalogs without examples; current 1.x and wire v6 behavior remains unchanged.
 - Added inheritable `listItemSpacing` presentation metadata for text, rich-text block, and data-list
   components, with `sp`/`pt` units and a shared `0.5sp` default.
 - Added complete, versioned portable catalog manifest and resource-detail JSON Schemas, generated

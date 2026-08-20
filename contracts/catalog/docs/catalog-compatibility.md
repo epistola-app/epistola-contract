@@ -61,6 +61,25 @@ migration before the older version is accepted. Do not silently bind an older
 version to newer classes or add compatibility defaults that make an incomplete
 reference appear published.
 
+### Planned for contract 2.0: require a data example
+
+Contract 2.0 will require every template data contract to contain at least one
+named data example. The REST API and portable catalog representation must make
+`dataExamples` required and non-null, with `minItems: 1`. Every example remains
+subject to validation against the template's `dataModel`.
+
+This requirement is deliberately deferred because it is not backwards
+compatible. A migration cannot reliably synthesize a valid example from an
+arbitrary JSON Schema. When the requirement is introduced, the corresponding
+catalog wire version must preserve the preceding schema and use an explicit
+migration finding for templates without examples. Producers must add a valid
+example and re-export those catalogs; the migration must not invent placeholder
+data or silently omit the template.
+
+This is a 2.0 planning decision only. It does not tighten the current v6 wire
+schema or prevent 1.x consumers from importing existing catalogs with absent,
+null, or empty `dataExamples`.
+
 Wire v6 intentionally keeps `attributes`, `keywords`, `presentation`, and `license` optional so the
 artifact can ship as a backwards-compatible minor release. Catalog attributes describe the catalog
 using the same qualified attribute vocabulary as other Epistola entities; no attribute, including
