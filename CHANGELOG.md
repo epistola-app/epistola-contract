@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added inheritable `listItemSpacing` presentation metadata for text, rich-text block, and data-list
+  components, with `sp`/`pt` units and a shared `0.5sp` default.
 - Added complete, versioned portable catalog manifest and resource-detail JSON Schemas, generated
   public TypeScript wire types, and shared Kotlin/TypeScript wire fixture checks.
 - Added backwards-compatible catalog wire v6 with optional qualified catalog attributes, exact-case
