@@ -161,6 +161,16 @@ This will:
 
 ## Generated Artifacts
 
+**Take one per application.** An application either calls Epistola — with the Kotlin, Jakarta EE,
+.NET or Python client matching its runtime — or implements the API with the server stubs. It is not
+expected to hold two.
+
+The three JVM artifacts rely on that: each compiles in its own copy of the shared wire-protocol
+logic (partition routing, poll backoff, the `User-Agent` grammar, problem type URIs) under the same
+package, which keeps it out of every published POM. Two of them on one classpath would therefore be
+a split package — harmless on a flat classpath, since they are released in lockstep and the
+bytecode matches, but rejected under JPMS and OSGi.
+
 ### Kotlin Client (`app.epistola.contract:client-spring3-restclient`)
 
 A Kotlin client library using:
@@ -180,6 +190,12 @@ Quarkus) using:
 It ships **no runtime dependencies**: every container-supplied API is `compileOnly`, so
 nothing is added to a consumer's WAR and no REST implementation is bundled. See the
 [Jakarta client README](contracts/api/clients/jakarta/README.md).
+
+### Kotlin Server Stubs (`app.epistola.contract:server-kotlin-springboot4`)
+
+Spring Boot 4 interfaces to implement, with the portable catalog's Kotlin types in their
+signatures, plus helpers for RFC 9457 problem responses and for reading the client identity
+headers.
 
 ### .NET Client (`Epistola.Contract.Client`)
 

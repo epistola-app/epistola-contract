@@ -180,9 +180,17 @@ language-specific, used by both JVM clients and the server stubs:
 published surface stays at four artifacts and no consumer gains a coordinate to resolve. Its own
 Gradle build exists to keep the logic under test in isolation; CI builds it, nothing publishes it.
 
-Consequence to know: all three jars carry `app.epistola.protocol.*` at the same FQCN. They are
-released in lockstep so the bytecode matches, which is fine on a flat classpath — but it is a split
-package, so a consumer under JPMS or OSGi would need the classes relocated per artifact.
+This rests on an assumption worth stating, because it is what makes source inclusion safe: **an
+application takes one of these artifacts, not two.** It is either a Spring application calling
+Epistola, or a Jakarta EE application calling Epistola, or an implementation of the API — never a
+combination, and never two clients.
+
+All three jars therefore carry `app.epistola.protocol.*` at the same FQCN, which would be a split
+package if two of them ever met on one classpath. They are released in lockstep so the bytecode
+matches and a flat classpath resolves it harmlessly, but JPMS and OSGi reject split packages
+outright. If a consumer ever genuinely needs two — implementing the API while calling another
+Epistola instance, say — relocate the classes per artifact: a `Copy` with a package-rewriting
+filter over five files in each build, no plugin required.
 
 It is **Java, not Kotlin**, so the Jakarta client does not compile in a dependency on
 kotlin-stdlib. It has **no dependencies**; `ProtocolContractTest` asserts that, because whatever it

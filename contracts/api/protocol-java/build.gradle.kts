@@ -6,6 +6,12 @@
 // test suite; the artifact is NOT published. Each consumer compiles `src/main/java` into its own
 // jar instead (see `epistolaProtocolSources` in their builds), which keeps the published surface at
 // four artifacts and costs a consumer nothing at resolution time.
+//
+// That means all three consumer jars carry app.epistola.protocol.* at the same FQCN. It is safe
+// because an application takes one of them, not two: it is a Spring client, or a Jakarta client,
+// or an implementation of the API. Two on one classpath would be a split package — harmless on a
+// flat classpath since they are released in lockstep, rejected under JPMS or OSGi. If that ever
+// stops holding, relocate the package per consumer rather than publishing this.
 
 plugins {
     `java-library`

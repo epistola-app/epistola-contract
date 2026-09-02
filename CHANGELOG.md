@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Not a published artifact. The sources are compiled into each consumer, so the published surface
     is unchanged, all three POMs are byte-identical to before, and the Jakarta client still ships
     nothing into a consumer's WAR.
+  - This assumes an application takes one Epistola artifact, not two — a client matching its
+    runtime, or the server stubs. The READMEs now say so: the three JVM jars each carry the shared
+    classes under the same package, so two on one classpath would be a split package.
   - Written in Java rather than Kotlin so the Jakarta EE client does not compile in a dependency on
     kotlin-stdlib; Kotlin consumes it transparently.
   - Its package is JSpecify `@NullMarked`, so Kotlin sees real nullable types rather than platform
