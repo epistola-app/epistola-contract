@@ -58,11 +58,16 @@ class TemplateDataValidationError(Exception):
 
 
 class SchemaCache(Protocol):
-    """Cache for JSON Schemas keyed by (tenant_id, template_id)."""
+    """Cache for JSON Schemas keyed by (tenant_id, catalog_id, template_id).
+
+    The catalog is part of the key, not decoration: the same template id in two catalogs of one
+    tenant is two different templates with two different schemas.
+    """
 
     def get_or_load(
         self,
         tenant_id: str,
+        catalog_id: str,
         template_id: str,
         loader: Callable[[], Optional[Dict[str, Any]]],
     ) -> Optional[Dict[str, Any]]:
@@ -78,15 +83,16 @@ class TtlSchemaCache:
     def __init__(self, ttl_seconds: float = 300.0) -> None:
         self._ttl = ttl_seconds
         self._lock = threading.Lock()
-        self._cache: Dict[Tuple[str, str], Tuple[Optional[Dict[str, Any]], float]] = {}
+        self._cache: Dict[Tuple[str, str, str], Tuple[Optional[Dict[str, Any]], float]] = {}
 
     def get_or_load(
         self,
         tenant_id: str,
+        catalog_id: str,
         template_id: str,
         loader: Callable[[], Optional[Dict[str, Any]]],
     ) -> Optional[Dict[str, Any]]:
-        key = (tenant_id, template_id)
+        key = (tenant_id, catalog_id, template_id)
         now = time.monotonic()
         with self._lock:
             entry = self._cache.get(key)
@@ -97,10 +103,10 @@ class TtlSchemaCache:
             self._cache[key] = (schema, time.monotonic())
         return schema
 
-    def evict(self, tenant_id: str, template_id: str) -> None:
+    def evict(self, tenant_id: str, catalog_id: str, template_id: str) -> None:
         """Evict a specific entry (useful after template updates)."""
         with self._lock:
-            self._cache.pop((tenant_id, template_id), None)
+            self._cache.pop((tenant_id, catalog_id, template_id), None)
 
     def evict_all(self) -> None:
         """Evict all entries."""
@@ -122,7 +128,10 @@ class TemplateSchemaValidator:
         on failure.
         """
         schema = self._cache.get_or_load(
-            tenant_id, template_id, lambda: self._load_schema(tenant_id, catalog_id, template_id)
+            tenant_id,
+            catalog_id,
+            template_id,
+            lambda: self._load_schema(tenant_id, catalog_id, template_id),
         )
         if schema is None:
             return  # No schema defined on the template — nothing to validate.

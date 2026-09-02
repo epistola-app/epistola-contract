@@ -14,6 +14,7 @@ import java.io.ByteArrayInputStream
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -392,6 +393,86 @@ class ResultCollectorTest {
         assertTrue(hash1 != hash2, "Different keys should produce different hashes")
     }
 
+    @Test
+    fun `routingKeyToMe always produces a key that lands here`() {
+        val restClient = mockRestClient(ndjsonResponse(metaLine(hasMore = false, count = 0)))
+        val collector = buildCollector(restClient) { }
+        collector.collectOnce()
+
+        // Trying only the partition numbers this node owns is not enough: "3:key" hashes to
+        // wherever it hashes, not to partition 3. With 4 of 12 partitions, most keys need
+        // rewriting, and the old fallback returned a foreign key for two thirds of them.
+        var rewritten = 0
+        for (i in 0 until 100) {
+            val key = "order-$i"
+            val routed = collector.routingKeyToMe(key)
+            assertTrue(routed != null, "routingKeyToMe returned null for $key")
+            assertTrue(collector.isMyPartition(routed!!), "routingKeyToMe produced a foreign key: $routed")
+            if (routed != key) rewritten++
+        }
+        assertTrue(rewritten > 0, "with 4 of 12 partitions, most keys should need rewriting")
+    }
+
+    @Test
+    fun `the interval recovers from a hasMore burst instead of polling flat out`() {
+        // hasMore sets the interval to 0 so the next poll is immediate. Once the queue drains, the
+        // backoff has to climb again — and `0 * multiplier` is still 0, so without a floor the next
+        // request goes out with zero delay, forever, bounded only by round-trip time. Counting
+        // polls over a window is what catches it.
+        val polls = AtomicInteger()
+        val drained = AtomicBoolean(false)
+        val restClient = mockRestClientPerCall {
+            polls.incrementAndGet()
+            // One burst, then nothing: hasMore first, empty from then on.
+            if (drained.compareAndSet(false, true)) {
+                ndjsonResponse(resultLine(sequence = 1), metaLine(hasMore = true, count = 1))
+            } else {
+                ndjsonResponse(metaLine(hasMore = false, count = 0))
+            }
+        }
+
+        val collector = ResultCollector.builder()
+            .restClient(restClient)
+            .tenantId("acme-corp")
+            .minInterval(Duration.ofMillis(200))
+            .maxInterval(Duration.ofSeconds(5))
+            .handler { }
+            .objectMapper(objectMapper)
+            .registerShutdownHook(false)
+            .build()
+
+        val loop = Thread({ collector.start() }, "collector-loop")
+        loop.start()
+        try {
+            Thread.sleep(600)
+        } finally {
+            collector.stop()
+            loop.join(5_000)
+        }
+
+        // With a 200ms floor and a 3x multiplier: burst, then ~200ms, ~600ms — a handful of polls.
+        // Without the floor this runs into the thousands.
+        assertTrue(polls.get() < 20, "expected the loop to back off, but it polled ${polls.get()} times")
+    }
+
+    @Test
+    fun `murmur3 matches the servers hash vectors`() {
+        // Guava's Hashing.murmur3_32_fixed(0) over the same UTF-8 bytes — the server's partition
+        // assignment. Determinism alone would not catch an implementation that is consistently
+        // wrong; if these drift, this node hands out routing keys that land on someone else's
+        // partition. The Jakarta client pins the same vectors.
+        assertEquals(0x00000000, murmur3x86_32(ByteArray(0), 0))
+        assertEquals(0x3c2569b2, murmur3x86_32("a".toByteArray(), 0))
+        assertEquals(-0x4c226c06, murmur3x86_32("abc".toByteArray(), 0)) // 0xb3dd93fa
+        assertEquals(0x43ed676a, murmur3x86_32("abcd".toByteArray(), 0))
+        assertEquals(0x248bfa47, murmur3x86_32("hello".toByteArray(), 0))
+        assertEquals(0x149bbb7f, murmur3x86_32("hello, world".toByteArray(), 0))
+        assertEquals(
+            0x2e4ff723,
+            murmur3x86_32("The quick brown fox jumps over the lazy dog".toByteArray(), 0),
+        )
+    }
+
     // --- Helpers ---
 
     @Suppress("ktlint:standard:function-signature")
@@ -409,6 +490,36 @@ class ResultCollectorTest {
         .registerShutdownHook(registerShutdownHook)
         .apply { if (metricsListener != null) metricsListener(metricsListener) }
         .build()
+
+    /**
+     * Like [mockRestClient], but calls [nextBody] per poll. A single [ByteArrayInputStream] is
+     * exhausted after the first read, so loop tests need a fresh one each time.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun mockRestClientPerCall(nextBody: () -> ByteArrayInputStream): RestClient {
+        val convertibleResponse = mockk<RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse> {
+            every { body } answers { nextBody() }
+            every { headers } returns HttpHeaders()
+        }
+
+        val requestBodyUriSpec = mockk<RestClient.RequestBodyUriSpec>()
+        val requestBodySpec = mockk<RestClient.RequestBodySpec>()
+
+        every { requestBodyUriSpec.uri(any<String>(), any<String>()) } returns requestBodySpec
+        every { requestBodySpec.contentType(any()) } returns requestBodySpec
+        every { requestBodySpec.accept(any()) } returns requestBodySpec
+        every { requestBodySpec.header(any(), any<String>()) } returns requestBodySpec
+        every { requestBodySpec.body(any<String>()) } returns requestBodySpec
+        every { requestBodySpec.exchange<ResultCollector.CollectResult>(any()) } answers {
+            val handler = firstArg<RestClient.RequestHeadersSpec.ExchangeFunction<ResultCollector.CollectResult>>()
+            handler.exchange(mockk(), convertibleResponse)
+        }
+
+        val restClient = mockk<RestClient>()
+        every { restClient.method(any()) } returns requestBodyUriSpec
+
+        return restClient
+    }
 
     @Suppress("UNCHECKED_CAST")
     private fun mockRestClient(responseBody: ByteArrayInputStream): RestClient {

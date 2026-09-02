@@ -10,14 +10,17 @@ import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Cache for compiled JSON Schemas keyed by (tenantId, templateId).
+ * Cache for compiled JSON Schemas keyed by (tenantId, catalogId, templateId).
+ *
+ * The catalog is part of the key, not decoration: the same template id in two catalogs of one
+ * tenant is two different templates with two different schemas.
  */
 fun interface SchemaCache {
     /**
      * Returns a cached [JsonSchema], or invokes [loader] on cache miss and stores the result.
      * A `null` return means the template has no schema defined.
      */
-    fun getOrLoad(tenantId: String, templateId: String, loader: () -> JsonSchema?): JsonSchema?
+    fun getOrLoad(tenantId: String, catalogId: String, templateId: String, loader: () -> JsonSchema?): JsonSchema?
 }
 
 /**
@@ -26,13 +29,13 @@ fun interface SchemaCache {
  */
 class TtlSchemaCache(private val ttl: Duration = Duration.ofMinutes(5)) : SchemaCache {
 
-    private data class CacheKey(val tenantId: String, val templateId: String)
+    private data class CacheKey(val tenantId: String, val catalogId: String, val templateId: String)
     private data class CacheEntry(val schema: JsonSchema?, val storedAt: Instant)
 
     private val cache = ConcurrentHashMap<CacheKey, CacheEntry>()
 
-    override fun getOrLoad(tenantId: String, templateId: String, loader: () -> JsonSchema?): JsonSchema? {
-        val key = CacheKey(tenantId, templateId)
+    override fun getOrLoad(tenantId: String, catalogId: String, templateId: String, loader: () -> JsonSchema?): JsonSchema? {
+        val key = CacheKey(tenantId, catalogId, templateId)
         val existing = cache[key]
         if (existing != null && Instant.now().isBefore(existing.storedAt.plus(ttl))) {
             return existing.schema
@@ -43,8 +46,8 @@ class TtlSchemaCache(private val ttl: Duration = Duration.ofMinutes(5)) : Schema
     }
 
     /** Evict a specific entry (useful after template updates). */
-    fun evict(tenantId: String, templateId: String) {
-        cache.remove(CacheKey(tenantId, templateId))
+    fun evict(tenantId: String, catalogId: String, templateId: String) {
+        cache.remove(CacheKey(tenantId, catalogId, templateId))
     }
 
     /** Evict all entries. */

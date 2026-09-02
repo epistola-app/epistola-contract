@@ -43,6 +43,7 @@ jobs:
     outputs:
       spec: ${{ steps.filter.outputs.spec }}
       client: ${{ steps.filter.outputs.client }}
+      jakarta: ${{ steps.filter.outputs.jakarta }}
       server: ${{ steps.filter.outputs.server }}
       epistola-catalog: ${{ steps.filter.outputs.epistola-catalog }}
       dotnet: ${{ steps.filter.outputs.dotnet }}
@@ -67,6 +68,12 @@ jobs:
               - 'contracts/api/components/**'
               - 'contracts/catalog/schemas/**'
               - 'contracts/api/clients/kotlin-spring-restclient/**'
+            jakarta:
+              - 'contracts/api/openapi.yaml'
+              - 'contracts/api/paths/**'
+              - 'contracts/api/components/**'
+              - 'contracts/catalog/schemas/**'
+              - 'contracts/api/clients/jakarta/**'
             server:
               - 'contracts/api/openapi.yaml'
               - 'contracts/api/paths/**'
@@ -100,6 +107,9 @@ jobs:
         include:
           - module: contracts/api/clients/kotlin-spring-restclient
             filter: client
+            needs_spec: true
+          - module: contracts/api/clients/jakarta
+            filter: jakarta
             needs_spec: true
           - module: contracts/api/server-stubs/kotlin-springboot4
             filter: server
@@ -151,6 +161,10 @@ jobs:
           - module: contracts/api/clients/kotlin-spring-restclient
             artifact_id: client-spring3-restclient
             filter: client
+            needs_spec: true
+          - module: contracts/api/clients/jakarta
+            artifact_id: client-jakarta
+            filter: jakarta
             needs_spec: true
           - module: contracts/api/server-stubs/kotlin-springboot4
             artifact_id: server-kotlin-springboot4

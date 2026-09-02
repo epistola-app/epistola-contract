@@ -73,6 +73,16 @@ def test_schema_is_cached_between_calls():
     assert api.calls == 1
 
 
+def test_the_same_template_id_in_two_catalogs_is_two_cache_entries():
+    # Two catalogs of one tenant can both hold a "tpl" template, with different schemas. Keying
+    # on (tenant, template) alone would validate one against the other's contract.
+    api = _StubTemplatesApi(_SCHEMA)
+    validator = TemplateSchemaValidator(api)
+    validator.validate("t", "catalog-a", "tpl", {"name": "a"})
+    validator.validate("t", "catalog-b", "tpl", {"name": "b"})
+    assert api.calls == 2
+
+
 def test_validating_generation_api_validates_before_delegating():
     gen = _StubGenerationApi()
     api = ValidatingGenerationApi(gen, _StubTemplatesApi(_SCHEMA))

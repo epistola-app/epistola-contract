@@ -33,6 +33,10 @@ from typing import Callable, List, Optional, Protocol
 _VENDOR_JSON = "application/vnd.epistola.v1+json"
 _NDJSON = "application/vnd.epistola.v1+ndjson"
 
+#: How many prefixes :meth:`ResultCollector.routing_key_to_me` tries before giving up. Reaching
+#: this means every one of a thousand hashes missed every partition this node owns.
+MAX_ROUTING_KEY_ATTEMPTS = 1000
+
 
 @dataclass(frozen=True)
 class GenerationResult:
@@ -199,7 +203,8 @@ class ResultCollector:
         (murmur3 x86 32-bit, seed 0). Returns ``None`` if the assignment is not yet known.
         """
         assignment = self.current_partition_assignment
-        if assignment is None:
+        # A zero partition count would be a ZeroDivisionError, not a "no partition" answer.
+        if assignment is None or not assignment.total:
             return None
         h = _murmur3_x86_32(routing_key.encode("utf-8"), 0)
         return (h & 0x7FFFFFFF) % assignment.total
@@ -213,19 +218,42 @@ class ResultCollector:
         return assignment is not None and partition in assignment.mine
 
     def routing_key_to_me(self, key: str) -> Optional[str]:
-        """Return a routing key that targets one of this node's partitions: the original
-        key if it already routes here, otherwise a prefixed key. ``None`` if unknown.
+        """Return a routing key that targets one of this node's partitions.
+
+        ``key`` unchanged when it already routes here; otherwise numbered prefixes
+        (``"0:key"``, ``"1:key"``, ...) are searched for one that does. The search is
+        deterministic, so the same key always yields the same routed key. ``None`` when the
+        assignment is not yet known, or in the vanishingly unlikely event that no prefix within
+        ``MAX_ROUTING_KEY_ATTEMPTS`` lands here.
+
+        The prefix is what the server hashes, so a rewritten key is a different key: pass the
+        value returned here as the request's ``routingKey``, and expect it back on the result.
         """
         assignment = self.current_partition_assignment
-        if assignment is None:
+        if assignment is None or not assignment.total or not assignment.mine:
             return None
         if self.is_my_partition(key):
             return key
-        for p in assignment.mine:
-            candidate = f"{p}:{key}"
+        # Trying only the partition numbers this node owns is not enough: "3:key" hashes to
+        # wherever it hashes, not to partition 3. Only checking the hash of each candidate can
+        # tell us, so keep trying prefixes until one lands. With p of n partitions owned, each
+        # attempt succeeds with probability p/n, so this converges in a handful of iterations.
+        for attempt in range(MAX_ROUTING_KEY_ATTEMPTS):
+            candidate = f"{attempt}:{key}"
             if self.is_my_partition(candidate):
                 return candidate
-        return f"{assignment.mine[0]}:{key}" if assignment.mine else None
+        return None
+
+    def _back_off(self, interval: float) -> float:
+        """The next idle interval, floored at ``min_interval`` and capped at ``max_interval``.
+
+        The floor is not cosmetic. A poll reporting ``hasMore`` sets the interval to 0 so the next
+        one is immediate, and ``0 * multiplier`` is still 0 — without the floor, a burst that
+        drained (or a server that went down mid-burst) would leave the loop polling
+        ``/generation/collect`` flat out, with no path back to a sane interval.
+        """
+        grown = interval * self._backoff_multiplier
+        return min(max(grown, self._min_interval), self._max_interval)
 
     # --- Poll loop ---
 
@@ -250,18 +278,14 @@ class ResultCollector:
                     elif result.count > 0:
                         self._current_interval = self._min_interval
                     else:
-                        self._current_interval = min(
-                            self._current_interval * self._backoff_multiplier, self._max_interval
-                        )
+                        self._current_interval = self._back_off(self._current_interval)
 
                     self._sleep_interruptibly(self._current_interval)
                 except Exception as exc:  # noqa: BLE001 - poll loop must survive transient errors
                     if self._error_handler is not None:
                         self._error_handler(exc)
                     jitter = random.uniform(0, self._current_interval / 2 + 0.001)
-                    self._current_interval = min(
-                        self._current_interval * self._backoff_multiplier, self._max_interval
-                    )
+                    self._current_interval = self._back_off(self._current_interval)
                     self._sleep_interruptibly(self._current_interval + jitter)
         finally:
             self._remove_shutdown_hook()

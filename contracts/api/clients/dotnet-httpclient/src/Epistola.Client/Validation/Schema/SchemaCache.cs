@@ -8,14 +8,20 @@ using NJsonSchema;
 
 namespace Epistola.Client.Validation.Schema;
 
-/// <summary>Cache for compiled JSON Schemas keyed by (tenantId, templateId).</summary>
+/// <summary>
+/// Cache for compiled JSON Schemas keyed by (tenantId, catalogId, templateId).
+/// </summary>
+/// <remarks>
+/// The catalog is part of the key, not decoration: the same template id in two catalogs of one
+/// tenant is two different templates with two different schemas.
+/// </remarks>
 public interface ISchemaCache
 {
     /// <summary>
     /// Returns a cached <see cref="JsonSchema"/>, or invokes <paramref name="loader"/> on a cache miss
     /// and stores the result. A <c>null</c> return means the template has no schema defined.
     /// </summary>
-    JsonSchema? GetOrLoad(string tenantId, string templateId, Func<JsonSchema?> loader);
+    JsonSchema? GetOrLoad(string tenantId, string catalogId, string templateId, Func<JsonSchema?> loader);
 }
 
 /// <summary>
@@ -25,7 +31,7 @@ public interface ISchemaCache
 public sealed class TtlSchemaCache : ISchemaCache
 {
     private readonly TimeSpan _ttl;
-    private readonly ConcurrentDictionary<(string TenantId, string TemplateId), CacheEntry> _cache = new();
+    private readonly ConcurrentDictionary<(string TenantId, string CatalogId, string TemplateId), CacheEntry> _cache = new();
 
     public TtlSchemaCache()
         : this(TimeSpan.FromMinutes(5))
@@ -37,9 +43,9 @@ public sealed class TtlSchemaCache : ISchemaCache
         _ttl = ttl;
     }
 
-    public JsonSchema? GetOrLoad(string tenantId, string templateId, Func<JsonSchema?> loader)
+    public JsonSchema? GetOrLoad(string tenantId, string catalogId, string templateId, Func<JsonSchema?> loader)
     {
-        var key = (tenantId, templateId);
+        var key = (tenantId, catalogId, templateId);
         if (_cache.TryGetValue(key, out var existing) && DateTimeOffset.UtcNow < existing.StoredAt + _ttl)
         {
             return existing.Schema;
@@ -51,7 +57,8 @@ public sealed class TtlSchemaCache : ISchemaCache
     }
 
     /// <summary>Evicts a specific entry (useful after template updates).</summary>
-    public void Evict(string tenantId, string templateId) => _cache.TryRemove((tenantId, templateId), out _);
+    public void Evict(string tenantId, string catalogId, string templateId) =>
+        _cache.TryRemove((tenantId, catalogId, templateId), out _);
 
     /// <summary>Evicts all entries.</summary>
     public void EvictAll() => _cache.Clear();

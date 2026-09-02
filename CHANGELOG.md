@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added `app.epistola.contract:client-jakarta`, a Java client for Jakarta EE application servers
+  (WildFly, Open Liberty, Payara, Quarkus). Generated from the bundled spec with openapi-generator's
+  `java`/`microprofile` library and carrying the same conventions as the Spring client: the client
+  identity headers, API-key and self-signed-JWT authentication, RFC 9457 problem parsing into a
+  typed `ProblemDetailException`, the asynchronous result-collection protocol, and both layers of
+  client-side validation. Generated interfaces are MicroProfile Rest Client interfaces, so
+  `@Inject @RestClient GenerationApi` works with configuration alone.
+- The Jakarta client ships **no runtime dependencies**: every container-supplied API (JAX-RS,
+  JSON-B, JSON-P, MicroProfile Rest Client and Config) is `compileOnly`, so nothing is added to a
+  consumer's WAR and no REST implementation is bundled for them to exclude. A test asserts this
+  rather than leaving it to review, and an opt-in Testcontainers test deploys the client into a real
+  WildFly.
+- Fixed three defects in **every** client's result collection and template validation. They were
+  found while building the Jakarta client and are fixed in the Spring, .NET and Python clients too:
+  - **`ResultCollector`'s adaptive backoff could collapse into a busy loop.** A poll reporting
+    `hasMore` sets the interval to 0 so the next one is immediate, and `0 * multiplier` is still 0 —
+    so once a burst drained, or the server went down mid-burst, the collector polled
+    `/generation/collect` flat out with no way back: the next request goes out with **zero delay**,
+    so the rate is bounded only by round-trip time. The regression test measures 216 polls in
+    600 ms over a real localhost socket, and ~22,000 against an in-memory stub — in production it
+    is a continuous hot loop at whatever the network allows. The backoff is now floored at
+    `minInterval`. **Anyone running a collector should upgrade.**
+  - **`routingKeyToMe` could return a routing key that does not route to the calling node**, because
+    `"3:key"` does not hash to partition 3. With 2 of 8 partitions owned it returned a foreign key
+    more often than not, sending results to another node. It now searches numbered prefixes and
+    checks each candidate's actual partition.
+  - **The template schema cache omitted the catalog from its key** while loading by catalog, so two
+    catalogs of one tenant holding the same template id shared one compiled schema for the whole
+    TTL — data validated against the wrong contract, silently. This changes the signatures of
+    `SchemaCache.getOrLoad` / `get_or_load` / `GetOrLoad` and `TtlSchemaCache.evict` / `Evict` to
+    take the catalog id.
+  - `partitionFor` now returns null rather than dividing by zero when the server reports no
+    partitions.
+
 ## [1.1.0] - 2026-08-20
 
 - Documented the planned contract 2.0 requirement that every template data contract contains at

@@ -6,6 +6,8 @@ This is the **contract-first API repository** for the Epistola document generati
 
 Epistola is a document template management and generation system. This repository defines the API contract and generates:
 - **Kotlin client** using Spring RestClient (for consuming the API)
+- **Java client** using MicroProfile Rest Client, for Jakarta EE application servers
+- **.NET client** using HttpClient, and a **Python client** using urllib3
 - **Kotlin server stubs** using Spring Boot 4 (for implementing the API)
 
 ## Repository Structure
@@ -24,6 +26,7 @@ epistola-contract/
 │       ├── schemas/               # Data models (DTOs, requests, responses)
 │       └── responses/             # Shared error responses
 │   ├── clients/kotlin-spring-restclient/  # Generated Kotlin client
+│   ├── clients/jakarta/                   # Generated Jakarta EE client
 │   └── server-stubs/kotlin-springboot4/   # Generated Spring server stubs
 ├── openapi.yaml                   # Bundled spec (generated, gitignored)
 ├── Makefile                       # Build commands
@@ -33,11 +36,12 @@ epistola-contract/
 ## Key Commands
 
 ```bash
-make lint       # Validate OpenAPI spec
-make bundle     # Bundle spec into openapi.yaml
-make build      # Build client and server
-make mock       # Start mock server on localhost:4010
-make breaking   # Check for breaking changes vs main
+make lint          # Validate OpenAPI spec
+make bundle        # Bundle spec into openapi.yaml
+make build         # Build every client, the server stubs and the catalog
+make build-jakarta # Build the Jakarta EE client only
+make mock          # Start mock server on localhost:4010
+make breaking      # Check for breaking changes vs main
 ```
 
 ## Working with the OpenAPI Spec
@@ -142,18 +146,30 @@ Tenant
 
 ### Generated Code Location
 
-- Client: `contracts/api/clients/kotlin-spring-restclient/client/build/generated/`
+- Kotlin client: `contracts/api/clients/kotlin-spring-restclient/client/build/generated/`
+- Jakarta client: `contracts/api/clients/jakarta/build/generated/`
 - Server: `contracts/api/server-stubs/kotlin-springboot4/build/generated/`
 
 Generated code is NOT committed - rebuilt from spec each time.
+
+### Shared build logic
+
+`contracts/api/build-logic/` holds the Gradle scripts the client builds share
+(`apply(from = "$rootDir/../../build-logic/…")`):
+
+- `contract-version.gradle.kts` — group and version, derived from the spec.
+- `contract-spec-model.gradle.kts` — reads the bundled spec into the plain-data model the Kotlin
+  and Jakarta clients both generate from (problem types, constrained schemas, contract version).
+  Each build emits its own language from that model; only the emitted syntax is per-client. Add a
+  constraint keyword or change the registry's shape here, not in either build file.
 
 ### The problem-type registry and code that follows it
 
 The machine-readable problem-type registry is the **`x-problem-types` extension** at the top
 of `contracts/api/openapi.yaml`. Automation keeps most consumers aligned with it:
 
-- The client's `KnownProblemSlugs` is **generated** from it (`generateProblemSlugs` task) —
-  do not edit it by hand.
+- The Kotlin and Jakarta clients' `KnownProblemSlugs` are **generated** from it
+  (`generateProblemSlugs` task in each build) — do not edit them by hand.
 - `contracts/api/scripts/check-error-registry.sh` (run by `make lint` and CI) fails when
   `contracts/api/docs/error-types.md` disagrees with `x-problem-types`.
 - Guard tests (`ProblemRegistryTest` in each module's `.../error/` test package) fail when the
@@ -170,9 +186,11 @@ When you add, rename, or change a problem `type`, update in the same change:
   and to `.openapi-generator-ignore` if it is allOf-composed).
 - **Server** `ProblemDetails.kt`: the `KnownSlugs` constant, plus a builder + `*_PROPERTY`
   constant for any new extension member (following `validation` / `ERRORS_PROPERTY`).
-- **Client**: only if the problem carries a new extension member — extend
+- **Kotlin client**: only if the problem carries a new extension member — extend
   `ProblemDetailErrorHandler.parseProblem` to surface it on `ProblemDetailException`
   (with an `isXxxProblem` flag, following `errors`/`validationErrors`).
+- **Jakarta client**: the same, in `ProblemDetailParser.parse` and `ProblemDetailException`
+  (`app.epistola.client.jakarta.error`).
 - The `when (e.typeSlug)` example / helper example in each module `README.md`.
 - The unit tests in each module's `.../error/` test package.
 

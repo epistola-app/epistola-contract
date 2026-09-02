@@ -118,6 +118,12 @@ class ResultCollector private constructor(
             }
 
         fun builder(): Builder = Builder()
+
+        /**
+         * How many prefixes [routingKeyToMe] tries before giving up. Reaching this means every one
+         * of a thousand hashes missed every partition this node owns.
+         */
+        private const val MAX_ROUTING_KEY_ATTEMPTS = 1000
     }
 
     /** A completed or failed generation result. */
@@ -170,6 +176,8 @@ class ResultCollector private constructor(
      */
     fun partitionFor(routingKey: String): Int? {
         val assignment = partitionAssignment ?: return null
+        // A zero partition count would be a divide-by-zero, not a "no partition" answer.
+        if (assignment.total == 0) return null
         val hash = murmur3x86_32(routingKey.toByteArray(Charsets.UTF_8), 0)
         return (hash and 0x7FFFFFFF) % assignment.total
     }
@@ -183,20 +191,29 @@ class ResultCollector private constructor(
     }
 
     /**
-     * Find a routing key prefix that targets one of this node's partitions.
-     * Appends a partition number prefix to the given key to ensure it routes to this node.
+     * Find a routing key that targets one of this node's partitions.
      *
-     * Returns the original key if it already routes here, or a prefixed key if not.
-     * Returns null if partition assignment is not yet known.
+     * Returns [key] unchanged when it already routes here; otherwise searches numbered prefixes
+     * (`"0:key"`, `"1:key"`, …) for one that does. The search is deterministic, so the same key
+     * always yields the same routed key. Returns null when the assignment is not yet known, or in
+     * the vanishingly unlikely event that no prefix within [MAX_ROUTING_KEY_ATTEMPTS] lands here.
+     *
+     * The prefix is what the server hashes, so a rewritten key is a different key: pass the value
+     * returned here as the request's `routingKey`, and expect it back on the result.
      */
     fun routingKeyToMe(key: String): String? {
         val assignment = partitionAssignment ?: return null
+        if (assignment.total == 0 || assignment.mine.isEmpty()) return null
         if (isMyPartition(key)) return key
-        for (p in assignment.mine) {
-            val candidate = "$p:$key"
+        // Trying only the partition numbers this node owns is not enough: "3:key" hashes to
+        // wherever it hashes, not to partition 3. Only checking the hash of each candidate can
+        // tell us, so keep trying prefixes until one lands. With p of n partitions owned, each
+        // attempt succeeds with probability p/n, so this converges in a handful of iterations.
+        for (attempt in 0 until MAX_ROUTING_KEY_ATTEMPTS) {
+            val candidate = "$attempt:$key"
             if (isMyPartition(candidate)) return candidate
         }
-        return "${assignment.mine.first()}:$key"
+        return null
     }
 
     // --- Poll loop ---
@@ -223,7 +240,7 @@ class ResultCollector private constructor(
                     currentInterval = when {
                         result.hasMore -> 0
                         result.count > 0 -> minInterval.toMillis()
-                        else -> (currentInterval * backoffMultiplier).toLong().coerceAtMost(maxInterval.toMillis())
+                        else -> backOff(currentInterval)
                     }
 
                     sleepInterruptibly(currentInterval)
@@ -233,7 +250,7 @@ class ResultCollector private constructor(
                 } catch (e: Exception) {
                     errorHandler?.invoke(e)
                     val jitter = ThreadLocalRandom.current().nextLong(currentInterval / 2 + 1)
-                    currentInterval = (currentInterval * backoffMultiplier).toLong().coerceAtMost(maxInterval.toMillis())
+                    currentInterval = backOff(currentInterval)
                     try {
                         sleepInterruptibly(currentInterval + jitter)
                     } catch (_: InterruptedException) {
@@ -245,6 +262,19 @@ class ResultCollector private constructor(
         } finally {
             removeShutdownHook()
         }
+    }
+
+    /**
+     * The next idle interval, floored at [minInterval] and capped at [maxInterval].
+     *
+     * The floor is not cosmetic. A poll reporting `hasMore` sets the interval to 0 so the next one
+     * is immediate, and `0 * backoffMultiplier` is still 0 — without the floor, a burst that
+     * drained (or a server that went down mid-burst) would leave the loop polling
+     * `/generation/collect` flat out, with no path back to a sane interval.
+     */
+    private fun backOff(interval: Long): Long {
+        val grown = (interval * backoffMultiplier).toLong()
+        return grown.coerceAtLeast(minInterval.toMillis()).coerceAtMost(maxInterval.toMillis())
     }
 
     /**
