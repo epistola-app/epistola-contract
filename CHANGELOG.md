@@ -24,8 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **`ResultCollector`'s adaptive backoff could collapse into a busy loop.** A poll reporting
     `hasMore` sets the interval to 0 so the next one is immediate, and `0 * multiplier` is still 0 —
     so once a burst drained, or the server went down mid-burst, the collector polled
-    `/generation/collect` flat out with no way back. Measured at 21,843 polls in 600 ms on .NET.
-    The backoff is now floored at `minInterval`. **Anyone running a collector should upgrade.**
+    `/generation/collect` flat out with no way back: the next request goes out with **zero delay**,
+    so the rate is bounded only by round-trip time. The regression test measures 216 polls in
+    600 ms over a real localhost socket, and ~22,000 against an in-memory stub — in production it
+    is a continuous hot loop at whatever the network allows. The backoff is now floored at
+    `minInterval`. **Anyone running a collector should upgrade.**
   - **`routingKeyToMe` could return a routing key that does not route to the calling node**, because
     `"3:key"` does not hash to partition 3. With 2 of 8 partitions owned it returned a foreign key
     more often than not, sending results to another node. It now searches numbered prefixes and

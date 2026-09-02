@@ -123,8 +123,9 @@ public class ResultCollectorTest
     public void BackoffRecoversFromAHasMoreBurstInsteadOfReturningZero()
     {
         // HasMore sets the interval to 0 so the next poll is immediate, and 0 * multiplier is
-        // still 0 — without a floor, a burst that drained left the loop polling
-        // /generation/collect flat out forever, with no path back to a sane interval.
+        // still 0 — without a floor, the next request goes out with zero delay, forever. The count
+        // below is high because this stub answers from memory with no socket; over a real
+        // connection the rate is bounded by round-trip time, but the loop is just as endless.
         var polls = 0;
         var drained = false;
         var burst = "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"COMPLETED\"}\n"

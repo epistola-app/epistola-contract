@@ -416,8 +416,9 @@ class ResultCollectorTest {
     @Test
     fun `the interval recovers from a hasMore burst instead of polling flat out`() {
         // hasMore sets the interval to 0 so the next poll is immediate. Once the queue drains, the
-        // backoff has to climb again — and `0 * multiplier` is still 0, so without a floor the loop
-        // would hammer /generation/collect forever. Counting polls over a window is what catches it.
+        // backoff has to climb again — and `0 * multiplier` is still 0, so without a floor the next
+        // request goes out with zero delay, forever, bounded only by round-trip time. Counting
+        // polls over a window is what catches it.
         val polls = AtomicInteger()
         val drained = AtomicBoolean(false)
         val restClient = mockRestClientPerCall {
