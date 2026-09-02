@@ -31,8 +31,18 @@ import org.eclipse.microprofile.rest.client.RestClientBuilder;
  * {@link EpistolaConfig}; {@code EpistolaRestClientListener} applies the same conventions there.
  * Everything this class does is available on a plain {@link RestClientBuilder} — it exists to make
  * the conventions the default rather than something each consumer re-derives.
+ *
+ * <p>A client built here ignores the {@link EpistolaConfig} properties entirely, even when they are
+ * set: what this builder was told is what it uses.
  */
 public final class EpistolaRestClients {
+
+    /**
+     * Marks a {@link RestClientBuilder} this class configured, so
+     * {@code EpistolaRestClientListener} does not configure it a second time from
+     * MicroProfile Config. Programmatic configuration is the more specific of the two, so it wins.
+     */
+    public static final String CONFIGURED_PROGRAMMATICALLY = "app.epistola.client.jakarta.configured-programmatically";
 
     private final URI baseUri;
     private final ClientIdentity identity;
@@ -67,7 +77,12 @@ public final class EpistolaRestClients {
      * provider, a proxy, an SSL context. Call {@code build(SomeApi.class)} on the result.
      */
     public RestClientBuilder restClientBuilder() {
-        RestClientBuilder builder = RestClientBuilder.newBuilder().baseUri(baseUri);
+        RestClientBuilder builder = RestClientBuilder.newBuilder()
+                .baseUri(baseUri)
+                // Tells EpistolaRestClientListener to leave this builder alone. Without it both
+                // would register an identity filter and which one won would come down to
+                // same-priority provider ordering, which JAX-RS does not define.
+                .property(CONFIGURED_PROGRAMMATICALLY, Boolean.TRUE);
         if (identity != null) {
             builder.register(identity.filter(), Priorities.HEADER_DECORATOR);
         }

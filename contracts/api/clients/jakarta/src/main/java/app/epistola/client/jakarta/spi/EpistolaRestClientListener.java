@@ -5,7 +5,9 @@
 package app.epistola.client.jakarta.spi;
 
 import app.epistola.client.jakarta.EpistolaConfig;
+import app.epistola.client.jakarta.EpistolaRestClients;
 import jakarta.ws.rs.Priorities;
+import java.util.Set;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.eclipse.microprofile.rest.client.RestClientBuilder;
@@ -23,23 +25,38 @@ import org.eclipse.microprofile.rest.client.spi.RestClientListener;
  *
  * <p>Two deliberate limits:
  * <ul>
- *   <li>It touches <em>only</em> interfaces in {@code app.epistola.client.jakarta}. This listener
- *       runs for every rest client in the deployment, and stamping Epistola credentials onto an
+ *   <li>It touches <em>only</em> the rest-client interfaces this library ships. This listener runs
+ *       for every rest client in the deployment, and stamping Epistola credentials onto an
  *       application's other outbound calls would be a security bug, not a convenience.</li>
  *   <li>It registers an authentication filter only when one is configured. An application that
  *       authenticates through a filter of its own configures nothing here and keeps control.</li>
  * </ul>
  *
- * <p>Registering the same filters again through {@code EpistolaRestClients} is harmless — each one
- * sets its header with {@code putSingle} — but it is redundant; pick one route.
+ * <p>A builder that {@code EpistolaRestClients} configured is skipped entirely: the two routes are
+ * alternatives, and the explicit one wins.
  */
 public class EpistolaRestClientListener implements RestClientListener {
 
-    private static final String EPISTOLA_CLIENT_PACKAGE = "app.epistola.client.jakarta.";
+    /**
+     * The two packages that hold rest-client interfaces this library ships: the generated APIs and
+     * the hand-written collect endpoint. Matched exactly rather than by prefix — a prefix would
+     * also claim anything a consumer happened to put under {@code app.epistola.client.jakarta}.
+     */
+    private static final Set<String> EPISTOLA_CLIENT_PACKAGES =
+            Set.of("app.epistola.client.jakarta.api", "app.epistola.client.jakarta.collect");
 
     @Override
     public void onNewClient(Class<?> serviceInterface, RestClientBuilder builder) {
-        if (serviceInterface == null || !serviceInterface.getName().startsWith(EPISTOLA_CLIENT_PACKAGE)) {
+        if (serviceInterface == null
+                || serviceInterface.getPackage() == null
+                || !EPISTOLA_CLIENT_PACKAGES.contains(serviceInterface.getPackage().getName())) {
+            return;
+        }
+        if (Boolean.TRUE.equals(
+                builder.getConfiguration().getProperty(EpistolaRestClients.CONFIGURED_PROGRAMMATICALLY))) {
+            // EpistolaRestClients already configured this builder from what the caller passed it.
+            // Adding a second identity or auth filter here would leave which one wins to
+            // same-priority provider ordering, which JAX-RS does not define.
             return;
         }
 

@@ -107,8 +107,9 @@ Note the base URL includes the `/api` path segment.
 
 A `RestClientListener` registered through `META-INF/services` applies the identity and
 authentication filters to Epistola clients as they are built, so there is nothing to wire up. It
-only touches interfaces in `app.epistola.client.jakarta` — your application's other rest clients
-are left alone.
+touches only the rest-client interfaces this library ships (`…jakarta.api` and `…jakarta.collect`) —
+your application's other rest clients are left alone, credentials included. A client built through
+`EpistolaRestClients` is skipped too: the two routes are alternatives, and the explicit one wins.
 
 ## Quick start — programmatic
 
