@@ -33,8 +33,8 @@ public final class TtlSchemaCache implements SchemaCache {
     }
 
     @Override
-    public JsonSchema getOrLoad(String tenantId, String templateId, Supplier<JsonSchema> loader) {
-        CacheKey key = new CacheKey(tenantId, templateId);
+    public JsonSchema getOrLoad(String tenantId, String catalogId, String templateId, Supplier<JsonSchema> loader) {
+        CacheKey key = new CacheKey(tenantId, catalogId, templateId);
         CacheEntry existing = cache.get(key);
         if (existing != null && Instant.now().isBefore(existing.storedAt.plus(ttl))) {
             return existing.schema;
@@ -45,8 +45,8 @@ public final class TtlSchemaCache implements SchemaCache {
     }
 
     /** Evicts one entry — useful straight after updating a template. */
-    public void evict(String tenantId, String templateId) {
-        cache.remove(new CacheKey(tenantId, templateId));
+    public void evict(String tenantId, String catalogId, String templateId) {
+        cache.remove(new CacheKey(tenantId, catalogId, templateId));
     }
 
     /** Evicts everything. */
@@ -57,10 +57,12 @@ public final class TtlSchemaCache implements SchemaCache {
     private static final class CacheKey {
 
         private final String tenantId;
+        private final String catalogId;
         private final String templateId;
 
-        private CacheKey(String tenantId, String templateId) {
+        private CacheKey(String tenantId, String catalogId, String templateId) {
             this.tenantId = tenantId;
+            this.catalogId = catalogId;
             this.templateId = templateId;
         }
 
@@ -73,12 +75,14 @@ public final class TtlSchemaCache implements SchemaCache {
                 return false;
             }
             CacheKey that = (CacheKey) other;
-            return Objects.equals(tenantId, that.tenantId) && Objects.equals(templateId, that.templateId);
+            return Objects.equals(tenantId, that.tenantId)
+                    && Objects.equals(catalogId, that.catalogId)
+                    && Objects.equals(templateId, that.templateId);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(tenantId, templateId);
+            return Objects.hash(tenantId, catalogId, templateId);
         }
     }
 

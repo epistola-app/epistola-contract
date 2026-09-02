@@ -57,7 +57,9 @@ public class ProblemDetailException extends ApiException {
         this.validationErrors = validationErrors == null
                 ? Collections.emptyMap()
                 : Collections.unmodifiableMap(validationErrors);
-        this.statusCode = response == null ? 0 : response.getStatus();
+        // No null guard: ApiException(Response) dereferences the response before this runs, and
+        // the mapper that builds this always has one.
+        this.statusCode = response.getStatus();
         this.responseBody = responseBody;
         this.message = buildMessage(this.statusCode, problem);
     }

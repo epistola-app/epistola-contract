@@ -63,7 +63,8 @@ public class TemplateSchemaValidator {
      * @throws app.epistola.client.jakarta.api.ApiException when the template cannot be fetched
      */
     public void validate(String tenantId, String catalogId, String templateId, Object data) {
-        JsonSchema schema = cache.getOrLoad(tenantId, templateId, () -> loadSchema(tenantId, catalogId, templateId));
+        JsonSchema schema =
+                cache.getOrLoad(tenantId, catalogId, templateId, () -> loadSchema(tenantId, catalogId, templateId));
         if (schema == null) {
             // No schema on the template — nothing to validate against.
             return;

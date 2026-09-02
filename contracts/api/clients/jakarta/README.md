@@ -168,18 +168,21 @@ registration on your part — every generated interface declares
 try {
     templates.getTemplate("my-tenant", "default", "unknown");
 } catch (ProblemDetailException e) {
-    switch (e.getTypeSlug()) {
-        case KnownProblemSlugs.NOT_FOUND ->
-                log.warn("not found: {}", e.getDetail());
-        case KnownProblemSlugs.VALIDATION_ERROR ->
-                e.getErrors().forEach(err -> log.warn("{}: {}", err.getField(), err.getMessage()));
-        case KnownProblemSlugs.API_KEY_AUTH_DISABLED ->
-                log.error("this deployment requires JWT authentication");
-        case null, default ->                      // always keep a default branch
-                log.error("{} {}", e.getProblemStatus(), e.getTitle());
+    String slug = e.getTypeSlug();          // null for about:blank and non-Epistola types
+    if (KnownProblemSlugs.NOT_FOUND.equals(slug)) {
+        log.warn("not found: {}", e.getDetail());
+    } else if (KnownProblemSlugs.VALIDATION_ERROR.equals(slug)) {
+        e.getErrors().forEach(err -> log.warn("{}: {}", err.getField(), err.getMessage()));
+    } else if (KnownProblemSlugs.API_KEY_AUTH_DISABLED.equals(slug)) {
+        log.error("this deployment requires JWT authentication");
+    } else {                                // always keep a fallback: the API can add problem
+        log.error("{} {}", e.getProblemStatus(), e.getTitle());   // types without a client release
     }
 }
 ```
+
+The slug is a plain `String`, so on Java 21 a `switch` with `case null, default ->` reads better; the
+`if`/`else` above is what compiles on the Java 17 this client targets.
 
 `ProblemDetailException` extends the generated `ApiException`, so `catch (ApiException e)` keeps
 working. Error responses that are not parseable problem+json stay a plain `ApiException`.

@@ -19,10 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   consumer's WAR and no REST implementation is bundled for them to exclude. A test asserts this
   rather than leaving it to review, and an opt-in Testcontainers test deploys the client into a real
   WildFly.
-- Fixed `routingKeyToMe` in the Jakarta client's `ResultCollector`: the fallback could return a
-  routing key that does not route to the calling node, because `"3:key"` does not hash to
-  partition 3. It now searches numbered prefixes and checks each candidate's actual partition. The
-  Spring, .NET and Python clients still carry the original behaviour.
+- Fixed two defects in the Jakarta client's `ResultCollector` that the Spring, .NET and Python
+  clients still carry:
+  - `routingKeyToMe` could return a routing key that does not route to the calling node, because
+    `"3:key"` does not hash to partition 3. It now searches numbered prefixes and checks each
+    candidate's actual partition.
+  - The adaptive backoff could collapse into a busy loop. A poll reporting `hasMore` sets the
+    interval to 0 so the next one is immediate, and `0 * multiplier` is still 0 — so once a burst
+    drained, or the server went down mid-burst, the collector polled `/generation/collect` flat out
+    with no way back. The backoff is now floored at `minInterval`.
 
 ## [1.1.0] - 2026-08-20
 

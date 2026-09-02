@@ -26,6 +26,8 @@ import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPOutputStream;
 import org.junit.jupiter.api.Test;
@@ -394,6 +396,46 @@ class ResultCollectorTest {
             collector.stop();
             loop.join(5_000);
             assertFalse(loop.isAlive(), "stop() should end the loop without waiting out the backoff");
+        }
+    }
+
+    @Test
+    void the_interval_recovers_from_a_has_more_burst_instead_of_polling_flat_out() throws Exception {
+        // hasMore sets the interval to 0 so the next poll is immediate. Once the queue drains, the
+        // backoff has to climb again — and `0 * multiplier` is still 0, so without a floor the loop
+        // would hammer /generation/collect forever. Counting polls over a window is what catches it.
+        AtomicInteger polls = new AtomicInteger();
+        AtomicBoolean drained = new AtomicBoolean(false);
+
+        try (StubServer stub = StubServer.start(request -> {
+            polls.incrementAndGet();
+            // One burst, then nothing: hasMore first, empty from then on.
+            if (drained.compareAndSet(false, true)) {
+                return StubServer.StubResponse.of(200, NDJSON, result(1, "COMPLETED", "a") + "\n" + meta(true));
+            }
+            return StubServer.StubResponse.of(200, NDJSON, meta(false));
+        })) {
+            ResultCollector collector = ResultCollector.builder()
+                    .collectApi(collectApi(stub))
+                    .tenantId("acme-corp")
+                    .handler(r -> {})
+                    .registerShutdownHook(false)
+                    .minInterval(Duration.ofMillis(200))
+                    .maxInterval(Duration.ofSeconds(5))
+                    .build();
+
+            Thread loop = new Thread(collector::start, "collector-loop");
+            loop.start();
+            try {
+                Thread.sleep(600);
+            } finally {
+                collector.stop();
+                loop.join(5_000);
+            }
+
+            // With a 200ms floor and a 3x multiplier: burst, then ~200ms, ~600ms — a handful of
+            // polls. Without the floor this runs into the thousands.
+            assertTrue(polls.get() < 20, "expected the loop to back off, but it polled " + polls.get() + " times");
         }
     }
 

@@ -23,9 +23,8 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
  * <p>Hand-written alongside the generated {@code GenerationApi}, whose
  * {@code collectGenerationResults} returns a {@code String} — that is, the whole batch in memory.
  * Collection is the production path for asynchronous generation and a batch is unbounded, so
- * {@link ResultCollector} reads the NDJSON response one line at a time off the response stream and
- * needs the {@code Content-Encoding} header to pick a decompressor. Both require the
- * {@link Response} itself.
+ * {@link ResultCollector} reads the NDJSON response one line at a time off the response stream,
+ * which means it needs the {@link Response} rather than a bound entity.
  *
  * <p>Same annotations as the generated interfaces, so it behaves identically under CDI:
  * {@code @Inject @RestClient GenerationCollectApi} with

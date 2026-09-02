@@ -112,7 +112,7 @@ class TemplateSchemaValidatorTest {
         TemplateSchemaValidator validator = new TemplateSchemaValidator(api.api(), cache);
 
         validator.validate("acme-corp", "default", "invoice", Map.of("customerName", "Jane", "total", 1));
-        cache.evict("acme-corp", "invoice");
+        cache.evict("acme-corp", "default", "invoice");
         validator.validate("acme-corp", "default", "invoice", Map.of("customerName", "Jane", "total", 1));
 
         assertEquals(2, api.fetches.get());
@@ -127,6 +127,19 @@ class TemplateSchemaValidatorTest {
         validator.validate("acme-corp", "default", "invoice", Map.of("customerName", "Jane", "total", 1));
         Thread.sleep(80);
         validator.validate("acme-corp", "default", "invoice", Map.of("customerName", "Jane", "total", 1));
+
+        assertEquals(2, api.fetches.get());
+    }
+
+    @Test
+    void the_same_template_id_in_two_catalogs_is_two_cache_entries() {
+        // Two catalogs of one tenant can both hold an "invoice" template, with different schemas.
+        // Keying on (tenant, template) alone would validate one against the other's contract.
+        StubTemplatesApi api = new StubTemplatesApi(INVOICE_SCHEMA);
+        TemplateSchemaValidator validator = new TemplateSchemaValidator(api.api());
+
+        validator.validate("acme-corp", "catalog-a", "invoice", Map.of("customerName", "Jane", "total", 1));
+        validator.validate("acme-corp", "catalog-b", "invoice", Map.of("customerName", "Jane", "total", 1));
 
         assertEquals(2, api.fetches.get());
     }

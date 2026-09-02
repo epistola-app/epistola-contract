@@ -111,6 +111,11 @@ public final class ClientIdentity {
          * local hostname.
          */
         public Builder nodeId(String nodeId) {
+            // A blank node id would send the mandatory header empty, which is worse than the
+            // hostname default it would be replacing.
+            if (nodeId != null && nodeId.isBlank()) {
+                throw new IllegalArgumentException("nodeId must not be blank");
+            }
             this.nodeId = nodeId;
             return this;
         }

@@ -17,6 +17,7 @@ import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
@@ -154,6 +155,16 @@ public final class ResultCollector {
     // --- Partition routing helpers ---
 
     /**
+     * The partitions assigned to this node. The generated model defaults the list to empty, but a
+     * {@code _meta} line carrying an explicit {@code "mine": null} would still deserialize to
+     * {@code null} — and these are user-facing helpers, not internal ones.
+     */
+    private static List<Integer> mineOf(PartitionAssignment assignment) {
+        List<Integer> mine = assignment.getMine();
+        return mine == null ? List.of() : mine;
+    }
+
+    /**
      * The partition a routing key lands on, using the server's hash (murmur3 x86 32-bit, seed 0).
      * Returns {@code null} until the first poll has reported an assignment.
      */
@@ -170,7 +181,7 @@ public final class ResultCollector {
     public boolean isMyPartition(String routingKey) {
         Integer partition = partitionFor(routingKey);
         PartitionAssignment assignment = partitionAssignment;
-        return partition != null && assignment != null && assignment.getMine().contains(partition);
+        return partition != null && assignment != null && mineOf(assignment).contains(partition);
     }
 
     /**
@@ -188,7 +199,12 @@ public final class ResultCollector {
      */
     public String routingKeyToMe(String key) {
         PartitionAssignment assignment = partitionAssignment;
-        if (assignment == null || assignment.getMine() == null || assignment.getMine().isEmpty()) {
+        // getTotal() as well as mine: without a partition count nothing can be my partition, and
+        // the search below would run its full thousand iterations to discover that.
+        if (assignment == null
+                || assignment.getTotal() == null
+                || assignment.getTotal() == 0
+                || mineOf(assignment).isEmpty()) {
             return null;
         }
         if (isMyPartition(key)) {
@@ -371,8 +387,17 @@ public final class ResultCollector {
         return Boolean.TRUE.equals(meta.getHasMore());
     }
 
+    /**
+     * The next idle interval, floored at {@code minInterval} and capped at {@code maxInterval}.
+     *
+     * <p>The floor is not cosmetic. A poll reporting {@code hasMore} sets the interval to 0 so the
+     * next one is immediate, and {@code 0 * multiplier} is still 0 — without the floor, a burst
+     * that drains (or a server that goes down mid-burst) would leave the loop polling
+     * {@code /generation/collect} flat out, with no path back to a sane interval.
+     */
     private long backOff(long interval) {
-        return Math.min((long) (interval * backoffMultiplier), maxInterval.toMillis());
+        long grown = (long) (interval * backoffMultiplier);
+        return Math.min(Math.max(grown, minInterval.toMillis()), maxInterval.toMillis());
     }
 
     /**
