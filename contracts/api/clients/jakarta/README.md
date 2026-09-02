@@ -11,15 +11,12 @@ client and carries the same conventions.
 
 ## What it puts in your WAR
 
-One 20 KB jar: `app.epistola.contract:protocol-java`, the wire-protocol logic this client shares
-with the Kotlin client and the Epistola server module — partition routing, poll backoff, the
-`User-Agent` grammar, problem type URIs. It is first-party, has no dependencies of its own, and is
-not a container API.
+Nothing.
 
 ```
 $ ./gradlew dependencies --configuration runtimeClasspath
 runtimeClasspath - Runtime classpath of source set 'main'.
-\--- app.epistola.contract:protocol-java:1.1.0
+No dependencies
 ```
 
 Every API this client uses — JAX-RS, JSON-B, JSON-P, MicroProfile Rest Client, MicroProfile
@@ -33,9 +30,13 @@ implementation(libs.some.vendor.client) {
 }
 ```
 
-`DependencyHygieneTest` asserts this on every build: nothing on the runtime classpath but
-`protocol-java`, no Spring, no `javax.*`, no JAX-RS/JSON/servlet implementation. It also asserts
-that `protocol-java` stays a leaf, since anything it grew would land in your WAR too.
+`DependencyHygieneTest` asserts this on every build: no runtime dependencies, no Spring, no
+`javax.*`, no JAX-RS/JSON/servlet implementation.
+
+The wire-protocol logic this client shares with the Kotlin client and the Epistola server module —
+partition routing, poll backoff, the `User-Agent` grammar, problem type URIs — is **compiled in**
+from `contracts/api/protocol-java` rather than depended on, so it costs you no coordinate to
+resolve and no jar to exclude.
 
 ## Installation
 

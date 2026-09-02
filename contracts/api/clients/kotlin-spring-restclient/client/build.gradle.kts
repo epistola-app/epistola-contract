@@ -10,6 +10,15 @@ plugins {
     `java-library`
 }
 
+// The shared wire-protocol logic is compiled in rather than depended on: it is not published, so
+// consumers see no extra coordinate and nothing to resolve. Its own build (contracts/api/protocol-java)
+// keeps it under test in isolation.
+val epistolaProtocolSources = file("$rootDir/../../protocol-java/src/main/java")
+
+require(epistolaProtocolSources.isDirectory) {
+    "shared protocol sources not found at $epistolaProtocolSources"
+}
+
 val generatedDir = layout.buildDirectory.dir("generated")
 val bundledSpec = file("$rootDir/../../build/openapi.yaml")
 
@@ -314,6 +323,7 @@ sourceSets {
         kotlin.srcDir(generatedValidationDir)
         kotlin.srcDir(generatedProblemSlugsDir)
         kotlin.srcDir(generatedIdentityDir)
+        java.srcDir(epistolaProtocolSources)
         resources.srcDir(layout.buildDirectory.dir("generated-resources"))
     }
 }
@@ -335,9 +345,9 @@ tasks.compileKotlin {
 }
 
 dependencies {
-    // Partition routing, poll backoff, User-Agent grammar and problem type URIs — shared with the
-    // Jakarta client and the server stubs so the protocol has one implementation, not three.
-    api("app.epistola.contract:protocol-java:${project.version}")
+    // Needed to compile the shared protocol sources, whose package is @NullMarked. compileOnly:
+    // nothing needs the annotation classes at runtime.
+    compileOnly(libs.jspecify)
 
     implementation(libs.spring.boot3.starter.web)
     implementation(libs.jackson2.module.kotlin)

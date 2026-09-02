@@ -7,17 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Added `app.epistola.contract:protocol-java`, holding the wire-protocol behaviour the JVM clients
-  and the server stubs had each implemented separately: partition routing, the result-collection
-  backoff policy, the `User-Agent` grammar (formatting *and* parsing), problem `type` URI ↔ slug,
-  and the murmur3 hash. Both bugs fixed in the previous release existed in four copies each;
-  they now have one implementation and one test suite.
-  - It is Java rather than Kotlin so the Jakarta EE client does not ship kotlin-stdlib into a WAR,
-    and has no dependencies of its own — every consumer ships it.
-  - Its package is JSpecify `@NullMarked`, so Kotlin consumers see real nullable types rather than
-    platform types. Kotlin builds consuming it need `-Xjspecify-annotations=strict`.
-  - The Jakarta client now has exactly one runtime dependency where it previously had none. Its
-    dependency-hygiene test allows that artifact and asserts it stays a leaf.
+- The wire-protocol behaviour the JVM clients and the server stubs had each implemented separately
+  now lives once, in `contracts/api/protocol-java`, and is **compiled into** each of them: partition
+  routing, the result-collection backoff policy, the `User-Agent` grammar (formatting *and*
+  parsing), problem `type` URI ↔ slug, and the murmur3 hash. Both bugs fixed in the previous release
+  existed in four copies each; they now have one implementation and one test suite.
+  - Not a published artifact. The sources are compiled into each consumer, so the published surface
+    is unchanged, all three POMs are byte-identical to before, and the Jakarta client still ships
+    nothing into a consumer's WAR.
+  - Written in Java rather than Kotlin so the Jakarta EE client does not compile in a dependency on
+    kotlin-stdlib; Kotlin consumes it transparently.
+  - Its package is JSpecify `@NullMarked`, so Kotlin sees real nullable types rather than platform
+    types. The Kotlin builds set `-Xjspecify-annotations=strict`, without which the annotations are
+    silently ignored.
 
 - The contract constants both sides of the wire must agree on are now **generated into every JVM
   module** instead of hand-copied into each. No module depends on another to get them, which keeps

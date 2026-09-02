@@ -6,10 +6,6 @@ rootProject.name = "client-kotlin-spring-restclient"
 
 include(":client")
 
-// The shared wire-protocol logic. Use the source build while developing and publishing this
-// repository; the published POM still records the normal Maven dependency.
-includeBuild("../../protocol-java")
-
 // All three builds in this repo share the root version catalog.
 dependencyResolutionManagement {
     versionCatalogs {

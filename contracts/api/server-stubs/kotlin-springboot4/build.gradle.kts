@@ -92,6 +92,15 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     }
 }
 
+// The shared wire-protocol logic is compiled in rather than depended on: it is not published, so
+// consumers see no extra coordinate and nothing to resolve. Its own build
+// (contracts/api/protocol-java) keeps it under test in isolation.
+val epistolaProtocolSources = file("$rootDir/../../protocol-java/src/main/java")
+
+require(epistolaProtocolSources.isDirectory) {
+    "shared protocol sources not found at $epistolaProtocolSources"
+}
+
 val generatedDir = layout.buildDirectory.dir("generated")
 val bundledSpec = file("$rootDir/../../build/openapi.yaml")
 
@@ -366,6 +375,7 @@ sourceSets {
         kotlin.srcDir(generatedDir.map { it.dir("src/main/kotlin") })
         kotlin.srcDir(generatedProblemSlugsDir)
         kotlin.srcDir(generatedIdentityDir)
+        java.srcDir(epistolaProtocolSources)
         kotlin.srcDir("src/main/kotlin")
         resources.srcDir(layout.buildDirectory.dir("openapi-resource"))
     }
@@ -387,9 +397,9 @@ tasks.compileKotlin {
 
 dependencies {
     api("app.epistola.contract:epistola-catalog:${project.version}")
-    // The clients format the User-Agent this module parses, and read slugs out of the type URIs it
-    // builds. One implementation of each, shared, rather than one per side.
-    api("app.epistola.contract:protocol-java:${project.version}")
+
+    // Needed to compile the shared protocol sources, whose package is @NullMarked.
+    compileOnly(libs.jspecify)
 
     implementation(libs.spring.boot4.starter.web)
     implementation(libs.spring.boot4.starter.validation)

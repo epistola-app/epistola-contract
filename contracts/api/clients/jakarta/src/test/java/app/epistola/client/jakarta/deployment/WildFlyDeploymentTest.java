@@ -134,30 +134,10 @@ class WildFlyDeploymentTest {
             // An empty beans.xml is what makes the WAR a CDI bean archive.
             write(zip, "WEB-INF/beans.xml", BEANS_XML.getBytes(StandardCharsets.UTF_8));
             write(zip, "WEB-INF/lib/client-jakarta.jar", Files.readAllBytes(clientJar));
-            for (Path jar : runtimeJars()) {
-                write(zip, "WEB-INF/lib/" + jar.getFileName(), Files.readAllBytes(jar));
-            }
             copyTree(zip, smokeClasses, "WEB-INF/classes/");
             copyTree(zip, smokeResources, "WEB-INF/classes/");
         }
         return war;
-    }
-
-    /**
-     * Everything the client ships alongside itself. Taken from the resolved runtime classpath
-     * rather than named here, so a dependency added to the client cannot be left out of the WAR
-     * and turn into a NoClassDefFoundError at deployment.
-     */
-    private static List<Path> runtimeJars() {
-        String value = System.getProperty("epistola.client.runtimeJars", "");
-        if (value.isBlank()) {
-            return List.of();
-        }
-        return Stream.of(value.split(java.io.File.pathSeparator))
-                .filter(entry -> !entry.isBlank())
-                .map(Path::of)
-                .filter(Files::isRegularFile)
-                .toList();
     }
 
     private static Path requiredPath(String systemProperty) {

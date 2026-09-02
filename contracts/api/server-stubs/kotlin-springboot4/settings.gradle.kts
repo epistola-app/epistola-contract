@@ -9,10 +9,6 @@ rootProject.name = "server-kotlin-springboot4"
 // repository; the published POM still records the normal Maven dependency.
 includeBuild("../../../catalog")
 
-// The shared wire-protocol logic: this module parses the User-Agent the clients format, and builds
-// the problem type URIs they read slugs out of.
-includeBuild("../../protocol-java")
-
 // All three builds in this repo share the root version catalog.
 dependencyResolutionManagement {
     versionCatalogs {

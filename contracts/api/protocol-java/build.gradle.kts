@@ -2,18 +2,16 @@
 //
 // SPDX-License-Identifier: EUPL-1.2
 
-import com.vanniktech.maven.publish.JavaLibrary
-import com.vanniktech.maven.publish.JavadocJar
+// The shared wire-protocol logic. This build exists so the logic has an isolated home and its own
+// test suite; the artifact is NOT published. Each consumer compiles `src/main/java` into its own
+// jar instead (see `epistolaProtocolSources` in their builds), which keeps the published surface at
+// four artifacts and costs a consumer nothing at resolution time.
 
 plugins {
-    alias(libs.plugins.maven.publish)
     `java-library`
 }
 
-// Sets group + version from the OpenAPI spec (shared across builds)
-apply(from = "$rootDir/../build-logic/contract-version.gradle.kts")
-
-description = "Epistola wire-protocol logic in Java, shared by the JVM clients and the server stubs"
+description = "Epistola wire-protocol logic in Java, compiled into the JVM clients and server stubs"
 
 repositories {
     mavenCentral()
@@ -31,9 +29,9 @@ tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
 }
 
-// No dependencies, deliberately. Every consumer ships this jar — the Kotlin client into a Spring
-// application, the Jakarta client into a WAR — so anything added here is added to all of them.
-// ProtocolHasNoDependenciesTest asserts it.
+// No dependencies, deliberately. These sources are compiled into every consumer's artifact — the
+// Kotlin client into a Spring application, the Jakarta client into a WAR — so anything added here
+// is added to all of them. ProtocolContractTest asserts it.
 dependencies {
     // Nullness annotations, compileOnly: they are what lets Kotlin consumers see real nullable
     // types instead of platform types across this Java boundary, and nothing needs them at
@@ -94,62 +92,5 @@ tasks.javadoc {
     (options as StandardJavadocDocletOptions).apply {
         addStringOption("Xdoclint:none", "-quiet")
         encoding = "UTF-8"
-    }
-}
-
-// GitHub Packages repository for snapshot publishing (standard Gradle publishing plugin)
-publishing {
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/epistola-app/epistola-contract")
-            credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: ""
-                password = System.getenv("GITHUB_TOKEN") ?: ""
-            }
-        }
-    }
-}
-
-mavenPublishing {
-    configure(JavaLibrary(javadocJar = JavadocJar.Javadoc(), sourcesJar = true))
-
-    publishToMavenCentral(automaticRelease = true)
-
-    // Only sign when GPG credentials are available (CI or release builds)
-    if (project.findProperty("signing.keyId") != null || System.getenv("ORG_GRADLE_PROJECT_signingInMemoryKey") != null) {
-        signAllPublications()
-    }
-
-    coordinates(project.group.toString(), "protocol-java", project.version.toString())
-
-    pom {
-        name.set("Epistola Protocol for Java")
-        description.set(
-            "Wire-protocol logic in Java, shared by the Epistola JVM clients and server stubs: " +
-                "partition routing, poll backoff, User-Agent identity, and problem type URIs. " +
-                "Java rather than Kotlin so the Jakarta EE client does not ship kotlin-stdlib.",
-        )
-        url.set("https://github.com/epistola-app/epistola-contract")
-
-        licenses {
-            license {
-                name.set("EUPL-1.2")
-                url.set("https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12")
-            }
-        }
-
-        developers {
-            developer {
-                id.set("sdegroot")
-                name.set("Sander de Groot")
-            }
-        }
-
-        scm {
-            connection.set("scm:git:git://github.com/epistola-app/epistola-contract.git")
-            developerConnection.set("scm:git:ssh://github.com/epistola-app/epistola-contract.git")
-            url.set("https://github.com/epistola-app/epistola-contract")
-        }
     }
 }

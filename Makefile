@@ -107,7 +107,6 @@ clean:
 # Publish to local Maven repository (for testing)
 publish-local: build
 	@echo "==> Publishing to local Maven repository..."
-	cd $(API_DIR)/protocol-java && ./gradlew publishToMavenLocal
 	cd $(API_DIR)/clients/kotlin-spring-restclient && ./gradlew publishToMavenLocal
 	cd $(API_DIR)/clients/jakarta && ./gradlew publishToMavenLocal
 	cd $(API_DIR)/server-stubs/kotlin-springboot4 && ./gradlew publishToMavenLocal

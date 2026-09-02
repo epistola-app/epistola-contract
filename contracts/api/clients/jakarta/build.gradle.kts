@@ -20,6 +20,15 @@ repositories {
     mavenCentral()
 }
 
+// The shared wire-protocol logic is compiled in rather than depended on: it is not published, so
+// consumers see no extra coordinate and nothing to resolve. Its own build
+// (contracts/api/protocol-java) keeps it under test in isolation.
+val epistolaProtocolSources = file("$rootDir/../../protocol-java/src/main/java")
+
+require(epistolaProtocolSources.isDirectory) {
+    "shared protocol sources not found at $epistolaProtocolSources"
+}
+
 val generatedDir = layout.buildDirectory.dir("generated")
 val bundledSpec = file("$rootDir/../../build/openapi.yaml")
 
@@ -449,6 +458,7 @@ sourceSets {
         java.srcDir(generatedProblemSlugsDir)
         java.srcDir(generatedValidationDir)
         java.srcDir(generatedIdentityDir)
+        java.srcDir(epistolaProtocolSources)
         resources.srcDir(generatedResourcesDir)
     }
 }
@@ -475,12 +485,6 @@ tasks.processResources {
 }
 
 dependencies {
-    // The only thing this client ships. Partition routing, poll backoff, the User-Agent grammar
-    // and problem type URIs, shared with the Kotlin client and the server stubs — first-party,
-    // no transitive dependencies of its own, and no container API. DependencyHygieneTest allows
-    // exactly this and nothing else.
-    api("app.epistola.contract:protocol-java:${project.version}")
-
     // Everything the application server provides. compileOnly on purpose: shipping any of
     // these would put a second copy of a container API (or an implementation) into the
     // consumer's WAR, which is the classloading hazard this client exists to avoid.
@@ -491,6 +495,9 @@ dependencies {
     compileOnly(libs.jakarta.annotation.api)
     compileOnly(libs.microprofile.rest.client.api)
     compileOnly(libs.microprofile.config.api)
+
+    // Needed to compile the shared protocol sources, whose package is @NullMarked.
+    compileOnly(libs.jspecify)
 
     // Optional: only needed by TemplateSchemaValidator / ValidatingGenerationApi. Consumers
     // who want client-side JSON Schema validation add it themselves (see the README).
@@ -606,12 +613,6 @@ val deploymentTest by tasks.registering(Test::class) {
     }
     dependsOn(tasks.jar, smokeApp.classesTaskName)
     systemProperty("epistola.client.jar", tasks.jar.flatMap { it.archiveFile }.get().asFile.absolutePath)
-    // The WAR needs everything the client ships, which is now protocol-java as well. Resolved from
-    // the runtime classpath rather than named, so a future addition cannot be forgotten here.
-    systemProperty(
-        "epistola.client.runtimeJars",
-        configurations.runtimeClasspath.get().files.joinToString(File.pathSeparator) { it.absolutePath },
-    )
     systemProperty(
         "epistola.smokeApp.classes",
         smokeApp.output.classesDirs.singleFile.absolutePath,

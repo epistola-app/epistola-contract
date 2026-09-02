@@ -281,9 +281,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - module: contracts/api/protocol-java
-            artifact_id: protocol-java
-            needs_spec: false
           - module: contracts/api/clients/kotlin-spring-restclient
             artifact_id: client-spring3-restclient
             needs_spec: true

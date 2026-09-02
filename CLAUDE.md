@@ -166,9 +166,8 @@ Generated code is NOT committed - rebuilt from spec each time.
 
 ### Shared protocol logic
 
-`contracts/api/protocol-java/` (`app.epistola.contract:protocol-java`) holds the wire-protocol
-behaviour that is neither generated nor language-specific, consumed by both JVM clients and the
-server stubs:
+`contracts/api/protocol-java/` holds the wire-protocol behaviour that is neither generated nor
+language-specific, used by both JVM clients and the server stubs:
 
 - `PartitionRouting` — the partition math and `routingKeyToMe`
 - `PollBackoff` — the adaptive result-collection polling policy
@@ -176,14 +175,22 @@ server stubs:
 - `ProblemTypeUris` — problem `type` URI ↔ slug, used in opposite directions by client and server
 - `Murmur3` — the hash the server assigns partitions with
 
-It is **Java, not Kotlin**, so the Jakarta client does not ship kotlin-stdlib into a WAR; Kotlin
-consumes it transparently. It has **no dependencies** — every consumer ships this jar, so anything
-added here is added to all of them, and `ProtocolContractTest` asserts it stays a leaf.
+**It is not published.** Each consumer adds `src/main/java` to its own source set
+(`epistolaProtocolSources` in their builds) and compiles the classes into its own jar, so the
+published surface stays at four artifacts and no consumer gains a coordinate to resolve. Its own
+Gradle build exists to keep the logic under test in isolation; CI builds it, nothing publishes it.
+
+Consequence to know: all three jars carry `app.epistola.protocol.*` at the same FQCN. They are
+released in lockstep so the bytecode matches, which is fine on a flat classpath — but it is a split
+package, so a consumer under JPMS or OSGi would need the classes relocated per artifact.
+
+It is **Java, not Kotlin**, so the Jakarta client does not compile in a dependency on
+kotlin-stdlib. It has **no dependencies**; `ProtocolContractTest` asserts that, because whatever it
+gains is gained by every consumer.
 
 The package is `@NullMarked` (JSpecify, `compileOnly`). Kotlin consumers **must** set
-`-Xjspecify-annotations=strict`, or they silently get platform types and lose null-safety at the
-points where `null` carries meaning. Both Kotlin builds set it; the flag carries a comment saying
-why.
+`-Xjspecify-annotations=strict`, or the annotations are silently ignored and they get platform
+types back. Both Kotlin builds set it; the flag carries a comment saying why.
 
 ### Contract constants are generated, not copied
 
