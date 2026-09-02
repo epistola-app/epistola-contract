@@ -47,6 +47,16 @@ openApiGenerate {
     )
 }
 
+// The spec-walking these three tasks share with the Jakarta client lives in build-logic; only the
+// emitted syntax differs, so only the emitted syntax is here.
+apply(from = "$rootDir/../../build-logic/contract-spec-model.gradle.kts")
+
+@Suppress("UNCHECKED_CAST")
+val specModel = extra["epistolaSpecModel"] as (Map<String, Any>) -> Map<String, Any>
+
+@Suppress("UNCHECKED_CAST")
+fun readSpec(spec: File): Map<String, Any> = specModel(org.yaml.snakeyaml.Yaml().load<Map<String, Any>>(spec.readText()))
+
 // --- Client-side validation extension generation ---
 val generatedValidationDir = layout.buildDirectory.dir("generated-validation/src/main/kotlin")
 
@@ -59,111 +69,65 @@ val generateValidation by tasks.registering {
 
     @Suppress("UNCHECKED_CAST")
     doLast {
-        val yaml = org.yaml.snakeyaml.Yaml()
-        val spec = yaml.load<Map<String, Any>>(bundledSpec.readText()) as Map<String, Any>
-        val schemas = ((spec["components"] as Map<String, Any>)["schemas"] as Map<String, Any>)
-
         fun escapeKotlin(s: String): String = s
             .replace("\\", "\\\\")
             .replace("\"", "\\\"")
             .replace("\$", "\\\$")
 
-        data class FieldValidation(
-            val name: String,
-            val isNullable: Boolean,
-            val checks: List<String>,
-        )
-
-        val validations = mutableListOf<String>()
-
-        for ((schemaName, schemaDef) in schemas) {
-            val schema = schemaDef as? Map<String, Any> ?: continue
-            if (schema["type"] != "object") continue
-
-            val required = (schema["required"] as? List<String>) ?: emptyList()
-            val properties = (schema["properties"] as? Map<String, Any>) ?: continue
-
-            val fields = mutableListOf<FieldValidation>()
-
-            for ((propName, propDef) in properties) {
-                val prop = propDef as? Map<String, Any> ?: continue
-                // Skip $ref properties — those types have their own .validate()
-                if (prop.containsKey("\$ref")) continue
-
-                val type = prop["type"]
-                val isNullableType = type is List<*> && type.contains("null")
-                val baseType = when (type) {
-                    is String -> type
-                    is List<*> -> type.firstOrNull { it != "null" }?.toString()
-                    else -> null
-                } ?: continue
-                val isNullable = propName !in required || isNullableType
-
-                val checks = mutableListOf<String>()
-
-                when (baseType) {
-                    "string" -> {
-                        val pattern = prop["pattern"] as? String
-                        val minLen = (prop["minLength"] as? Number)?.toInt()
-                        val maxLen = (prop["maxLength"] as? Number)?.toInt()
-
-                        if (minLen != null && maxLen != null) {
-                            checks.add("""require(it.length in $minLen..$maxLen) { "$propName: length must be between $minLen and $maxLen" }""")
-                        } else if (minLen != null) {
-                            checks.add("""require(it.length >= $minLen) { "$propName: length must be at least $minLen" }""")
-                        } else if (maxLen != null) {
-                            checks.add("""require(it.length <= $maxLen) { "$propName: length must be at most $maxLen" }""")
-                        }
-
-                        if (pattern != null) {
-                            val esc = escapeKotlin(pattern)
-                            checks.add("""require(it.matches(Regex("$esc"))) { "$propName: must match pattern $esc" }""")
-                        }
-                    }
-                    "integer" -> {
-                        val min = (prop["minimum"] as? Number)?.toInt()
-                        val max = (prop["maximum"] as? Number)?.toInt()
-
-                        if (min != null && max != null) {
-                            checks.add("""require(it in $min..$max) { "$propName: must be between $min and $max" }""")
-                        } else if (min != null) {
-                            checks.add("""require(it >= $min) { "$propName: must be at least $min" }""")
-                        } else if (max != null) {
-                            checks.add("""require(it <= $max) { "$propName: must be at most $max" }""")
-                        }
-                    }
-                    "array" -> {
-                        val minItems = (prop["minItems"] as? Number)?.toInt()
-                        if (minItems != null) {
-                            checks.add("""require(it.size >= $minItems) { "$propName: must have at least $minItems item(s)" }""")
-                        }
-                    }
-                }
-
-                if (checks.isNotEmpty()) {
-                    fields.add(FieldValidation(propName, isNullable, checks))
+        fun check(property: String, constraint: Map<String, Any?>): String = when (constraint["kind"]) {
+            "length" -> {
+                val min = constraint["min"] as Int?
+                val max = constraint["max"] as Int?
+                when {
+                    min != null && max != null ->
+                        """require(it.length in $min..$max) { "$property: length must be between $min and $max" }"""
+                    min != null ->
+                        """require(it.length >= $min) { "$property: length must be at least $min" }"""
+                    else ->
+                        """require(it.length <= $max) { "$property: length must be at most $max" }"""
                 }
             }
 
-            if (fields.isNotEmpty()) {
-                val body = fields.joinToString("\n") { f ->
-                    val indent = "        "
-                    val checksBlock = f.checks.joinToString("\n") { "$indent$it" }
-                    if (f.isNullable) {
-                        "    ${f.name}?.let {\n$checksBlock\n    }"
-                    } else {
-                        "    ${f.name}.let {\n$checksBlock\n    }"
-                    }
-                }
-                validations.add("fun $schemaName.validate(): $schemaName {\n$body\n    return this\n}")
+            "pattern" -> {
+                val esc = escapeKotlin(constraint["pattern"] as String)
+                """require(it.matches(Regex("$esc"))) { "$property: must match pattern $esc" }"""
             }
+
+            "range" -> {
+                val min = (constraint["min"] as Long?)?.toInt()
+                val max = (constraint["max"] as Long?)?.toInt()
+                when {
+                    min != null && max != null ->
+                        """require(it in $min..$max) { "$property: must be between $min and $max" }"""
+                    min != null ->
+                        """require(it >= $min) { "$property: must be at least $min" }"""
+                    else ->
+                        """require(it <= $max) { "$property: must be at most $max" }"""
+                }
+            }
+
+            "minItems" -> {
+                val min = constraint["min"] as Int
+                """require(it.size >= $min) { "$property: must have at least $min item(s)" }"""
+            }
+
+            else -> throw GradleException("unhandled constraint kind: ${constraint["kind"]}")
         }
 
-        if (validations.isEmpty()) {
-            throw GradleException(
-                "generateValidation produced no validators — either the bundled spec lost all its " +
-                    "constraints or the schema-walking code above no longer matches the spec structure",
-            )
+        val validations = (readSpec(bundledSpec)["constrainedSchemas"] as List<Map<String, Any?>>).map { schema ->
+            val schemaName = schema["name"] as String
+            val body = (schema["fields"] as List<Map<String, Any?>>).joinToString("\n") { field ->
+                val property = field["property"] as String
+                val indent = "        "
+                val checksBlock = (field["constraints"] as List<Map<String, Any?>>)
+                    .joinToString("\n") { "$indent${check(property, it)}" }
+                if (field["nullable"] as Boolean) {
+                    "    $property?.let {\n$checksBlock\n    }"
+                } else {
+                    "    $property.let {\n$checksBlock\n    }"
+                }
+            }
+            "fun $schemaName.validate(): $schemaName {\n$body\n    return this\n}"
         }
 
         val outFile = generatedValidationDir.get()
@@ -194,29 +158,13 @@ val generateProblemSlugs by tasks.registering {
 
     @Suppress("UNCHECKED_CAST")
     doLast {
-        val yaml = org.yaml.snakeyaml.Yaml()
-        val spec = yaml.load<Map<String, Any>>(bundledSpec.readText()) as Map<String, Any>
-        val registry = spec["x-problem-types"] as? Map<String, Any>
-            ?: throw GradleException(
-                "bundled spec has no x-problem-types extension — KnownProblemSlugs cannot be generated",
-            )
-        val base = registry["base"] as? String
-            ?: throw GradleException("x-problem-types.base is missing from the bundled spec")
-        val types = (registry["types"] as? List<Map<String, Any>>).orEmpty()
-        if (types.size < 8) {
-            throw GradleException(
-                "x-problem-types lists only ${types.size} problem types (expected at least 8) — " +
-                    "was the registry truncated?",
-            )
-        }
+        val model = readSpec(bundledSpec)
+        val base = model["problemTypeBase"] as String
+        val types = model["problemTypes"] as List<Map<String, Any?>>
 
         val constants = types.joinToString("\n\n") { entry ->
-            val slug = entry["slug"] as String
-            val status = entry["status"]
-            val description = (entry["description"] as? String).orEmpty().replace(Regex("\\s+"), " ").trim()
-            val constName = slug.uppercase().replace('-', '_')
-            "    /** $status — $description */\n" +
-                "    const val $constName: String = \"$slug\""
+            "    /** ${entry["status"]} — ${entry["description"]} */\n" +
+                "    const val ${entry["constantName"]}: String = \"${entry["slug"]}\""
         }
 
         val outFile = generatedProblemSlugsDir.get()
@@ -255,11 +203,8 @@ val generateContractVersionResource by tasks.registering {
     val outputDir = layout.buildDirectory.dir("generated-resources")
     outputs.dir(outputDir)
 
-    @Suppress("UNCHECKED_CAST")
     doLast {
-        val yaml = org.yaml.snakeyaml.Yaml()
-        val spec = yaml.load<Map<String, Any>>(bundledSpec.readText()) as Map<String, Any>
-        val version = (spec["info"] as Map<String, Any>)["version"] as String
+        val version = readSpec(bundledSpec)["version"] as String
         val outFile = outputDir.get().file("epistola-contract-version.txt").asFile
         outFile.parentFile.mkdirs()
         outFile.writeText(version)

@@ -75,7 +75,10 @@ class WildFlyDeploymentTest {
                             "-b", "0.0.0.0")
                     .withEnv("EPISTOLA_URL", "http://host.testcontainers.internal:" + stubPort + "/api")
                     .withCopyFileToContainer(
-                            MountableFile.forHostPath(war),
+                            // 0644 explicitly: the WAR is a temp file, so it arrives 0600 owned by
+                            // root, and WildFly runs as jboss — the deployment scanner would only
+                            // report the file as "incomplete", never as unreadable.
+                            MountableFile.forHostPath(war, 0644),
                             "/opt/jboss/wildfly/standalone/deployments/" + WAR_NAME + ".war")
                     .waitingFor(Wait.forLogMessage(".*Deployed \"" + WAR_NAME + "\\.war\".*", 1)
                             .withStartupTimeout(Duration.ofMinutes(5)))) {

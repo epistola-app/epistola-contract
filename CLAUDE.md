@@ -152,6 +152,17 @@ Tenant
 
 Generated code is NOT committed - rebuilt from spec each time.
 
+### Shared build logic
+
+`contracts/api/build-logic/` holds the Gradle scripts the client builds share
+(`apply(from = "$rootDir/../../build-logic/…")`):
+
+- `contract-version.gradle.kts` — group and version, derived from the spec.
+- `contract-spec-model.gradle.kts` — reads the bundled spec into the plain-data model the Kotlin
+  and Jakarta clients both generate from (problem types, constrained schemas, contract version).
+  Each build emits its own language from that model; only the emitted syntax is per-client. Add a
+  constraint keyword or change the registry's shape here, not in either build file.
+
 ### The problem-type registry and code that follows it
 
 The machine-readable problem-type registry is the **`x-problem-types` extension** at the top
