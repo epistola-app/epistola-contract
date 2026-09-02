@@ -85,7 +85,10 @@ tasks.check {
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjsr305=strict")
+        // protocol-java is Java, and its package is @NullMarked. Without the jspecify flag Kotlin
+        // reads its signatures as platform types and silently drops null-safety exactly where null
+        // carries meaning — a User-Agent product that is absent, a type URI with no Epistola slug.
+        freeCompilerArgs.addAll("-Xjsr305=strict", "-Xjspecify-annotations=strict")
     }
 }
 
@@ -384,6 +387,9 @@ tasks.compileKotlin {
 
 dependencies {
     api("app.epistola.contract:epistola-catalog:${project.version}")
+    // The clients format the User-Agent this module parses, and read slugs out of the type URIs it
+    // builds. One implementation of each, shared, rather than one per side.
+    api("app.epistola.contract:protocol-java:${project.version}")
 
     implementation(libs.spring.boot4.starter.web)
     implementation(libs.spring.boot4.starter.validation)

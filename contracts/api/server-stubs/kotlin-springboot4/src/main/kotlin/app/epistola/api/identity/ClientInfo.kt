@@ -4,6 +4,7 @@
 
 package app.epistola.api.identity
 
+import app.epistola.protocol.UserAgent
 import jakarta.servlet.http.HttpServletRequest
 
 /**
@@ -51,6 +52,9 @@ data class ClientInfo(
         const val HEADER_NODE_ID = ContractIdentity.NODE_ID_HEADER
         internal const val CONTRACT_PRODUCT = ContractIdentity.CONTRACT_PRODUCT
 
+        private val USER_AGENT: UserAgent =
+            UserAgent.of(ContractIdentity.PRODUCT_SEPARATOR, ContractIdentity.VERSION_SEPARATOR)
+
         /**
          * Parses client identity from an [HttpServletRequest].
          */
@@ -69,21 +73,8 @@ data class ClientInfo(
          * Tokens without a `/` are included with an empty version.
          */
         fun parseUserAgent(userAgent: String?): List<Product> {
-            if (userAgent.isNullOrBlank()) return emptyList()
-            // Split on any run of whitespace rather than the single separator the contract
-            // specifies: this is the parsing half, and RFC 9110 allows more than one space
-            // between product tokens.
-            return userAgent.trim().split("\\s+".toRegex()).map { token ->
-                val separator = token.indexOf(ContractIdentity.VERSION_SEPARATOR)
-                if (separator >= 0) {
-                    Product(
-                        token.substring(0, separator),
-                        token.substring(separator + ContractIdentity.VERSION_SEPARATOR.length),
-                    )
-                } else {
-                    Product(token, "")
-                }
-            }
+            // The same grammar the clients format with, so the two halves cannot drift.
+            return USER_AGENT.parse(userAgent).map { Product(it.name(), it.version()) }
         }
     }
 }

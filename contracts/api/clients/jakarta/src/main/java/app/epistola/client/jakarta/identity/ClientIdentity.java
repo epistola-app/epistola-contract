@@ -4,6 +4,7 @@
 
 package app.epistola.client.jakarta.identity;
 
+import app.epistola.protocol.UserAgent;
 import jakarta.ws.rs.client.ClientRequestContext;
 import jakarta.ws.rs.client.ClientRequestFilter;
 import jakarta.ws.rs.core.HttpHeaders;
@@ -48,6 +49,9 @@ public final class ClientIdentity {
     public static final String HEADER_NODE_ID = ContractIdentity.NODE_ID_HEADER;
 
     static final String CONTRACT_PRODUCT = ContractIdentity.CONTRACT_PRODUCT;
+
+    private static final UserAgent USER_AGENT =
+            UserAgent.of(ContractIdentity.PRODUCT_SEPARATOR, ContractIdentity.VERSION_SEPARATOR);
 
     private static final String CONTRACT_VERSION_RESOURCE = "/epistola-contract-version.txt";
 
@@ -106,7 +110,7 @@ public final class ClientIdentity {
     /** Builds a {@link ClientIdentity}; every product token is validated as it is added. */
     public static final class Builder {
 
-        private final List<String> products = new ArrayList<>();
+        private final List<UserAgent.Product> products = new ArrayList<>();
         private String nodeId;
 
         /**
@@ -137,18 +141,16 @@ public final class ClientIdentity {
             if (name.indexOf('/') >= 0 || name.indexOf(' ') >= 0) {
                 throw new IllegalArgumentException("Product name must not contain '/' or spaces");
             }
-            products.add(name + ContractIdentity.VERSION_SEPARATOR + version);
+            products.add(new UserAgent.Product(name, version));
             return this;
         }
 
         public ClientIdentity build() {
-            StringBuilder userAgent = new StringBuilder(CONTRACT_PRODUCT)
-                    .append(ContractIdentity.VERSION_SEPARATOR)
-                    .append(contractVersion());
-            for (String product : products) {
-                userAgent.append(ContractIdentity.PRODUCT_SEPARATOR).append(product);
-            }
-            return new ClientIdentity(userAgent.toString(), nodeId != null ? nodeId : localHostname());
+            List<UserAgent.Product> tokens = new ArrayList<>();
+            tokens.add(new UserAgent.Product(CONTRACT_PRODUCT, contractVersion()));
+            tokens.addAll(products);
+            // Formatted by the same grammar the server module parses with.
+            return new ClientIdentity(USER_AGENT.format(tokens), nodeId != null ? nodeId : localHostname());
         }
 
         private static String localHostname() {

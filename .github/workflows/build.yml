@@ -41,6 +41,24 @@ jobs:
       - name: Check media-type allowlist
         run: contracts/api/scripts/check-media-types.sh
 
+  # Shared wire-protocol logic (consumed by both JVM clients and the server stubs)
+  protocol:
+    name: Protocol (Java)
+    needs: spec-validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts/api/protocol-java
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+
+      - name: Build and test
+        run: ./gradlew build
+
   # Kotlin Spring RestClient build
   kotlin-client:
     name: Kotlin Client (Spring RestClient)

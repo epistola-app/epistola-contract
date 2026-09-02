@@ -4,6 +4,7 @@
 
 package app.epistola.client.jakarta;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -66,14 +67,38 @@ class DependencyHygieneTest {
             "io.undertow",
             "org.apache.tomcat");
 
+    /**
+     * The one thing this client is allowed to ship: the shared wire-protocol logic, which is
+     * first-party, has no dependencies of its own (its own build asserts that), and is not a
+     * container API. Everything else must come from the application server.
+     */
+    private static final String ALLOWED_RUNTIME_ARTIFACT = "app.epistola.contract:protocol-java";
+
     @Test
-    void the_published_artifact_has_no_runtime_dependencies_at_all() {
+    void the_published_artifact_ships_nothing_but_the_shared_protocol_logic() {
+        List<String> unexpected = coordinates("runtime").stream()
+                .filter(coordinate -> !coordinate.startsWith(ALLOWED_RUNTIME_ARTIFACT + ":"))
+                .collect(Collectors.toList());
+
+        assertTrue(
+                unexpected.isEmpty(),
+                "client-jakarta may ship only " + ALLOWED_RUNTIME_ARTIFACT + " into a consumer's WAR —"
+                        + " every API it uses is supplied by the application server. Found: " + unexpected);
+    }
+
+    @Test
+    void the_shared_protocol_logic_brings_nothing_with_it() {
+        // protocol-java is allowed through precisely because it is a leaf. If it ever grows a
+        // transitive dependency, that dependency lands in every consumer's WAR too.
         List<String> runtime = coordinates("runtime");
 
         assertTrue(
-                runtime.isEmpty(),
-                "client-jakarta must ship nothing into a consumer's WAR — every API it uses is supplied"
-                        + " by the application server. Found: " + runtime);
+                runtime.stream().anyMatch(it -> it.startsWith(ALLOWED_RUNTIME_ARTIFACT + ":")),
+                "expected " + ALLOWED_RUNTIME_ARTIFACT + " on the runtime classpath, found: " + runtime);
+        assertEquals(
+                1,
+                runtime.size(),
+                "the runtime classpath should be protocol-java and nothing else, found: " + runtime);
     }
 
     @Test

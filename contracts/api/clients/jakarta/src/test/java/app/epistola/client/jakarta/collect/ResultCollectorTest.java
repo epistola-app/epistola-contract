@@ -288,21 +288,6 @@ class ResultCollectorTest {
         }
     }
 
-    @Test
-    void the_hash_matches_the_servers_murmur3_vectors() {
-        // Guava's Hashing.murmur3_32_fixed(0) over the same UTF-8 bytes. If these drift, this
-        // node hands out routing keys that land on someone else's partition.
-        assertEquals(0x00000000, Murmur3.hash32(new byte[0], 0));
-        assertEquals(0x3c2569b2, Murmur3.hash32("a".getBytes(StandardCharsets.UTF_8), 0));
-        assertEquals(0xb3dd93fa, Murmur3.hash32("abc".getBytes(StandardCharsets.UTF_8), 0));
-        assertEquals(0x43ed676a, Murmur3.hash32("abcd".getBytes(StandardCharsets.UTF_8), 0));
-        assertEquals(0x248bfa47, Murmur3.hash32("hello".getBytes(StandardCharsets.UTF_8), 0));
-        assertEquals(0x149bbb7f, Murmur3.hash32("hello, world".getBytes(StandardCharsets.UTF_8), 0));
-        assertEquals(
-                0x2e4ff723,
-                Murmur3.hash32("The quick brown fox jumps over the lazy dog".getBytes(StandardCharsets.UTF_8), 0));
-    }
-
     // --- Metrics, loop control and validation ---
 
     @Test

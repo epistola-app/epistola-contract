@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added `app.epistola.contract:protocol-java`, holding the wire-protocol behaviour the JVM clients
+  and the server stubs had each implemented separately: partition routing, the result-collection
+  backoff policy, the `User-Agent` grammar (formatting *and* parsing), problem `type` URI ↔ slug,
+  and the murmur3 hash. Both bugs fixed in the previous release existed in four copies each;
+  they now have one implementation and one test suite.
+  - It is Java rather than Kotlin so the Jakarta EE client does not ship kotlin-stdlib into a WAR,
+    and has no dependencies of its own — every consumer ships it.
+  - Its package is JSpecify `@NullMarked`, so Kotlin consumers see real nullable types rather than
+    platform types. Kotlin builds consuming it need `-Xjspecify-annotations=strict`.
+  - The Jakarta client now has exactly one runtime dependency where it previously had none. Its
+    dependency-hygiene test allows that artifact and asserts it stays a leaf.
+
 - The contract constants both sides of the wire must agree on are now **generated into every JVM
   module** instead of hand-copied into each. No module depends on another to get them, which keeps
   the clients standalone and the Jakarta client free of runtime dependencies.

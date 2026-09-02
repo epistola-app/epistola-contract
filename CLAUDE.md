@@ -164,6 +164,27 @@ Generated code is NOT committed - rebuilt from spec each time.
   model; only the emitted syntax is per-module. Add a constraint keyword or change a registry's
   shape here, not in the individual build files.
 
+### Shared protocol logic
+
+`contracts/api/protocol-java/` (`app.epistola.contract:protocol-java`) holds the wire-protocol
+behaviour that is neither generated nor language-specific, consumed by both JVM clients and the
+server stubs:
+
+- `PartitionRouting` — the partition math and `routingKeyToMe`
+- `PollBackoff` — the adaptive result-collection polling policy
+- `UserAgent` — the `User-Agent` grammar, **both** formatting (clients) and parsing (server)
+- `ProblemTypeUris` — problem `type` URI ↔ slug, used in opposite directions by client and server
+- `Murmur3` — the hash the server assigns partitions with
+
+It is **Java, not Kotlin**, so the Jakarta client does not ship kotlin-stdlib into a WAR; Kotlin
+consumes it transparently. It has **no dependencies** — every consumer ships this jar, so anything
+added here is added to all of them, and `ProtocolContractTest` asserts it stays a leaf.
+
+The package is `@NullMarked` (JSpecify, `compileOnly`). Kotlin consumers **must** set
+`-Xjspecify-annotations=strict`, or they silently get platform types and lose null-safety at the
+points where `null` carries meaning. Both Kotlin builds set it; the flag carries a comment saying
+why.
+
 ### Contract constants are generated, not copied
 
 Anything both sides of the wire must agree on lives in a machine-readable spec extension and is

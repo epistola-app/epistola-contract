@@ -4,6 +4,7 @@
 
 package app.epistola.client.identity
 
+import app.epistola.protocol.UserAgent
 import org.springframework.http.HttpRequest
 import org.springframework.http.client.ClientHttpRequestExecution
 import org.springframework.http.client.ClientHttpRequestInterceptor
@@ -44,6 +45,9 @@ class ClientIdentity private constructor(
         /** Header carrying the node identifier, from the contract's `x-client-identity` registry. */
         const val HEADER_NODE_ID = ContractIdentity.NODE_ID_HEADER
         internal const val CONTRACT_PRODUCT = ContractIdentity.CONTRACT_PRODUCT
+
+        private val USER_AGENT: UserAgent =
+            UserAgent.of(ContractIdentity.PRODUCT_SEPARATOR, ContractIdentity.VERSION_SEPARATOR)
 
         /**
          * The contract version this client library was built against.
@@ -89,13 +93,12 @@ class ClientIdentity private constructor(
         }
 
         fun build(): ClientIdentity {
-            val tokens = mutableListOf(CONTRACT_PRODUCT + ContractIdentity.VERSION_SEPARATOR + contractVersion)
-            products.forEach { (name, version) ->
-                tokens.add(name + ContractIdentity.VERSION_SEPARATOR + version)
-            }
+            val tokens = mutableListOf(UserAgent.Product(CONTRACT_PRODUCT, contractVersion))
+            products.forEach { (name, version) -> tokens.add(UserAgent.Product(name, version)) }
 
             return ClientIdentity(
-                userAgent = tokens.joinToString(ContractIdentity.PRODUCT_SEPARATOR),
+                // Formatted by the same grammar the server module parses with.
+                userAgent = USER_AGENT.format(tokens),
                 nodeId = nodeId ?: InetAddress.getLocalHost().hostName,
             )
         }

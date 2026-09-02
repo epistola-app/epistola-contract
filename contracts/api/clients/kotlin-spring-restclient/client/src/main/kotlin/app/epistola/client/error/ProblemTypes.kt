@@ -4,6 +4,7 @@
 
 package app.epistola.client.error
 
+import app.epistola.protocol.ProblemTypeUris
 import java.net.URI
 
 /**
@@ -19,21 +20,24 @@ import java.net.URI
  */
 object ProblemTypes {
 
-    /** Base URI for Epistola problem `type` values, e.g. `https://epistola.app/errors/not-found`. */
-    const val TYPE_BASE: String = "https://epistola.app/errors/"
+    /**
+     * Base URI for Epistola problem `type` values, e.g. `https://epistola.app/errors/not-found`.
+     * Generated from the spec's `x-problem-types` registry.
+     */
+    const val TYPE_BASE: String = GENERATED_PROBLEM_TYPE_BASE
 
     /** The RFC 9457 default problem type, used when no specific type is supplied. */
-    val BLANK_TYPE: URI = URI.create("about:blank")
+    val BLANK_TYPE: URI = ProblemTypeUris.BLANK_TYPE
+
+    // The conversion itself is shared with the Jakarta client and the server stubs; only the base
+    // differs per module, and that is generated.
+    private val uris = ProblemTypeUris.of(TYPE_BASE)
 
     /**
      * Extracts the kebab-case slug from an Epistola problem `type` URI (the part after
      * [TYPE_BASE]), or `null` when [type] is `about:blank` or any non-Epistola URI.
      */
-    fun slugFor(type: URI): String? {
-        val s = type.toString()
-        if (!s.startsWith(TYPE_BASE)) return null
-        return s.removePrefix(TYPE_BASE).takeIf { it.isNotEmpty() }
-    }
+    fun slugFor(type: URI): String? = uris.slugFor(type)
 }
 
 // KnownProblemSlugs is generated from the spec's x-problem-types extension by the

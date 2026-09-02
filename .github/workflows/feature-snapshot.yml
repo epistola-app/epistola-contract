@@ -39,6 +39,9 @@ jobs:
       fail-fast: true
       matrix:
         include:
+          - module: contracts/api/protocol-java
+            needs_spec: false
+            publish_task: 'publishAllPublicationsToGitHubPackagesRepository'
           - module: contracts/api/clients/kotlin-spring-restclient
             needs_spec: true
             publish_task: ':client:publishAllPublicationsToGitHubPackagesRepository'

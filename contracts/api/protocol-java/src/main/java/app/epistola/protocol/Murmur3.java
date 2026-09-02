@@ -2,22 +2,25 @@
 //
 // SPDX-License-Identifier: EUPL-1.2
 
-package app.epistola.client.jakarta.collect;
+package app.epistola.protocol;
 
 /**
  * MurmurHash3 x86 32-bit.
  *
  * <p>Must match the server's partition assignment exactly (Guava's
- * {@code Hashing.murmur3_32_fixed(seed)}), otherwise
- * {@link ResultCollector#routingKeyToMe(String)} would hand out routing keys that land on another
- * node's partition. {@code ResultCollectorTest} pins it against known vectors.
+ * {@code Hashing.murmur3_32_fixed(seed)}), otherwise {@link PartitionRouting} would hand out
+ * routing keys that land on another node's partition. {@code Murmur3Test} pins it against known
+ * vectors.
+ *
+ * <p>Public because it is the hash the protocol is defined in terms of; a consumer computing
+ * routing keys ahead of time needs the same function.
  */
-final class Murmur3 {
+public final class Murmur3 {
 
     private static final int C1 = 0xcc9e2d51;
     private static final int C2 = 0x1b873593;
 
-    static int hash32(byte[] data, int seed) {
+    public static int hash32(byte[] data, int seed) {
         int h1 = seed;
         int length = data.length;
         int blocks = length / 4;

@@ -11,12 +11,15 @@ client and carries the same conventions.
 
 ## What it puts in your WAR
 
-Nothing.
+One 20 KB jar: `app.epistola.contract:protocol-java`, the wire-protocol logic this client shares
+with the Kotlin client and the Epistola server module — partition routing, poll backoff, the
+`User-Agent` grammar, problem type URIs. It is first-party, has no dependencies of its own, and is
+not a container API.
 
 ```
 $ ./gradlew dependencies --configuration runtimeClasspath
 runtimeClasspath - Runtime classpath of source set 'main'.
-No dependencies
+\--- app.epistola.contract:protocol-java:1.1.0
 ```
 
 Every API this client uses — JAX-RS, JSON-B, JSON-P, MicroProfile Rest Client, MicroProfile
@@ -30,8 +33,9 @@ implementation(libs.some.vendor.client) {
 }
 ```
 
-`DependencyHygieneTest` asserts this on every build: no runtime dependencies, no Spring, no
-`javax.*`, no JAX-RS/JSON/servlet implementation.
+`DependencyHygieneTest` asserts this on every build: nothing on the runtime classpath but
+`protocol-java`, no Spring, no `javax.*`, no JAX-RS/JSON/servlet implementation. It also asserts
+that `protocol-java` stays a leaf, since anything it grew would land in your WAR too.
 
 ## Installation
 

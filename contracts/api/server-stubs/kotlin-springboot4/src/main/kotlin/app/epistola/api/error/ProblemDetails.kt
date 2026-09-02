@@ -6,6 +6,7 @@ package app.epistola.api.error
 
 import app.epistola.api.model.DataModelValidationError
 import app.epistola.api.model.ValidationError
+import app.epistola.protocol.ProblemTypeUris
 import org.springframework.http.HttpStatusCode
 import org.springframework.http.ProblemDetail
 import java.net.URI
@@ -47,7 +48,7 @@ object ProblemDetails {
     const val TYPE_BASE: String = GENERATED_PROBLEM_TYPE_BASE
 
     /** The RFC 9457 default problem type, used when no specific [type] is supplied. */
-    val BLANK_TYPE: URI = URI.create("about:blank")
+    val BLANK_TYPE: URI = ProblemTypeUris.BLANK_TYPE
 
     /**
      * Extension member carrying field-level validation errors. Generated from the
@@ -61,8 +62,17 @@ object ProblemDetails {
      */
     const val VALIDATION_ERRORS_PROPERTY: String = ProblemExtensionMembers.VALIDATION_ERRORS
 
+    // The mapping is shared with the clients, which use it in the other direction.
+    private val uris = ProblemTypeUris.of(TYPE_BASE)
+
     /** Builds a problem `type` URI from a kebab-case slug, e.g. `typeFor("not-found")`. */
-    fun typeFor(slug: String): URI = URI.create(TYPE_BASE + slug)
+    fun typeFor(slug: String): URI = uris.typeFor(slug)
+
+    /**
+     * The kebab-case slug of a problem `type` URI, or `null` for `about:blank` and non-Epistola
+     * types — the inverse of [typeFor], and what the clients switch on.
+     */
+    fun slugFor(type: URI?): String? = uris.slugFor(type)
 
     /**
      * The canonical problem `type` slugs from the contract's error-type registry, for use with

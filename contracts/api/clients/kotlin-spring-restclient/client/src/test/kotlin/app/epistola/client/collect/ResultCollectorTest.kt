@@ -380,20 +380,6 @@ class ResultCollectorTest {
     }
 
     @Test
-    fun `murmur3 hash is deterministic`() {
-        val hash1 = murmur3x86_32("test-key".toByteArray(), 0)
-        val hash2 = murmur3x86_32("test-key".toByteArray(), 0)
-        assertEquals(hash1, hash2)
-    }
-
-    @Test
-    fun `murmur3 different keys produce different hashes`() {
-        val hash1 = murmur3x86_32("key-a".toByteArray(), 0)
-        val hash2 = murmur3x86_32("key-b".toByteArray(), 0)
-        assertTrue(hash1 != hash2, "Different keys should produce different hashes")
-    }
-
-    @Test
     fun `routingKeyToMe always produces a key that lands here`() {
         val restClient = mockRestClient(ndjsonResponse(metaLine(hasMore = false, count = 0)))
         val collector = buildCollector(restClient) { }
@@ -453,24 +439,6 @@ class ResultCollectorTest {
         // With a 200ms floor and a 3x multiplier: burst, then ~200ms, ~600ms — a handful of polls.
         // Without the floor this runs into the thousands.
         assertTrue(polls.get() < 20, "expected the loop to back off, but it polled ${polls.get()} times")
-    }
-
-    @Test
-    fun `murmur3 matches the servers hash vectors`() {
-        // Guava's Hashing.murmur3_32_fixed(0) over the same UTF-8 bytes — the server's partition
-        // assignment. Determinism alone would not catch an implementation that is consistently
-        // wrong; if these drift, this node hands out routing keys that land on someone else's
-        // partition. The Jakarta client pins the same vectors.
-        assertEquals(0x00000000, murmur3x86_32(ByteArray(0), 0))
-        assertEquals(0x3c2569b2, murmur3x86_32("a".toByteArray(), 0))
-        assertEquals(-0x4c226c06, murmur3x86_32("abc".toByteArray(), 0)) // 0xb3dd93fa
-        assertEquals(0x43ed676a, murmur3x86_32("abcd".toByteArray(), 0))
-        assertEquals(0x248bfa47, murmur3x86_32("hello".toByteArray(), 0))
-        assertEquals(0x149bbb7f, murmur3x86_32("hello, world".toByteArray(), 0))
-        assertEquals(
-            0x2e4ff723,
-            murmur3x86_32("The quick brown fox jumps over the lazy dog".toByteArray(), 0),
-        )
     }
 
     // --- Helpers ---

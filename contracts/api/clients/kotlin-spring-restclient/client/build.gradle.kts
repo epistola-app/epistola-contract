@@ -327,10 +327,18 @@ tasks.compileKotlin {
     compilerOptions {
         apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
         languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
+        // protocol-java is Java, and its package is @NullMarked. Without this flag Kotlin reads
+        // its signatures as platform types and silently drops null-safety exactly where null
+        // carries meaning — an unknown partition assignment, a type URI with no Epistola slug.
+        freeCompilerArgs.add("-Xjspecify-annotations=strict")
     }
 }
 
 dependencies {
+    // Partition routing, poll backoff, User-Agent grammar and problem type URIs — shared with the
+    // Jakarta client and the server stubs so the protocol has one implementation, not three.
+    api("app.epistola.contract:protocol-java:${project.version}")
+
     implementation(libs.spring.boot3.starter.web)
     implementation(libs.jackson2.module.kotlin)
     implementation(libs.jackson2.datatype.jsr310)
