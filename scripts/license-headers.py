@@ -20,6 +20,7 @@ MARKERS = (COPYRIGHT_TAG, LICENSE_TAG)
 
 LINE_COMMENT_EXTENSIONS = {
     ".cs": "//",
+    ".java": "//",
     ".js": "//",
     ".kt": "//",
     ".kts": "//",
@@ -31,6 +32,12 @@ LINE_COMMENT_EXTENSIONS = {
 
 SPECIAL_LINE_COMMENT_FILES = {
     "contracts/api/mock-server/Dockerfile": "#",
+}
+
+# Directories whose files carry no extension but do accept "#" comments.
+LINE_COMMENT_DIRECTORIES = {
+    # java.util.ServiceLoader provider-configuration files
+    "META-INF/services/": "#",
 }
 
 SKIP_PREFIXES = (
@@ -102,6 +109,9 @@ def header_for(path: Path) -> str | None:
         return line_header(SPECIAL_LINE_COMMENT_FILES[name])
     if path.suffix in LINE_COMMENT_EXTENSIONS:
         return line_header(LINE_COMMENT_EXTENSIONS[path.suffix])
+    for directory, prefix in LINE_COMMENT_DIRECTORIES.items():
+        if directory in name:
+            return line_header(prefix)
     return None
 
 
