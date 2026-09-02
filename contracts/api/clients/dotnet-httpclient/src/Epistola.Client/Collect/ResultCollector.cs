@@ -42,6 +42,12 @@ public sealed class ResultCollector
     private readonly TimeSpan _minInterval;
     private readonly TimeSpan _maxInterval;
     private readonly TimeSpan _kickInterval;
+    /// <summary>
+    /// How many prefixes <see cref="RoutingKeyToMe"/> tries before giving up. Reaching this means
+    /// every one of a thousand hashes missed every partition this node owns.
+    /// </summary>
+    private const int MaxRoutingKeyAttempts = 1000;
+
     private readonly double _backoffMultiplier;
     private readonly Action<GenerationResult> _handler;
     private readonly Action<Exception>? _errorHandler;
@@ -103,7 +109,8 @@ public sealed class ResultCollector
     public int? PartitionFor(string routingKey)
     {
         var assignment = CurrentPartitionAssignment;
-        if (assignment == null) return null;
+        // A zero partition count would be a divide-by-zero, not a "no partition" answer.
+        if (assignment == null || assignment.Total == 0) return null;
         var hash = Murmur3X86_32(Encoding.UTF8.GetBytes(routingKey), 0);
         return (int)((hash & 0x7FFFFFFF) % assignment.Total);
     }
@@ -117,20 +124,31 @@ public sealed class ResultCollector
     }
 
     /// <summary>
-    /// Returns a routing key that targets one of this node's partitions: the original key if it
-    /// already routes here, otherwise a prefixed key. Returns <c>null</c> if the assignment is unknown.
+    /// Returns a routing key that targets one of this node's partitions: the original key when it
+    /// already routes here, otherwise a numbered prefix (<c>"0:key"</c>, <c>"1:key"</c>, …) that
+    /// does. The search is deterministic, so the same key always yields the same routed key.
+    /// Returns <c>null</c> when the assignment is unknown, or in the vanishingly unlikely event
+    /// that no prefix within <see cref="MaxRoutingKeyAttempts"/> lands here.
     /// </summary>
+    /// <remarks>
+    /// The prefix is what the server hashes, so a rewritten key is a different key: pass the value
+    /// returned here as the request's <c>routingKey</c>, and expect it back on the result.
+    /// </remarks>
     public string? RoutingKeyToMe(string key)
     {
         var assignment = CurrentPartitionAssignment;
-        if (assignment == null) return null;
+        if (assignment == null || assignment.Total == 0 || assignment.Mine.Count == 0) return null;
         if (IsMyPartition(key)) return key;
-        foreach (var p in assignment.Mine)
+        // Trying only the partition numbers this node owns is not enough: "3:key" hashes to
+        // wherever it hashes, not to partition 3. Only checking the hash of each candidate can
+        // tell us, so keep trying prefixes until one lands. With p of n partitions owned, each
+        // attempt succeeds with probability p/n, so this converges in a handful of iterations.
+        for (var attempt = 0; attempt < MaxRoutingKeyAttempts; attempt++)
         {
-            var candidate = $"{p}:{key}";
+            var candidate = $"{attempt}:{key}";
             if (IsMyPartition(candidate)) return candidate;
         }
-        return $"{assignment.Mine.First()}:{key}";
+        return null;
     }
 
     // --- Poll loop ---
@@ -163,7 +181,7 @@ public sealed class ResultCollector
                         ? 0
                         : result.Count > 0
                             ? (long)_minInterval.TotalMilliseconds
-                            : Math.Min((long)(_currentInterval * _backoffMultiplier), (long)_maxInterval.TotalMilliseconds);
+                            : BackOff(_currentInterval);
 
                     await SleepInterruptibly(_currentInterval, cancellationToken).ConfigureAwait(false);
                 }
@@ -175,7 +193,7 @@ public sealed class ResultCollector
                 {
                     _errorHandler?.Invoke(e);
                     var jitter = Random.Shared.NextInt64(_currentInterval / 2 + 1);
-                    _currentInterval = Math.Min((long)(_currentInterval * _backoffMultiplier), (long)_maxInterval.TotalMilliseconds);
+                    _currentInterval = BackOff(_currentInterval);
                     try
                     {
                         await SleepInterruptibly(_currentInterval + jitter, cancellationToken).ConfigureAwait(false);
@@ -191,6 +209,21 @@ public sealed class ResultCollector
         {
             RemoveShutdownHook();
         }
+    }
+
+    /// <summary>
+    /// The next idle interval, floored at <c>minInterval</c> and capped at <c>maxInterval</c>.
+    /// </summary>
+    /// <remarks>
+    /// The floor is not cosmetic. A poll reporting <c>hasMore</c> sets the interval to 0 so the next
+    /// one is immediate, and <c>0 * multiplier</c> is still 0 — without the floor, a burst that
+    /// drained (or a server that went down mid-burst) would leave the loop polling
+    /// <c>/generation/collect</c> flat out, with no path back to a sane interval.
+    /// </remarks>
+    private long BackOff(long interval)
+    {
+        var grown = (long)(interval * _backoffMultiplier);
+        return Math.Min(Math.Max(grown, (long)_minInterval.TotalMilliseconds), (long)_maxInterval.TotalMilliseconds);
     }
 
     private async Task SleepInterruptibly(long durationMs, CancellationToken cancellationToken)

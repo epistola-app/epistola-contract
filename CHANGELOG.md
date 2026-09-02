@@ -19,15 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   consumer's WAR and no REST implementation is bundled for them to exclude. A test asserts this
   rather than leaving it to review, and an opt-in Testcontainers test deploys the client into a real
   WildFly.
-- Fixed two defects in the Jakarta client's `ResultCollector` that the Spring, .NET and Python
-  clients still carry:
-  - `routingKeyToMe` could return a routing key that does not route to the calling node, because
-    `"3:key"` does not hash to partition 3. It now searches numbered prefixes and checks each
-    candidate's actual partition.
-  - The adaptive backoff could collapse into a busy loop. A poll reporting `hasMore` sets the
-    interval to 0 so the next one is immediate, and `0 * multiplier` is still 0 — so once a burst
-    drained, or the server went down mid-burst, the collector polled `/generation/collect` flat out
-    with no way back. The backoff is now floored at `minInterval`.
+- Fixed three defects in **every** client's result collection and template validation. They were
+  found while building the Jakarta client and are fixed in the Spring, .NET and Python clients too:
+  - **`ResultCollector`'s adaptive backoff could collapse into a busy loop.** A poll reporting
+    `hasMore` sets the interval to 0 so the next one is immediate, and `0 * multiplier` is still 0 —
+    so once a burst drained, or the server went down mid-burst, the collector polled
+    `/generation/collect` flat out with no way back. Measured at 21,843 polls in 600 ms on .NET.
+    The backoff is now floored at `minInterval`. **Anyone running a collector should upgrade.**
+  - **`routingKeyToMe` could return a routing key that does not route to the calling node**, because
+    `"3:key"` does not hash to partition 3. With 2 of 8 partitions owned it returned a foreign key
+    more often than not, sending results to another node. It now searches numbered prefixes and
+    checks each candidate's actual partition.
+  - **The template schema cache omitted the catalog from its key** while loading by catalog, so two
+    catalogs of one tenant holding the same template id shared one compiled schema for the whole
+    TTL — data validated against the wrong contract, silently. This changes the signatures of
+    `SchemaCache.getOrLoad` / `get_or_load` / `GetOrLoad` and `TtlSchemaCache.evict` / `Evict` to
+    take the catalog id.
+  - `partitionFor` now returns null rather than dividing by zero when the server reports no
+    partitions.
 
 ## [1.1.0] - 2026-08-20
 

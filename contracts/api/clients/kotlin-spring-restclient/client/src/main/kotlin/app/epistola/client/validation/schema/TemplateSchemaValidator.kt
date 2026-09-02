@@ -42,7 +42,7 @@ class TemplateSchemaValidator(
      * @throws org.springframework.web.client.RestClientResponseException if template fetch fails.
      */
     fun validate(tenantId: String, catalogId: String, templateId: String, data: Any) {
-        val schema = cache.getOrLoad(tenantId, templateId) { loadSchema(tenantId, catalogId, templateId) }
+        val schema = cache.getOrLoad(tenantId, catalogId, templateId) { loadSchema(tenantId, catalogId, templateId) }
             ?: return // No schema defined on template -- nothing to validate
 
         val dataNode: JsonNode = objectMapper.valueToTree(data)

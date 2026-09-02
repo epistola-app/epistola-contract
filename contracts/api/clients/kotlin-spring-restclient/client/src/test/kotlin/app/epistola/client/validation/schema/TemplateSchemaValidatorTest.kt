@@ -197,6 +197,26 @@ class TemplateSchemaValidatorTest {
     }
 
     @Test
+    fun `the same template id in two catalogs is two cache entries`() {
+        // Two catalogs of one tenant can both hold an "invoice" template, with different schemas.
+        // Keying on (tenant, template) alone would validate one against the other's contract.
+        every { templatesApi.getTemplate("acme", "catalog-a", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "catalog-b", "invoice") } returns templateDto()
+        val validator = TemplateSchemaValidator(templatesApi)
+
+        val validData = mapOf(
+            "customer" to mapOf("name" to "Jane", "email" to "j@e.com"),
+            "invoiceNumber" to "INV-2026-001",
+        )
+
+        validator.validate("acme", "catalog-a", "invoice", validData)
+        validator.validate("acme", "catalog-b", "invoice", validData)
+
+        verify(exactly = 1) { templatesApi.getTemplate("acme", "catalog-a", "invoice") }
+        verify(exactly = 1) { templatesApi.getTemplate("acme", "catalog-b", "invoice") }
+    }
+
+    @Test
     fun `cache eviction triggers re-fetch`() {
         every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
         val cache = TtlSchemaCache()
@@ -213,7 +233,7 @@ class TemplateSchemaValidatorTest {
             "invoice",
             validData,
         )
-        cache.evict("acme", "invoice")
+        cache.evict("acme", "default", "invoice")
         validator.validate(
             "acme",
             "default",

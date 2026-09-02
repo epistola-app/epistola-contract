@@ -41,7 +41,7 @@ public sealed class TemplateSchemaValidator
     /// <exception cref="TemplateDataValidationException">If validation fails.</exception>
     public void Validate(string tenantId, string catalogId, string templateId, object data)
     {
-        var schema = _cache.GetOrLoad(tenantId, templateId, () => LoadSchema(tenantId, catalogId, templateId));
+        var schema = _cache.GetOrLoad(tenantId, catalogId, templateId, () => LoadSchema(tenantId, catalogId, templateId));
         if (schema == null)
         {
             return; // No schema defined on the template — nothing to validate.

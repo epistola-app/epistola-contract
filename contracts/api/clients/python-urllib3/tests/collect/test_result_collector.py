@@ -57,14 +57,51 @@ def test_routing_key_to_me_returns_key_unchanged_when_all_partitions_are_mine():
     assert collector.routing_key_to_me("some-key") == "some-key"
 
 
-def test_routing_key_to_me_prefixes_a_key_that_lands_on_my_partition():
+def test_routing_key_to_me_always_produces_a_key_that_lands_here():
+    # Trying only the partition numbers this node owns is not enough: "3:key" hashes to wherever
+    # it hashes, not to partition 3. With 2 of 8 partitions the old fallback returned a foreign
+    # key more often than not, which sends the result to another node.
     collector = _collector_with_assignment(PartitionAssignment(total=8, mine=[0, 1]))
-    routed = collector.routing_key_to_me("some-key")
-    assert routed is not None
-    # Best-effort (matching the Kotlin/.NET contract): if a prefixed candidate landed on
-    # one of our partitions it is returned; otherwise a prefixed fallback is returned.
-    if routed != "some-key" and collector.is_my_partition(routed):
-        assert routed.split(":", 1)[0] in {"0", "1"}
+    rewritten = 0
+    for i in range(100):
+        key = f"order-{i}"
+        routed = collector.routing_key_to_me(key)
+        assert routed is not None, f"routing_key_to_me returned None for {key}"
+        assert collector.is_my_partition(routed), f"produced a foreign key: {routed}"
+        if routed != key:
+            rewritten += 1
+    assert rewritten > 0, "with 2 of 8 partitions, most keys should need rewriting"
+
+
+def test_routing_key_to_me_is_deterministic():
+    collector = _collector_with_assignment(PartitionAssignment(total=8, mine=[0, 1]))
+    assert collector.routing_key_to_me("order-7") == collector.routing_key_to_me("order-7")
+
+
+def test_partition_helpers_are_safe_when_the_partition_count_is_missing():
+    collector = _collector_with_assignment(PartitionAssignment(total=0, mine=[]))
+    assert collector.partition_for("anything") is None
+    assert collector.is_my_partition("anything") is False
+    assert collector.routing_key_to_me("anything") is None
+
+
+def test_backoff_recovers_from_a_has_more_burst_instead_of_returning_zero():
+    # has_more sets the interval to 0 so the next poll is immediate, and 0 * multiplier is still
+    # 0 — without a floor, a burst that drained left the loop polling /generation/collect flat
+    # out forever, with no path back to a sane interval.
+    collector = (
+        ResultCollector.builder()
+        .api_client(object())
+        .tenant_id("acme")
+        .handler(lambda r: None)
+        .min_interval(1.0)
+        .max_interval(30.0)
+        .register_shutdown_hook(False)
+        .build()
+    )
+    assert collector._back_off(0.0) == 1.0
+    assert collector._back_off(1.0) == 3.0
+    assert collector._back_off(20.0) == 30.0
 
 
 def test_builder_requires_api_client():
