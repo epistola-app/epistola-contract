@@ -445,6 +445,8 @@ dependencies {
     testImplementation(libs.parsson)
     testImplementation(libs.json.schema.validator)
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.testcontainers)
+    testImplementation(libs.testcontainers.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
@@ -503,6 +505,27 @@ tasks.processTestResources {
 
 // --- Deployment smoke test against a real application server ---
 //
+// The smoke application is a separate source set rather than a string baked into the test: it has
+// to compile against the published client the way a consumer's code does, and a WAR assembled from
+// real class files is the only kind that proves anything about deployment.
+val smokeApp: SourceSet by sourceSets.creating
+
+dependencies {
+    "smokeAppCompileOnly"(sourceSets.main.get().output)
+    "smokeAppCompileOnly"(libs.jakarta.ws.rs.api)
+    "smokeAppCompileOnly"(libs.jakarta.annotation.api)
+    "smokeAppCompileOnly"(libs.jakarta.enterprise.cdi.api)
+    "smokeAppCompileOnly"(libs.jakarta.inject.api)
+    "smokeAppCompileOnly"(libs.microprofile.rest.client.api)
+}
+
+// Built as part of `check`, not of `classes`: the smoke application is also a check that the
+// client's public API is usable from a plain Jakarta EE bean, so it should break the build when it
+// is not — but it compiles *against* the main output, so it cannot be part of producing it.
+tasks.check {
+    dependsOn(smokeApp.classesTaskName)
+}
+
 // Opt in with `-PdeploymentTest`: it needs Docker and pulls a WildFly image, so it is not part
 // of the default `check`. It deploys a WAR that @Injects a generated @RestClient interface into
 // a running server — a jar that resolves is not a jar that deploys.
@@ -514,10 +537,20 @@ val deploymentTest by tasks.registering(Test::class) {
     useJUnitPlatform {
         includeTags("deployment")
     }
-    // The WAR the test deploys is assembled by the test itself from these two inputs.
-    dependsOn(tasks.jar)
+    dependsOn(tasks.jar, smokeApp.classesTaskName)
     systemProperty("epistola.client.jar", tasks.jar.flatMap { it.archiveFile }.get().asFile.absolutePath)
-    onlyIf { project.hasProperty("deploymentTest") }
+    systemProperty(
+        "epistola.smokeApp.classes",
+        smokeApp.output.classesDirs.singleFile.absolutePath,
+    )
+    systemProperty(
+        "epistola.smokeApp.resources",
+        smokeApp.output.resourcesDir!!.absolutePath,
+    )
+    // providers.gradleProperty, not project.hasProperty: Gradle exposes tasks as project
+    // properties, so hasProperty("deploymentTest") is true purely because this task exists.
+    val optedIn = providers.gradleProperty("deploymentTest").isPresent
+    onlyIf { optedIn }
 }
 
 tasks.test {
@@ -527,7 +560,7 @@ tasks.test {
 }
 
 tasks.check {
-    if (project.hasProperty("deploymentTest")) {
+    if (providers.gradleProperty("deploymentTest").isPresent) {
         dependsOn(deploymentTest)
     }
 }

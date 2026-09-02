@@ -128,6 +128,8 @@ jobs:
         include:
           - module: contracts/api/clients/kotlin-spring-restclient
             needs_spec: true
+          - module: contracts/api/clients/jakarta
+            needs_spec: true
           - module: contracts/api/server-stubs/kotlin-springboot4
             needs_spec: true
           - module: contracts/catalog
@@ -279,6 +281,9 @@ jobs:
         include:
           - module: contracts/api/clients/kotlin-spring-restclient
             artifact_id: client-spring3-restclient
+            needs_spec: true
+          - module: contracts/api/clients/jakarta
+            artifact_id: client-jakarta
             needs_spec: true
           - module: contracts/api/server-stubs/kotlin-springboot4
             artifact_id: server-kotlin-springboot4

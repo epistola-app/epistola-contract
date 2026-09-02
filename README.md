@@ -64,7 +64,7 @@ epistola-contract/
 │   │   ├── openapi.yaml               # Authored REST API entry point
 │   │   ├── paths/                     # Endpoint definitions
 │   │   ├── components/                # API schemas and responses
-│   │   ├── clients/                   # Kotlin, .NET, and Python clients
+│   │   ├── clients/                   # Kotlin, Jakarta EE, .NET, and Python clients
 │   │   ├── server-stubs/              # Generated server contracts
 │   │   ├── docs/                      # API design documentation
 │   │   └── tools/                     # Pinned API build tools
@@ -135,6 +135,16 @@ make bundle
 
 The generated bundle is written to `contracts/api/build/openapi.yaml`.
 
+### Build Jakarta EE Client
+
+```bash
+cd contracts/api/clients/jakarta
+./gradlew build
+```
+
+This generates MicroProfile Rest Client interfaces and JSON-B models from the bundled
+spec, compiles them together with the hand-written conventions, and runs the tests.
+
 ### Build Kotlin Server Stubs
 
 ```bash
@@ -157,6 +167,19 @@ A Kotlin client library using:
 - **Spring RestClient** (Spring Boot 3.2+)
 - **Jackson** for JSON serialization
 - Java 8 date/time handling
+
+### Jakarta EE Client (`app.epistola.contract:client-jakarta`)
+
+A Java client library for Jakarta EE application servers (WildFly, Open Liberty, Payara,
+Quarkus) using:
+- **MicroProfile Rest Client** interfaces — `@Inject @RestClient` with configuration alone
+- **JSON-B** for binding, supplied by the server
+- Identity headers, API-key and self-signed JWT auth, RFC 9457 problem-detail handling,
+  NDJSON result collection, and client-side schema validation
+
+It ships **no runtime dependencies**: every container-supplied API is `compileOnly`, so
+nothing is added to a consumer's WAR and no REST implementation is bundled. See the
+[Jakarta client README](contracts/api/clients/jakarta/README.md).
 
 ### .NET Client (`Epistola.Contract.Client`)
 
@@ -614,9 +637,10 @@ All artifacts are built and tested in parallel via GitHub Actions:
 
 1. **Spec Validation**: Validates OpenAPI spec with Redocly CLI
 2. **Kotlin Client**: Generates and builds the Spring RestClient-based client
-3. **Kotlin Server**: Generates and builds the Spring server stubs
-4. **.NET Client**: Generates, builds, and tests the HttpClient-based client
-5. **Python Client**: Generates, builds, and tests the urllib3-based client
+3. **Jakarta EE Client**: Generates and builds the MicroProfile Rest Client-based client
+4. **Kotlin Server**: Generates and builds the Spring server stubs
+5. **.NET Client**: Generates, builds, and tests the HttpClient-based client
+6. **Python Client**: Generates, builds, and tests the urllib3-based client
 
 ## License
 

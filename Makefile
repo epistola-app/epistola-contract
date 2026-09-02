@@ -1,4 +1,4 @@
-.PHONY: all lint license license-check bundle build-client build-server build-catalog build-epistola-catalog build-dotnet build-python build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
+.PHONY: all lint license license-check bundle build-client build-jakarta build-server build-catalog build-epistola-catalog build-dotnet build-python build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
 
 API_DIR := contracts/api
 API_SPEC := $(API_DIR)/openapi.yaml
@@ -42,12 +42,17 @@ bundle: $(REDOCLY)
 	@echo "==> Created $(API_BUNDLE)"
 
 # Build all modules
-build: build-client build-server build-catalog build-dotnet build-python
+build: build-client build-jakarta build-server build-catalog build-dotnet build-python
 
 # Build Kotlin client
 build-client:
 	@echo "==> Building Kotlin client..."
 	cd $(API_DIR)/clients/kotlin-spring-restclient && ./gradlew build
+
+# Build Jakarta EE client (generates from the bundled spec, then builds and tests)
+build-jakarta:
+	@echo "==> Building Jakarta EE client..."
+	cd $(API_DIR)/clients/jakarta && ./gradlew build
 
 # Build Kotlin server
 build-server:
@@ -87,6 +92,7 @@ sbom-dotnet:
 clean:
 	@echo "==> Cleaning..."
 	cd $(API_DIR)/clients/kotlin-spring-restclient && ./gradlew clean
+	cd $(API_DIR)/clients/jakarta && ./gradlew clean
 	cd $(API_DIR)/server-stubs/kotlin-springboot4 && ./gradlew clean
 	cd contracts/catalog && ./gradlew clean
 	cd $(API_DIR)/clients/dotnet-httpclient && rm -rf Generated src/Epistola.Client/Generated bin obj src/*/bin src/*/obj test/*/bin test/*/obj
@@ -96,6 +102,7 @@ clean:
 publish-local: build
 	@echo "==> Publishing to local Maven repository..."
 	cd $(API_DIR)/clients/kotlin-spring-restclient && ./gradlew publishToMavenLocal
+	cd $(API_DIR)/clients/jakarta && ./gradlew publishToMavenLocal
 	cd $(API_DIR)/server-stubs/kotlin-springboot4 && ./gradlew publishToMavenLocal
 	cd contracts/catalog && ./gradlew publishToMavenLocal
 	@echo "==> Published to ~/.m2/repository/app/epistola/contract/"
@@ -187,6 +194,7 @@ help:
 	@echo "  bundle         - Bundle OpenAPI spec into single openapi.yaml"
 	@echo "  build                - Build all modules (clients, server, catalog)"
 	@echo "  build-client         - Build Kotlin client only"
+	@echo "  build-jakarta        - Build Jakarta EE client only"
 	@echo "  build-server         - Build Kotlin server only"
 	@echo "  build-catalog        - Build portable catalog only"
 	@echo "  build-dotnet         - Build .NET client only"

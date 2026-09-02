@@ -65,6 +65,32 @@ jobs:
       - name: Build and test
         run: ./gradlew build
 
+  # Jakarta EE client build (MicroProfile Rest Client)
+  jakarta-client:
+    name: Jakarta EE Client (MicroProfile Rest Client)
+    needs: spec-validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts/api/clients/jakarta
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v7
+        with:
+          name: openapi-spec
+          path: contracts/api/build
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+
+      # Does not include deploymentTest: that needs Docker and a WildFly image.
+      # Run it locally with ./gradlew deploymentTest -PdeploymentTest.
+      - name: Build and test
+        run: ./gradlew build
+
   # Kotlin server stubs build
   kotlin-server:
     name: Kotlin Server (Spring)
