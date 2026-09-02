@@ -441,6 +441,7 @@ dependencies {
     testImplementation(libs.resteasy.json.binding.provider)
     testImplementation(libs.resteasy.microprofile.rest.client)
     testImplementation(libs.yasson)
+    testImplementation(libs.smallrye.config)
     testImplementation(libs.parsson)
     testImplementation(libs.json.schema.validator)
     testImplementation(libs.junit.jupiter)

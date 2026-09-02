@@ -45,6 +45,7 @@ microprofile-config = "3.1"
 # generated interfaces are exercised over the wire instead of being merely compiled.
 resteasy = "6.2.12.Final"
 resteasy-microprofile = "3.0.1.Final"
+smallrye-config = "3.13.4"
 yasson = "3.0.4"
 parsson = "1.1.7"
 junit = "5.14.1"
@@ -85,6 +86,7 @@ resteasy-client = { module = "org.jboss.resteasy:resteasy-client", version.ref =
 resteasy-json-binding-provider = { module = "org.jboss.resteasy:resteasy-json-binding-provider", version.ref = "resteasy" }
 resteasy-microprofile-rest-client = { module = "org.jboss.resteasy.microprofile:microprofile-rest-client", version.ref = "resteasy-microprofile" }
 yasson = { module = "org.eclipse:yasson", version.ref = "yasson" }
+smallrye-config = { module = "io.smallrye.config:smallrye-config", version.ref = "smallrye-config" }
 parsson = { module = "org.eclipse.parsson:parsson", version.ref = "parsson" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }

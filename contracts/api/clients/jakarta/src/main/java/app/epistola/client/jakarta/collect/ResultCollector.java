@@ -77,6 +77,12 @@ public final class ResultCollector {
     private final MetricsListener metricsListener;
     private final boolean registerShutdownHook;
 
+    /**
+     * How many prefixes {@link #routingKeyToMe(String)} tries before giving up. Reaching this
+     * means every one of a thousand hashes missed every partition this node owns.
+     */
+    private static final int MAX_ROUTING_KEY_ATTEMPTS = 1000;
+
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final ReentrantLock pollLock = new ReentrantLock();
 
@@ -171,24 +177,34 @@ public final class ResultCollector {
      * A routing key that targets one of this node's partitions — useful to make a submission's
      * result come back to the node that made it.
      *
-     * <p>Returns {@code key} unchanged when it already routes here, otherwise a prefixed variant
-     * that does. Returns {@code null} until the first poll has reported an assignment.
+     * <p>Returns {@code key} unchanged when it already routes here; otherwise searches numbered
+     * prefixes ({@code "0:key"}, {@code "1:key"}, …) for one that does. The search is deterministic,
+     * so the same key always yields the same routed key. Returns {@code null} when the assignment is
+     * not yet known, or in the vanishingly unlikely event that no prefix within
+     * {@link #MAX_ROUTING_KEY_ATTEMPTS} lands here.
+     *
+     * <p>The prefix is what the server hashes, so a rewritten key is a different key: pass the
+     * value returned here as the request's {@code routingKey}, and expect it back on the result.
      */
     public String routingKeyToMe(String key) {
         PartitionAssignment assignment = partitionAssignment;
-        if (assignment == null || assignment.getMine().isEmpty()) {
+        if (assignment == null || assignment.getMine() == null || assignment.getMine().isEmpty()) {
             return null;
         }
         if (isMyPartition(key)) {
             return key;
         }
-        for (Integer partition : assignment.getMine()) {
-            String candidate = partition + ":" + key;
+        // Trying only the partition numbers this node owns is not enough: "3:key" hashes to
+        // wherever it hashes, not to partition 3. Only checking the hash of each candidate can
+        // tell us, so keep trying prefixes until one lands. With p partitions of n owned, each
+        // attempt succeeds with probability p/n, so this converges in a handful of iterations.
+        for (int attempt = 0; attempt < MAX_ROUTING_KEY_ATTEMPTS; attempt++) {
+            String candidate = attempt + ":" + key;
             if (isMyPartition(candidate)) {
                 return candidate;
             }
         }
-        return assignment.getMine().get(0) + ":" + key;
+        return null;
     }
 
     // --- Poll loop ---

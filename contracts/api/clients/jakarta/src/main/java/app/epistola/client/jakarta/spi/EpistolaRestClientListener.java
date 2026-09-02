@@ -43,7 +43,16 @@ public class EpistolaRestClientListener implements RestClientListener {
             return;
         }
 
-        Config config = ConfigProvider.getConfig();
+        Config config;
+        try {
+            config = ConfigProvider.getConfig();
+        } catch (IllegalStateException noConfigImplementation) {
+            // No MicroProfile Config on this runtime — a plain Java SE process using RESTEasy's
+            // client directly, for instance. There is nothing to read, so there is nothing to
+            // apply; EpistolaRestClients is the route for that case. Never fail client creation.
+            return;
+        }
+
         // Identity is registered ahead of authentication so a failure to build the auth filter
         // still leaves a request that identifies itself in the server's logs.
         builder.register(EpistolaConfig.identity(config).filter(), Priorities.HEADER_DECORATOR);
