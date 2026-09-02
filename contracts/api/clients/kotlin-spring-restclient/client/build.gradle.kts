@@ -167,6 +167,15 @@ val generateProblemSlugs by tasks.registering {
                 "    const val ${entry["constantName"]}: String = \"${entry["slug"]}\""
         }
 
+        val extensionMembers = (model["problemExtensionMembers"] as Map<String, List<String>>)
+            .entries
+            .sortedBy { it.key }
+            .flatMap { (schema, members) -> members.map { schema to it } }
+            .joinToString("\n\n") { (schema, member) ->
+                "    /** The `$member` extension member of `$schema`. */\n" +
+                    "    const val ${member.replace(Regex("([a-z])([A-Z])"), "$1_$2").uppercase()}: String = \"$member\""
+            }
+
         val outFile = generatedProblemSlugsDir.get()
             .file("app/epistola/client/error/KnownProblemSlugs.kt").asFile
         outFile.parentFile.mkdirs()
@@ -188,6 +197,18 @@ val generateProblemSlugs by tasks.registering {
             | */
             |object KnownProblemSlugs {
             |$constants
+            |}
+            |
+            |/**
+            | * The names of the members Epistola problem bodies carry on top of the RFC 9457 base,
+            | * derived from the problem schemas the registry names.
+            | *
+            | * The server writes them and this client reads them back out of the raw body by name, so
+            | * both generate the names from the contract: a rename would otherwise make the extension
+            | * silently vanish rather than fail.
+            | */
+            |internal object ProblemExtensionMembers {
+            |$extensionMembers
             |}
             """.trimMargin() + "\n",
         )

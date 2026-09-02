@@ -49,11 +49,17 @@ object ProblemDetails {
     /** The RFC 9457 default problem type, used when no specific [type] is supplied. */
     val BLANK_TYPE: URI = URI.create("about:blank")
 
-    /** Extension member carrying field-level validation errors. */
-    const val ERRORS_PROPERTY: String = "errors"
+    /**
+     * Extension member carrying field-level validation errors. Generated from the
+     * `ValidationProblemDetail` schema, so it stays the name the clients read.
+     */
+    const val ERRORS_PROPERTY: String = ProblemExtensionMembers.ERRORS
 
-    /** Extension member carrying per-example data-model validation failures. */
-    const val VALIDATION_ERRORS_PROPERTY: String = "validationErrors"
+    /**
+     * Extension member carrying per-example data-model validation failures. Generated from the
+     * `DataModelValidationProblemDetail` schema, so it stays the name the clients read.
+     */
+    const val VALIDATION_ERRORS_PROPERTY: String = ProblemExtensionMembers.VALIDATION_ERRORS
 
     /** Builds a problem `type` URI from a kebab-case slug, e.g. `typeFor("not-found")`. */
     fun typeFor(slug: String): URI = URI.create(TYPE_BASE + slug)

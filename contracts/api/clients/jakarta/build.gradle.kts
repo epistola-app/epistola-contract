@@ -123,6 +123,15 @@ val generateProblemSlugs by tasks.registering {
         }
         val allSlugs = types.joinToString(",\n") { "            ${it["constantName"]}" }
 
+        val extensionMembers = (model["problemExtensionMembers"] as Map<String, List<String>>)
+            .entries
+            .sortedBy { it.key }
+            .flatMap { (schema, members) -> members.map { schema to it } }
+            .joinToString("\n\n") { (schema, member) ->
+                "    /** The {@code $member} extension member of {@code $schema}. */\n" +
+                    "    static final String ${member.replace(Regex("([a-z])([A-Z])"), "$1_$2").uppercase()} = \"$member\";"
+            }
+
         val outFile = outDir.get().file("app/epistola/client/jakarta/error/KnownProblemSlugs.java").asFile
         outFile.parentFile.mkdirs()
         outFile.writeText(
@@ -156,6 +165,31 @@ val generateProblemSlugs by tasks.registering {
             |    ));
             |
             |    private KnownProblemSlugs() {
+            |    }
+            |}
+            """.trimMargin() + "\n",
+        )
+
+        val membersFile = outDir.get()
+            .file("app/epistola/client/jakarta/error/ProblemExtensionMembers.java").asFile
+        membersFile.writeText(
+            """
+            |// Generated from the bundled OpenAPI spec's problem schemas — do not edit.
+            |package app.epistola.client.jakarta.error;
+            |
+            |/**
+            | * The names of the members Epistola problem bodies carry on top of the RFC 9457 base,
+            | * derived from the problem schemas the registry names.
+            | *
+            | * <p>The server writes them and this client reads them back out of the raw body by name,
+            | * so both generate the names from the contract: a rename would otherwise make the
+            | * extension silently vanish rather than fail.
+            | */
+            |final class ProblemExtensionMembers {
+            |
+            |$extensionMembers
+            |
+            |    private ProblemExtensionMembers() {
             |    }
             |}
             """.trimMargin() + "\n",

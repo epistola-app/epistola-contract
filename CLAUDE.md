@@ -174,6 +174,7 @@ are standalone artifacts, and the Jakarta client ships no runtime dependencies a
 | --- | --- | --- |
 | `x-problem-types` | `KnownProblemSlugs`, the problem-type base URI | Kotlin client, Jakarta client, server stubs |
 | `x-client-identity` | `ContractIdentity` — the `X-EP-Node-Id` header name and the `User-Agent` product grammar | Kotlin client, Jakarta client, server stubs |
+| the registry's problem schemas | `ProblemExtensionMembers` — the members each problem body adds to the RFC 9457 base (`errors`, `validationErrors`) | Kotlin client, Jakarta client, server stubs |
 
 The clients write those headers and the server parses them, so a divergence would make every
 request from that client unidentifiable with nothing else to catch it. When you change one of

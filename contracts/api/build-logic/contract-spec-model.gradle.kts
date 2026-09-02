@@ -42,6 +42,10 @@
  *   `User-Agent` grammar every client writes and the server parses. Both sides generate their
  *   constants from this, because a mismatch here makes every request from that client
  *   unidentifiable and nothing else would catch it.
+ * - `problemExtensionMembers`: `Map<String, List<String>>` — for each problem schema the registry
+ *   names, the members it adds on top of the base `ProblemDetail` (`ValidationProblemDetail` →
+ *   `["errors"]`). The server writes these members and the clients read them by name out of the
+ *   raw body, so a rename would make the extension silently vanish rather than fail.
  *
  * Throws when the spec is missing the pieces the clients depend on, so a truncated or restructured
  * bundle fails the build rather than quietly generating an empty registry.
@@ -95,6 +99,37 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
 
     val schemas = (document["components"] as? Map<String, Any>)?.get("schemas") as? Map<String, Any>
         ?: throw GradleException("the bundled spec has no components.schemas")
+
+    // The members each problem schema adds to the RFC 9457 base. `ProblemDetail` is the base by
+    // name — it is the RFC's own, and the spec's plain problem schema — so anything a registered
+    // problem schema declares beyond it is an extension member.
+    //
+    // The extension schemas are allOf-composed (`[{$ref: ProblemDetail}, {properties: {...}}]`),
+    // so the members are what the inline branches declare; a `$ref` branch contributes the base.
+    fun propertiesOf(schemaName: String): Set<String> {
+        val schema = schemas[schemaName] as? Map<String, Any>
+            ?: throw GradleException("x-problem-types names schema '$schemaName', which components.schemas has not")
+        val direct = (schema["properties"] as? Map<String, Any>).orEmpty().keys
+        val composed = (schema["allOf"] as? List<Map<String, Any>>).orEmpty()
+            .filterNot { it.containsKey("\$ref") }
+            .flatMap { (it["properties"] as? Map<String, Any>).orEmpty().keys }
+        return direct + composed
+    }
+
+    val baseProblemProperties = propertiesOf("ProblemDetail")
+    val problemExtensionMembers = rawTypes
+        .mapNotNull { it["schema"] as? String }
+        .distinct()
+        .filter { it != "ProblemDetail" }
+        .associateWith { schemaName -> (propertiesOf(schemaName) - baseProblemProperties).toList() }
+    problemExtensionMembers.forEach { (schemaName, members) ->
+        if (members.isEmpty()) {
+            throw GradleException(
+                "problem schema '$schemaName' adds nothing to ProblemDetail — either it is redundant " +
+                    "or the base problem schema gained a member that belongs only to the extension",
+            )
+        }
+    }
 
     val constrainedSchemas = mutableListOf<Map<String, Any?>>()
 
@@ -180,6 +215,7 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
         "problemTypeBase" to problemTypeBase,
         "problemTypes" to problemTypes.toList(),
         "clientIdentity" to clientIdentity,
+        "problemExtensionMembers" to problemExtensionMembers,
         "constrainedSchemas" to constrainedSchemas.toList(),
     )
 }

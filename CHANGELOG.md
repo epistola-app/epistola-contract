@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the `User-Agent` product grammar were hand-written in all three modules — the clients write
     those headers and the server parses them, so a divergence would have made every request from
     that client unidentifiable with nothing to catch it.
+  - The problem-body extension member names (`errors`, `validationErrors`) are derived from the
+    problem schemas the registry names, rather than written out on each side. The server sets those
+    members and the clients read them back out of the raw body by name, so a rename used to make
+    the extension silently vanish; now it fails to compile in all three modules.
 
 - Added `app.epistola.contract:client-jakarta`, a Java client for Jakarta EE application servers
   (WildFly, Open Liberty, Payara, Quarkus). Generated from the bundled spec with openapi-generator's

@@ -110,13 +110,13 @@ internal fun parseProblem(bytes: ByteArray): ParsedProblem? = try {
     val mapper = Serializer.jacksonObjectMapper
     val tree = mapper.readTree(bytes)
     val problem = mapper.treeToValue(tree, ProblemDetail::class.java)
-    val errorsNode = tree.get("errors")
+    val errorsNode = tree.get(ProblemExtensionMembers.ERRORS)
     val errors: List<ValidationError> = if (errorsNode != null && errorsNode.isArray) {
         mapper.convertValue(errorsNode, object : TypeReference<List<ValidationError>>() {})
     } else {
         emptyList()
     }
-    val validationErrorsNode = tree.get("validationErrors")
+    val validationErrorsNode = tree.get(ProblemExtensionMembers.VALIDATION_ERRORS)
     val validationErrors: Map<String, List<DataModelValidationError>> =
         if (validationErrorsNode != null && validationErrorsNode.isObject) {
             mapper.convertValue(validationErrorsNode, object : TypeReference<Map<String, List<DataModelValidationError>>>() {})
