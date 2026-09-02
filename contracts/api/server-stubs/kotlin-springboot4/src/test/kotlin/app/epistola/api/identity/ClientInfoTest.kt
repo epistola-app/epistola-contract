@@ -10,6 +10,40 @@ import kotlin.test.assertNull
 
 class ClientInfoTest {
 
+    // --- The two halves of the wire contract ---
+
+    @Test
+    fun `the header name and product token come from the contract registry`() {
+        // Both sides generate these from the spec's x-client-identity extension. Pinning the
+        // literals here means a change to the registry shows up as a deliberate test edit rather
+        // than a silent change to what every deployed client is expected to send.
+        assertEquals("X-EP-Node-Id", ClientInfo.HEADER_NODE_ID)
+        assertEquals("epistola-contract", ContractIdentity.CONTRACT_PRODUCT)
+        assertEquals(" ", ContractIdentity.PRODUCT_SEPARATOR)
+        assertEquals("/", ContractIdentity.VERSION_SEPARATOR)
+    }
+
+    @Test
+    fun `a User-Agent assembled the way the clients assemble it parses back`() {
+        // The clients build this string from the same generated constants. Assembling it here the
+        // same way and parsing it back is what proves the writing and parsing halves agree —
+        // neither module can depend on the other, so this is the seam where they meet.
+        val stack = listOf(
+            ContractIdentity.CONTRACT_PRODUCT to "1.1.0",
+            "zaakafhandelcomponent" to "3.4.0",
+            "gzac" to "5.0.0",
+        )
+        val userAgent = stack.joinToString(ContractIdentity.PRODUCT_SEPARATOR) { (name, version) ->
+            name + ContractIdentity.VERSION_SEPARATOR + version
+        }
+
+        val info = ClientInfo(products = ClientInfo.parseUserAgent(userAgent), nodeId = "pod-7")
+
+        assertEquals(stack.map { (name, version) -> ClientInfo.Product(name, version) }, info.products)
+        assertEquals("1.1.0", info.contractVersion)
+        assertEquals("3.4.0", info.productVersion("zaakafhandelcomponent"))
+    }
+
     @Test
     fun `parseUserAgent with full stack`() {
         val products = ClientInfo.parseUserAgent(

@@ -19,6 +19,17 @@ import kotlin.test.assertTrue
 class ClientIdentityTest {
 
     @Test
+    fun `the header name and product token come from the contract registry`() {
+        // Generated from the spec's x-client-identity extension, as are the server module's.
+        // Pinning the literals means a registry change shows up as a deliberate test edit rather
+        // than a silent change to what every deployed client sends.
+        assertEquals("X-EP-Node-Id", ClientIdentity.HEADER_NODE_ID)
+        assertEquals("epistola-contract", ContractIdentity.CONTRACT_PRODUCT)
+        assertEquals(" ", ContractIdentity.PRODUCT_SEPARATOR)
+        assertEquals("/", ContractIdentity.VERSION_SEPARATOR)
+    }
+
+    @Test
     fun `builder with no products produces only contract token`() {
         val identity = ClientIdentity.builder()
             .nodeId("test-pod")

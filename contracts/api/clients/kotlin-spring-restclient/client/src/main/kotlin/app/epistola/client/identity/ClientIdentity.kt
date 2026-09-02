@@ -41,8 +41,9 @@ class ClientIdentity private constructor(
     val nodeId: String,
 ) {
     companion object {
-        const val HEADER_NODE_ID = "X-EP-Node-Id"
-        internal const val CONTRACT_PRODUCT = "epistola-contract"
+        /** Header carrying the node identifier, from the contract's `x-client-identity` registry. */
+        const val HEADER_NODE_ID = ContractIdentity.NODE_ID_HEADER
+        internal const val CONTRACT_PRODUCT = ContractIdentity.CONTRACT_PRODUCT
 
         /**
          * The contract version this client library was built against.
@@ -88,11 +89,13 @@ class ClientIdentity private constructor(
         }
 
         fun build(): ClientIdentity {
-            val tokens = mutableListOf("$CONTRACT_PRODUCT/$contractVersion")
-            products.forEach { (name, version) -> tokens.add("$name/$version") }
+            val tokens = mutableListOf(CONTRACT_PRODUCT + ContractIdentity.VERSION_SEPARATOR + contractVersion)
+            products.forEach { (name, version) ->
+                tokens.add(name + ContractIdentity.VERSION_SEPARATOR + version)
+            }
 
             return ClientIdentity(
-                userAgent = tokens.joinToString(" "),
+                userAgent = tokens.joinToString(ContractIdentity.PRODUCT_SEPARATOR),
                 nodeId = nodeId ?: InetAddress.getLocalHost().hostName,
             )
         }

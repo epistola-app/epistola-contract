@@ -41,10 +41,13 @@ import java.util.List;
  */
 public final class ClientIdentity {
 
-    /** Header carrying the node identifier the contract requires. */
-    public static final String HEADER_NODE_ID = "X-EP-Node-Id";
+    /**
+     * Header carrying the node identifier the contract requires, from the spec's
+     * {@code x-client-identity} registry.
+     */
+    public static final String HEADER_NODE_ID = ContractIdentity.NODE_ID_HEADER;
 
-    static final String CONTRACT_PRODUCT = "epistola-contract";
+    static final String CONTRACT_PRODUCT = ContractIdentity.CONTRACT_PRODUCT;
 
     private static final String CONTRACT_VERSION_RESOURCE = "/epistola-contract-version.txt";
 
@@ -134,14 +137,16 @@ public final class ClientIdentity {
             if (name.indexOf('/') >= 0 || name.indexOf(' ') >= 0) {
                 throw new IllegalArgumentException("Product name must not contain '/' or spaces");
             }
-            products.add(name + "/" + version);
+            products.add(name + ContractIdentity.VERSION_SEPARATOR + version);
             return this;
         }
 
         public ClientIdentity build() {
-            StringBuilder userAgent = new StringBuilder(CONTRACT_PRODUCT).append('/').append(contractVersion());
+            StringBuilder userAgent = new StringBuilder(CONTRACT_PRODUCT)
+                    .append(ContractIdentity.VERSION_SEPARATOR)
+                    .append(contractVersion());
             for (String product : products) {
-                userAgent.append(' ').append(product);
+                userAgent.append(ContractIdentity.PRODUCT_SEPARATOR).append(product);
             }
             return new ClientIdentity(userAgent.toString(), nodeId != null ? nodeId : localHostname());
         }

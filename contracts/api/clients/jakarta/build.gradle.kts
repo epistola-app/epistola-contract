@@ -301,6 +301,62 @@ val generateValidation by tasks.registering {
     }
 }
 
+// --- Client-identity constants generated from the spec's x-client-identity extension ---
+//
+// The header name and the User-Agent product token are the wire contract this client writes and
+// the server module parses. Generated on both sides, so they cannot disagree.
+val generatedIdentityDir = layout.buildDirectory.dir("generated-identity/src/main/java")
+
+val generateClientIdentityConstants by tasks.registering {
+    description = "Generates the client-identity constants from the spec's x-client-identity extension"
+    group = "openapi tools"
+
+    inputs.file(bundledSpec)
+    outputs.dir(generatedIdentityDir)
+
+    val outDir = generatedIdentityDir
+    val spec = bundledSpec
+
+    @Suppress("UNCHECKED_CAST")
+    doLast {
+        val identity = readSpec(spec)["clientIdentity"] as Map<String, String>
+
+        val outFile = outDir.get().file("app/epistola/client/jakarta/identity/ContractIdentity.java").asFile
+        outFile.parentFile.mkdirs()
+        outFile.writeText(
+            """
+            |// Generated from the bundled OpenAPI spec's x-client-identity extension — do not edit.
+            |package app.epistola.client.jakarta.identity;
+            |
+            |/**
+            | * The client-identity wire contract, from the spec's {@code x-client-identity} extension.
+            | *
+            | * <p>This client writes these headers and the Epistola server module parses them; both
+            | * generate from this one registry, so the two halves cannot drift apart.
+            | */
+            |final class ContractIdentity {
+            |
+            |    /** Header carrying the caller's node identifier. */
+            |    static final String NODE_ID_HEADER = "${identity["nodeIdHeader"]}";
+            |
+            |    /** The product token every Epistola client's {@code User-Agent} must lead with. */
+            |    static final String CONTRACT_PRODUCT = "${identity["contractProduct"]}";
+            |
+            |    /** Separator between {@code User-Agent} product tokens. */
+            |    static final String PRODUCT_SEPARATOR = "${identity["userAgentProductSeparator"]}";
+            |
+            |    /** Separator between a product name and its version. */
+            |    static final String VERSION_SEPARATOR = "${identity["userAgentVersionSeparator"]}";
+            |
+            |    private ContractIdentity() {
+            |    }
+            |}
+            """.trimMargin() + "\n",
+        )
+        logger.lifecycle("Generated ContractIdentity → ${outFile.relativeTo(project.projectDir)}")
+    }
+}
+
 // --- Contract version resource, read at runtime by ClientIdentity for the User-Agent ---
 val generatedResourcesDir = layout.buildDirectory.dir("generated-resources")
 
@@ -327,6 +383,7 @@ sourceSets {
         java.srcDir(generatedDir.map { it.dir("src/main/java") })
         java.srcDir(generatedProblemSlugsDir)
         java.srcDir(generatedValidationDir)
+        java.srcDir(generatedIdentityDir)
         resources.srcDir(generatedResourcesDir)
     }
 }
@@ -345,7 +402,7 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 tasks.compileJava {
-    dependsOn(generateProblemSlugs, generateValidation)
+    dependsOn(generateProblemSlugs, generateValidation, generateClientIdentityConstants)
 }
 
 tasks.processResources {
@@ -513,7 +570,7 @@ tasks.javadoc {
 
 // The vanniktech plugin's jar tasks need the generated sources to exist first.
 tasks.matching { it.name == "javadocJar" || it.name == "sourcesJar" || it.name == "plainJavadocJar" }.configureEach {
-    dependsOn(generateProblemSlugs, generateValidation, generateContractVersionResource)
+    dependsOn(generateProblemSlugs, generateValidation, generateClientIdentityConstants, generateContractVersionResource)
 }
 
 // GitHub Packages repository for snapshot publishing (standard Gradle publishing plugin)

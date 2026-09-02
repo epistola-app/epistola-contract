@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The contract constants both sides of the wire must agree on are now **generated into every JVM
+  module** instead of hand-copied into each. No module depends on another to get them, which keeps
+  the clients standalone and the Jakarta client free of runtime dependencies.
+  - The server stubs' problem-type slugs and type base now come from the spec's `x-problem-types`
+    registry, as both clients' already did. `ProblemDetails.KnownSlugs` keeps its shape and
+    delegates to the generated `KnownProblemSlugs`, so nothing changes for consumers.
+  - Added `x-client-identity` to the spec: a machine-readable form of the client-identity
+    convention that `info.description` describes normatively. The `X-EP-Node-Id` header name and
+    the `User-Agent` product grammar were hand-written in all three modules — the clients write
+    those headers and the server parses them, so a divergence would have made every request from
+    that client unidentifiable with nothing to catch it.
+
 - Added `app.epistola.contract:client-jakarta`, a Java client for Jakarta EE application servers
   (WildFly, Open Liberty, Payara, Quarkus). Generated from the bundled spec with openapi-generator's
   `java`/`microprofile` library and carrying the same conventions as the Spring client: the client

@@ -106,6 +106,116 @@ if (!bundledSpec.exists()) {
     )
 }
 
+// --- Problem-slug constants generated from the spec's x-problem-types registry ---
+//
+// The same generation the two clients use, from the same shared reading of the spec: the server
+// and the clients sit on opposite sides of one error contract, so the slugs they switch on must
+// come from one place. Before this, the server's copy was hand-written and only a guard test
+// stood between a new problem type and a silently stale constant.
+apply(from = "$rootDir/../../build-logic/contract-spec-model.gradle.kts")
+
+@Suppress("UNCHECKED_CAST")
+val specModel = extra["epistolaSpecModel"] as (Map<String, Any>) -> Map<String, Any>
+
+@Suppress("UNCHECKED_CAST")
+fun readSpec(spec: File): Map<String, Any> = specModel(org.yaml.snakeyaml.Yaml().load<Map<String, Any>>(spec.readText()))
+
+val generatedProblemSlugsDir = layout.buildDirectory.dir("generated-problem-slugs/src/main/kotlin")
+
+val generateProblemSlugs by tasks.registering {
+    description = "Generates KnownProblemSlugs from the spec's x-problem-types extension"
+
+    inputs.file(bundledSpec)
+    outputs.dir(generatedProblemSlugsDir)
+
+    @Suppress("UNCHECKED_CAST")
+    doLast {
+        val model = readSpec(bundledSpec)
+        val base = model["problemTypeBase"] as String
+        val types = model["problemTypes"] as List<Map<String, Any?>>
+
+        val constants = types.joinToString("\n\n") { entry ->
+            "    /** ${entry["status"]} — ${entry["description"]} */\n" +
+                "    const val ${entry["constantName"]}: String = \"${entry["slug"]}\""
+        }
+
+        val outFile = generatedProblemSlugsDir.get()
+            .file("app/epistola/api/error/KnownProblemSlugs.kt").asFile
+        outFile.parentFile.mkdirs()
+        outFile.writeText(
+            """
+            |// Generated from the bundled OpenAPI spec's x-problem-types extension — do not edit.
+            |package app.epistola.api.error
+            |
+            |/** Base URI from the spec's x-problem-types registry; the source of [ProblemDetails.TYPE_BASE]. */
+            |const val GENERATED_PROBLEM_TYPE_BASE: String = "$base"
+            |
+            |/**
+            | * The canonical problem `type` slugs the Epistola API emits, from the contract's
+            | * error-type registry (the spec's `x-problem-types` extension / `docs/error-types.md`).
+            | *
+            | * Generated, so it cannot drift from the contract. The published clients generate the
+            | * same constants from the same registry, which is what makes a `when (e.typeSlug)` on
+            | * the client line up with what a server built on these interfaces emits.
+            | */
+            |object KnownProblemSlugs {
+            |$constants
+            |}
+            """.trimMargin() + "\n",
+        )
+        logger.lifecycle("Generated KnownProblemSlugs with ${types.size} slug(s) → ${outFile.relativeTo(project.projectDir)}")
+    }
+}
+
+// --- Client-identity constants generated from the spec's x-client-identity extension ---
+//
+// This server parses the headers the clients write. Generated on both sides, so the two halves of
+// one wire contract cannot drift apart.
+val generatedIdentityDir = layout.buildDirectory.dir("generated-identity/src/main/kotlin")
+
+val generateClientIdentityConstants by tasks.registering {
+    description = "Generates the client-identity constants from the spec's x-client-identity extension"
+
+    inputs.file(bundledSpec)
+    outputs.dir(generatedIdentityDir)
+
+    @Suppress("UNCHECKED_CAST")
+    doLast {
+        val identity = readSpec(bundledSpec)["clientIdentity"] as Map<String, String>
+
+        val outFile = generatedIdentityDir.get()
+            .file("app/epistola/api/identity/ContractIdentity.kt").asFile
+        outFile.parentFile.mkdirs()
+        outFile.writeText(
+            """
+            |// Generated from the bundled OpenAPI spec's x-client-identity extension — do not edit.
+            |package app.epistola.api.identity
+            |
+            |/**
+            | * The client-identity wire contract, from the spec's `x-client-identity` extension.
+            | *
+            | * The Epistola clients write these headers and this module parses them; both generate
+            | * from this one registry, so the two halves cannot drift apart.
+            | */
+            |internal object ContractIdentity {
+            |    /** Header carrying the caller's node identifier. */
+            |    const val NODE_ID_HEADER: String = "${identity["nodeIdHeader"]}"
+            |
+            |    /** The product token every Epistola client's `User-Agent` leads with. */
+            |    const val CONTRACT_PRODUCT: String = "${identity["contractProduct"]}"
+            |
+            |    /** Separator between `User-Agent` product tokens. */
+            |    const val PRODUCT_SEPARATOR: String = "${identity["userAgentProductSeparator"]}"
+            |
+            |    /** Separator between a product name and its version. */
+            |    const val VERSION_SEPARATOR: String = "${identity["userAgentVersionSeparator"]}"
+            |}
+            """.trimMargin() + "\n",
+        )
+        logger.lifecycle("Generated ContractIdentity → ${outFile.relativeTo(project.projectDir)}")
+    }
+}
+
 openApiGenerate {
     generatorName.set("kotlin-spring")
     inputSpec.set(bundledSpec.absolutePath)
@@ -226,6 +336,8 @@ tasks.openApiGenerate {
 sourceSets {
     main {
         kotlin.srcDir(generatedDir.map { it.dir("src/main/kotlin") })
+        kotlin.srcDir(generatedProblemSlugsDir)
+        kotlin.srcDir(generatedIdentityDir)
         kotlin.srcDir("src/main/kotlin")
         resources.srcDir(layout.buildDirectory.dir("openapi-resource"))
     }
@@ -242,7 +354,7 @@ tasks.processResources {
 }
 
 tasks.compileKotlin {
-    dependsOn(tasks.openApiGenerate)
+    dependsOn(tasks.openApiGenerate, generateProblemSlugs, generateClientIdentityConstants)
 }
 
 dependencies {
@@ -263,11 +375,11 @@ tasks.test {
 
 // Exclude generated build files from ktlint
 tasks.withType<org.jlleitschuh.gradle.ktlint.tasks.KtLintCheckTask> {
-    dependsOn(tasks.openApiGenerate)
+    dependsOn(tasks.openApiGenerate, generateProblemSlugs, generateClientIdentityConstants)
 }
 
 tasks.withType<org.jlleitschuh.gradle.ktlint.tasks.KtLintFormatTask> {
-    dependsOn(tasks.openApiGenerate)
+    dependsOn(tasks.openApiGenerate, generateProblemSlugs, generateClientIdentityConstants)
 }
 
 // Configure ktlint to exclude generated sources
@@ -292,7 +404,7 @@ kover {
 
 // Configure vanniktech plugin's jar tasks to depend on openApiGenerate since sources are generated
 tasks.matching { it.name == "plainJavadocJar" || it.name == "sourcesJar" }.configureEach {
-    dependsOn(tasks.openApiGenerate, copyOpenApiSpec)
+    dependsOn(tasks.openApiGenerate, generateProblemSlugs, generateClientIdentityConstants, copyOpenApiSpec)
 }
 
 // GitHub Packages repository for snapshot publishing (standard Gradle publishing plugin)

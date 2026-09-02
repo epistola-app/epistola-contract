@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: EUPL-1.2
 
 // Shared reading of the bundled OpenAPI spec for the contract-derived Gradle builds
-// (the Kotlin Spring client and the Jakarta EE client).
+// (the Kotlin Spring client, the Jakarta EE client, and the Kotlin server stubs).
 //
-// Each client generates the same three things from the contract — the problem-type registry,
-// the constraint validators, and the contract version — but in its own language. What is
-// identical between them is *which* parts of the spec those come from and what counts as a
-// constraint; what differs is only the emitted syntax. That reading lives here, once, so a new
-// constraint keyword or a change to the registry's shape is one edit rather than two that can
-// silently disagree.
+// Each build generates the same things from the contract — the problem-type registry, the
+// client-identity convention, the constraint validators, the contract version — but in its own
+// language. What is identical between them is *which* parts of the spec those come from and what
+// counts as a constraint; what differs is only the emitted syntax. That reading lives here, once,
+// so a new constraint keyword or a change to a registry's shape is one edit rather than several
+// that can silently disagree.
 //
 // Applied from each client's build.gradle.kts via
 //   apply(from = "$rootDir/../../build-logic/contract-spec-model.gradle.kts")
@@ -38,6 +38,10 @@
  *   at least one constraint, with `name` and `fields`. Each field carries `property`, `nullable`
  *   (not required, or explicitly nullable) and `constraints` — a list of maps naming the
  *   `kind` (`length`, `pattern`, `range`, `minItems`) and its bounds.
+ * - `clientIdentity`: `Map<String, String>` — `x-client-identity`, the header name and
+ *   `User-Agent` grammar every client writes and the server parses. Both sides generate their
+ *   constants from this, because a mismatch here makes every request from that client
+ *   unidentifiable and nothing else would catch it.
  *
  * Throws when the spec is missing the pieces the clients depend on, so a truncated or restructured
  * bundle fails the build rather than quietly generating an empty registry.
@@ -72,6 +76,21 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
             "description" to (entry["description"] as? String).orEmpty().replace(Regex("\\s+"), " ").trim(),
             "constantName" to slug.uppercase().replace('-', '_'),
         )
+    }
+
+    val identity = document["x-client-identity"] as? Map<String, Any>
+        ?: throw GradleException(
+            "the bundled spec has no x-client-identity extension — the client-identity constants " +
+                "cannot be generated",
+        )
+    val clientIdentity = listOf(
+        "nodeIdHeader",
+        "contractProduct",
+        "userAgentProductSeparator",
+        "userAgentVersionSeparator",
+    ).associateWith { key ->
+        identity[key] as? String
+            ?: throw GradleException("x-client-identity.$key is missing from the bundled spec")
     }
 
     val schemas = (document["components"] as? Map<String, Any>)?.get("schemas") as? Map<String, Any>
@@ -160,6 +179,7 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
         "version" to version,
         "problemTypeBase" to problemTypeBase,
         "problemTypes" to problemTypes.toList(),
+        "clientIdentity" to clientIdentity,
         "constrainedSchemas" to constrainedSchemas.toList(),
     )
 }

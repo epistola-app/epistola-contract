@@ -195,6 +195,55 @@ val generateProblemSlugs by tasks.registering {
     }
 }
 
+// --- Client-identity constants generated from the spec's x-client-identity extension ---
+//
+// The header name and the User-Agent product token are the wire contract this client writes and
+// the server module parses. Generated on both sides, so they cannot disagree.
+val generatedIdentityDir = layout.buildDirectory.dir("generated-identity/src/main/kotlin")
+
+val generateClientIdentityConstants by tasks.registering {
+    description = "Generates the client-identity constants from the spec's x-client-identity extension"
+
+    inputs.file(bundledSpec)
+    outputs.dir(generatedIdentityDir)
+
+    @Suppress("UNCHECKED_CAST")
+    doLast {
+        val identity = readSpec(bundledSpec)["clientIdentity"] as Map<String, String>
+
+        val outFile = generatedIdentityDir.get()
+            .file("app/epistola/client/identity/ContractIdentity.kt").asFile
+        outFile.parentFile.mkdirs()
+        outFile.writeText(
+            """
+            |// Generated from the bundled OpenAPI spec's x-client-identity extension — do not edit.
+            |package app.epistola.client.identity
+            |
+            |/**
+            | * The client-identity wire contract, from the spec's `x-client-identity` extension.
+            | *
+            | * This client writes these headers and the Epistola server module parses them; both
+            | * generate from this one registry, so the two halves cannot drift apart.
+            | */
+            |internal object ContractIdentity {
+            |    /** Header carrying the caller's node identifier. */
+            |    const val NODE_ID_HEADER: String = "${identity["nodeIdHeader"]}"
+            |
+            |    /** The product token every Epistola client's `User-Agent` must lead with. */
+            |    const val CONTRACT_PRODUCT: String = "${identity["contractProduct"]}"
+            |
+            |    /** Separator between `User-Agent` product tokens. */
+            |    const val PRODUCT_SEPARATOR: String = "${identity["userAgentProductSeparator"]}"
+            |
+            |    /** Separator between a product name and its version. */
+            |    const val VERSION_SEPARATOR: String = "${identity["userAgentVersionSeparator"]}"
+            |}
+            """.trimMargin() + "\n",
+        )
+        logger.lifecycle("Generated ContractIdentity → ${outFile.relativeTo(project.projectDir)}")
+    }
+}
+
 // Generate a resource file with the contract version so ClientIdentity can read it at runtime.
 // Uses the version from the spec (which is updated to the full version on each release).
 val generateContractVersionResource by tasks.registering {
@@ -217,6 +266,7 @@ sourceSets {
         kotlin.srcDir(generatedDir.map { it.dir("src/main/kotlin") })
         kotlin.srcDir(generatedValidationDir)
         kotlin.srcDir(generatedProblemSlugsDir)
+        kotlin.srcDir(generatedIdentityDir)
         resources.srcDir(layout.buildDirectory.dir("generated-resources"))
     }
 }
@@ -226,7 +276,7 @@ tasks.processResources {
 }
 
 tasks.compileKotlin {
-    dependsOn(generateValidation, generateProblemSlugs)
+    dependsOn(generateValidation, generateProblemSlugs, generateClientIdentityConstants)
     compilerOptions {
         apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
         languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0)
@@ -251,11 +301,11 @@ tasks.test {
 
 // Exclude generated build files from ktlint
 tasks.withType<org.jlleitschuh.gradle.ktlint.tasks.KtLintCheckTask> {
-    dependsOn(generateValidation, generateProblemSlugs)
+    dependsOn(generateValidation, generateProblemSlugs, generateClientIdentityConstants)
 }
 
 tasks.withType<org.jlleitschuh.gradle.ktlint.tasks.KtLintFormatTask> {
-    dependsOn(generateValidation, generateProblemSlugs)
+    dependsOn(generateValidation, generateProblemSlugs, generateClientIdentityConstants)
 }
 
 // Configure ktlint to exclude generated sources
@@ -267,7 +317,12 @@ configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
 
 // Configure vanniktech plugin's jar tasks to depend on code generation since sources are generated
 tasks.matching { it.name == "plainJavadocJar" || it.name == "sourcesJar" }.configureEach {
-    dependsOn(generateValidation, generateProblemSlugs, generateContractVersionResource)
+    dependsOn(
+        generateValidation,
+        generateProblemSlugs,
+        generateClientIdentityConstants,
+        generateContractVersionResource,
+    )
 }
 
 // GitHub Packages repository for snapshot publishing (standard Gradle publishing plugin)

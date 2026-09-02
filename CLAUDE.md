@@ -154,22 +154,38 @@ Generated code is NOT committed - rebuilt from spec each time.
 
 ### Shared build logic
 
-`contracts/api/build-logic/` holds the Gradle scripts the client builds share
+`contracts/api/build-logic/` holds the Gradle scripts the JVM builds share
 (`apply(from = "$rootDir/../../build-logic/…")`):
 
 - `contract-version.gradle.kts` — group and version, derived from the spec.
-- `contract-spec-model.gradle.kts` — reads the bundled spec into the plain-data model the Kotlin
-  and Jakarta clients both generate from (problem types, constrained schemas, contract version).
-  Each build emits its own language from that model; only the emitted syntax is per-client. Add a
-  constraint keyword or change the registry's shape here, not in either build file.
+- `contract-spec-model.gradle.kts` — reads the bundled spec into the plain-data model the two
+  clients and the server stubs all generate from: problem types, the client-identity registry,
+  constrained schemas, and the contract version. Each build emits its own language from that
+  model; only the emitted syntax is per-module. Add a constraint keyword or change a registry's
+  shape here, not in the individual build files.
+
+### Contract constants are generated, not copied
+
+Anything both sides of the wire must agree on lives in a machine-readable spec extension and is
+generated into every module that needs it. No module depends on another to get them — the clients
+are standalone artifacts, and the Jakarta client ships no runtime dependencies at all.
+
+| Extension | Generates | Into |
+| --- | --- | --- |
+| `x-problem-types` | `KnownProblemSlugs`, the problem-type base URI | Kotlin client, Jakarta client, server stubs |
+| `x-client-identity` | `ContractIdentity` — the `X-EP-Node-Id` header name and the `User-Agent` product grammar | Kotlin client, Jakarta client, server stubs |
+
+The clients write those headers and the server parses them, so a divergence would make every
+request from that client unidentifiable with nothing else to catch it. When you change one of
+these registries, expect tests in all three modules to fail — they pin the literals on purpose.
 
 ### The problem-type registry and code that follows it
 
 The machine-readable problem-type registry is the **`x-problem-types` extension** at the top
 of `contracts/api/openapi.yaml`. Automation keeps most consumers aligned with it:
 
-- The Kotlin and Jakarta clients' `KnownProblemSlugs` are **generated** from it
-  (`generateProblemSlugs` task in each build) — do not edit them by hand.
+- `KnownProblemSlugs` is **generated** from it in all three JVM modules — both clients and the
+  server stubs (`generateProblemSlugs` task in each build). Do not edit them by hand.
 - `contracts/api/scripts/check-error-registry.sh` (run by `make lint` and CI) fails when
   `contracts/api/docs/error-types.md` disagrees with `x-problem-types`.
 - Guard tests (`ProblemRegistryTest` in each module's `.../error/` test package) fail when the
@@ -184,8 +200,11 @@ When you add, rename, or change a problem `type`, update in the same change:
   `contracts/api/openapi.yaml` under `components.schemas`; if it should reuse Spring's native
   `ProblemDetail` on the server, add it to `schemaMappings` in the server `build.gradle.kts` —
   and to `.openapi-generator-ignore` if it is allOf-composed).
-- **Server** `ProblemDetails.kt`: the `KnownSlugs` constant, plus a builder + `*_PROPERTY`
-  constant for any new extension member (following `validation` / `ERRORS_PROPERTY`).
+- **Server** `ProblemDetails.kt`: a builder + `*_PROPERTY` constant for any new extension member
+  (following `validation` / `ERRORS_PROPERTY`), and a delegating entry in the compatibility
+  `KnownSlugs` object (`const val X = KnownProblemSlugs.X`) — `ProblemRegistryTest` fails until
+  that object covers every generated slug. The slug *values* are generated; only that
+  compatibility shim is hand-written.
 - **Kotlin client**: only if the problem carries a new extension member — extend
   `ProblemDetailErrorHandler.parseProblem` to surface it on `ProblemDetailException`
   (with an `isXxxProblem` flag, following `errors`/`validationErrors`).

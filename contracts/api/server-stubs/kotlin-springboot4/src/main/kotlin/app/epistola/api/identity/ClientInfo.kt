@@ -47,8 +47,9 @@ data class ClientInfo(
     data class Product(val name: String, val version: String)
 
     companion object {
-        const val HEADER_NODE_ID = "X-EP-Node-Id"
-        internal const val CONTRACT_PRODUCT = "epistola-contract"
+        /** Header carrying the node identifier, from the contract's `x-client-identity` registry. */
+        const val HEADER_NODE_ID = ContractIdentity.NODE_ID_HEADER
+        internal const val CONTRACT_PRODUCT = ContractIdentity.CONTRACT_PRODUCT
 
         /**
          * Parses client identity from an [HttpServletRequest].
@@ -69,10 +70,16 @@ data class ClientInfo(
          */
         fun parseUserAgent(userAgent: String?): List<Product> {
             if (userAgent.isNullOrBlank()) return emptyList()
+            // Split on any run of whitespace rather than the single separator the contract
+            // specifies: this is the parsing half, and RFC 9110 allows more than one space
+            // between product tokens.
             return userAgent.trim().split("\\s+".toRegex()).map { token ->
-                val slash = token.indexOf('/')
-                if (slash >= 0) {
-                    Product(token.substring(0, slash), token.substring(slash + 1))
+                val separator = token.indexOf(ContractIdentity.VERSION_SEPARATOR)
+                if (separator >= 0) {
+                    Product(
+                        token.substring(0, separator),
+                        token.substring(separator + ContractIdentity.VERSION_SEPARATOR.length),
+                    )
                 } else {
                     Product(token, "")
                 }
