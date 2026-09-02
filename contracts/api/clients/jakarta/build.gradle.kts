@@ -353,7 +353,9 @@ val generateClientIdentityConstants by tasks.registering {
 
     @Suppress("UNCHECKED_CAST")
     doLast {
-        val identity = readSpec(spec)["clientIdentity"] as Map<String, String>
+        val model = readSpec(spec)
+        val identity = model["clientIdentity"] as Map<String, String>
+        val mediaTypes = model["vendorMediaTypes"] as Map<String, String>
 
         val outFile = outDir.get().file("app/epistola/client/jakarta/identity/ContractIdentity.java").asFile
         outFile.parentFile.mkdirs()
@@ -387,7 +389,36 @@ val generateClientIdentityConstants by tasks.registering {
             |}
             """.trimMargin() + "\n",
         )
-        logger.lifecycle("Generated ContractIdentity → ${outFile.relativeTo(project.projectDir)}")
+        val mediaTypeFile = outDir.get()
+            .file("app/epistola/client/jakarta/ContractMediaTypes.java").asFile
+        mediaTypeFile.parentFile.mkdirs()
+        mediaTypeFile.writeText(
+            """
+            |// Generated from the media types the bundled OpenAPI spec declares — do not edit.
+            |package app.epistola.client.jakarta;
+            |
+            |/**
+            | * The versioned vendor media types this API speaks.
+            | *
+            | * <p>Generated because they carry the API major version: hand-writing them in the request
+            | * paths the generator does not cover would leave those paths behind at the next bump.
+            | * Public because a consumer building its own request needs the same values, and because
+            | * JAX-RS annotations need them as compile-time constants.
+            | */
+            |public final class ContractMediaTypes {
+            |
+            |    /** Request and response bodies. */
+            |    public static final String VENDOR_JSON = "${mediaTypes["json"]}";
+            |
+            |    /** Streamed NDJSON responses, as used by result collection. */
+            |    public static final String VENDOR_NDJSON = "${mediaTypes["ndjson"]}";
+            |
+            |    private ContractMediaTypes() {
+            |    }
+            |}
+            """.trimMargin() + "\n",
+        )
+        logger.lifecycle("Generated ContractIdentity + ContractMediaTypes → ${outFile.relativeTo(project.projectDir)}")
     }
 }
 

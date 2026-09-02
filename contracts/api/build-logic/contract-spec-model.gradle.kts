@@ -46,6 +46,9 @@
  *   names, the members it adds on top of the base `ProblemDetail` (`ValidationProblemDetail` →
  *   `["errors"]`). The server writes these members and the clients read them by name out of the
  *   raw body, so a rename would make the extension silently vanish rather than fail.
+ * - `vendorMediaTypes`: `Map<String, String>` — the versioned vendor media types the API speaks,
+ *   keyed `json` and `ndjson`. They carry the API major version, so hand-writing them in the
+ *   hand-written request paths would leave those paths behind at the next version bump.
  *
  * Throws when the spec is missing the pieces the clients depend on, so a truncated or restructured
  * bundle fails the build rather than quietly generating an empty registry.
@@ -97,6 +100,34 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
             ?: throw GradleException("x-client-identity.$key is missing from the bundled spec")
     }
 
+    // The versioned vendor media types, taken from what the spec's operations actually declare
+    // rather than from a literal repeated in each module. `check-media-types.sh` keeps the spec
+    // side honest; this keeps the hand-written request paths in step with it.
+    val vendorMediaTypePattern = Regex("application/vnd\\.epistola\\.v\\d+\\+(json|ndjson)")
+
+    // Media types are map *keys* under every operation's `content`, so collect them by walking the
+    // document. (Matching them in the raw YAML would be shorter, but this script is applied with
+    // `apply(from = ...)` and so compiles against the base Gradle API only — no snakeyaml.)
+    fun mediaTypeKeys(node: Any?): Sequence<String> = when (node) {
+        is Map<*, *> -> node.entries.asSequence().flatMap { (key, value) ->
+            sequenceOf(key as? String).filterNotNull() + mediaTypeKeys(value)
+        }
+        is List<*> -> node.asSequence().flatMap { mediaTypeKeys(it) }
+        else -> emptySequence()
+    }
+
+    val vendorMediaTypes = mediaTypeKeys(document)
+        .filter { vendorMediaTypePattern.matches(it) }
+        .distinct()
+        .associateBy { it.substringAfterLast('+') }
+    listOf("json", "ndjson").forEach { suffix ->
+        if (vendorMediaTypes[suffix] == null) {
+            throw GradleException(
+                "the bundled spec declares no application/vnd.epistola.v{n}+$suffix media type — " +
+                    "the hand-written request paths generate their content types from it",
+            )
+        }
+    }
     val schemas = (document["components"] as? Map<String, Any>)?.get("schemas") as? Map<String, Any>
         ?: throw GradleException("the bundled spec has no components.schemas")
 
@@ -216,6 +247,7 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
         "problemTypes" to problemTypes.toList(),
         "clientIdentity" to clientIdentity,
         "problemExtensionMembers" to problemExtensionMembers,
+        "vendorMediaTypes" to vendorMediaTypes,
         "constrainedSchemas" to constrainedSchemas.toList(),
     )
 }

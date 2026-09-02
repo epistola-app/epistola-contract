@@ -230,7 +230,9 @@ val generateClientIdentityConstants by tasks.registering {
 
     @Suppress("UNCHECKED_CAST")
     doLast {
-        val identity = readSpec(bundledSpec)["clientIdentity"] as Map<String, String>
+        val model = readSpec(bundledSpec)
+        val identity = model["clientIdentity"] as Map<String, String>
+        val mediaTypes = model["vendorMediaTypes"] as Map<String, String>
 
         val outFile = generatedIdentityDir.get()
             .file("app/epistola/client/identity/ContractIdentity.kt").asFile
@@ -261,7 +263,31 @@ val generateClientIdentityConstants by tasks.registering {
             |}
             """.trimMargin() + "\n",
         )
-        logger.lifecycle("Generated ContractIdentity → ${outFile.relativeTo(project.projectDir)}")
+        val mediaTypeFile = generatedIdentityDir.get()
+            .file("app/epistola/client/ContractMediaTypes.kt").asFile
+        mediaTypeFile.parentFile.mkdirs()
+        mediaTypeFile.writeText(
+            """
+            |// Generated from the media types the bundled OpenAPI spec declares — do not edit.
+            |package app.epistola.client
+            |
+            |/**
+            | * The versioned vendor media types this API speaks.
+            | *
+            | * Generated because they carry the API major version: hand-writing them in the request
+            | * paths the generator does not cover would leave those paths behind at the next bump.
+            | * Public because a consumer building its own request needs the same values.
+            | */
+            |object ContractMediaTypes {
+            |    /** Request and response bodies. */
+            |    const val VENDOR_JSON: String = "${mediaTypes["json"]}"
+            |
+            |    /** Streamed NDJSON responses, as used by result collection. */
+            |    const val VENDOR_NDJSON: String = "${mediaTypes["ndjson"]}"
+            |}
+            """.trimMargin() + "\n",
+        )
+        logger.lifecycle("Generated ContractIdentity + ContractMediaTypes → ${outFile.relativeTo(project.projectDir)}")
     }
 }
 

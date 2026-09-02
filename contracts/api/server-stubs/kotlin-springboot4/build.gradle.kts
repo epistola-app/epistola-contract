@@ -316,6 +316,10 @@ openApiGenerate {
 }
 
 tasks.openApiGenerate {
+    // Read outside doLast: the vendor media type carries the API major version, so it comes from
+    // the spec rather than a literal that a version bump would leave behind.
+    val vendorJson = (readSpec(bundledSpec)["vendorMediaTypes"] as Map<String, String>)["json"]
+
     doLast {
         // OpenAPI Generator derives Spring `produces` from the union of a method's response
         // media types. Bodyless 204 success responses contribute none, so for those operations
@@ -338,7 +342,7 @@ tasks.openApiGenerate {
             val source = apiFile.readText()
             val normalized = source.replace(
                 Regex("""produces\s*=\s*\[\s*"application/problem\+json"\s*]"""),
-                """produces = ["application/vnd.epistola.v1+json", "application/problem+json"]""",
+                """produces = ["$vendorJson", "application/problem+json"]""",
             )
             if (normalized != source) {
                 apiFile.writeText(normalized)

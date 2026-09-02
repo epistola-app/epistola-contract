@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     problem schemas the registry names, rather than written out on each side. The server sets those
     members and the clients read them back out of the raw body by name, so a rename used to make
     the extension silently vanish; now it fails to compile in all three modules.
+  - The versioned vendor media types come from the spec's own operations rather than a literal in
+    each module. They carry the API major version, so the hand-written request paths — result
+    collection in both clients, the server's `produces` normalization — would otherwise be left
+    behind at the next bump. Both clients now expose a public `ContractMediaTypes` for consumers
+    building their own requests.
 
 - Added `app.epistola.contract:client-jakarta`, a Java client for Jakarta EE application servers
   (WildFly, Open Liberty, Payara, Quarkus). Generated from the bundled spec with openapi-generator's

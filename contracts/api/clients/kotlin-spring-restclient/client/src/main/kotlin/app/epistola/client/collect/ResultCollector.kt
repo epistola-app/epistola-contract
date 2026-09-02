@@ -4,6 +4,7 @@
 
 package app.epistola.client.collect
 
+import app.epistola.client.ContractMediaTypes
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import org.springframework.http.HttpMethod
@@ -88,8 +89,9 @@ class ResultCollector private constructor(
         private set
 
     companion object {
-        private val NDJSON = MediaType.parseMediaType("application/vnd.epistola.v1+ndjson")
-        private val EPISTOLA_JSON = MediaType.parseMediaType("application/vnd.epistola.v1+json")
+        // Generated from the spec, because the vendor media type carries the API major version.
+        private val NDJSON = MediaType.parseMediaType(ContractMediaTypes.VENDOR_NDJSON)
+        private val EPISTOLA_JSON = MediaType.parseMediaType(ContractMediaTypes.VENDOR_JSON)
 
         // Optional decompressors — loaded via reflection to avoid hard dependencies
         private val lz4Decompressor: ((InputStream) -> InputStream)? = tryLoadLz4()
