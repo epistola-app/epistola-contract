@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed the Kotlin client silently dropping problem-body members outside `type`/`title`/`status`/
+  `detail`/`instance`. `ProblemDetail` was a generated, closed data class — Jackson ignores unknown
+  properties by default, so an extension member on any problem type the contract adds later
+  (`catalog-schema-too-old`'s `version`/`baselineVersion`, say) was parsed and thrown away with no
+  error and no way to reach it. `ProblemDetail` is now hand-written, substituted for the generated
+  model via `schemaMappings` (same fully-qualified name, so no call-site changes), with a catch-all
+  `extensions: Map<String, Any?>` populated by Jackson's creator-parameter any-setter. Also exposed
+  as `ProblemDetailException.extensions`. `errors` and `validationErrors` are unaffected — those two
+  known extensions were already read separately and still are.
+
 - Fixed the Kotlin client's generated binary operations — every operation the contract declares as
   `format: binary`: `downloadDocument`, `previewDocument`, asset content, `uploadAsset`,
   `importCatalog`. They generated as `java.io.File`, which Spring has no message converter for, so

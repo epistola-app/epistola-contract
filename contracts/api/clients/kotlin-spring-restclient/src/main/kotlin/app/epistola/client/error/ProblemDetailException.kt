@@ -28,9 +28,12 @@ import java.nio.charset.Charset
  * The machine-readable discriminator is the problem [type] URI; switch on [typeSlug]. Field-level
  * validation errors (the `ValidationProblemDetail` shape from the contract) are surfaced via
  * [errors]; per-example data-model validation failures (the `DataModelValidationProblemDetail`
- * shape, `data-model-validation-error`) are surfaced via [validationErrors] — the generated
- * `ProblemDetail`, `ValidationProblemDetail`, and `DataModelValidationProblemDetail` models are
- * independent data classes, so the base fields and each extension are carried separately.
+ * shape, `data-model-validation-error`) are surfaced via [validationErrors] — `ProblemDetail`,
+ * `ValidationProblemDetail`, and `DataModelValidationProblemDetail` are independent classes, so the
+ * base fields and each extension are carried separately. Any *other* member a problem body carries —
+ * one the contract does not name, such as `catalog-schema-too-old`'s `version` / `baselineVersion` —
+ * is in [extensions], since [ProblemDetail] is hand-written with a catch-all rather than generated
+ * as a closed set of fields.
  */
 class ProblemDetailException(
     /** The parsed base problem (`type`, `title`, `status`, `detail`, `instance`). */
@@ -75,6 +78,13 @@ class ProblemDetailException(
 
     /** Occurrence-specific explanation (RFC 9457 `detail`), if the server provided one. */
     val detail: String? get() = problem.detail
+
+    /**
+     * Every problem member outside `type`/`title`/`status`/`detail`/`instance`, keyed by its JSON
+     * name — `catalog-schema-too-old`'s `version` and `baselineVersion`, or any extension member on
+     * any problem type the contract adds later, without needing a client release to read it.
+     */
+    val extensions: Map<String, Any?> get() = problem.extensions
 
     /** True when this problem carried field-level validation errors. */
     val isValidationProblem: Boolean get() = errors.isNotEmpty()

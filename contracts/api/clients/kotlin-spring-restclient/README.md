@@ -250,14 +250,35 @@ try {
 `ProblemDetailException` exposes `type`, `typeSlug`, `title`, `problemStatus`, `detail`,
 `errors` (field-level validation errors, empty unless it's a validation problem),
 `validationErrors` (per-example data-model failures, empty unless it's a
-`data-model-validation-error` problem), `isValidationProblem`, and
-`isDataModelValidationProblem`. See [error-types.md](../../docs/error-types.md) for the full list
-of problem `type` slugs.
+`data-model-validation-error` problem), `isValidationProblem`, `isDataModelValidationProblem`, and
+`extensions`. See [error-types.md](../../docs/error-types.md) for the full list of problem `type`
+slugs.
 
 Error responses that are **not** `application/problem+json` (e.g. an HTML page from a proxy or
 gateway, or an empty body) still surface as a plain `RestClientResponseException` /
 `HttpClientErrorException` / `HttpServerErrorException` — the handler is additive and never
 hides information.
+
+### Extension members outside `errors` and `validationErrors`
+
+A problem body can carry members this contract doesn't give a dedicated name — the API may add
+one to any existing or future problem type without that being a breaking change. `extensions` is a
+`Map<String, Any?>` of everything the five RFC 9457 base fields don't already cover:
+
+```kotlin
+} catch (e: ProblemDetailException) {
+    if (e.typeSlug == "catalog-schema-too-old") {
+        val version = e.extensions["version"] as? Int
+        val baselineVersion = e.extensions["baselineVersion"] as? Int
+        log.error("Bundled catalog schema is version $version; server requires $baselineVersion+")
+    }
+}
+```
+
+`typeSlug` needs no registry entry to work for a problem type either — it strips
+[error-types.md](../../docs/error-types.md)'s registered base URI generically, so both `typeSlug`
+and `extensions` are available for a problem type the moment the server starts sending it, ahead of
+any client release that adds a named constant for it.
 
 ## Generating Documents
 

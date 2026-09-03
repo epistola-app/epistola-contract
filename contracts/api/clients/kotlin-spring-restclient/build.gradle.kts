@@ -87,6 +87,11 @@ openApiGenerate {
     // family uses for a type outside its own package.
     typeMappings.set(mapOf("file" to "Resource"))
     importMappings.set(mapOf("Resource" to "org.springframework.core.io.Resource"))
+    // ProblemDetail is hand-written (src/main/kotlin/app/epistola/client/model/ProblemDetail.kt) so
+    // it can carry a catch-all for extension members the five named fields don't model — a closed
+    // generated data class silently drops anything else Jackson doesn't recognize. Same
+    // fully-qualified name, so schemaMappings substitutes it with no call-site changes.
+    schemaMappings.set(mapOf("ProblemDetail" to "app.epistola.client.model.ProblemDetail"))
     configOptions.set(
         mapOf(
             "library" to "jvm-spring-restclient",
