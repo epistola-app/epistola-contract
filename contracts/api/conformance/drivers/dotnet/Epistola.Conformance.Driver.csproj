@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The conformance driver for the .NET client. Deliberately outside the client's solution: it is a
+    test harness, not part of the published package, and nothing here should ever be packed.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>Epistola.Conformance.Driver</AssemblyName>
+    <RootNamespace>Epistola.Conformance</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../clients/dotnet-httpclient/src/Epistola.Client/Epistola.Client.csproj" />
+  </ItemGroup>
+
+</Project>

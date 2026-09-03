@@ -41,6 +41,7 @@ make bundle        # Bundle spec into openapi.yaml
 make build         # Build every client, the server stubs and the catalog
 make build-jakarta # Build the Jakarta EE client only
 make mock          # Start mock server on localhost:4010
+make conformance   # Check every client behaves identically on the wire
 make breaking      # Check for breaking changes vs main
 ```
 
@@ -269,6 +270,26 @@ The spec is validated with Redocly using these rules:
 2. Run `make bundle` to create bundled spec
 3. Run `make build` to verify client/server generation compiles
 4. Run `make mock` to test endpoints with mock server
+5. Run `make conformance` to check every client still behaves identically on the wire
+
+### Cross-client conformance
+
+`contracts/api/conformance/` holds the suite that keeps the four clients behaving the same way to
+one server. A scripted server plays a scenario's responses back, records every request, and judges
+that record against the scenario; each client contributes a driver that asks the server what to do
+and **asserts nothing**.
+
+The expectations therefore live in exactly one place, `conformance/scenarios/*.yaml`, and a scenario
+written once is enforced against all four clients. That is the point: four separate test suites
+cannot hold four clients to one behaviour, because nothing keeps them in step.
+
+When you change anything both sides of the wire agree on — an identity header, a media type, the
+collect request shape, the backoff policy, an auth scheme — add or update a scenario. Do **not** add
+the assertion to one client's tests and leave the other three; that is the failure mode this exists
+to prevent.
+
+`conformance/README.md` has the driver contract, the scenario vocabulary, and the two shipped
+defects the suite found on its first run.
 
 ## Branching Strategy
 

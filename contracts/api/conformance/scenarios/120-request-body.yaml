@@ -1,0 +1,87 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: request-body
+title: A request body serializes to the same JSON from every client
+why: >
+  Bodies are entirely the generators' work — four of them, none sharing a line of code — and the
+  other scenarios barely touch it: ping carries three optional strings and collect's body is built
+  by hand. This one submits a real generation request, so the assertion covers what actually goes
+  over the wire for the operation consumers use most.
+
+  The interesting part is what is *not* sent. Five optional fields are left unset, and a client that
+  serializes them as explicit nulls says something different from one that omits them: the contract
+  marks variantId, versionId and environmentId mutually exclusive with other fields, so a null that
+  looks like a value is a request a strict server can reject. Jackson, JSON-B, System.Text.Json and
+  pydantic each decide this for themselves, by configuration none of them shares.
+
+  The free-form `data` object is the other half: it is `type: object` in the schema, so nothing
+  types it and each client hands its serializer a raw map. Every JSON type is in there, including a
+  decimal, because that is where serializers most often disagree with each other.
+
+action:
+  name: generate-document
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    catalogId: default
+    templateId: invoice
+    correlationId: inv-2026-0042
+    routingKey: acme-node-1
+    data:
+      customerName: Acme B.V.
+      invoiceNumber: 2026-0042
+      lineCount: 3
+      amountDue: 19.99
+      exactHalf: 19.5
+      paid: false
+      notes: null
+      address:
+        city: Sittard
+        postalCode: 6131 AL
+      lines:
+        - { sku: A-1, qty: 2 }
+        - { sku: B-2, qty: 1 }
+
+script:
+  - status: 202
+    contentType: application/vnd.epistola.v1+json
+    body:
+      requestId: 88888888-8888-4888-8888-000000000001
+      status: PENDING
+      jobType: SINGLE
+      totalCount: 1
+      createdAt: "2026-02-01T08:00:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/documents/generate
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+      body:
+        json:
+          catalogId: default
+          templateId: invoice
+          correlationId: inv-2026-0042
+          routingKey: acme-node-1
+          data:
+            customerName: Acme B.V.
+            invoiceNumber: "2026-0042"
+            lineCount: 3
+            amountDue: 19.99
+            exactHalf: 19.5
+            paid: false
+            address:
+              city: Sittard
+              postalCode: 6131 AL
+        # Unset optionals carry no value. Absent and null are the same thing here — the schema
+        # types these `[string, "null"]` — and the serializers disagree on which they emit: the
+        # Kotlin client sends explicit nulls, the other three omit the keys. Both are legal, and
+        # forcing one spelling would mean fighting three generators for no contract-level gain.
+        # It does put one requirement on a server: variantId/attributes and versionId/environmentId
+        # are mutually exclusive, so exclusivity has to be judged on null-ness, not on presence.
+        jsonNullOrAbsent: [variantId, attributes, versionId, environmentId, filename]

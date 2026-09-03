@@ -1,0 +1,54 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: partition-routing
+title: All four clients hash a routing key to the same partition the server would
+why: >
+  The server assigns a result to a partition with murmur3 x86-32 seed 0, and each client
+  reimplements that hash on its own platform to answer "will this key come back to me?". Four
+  independent implementations of a bit-twiddling algorithm, all of which must agree with a fifth
+  written in Guava — and each client's own tests check only a single reference vector, which a
+  wrong-but-consistent implementation can pass.
+
+  Getting it wrong is quiet. `routingKeyToMe` hands back a key the caller then submits with a
+  generation request; if the client's arithmetic disagrees with the server's, the result is routed
+  to a different node, which acknowledges it. The submitting node waits for a result that has
+  already been delivered elsewhere.
+
+  So this pins two things: that the answers are identical across clients — literals here, because
+  agreement is the property — and that `routingKeyToMe` returns a key which actually lands on a
+  partition this node owns, which is self-checking and needs no literal at all.
+
+action:
+  name: routing
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    keys:
+      - invoice-2026-001
+      - order-42
+      - customer-acme
+      - batch-7
+      - shipment-99
+
+script:
+  # A single empty poll whose _meta line carries the assignment the routing helpers work from.
+  - status: 200
+    contentType: application/vnd.epistola.v1+ndjson
+    ndjson:
+      - { _meta: true, hasMore: false, count: 0, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
+
+expect:
+  requestCount: 1
+  report:
+    partitionTotal: 8
+    partitions: invoice-2026-001:0,order-42:6,customer-acme:5,batch-7:5,shipment-99:5
+    routed: invoice-2026-001=invoice-2026-001,order-42=0:order-42,customer-acme=5:customer-acme,batch-7=4:batch-7,shipment-99=0:shipment-99
+    # Only invoice-2026-001 lands here unaided; the other four need rewriting, which is
+    # the case the old fallback got wrong by assuming "3:key" hashes to partition 3.
+    mineFlags: true,false,false,false,false
+    # Self-checking, and the assertion that actually matters: whatever key the client hands back
+    # must hash into this node's partitions. Nothing here depends on a literal being right.
+    routedPartitions:
+      matches: '^[03](,[03])*$'

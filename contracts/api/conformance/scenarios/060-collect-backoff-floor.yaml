@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: collect-backoff-floor
+title: An idle collector backs off, and never polls faster than its minimum interval
+why: >
+  This is the regression that shipped in every client at once. hasMore sets the interval to 0 so the
+  next poll is immediate; the idle backoff then computed 0 * multiplier, which is still 0. Once a
+  burst drained — or the server went down mid-burst — the collector hammered the API as fast as the
+  round trip allowed, indefinitely. Nothing failed: results still arrived, the handler still ran,
+  every functional assertion still passed. The gap between two polls is the only place the defect is
+  visible, which is why it needs a conformance test rather than a unit test in each client.
+
+action:
+  name: collect
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    batchSize: 10
+    minIntervalMs: 150
+    maxIntervalMs: 5000
+    multiplier: 3
+    runForMs: 1200
+
+script:
+  # A burst that reports more waiting, which is what drives the interval to zero.
+  - status: 200
+    contentType: application/vnd.epistola.v1+ndjson
+    ndjson:
+      - { sequence: 1, requestId: 33333333-3333-4333-8333-000000000001, status: COMPLETED, documentId: 44444444-4444-4444-8444-000000000001 }
+      - { _meta: true, hasMore: true, count: 1 }
+  # Then the burst is over. From here the collector is idle and must back off.
+  - status: 200
+    contentType: application/vnd.epistola.v1+ndjson
+    ndjson:
+      - { _meta: true, hasMore: false, count: 0 }
+
+expect:
+  # 1200ms of idling at 150ms → 450ms → 1350ms is four or five polls. A collapsed backoff makes
+  # thousands; the exact ceiling matters less than being nowhere near round-trip speed.
+  requestCountAtMost: 10
+  requestCountAtLeast: 3
+  gaps:
+    # The first gap is meant to be immediate: hasMore said so.
+    skipFirst: 1
+    minMs: 130
+    increasing: true

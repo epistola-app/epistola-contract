@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: collect-handler-failure
+title: A handler that throws leaves the batch unacknowledged, so nothing is lost
+why: >
+  This is the collect protocol's whole safety property, and it is invisible from the outside except
+  in one place: whether the next poll carries an acknowledgeUpTo. The server will not resend
+  anything at or below that cursor, so a client that advances it past a result its handler never
+  finished has silently dropped a document — for good, with no error anywhere. Delivery is
+  at-least-once by design; the client's side of that bargain is to acknowledge only what it
+  completed.
+
+  All four clients put the acknowledgement assignment after the read loop, so an exception skips it
+  and the whole batch is redelivered. That is correct, and entirely accidental-looking: it is four
+  lines of code in four languages that a well-meaning refactor toward "acknowledge what we managed"
+  would quietly turn into data loss. Nothing else in any client's test suite holds them to it.
+
+action:
+  name: collect
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    batchSize: 10
+    minIntervalMs: 150
+    maxIntervalMs: 2000
+    multiplier: 3
+    runForMs: 700
+    # The handler accepts 501 and throws on 502, mid-batch, with 503 still unread.
+    failHandlerOnSequence: 502
+
+script:
+  # Every poll gets the same batch: the cursor never advances, so the server keeps resending it.
+  - status: 200
+    contentType: application/vnd.epistola.v1+ndjson
+    ndjson:
+      - { sequence: 501, requestId: 77777777-7777-4777-8777-000000000501, status: COMPLETED, correlationId: ok-1 }
+      - { sequence: 502, requestId: 77777777-7777-4777-8777-000000000502, status: COMPLETED, correlationId: boom }
+      - { sequence: 503, requestId: 77777777-7777-4777-8777-000000000503, status: COMPLETED, correlationId: unread }
+      - { _meta: true, hasMore: false, count: 3 }
+
+expect:
+  # Enough polls to show the cursor staying put rather than one poll proving nothing.
+  requestCountAtLeast: 2
+  everyRequest:
+    method: POST
+    path: /api/tenants/acme-corp/generation/collect
+    body:
+      # Not "acknowledgeUpTo: 501" either. 501 succeeded, but acknowledging it would strand 502
+      # and 503 behind a cursor the client cannot retreat, and the contract's redelivery unit is
+      # the batch.
+      jsonAbsent: [acknowledgeUpTo]
+  report:
+    # 501 then 502 on the first poll, and the same again on each redelivery — never 503, which is
+    # the point: the handler never saw it, so it must come back.
+    handledSequences: { matches: '^(501,502)(,501,502)+$' }

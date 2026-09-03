@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: auth-jwt
+title: Self-signed JWTs verify, carry the agreed claims, and are minted fresh per request
+why: >
+  Every client hand-rolls this signer on its platform's crypto primitives rather than taking a JOSE
+  dependency, so there is no shared implementation to be right — only four that must agree with one
+  server. The failure modes are silent on the client side: a DER-encoded ES256 signature, a
+  millisecond iat, or one token cached and replayed all produce a perfectly well-formed request that
+  the server rejects. This scenario verifies the signature against the public half of the key the
+  driver was handed, which is the only check that catches them.
+
+action:
+  name: list-templates
+  config:
+    nodeId: conformance-node-1
+    auth: jwt
+    consumerId: conformance-consumer
+    tokenLifetimeSeconds: 60
+    tenantId: acme-corp
+    catalogId: main
+    # Two calls, because a token reused across requests is only visible by comparing them.
+    repeat: 2
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      items: []
+      page: { number: 0, size: 20, totalElements: 0, totalPages: 0 }
+
+expect:
+  requestCount: 2
+  everyRequest:
+    method: GET
+    path: /api/tenants/acme-corp/catalogs/main/templates
+  jwt:
+    alg: RS256
+    issuer: conformance-consumer
+    requiredClaims: [iss, iat, exp, jti]
+    maxLifetimeSeconds: 60
+    freshPerRequest: true

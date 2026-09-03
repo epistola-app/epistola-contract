@@ -191,7 +191,7 @@ class ModelValidationTest {
         val valid = VersionDto(
             id = 1,
             variantId = "english",
-            status = VersionDto.Status.PUBLISHED,
+            status = VersionDto.Status.published,
             createdAt = now,
             templateModel = TemplateDocument(
                 modelVersion = TemplateDocument.ModelVersion._1,
@@ -203,7 +203,7 @@ class ModelValidationTest {
                 slots = mapOf(
                     "slot-root" to Slot(id = "slot-root", nodeId = "node-root", name = "children", children = listOf("node-header")),
                 ),
-                themeRef = ThemeRef(type = ThemeRef.Type.INHERIT),
+                themeRef = ThemeRef(type = ThemeRef.Type.inherit),
             ),
             publishedAt = now,
         )
@@ -216,7 +216,7 @@ class ModelValidationTest {
             VersionDto(
                 id = 201,
                 variantId = "english",
-                status = VersionDto.Status.DRAFT,
+                status = VersionDto.Status.draft,
                 createdAt = OffsetDateTime.now(),
             ).validate()
         }
@@ -228,7 +228,7 @@ class ModelValidationTest {
             VersionDto(
                 id = 1,
                 variantId = "English",
-                status = VersionDto.Status.DRAFT,
+                status = VersionDto.Status.draft,
                 createdAt = OffsetDateTime.now(),
             ).validate()
         }

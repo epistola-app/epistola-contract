@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed the Kotlin client sending enum query parameters as the Kotlin constant's name rather than
+  the value the contract declares — `direction=DESC` against `enum: [asc, desc]`, on 39 operations
+  across 11 API classes, and by default, because the parameter's default is the enum constant. The
+  same applied to `status` on versions, consumers, generation jobs and stencil versions. The spec is
+  unchanged: lowercase was and remains the declared wire value. The client now generates with
+  `enumPropertyNaming: original`, which renames every enum constant — `VersionDto.Status.DRAFT`
+  becomes `.draft` — and is source-breaking for Kotlin consumers.
+- Fixed the Python client asking only for the success media type. Its generated
+  `select_header_accept` returns the first JSON entry it finds, so `application/problem+json` was
+  dropped from nearly every operation and the client never asked for the problem document it exists
+  to parse; a server doing strict content negotiation would answer 406 instead.
+- Extended the conformance suite from eight scenarios to thirteen: query-parameter serialization,
+  acknowledgement when a result handler throws, agreement between the four murmur3 implementations
+  and the routing keys derived from them, request-body serialization, and the error `Accept` header.
+- Moved the JVM conformance drivers into their own Gradle build. They had lived in the clients'
+  builds while building those same clients, so `./gradlew build` on the Kotlin client compiled and
+  linted test-harness code; a published artifact's build gate no longer depends on it.
+
+- Added a cross-client conformance suite. One scripted server plays a scenario's responses back,
+  records every request it was sent, and judges that record; each client contributes a thin driver
+  that asks the server what to do and asserts nothing itself. The expectations therefore live in one
+  place — `contracts/api/conformance/scenarios` — instead of in four test suites that drift, and a
+  scenario written once holds all four clients to it. It covers the identity headers, the versioned
+  vendor media types, both authentication schemes (verifying the JWT signatures against a key pair
+  generated per run), the result-collection request shape and backoff, compression, and RFC 9457
+  parsing. Run it with `make conformance`; CI runs each client's share in that client's own job.
+- Fixed the .NET client dropping the API base path on result collection. `HttpClient.BaseAddress`
+  was set to the configured URL verbatim, and URI resolution treats the last segment of a base
+  without a trailing slash as a file rather than a directory — so a base of `https://…/api` and the
+  collector's relative `tenants/…` request resolved to `/tenants/…`. Against the base URL the
+  client's own README tells consumers to configure, polling went to a path the server does not
+  serve. Every existing test used a root URL, where the defect cannot appear.
+- Fixed the Python client reading only the first line of a result batch. urllib3 closes its response
+  once the body is exhausted, and `TextIOWrapper` then raised `I/O operation on closed file` instead
+  of seeing EOF, so the handler got one result, the `_meta` line carrying `hasMore` and the
+  partition assignment was never reached, and the batch went unacknowledged and was redelivered
+  indefinitely. Only uncompressed streams were affected; the gzip path stops at its own trailer.
+  Anyone running a Python collector should take this release.
+
 - Added `app.epistola.contract:client-jakarta`, a Java client for Jakarta EE application servers
   (WildFly, Open Liberty, Payara, Quarkus), generated from the bundled spec with openapi-generator's
   `java`/`microprofile` library. Generated interfaces are MicroProfile Rest Client interfaces, so

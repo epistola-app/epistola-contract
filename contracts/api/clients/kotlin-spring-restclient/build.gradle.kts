@@ -80,7 +80,13 @@ openApiGenerate {
             "dateLibrary" to "java8",
             "omitGradleWrapper" to "true",
             "omitGradlePluginVersions" to "true",
-            "enumPropertyNaming" to "UPPERCASE",
+            // "original", not "UPPERCASE", however un-idiomatic the constant names look.
+            // Enum-typed query parameters are serialized with toString(), which returns the
+            // constant's name and ignores the @JsonProperty wire value — so UPPERCASE sent
+            // "direction=DESC" where the contract declares enum [asc, desc], on 39 operations,
+            // by default, without the caller asking for anything. Model enums are unaffected
+            // either way because Jackson reads @JsonProperty; only parameters use toString().
+            "enumPropertyNaming" to "original",
             "useSpringBoot3" to "true",
         ),
     )

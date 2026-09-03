@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: auth-api-key
+title: "API keys go in Authorization: ApiKey, not the deprecated X-API-Key header"
+why: >
+  The API still accepts the legacy X-API-Key header, so a client that sends it keeps working and
+  nobody notices — until the legacy header is withdrawn and every consumer of that one client
+  breaks at once. A test that only asserts "the call succeeded" cannot tell the two apart.
+
+action:
+  name: list-templates
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantId: acme-corp
+    catalogId: main
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      items: []
+      page: { number: 0, size: 20, totalElements: 0, totalPages: 0 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/main/templates
+      headers:
+        Authorization: ApiKey epk_conformance_0123456789
+        X-API-Key: { absent: true }

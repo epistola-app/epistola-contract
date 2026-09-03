@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: media-types
+title: Requests negotiate the versioned vendor media type, never plain application/json
+why: >
+  The vendor media type carries the API major version, so it is how the server knows which contract
+  a request is written against. Generators do not all get this right on their own — the C# generator
+  hardcodes application/json on the serialized body while selecting the vendor type for
+  negotiation, which is why the .NET client carries a handler to rewrite it. That handler is exactly
+  the kind of correction that a generator upgrade silently undoes.
+
+action:
+  name: ping
+  config:
+    nodeId: conformance-node-1
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      status: UP
+      timestamp: "2026-04-21T10:30:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/ping
+      headers:
+        # A charset parameter is allowed; plain application/json is not.
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+        Accept:
+          contains: application/vnd.epistola.v1+json

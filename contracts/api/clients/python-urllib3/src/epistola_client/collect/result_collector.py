@@ -363,7 +363,7 @@ class ResultCollector:
 
             encoding = response.headers.get("content-encoding")
             stream = _decompress(response, encoding)
-            reader = io.TextIOWrapper(stream, encoding="utf-8")
+            reader = io.TextIOWrapper(_EofTolerantStream(stream), encoding="utf-8")
 
             count = 0
             has_more = False
@@ -414,6 +414,34 @@ class ResultCollector:
             except Exception:
                 pass
             self._shutdown_hook_registered = False
+
+
+class _EofTolerantStream(io.RawIOBase):
+    """Adapts a response body so that reading past its end yields EOF rather than raising.
+
+    urllib3 releases and closes its ``HTTPResponse`` the moment the body is exhausted.
+    ``TextIOWrapper`` then calls ``read()`` once more looking for EOF and gets
+    ``ValueError: I/O operation on closed file`` instead of ``b""``. Iterating an uncompressed
+    NDJSON batch therefore yielded the first line and then raised — the handler saw one result, the
+    ``_meta`` line was never reached, and the batch went unacknowledged and was redelivered
+    forever. The gzip path happened to escape it because ``GzipFile`` stops reading on its own
+    trailer, which is why this only ever bit an uncompressed stream.
+    """
+
+    def __init__(self, stream) -> None:
+        self._stream = stream
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, buffer) -> int:
+        if getattr(self._stream, "closed", False):
+            return 0
+        data = self._stream.read(len(buffer))
+        if not data:
+            return 0
+        buffer[: len(data)] = data
+        return len(data)
 
 
 def _supported_encodings() -> str:
