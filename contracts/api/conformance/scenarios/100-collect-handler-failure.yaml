@@ -26,7 +26,8 @@ action:
     minIntervalMs: 150
     maxIntervalMs: 2000
     multiplier: 3
-    runForMs: 700
+    # Room for the post-failure backoff plus jitter, so "at least two polls" is never marginal.
+    runForMs: 1100
     # The handler accepts 501 and throws on 502, mid-batch, with 503 still unread.
     failHandlerOnSequence: 502
 

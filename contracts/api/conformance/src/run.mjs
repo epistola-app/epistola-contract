@@ -15,7 +15,7 @@
 
 import { spawn } from 'node:child_process'
 import { generateKeyPairSync } from 'node:crypto'
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parse as parseYaml } from 'yaml'
@@ -24,6 +24,9 @@ import { judge } from './expect.mjs'
 import { startServer } from './server.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const REPO = resolve(ROOT, '..', '..', '..')
+const PRISM = join(REPO, 'contracts/api/tools/node_modules/.bin/prism')
+const BUNDLED_SPEC = join(REPO, 'contracts/api/build/openapi.yaml')
 const CLIENTS = ['kotlin', 'jakarta', 'dotnet', 'python']
 const DRIVER_TIMEOUT_MS = 120_000
 
@@ -52,17 +55,62 @@ async function main() {
 
   await prepareDriver(options.client)
 
+  // Started once for the whole run, not once per scenario: Prism takes several seconds to parse the
+  // spec and come up, which would dwarf the scenarios themselves.
+  const prism = scenarios.some((s) => s.backend === 'prism') ? await startPrism() : null
+
   console.log(`\nconformance: ${options.client} — ${scenarios.length} scenario(s)\n`)
   const results = []
 
-  for (const scenario of scenarios) {
-    results.push(await runScenario(scenario, options.client))
+  try {
+    for (const scenario of scenarios) {
+      results.push(await runScenario(scenario, options.client, prism))
+    }
+  } finally {
+    prism?.stop()
   }
 
   return report(results)
 }
 
-async function runScenario(scenario, client) {
+/**
+ * Prism serves the contract itself: it validates each request against the spec and answers from the
+ * declared schemas. Every schema constraint on every operation is then checked without a scenario
+ * having to name it — which is the half the scripted server cannot do, just as Prism cannot do
+ * timing, streaming, or the identity headers the spec deliberately does not model.
+ */
+async function startPrism() {
+  if (!existsSync(BUNDLED_SPEC)) {
+    throw new Error(`bundled spec not found at ${BUNDLED_SPEC} — run \`make bundle\``)
+  }
+  const port = 4030 + (process.pid % 500)
+  process.stdout.write(`starting prism on the bundled spec (port ${port}) `)
+
+  const child = spawn(PRISM, ['mock', BUNDLED_SPEC, '-p', String(port), '--errors'], { stdio: 'pipe' })
+  let output = ''
+  child.stdout.on('data', (chunk) => (output += chunk))
+  child.stderr.on('data', (chunk) => (output += chunk))
+
+  const url = `http://127.0.0.1:${port}`
+  const deadline = Date.now() + 60_000
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null) {
+      throw new Error(`prism exited with ${child.exitCode}:\n${output}`)
+    }
+    try {
+      // Any answer at all means it is serving; a 404 or 401 is as good as a 200 here.
+      await fetch(`${url}/ping`, { method: 'POST' })
+      console.log('— ready')
+      return { url, stop: () => child.kill('SIGKILL') }
+    } catch {
+      await new Promise((r) => setTimeout(r, 250))
+    }
+  }
+  child.kill('SIGKILL')
+  throw new Error(`prism did not come up within 60s:\n${output}`)
+}
+
+async function runScenario(scenario, client, prism) {
   const skipReason = scenario.skip?.[client]
   if (skipReason) {
     console.log(`  SKIP  ${scenario.id}\n        ${skipReason}`)
@@ -76,7 +124,10 @@ async function runScenario(scenario, client) {
     config: { ...scenario.action.config, ...(keys ? { privateKeyPem: keys.privateKeyPem } : {}) },
   }
 
-  const server = await startServer(scenario, action)
+  if (scenario.backend === 'prism' && !prism) {
+    throw new Error(`${scenario.id} needs the prism backend but it was not started`)
+  }
+  const server = await startServer(scenario, action, scenario.backend === 'prism' ? prism.url : null)
   let driverExit
   try {
     driverExit = await runDriver(client, server.baseUrl)
@@ -95,6 +146,11 @@ async function runScenario(scenario, client) {
   if (driverExit.code === 0 && !server.done?.error) {
     const expected = keys ? withPublicKey(scenario, keys.publicKeyPem) : scenario
     failures.push(...judge(expected, server))
+  } else {
+    // A validating backend rejects a bad request, so the driver fails with an HTTP error and the
+    // reason is in the violations rather than anywhere the driver can see. Reporting the exception
+    // alone would say "400" and leave the cause on the floor.
+    failures.push(...judge({ expect: {} }, server))
   }
   // Whatever the driver wrote, on any failure. A collector that swallowed an exception and stopped
   // polling looks exactly like one that chose not to poll until you read its output.

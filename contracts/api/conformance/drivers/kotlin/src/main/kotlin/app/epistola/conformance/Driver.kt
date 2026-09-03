@@ -4,7 +4,8 @@
 
 package app.epistola.conformance
 
-import app.epistola.client.ContractMediaTypes
+import app.epistola.client.epistolaMessageConverters
+import app.epistola.client.api.ConsumersApi
 import app.epistola.client.api.GenerationApi
 import app.epistola.client.api.SystemApi
 import app.epistola.client.api.TemplatesApi
@@ -16,11 +17,10 @@ import app.epistola.client.error.installProblemDetailHandler
 import app.epistola.client.identity.ClientIdentity
 import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.PingRequest
+import app.epistola.client.model.UpdateConsumerRequest
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
-import org.springframework.http.MediaType
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter
 import org.springframework.web.client.RestClient
 import java.net.URI
 import java.net.http.HttpClient
@@ -57,6 +57,7 @@ object Driver {
                 "problem" -> problem(baseUrl, config)
                 "routing" -> routing(baseUrl, config)
                 "generate-document" -> generateDocument(baseUrl, config)
+                "update-consumer" -> updateConsumer(baseUrl, config)
                 else -> error("unknown action $action")
             }
             done(baseUrl, null)
@@ -158,6 +159,20 @@ object Driver {
     }
 
     /**
+     * A partial update that sets exactly one field. Everything the caller did not name must stay off
+     * the wire: the contract reads a null on these as "clear this", so a serializer that writes
+     * nulls for unset properties turns "rename this consumer" into "rename it and erase its
+     * description, contact and expiry".
+     */
+    private fun updateConsumer(baseUrl: String, config: ObjectNode) {
+        ConsumersApi(restClient(baseUrl, config)).updateConsumer(
+            config["tenantId"].asText(),
+            config["consumerId"].asText(),
+            UpdateConsumerRequest(name = config["name"].asText()),
+        )
+    }
+
+    /**
      * One poll to learn the partition assignment from the `_meta` line, then the routing helpers.
      * The values are reported rather than asserted here: the harness holds all four clients to the
      * same answers, which is the only way four independent murmur3 implementations stay in step.
@@ -206,17 +221,7 @@ object Driver {
 
         val builder = RestClient.builder()
             .baseUrl("$baseUrl/api")
-            .messageConverters {
-                it.add(
-                    MappingJackson2HttpMessageConverter().apply {
-                        supportedMediaTypes = listOf(
-                            MediaType.parseMediaType(ContractMediaTypes.VENDOR_JSON),
-                            MediaType.APPLICATION_JSON,
-                            MediaType.APPLICATION_PROBLEM_JSON,
-                        )
-                    },
-                )
-            }
+            .epistolaMessageConverters()
             .requestInterceptor(identity.interceptor())
             .installProblemDetailHandler()
 

@@ -93,6 +93,10 @@ public sealed class EpistolaHttpClientBuilder
 
         inner = new EpistolaMediaTypeHandler(inner);
 
+        // Outside the media-type handler, so it sees the body before the content type is corrected
+        // and works on either spelling.
+        inner = new EpistolaUnsetPropertyHandler(inner);
+
         if (_jwtSigner != null)
         {
             inner = Wrap(_jwtSigner.Handler(), inner);

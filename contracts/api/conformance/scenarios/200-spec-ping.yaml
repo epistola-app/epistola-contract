@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: spec-ping
+title: A ping is a legal request against the contract, and its response parses
+why: >
+  The scripted server accepts whatever it is sent — it answers from a fixture, so a request can
+  violate the contract in any way a scenario does not happen to check. This backend is the contract
+  itself: Prism validates the request against the spec and answers from the declared schemas, so
+  every constraint on the operation is enforced without a scenario naming it.
+
+  The response half is worth as much as the request half. Prism synthesises it from the schema
+  rather than from a fixture someone wrote to suit the clients, so a client that only parses bodies
+  shaped the way our fixtures happen to be shaped fails here.
+
+backend: prism
+
+action:
+  name: ping
+  config:
+    nodeId: conformance-node-1
+    products:
+      - name: acme-billing
+        version: 9.9.9
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/ping

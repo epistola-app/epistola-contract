@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed the Kotlin and .NET clients erasing fields on partial updates. The generated request models
+  are plain nullable properties with no way to distinguish "not set" from "explicitly null", and
+  both serializers wrote `null` for every property the caller left alone — so on the API's thirteen
+  `PATCH` operations, where the contract documents `null` as "clear this", renaming a consumer also
+  erased its description, contact and expiry, and the server answered 200. The Kotlin client now
+  ships `EpistolaJson` and a `RestClient.Builder.epistolaMessageConverters()` extension; the .NET
+  client's builder installs a handler that drops unset top-level properties. Clearing a field is no
+  longer expressible in either, which it effectively never was — you could not clear one field
+  without clearing every other you had not set.
+- Fixed the Kotlin client sending `attributes: null` on generation requests, which the contract types
+  `array` with no null in the union, so any server validating against the spec rejected a request
+  that simply did not select variants by attribute.
+- Added a spec-validating backend to the conformance suite. Scenarios can declare `backend: prism`,
+  which runs the client against the bundled contract itself: every schema constraint on every
+  operation is enforced without a scenario naming it, and violations are reported from Prism's
+  `sl-violations` header. This is what found the `attributes` defect above.
+
 - Fixed the Kotlin client sending enum query parameters as the Kotlin constant's name rather than
   the value the contract declares — `direction=DESC` against `enum: [asc, desc]`, on 39 operations
   across 11 API classes, and by default, because the parameter's default is the enum constant. The

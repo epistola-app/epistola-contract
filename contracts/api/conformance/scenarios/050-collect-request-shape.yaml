@@ -20,7 +20,9 @@ action:
     minIntervalMs: 120
     maxIntervalMs: 2000
     multiplier: 3
-    runForMs: 500
+    # Generous on purpose: the assertion is about the second poll's acknowledgement, and a budget
+    # that only just fits two polls turns JVM warm-up into a flake.
+    runForMs: 900
 
 script:
   # First poll: two results, then the meta line that ends the batch.

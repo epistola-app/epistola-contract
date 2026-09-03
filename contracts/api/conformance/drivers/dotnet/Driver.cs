@@ -47,6 +47,7 @@ public static class Driver
                 case "problem": Problem(baseUrl, config); break;
                 case "routing": Routing(baseUrl, config); break;
                 case "generate-document": GenerateDocument(baseUrl, config); break;
+                case "update-consumer": UpdateConsumer(baseUrl, config); break;
                 default: throw new ArgumentException($"unknown action {instruction.GetProperty("action")}");
             }
 
@@ -166,6 +167,21 @@ public static class Driver
                 data: Newtonsoft.Json.JsonConvert.DeserializeObject(config.GetProperty("data").GetRawText()),
                 correlationId: Str(config, "correlationId"),
                 routingKey: Str(config, "routingKey")));
+    }
+
+    /// <summary>
+    /// A partial update that sets exactly one field. Everything the caller did not name must stay
+    /// off the wire: the contract reads a null on these as "clear this", so a serializer that writes
+    /// nulls for unset properties turns "rename this consumer" into "rename it and erase its
+    /// description, contact and expiry".
+    /// </summary>
+    private static void UpdateConsumer(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        new ConsumersApi(http, apiBase).UpdateConsumer(
+            Str(config, "tenantId"),
+            Str(config, "consumerId"),
+            new UpdateConsumerRequest(name: Str(config, "name")));
     }
 
     /// <summary>

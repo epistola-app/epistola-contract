@@ -10,6 +10,11 @@
  * headers, body and arrival time. The journal is what `expect.mjs` judges; the client's own
  * assertions are irrelevant here, and drivers deliberately make none.
  *
+ * A scenario can instead name an upstream (`backend: prism`), in which case the server stops
+ * answering from the script and proxies to it, recording the same journal on the way through and
+ * picking up whatever contract violations the upstream reports. The drivers never learn the
+ * difference: they address this server either way, so one driver covers every backend.
+ *
  * It also serves the control plane the drivers use, so that a driver needs no YAML parser, no
  * command-line contract beyond a base URL, and no knowledge of the scenario it is running:
  *
@@ -23,6 +28,19 @@ import { gzipSync } from 'node:zlib'
 
 const CONTROL_PREFIX = '/__conformance/'
 
+const HOP_BY_HOP = [
+  'host',
+  'connection',
+  'keep-alive',
+  'proxy-connection',
+  'transfer-encoding',
+  'upgrade',
+  'http2-settings',
+  'te',
+  'trailer',
+  'content-length',
+]
+
 /**
  * Starts a scripted server for one scenario.
  *
@@ -30,7 +48,7 @@ const CONTROL_PREFIX = '/__conformance/'
  * @param action what to hand the driver from `GET /__conformance/action`
  * @returns a handle with the base URL, the request journal, what the driver reported, and close()
  */
-export async function startServer(scenario, action) {
+export async function startServer(scenario, action, upstream = null) {
   const journal = []
   const reports = []
   const script = scenario.script ?? []
@@ -48,8 +66,7 @@ export async function startServer(scenario, action) {
         return
       }
 
-      const entry = nextScriptEntry()
-      journal.push({
+      const entry = {
         index: journal.length,
         method: req.method,
         path: pathOf(req.url),
@@ -58,8 +75,14 @@ export async function startServer(scenario, action) {
         headers: lowercaseHeaders(req.headers),
         body: bodyBuffer.toString('utf8'),
         atMs: Math.round(performance.now() - startedAt),
-      })
-      respond(res, entry)
+      }
+      journal.push(entry)
+
+      if (upstream) {
+        proxy(upstream, req, bodyBuffer, res, entry)
+      } else {
+        respond(res, nextScriptEntry())
+      }
     })
   })
 
@@ -112,6 +135,67 @@ export async function startServer(scenario, action) {
         server.closeAllConnections?.()
         server.close(resolve)
       }),
+  }
+}
+
+/**
+ * Forwards one request to the upstream and relays its answer back untouched, recording on the
+ * journal entry whatever the upstream said about the request. Prism reports contract violations in
+ * an `sl-violations` header — location, code and message per violation — which is far better
+ * evidence than a status code, and is what the judge reports verbatim.
+ *
+ * The contract's `servers` entry puts the API under /api and the drivers honour it; Prism serves the
+ * paths at its root, so the prefix is stripped here rather than in four drivers.
+ */
+async function proxy(upstream, req, bodyBuffer, res, entry) {
+  const path = req.url.startsWith('/api/') ? req.url.slice('/api'.length) : req.url
+  // Hop-by-hop headers belong to the connection, not the message, and must not be forwarded.
+  // The JDK's HttpClient offers an HTTP/2 upgrade on every plaintext request, and fetch rejects the
+  // whole call with "invalid upgrade header" if that is passed along.
+  const headers = { ...req.headers }
+  for (const name of HOP_BY_HOP) {
+    delete headers[name]
+  }
+
+  try {
+    const response = await fetch(`${upstream}${path}`, {
+      method: req.method,
+      headers,
+      body: ['GET', 'HEAD'].includes(req.method) ? undefined : bodyBuffer,
+    })
+    const body = Buffer.from(await response.arrayBuffer())
+
+    entry.upstreamStatus = response.status
+    entry.violations = parseViolations(response.headers.get('sl-violations'))
+
+    const outHeaders = {}
+    for (const [name, value] of response.headers.entries()) {
+      if (!['content-encoding', 'transfer-encoding', 'connection'].includes(name.toLowerCase())) {
+        outHeaders[name] = value
+      }
+    }
+    outHeaders['Content-Length'] = String(body.length)
+    res.writeHead(response.status, outHeaders)
+    res.end(body)
+  } catch (error) {
+    entry.upstreamStatus = 0
+    const detail = error.cause?.message ? `${error.message} (${error.cause.message})` : error.message
+    console.error(`[conformance proxy] ${req.method} ${path} → ${upstream}: ${detail}`)
+    entry.violations = [{ message: `could not reach the upstream: ${detail}` }]
+    res.writeHead(502, { 'Content-Type': 'text/plain' })
+    res.end(`conformance proxy could not reach ${upstream}: ${error.message}`)
+  }
+}
+
+function parseViolations(header) {
+  if (!header) {
+    return []
+  }
+  try {
+    const parsed = JSON.parse(header)
+    return Array.isArray(parsed) ? parsed : [parsed]
+  } catch {
+    return [{ message: header }]
   }
 }
 

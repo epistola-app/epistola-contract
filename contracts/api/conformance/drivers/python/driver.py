@@ -21,6 +21,7 @@ import urllib.request
 
 from epistola_client import (
     ClientIdentity,
+    ConsumersApi,
     EpistolaClientBuilder,
     GenerateDocumentRequest,
     GenerationApi,
@@ -30,6 +31,7 @@ from epistola_client import (
     ResultCollector,
     SystemApi,
     TemplatesApi,
+    UpdateConsumerRequest,
 )
 
 
@@ -49,6 +51,7 @@ def main() -> int:
         "problem": _problem,
         "routing": _routing,
         "generate-document": _generate_document,
+        "update-consumer": _update_consumer,
     }
 
     try:
@@ -165,6 +168,20 @@ def _generate_document(base_url: str, config: dict) -> None:
             correlationId=config["correlationId"],
             routingKey=config["routingKey"],
         ),
+    )
+
+
+def _update_consumer(base_url: str, config: dict) -> None:
+    """A partial update that sets exactly one field.
+
+    Everything the caller did not name must stay off the wire: the contract reads a null on these as
+    "clear this", so a serializer that writes nulls for unset properties turns "rename this
+    consumer" into "rename it and erase its description, contact and expiry".
+    """
+    ConsumersApi(_client(base_url, config)).update_consumer(
+        config["tenantId"],
+        config["consumerId"],
+        UpdateConsumerRequest(name=config["name"]),
     )
 
 

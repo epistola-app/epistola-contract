@@ -5,6 +5,7 @@
 package app.epistola.conformance;
 
 import app.epistola.client.jakarta.EpistolaRestClients;
+import app.epistola.client.jakarta.api.ConsumersApi;
 import app.epistola.client.jakarta.api.GenerationApi;
 import app.epistola.client.jakarta.api.SystemApi;
 import app.epistola.client.jakarta.api.TemplatesApi;
@@ -17,6 +18,7 @@ import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
+import app.epistola.client.jakarta.model.UpdateConsumerRequest;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonValue;
@@ -58,6 +60,7 @@ public final class Driver {
                 case "problem" -> problem(baseUrl, config);
                 case "routing" -> routing(baseUrl, config);
                 case "generate-document" -> generateDocument(baseUrl, config);
+                case "update-consumer" -> updateConsumer(baseUrl, config);
                 default -> throw new IllegalArgumentException("unknown action " + instruction.getString("action"));
             }
             done(baseUrl, null);
@@ -171,6 +174,21 @@ public final class Driver {
                                 .data(config.getJsonObject("data"))
                                 .correlationId(config.getString("correlationId"))
                                 .routingKey(config.getString("routingKey")));
+    }
+
+    /**
+     * A partial update that sets exactly one field. Everything the caller did not name must stay off
+     * the wire: the contract reads a null on these as "clear this", so a serializer that writes
+     * nulls for unset properties turns "rename this consumer" into "rename it and erase its
+     * description, contact and expiry".
+     */
+    private static void updateConsumer(String baseUrl, JsonObject config) {
+        clients(baseUrl, config)
+                .api(ConsumersApi.class)
+                .updateConsumer(
+                        config.getString("tenantId"),
+                        config.getString("consumerId"),
+                        new UpdateConsumerRequest().name(config.getString("name")));
     }
 
     /**

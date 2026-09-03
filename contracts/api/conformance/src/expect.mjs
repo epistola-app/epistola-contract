@@ -37,11 +37,33 @@ export function judge(scenario, { journal, reports }) {
     }
   }
 
+  checkViolations(journal, failures)
   checkGaps(expected.gaps, journal, failures)
   checkJwt(expected.jwt, journal, failures)
   checkReports(expected.report, reports, failures)
 
   return failures
+}
+
+/**
+ * Contract violations reported by an upstream that validates against the spec.
+ *
+ * These need no scenario to declare them: any violation is a failure, on every request, for every
+ * operation a driver touches. That is the point of running against a validating backend — the
+ * scenario says what to do, and the spec itself says what is allowed, so nobody has to think of the
+ * constraint in advance. `direction=DESC` was caught by a scenario written after someone noticed;
+ * this catches its whole family without anyone noticing anything.
+ */
+function checkViolations(journal, failures) {
+  for (const entry of journal) {
+    for (const violation of entry.violations ?? []) {
+      const where = Array.isArray(violation.location) ? violation.location.join('.') : 'request'
+      failures.push(
+        `request #${entry.index + 1} (${entry.method} ${entry.path}) violates the contract at ` +
+          `${where}: ${violation.message}${violation.code ? ` [${violation.code}]` : ''}`,
+      )
+    }
+  }
 }
 
 function checkCounts(expected, journal, failures) {
