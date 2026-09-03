@@ -25,6 +25,8 @@ maven-publish = "0.36.0"
 java-toolchain = "21"
 # client (Spring Boot 3 / Jackson 2)
 spring-boot3 = "3.5.1"
+# The Spring Framework line Spring Boot 3.5.x ships.
+spring6 = "6.2.8"
 jackson2 = "2.19.0"
 json-schema-validator = "1.5.7"
 mockk = "1.14.2"
@@ -65,7 +67,12 @@ networknt-json-schema = "3.0.5"
 
 [libraries]
 # client (Spring Boot 3 / Jackson 2)
+# The client needs spring-web (RestClient, HttpHeaders, the interceptor SPI) and nothing that
+# serves HTTP. spring-boot-starter-web would drag embedded Tomcat and Spring MVC into every
+# consumer of a *client* library. Versions follow the Spring Boot 3 BOM.
 spring-boot3-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "spring-boot3" }
+spring-web = { module = "org.springframework:spring-web", version.ref = "spring6" }
+spring-context = { module = "org.springframework:spring-context", version.ref = "spring6" }
 jackson2-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson2" }
 jackson2-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson2" }
 jackson2-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson2" }

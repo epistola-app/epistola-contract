@@ -174,6 +174,9 @@ language-specific, used by both JVM clients and the server stubs:
 - `UserAgent` — the `User-Agent` grammar, **both** formatting (clients) and parsing (server)
 - `ProblemTypeUris` — problem `type` URI ↔ slug, used in opposite directions by client and server
 - `Murmur3` — the hash the server assigns partitions with
+- `ProtocolJwtSigner` — self-signed JWT minting on plain `java.security`, no JOSE library
+- `Compression` — result-collection decompression, chosen by sniffing the stream's magic bytes
+  rather than trusting `Content-Encoding`
 
 **It is not published.** Each consumer adds `src/main/java` to its own source set
 (`epistolaProtocolSources` in their builds) and compiles the classes into its own jar, so the

@@ -151,10 +151,12 @@ class JwtSignerTest {
 
     @Test
     void the_builder_rejects_an_incomplete_configuration() {
+        // IllegalArgumentException throughout, matching the Kotlin client and the rest of the
+        // shared protocol code — the two clients used to disagree on this.
         assertThrows(
-                IllegalStateException.class,
+                IllegalArgumentException.class,
                 () -> JwtSigner.builder().privateKey(rsaKeyPair.getPrivate()).build());
-        assertThrows(IllegalStateException.class, () -> JwtSigner.builder().consumerId("a").build());
+        assertThrows(IllegalArgumentException.class, () -> JwtSigner.builder().consumerId("a").build());
         assertThrows(IllegalArgumentException.class, () -> JwtSigner.builder().consumerId(" "));
         assertThrows(
                 IllegalArgumentException.class,

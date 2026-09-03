@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **The Spring client no longer ships a servlet container.** It declared `spring-boot-starter-web`,
+  which resolved 33 artifacts onto every consumer's classpath — embedded Tomcat and Spring MVC among
+  them — for a library that *calls* HTTP rather than serving it. It now declares `spring-web`, and
+  the runtime classpath is 15 artifacts with no Tomcat, no Spring MVC and no Boot starters. A
+  dependency-hygiene test pins this, as the Jakarta client's already did.
+  - The Spring types this client exposes (`RestClient.Builder`, `RestClientResponseException`,
+    `ClientHttpRequestInterceptor`) and the Jackson types move from `runtime` to `compile` scope,
+    since a consumer catching `ProblemDetailException` has to compile against them. Previously they
+    had to declare `spring-web` themselves.
+  - **If you relied on this client to bring Spring Boot's web starter transitively, declare it
+    yourself.** Any application using a Spring client already has it.
+- The Spring client no longer depends on `nimbus-jose-jwt`. JWT signing is now the shared
+  `java.security` implementation the Jakarta client already used — RS256 and ES256, no JOSE library.
+  Nimbus is kept as a *test* dependency, where it parses and verifies the tokens: a hand-rolled
+  signer checked against an independent JOSE implementation is a stronger guarantee than either
+  client had before.
+- Flattened the Kotlin client to a single-project Gradle build. Its root project existed only to
+  aggregate coverage across one subproject. Published coordinates are unchanged.
+- `JwtSigner` and the result-collection decompression moved into the shared protocol sources. The
+  Spring client had chosen its decompressor from `Content-Encoding` alone, which is correct only if
+  every request factory it might be configured with either leaves the body encoded or strips the
+  header; it now sniffs the stream's magic bytes, as the Jakarta client already did.
+- The two clients disagreed on which exception an incomplete `JwtSigner.builder()` throws —
+  `IllegalArgumentException` in the Spring client, `IllegalStateException` in the Jakarta one.
+  Unified on the released behaviour, `IllegalArgumentException`.
+
 - The wire-protocol behaviour the JVM clients and the server stubs had each implemented separately
   now lives once, in `contracts/api/protocol-java`, and is **compiled into** each of them: partition
   routing, the result-collection backoff policy, the `User-Agent` grammar (formatting *and*

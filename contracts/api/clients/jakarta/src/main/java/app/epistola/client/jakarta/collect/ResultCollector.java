@@ -9,6 +9,7 @@ import app.epistola.client.jakarta.model.CollectMeta;
 import app.epistola.client.jakarta.model.CollectRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.PartitionAssignment;
+import app.epistola.protocol.Compression;
 import app.epistola.protocol.PartitionRouting;
 import app.epistola.protocol.PollBackoff;
 import jakarta.ws.rs.core.Response;

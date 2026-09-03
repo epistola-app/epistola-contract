@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: EUPL-1.2
 
-package app.epistola.client.jakarta.collect;
+package app.epistola.protocol;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.zip.GZIPInputStream;
 
 /**
- * Decompresses the collect response.
+ * Decompresses the result-collection response.
  *
  * <p>Chooses the decompressor by <em>sniffing the stream's magic bytes</em> rather than trusting
  * {@code Content-Encoding}. In an application server the JAX-RS implementation may already have
@@ -26,8 +26,12 @@ import java.util.zip.GZIPInputStream;
  * they cost nothing when the consumer has not put those libraries on the classpath; the server
  * only sends them when the request's {@code Accept-Encoding} offered them, which
  * {@link #acceptEncoding()} does only for the codecs actually present.
+ *
+ * <p>Shared by both JVM clients. The Spring client previously decided from the header alone, which
+ * is correct only if every request factory it might be configured with either leaves the body
+ * encoded or strips the header when it decodes. Sniffing removes that assumption.
  */
-final class Compression {
+public final class Compression {
 
     private static final byte[] GZIP_MAGIC = {(byte) 0x1F, (byte) 0x8B};
     private static final byte[] LZ4_FRAME_MAGIC = {(byte) 0x04, (byte) 0x22, (byte) 0x4D, (byte) 0x18};
@@ -37,7 +41,7 @@ final class Compression {
     private static final Constructor<?> ZSTD_CONSTRUCTOR = findConstructor("com.github.luben.zstd.ZstdInputStream");
 
     /** The {@code Accept-Encoding} value naming every codec this classpath can decode. */
-    static String acceptEncoding() {
+    public static String acceptEncoding() {
         List<String> codecs = new ArrayList<>();
         if (LZ4_CONSTRUCTOR != null) {
             codecs.add("lz4");
@@ -53,7 +57,7 @@ final class Compression {
      * Wraps {@code input} in the decompressor its leading bytes call for, or returns it unchanged
      * when the content is already plain NDJSON.
      */
-    static InputStream decompress(InputStream input) throws IOException {
+    public static InputStream decompress(InputStream input) throws IOException {
         PushbackInputStream pushback = new PushbackInputStream(input, 4);
         byte[] magic = new byte[4];
         int read = readFully(pushback, magic);
