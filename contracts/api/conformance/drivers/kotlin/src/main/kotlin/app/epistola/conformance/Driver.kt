@@ -199,6 +199,5 @@ object Driver {
 
     private fun report(baseUrl: String, values: Map<String, Any>) = post("$baseUrl/__conformance/report", values)
 
-    private fun done(baseUrl: String, error: String?) =
-        post("$baseUrl/__conformance/done", if (error == null) emptyMap() else mapOf("error" to error))
+    private fun done(baseUrl: String, error: String?) = post("$baseUrl/__conformance/done", if (error == null) emptyMap() else mapOf("error" to error))
 }

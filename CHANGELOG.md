@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added a cross-client conformance suite. One scripted server plays a scenario's responses back,
+  records every request it was sent, and judges that record; each client contributes a thin driver
+  that asks the server what to do and asserts nothing itself. The expectations therefore live in one
+  place — `contracts/api/conformance/scenarios` — instead of in four test suites that drift, and a
+  scenario written once holds all four clients to it. It covers the identity headers, the versioned
+  vendor media types, both authentication schemes (verifying the JWT signatures against a key pair
+  generated per run), the result-collection request shape and backoff, compression, and RFC 9457
+  parsing. Run it with `make conformance`; CI runs each client's share in that client's own job.
+- Fixed the .NET client dropping the API base path on result collection. `HttpClient.BaseAddress`
+  was set to the configured URL verbatim, and URI resolution treats the last segment of a base
+  without a trailing slash as a file rather than a directory — so a base of `https://…/api` and the
+  collector's relative `tenants/…` request resolved to `/tenants/…`. Against the base URL the
+  client's own README tells consumers to configure, polling went to a path the server does not
+  serve. Every existing test used a root URL, where the defect cannot appear.
+- Fixed the Python client reading only the first line of a result batch. urllib3 closes its response
+  once the body is exhausted, and `TextIOWrapper` then raised `I/O operation on closed file` instead
+  of seeing EOF, so the handler got one result, the `_meta` line carrying `hasMore` and the
+  partition assignment was never reached, and the batch went unacknowledged and was redelivered
+  indefinitely. Only uncompressed streams were affected; the gzip path stops at its own trailer.
+  Anyone running a Python collector should take this release.
+
 - Added `app.epistola.contract:client-jakarta`, a Java client for Jakarta EE application servers
   (WildFly, Open Liberty, Payara, Quarkus), generated from the bundled spec with openapi-generator's
   `java`/`microprofile` library. Generated interfaces are MicroProfile Rest Client interfaces, so

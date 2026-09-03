@@ -83,6 +83,16 @@ jobs:
       - name: Build and test
         run: ./gradlew build
 
+      # The client is built above; this drives it against the scripted conformance server, which
+      # judges the requests it makes against the same expectations every other client is held to.
+      - name: Install conformance harness
+        working-directory: contracts/api/conformance
+        run: pnpm install --frozen-lockfile
+
+      - name: Cross-client conformance
+        working-directory: contracts/api/conformance
+        run: node src/run.mjs --client kotlin
+
   # Jakarta EE client build (MicroProfile Rest Client)
   jakarta-client:
     name: Jakarta EE Client (MicroProfile Rest Client)
@@ -108,6 +118,16 @@ jobs:
       # Run it locally with ./gradlew deploymentTest -PdeploymentTest.
       - name: Build and test
         run: ./gradlew build
+
+      # The client is built above; this drives it against the scripted conformance server, which
+      # judges the requests it makes against the same expectations every other client is held to.
+      - name: Install conformance harness
+        working-directory: contracts/api/conformance
+        run: pnpm install --frozen-lockfile
+
+      - name: Cross-client conformance
+        working-directory: contracts/api/conformance
+        run: node src/run.mjs --client jakarta
 
   # Kotlin server stubs build
   kotlin-server:
@@ -158,6 +178,17 @@ jobs:
         working-directory: contracts/api/clients/dotnet-httpclient
         run: ./generate.sh && dotnet test Epistola.Client.sln -c Release
 
+      # The client is built above; this drives it against the scripted conformance server, which
+      # judges the requests it makes against the same expectations every other client is held to.
+      - name: Install conformance harness
+        working-directory: contracts/api/conformance
+        run: pnpm install --frozen-lockfile
+
+      - name: Cross-client conformance
+        working-directory: contracts/api/conformance
+        run: node src/run.mjs --client dotnet
+
+
   # Python urllib3 client build
   python-client:
     name: Python Client (urllib3)
@@ -182,6 +213,17 @@ jobs:
       - name: Build and test
         working-directory: contracts/api/clients/python-urllib3
         run: ./generate.sh && uv run --group dev pytest && uv build
+
+      # The client is built above; this drives it against the scripted conformance server, which
+      # judges the requests it makes against the same expectations every other client is held to.
+      - name: Install conformance harness
+        working-directory: contracts/api/conformance
+        run: pnpm install --frozen-lockfile
+
+      - name: Cross-client conformance
+        working-directory: contracts/api/conformance
+        run: node src/run.mjs --client python
+
 
   # Editor model build (no OpenAPI spec dependency)
   epistola-catalog:

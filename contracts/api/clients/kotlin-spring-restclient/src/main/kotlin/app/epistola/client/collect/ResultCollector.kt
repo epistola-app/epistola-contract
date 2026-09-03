@@ -5,6 +5,7 @@
 package app.epistola.client.collect
 
 import app.epistola.client.ContractMediaTypes
+import app.epistola.protocol.Compression
 import app.epistola.protocol.PartitionRouting
 import app.epistola.protocol.PollBackoff
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -13,7 +14,6 @@ import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
 import org.springframework.web.client.RestClient
 import java.io.BufferedReader
-import java.io.InputStream
 import java.io.InputStreamReader
 import java.time.Duration
 import java.util.concurrent.LinkedBlockingQueue
@@ -21,7 +21,6 @@ import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
-import java.util.zip.GZIPInputStream
 import kotlin.concurrent.withLock
 
 /**
@@ -98,32 +97,6 @@ class ResultCollector private constructor(
         // Generated from the spec, because the vendor media type carries the API major version.
         private val NDJSON = MediaType.parseMediaType(ContractMediaTypes.VENDOR_NDJSON)
         private val EPISTOLA_JSON = MediaType.parseMediaType(ContractMediaTypes.VENDOR_JSON)
-
-        // Optional decompressors — loaded via reflection to avoid hard dependencies
-        private val lz4Decompressor: ((InputStream) -> InputStream)? = tryLoadLz4()
-        private val zstdDecompressor: ((InputStream) -> InputStream)? = tryLoadZstd()
-
-        @Suppress("ktlint:standard:function-signature")
-        private fun tryLoadLz4(): ((InputStream) -> InputStream)? =
-            try {
-                val ctor = Class.forName("net.jpountz.lz4.LZ4FrameInputStream")
-                    .getConstructor(InputStream::class.java)
-                val fn: (InputStream) -> InputStream = { input -> ctor.newInstance(input) as InputStream }
-                fn
-            } catch (_: Exception) {
-                null
-            }
-
-        @Suppress("ktlint:standard:function-signature")
-        private fun tryLoadZstd(): ((InputStream) -> InputStream)? =
-            try {
-                val ctor = Class.forName("com.github.luben.zstd.ZstdInputStream")
-                    .getConstructor(InputStream::class.java)
-                val fn: (InputStream) -> InputStream = { input -> ctor.newInstance(input) as InputStream }
-                fn
-            } catch (_: Exception) {
-                null
-            }
 
         fun builder(): Builder = Builder()
 
@@ -323,13 +296,13 @@ class ResultCollector private constructor(
                 .uri("/tenants/{tenantId}/generation/collect", tenantId)
                 .contentType(EPISTOLA_JSON)
                 .accept(NDJSON)
-                .header("Accept-Encoding", supportedEncodings())
+                .header("Accept-Encoding", Compression.acceptEncoding())
                 .body(requestBody)
                 .exchange { _, response ->
-                    val stream = decompressIfNeeded(
-                        response.body,
-                        response.headers.getFirst("Content-Encoding"),
-                    )
+                    // Sniffs the stream's leading bytes rather than trusting Content-Encoding,
+                    // which is only correct if every request factory this client might be configured
+                    // with either leaves the body encoded or strips the header when it decodes.
+                    val stream = Compression.decompress(response.body)
                     val reader = BufferedReader(InputStreamReader(stream, Charsets.UTF_8))
 
                     var count = 0
@@ -402,21 +375,6 @@ class ResultCollector private constructor(
         error = node["error"]?.asText(),
         completedAt = node["completedAt"]?.asText(),
     )
-
-    private fun supportedEncodings(): String = buildList {
-        if (lz4Decompressor != null) add("lz4")
-        if (zstdDecompressor != null) add("zstd")
-        add("gzip")
-    }.joinToString(", ")
-
-    private fun decompressIfNeeded(input: InputStream, encoding: String?): InputStream = when (encoding) {
-        "gzip" -> GZIPInputStream(input)
-        "lz4" -> lz4Decompressor?.invoke(input)
-            ?: throw IllegalStateException("Server sent lz4 but net.jpountz.lz4:lz4-java is not on classpath")
-        "zstd" -> zstdDecompressor?.invoke(input)
-            ?: throw IllegalStateException("Server sent zstd but com.github.luben:zstd-jni is not on classpath")
-        else -> input
-    }
 
     private fun removeShutdownHook() {
         shutdownHook?.let {

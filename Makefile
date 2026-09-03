@@ -1,4 +1,4 @@
-.PHONY: all lint license license-check bundle build-protocol build-client build-jakarta build-server build-catalog build-epistola-catalog build-dotnet build-python build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
+.PHONY: all lint license license-check conformance conformance-kotlin conformance-jakarta conformance-dotnet conformance-python bundle build-protocol build-client build-jakarta build-server build-catalog build-epistola-catalog build-dotnet build-python build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
 
 API_DIR := contracts/api
 API_SPEC := $(API_DIR)/openapi.yaml
@@ -85,6 +85,27 @@ build-dotnet: bundle
 build-python: bundle
 	@echo "==> Building Python client..."
 	cd $(API_DIR)/clients/python-urllib3 && ./generate.sh && uv run --group dev pytest
+
+# Cross-client conformance: every client against one scripted server, one set of expectations
+CONFORMANCE_DIR := $(API_DIR)/conformance
+
+$(CONFORMANCE_DIR)/node_modules: $(CONFORMANCE_DIR)/package.json $(CONFORMANCE_DIR)/pnpm-lock.yaml
+	@echo "==> Installing conformance harness..."
+	pnpm -C $(CONFORMANCE_DIR) install --frozen-lockfile
+
+conformance: conformance-kotlin conformance-jakarta conformance-dotnet conformance-python
+
+conformance-kotlin: bundle $(CONFORMANCE_DIR)/node_modules
+	node $(CONFORMANCE_DIR)/src/run.mjs --client kotlin
+
+conformance-jakarta: bundle $(CONFORMANCE_DIR)/node_modules
+	node $(CONFORMANCE_DIR)/src/run.mjs --client jakarta
+
+conformance-dotnet: bundle $(CONFORMANCE_DIR)/node_modules
+	node $(CONFORMANCE_DIR)/src/run.mjs --client dotnet
+
+conformance-python: bundle $(CONFORMANCE_DIR)/node_modules
+	node $(CONFORMANCE_DIR)/src/run.mjs --client python
 
 # Generate a CycloneDX SBOM for the .NET client's dependency closure
 sbom-dotnet:
@@ -206,6 +227,8 @@ help:
 	@echo "  build-catalog        - Build portable catalog only"
 	@echo "  build-dotnet         - Build .NET client only"
 	@echo "  build-python         - Build Python client only"
+	@echo "  conformance          - Run the cross-client conformance suite (all four clients)"
+	@echo "  conformance-<client> - Run it for one client (kotlin|jakarta|dotnet|python)"
 	@echo "  sbom-dotnet          - Generate a CycloneDX SBOM for the .NET client"
 	@echo "  clean          - Clean all build artifacts"
 	@echo "  publish-local  - Publish to local Maven repository"
