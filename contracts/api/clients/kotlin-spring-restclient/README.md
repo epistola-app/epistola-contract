@@ -19,36 +19,92 @@ dependencies {
 ## Quick Start
 
 ```kotlin
-// 1. Set up client identity (required on all requests)
+val restClient = EpistolaClient.builder("https://epistola.example.com/api", "epk_...")
+    .identity(ClientIdentity.builder().nodeId("my-pod-123").product("my-app", "1.0.0").build())
+    .build()
+
+val generationApi = GenerationApi(restClient)
+val consumersApi = ConsumersApi(restClient)
+val systemApi = SystemApi(restClient)
+```
+
+`EpistolaClient.builder` is the recommended entry point: identity headers, the JSON configuration
+that omits properties you never set, RFC 9457 problem parsing, and API-key or self-signed-JWT auth,
+all in one call. See "EpistolaClient — the blessed setup" below for self-signed JWT auth, the two
+timeout profiles, and what it assembles under the hood.
+
+### Building the `RestClient` by hand
+
+`EpistolaClient` is an assembly of independently usable pieces — reach for this instead when you
+need a `RestClient` feature it doesn't expose (a custom `ClientHttpRequestFactory`, extra
+interceptors in a specific order, `only` the JSON configuration without the problem handler):
+
+```kotlin
 val identity = ClientIdentity.builder()
     .nodeId("my-pod-123")                              // Kubernetes pod name or hostname
     .product("my-app", "1.0.0")                        // your application name + version
     .build()
 
-// 2. Set up authentication (choose one)
-
-// Option A: Self-signed JWT (no IdP needed)
 val signer = JwtSigner.builder()
     .consumerId("invoice-service")                     // your registered consumer ID
     .privateKey(JwtSigner.loadPrivateKey(Path.of("private.pem")))
     .build()
+// or: val apiKeyAuth = ApiKeyAuth.of("epk_...")        // Authorization: ApiKey <key>
+// or: your IdP's token in a custom interceptor          // OAuth
 
-// Option B: OAuth — use your IdP's token in a custom interceptor
-// Option C: API key — use Authorization: ApiKey <key>
-val apiKeyAuth = ApiKeyAuth.of("epk_...")
-
-// 3. Create RestClient with interceptors
 val restClient = RestClient.builder()
     .baseUrl("https://epistola.example.com/api")
-    .requestInterceptor(identity.interceptor())        // User-Agent + X-EP-Node-Id
-    .requestInterceptor(signer.interceptor())          // Authorization: Bearer <jwt>
+    .epistolaMessageConverters()                        // omits unset properties (see below)
+    .installProblemDetailHandler()                      // typed ProblemDetailException (see below)
+    .requestInterceptor(identity.interceptor())         // User-Agent + X-EP-Node-Id
+    .requestInterceptor(signer.interceptor())           // Authorization: Bearer <jwt>
     .build()
-
-// 4. Use generated API clients
-val generationApi = GenerationApi(restClient)
-val consumersApi = ConsumersApi(restClient)
-val systemApi = SystemApi(restClient)
 ```
+
+## EpistolaClient — the blessed setup
+
+`EpistolaClient.builder(...)` assembles identity, JSON configuration, problem parsing, and
+authentication into one `RestClient`. It exists because assembling them by hand is exactly where a
+piece goes missing without anything failing loudly: wiring `epistolaMessageConverters()` without
+also calling `installProblemDetailHandler()` compiles, runs, and every error response silently comes
+back as a bare `RestClientResponseException` instead of a `ProblemDetailException` — no exception of
+its own, no log line, just a `catch (e: ProblemDetailException)` block that quietly stops matching.
+`EpistolaClient` installs both, every time, because there is no configuration in which a consumer of
+this entry point wants only one.
+
+```kotlin
+val restClient = EpistolaClient.builder("https://epistola.example.com/api")
+    .apiKey("epk_...")                                 // or .jwtSigner(signer)
+    .identity(ClientIdentity.builder().nodeId("my-pod-123").build())
+    .build()
+```
+
+`apiKey(...)` and `jwtSigner(...)` are mutually exclusive — whichever is called last on the builder
+wins. `EpistolaClient.builder(baseUrl, apiKey)` is a shorthand that sets both in one call, for the
+common case of a static key and nothing else to configure.
+
+### Two timeout profiles from one builder
+
+A `Builder` holds the shared configuration — base URL, auth, identity, connect timeout — and `build()`
+can be called more than once, with a different `readTimeout(...)` set in between, for the two
+profiles a long-running consumer typically needs against the same backend:
+
+```kotlin
+val builder = EpistolaClient.builder(baseUrl, apiKey).identity(identity)
+
+// Result-collector polling, preview rendering, catalog import: no read timeout at all, because a
+// slow render or a large transfer is not a failure and should not be cut off mid-flight.
+val longRunning = builder.readTimeout(null).build()
+
+// Everything else: bounded, so a wedged connection surfaces as an error instead of hanging forever.
+val shortCalls = builder.readTimeout(Duration.ofSeconds(30)).build()
+```
+
+`readTimeout` defaults to 30 seconds; `connectTimeout` defaults to 10 seconds and applies to both
+profiles. The request factory underneath is `java.net.http.HttpClient`, not
+`SimpleClientHttpRequestFactory` — the latter wraps `java.net.HttpURLConnection`, which rejects
+`PATCH` outright (`ProtocolException: Invalid HTTP method: PATCH`), and the contract has thirteen
+`PATCH` operations.
 
 ## JSON configuration
 
@@ -71,15 +127,35 @@ The trade is that clearing a field is not expressible — but it never was, sinc
 one field without clearing every other you had not set. Expressing both needs models that carry the
 distinction, which is a larger change.
 
-`epistolaMessageConverters()` also installs `BinaryFileHttpMessageConverter`. Every operation the
-contract declares as `format: binary` — downloading a document, rendering a preview, fetching an
-asset's content — is generated as returning `java.io.File`, and Spring ships no converter that can
-produce one; without it those calls fail with `UnknownContentTypeException` whatever else you
-configure. The file it hands back is a temporary one and **you own it** — delete it when you are
-done; the `deleteOnExit` registration is a backstop for short-lived processes, not a substitute.
-
 `EpistolaJson.objectMapper` is the same mapper, exposed for anywhere you serialize these models
 yourself.
+
+### Binary operations return `Resource`, not `File`
+
+Every operation the contract declares as `format: binary` — downloading a document, rendering a
+preview, fetching or uploading an asset's content, importing a catalog archive — is generated as
+`org.springframework.core.io.Resource`, both for responses and for multipart request parts. Spring
+converts `Resource` out of the box, on the response side and the multipart side alike, so these
+calls work with a completely default `RestClient` — no converter to install, nothing to opt into.
+
+This used to be `java.io.File`, which Spring has no converter for at all: every one of these calls
+failed outright, always, with `UnknownContentTypeException`, whatever you configured. `Resource` is
+also the more useful type for a caller who already has the bytes — `ByteArrayResource(bytes)` needs
+no temporary file, where `File` forced you to write one just to hand it back.
+
+One thing to know about the upload side: a multipart file part's `Content-Disposition` only gets a
+`filename` attribute if the `Resource` reports one. `ByteArrayResource` returns `null` from
+`getFilename()` unless you override it, and a part with no filename is indistinguishable from a
+plain form field to a multipart parser expecting a file — override it:
+
+```kotlin
+val archive = object : ByteArrayResource(bytes) {
+    override fun getFilename() = "catalog.zip"
+}
+catalogsApi.importCatalog(tenantId, archive)
+```
+
+`FileSystemResource(file)` needs no such override — a real file always has a name.
 
 ## Client Identity
 
@@ -230,14 +306,35 @@ try {
 `ProblemDetailException` exposes `type`, `typeSlug`, `title`, `problemStatus`, `detail`,
 `errors` (field-level validation errors, empty unless it's a validation problem),
 `validationErrors` (per-example data-model failures, empty unless it's a
-`data-model-validation-error` problem), `isValidationProblem`, and
-`isDataModelValidationProblem`. See [error-types.md](../../docs/error-types.md) for the full list
-of problem `type` slugs.
+`data-model-validation-error` problem), `isValidationProblem`, `isDataModelValidationProblem`, and
+`extensions`. See [error-types.md](../../docs/error-types.md) for the full list of problem `type`
+slugs.
 
 Error responses that are **not** `application/problem+json` (e.g. an HTML page from a proxy or
 gateway, or an empty body) still surface as a plain `RestClientResponseException` /
 `HttpClientErrorException` / `HttpServerErrorException` — the handler is additive and never
 hides information.
+
+### Extension members outside `errors` and `validationErrors`
+
+A problem body can carry members this contract doesn't give a dedicated name — the API may add
+one to any existing or future problem type without that being a breaking change. `extensions` is a
+`Map<String, Any?>` of everything the five RFC 9457 base fields don't already cover:
+
+```kotlin
+} catch (e: ProblemDetailException) {
+    if (e.typeSlug == "catalog-schema-too-old") {
+        val version = e.extensions["version"] as? Int
+        val baselineVersion = e.extensions["baselineVersion"] as? Int
+        log.error("Bundled catalog schema is version $version; server requires $baselineVersion+")
+    }
+}
+```
+
+`typeSlug` needs no registry entry to work for a problem type either — it strips
+[error-types.md](../../docs/error-types.md)'s registered base URI generically, so both `typeSlug`
+and `extensions` are available for a problem type the moment the server starts sending it, ahead of
+any client release that adds a named constant for it.
 
 ## Generating Documents
 
@@ -262,6 +359,17 @@ val batch = api.generateBatch("acme-corp", GenerateBatchRequest(
         BatchGenerationItem(catalogId = "default", templateId = "packing-slip", data = packingData),
     ),
 ))
+```
+
+### Downloading the result
+
+`downloadDocument`, `previewDocument`, and an asset's `downloadAssetContent` all return
+`org.springframework.core.io.Resource` — stream it, don't buffer it, unless the document is known to
+be small:
+
+```kotlin
+val document = api.downloadDocument("acme-corp", documentId)
+document.inputStream.use { input -> input.copyTo(outputStream) }
 ```
 
 ### Routing Keys
@@ -421,26 +529,28 @@ request.validate()  // throws IllegalArgumentException if constraints are violat
 
 ```kotlin
 fun main() {
-    // Identity + auth
-    val identity = ClientIdentity.builder()
-        .nodeId(System.getenv("HOSTNAME") ?: "local")
-        .product("invoice-service", "2.1.0")
-        .build()
-
     val signer = JwtSigner.builder()
         .consumerId("invoice-service")
         .privateKey(JwtSigner.loadPrivateKey(Path.of("/secrets/private.pem")))
         .build()
 
-    val restClient = RestClient.builder()
-        .baseUrl(System.getenv("EPISTOLA_URL") ?: "http://localhost:8080/api")
-        .requestInterceptor(identity.interceptor())
-        .requestInterceptor(signer.interceptor())
-        .build()
+    val builder = EpistolaClient.builder(System.getenv("EPISTOLA_URL") ?: "http://localhost:8080/api")
+        .jwtSigner(signer)
+        .identity(
+            ClientIdentity.builder()
+                .nodeId(System.getenv("HOSTNAME") ?: "local")
+                .product("invoice-service", "2.1.0")
+                .build(),
+        )
+
+    // The two timeout profiles this one builder produces: unbounded for the poll loop, bounded for
+    // the request that submits work to it.
+    val pollingClient = builder.readTimeout(null).build()
+    val apiClient = builder.readTimeout(Duration.ofSeconds(30)).build()
 
     // Start collecting results in a background thread
     val collector = ResultCollector.builder()
-        .restClient(restClient)
+        .restClient(pollingClient)
         .tenantId("acme-corp")
         .handler { result ->
             if (result.status == "COMPLETED") {
@@ -452,7 +562,7 @@ fun main() {
     Thread({ collector.start() }, "result-collector").apply { isDaemon = true }.start()
 
     // Submit generation requests
-    val api = GenerationApi(restClient)
+    val api = GenerationApi(apiClient)
     val job = api.generateDocument("acme-corp", GenerateDocumentRequest(
         catalogId = "default",
         templateId = "invoice",

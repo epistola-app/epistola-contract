@@ -101,10 +101,13 @@ internal class ParsedProblem(
  * when present, the `errors` array (field-level [ValidationError]s) and the `validationErrors` map
  * (per-example [DataModelValidationError]s). Returns `null` on any parse failure.
  *
- * The generated `ProblemDetail`, `ValidationProblemDetail`, and `DataModelValidationProblemDetail`
- * are independent models, so the base problem and each extension are read separately. Reuses the
- * generated [Serializer.jacksonObjectMapper] (unknown members are ignored), so it tolerates
- * extension members the contract does not model.
+ * `ProblemDetail`, `ValidationProblemDetail`, and `DataModelValidationProblemDetail` are independent
+ * classes, so the base problem and each of these two known extensions are read separately, off the
+ * raw tree rather than through a composed model. Any *other* member is not lost either: `ProblemDetail`
+ * is hand-written with a catch-all (see [ProblemDetail.extensions]), so `errors` and
+ * `validationErrors` land there too, alongside whatever else the body carries — reading them here as
+ * well is what gives them a properly typed shape ([ValidationError], [DataModelValidationError])
+ * instead of raw parsed JSON.
  */
 internal fun parseProblem(bytes: ByteArray): ParsedProblem? = try {
     val mapper = Serializer.jacksonObjectMapper

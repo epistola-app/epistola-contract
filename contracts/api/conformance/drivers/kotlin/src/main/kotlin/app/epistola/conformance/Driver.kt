@@ -208,15 +208,15 @@ object Driver {
     /**
      * Downloads a document and reports what arrived, byte for byte.
      *
-     * The four clients return four different things here — a File, a FileParameter, a bytearray —
-     * and the only thing that has to be identical is the content. A stack that decodes a PDF as
-     * text corrupts every document it fetches, silently and irreversibly, so the fixture is
-     * deliberately not valid UTF-8.
+     * The four clients return four different things here — a Resource, a FileParameter, a
+     * bytearray — and the only thing that has to be identical is the content. A stack that decodes
+     * a PDF as text corrupts every document it fetches, silently and irreversibly, so the fixture
+     * is deliberately not valid UTF-8.
      */
     private fun downloadDocument(baseUrl: String, config: ObjectNode) {
-        val file = GenerationApi(restClient(baseUrl, config))
+        val resource = GenerationApi(restClient(baseUrl, config))
             .downloadDocument(config["tenantId"].asText(), UUID.fromString(config["documentId"].asText()))
-        val bytes = file.readBytes()
+        val bytes = resource.inputStream.use { it.readBytes() }
 
         report(
             baseUrl,

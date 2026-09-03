@@ -109,12 +109,33 @@ class ProblemDetailErrorHandlerTest {
     }
 
     @Test
-    fun `parseProblem ignores unknown extension members`() {
+    fun `parseProblem carries an unmodelled extension member through treeToValue, not just readValue`() {
+        // treeToValue is a separate Jackson code path from readValue; the creator-based any-setter
+        // has to work through it too, since that is what parseProblem actually calls.
         val body = """{"type":"about:blank","title":"X","status":409,"themeId":"classic"}"""
         val parsed = parseProblem(body.toByteArray())
         assertEquals(409, parsed?.problem?.status)
+        assertEquals("classic", parsed?.problem?.extensions?.get("themeId"))
         assertTrue(parsed?.errors?.isEmpty() == true)
         assertTrue(parsed?.validationErrors?.isEmpty() == true)
+    }
+
+    @Test
+    fun `an unregistered problem type's extension members reach the exception`() {
+        // catalog-schema-too-old is not in KnownProblemSlugs — nothing about that stops typeSlug
+        // (generic URI-suffix stripping) or extensions (a generic catch-all) from working for it.
+        val body = """
+            {"type":"https://epistola.app/errors/catalog-schema-too-old","title":"Catalog schema too old",
+             "status":409,"detail":"Deploy a build whose bundled catalog schema is at least baselineVersion",
+             "version":3,"baselineVersion":5}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, body))
+        }
+        assertEquals("catalog-schema-too-old", ex.typeSlug)
+        assertEquals(3, ex.extensions["version"])
+        assertEquals(5, ex.extensions["baselineVersion"])
     }
 
     @Test

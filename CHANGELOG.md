@@ -7,13 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Fixed the Kotlin client's generated binary download methods. Every operation the contract declares
-  as `format: binary` — `downloadDocument`, `previewDocument`, asset content — is generated as
-  returning `java.io.File`, and Spring ships no message converter that produces one, so those
-  methods failed with `UnknownContentTypeException` whatever the consumer configured. Downloading
-  the same document with a hand-written `body(ByteArray::class.java)` call was unaffected and
-  remains so. `epistolaMessageConverters()` now installs a `BinaryFileHttpMessageConverter` that
-  streams the body to a temporary file. The Jakarta, .NET and Python clients were unaffected.
+- Added `EpistolaClient`, a single entry point that assembles identity, the JSON configuration,
+  RFC 9457 problem parsing, and API-key or self-signed-JWT authentication into one `RestClient`:
+  `EpistolaClient.builder(baseUrl, apiKey).build()`. Installing `epistolaMessageConverters()` without
+  also calling `installProblemDetailHandler()` compiles and runs, and every error response then
+  silently comes back as a bare `RestClientResponseException` rather than a typed
+  `ProblemDetailException`, with nothing to catch the mistake; `EpistolaClient` installs both, always.
+  One `Builder` can produce more than one `RestClient` — call `build()` again after changing
+  `readTimeout(...)` — for the two timeout profiles a long-running consumer typically needs against
+  the same backend: unbounded for polling, rendering and large transfers, bounded for everything
+  else. Its request factory is `java.net.http.HttpClient`, not `SimpleClientHttpRequestFactory`:
+  the latter wraps `java.net.HttpURLConnection`, which rejects `PATCH` outright
+  (`ProtocolException: Invalid HTTP method: PATCH`) — found while testing this feature, on the
+  contract's thirteen `PATCH` operations, `updateConsumer` among them.
+
+- Fixed the Kotlin client silently dropping problem-body members outside `type`/`title`/`status`/
+  `detail`/`instance`. `ProblemDetail` was a generated, closed data class — Jackson ignores unknown
+  properties by default, so an extension member on any problem type the contract adds later
+  (`catalog-schema-too-old`'s `version`/`baselineVersion`, say) was parsed and thrown away with no
+  error and no way to reach it. `ProblemDetail` is now hand-written, substituted for the generated
+  model via `schemaMappings` (same fully-qualified name, so no call-site changes), with a catch-all
+  `extensions: Map<String, Any?>` populated by Jackson's creator-parameter any-setter. Also exposed
+  as `ProblemDetailException.extensions`. `errors` and `validationErrors` are unaffected — those two
+  known extensions were already read separately and still are.
+
+- Fixed the Kotlin client's generated binary operations — every operation the contract declares as
+  `format: binary`: `downloadDocument`, `previewDocument`, asset content, `uploadAsset`,
+  `importCatalog`. They generated as `java.io.File`, which Spring has no message converter for, so
+  every one of them failed outright with `UnknownContentTypeException`, always, whatever the
+  consumer configured; a hand-written `body(ByteArray::class.java)` call was unaffected. They now
+  generate as `org.springframework.core.io.Resource`, which Spring converts on both the response and
+  the multipart-upload side with no configuration at all — so the fix is a generator config change,
+  not a hand-written converter, and nothing needs to be installed to use them. A multipart `Resource`
+  needs a `filename` for a server to treat it as a file part rather than a form field; `File`-backed
+  resources always had one, so this is a new obligation only for a caller who builds one from bytes
+  directly (e.g. `ByteArrayResource`), documented in the README. The Jakarta, .NET and Python clients
+  were unaffected.
 - Added fixture validation to the conformance suite: a scenario's scripted responses are checked
   against the spec's response schema at load time, so a fixture that does not match the contract
   reports one precise message instead of four clients failing to deserialize it. It found
