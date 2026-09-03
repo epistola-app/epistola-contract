@@ -7,103 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- **The Spring client no longer ships a servlet container.** It declared `spring-boot-starter-web`,
-  which resolved 33 artifacts onto every consumer's classpath — embedded Tomcat and Spring MVC among
-  them — for a library that *calls* HTTP rather than serving it. It now declares `spring-web`, and
-  the runtime classpath is 15 artifacts with no Tomcat, no Spring MVC and no Boot starters. A
-  dependency-hygiene test pins this, as the Jakarta client's already did.
-  - The Spring types this client exposes (`RestClient.Builder`, `RestClientResponseException`,
-    `ClientHttpRequestInterceptor`) and the Jackson types move from `runtime` to `compile` scope,
-    since a consumer catching `ProblemDetailException` has to compile against them. Previously they
-    had to declare `spring-web` themselves.
-  - **If you relied on this client to bring Spring Boot's web starter transitively, declare it
-    yourself.** Any application using a Spring client already has it.
-- The Spring client no longer depends on `nimbus-jose-jwt`. JWT signing is now the shared
-  `java.security` implementation the Jakarta client already used — RS256 and ES256, no JOSE library.
-  Nimbus is kept as a *test* dependency, where it parses and verifies the tokens: a hand-rolled
-  signer checked against an independent JOSE implementation is a stronger guarantee than either
-  client had before.
-- Flattened the Kotlin client to a single-project Gradle build. Its root project existed only to
-  aggregate coverage across one subproject. Published coordinates are unchanged.
-- `JwtSigner` and the result-collection decompression moved into the shared protocol sources. The
-  Spring client had chosen its decompressor from `Content-Encoding` alone, which is correct only if
-  every request factory it might be configured with either leaves the body encoded or strips the
-  header; it now sniffs the stream's magic bytes, as the Jakarta client already did.
-- The two clients disagreed on which exception an incomplete `JwtSigner.builder()` throws —
-  `IllegalArgumentException` in the Spring client, `IllegalStateException` in the Jakarta one.
-  Unified on the released behaviour, `IllegalArgumentException`.
-
-- The wire-protocol behaviour the JVM clients and the server stubs had each implemented separately
-  now lives once, in `contracts/api/protocol-java`, and is **compiled into** each of them: partition
-  routing, the result-collection backoff policy, the `User-Agent` grammar (formatting *and*
-  parsing), problem `type` URI ↔ slug, and the murmur3 hash. Both bugs fixed in the previous release
-  existed in four copies each; they now have one implementation and one test suite.
-  - Not a published artifact. The sources are compiled into each consumer, so the published surface
-    is unchanged, all three POMs are byte-identical to before, and the Jakarta client still ships
-    nothing into a consumer's WAR.
-  - This assumes an application takes one Epistola artifact, not two — a client matching its
-    runtime, or the server stubs. The READMEs now say so: the three JVM jars each carry the shared
-    classes under the same package, so two on one classpath would be a split package.
-  - Written in Java rather than Kotlin so the Jakarta EE client does not compile in a dependency on
-    kotlin-stdlib; Kotlin consumes it transparently.
-  - Its package is JSpecify `@NullMarked`, so Kotlin sees real nullable types rather than platform
-    types. The Kotlin builds set `-Xjspecify-annotations=strict`, without which the annotations are
-    silently ignored.
-
-- The contract constants both sides of the wire must agree on are now **generated into every JVM
-  module** instead of hand-copied into each. No module depends on another to get them, which keeps
-  the clients standalone and the Jakarta client free of runtime dependencies.
-  - The server stubs' problem-type slugs and type base now come from the spec's `x-problem-types`
-    registry, as both clients' already did. `ProblemDetails.KnownSlugs` keeps its shape and
-    delegates to the generated `KnownProblemSlugs`, so nothing changes for consumers.
-  - Added `x-client-identity` to the spec: a machine-readable form of the client-identity
-    convention that `info.description` describes normatively. The `X-EP-Node-Id` header name and
-    the `User-Agent` product grammar were hand-written in all three modules — the clients write
-    those headers and the server parses them, so a divergence would have made every request from
-    that client unidentifiable with nothing to catch it.
-  - The problem-body extension member names (`errors`, `validationErrors`) are derived from the
-    problem schemas the registry names, rather than written out on each side. The server sets those
-    members and the clients read them back out of the raw body by name, so a rename used to make
-    the extension silently vanish; now it fails to compile in all three modules.
-  - The versioned vendor media types come from the spec's own operations rather than a literal in
-    each module. They carry the API major version, so the hand-written request paths — result
-    collection in both clients, the server's `produces` normalization — would otherwise be left
-    behind at the next bump. Both clients now expose a public `ContractMediaTypes` for consumers
-    building their own requests.
-
 - Added `app.epistola.contract:client-jakarta`, a Java client for Jakarta EE application servers
-  (WildFly, Open Liberty, Payara, Quarkus). Generated from the bundled spec with openapi-generator's
-  `java`/`microprofile` library and carrying the same conventions as the Spring client: the client
-  identity headers, API-key and self-signed-JWT authentication, RFC 9457 problem parsing into a
-  typed `ProblemDetailException`, the asynchronous result-collection protocol, and both layers of
-  client-side validation. Generated interfaces are MicroProfile Rest Client interfaces, so
-  `@Inject @RestClient GenerationApi` works with configuration alone.
-- The Jakarta client ships **no runtime dependencies**: every container-supplied API (JAX-RS,
+  (WildFly, Open Liberty, Payara, Quarkus), generated from the bundled spec with openapi-generator's
+  `java`/`microprofile` library. Generated interfaces are MicroProfile Rest Client interfaces, so
+  `@Inject @RestClient GenerationApi` works with configuration alone, and it carries the same
+  conventions as the Spring client: identity headers, API-key and self-signed-JWT authentication,
+  RFC 9457 problem parsing into a typed `ProblemDetailException`, the asynchronous
+  result-collection protocol, and both layers of client-side validation.
+- Kept the Jakarta client free of runtime dependencies: every container-supplied API (JAX-RS,
   JSON-B, JSON-P, MicroProfile Rest Client and Config) is `compileOnly`, so nothing is added to a
   consumer's WAR and no REST implementation is bundled for them to exclude. A test asserts this
-  rather than leaving it to review, and an opt-in Testcontainers test deploys the client into a real
-  WildFly.
-- Fixed three defects in **every** client's result collection and template validation. They were
-  found while building the Jakarta client and are fixed in the Spring, .NET and Python clients too:
-  - **`ResultCollector`'s adaptive backoff could collapse into a busy loop.** A poll reporting
-    `hasMore` sets the interval to 0 so the next one is immediate, and `0 * multiplier` is still 0 —
-    so once a burst drained, or the server went down mid-burst, the collector polled
-    `/generation/collect` flat out with no way back: the next request goes out with **zero delay**,
-    so the rate is bounded only by round-trip time. The regression test measures 216 polls in
-    600 ms over a real localhost socket, and ~22,000 against an in-memory stub — in production it
-    is a continuous hot loop at whatever the network allows. The backoff is now floored at
-    `minInterval`. **Anyone running a collector should upgrade.**
-  - **`routingKeyToMe` could return a routing key that does not route to the calling node**, because
-    `"3:key"` does not hash to partition 3. With 2 of 8 partitions owned it returned a foreign key
-    more often than not, sending results to another node. It now searches numbered prefixes and
-    checks each candidate's actual partition.
-  - **The template schema cache omitted the catalog from its key** while loading by catalog, so two
-    catalogs of one tenant holding the same template id shared one compiled schema for the whole
-    TTL — data validated against the wrong contract, silently. This changes the signatures of
-    `SchemaCache.getOrLoad` / `get_or_load` / `GetOrLoad` and `TtlSchemaCache.evict` / `Evict` to
-    take the catalog id.
-  - `partitionFor` now returns null rather than dividing by zero when the server reports no
-    partitions.
+  rather than leaving it to review, and an opt-in Testcontainers test deploys the client into a
+  real WildFly.
+- Fixed a busy loop in every client's `ResultCollector`. A poll reporting `hasMore` sets the
+  interval to 0 so the next one is immediate, and `0 * multiplier` is still 0, so once a burst
+  drained — or the server went down mid-burst — the next request went out with no delay,
+  indefinitely, bounded only by round-trip time. The backoff is now floored at `minInterval`.
+  Anyone running a collector should take this release.
+- Fixed `routingKeyToMe` in every client returning routing keys that do not route to the calling
+  node: the fallback assumed `"3:key"` hashes to partition 3, which it does not. With two of eight
+  partitions owned it produced a foreign key more often than not, sending results to another node.
+  It now searches numbered prefixes and checks each candidate's actual partition.
+- Fixed the template schema cache in every client omitting the catalog from its key while loading
+  by catalog, so two catalogs of one tenant holding the same template id shared one compiled schema
+  for the whole TTL and data was validated against the wrong contract. This changes the signatures
+  of `SchemaCache.getOrLoad` / `get_or_load` / `GetOrLoad` and `TtlSchemaCache.evict` / `Evict` to
+  take the catalog id, which is source-breaking for anyone with a custom cache implementation.
+- Fixed `partitionFor` dividing by zero when the server reports no partitions; it returns null.
+- Removed `spring-boot-starter-web` from the Kotlin client, which resolved 33 artifacts onto every
+  consumer's classpath including embedded Tomcat and Spring MVC, for a library that calls HTTP
+  rather than serving it. It now declares `spring-web` and resolves 15, and a dependency-hygiene
+  test pins that. Applications relying on this client to supply Spring Boot's web starter
+  transitively must declare it themselves; any application using a Spring client already has it.
+- Moved the Spring types the Kotlin client exposes — `RestClient.Builder`,
+  `RestClientResponseException`, `ClientHttpRequestInterceptor` — and the Jackson types from
+  `runtime` to `compile` scope, since a consumer catching `ProblemDetailException` has to compile
+  against them and previously had to declare `spring-web` itself.
+- Removed `nimbus-jose-jwt` from the Kotlin client. JWT signing is now plain `java.security`,
+  RS256 and ES256, shared with the Jakarta client. Nimbus is kept as a test dependency, where it
+  parses and verifies the tokens: a hand-rolled signer checked against an independent JOSE
+  implementation is a stronger guarantee than either client had before.
+- Generated the contract constants both sides of the wire must agree on into every JVM module
+  instead of hand-copying them: the problem-type slugs and type base, the client-identity headers,
+  the problem-body extension member names, and the versioned vendor media types. No module depends
+  on another to get them, so the clients stay standalone. Both clients now expose a public
+  `ContractMediaTypes` for consumers building their own requests.
+- Added `x-client-identity` to the spec, a machine-readable form of the client-identity convention
+  `info.description` describes normatively. The `X-EP-Node-Id` header name and the `User-Agent`
+  product grammar were previously hand-written in all three JVM modules, and since the clients
+  write those headers and the server parses them, a divergence would have made every request from
+  that client unidentifiable with nothing to catch it.
+- Shared the wire-protocol behaviour the JVM clients and the server stubs had each implemented
+  separately — partition routing, the result-collection backoff and decompression, the `User-Agent`
+  grammar in both directions, problem type URI to slug, JWT signing, and the murmur3 hash. It lives
+  in `contracts/api/protocol-java` and is compiled into each consumer rather than published, so the
+  published surface and every POM but the Kotlin client's are unchanged. This assumes an
+  application takes one Epistola artifact rather than two, which the READMEs now state.
+- Unified which exception an incomplete `JwtSigner.builder()` throws. The Kotlin client raised
+  `IllegalArgumentException` and the Jakarta client `IllegalStateException`; both now raise
+  `IllegalArgumentException`, the behaviour already released.
+- Changed the Kotlin client's result-collection decompression to identify the codec from the
+  stream's leading bytes rather than the `Content-Encoding` header, which was correct only if
+  every request factory it might be configured with either leaves the body encoded or strips the
+  header when it decodes.
+- Flattened the Kotlin client to a single-project Gradle build; its root project existed only to
+  aggregate coverage across a single subproject. Published coordinates and its artifact contents
+  are unchanged.
 
 ## [1.1.0] - 2026-08-20
 
