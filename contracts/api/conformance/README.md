@@ -189,7 +189,9 @@ test suites — which is the argument for the suite existing:
   consumer also erased its description, contact and expiry. A 200 came back. Found by Prism
   rejecting the same habit on a field that does not accept null at all, then reproduced directly by
   the `partial-update` scenario.
-- **The Kotlin client could not download a document at all.** Every `format: binary` operation is
-  generated as returning `java.io.File`, and Spring ships no converter that produces one, so
-  `downloadDocument` threw `UnknownContentTypeException` whatever the consumer configured. Nothing
-  in its test suite mentioned the operation. The other three clients returned the bytes correctly.
+- **The Kotlin client's generated download methods could not run.** Every `format: binary` operation
+  is generated as returning `java.io.File`, and Spring ships no converter that produces one, so
+  `downloadDocument` threw `UnknownContentTypeException` — with plain wiring and with the generated
+  convenience constructor alike. A hand-written `body(ByteArray::class.java)` call always worked, so
+  a consumer who wrote their own download never met it. Nothing in the client's test suite mentioned
+  the operation; the other three clients returned the bytes correctly.

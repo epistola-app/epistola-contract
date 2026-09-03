@@ -18,8 +18,13 @@ import java.io.File
  * no converter that can produce one. Without this, `downloadDocument` fails with
  * `UnknownContentTypeException: no suitable HttpMessageConverter found for response type
  * [class java.io.File] and content type [application/pdf]`, whatever converters the consumer
- * configures. Downloading a generated document is most of the point of the API, and it could not be
- * done.
+ * configures — with a plain `RestClient.builder()`, and with the generated convenience constructor
+ * alike.
+ *
+ * This is specific to the *generated* methods. Fetching the same document with a hand-written call
+ * (`restClient.get().uri(…).retrieve().body(ByteArray::class.java)`) has always worked, because
+ * Spring converts byte arrays out of the box — so a consumer who wrote their own download never
+ * met this, and one who called the generated method could not get past it.
  *
  * The body is streamed to a temporary file rather than buffered: documents are the largest thing
  * this client moves, and the generated signature hands back a [File] precisely so the caller need

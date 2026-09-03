@@ -7,12 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Fixed the Kotlin client being unable to download a document. Every operation the contract declares
+- Fixed the Kotlin client's generated binary download methods. Every operation the contract declares
   as `format: binary` — `downloadDocument`, `previewDocument`, asset content — is generated as
-  returning `java.io.File`, and Spring ships no message converter that produces one, so those calls
-  failed with `UnknownContentTypeException` whatever the consumer configured. `epistolaMessageConverters()`
-  now installs a `BinaryFileHttpMessageConverter` that streams the body to a temporary file. The
-  Jakarta, .NET and Python clients were unaffected.
+  returning `java.io.File`, and Spring ships no message converter that produces one, so those
+  methods failed with `UnknownContentTypeException` whatever the consumer configured. Downloading
+  the same document with a hand-written `body(ByteArray::class.java)` call was unaffected and
+  remains so. `epistolaMessageConverters()` now installs a `BinaryFileHttpMessageConverter` that
+  streams the body to a temporary file. The Jakarta, .NET and Python clients were unaffected.
 - Added fixture validation to the conformance suite: a scenario's scripted responses are checked
   against the spec's response schema at load time, so a fixture that does not match the contract
   reports one precise message instead of four clients failing to deserialize it. It found
