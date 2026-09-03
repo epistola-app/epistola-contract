@@ -7,13 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Fixed the Kotlin client's generated binary download methods. Every operation the contract declares
-  as `format: binary` — `downloadDocument`, `previewDocument`, asset content — is generated as
-  returning `java.io.File`, and Spring ships no message converter that produces one, so those
-  methods failed with `UnknownContentTypeException` whatever the consumer configured. Downloading
-  the same document with a hand-written `body(ByteArray::class.java)` call was unaffected and
-  remains so. `epistolaMessageConverters()` now installs a `BinaryFileHttpMessageConverter` that
-  streams the body to a temporary file. The Jakarta, .NET and Python clients were unaffected.
+- Fixed the Kotlin client's generated binary operations — every operation the contract declares as
+  `format: binary`: `downloadDocument`, `previewDocument`, asset content, `uploadAsset`,
+  `importCatalog`. They generated as `java.io.File`, which Spring has no message converter for, so
+  every one of them failed outright with `UnknownContentTypeException`, always, whatever the
+  consumer configured; a hand-written `body(ByteArray::class.java)` call was unaffected. They now
+  generate as `org.springframework.core.io.Resource`, which Spring converts on both the response and
+  the multipart-upload side with no configuration at all — so the fix is a generator config change,
+  not a hand-written converter, and nothing needs to be installed to use them. A multipart `Resource`
+  needs a `filename` for a server to treat it as a file part rather than a form field; `File`-backed
+  resources always had one, so this is a new obligation only for a caller who builds one from bytes
+  directly (e.g. `ByteArrayResource`), documented in the README. The Jakarta, .NET and Python clients
+  were unaffected.
 - Added fixture validation to the conformance suite: a scenario's scripted responses are checked
   against the spec's response schema at load time, so a fixture that does not match the contract
   reports one precise message instead of four clients failing to deserialize it. It found

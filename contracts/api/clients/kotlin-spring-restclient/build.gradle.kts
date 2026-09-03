@@ -73,6 +73,20 @@ openApiGenerate {
     packageName.set("app.epistola.client")
     apiPackage.set("app.epistola.client.api")
     modelPackage.set("app.epistola.client.model")
+    // Every `format: binary` operation — downloadDocument, previewDocument, asset content,
+    // uploadAsset, importCatalog — generates as java.io.File by default, and Spring has no message
+    // converter that produces one: those calls fail outright with UnknownContentTypeException,
+    // always, whatever the consumer configures. Resource is converted by Spring on both the
+    // response and the multipart-upload side with zero configuration.
+    //
+    // The generator's internal type key for a binary schema is "file" regardless of language
+    // (org.openapitools.codegen.utils.ModelUtils.isFileSchema), and its toModelName() mangles a
+    // dotted typeMapping value (org.springframework.core.io.Resource -> OrgspringframeworkcoreioResource)
+    // rather than treating it as already-qualified — so the short name goes through typeMapping and
+    // the qualification through importMappings, the same two-step every other codegen in this
+    // family uses for a type outside its own package.
+    typeMappings.set(mapOf("file" to "Resource"))
+    importMappings.set(mapOf("Resource" to "org.springframework.core.io.Resource"))
     configOptions.set(
         mapOf(
             "library" to "jvm-spring-restclient",

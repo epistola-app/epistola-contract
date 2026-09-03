@@ -22,9 +22,6 @@ import org.springframework.web.client.RestClient
  * not select variants by attribute was rejected by any server validating against the spec. Nothing
  * in the client caused it; it was whatever mapper the consumer happened to wire in.
  *
- * [epistolaMessageConverters] also installs [BinaryFileHttpMessageConverter], without which every
- * binary download fails outright.
- *
  * Use [epistolaMessageConverter] when building the `RestClient`:
  *
  * ```
@@ -70,7 +67,4 @@ object EpistolaJson {
 fun RestClient.Builder.epistolaMessageConverters(): RestClient.Builder = messageConverters { converters ->
     converters.removeIf { it is MappingJackson2HttpMessageConverter }
     converters.add(EpistolaJson.epistolaMessageConverter())
-    // Spring has no converter that produces a java.io.File, which is what every `format: binary`
-    // operation is generated as returning.
-    converters.add(BinaryFileHttpMessageConverter())
 }

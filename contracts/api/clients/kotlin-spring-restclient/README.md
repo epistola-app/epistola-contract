@@ -71,15 +71,35 @@ The trade is that clearing a field is not expressible — but it never was, sinc
 one field without clearing every other you had not set. Expressing both needs models that carry the
 distinction, which is a larger change.
 
-`epistolaMessageConverters()` also installs `BinaryFileHttpMessageConverter`. Every operation the
-contract declares as `format: binary` — downloading a document, rendering a preview, fetching an
-asset's content — is generated as returning `java.io.File`, and Spring ships no converter that can
-produce one; without it those calls fail with `UnknownContentTypeException` whatever else you
-configure. The file it hands back is a temporary one and **you own it** — delete it when you are
-done; the `deleteOnExit` registration is a backstop for short-lived processes, not a substitute.
-
 `EpistolaJson.objectMapper` is the same mapper, exposed for anywhere you serialize these models
 yourself.
+
+### Binary operations return `Resource`, not `File`
+
+Every operation the contract declares as `format: binary` — downloading a document, rendering a
+preview, fetching or uploading an asset's content, importing a catalog archive — is generated as
+`org.springframework.core.io.Resource`, both for responses and for multipart request parts. Spring
+converts `Resource` out of the box, on the response side and the multipart side alike, so these
+calls work with a completely default `RestClient` — no converter to install, nothing to opt into.
+
+This used to be `java.io.File`, which Spring has no converter for at all: every one of these calls
+failed outright, always, with `UnknownContentTypeException`, whatever you configured. `Resource` is
+also the more useful type for a caller who already has the bytes — `ByteArrayResource(bytes)` needs
+no temporary file, where `File` forced you to write one just to hand it back.
+
+One thing to know about the upload side: a multipart file part's `Content-Disposition` only gets a
+`filename` attribute if the `Resource` reports one. `ByteArrayResource` returns `null` from
+`getFilename()` unless you override it, and a part with no filename is indistinguishable from a
+plain form field to a multipart parser expecting a file — override it:
+
+```kotlin
+val archive = object : ByteArrayResource(bytes) {
+    override fun getFilename() = "catalog.zip"
+}
+catalogsApi.importCatalog(tenantId, archive)
+```
+
+`FileSystemResource(file)` needs no such override — a real file always has a name.
 
 ## Client Identity
 
@@ -262,6 +282,17 @@ val batch = api.generateBatch("acme-corp", GenerateBatchRequest(
         BatchGenerationItem(catalogId = "default", templateId = "packing-slip", data = packingData),
     ),
 ))
+```
+
+### Downloading the result
+
+`downloadDocument`, `previewDocument`, and an asset's `downloadAssetContent` all return
+`org.springframework.core.io.Resource` — stream it, don't buffer it, unless the document is known to
+be small:
+
+```kotlin
+val document = api.downloadDocument("acme-corp", documentId)
+document.inputStream.use { input -> input.copyTo(outputStream) }
 ```
 
 ### Routing Keys
