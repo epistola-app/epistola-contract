@@ -24,6 +24,11 @@ val conformanceDriverClasspath by tasks.registering {
 
     val runtimeClasspath = sourceSets["main"].runtimeClasspath
     val outFile = layout.buildDirectory.file("conformance/classpath.txt")
+    // inputs.files, not just dependsOn(classes): the classpath carries the client, and without
+    // declaring it Gradle never builds the included build's jar for this task. The harness then
+    // runs against whatever jar happened to be lying in the client's build directory — which it
+    // did, silently testing a stale client after a regeneration.
+    inputs.files(runtimeClasspath)
     dependsOn(tasks.named("classes"))
     outputs.file(outFile)
 

@@ -1,0 +1,54 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: query-parameters
+title: Query parameters carry values the contract declares, in the contract's spelling
+why: >
+  Query serialization is entirely the generator's work, and the four generators do not agree. The
+  Kotlin client sent `direction=DESC` on every paged list call — the enum's constant name rather
+  than its declared value — because the generated code serializes the parameter with toString() and
+  the parameter defaults to DESC, so it happened without the caller asking for anything. `DESC` is
+  not in the contract's enum. Thirty-nine operations across eleven API classes were affected, and
+  nothing caught it: the value round-trips through a server that parses direction case-insensitively,
+  which most do.
+
+  What the clients are allowed to differ on is whether they send a parameter the contract gives a
+  default for. Kotlin and Jakarta send `page=0&size=20&direction=desc`; .NET and Python send
+  nothing. The server applies the same declared defaults either way, so the behaviour is identical
+  and pinning one style would mean patching generated code in two clients to no benefit. What is
+  not negotiable is that a value which *is* sent must be one the contract allows — so these are
+  matched only when present.
+
+action:
+  name: list-templates
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    catalogId: main
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      items: []
+      page: { number: 0, size: 20, totalElements: 0, totalPages: 0 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/main/templates
+      queryParams:
+        # enum: [asc, desc] in the spec. Not ASC, not DESC.
+        direction:
+          whenPresent: { matches: '^(asc|desc)$' }
+        # If a default is sent explicitly it has to be the contract's default, or the client and a
+        # server reading the spec disagree about what an unparameterised call means.
+        page:
+          whenPresent: { equals: "0" }
+        size:
+          whenPresent: { equals: "20" }
+        # Nothing was searched for or sorted by, so neither may be invented.
+        q: { absent: true }
+        sort: { absent: true }

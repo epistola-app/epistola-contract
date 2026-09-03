@@ -70,6 +70,9 @@ function checkRequest(label, matcher, actual, failures) {
   if (matcher.query !== undefined) {
     checkValue(`${label}: query`, matcher.query, actual.query, failures)
   }
+  for (const [name, paramMatcher] of Object.entries(matcher.queryParams ?? {})) {
+    checkValue(`${label}: query parameter ${name}`, paramMatcher, actual.queryParams[name], failures)
+  }
 
   for (const [name, headerMatcher] of Object.entries(matcher.headers ?? {})) {
     checkValue(`${label}: header ${name}`, headerMatcher, actual.headers[name.toLowerCase()], failures)
@@ -122,6 +125,16 @@ function checkValue(label, matcher, actual, failures) {
       }
       return
     }
+    // Some differences between clients are legitimate: a parameter the contract gives a default
+    // for may be sent explicitly or left out, and both produce identical server behaviour. What is
+    // not legitimate is sending a value the contract does not allow, so those are matched only
+    // when present.
+    if (matcher.whenPresent) {
+      if (actual !== undefined) {
+        checkValue(label, matcher.whenPresent, actual, failures)
+      }
+      return
+    }
     if (actual === undefined) {
       failures.push(`${label}: missing, expected ${describe(matcher)}`)
       return
@@ -163,7 +176,7 @@ function checkSubset(label, expected, actual, failures) {
 }
 
 function isMatcher(value) {
-  return ['equals', 'matches', 'contains', 'oneOf', 'absent'].some((key) => key in value)
+  return ['equals', 'matches', 'contains', 'oneOf', 'absent', 'whenPresent'].some((key) => key in value)
 }
 
 /**

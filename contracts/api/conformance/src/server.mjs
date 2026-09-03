@@ -54,6 +54,7 @@ export async function startServer(scenario, action) {
         method: req.method,
         path: pathOf(req.url),
         query: queryOf(req.url),
+        queryParams: Object.fromEntries(new URLSearchParams(queryOf(req.url))),
         headers: lowercaseHeaders(req.headers),
         body: bodyBuffer.toString('utf8'),
         atMs: Math.round(performance.now() - startedAt),
