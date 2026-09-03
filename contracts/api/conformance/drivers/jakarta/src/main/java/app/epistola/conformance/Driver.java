@@ -5,6 +5,7 @@
 package app.epistola.conformance;
 
 import app.epistola.client.jakarta.EpistolaRestClients;
+import app.epistola.client.jakarta.api.ConsumersApi;
 import app.epistola.client.jakarta.api.GenerationApi;
 import app.epistola.client.jakarta.api.SystemApi;
 import app.epistola.client.jakarta.api.TemplatesApi;
@@ -17,17 +18,22 @@ import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
+import app.epistola.client.jakarta.model.UpdateConsumerRequest;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonValue;
+import java.io.File;
 import java.io.StringReader;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
@@ -58,6 +64,8 @@ public final class Driver {
                 case "problem" -> problem(baseUrl, config);
                 case "routing" -> routing(baseUrl, config);
                 case "generate-document" -> generateDocument(baseUrl, config);
+                case "update-consumer" -> updateConsumer(baseUrl, config);
+                case "download-document" -> downloadDocument(baseUrl, config);
                 default -> throw new IllegalArgumentException("unknown action " + instruction.getString("action"));
             }
             done(baseUrl, null);
@@ -174,6 +182,21 @@ public final class Driver {
     }
 
     /**
+     * A partial update that sets exactly one field. Everything the caller did not name must stay off
+     * the wire: the contract reads a null on these as "clear this", so a serializer that writes
+     * nulls for unset properties turns "rename this consumer" into "rename it and erase its
+     * description, contact and expiry".
+     */
+    private static void updateConsumer(String baseUrl, JsonObject config) {
+        clients(baseUrl, config)
+                .api(ConsumersApi.class)
+                .updateConsumer(
+                        config.getString("tenantId"),
+                        config.getString("consumerId"),
+                        new UpdateConsumerRequest().name(config.getString("name")));
+    }
+
+    /**
      * One poll to learn the partition assignment from the {@code _meta} line, then the routing
      * helpers. The values are reported rather than asserted here: the harness holds all four
      * clients to the same answers, which is the only way four independent murmur3 implementations
@@ -211,6 +234,27 @@ public final class Driver {
                                 keys.stream()
                                         .map(key -> String.valueOf(collector.isMyPartition(key)))
                                         .collect(Collectors.joining(","))));
+    }
+
+    /**
+     * Downloads a document and reports what arrived, byte for byte.
+     *
+     * The four clients return four different things here — a File, a FileParameter, a bytearray —
+     * and the only thing that has to be identical is the content. A stack that decodes a PDF as
+     * text corrupts every document it fetches, silently and irreversibly, so the fixture is
+     * deliberately not valid UTF-8.
+     */
+    private static void downloadDocument(String baseUrl, JsonObject config) throws Exception {
+        File file = clients(baseUrl, config)
+                .api(GenerationApi.class)
+                .downloadDocument(config.getString("tenantId"), UUID.fromString(config.getString("documentId")));
+        byte[] bytes = Files.readAllBytes(file.toPath());
+
+        StringBuilder hex = new StringBuilder();
+        for (byte b : MessageDigest.getInstance("SHA-256").digest(bytes)) {
+            hex.append(String.format("%02x", b));
+        }
+        report(baseUrl, Map.of("byteLength", bytes.length, "sha256", hex.toString()));
     }
 
     // --- Client assembly ---

@@ -23,7 +23,7 @@ Or `make conformance` from the repository root, which runs all four.
 
 ```
 scenarios/*.yaml   the expectations — one file per behaviour, shared by all four clients
-src/server.mjs     a scripted Epistola API that records every request it is sent
+src/server.mjs     a scripted Epistola API that records every request it is sent (and can proxy)
 src/expect.mjs     the judge: evaluates a scenario's `expect` against that record
 src/run.mjs        the harness: per scenario, start the server, run a driver, judge, report
 drivers/<client>/  a thin executable per client
@@ -66,6 +66,33 @@ Six actions cover the scenarios. A driver implements these, and nothing else:
 | `problem` | make a request the server answers with a problem, report the parsed slug and members |
 | `generate-document` | `POST …/documents/generate` with a real body, through the generated API |
 | `routing` | poll once for a partition assignment, then report what the routing helpers compute |
+| `update-consumer` | `PATCH …/consumers/{id}` setting exactly one field |
+| `download-document` | `GET …/documents/{id}`, reporting the SHA-256 and length of the bytes |
+
+## Backends
+
+A scenario names the backend it runs against. All three see the same drivers, because the driver
+always addresses this harness — for `prism` the harness proxies, records the journal on the way
+through, and turns the upstream's contract violations into failures.
+
+| `backend:` | What it is good for | What it cannot see |
+| --- | --- | --- |
+| `scripted` (default) | behaviour over time — backoff, streaming, compression, acknowledgement | anything the spec says; it answers from a fixture |
+| `prism` | every schema constraint on every operation, with no expectation written | timing, and conventions the spec does not model |
+
+`prism` runs [Prism](https://stoplight.io/open-source/prism) against the bundled spec: it validates
+each request and answers from the declared schemas, reporting what it disliked in an `sl-violations`
+header the judge prints verbatim. **Any violation fails the scenario** — nothing needs to declare
+it, which is the point. It found `GenerateDocumentRequest.attributes` being sent as `null` against a
+schema that types it `array`; no hand-written scenario had thought to look, and one had explicitly
+tolerated it.
+
+Two things it does *not* check, which is why the scripted scenarios are not redundant: it accepts a
+request body sent as plain `application/json`, and it knows nothing about `X-EP-Node-Id` or
+`User-Agent`, which the contract deliberately does not model per operation.
+
+Prism starts once per run and only when a scenario needs it, because parsing the spec takes several
+seconds. It needs the bundled spec — run `make bundle` first, which `make conformance` does.
 
 ## Adding a scenario
 
@@ -124,12 +151,18 @@ Two more are worth knowing about:
 Use `skip: {<client>: "reason"}` when a scenario genuinely does not apply to a client. It reports as
 skipped with the reason rather than passing quietly.
 
-## Fixtures are contract-shaped
+## Fixtures are contract-shaped, and checked
 
-Scripted responses must be valid against the spec, not merely parseable. The clients type their
-models from the same schemas, and they are not equally forgiving: `requestId` is `format: uuid`, so
-the Kotlin client (which types it as `String`) accepted `req-501` while the Jakarta client (which
-types it as `UUID`) did not. If a fixture only works on some clients, the fixture is wrong.
+Scripted responses are validated against the spec's response schema when the scenario loads, before
+anything is built or run. A wrong fixture does not fail honestly otherwise — it surfaces as four
+different clients failing to deserialize, in four dialects, minutes into a run. That happened three
+times while these scenarios were being written, and the check found twenty-seven more: every collect
+fixture was missing `templateId` and `completedAt` on its result lines and `lastSequence` on its
+meta line, which the clients parse leniently enough to have never noticed.
+
+`script` entries whose response is `format: binary` are checked for status and content type only —
+there is no schema to hold bytes to. Everything else, including each NDJSON line, is validated
+against the schema the clients generate from.
 
 ## What it has caught
 
@@ -150,3 +183,13 @@ test suites — which is the argument for the suite existing:
 - **Python asked only for the success media type.** Its generated `select_header_accept` returns the
   first JSON entry, dropping `application/problem+json` from nearly every operation — so the client
   never asked for the problem document all four are built to parse.
+- **Kotlin and .NET erased fields on every partial update.** The generated models cannot distinguish
+  "not set" from "explicitly null", and both serializers wrote null for unset properties — so on the
+  thirteen `PATCH` operations, where the contract documents null as "clear this", renaming a
+  consumer also erased its description, contact and expiry. A 200 came back. Found by Prism
+  rejecting the same habit on a field that does not accept null at all, then reproduced directly by
+  the `partial-update` scenario.
+- **The Kotlin client could not download a document at all.** Every `format: binary` operation is
+  generated as returning `java.io.File`, and Spring ships no converter that produces one, so
+  `downloadDocument` threw `UnknownContentTypeException` whatever the consumer configured. Nothing
+  in its test suite mentioned the operation. The other three clients returned the bytes correctly.

@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: partial-update
+title: A partial update sends only the fields the caller set
+why: >
+  The contract reads a null on these fields as an instruction, not as an absence: `description`
+  and `contact` are documented "null to clear", `expiresAt` as "null to remove expiry". The
+  generated models are plain nullable properties with no way to distinguish "not set" from
+  "explicitly null", so whatever the serializer does with an unset property *is* the semantics.
+
+  A serializer that writes nulls therefore turns "rename this consumer" into "rename it and erase
+  its description, contact and expiry" — on any of the thirteen PATCH operations, silently, with a
+  200 back. That is data loss, and no client's own tests look at the body of a request that
+  succeeded.
+
+action:
+  name: update-consumer
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantId: acme-corp
+    consumerId: billing-service
+    name: Billing Service
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      id: billing-service
+      tenantId: acme-corp
+      name: Billing Service
+      authMethod: api-key
+      status: active
+      requestedPermissions: {}
+      grantedPermissions: {}
+      nodes: []
+      createdAt: "2026-01-20T09:00:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PATCH
+      path: /api/tenants/acme-corp/consumers/billing-service
+      body:
+        json:
+          name: Billing Service
+        # Not sent as null. The caller said nothing about these, and on this operation a null is an
+        # instruction to erase.
+        jsonAbsent: [description, contact, expiresAt, permissions, roles]

@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: spec-list-templates
+title: A listing request satisfies every constraint the contract puts on it
+why: >
+  This is the operation whose query parameters the Kotlin client got wrong, and the way it was found
+  was somebody thinking to look. Here nobody has to: Prism checks `direction` against its enum,
+  `page` and `size` against their bounds, and the path parameters against their slug patterns, and
+  reports anything it does not like in an `sl-violations` header the harness turns into a failure.
+
+  It also enforces the security scheme, so a client that stopped sending credentials — or sent them
+  in a header the contract does not describe — is a 401 here rather than a request the scripted
+  server would happily answer.
+
+backend: prism
+
+action:
+  name: list-templates
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantId: acme-corp
+    catalogId: main
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/main/templates

@@ -26,13 +26,13 @@ script:
     contentType: application/vnd.epistola.v1+ndjson
     gzip: true
     ndjson:
-      - { sequence: 900, requestId: 55555555-5555-4555-8555-000000000900, status: COMPLETED, documentId: 66666666-6666-4666-8666-000000000900, correlationId: gz-1 }
-      - { _meta: true, hasMore: false, count: 1 }
+      - { sequence: 900, requestId: 55555555-5555-4555-8555-000000000900, templateId: invoice, status: COMPLETED, documentId: 66666666-6666-4666-8666-000000000900, correlationId: gz-1, completedAt: "2026-02-01T08:05:00Z" }
+      - { _meta: true, hasMore: false, lastSequence: 900, count: 1, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
   - status: 200
     contentType: application/vnd.epistola.v1+ndjson
     gzip: true
     ndjson:
-      - { _meta: true, hasMore: false, count: 0 }
+      - { _meta: true, hasMore: false, lastSequence: 900, count: 0, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
 
 expect:
   requestCountAtLeast: 1

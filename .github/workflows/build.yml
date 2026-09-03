@@ -79,6 +79,10 @@ jobs:
 
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
+        with:
+          # Prism, which the spec-validation scenarios run against, lives in contracts/api/tools.
+          install-npm-deps: 'true'
+          npm-working-directory: contracts/api/tools
 
       - name: Build and test
         run: ./gradlew build
@@ -113,6 +117,10 @@ jobs:
 
       - name: Setup tools
         uses: ./.github/actions/setup-build-tools
+        with:
+          # Prism, which the spec-validation scenarios run against, lives in contracts/api/tools.
+          install-npm-deps: 'true'
+          npm-working-directory: contracts/api/tools
 
       # Does not include deploymentTest: that needs Docker and a WildFly image.
       # Run it locally with ./gradlew deploymentTest -PdeploymentTest.

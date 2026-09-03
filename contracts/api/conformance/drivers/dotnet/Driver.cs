@@ -47,6 +47,8 @@ public static class Driver
                 case "problem": Problem(baseUrl, config); break;
                 case "routing": Routing(baseUrl, config); break;
                 case "generate-document": GenerateDocument(baseUrl, config); break;
+                case "update-consumer": UpdateConsumer(baseUrl, config); break;
+                case "download-document": DownloadDocument(baseUrl, config); break;
                 default: throw new ArgumentException($"unknown action {instruction.GetProperty("action")}");
             }
 
@@ -169,6 +171,21 @@ public static class Driver
     }
 
     /// <summary>
+    /// A partial update that sets exactly one field. Everything the caller did not name must stay
+    /// off the wire: the contract reads a null on these as "clear this", so a serializer that writes
+    /// nulls for unset properties turns "rename this consumer" into "rename it and erase its
+    /// description, contact and expiry".
+    /// </summary>
+    private static void UpdateConsumer(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        new ConsumersApi(http, apiBase).UpdateConsumer(
+            Str(config, "tenantId"),
+            Str(config, "consumerId"),
+            new UpdateConsumerRequest(name: Str(config, "name")));
+    }
+
+    /// <summary>
     /// One poll to learn the partition assignment from the _meta line, then the routing helpers.
     /// The values are reported rather than asserted here: the harness holds all four clients to the
     /// same answers, which is the only way four independent murmur3 implementations stay in step.
@@ -199,6 +216,31 @@ public static class Driver
     /// <summary>Renders a null the way the other drivers' languages print theirs, so the harness
     /// compares one spelling rather than four.</summary>
     private static string Show(object? value) => value?.ToString() ?? "null";
+
+    /// <summary>
+    /// Downloads a document and reports what arrived, byte for byte.
+    ///
+    /// The four clients return four different things here — a File, a FileParameter, a bytearray —
+    /// and the only thing that has to be identical is the content. A stack that decodes a PDF as
+    /// text corrupts every document it fetches, silently and irreversibly, so the fixture is
+    /// deliberately not valid UTF-8.
+    /// </summary>
+    private static void DownloadDocument(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var file = new GenerationApi(http, apiBase).DownloadDocument(
+            Str(config, "tenantId"), Guid.Parse(Str(config, "documentId")));
+
+        using var buffer = new MemoryStream();
+        file.Content.CopyTo(buffer);
+        var bytes = buffer.ToArray();
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["byteLength"] = bytes.Length,
+            ["sha256"] = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant(),
+        });
+    }
 
     // --- Client assembly ---
 

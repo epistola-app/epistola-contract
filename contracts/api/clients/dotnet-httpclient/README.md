@@ -49,8 +49,21 @@ var templates = new TemplatesApi(http, "https://epistola.example.com/api");
 var template = templates.GetTemplate("my-tenant", "default", "monthly-invoice");
 ```
 
-The builder always installs a handler that rewrites the request `Content-Type` to the versioned
-Epistola media type `application/vnd.epistola.v1+json`.
+The builder always installs two corrections the C# generator gives no way to configure on the model:
+a handler that rewrites the request `Content-Type` to the versioned Epistola media type
+`application/vnd.epistola.v1+json`, and one that **drops top-level properties you never set** from
+request bodies instead of sending them as `null`.
+
+The second is not cosmetic. The generated models are plain nullable properties with no way to
+distinguish "not set" from "explicitly null", so whatever the serializer does with an unset property
+becomes the request's meaning. On the API's `PATCH` operations a null is an instruction —
+`description` and `contact` are documented "null to clear", `expiresAt` as "null to remove expiry" —
+so a default serializer turned renaming a consumer into renaming it *and* erasing the rest. Nulls
+inside caller-supplied free-form data (a generation request's `data`) are left alone; they are
+yours.
+
+The trade is that clearing a field is not expressible — but it never was, since you could not clear
+one field without clearing every other you had not set.
 
 ## Client identity
 

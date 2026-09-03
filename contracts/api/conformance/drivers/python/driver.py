@@ -12,6 +12,7 @@ expectations rather than four that drift. See ../../README.md for the driver con
 from __future__ import annotations
 
 import datetime
+import hashlib
 import json
 import sys
 import threading
@@ -21,6 +22,7 @@ import urllib.request
 
 from epistola_client import (
     ClientIdentity,
+    ConsumersApi,
     EpistolaClientBuilder,
     GenerateDocumentRequest,
     GenerationApi,
@@ -30,6 +32,7 @@ from epistola_client import (
     ResultCollector,
     SystemApi,
     TemplatesApi,
+    UpdateConsumerRequest,
 )
 
 
@@ -49,6 +52,8 @@ def main() -> int:
         "problem": _problem,
         "routing": _routing,
         "generate-document": _generate_document,
+        "update-consumer": _update_consumer,
+        "download-document": _download_document,
     }
 
     try:
@@ -165,6 +170,39 @@ def _generate_document(base_url: str, config: dict) -> None:
             correlationId=config["correlationId"],
             routingKey=config["routingKey"],
         ),
+    )
+
+
+def _download_document(base_url: str, config: dict) -> None:
+    """Downloads a document and reports what arrived, byte for byte.
+
+    The four clients return four different things here — a File, a FileParameter, a bytearray — and
+    the only thing that has to be identical is the content. A stack that decodes a PDF as text
+    corrupts every document it fetches, silently and irreversibly, so the fixture is deliberately
+    not valid UTF-8.
+    """
+    content = GenerationApi(_client(base_url, config)).download_document(
+        config["tenantId"], config["documentId"]
+    )
+    data = bytes(content)
+
+    _report(
+        base_url,
+        {"byteLength": len(data), "sha256": hashlib.sha256(data).hexdigest()},
+    )
+
+
+def _update_consumer(base_url: str, config: dict) -> None:
+    """A partial update that sets exactly one field.
+
+    Everything the caller did not name must stay off the wire: the contract reads a null on these as
+    "clear this", so a serializer that writes nulls for unset properties turns "rename this
+    consumer" into "rename it and erase its description, contact and expiry".
+    """
+    ConsumersApi(_client(base_url, config)).update_consumer(
+        config["tenantId"],
+        config["consumerId"],
+        UpdateConsumerRequest(name=config["name"]),
     )
 
 

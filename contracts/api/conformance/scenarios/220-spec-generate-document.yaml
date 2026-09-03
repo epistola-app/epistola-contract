@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: spec-generate-document
+title: A generation request body satisfies the schema it is generated from
+why: >
+  Bodies are where a generator has the most room to disagree with the contract, and the request-body
+  scenario can only check the fields it thought to list. Prism checks the schema: required
+  properties, slug patterns on catalogId and templateId, the 1–200 bound on versionId, and the types
+  of everything inside. A client that omitted a required field, or sent a number where the schema
+  says string, fails here without anyone having predicted it.
+
+backend: prism
+
+action:
+  name: generate-document
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantId: acme-corp
+    catalogId: default
+    templateId: invoice
+    correlationId: inv-2026-0042
+    routingKey: acme-node-1
+    data:
+      customerName: Acme B.V.
+      lineCount: 3
+      amountDue: 19.99
+      paid: false
+      address: { city: Sittard }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/documents/generate

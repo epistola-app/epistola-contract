@@ -78,10 +78,10 @@ expect:
             address:
               city: Sittard
               postalCode: 6131 AL
-        # Unset optionals carry no value. Absent and null are the same thing here — the schema
-        # types these `[string, "null"]` — and the serializers disagree on which they emit: the
-        # Kotlin client sends explicit nulls, the other three omit the keys. Both are legal, and
-        # forcing one spelling would mean fighting three generators for no contract-level gain.
-        # It does put one requirement on a server: variantId/attributes and versionId/environmentId
-        # are mutually exclusive, so exclusivity has to be judged on null-ness, not on presence.
-        jsonNullOrAbsent: [variantId, attributes, versionId, environmentId, filename]
+        # Unset optionals are omitted outright, not written as null. This started as
+        # jsonNullOrAbsent, on the reasoning that the schema types these `[string, "null"]` so both
+        # spellings are legal — but `attributes` is `type: array` with no null in the union, and the
+        # Kotlin client's mapper wrote null for every unset field. Prism rejected the body. The
+        # tolerant assertion had waved through a request no validating server accepts, which is why
+        # this one is strict.
+        jsonAbsent: [variantId, attributes, versionId, environmentId, filename]
