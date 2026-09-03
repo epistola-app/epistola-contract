@@ -577,6 +577,44 @@ tasks.processTestResources {
     dependsOn(generateDependencyReport)
 }
 
+// --- Cross-client conformance driver ---
+//
+// The driver lives with the other three under contracts/api/conformance/drivers, so the four are
+// read side by side; it compiles here because that is where the client and its generated API are.
+// Its runtime needs a JAX-RS and MicroProfile Rest Client implementation — the client itself
+// deliberately bundles neither, since a container supplies them — so it takes the same RESTEasy
+// stack the tests run on.
+val conformanceDriverSources = file("$rootDir/../../conformance/drivers/jakarta/src/main/java")
+
+val conformanceDriver: SourceSet by sourceSets.creating {
+    java.srcDir(conformanceDriverSources)
+    compileClasspath += sourceSets.main.get().output
+    runtimeClasspath += sourceSets.main.get().output
+}
+
+configurations {
+    named("conformanceDriverImplementation") { extendsFrom(configurations.testImplementation.get()) }
+    named("conformanceDriverRuntimeOnly") { extendsFrom(configurations.testRuntimeOnly.get()) }
+}
+
+// The harness runs `java -cp @classpath.txt`, so it needs no Gradle daemon per scenario — eight
+// scenarios would otherwise mean eight Gradle invocations.
+val conformanceDriverClasspath by tasks.registering {
+    description = "Compiles the conformance driver and writes its runtime classpath for the harness"
+    group = "verification"
+
+    val driverRuntime = provider { conformanceDriver.runtimeClasspath }
+    val outFile = layout.buildDirectory.file("conformance/classpath.txt")
+    dependsOn(conformanceDriver.classesTaskName)
+    outputs.file(outFile)
+
+    doLast {
+        val file = outFile.get().asFile
+        file.parentFile.mkdirs()
+        file.writeText(driverRuntime.get().files.joinToString(File.pathSeparator) { it.absolutePath })
+    }
+}
+
 // --- Deployment smoke test against a real application server ---
 //
 // The smoke application is a separate source set rather than a string baked into the test: it has

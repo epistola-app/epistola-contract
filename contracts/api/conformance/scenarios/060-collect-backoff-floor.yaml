@@ -28,7 +28,7 @@ script:
   - status: 200
     contentType: application/vnd.epistola.v1+ndjson
     ndjson:
-      - { sequence: 1, requestId: req-1, status: COMPLETED, documentId: doc-1 }
+      - { sequence: 1, requestId: 33333333-3333-4333-8333-000000000001, status: COMPLETED, documentId: 44444444-4444-4444-8444-000000000001 }
       - { _meta: true, hasMore: true, count: 1 }
   # Then the burst is over. From here the collector is idle and must back off.
   - status: 200

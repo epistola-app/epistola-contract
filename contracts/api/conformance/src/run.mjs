@@ -92,11 +92,14 @@ async function runScenario(scenario, client) {
   if (server.done?.error) {
     failures.push(`driver reported an error: ${server.done.error}`)
   }
-  if (driverExit.code !== 0 || server.done?.error) {
-    failures.push(indent(driverExit.output.trim() || '(no driver output)'))
-  } else {
+  if (driverExit.code === 0 && !server.done?.error) {
     const expected = keys ? withPublicKey(scenario, keys.publicKeyPem) : scenario
     failures.push(...judge(expected, server))
+  }
+  // Whatever the driver wrote, on any failure. A collector that swallowed an exception and stopped
+  // polling looks exactly like one that chose not to poll until you read its output.
+  if (failures.length > 0 && driverExit.output.trim()) {
+    failures.push(indent(driverExit.output.trim()))
   }
 
   if (failures.length === 0) {
