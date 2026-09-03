@@ -5,5 +5,5 @@
 #
 # Runs one scenario. $1 is the conformance server's base URL; the driver asks it for the rest.
 set -euo pipefail
-CLIENT_DIR="$(cd "$(dirname "$0")/../../../clients/jakarta" && pwd)"
-exec java -cp "$(cat "$CLIENT_DIR/build/conformance/classpath.txt")" app.epistola.conformance.Driver "$1"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+exec java -cp "$(cat "$HERE/build/conformance/classpath.txt")" app.epistola.conformance.Driver "$1"

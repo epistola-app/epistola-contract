@@ -400,48 +400,6 @@ dependencies {
     testImplementation(libs.json.schema.validator)
 }
 
-// --- Cross-client conformance driver ---
-//
-// The driver lives with the other three under contracts/api/conformance/drivers, so the four are
-// read side by side; it compiles here because that is where the client and its generated API are.
-// It is its own source set, so nothing it needs reaches the published jar.
-val conformanceDriverSources = file("$rootDir/../../conformance/drivers/kotlin/src/main/kotlin")
-
-sourceSets {
-    register("conformanceDriver") {
-        kotlin.srcDir(conformanceDriverSources)
-        compileClasspath += sourceSets.main.get().output
-        runtimeClasspath += sourceSets.main.get().output
-    }
-}
-
-configurations {
-    named("conformanceDriverImplementation") { extendsFrom(configurations.implementation.get(), configurations.api.get()) }
-    named("conformanceDriverRuntimeOnly") { extendsFrom(configurations.runtimeOnly.get()) }
-}
-
-// The harness runs `java -cp @classpath.txt`, so it needs no Gradle daemon per scenario — eight
-// scenarios would otherwise mean eight Gradle invocations.
-val conformanceDriverClasspath by tasks.registering {
-    description = "Compiles the conformance driver and writes its runtime classpath for the harness"
-    group = "verification"
-
-    // The source set's own runtimeClasspath, which already carries main's output and every
-    // dependency it inherits — assembling it from the configuration alone leaves the client itself
-    // off, which fails only at run time.
-    val driverRuntime = sourceSets.named("conformanceDriver").map { it.runtimeClasspath }
-    val outFile = layout.buildDirectory.file("conformance/classpath.txt")
-    dependsOn(tasks.named("conformanceDriverClasses"))
-    outputs.file(outFile)
-
-    doLast {
-        val entries = driverRuntime.get().files
-        val file = outFile.get().asFile
-        file.parentFile.mkdirs()
-        file.writeText(entries.joinToString(File.pathSeparator) { it.absolutePath })
-    }
-}
-
 // --- Dependency hygiene ---
 //
 // This is a library for *calling* HTTP. It declared spring-boot-starter-web for a long time, which
