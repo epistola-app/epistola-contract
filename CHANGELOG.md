@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added `EpistolaClient`, a single entry point that assembles identity, the JSON configuration,
+  RFC 9457 problem parsing, and API-key or self-signed-JWT authentication into one `RestClient`:
+  `EpistolaClient.builder(baseUrl, apiKey).build()`. Installing `epistolaMessageConverters()` without
+  also calling `installProblemDetailHandler()` compiles and runs, and every error response then
+  silently comes back as a bare `RestClientResponseException` rather than a typed
+  `ProblemDetailException`, with nothing to catch the mistake; `EpistolaClient` installs both, always.
+  One `Builder` can produce more than one `RestClient` — call `build()` again after changing
+  `readTimeout(...)` — for the two timeout profiles a long-running consumer typically needs against
+  the same backend: unbounded for polling, rendering and large transfers, bounded for everything
+  else. Its request factory is `java.net.http.HttpClient`, not `SimpleClientHttpRequestFactory`:
+  the latter wraps `java.net.HttpURLConnection`, which rejects `PATCH` outright
+  (`ProtocolException: Invalid HTTP method: PATCH`) — found while testing this feature, on the
+  contract's thirteen `PATCH` operations, `updateConsumer` among them.
+
 - Fixed the Kotlin client silently dropping problem-body members outside `type`/`title`/`status`/
   `detail`/`instance`. `ProblemDetail` was a generated, closed data class — Jackson ignores unknown
   properties by default, so an extension member on any problem type the contract adds later

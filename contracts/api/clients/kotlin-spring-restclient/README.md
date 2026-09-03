@@ -19,36 +19,92 @@ dependencies {
 ## Quick Start
 
 ```kotlin
-// 1. Set up client identity (required on all requests)
+val restClient = EpistolaClient.builder("https://epistola.example.com/api", "epk_...")
+    .identity(ClientIdentity.builder().nodeId("my-pod-123").product("my-app", "1.0.0").build())
+    .build()
+
+val generationApi = GenerationApi(restClient)
+val consumersApi = ConsumersApi(restClient)
+val systemApi = SystemApi(restClient)
+```
+
+`EpistolaClient.builder` is the recommended entry point: identity headers, the JSON configuration
+that omits properties you never set, RFC 9457 problem parsing, and API-key or self-signed-JWT auth,
+all in one call. See "EpistolaClient — the blessed setup" below for self-signed JWT auth, the two
+timeout profiles, and what it assembles under the hood.
+
+### Building the `RestClient` by hand
+
+`EpistolaClient` is an assembly of independently usable pieces — reach for this instead when you
+need a `RestClient` feature it doesn't expose (a custom `ClientHttpRequestFactory`, extra
+interceptors in a specific order, `only` the JSON configuration without the problem handler):
+
+```kotlin
 val identity = ClientIdentity.builder()
     .nodeId("my-pod-123")                              // Kubernetes pod name or hostname
     .product("my-app", "1.0.0")                        // your application name + version
     .build()
 
-// 2. Set up authentication (choose one)
-
-// Option A: Self-signed JWT (no IdP needed)
 val signer = JwtSigner.builder()
     .consumerId("invoice-service")                     // your registered consumer ID
     .privateKey(JwtSigner.loadPrivateKey(Path.of("private.pem")))
     .build()
+// or: val apiKeyAuth = ApiKeyAuth.of("epk_...")        // Authorization: ApiKey <key>
+// or: your IdP's token in a custom interceptor          // OAuth
 
-// Option B: OAuth — use your IdP's token in a custom interceptor
-// Option C: API key — use Authorization: ApiKey <key>
-val apiKeyAuth = ApiKeyAuth.of("epk_...")
-
-// 3. Create RestClient with interceptors
 val restClient = RestClient.builder()
     .baseUrl("https://epistola.example.com/api")
-    .requestInterceptor(identity.interceptor())        // User-Agent + X-EP-Node-Id
-    .requestInterceptor(signer.interceptor())          // Authorization: Bearer <jwt>
+    .epistolaMessageConverters()                        // omits unset properties (see below)
+    .installProblemDetailHandler()                      // typed ProblemDetailException (see below)
+    .requestInterceptor(identity.interceptor())         // User-Agent + X-EP-Node-Id
+    .requestInterceptor(signer.interceptor())           // Authorization: Bearer <jwt>
     .build()
-
-// 4. Use generated API clients
-val generationApi = GenerationApi(restClient)
-val consumersApi = ConsumersApi(restClient)
-val systemApi = SystemApi(restClient)
 ```
+
+## EpistolaClient — the blessed setup
+
+`EpistolaClient.builder(...)` assembles identity, JSON configuration, problem parsing, and
+authentication into one `RestClient`. It exists because assembling them by hand is exactly where a
+piece goes missing without anything failing loudly: wiring `epistolaMessageConverters()` without
+also calling `installProblemDetailHandler()` compiles, runs, and every error response silently comes
+back as a bare `RestClientResponseException` instead of a `ProblemDetailException` — no exception of
+its own, no log line, just a `catch (e: ProblemDetailException)` block that quietly stops matching.
+`EpistolaClient` installs both, every time, because there is no configuration in which a consumer of
+this entry point wants only one.
+
+```kotlin
+val restClient = EpistolaClient.builder("https://epistola.example.com/api")
+    .apiKey("epk_...")                                 // or .jwtSigner(signer)
+    .identity(ClientIdentity.builder().nodeId("my-pod-123").build())
+    .build()
+```
+
+`apiKey(...)` and `jwtSigner(...)` are mutually exclusive — whichever is called last on the builder
+wins. `EpistolaClient.builder(baseUrl, apiKey)` is a shorthand that sets both in one call, for the
+common case of a static key and nothing else to configure.
+
+### Two timeout profiles from one builder
+
+A `Builder` holds the shared configuration — base URL, auth, identity, connect timeout — and `build()`
+can be called more than once, with a different `readTimeout(...)` set in between, for the two
+profiles a long-running consumer typically needs against the same backend:
+
+```kotlin
+val builder = EpistolaClient.builder(baseUrl, apiKey).identity(identity)
+
+// Result-collector polling, preview rendering, catalog import: no read timeout at all, because a
+// slow render or a large transfer is not a failure and should not be cut off mid-flight.
+val longRunning = builder.readTimeout(null).build()
+
+// Everything else: bounded, so a wedged connection surfaces as an error instead of hanging forever.
+val shortCalls = builder.readTimeout(Duration.ofSeconds(30)).build()
+```
+
+`readTimeout` defaults to 30 seconds; `connectTimeout` defaults to 10 seconds and applies to both
+profiles. The request factory underneath is `java.net.http.HttpClient`, not
+`SimpleClientHttpRequestFactory` — the latter wraps `java.net.HttpURLConnection`, which rejects
+`PATCH` outright (`ProtocolException: Invalid HTTP method: PATCH`), and the contract has thirteen
+`PATCH` operations.
 
 ## JSON configuration
 
@@ -473,26 +529,28 @@ request.validate()  // throws IllegalArgumentException if constraints are violat
 
 ```kotlin
 fun main() {
-    // Identity + auth
-    val identity = ClientIdentity.builder()
-        .nodeId(System.getenv("HOSTNAME") ?: "local")
-        .product("invoice-service", "2.1.0")
-        .build()
-
     val signer = JwtSigner.builder()
         .consumerId("invoice-service")
         .privateKey(JwtSigner.loadPrivateKey(Path.of("/secrets/private.pem")))
         .build()
 
-    val restClient = RestClient.builder()
-        .baseUrl(System.getenv("EPISTOLA_URL") ?: "http://localhost:8080/api")
-        .requestInterceptor(identity.interceptor())
-        .requestInterceptor(signer.interceptor())
-        .build()
+    val builder = EpistolaClient.builder(System.getenv("EPISTOLA_URL") ?: "http://localhost:8080/api")
+        .jwtSigner(signer)
+        .identity(
+            ClientIdentity.builder()
+                .nodeId(System.getenv("HOSTNAME") ?: "local")
+                .product("invoice-service", "2.1.0")
+                .build(),
+        )
+
+    // The two timeout profiles this one builder produces: unbounded for the poll loop, bounded for
+    // the request that submits work to it.
+    val pollingClient = builder.readTimeout(null).build()
+    val apiClient = builder.readTimeout(Duration.ofSeconds(30)).build()
 
     // Start collecting results in a background thread
     val collector = ResultCollector.builder()
-        .restClient(restClient)
+        .restClient(pollingClient)
         .tenantId("acme-corp")
         .handler { result ->
             if (result.status == "COMPLETED") {
@@ -504,7 +562,7 @@ fun main() {
     Thread({ collector.start() }, "result-collector").apply { isDaemon = true }.start()
 
     // Submit generation requests
-    val api = GenerationApi(restClient)
+    val api = GenerationApi(apiClient)
     val job = api.generateDocument("acme-corp", GenerateDocumentRequest(
         catalogId = "default",
         templateId = "invoice",
