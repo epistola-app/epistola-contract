@@ -4,8 +4,6 @@
 
 rootProject.name = "client-kotlin-spring-restclient"
 
-include(":client")
-
 // All three builds in this repo share the root version catalog.
 dependencyResolutionManagement {
     versionCatalogs {

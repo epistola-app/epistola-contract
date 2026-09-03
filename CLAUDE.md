@@ -146,7 +146,7 @@ Tenant
 
 ### Generated Code Location
 
-- Kotlin client: `contracts/api/clients/kotlin-spring-restclient/client/build/generated/`
+- Kotlin client: `contracts/api/clients/kotlin-spring-restclient/build/generated/`
 - Jakarta client: `contracts/api/clients/jakarta/build/generated/`
 - Server: `contracts/api/server-stubs/kotlin-springboot4/build/generated/`
 
