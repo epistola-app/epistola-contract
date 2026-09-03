@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-03
+
 - Added `EpistolaClient`, a single entry point that assembles identity, the JSON configuration,
   RFC 9457 problem parsing, and API-key or self-signed-JWT authentication into one `RestClient`:
   `EpistolaClient.builder(baseUrl, apiKey).build()`. Installing `epistolaMessageConverters()` without
