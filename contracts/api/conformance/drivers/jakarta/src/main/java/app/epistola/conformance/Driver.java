@@ -22,14 +22,18 @@ import app.epistola.client.jakarta.model.UpdateConsumerRequest;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonValue;
+import java.io.File;
 import java.io.StringReader;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
@@ -61,6 +65,7 @@ public final class Driver {
                 case "routing" -> routing(baseUrl, config);
                 case "generate-document" -> generateDocument(baseUrl, config);
                 case "update-consumer" -> updateConsumer(baseUrl, config);
+                case "download-document" -> downloadDocument(baseUrl, config);
                 default -> throw new IllegalArgumentException("unknown action " + instruction.getString("action"));
             }
             done(baseUrl, null);
@@ -229,6 +234,27 @@ public final class Driver {
                                 keys.stream()
                                         .map(key -> String.valueOf(collector.isMyPartition(key)))
                                         .collect(Collectors.joining(","))));
+    }
+
+    /**
+     * Downloads a document and reports what arrived, byte for byte.
+     *
+     * The four clients return four different things here — a File, a FileParameter, a bytearray —
+     * and the only thing that has to be identical is the content. A stack that decodes a PDF as
+     * text corrupts every document it fetches, silently and irreversibly, so the fixture is
+     * deliberately not valid UTF-8.
+     */
+    private static void downloadDocument(String baseUrl, JsonObject config) throws Exception {
+        File file = clients(baseUrl, config)
+                .api(GenerationApi.class)
+                .downloadDocument(config.getString("tenantId"), UUID.fromString(config.getString("documentId")));
+        byte[] bytes = Files.readAllBytes(file.toPath());
+
+        StringBuilder hex = new StringBuilder();
+        for (byte b : MessageDigest.getInstance("SHA-256").digest(bytes)) {
+            hex.append(String.format("%02x", b));
+        }
+        report(baseUrl, Map.of("byteLength", bytes.length, "sha256", hex.toString()));
     }
 
     // --- Client assembly ---

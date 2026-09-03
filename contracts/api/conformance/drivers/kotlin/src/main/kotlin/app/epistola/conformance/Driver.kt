@@ -26,7 +26,9 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.security.MessageDigest
 import java.time.Duration
+import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
@@ -58,6 +60,7 @@ object Driver {
                 "routing" -> routing(baseUrl, config)
                 "generate-document" -> generateDocument(baseUrl, config)
                 "update-consumer" -> updateConsumer(baseUrl, config)
+                "download-document" -> downloadDocument(baseUrl, config)
                 else -> error("unknown action $action")
             }
             done(baseUrl, null)
@@ -198,6 +201,29 @@ object Driver {
                     collector.routingKeyToMe(it)?.let(collector::partitionFor).toString()
                 },
                 "mineFlags" to keys.joinToString(",") { collector.isMyPartition(it).toString() },
+            ),
+        )
+    }
+
+    /**
+     * Downloads a document and reports what arrived, byte for byte.
+     *
+     * The four clients return four different things here — a File, a FileParameter, a bytearray —
+     * and the only thing that has to be identical is the content. A stack that decodes a PDF as
+     * text corrupts every document it fetches, silently and irreversibly, so the fixture is
+     * deliberately not valid UTF-8.
+     */
+    private fun downloadDocument(baseUrl: String, config: ObjectNode) {
+        val file = GenerationApi(restClient(baseUrl, config))
+            .downloadDocument(config["tenantId"].asText(), UUID.fromString(config["documentId"].asText()))
+        val bytes = file.readBytes()
+
+        report(
+            baseUrl,
+            mapOf(
+                "byteLength" to bytes.size,
+                "sha256" to MessageDigest.getInstance("SHA-256").digest(bytes)
+                    .joinToString("") { "%02x".format(it) },
             ),
         )
     }

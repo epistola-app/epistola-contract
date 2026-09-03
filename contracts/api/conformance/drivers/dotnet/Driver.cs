@@ -48,6 +48,7 @@ public static class Driver
                 case "routing": Routing(baseUrl, config); break;
                 case "generate-document": GenerateDocument(baseUrl, config); break;
                 case "update-consumer": UpdateConsumer(baseUrl, config); break;
+                case "download-document": DownloadDocument(baseUrl, config); break;
                 default: throw new ArgumentException($"unknown action {instruction.GetProperty("action")}");
             }
 
@@ -215,6 +216,31 @@ public static class Driver
     /// <summary>Renders a null the way the other drivers' languages print theirs, so the harness
     /// compares one spelling rather than four.</summary>
     private static string Show(object? value) => value?.ToString() ?? "null";
+
+    /// <summary>
+    /// Downloads a document and reports what arrived, byte for byte.
+    ///
+    /// The four clients return four different things here — a File, a FileParameter, a bytearray —
+    /// and the only thing that has to be identical is the content. A stack that decodes a PDF as
+    /// text corrupts every document it fetches, silently and irreversibly, so the fixture is
+    /// deliberately not valid UTF-8.
+    /// </summary>
+    private static void DownloadDocument(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var file = new GenerationApi(http, apiBase).DownloadDocument(
+            Str(config, "tenantId"), Guid.Parse(Str(config, "documentId")));
+
+        using var buffer = new MemoryStream();
+        file.Content.CopyTo(buffer);
+        var bytes = buffer.ToArray();
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["byteLength"] = bytes.Length,
+            ["sha256"] = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant(),
+        });
+    }
 
     // --- Client assembly ---
 

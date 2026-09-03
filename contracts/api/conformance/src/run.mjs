@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url'
 import { parse as parseYaml } from 'yaml'
 
 import { judge } from './expect.mjs'
+import { checkFixtures } from './fixtures.mjs'
 import { startServer } from './server.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -50,6 +51,20 @@ async function main() {
   const scenarios = loadScenarios().filter((s) => !options.scenario || s.id === options.scenario)
   if (scenarios.length === 0) {
     console.error(`no scenario matched ${JSON.stringify(options.scenario)}`)
+    return 2
+  }
+
+  // Before anything is built or run: a fixture that does not match the contract is a scenario bug,
+  // and it is far cheaper to say so here than to watch four clients fail to deserialize it.
+  const fixtureProblems = scenarios.flatMap((scenario) =>
+    scenario.backend === 'prism' ? [] : checkFixtures(scenario, BUNDLED_SPEC),
+  )
+  if (fixtureProblems.length > 0) {
+    console.error(`\n${fixtureProblems.length} scripted response(s) do not match the contract:\n`)
+    for (const problem of fixtureProblems) {
+      console.error(`  ${problem}`)
+    }
+    console.error('')
     return 2
   }
 

@@ -37,7 +37,7 @@ script:
   - status: 200
     contentType: application/vnd.epistola.v1+ndjson
     ndjson:
-      - { _meta: true, hasMore: false, count: 0, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
+      - { _meta: true, hasMore: false, lastSequence: 0, count: 0, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
 
 expect:
   requestCount: 1

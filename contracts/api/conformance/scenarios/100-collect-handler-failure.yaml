@@ -36,10 +36,10 @@ script:
   - status: 200
     contentType: application/vnd.epistola.v1+ndjson
     ndjson:
-      - { sequence: 501, requestId: 77777777-7777-4777-8777-000000000501, status: COMPLETED, correlationId: ok-1 }
-      - { sequence: 502, requestId: 77777777-7777-4777-8777-000000000502, status: COMPLETED, correlationId: boom }
-      - { sequence: 503, requestId: 77777777-7777-4777-8777-000000000503, status: COMPLETED, correlationId: unread }
-      - { _meta: true, hasMore: false, count: 3 }
+      - { sequence: 501, requestId: 77777777-7777-4777-8777-000000000501, templateId: invoice, status: COMPLETED, correlationId: ok-1, completedAt: "2026-02-01T08:05:00Z" }
+      - { sequence: 502, requestId: 77777777-7777-4777-8777-000000000502, templateId: invoice, status: COMPLETED, correlationId: boom, completedAt: "2026-02-01T08:05:00Z" }
+      - { sequence: 503, requestId: 77777777-7777-4777-8777-000000000503, templateId: invoice, status: COMPLETED, correlationId: unread, completedAt: "2026-02-01T08:05:00Z" }
+      - { _meta: true, hasMore: false, lastSequence: 503, count: 3, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
 
 expect:
   # Enough polls to show the cursor staying put rather than one poll proving nothing.

@@ -28,13 +28,13 @@ script:
   - status: 200
     contentType: application/vnd.epistola.v1+ndjson
     ndjson:
-      - { sequence: 1, requestId: 33333333-3333-4333-8333-000000000001, status: COMPLETED, documentId: 44444444-4444-4444-8444-000000000001 }
-      - { _meta: true, hasMore: true, count: 1 }
+      - { sequence: 1, requestId: 33333333-3333-4333-8333-000000000001, templateId: invoice, status: COMPLETED, documentId: 44444444-4444-4444-8444-000000000001, completedAt: "2026-02-01T08:05:00Z" }
+      - { _meta: true, hasMore: true, lastSequence: 1, count: 1, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
   # Then the burst is over. From here the collector is idle and must back off.
   - status: 200
     contentType: application/vnd.epistola.v1+ndjson
     ndjson:
-      - { _meta: true, hasMore: false, count: 0 }
+      - { _meta: true, hasMore: false, lastSequence: 1, count: 0, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
 
 expect:
   # 1200ms of idling at 150ms → 450ms → 1350ms is four or five polls. A collapsed backoff makes

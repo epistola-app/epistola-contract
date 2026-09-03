@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed the Kotlin client being unable to download a document. Every operation the contract declares
+  as `format: binary` — `downloadDocument`, `previewDocument`, asset content — is generated as
+  returning `java.io.File`, and Spring ships no message converter that produces one, so those calls
+  failed with `UnknownContentTypeException` whatever the consumer configured. `epistolaMessageConverters()`
+  now installs a `BinaryFileHttpMessageConverter` that streams the body to a temporary file. The
+  Jakarta, .NET and Python clients were unaffected.
+- Added fixture validation to the conformance suite: a scenario's scripted responses are checked
+  against the spec's response schema at load time, so a fixture that does not match the contract
+  reports one precise message instead of four clients failing to deserialize it. It found
+  twenty-seven existing problems, all in the result-collection fixtures.
+
 - Fixed the Kotlin and .NET clients erasing fields on partial updates. The generated request models
   are plain nullable properties with no way to distinguish "not set" from "explicitly null", and
   both serializers wrote `null` for every property the caller left alone — so on the API's thirteen

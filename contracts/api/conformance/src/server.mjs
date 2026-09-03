@@ -218,6 +218,11 @@ function respond(res, entry) {
 }
 
 function renderBody(entry) {
+  if (entry.bodyBase64 !== undefined) {
+    // Exact bytes, for the binary responses. Anything routed through a string would be normalised
+    // by the encoder, which is precisely the corruption these scenarios exist to detect.
+    return Buffer.from(entry.bodyBase64, 'base64')
+  }
   if (entry.ndjson) {
     return Buffer.from(entry.ndjson.map((line) => JSON.stringify(line)).join('\n') + '\n', 'utf8')
   }

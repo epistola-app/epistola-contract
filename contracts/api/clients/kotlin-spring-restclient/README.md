@@ -71,6 +71,13 @@ The trade is that clearing a field is not expressible — but it never was, sinc
 one field without clearing every other you had not set. Expressing both needs models that carry the
 distinction, which is a larger change.
 
+`epistolaMessageConverters()` also installs `BinaryFileHttpMessageConverter`. Every operation the
+contract declares as `format: binary` — downloading a document, rendering a preview, fetching an
+asset's content — is generated as returning `java.io.File`, and Spring ships no converter that can
+produce one; without it those calls fail with `UnknownContentTypeException` whatever else you
+configure. The file it hands back is a temporary one and **you own it** — delete it when you are
+done; the `deleteOnExit` registration is a backstop for short-lived processes, not a substitute.
+
 `EpistolaJson.objectMapper` is the same mapper, exposed for anywhere you serialize these models
 yourself.
 

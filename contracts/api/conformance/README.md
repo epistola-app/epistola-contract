@@ -67,6 +67,7 @@ Six actions cover the scenarios. A driver implements these, and nothing else:
 | `generate-document` | `POST …/documents/generate` with a real body, through the generated API |
 | `routing` | poll once for a partition assignment, then report what the routing helpers compute |
 | `update-consumer` | `PATCH …/consumers/{id}` setting exactly one field |
+| `download-document` | `GET …/documents/{id}`, reporting the SHA-256 and length of the bytes |
 
 ## Backends
 
@@ -150,12 +151,18 @@ Two more are worth knowing about:
 Use `skip: {<client>: "reason"}` when a scenario genuinely does not apply to a client. It reports as
 skipped with the reason rather than passing quietly.
 
-## Fixtures are contract-shaped
+## Fixtures are contract-shaped, and checked
 
-Scripted responses must be valid against the spec, not merely parseable. The clients type their
-models from the same schemas, and they are not equally forgiving: `requestId` is `format: uuid`, so
-the Kotlin client (which types it as `String`) accepted `req-501` while the Jakarta client (which
-types it as `UUID`) did not. If a fixture only works on some clients, the fixture is wrong.
+Scripted responses are validated against the spec's response schema when the scenario loads, before
+anything is built or run. A wrong fixture does not fail honestly otherwise — it surfaces as four
+different clients failing to deserialize, in four dialects, minutes into a run. That happened three
+times while these scenarios were being written, and the check found twenty-seven more: every collect
+fixture was missing `templateId` and `completedAt` on its result lines and `lastSequence` on its
+meta line, which the clients parse leniently enough to have never noticed.
+
+`script` entries whose response is `format: binary` are checked for status and content type only —
+there is no schema to hold bytes to. Everything else, including each NDJSON line, is validated
+against the schema the clients generate from.
 
 ## What it has caught
 
@@ -182,3 +189,7 @@ test suites — which is the argument for the suite existing:
   consumer also erased its description, contact and expiry. A 200 came back. Found by Prism
   rejecting the same habit on a field that does not accept null at all, then reproduced directly by
   the `partial-update` scenario.
+- **The Kotlin client could not download a document at all.** Every `format: binary` operation is
+  generated as returning `java.io.File`, and Spring ships no converter that produces one, so
+  `downloadDocument` threw `UnknownContentTypeException` whatever the consumer configured. Nothing
+  in its test suite mentioned the operation. The other three clients returned the bytes correctly.
