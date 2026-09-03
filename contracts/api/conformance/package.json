@@ -1,0 +1,13 @@
+{
+  "name": "epistola-contract-conformance",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cross-client conformance suite: one scripted server, one set of expectations, four clients",
+  "scripts": {
+    "conformance": "node src/run.mjs"
+  },
+  "dependencies": {
+    "yaml": "2.8.1"
+  }
+}

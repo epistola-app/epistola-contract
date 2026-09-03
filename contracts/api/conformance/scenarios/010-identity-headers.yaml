@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: identity-headers
+title: Every request carries the identity headers in the contract's grammar
+why: >
+  The clients write X-EP-Node-Id and User-Agent; the server parses them. Nothing else catches a
+  divergence — a request from a client that spells the header differently is not rejected, it is
+  merely unidentifiable, and the server's view of which applications are connected quietly loses
+  that client. The JVM modules generate these constants from x-client-identity; the .NET and Python
+  clients still hand-write them, so this scenario is the only thing holding those two to it.
+
+action:
+  name: ping
+  config:
+    nodeId: conformance-node-1
+    products:
+      - name: acme-billing
+        version: 9.9.9
+      - name: gzac
+        version: 5.0.0
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      status: UP
+      timestamp: "2026-04-21T10:30:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/ping
+      headers:
+        X-EP-Node-Id: conformance-node-1
+        # epistola-contract/<version> first, then the consumer's products in the order added,
+        # separated by the product and version separators from x-client-identity.
+        User-Agent:
+          matches: '^epistola-contract/[0-9]+\.[0-9]+\.[0-9]+ acme-billing/9\.9\.9 gzac/5\.0\.0$'

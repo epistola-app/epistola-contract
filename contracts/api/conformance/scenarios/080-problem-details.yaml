@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: problem-details
+title: An RFC 9457 error is surfaced as its registry slug with the extension members intact
+why: >
+  The problem `type` is a URI, but consumers branch on the slug — `when (e.typeSlug)` is the idiom
+  every client README teaches. That mapping from URI back to slug, and the parsing of the members a
+  problem body adds to the RFC 9457 base, is hand-written in each client. If one of them surfaces
+  the full URI, or drops `errors[]`, the consumer's error handling silently falls through to its
+  else branch and a validation failure becomes an unexplained one.
+
+  This is the one scenario that asserts on what the client surfaced rather than what it sent: the
+  driver reports the slug and field errors it got back, which is the same thing a consumer's catch
+  block sees.
+
+action:
+  name: problem
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    catalogId: main
+
+script:
+  - status: 400
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/validation-error
+      title: Validation failed
+      status: 400
+      detail: The request body failed validation
+      instance: /api/tenants/acme-corp/catalogs/main/templates
+      errors:
+        - field: name
+          message: must not be blank
+        - field: id
+          message: must match the slug pattern
+
+expect:
+  requestCount: 1
+  report:
+    # Not the full URI — the slug, which is what consumers branch on.
+    problemTypeSlug: validation-error
+    problemStatus: 400
+    problemTitle: Validation failed
+    # The extension member survives parsing, in order, both fields intact.
+    problemFieldErrors: name:must not be blank,id:must match the slug pattern

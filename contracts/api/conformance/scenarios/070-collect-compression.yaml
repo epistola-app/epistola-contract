@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: collect-compression
+title: A gzipped result stream is decoded, and the offer says what the client can decode
+why: >
+  Compression is negotiated per request and the server honours whatever the client offered, so a
+  client that offers a codec it cannot decode gets a stream it cannot read — in production, under
+  load, on the endpoint that carries every result. The offer and the decode have to agree, and they
+  live in different places in every client.
+
+action:
+  name: collect
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    batchSize: 10
+    minIntervalMs: 150
+    maxIntervalMs: 2000
+    multiplier: 3
+    runForMs: 400
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+ndjson
+    gzip: true
+    ndjson:
+      - { sequence: 900, requestId: req-900, status: COMPLETED, documentId: doc-900, correlationId: gz-1 }
+      - { _meta: true, hasMore: false, count: 1 }
+  - status: 200
+    contentType: application/vnd.epistola.v1+ndjson
+    gzip: true
+    ndjson:
+      - { _meta: true, hasMore: false, count: 0 }
+
+expect:
+  requestCountAtLeast: 1
+  everyRequest:
+    headers:
+      Accept-Encoding:
+        # gzip is the one every client can decode without an optional library, so it is the one the
+        # offer must always contain. lz4 and zstd are allowed to appear when present.
+        matches: '(^|[ ,])gzip($|[ ,;])'
+  # The client only passes this if it actually inflated the body.
+  report:
+    resultsHandled: 1
+    correlationIds: gz-1

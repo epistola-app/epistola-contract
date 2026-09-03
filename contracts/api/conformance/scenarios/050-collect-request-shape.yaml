@@ -1,0 +1,65 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: collect-request-shape
+title: Result collection acknowledges the last sequence it processed, and only that one
+why: >
+  Acknowledgement is the whole safety property of the collect protocol: the server advances its
+  per-partition cursors to acknowledgeUpTo and will not resend anything at or below it. A client
+  that acknowledges the batch it was sent rather than the batch it processed loses results on a
+  handler failure, and one that omits acknowledgeUpTo entirely reprocesses forever. Both look
+  identical to a test that just counts the results delivered.
+
+action:
+  name: collect
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    batchSize: 5
+    minIntervalMs: 120
+    maxIntervalMs: 2000
+    multiplier: 3
+    runForMs: 500
+
+script:
+  # First poll: two results, then the meta line that ends the batch.
+  - status: 200
+    contentType: application/vnd.epistola.v1+ndjson
+    ndjson:
+      - { sequence: 501, requestId: req-501, status: COMPLETED, documentId: doc-501, correlationId: inv-1 }
+      - { sequence: 502, requestId: req-502, status: FAILED, error: template render failed, correlationId: inv-2 }
+      - { _meta: true, hasMore: false, count: 2, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
+  # Every later poll: nothing to collect.
+  - status: 200
+    contentType: application/vnd.epistola.v1+ndjson
+    ndjson:
+      - { _meta: true, hasMore: false, count: 0, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
+
+expect:
+  requestCountAtLeast: 2
+  everyRequest:
+    method: POST
+    path: /api/tenants/acme-corp/generation/collect
+    headers:
+      Content-Type:
+        matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+      Accept:
+        contains: application/vnd.epistola.v1+ndjson
+      # Offer only what this classpath can actually decode; gzip is always available.
+      Accept-Encoding:
+        contains: gzip
+  requests:
+    # Nothing has been processed yet, so there is nothing to acknowledge. Sending
+    # acknowledgeUpTo: 0 here would acknowledge sequence 0 rather than mean "none".
+    - body:
+        json: { limit: 5 }
+        jsonAbsent: [acknowledgeUpTo]
+    # The highest sequence the handler accepted, not the highest the server sent.
+    - body:
+        json: { acknowledgeUpTo: 502, limit: 5 }
+
+  report:
+    resultsHandled: 2
+    statuses: COMPLETED,FAILED
+    partitionTotal: 8
