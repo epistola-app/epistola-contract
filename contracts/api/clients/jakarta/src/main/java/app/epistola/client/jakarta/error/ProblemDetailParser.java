@@ -109,7 +109,7 @@ public final class ProblemDetailParser {
     }
 
     private static List<ValidationError> readErrors(JsonObject root) {
-        JsonValue errors = root.get("errors");
+        JsonValue errors = root.get(ProblemExtensionMembers.ERRORS);
         if (errors == null || errors.getValueType() != JsonValue.ValueType.ARRAY) {
             return Collections.emptyList();
         }
@@ -117,7 +117,7 @@ public final class ProblemDetailParser {
     }
 
     private static Map<String, List<DataModelValidationError>> readValidationErrors(JsonObject root) {
-        JsonValue validationErrors = root.get("validationErrors");
+        JsonValue validationErrors = root.get(ProblemExtensionMembers.VALIDATION_ERRORS);
         if (validationErrors == null || validationErrors.getValueType() != JsonValue.ValueType.OBJECT) {
             return Collections.emptyMap();
         }

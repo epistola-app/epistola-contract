@@ -42,6 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       spec: ${{ steps.filter.outputs.spec }}
+      protocol: ${{ steps.filter.outputs.protocol }}
       client: ${{ steps.filter.outputs.client }}
       jakarta: ${{ steps.filter.outputs.jakarta }}
       server: ${{ steps.filter.outputs.server }}
@@ -62,20 +63,25 @@ jobs:
               - 'contracts/api/paths/**'
               - 'contracts/api/components/**'
               - 'contracts/catalog/schemas/**'
+            protocol:
+              - 'contracts/api/protocol-java/**'
             client:
               - 'contracts/api/openapi.yaml'
+              - 'contracts/api/protocol-java/**'
               - 'contracts/api/paths/**'
               - 'contracts/api/components/**'
               - 'contracts/catalog/schemas/**'
               - 'contracts/api/clients/kotlin-spring-restclient/**'
             jakarta:
               - 'contracts/api/openapi.yaml'
+              - 'contracts/api/protocol-java/**'
               - 'contracts/api/paths/**'
               - 'contracts/api/components/**'
               - 'contracts/catalog/schemas/**'
               - 'contracts/api/clients/jakarta/**'
             server:
               - 'contracts/api/openapi.yaml'
+              - 'contracts/api/protocol-java/**'
               - 'contracts/api/paths/**'
               - 'contracts/api/components/**'
               - 'contracts/catalog/schemas/**'
@@ -105,6 +111,9 @@ jobs:
       fail-fast: true
       matrix:
         include:
+          - module: contracts/api/protocol-java
+            filter: protocol
+            needs_spec: false
           - module: contracts/api/clients/kotlin-spring-restclient
             filter: client
             needs_spec: true

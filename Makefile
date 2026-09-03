@@ -1,4 +1,4 @@
-.PHONY: all lint license license-check bundle build-client build-jakarta build-server build-catalog build-epistola-catalog build-dotnet build-python build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
+.PHONY: all lint license license-check bundle build-protocol build-client build-jakarta build-server build-catalog build-epistola-catalog build-dotnet build-python build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
 
 API_DIR := contracts/api
 API_SPEC := $(API_DIR)/openapi.yaml
@@ -42,7 +42,12 @@ bundle: $(REDOCLY)
 	@echo "==> Created $(API_BUNDLE)"
 
 # Build all modules
-build: build-client build-jakarta build-server build-catalog build-dotnet build-python
+build: build-protocol build-client build-jakarta build-server build-catalog build-dotnet build-python
+
+# Build the shared wire-protocol logic (consumed by both JVM clients and the server stubs)
+build-protocol:
+	@echo "==> Building shared protocol logic..."
+	cd $(API_DIR)/protocol-java && ./gradlew build
 
 # Build Kotlin client
 build-client:
@@ -91,6 +96,7 @@ sbom-dotnet:
 # Clean all build artifacts
 clean:
 	@echo "==> Cleaning..."
+	cd $(API_DIR)/protocol-java && ./gradlew clean
 	cd $(API_DIR)/clients/kotlin-spring-restclient && ./gradlew clean
 	cd $(API_DIR)/clients/jakarta && ./gradlew clean
 	cd $(API_DIR)/server-stubs/kotlin-springboot4 && ./gradlew clean
@@ -193,6 +199,7 @@ help:
 	@echo "  license-check  - Verify SPDX headers and REUSE metadata"
 	@echo "  bundle         - Bundle OpenAPI spec into single openapi.yaml"
 	@echo "  build                - Build all modules (clients, server, catalog)"
+	@echo "  build-protocol       - Build the shared protocol logic only"
 	@echo "  build-client         - Build Kotlin client only"
 	@echo "  build-jakarta        - Build Jakarta EE client only"
 	@echo "  build-server         - Build Kotlin server only"

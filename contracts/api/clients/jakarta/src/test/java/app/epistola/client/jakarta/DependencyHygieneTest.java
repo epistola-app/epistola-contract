@@ -73,7 +73,8 @@ class DependencyHygieneTest {
         assertTrue(
                 runtime.isEmpty(),
                 "client-jakarta must ship nothing into a consumer's WAR — every API it uses is supplied"
-                        + " by the application server. Found: " + runtime);
+                        + " by the application server, and the shared protocol logic is compiled in"
+                        + " rather than depended on. Found: " + runtime);
     }
 
     @Test

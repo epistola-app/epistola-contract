@@ -126,6 +126,8 @@ jobs:
       fail-fast: true
       matrix:
         include:
+          - module: contracts/api/protocol-java
+            needs_spec: false
           - module: contracts/api/clients/kotlin-spring-restclient
             needs_spec: true
           - module: contracts/api/clients/jakarta

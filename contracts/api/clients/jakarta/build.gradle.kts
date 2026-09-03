@@ -20,6 +20,15 @@ repositories {
     mavenCentral()
 }
 
+// The shared wire-protocol logic is compiled in rather than depended on: it is not published, so
+// consumers see no extra coordinate and nothing to resolve. Its own build
+// (contracts/api/protocol-java) keeps it under test in isolation.
+val epistolaProtocolSources = file("$rootDir/../../protocol-java/src/main/java")
+
+require(epistolaProtocolSources.isDirectory) {
+    "shared protocol sources not found at $epistolaProtocolSources"
+}
+
 val generatedDir = layout.buildDirectory.dir("generated")
 val bundledSpec = file("$rootDir/../../build/openapi.yaml")
 
@@ -123,6 +132,15 @@ val generateProblemSlugs by tasks.registering {
         }
         val allSlugs = types.joinToString(",\n") { "            ${it["constantName"]}" }
 
+        val extensionMembers = (model["problemExtensionMembers"] as Map<String, List<String>>)
+            .entries
+            .sortedBy { it.key }
+            .flatMap { (schema, members) -> members.map { schema to it } }
+            .joinToString("\n\n") { (schema, member) ->
+                "    /** The {@code $member} extension member of {@code $schema}. */\n" +
+                    "    static final String ${member.replace(Regex("([a-z])([A-Z])"), "$1_$2").uppercase()} = \"$member\";"
+            }
+
         val outFile = outDir.get().file("app/epistola/client/jakarta/error/KnownProblemSlugs.java").asFile
         outFile.parentFile.mkdirs()
         outFile.writeText(
@@ -156,6 +174,31 @@ val generateProblemSlugs by tasks.registering {
             |    ));
             |
             |    private KnownProblemSlugs() {
+            |    }
+            |}
+            """.trimMargin() + "\n",
+        )
+
+        val membersFile = outDir.get()
+            .file("app/epistola/client/jakarta/error/ProblemExtensionMembers.java").asFile
+        membersFile.writeText(
+            """
+            |// Generated from the bundled OpenAPI spec's problem schemas — do not edit.
+            |package app.epistola.client.jakarta.error;
+            |
+            |/**
+            | * The names of the members Epistola problem bodies carry on top of the RFC 9457 base,
+            | * derived from the problem schemas the registry names.
+            | *
+            | * <p>The server writes them and this client reads them back out of the raw body by name,
+            | * so both generate the names from the contract: a rename would otherwise make the
+            | * extension silently vanish rather than fail.
+            | */
+            |final class ProblemExtensionMembers {
+            |
+            |$extensionMembers
+            |
+            |    private ProblemExtensionMembers() {
             |    }
             |}
             """.trimMargin() + "\n",
@@ -301,6 +344,93 @@ val generateValidation by tasks.registering {
     }
 }
 
+// --- Client-identity constants generated from the spec's x-client-identity extension ---
+//
+// The header name and the User-Agent product token are the wire contract this client writes and
+// the server module parses. Generated on both sides, so they cannot disagree.
+val generatedIdentityDir = layout.buildDirectory.dir("generated-identity/src/main/java")
+
+val generateClientIdentityConstants by tasks.registering {
+    description = "Generates the client-identity constants from the spec's x-client-identity extension"
+    group = "openapi tools"
+
+    inputs.file(bundledSpec)
+    outputs.dir(generatedIdentityDir)
+
+    val outDir = generatedIdentityDir
+    val spec = bundledSpec
+
+    @Suppress("UNCHECKED_CAST")
+    doLast {
+        val model = readSpec(spec)
+        val identity = model["clientIdentity"] as Map<String, String>
+        val mediaTypes = model["vendorMediaTypes"] as Map<String, String>
+
+        val outFile = outDir.get().file("app/epistola/client/jakarta/identity/ContractIdentity.java").asFile
+        outFile.parentFile.mkdirs()
+        outFile.writeText(
+            """
+            |// Generated from the bundled OpenAPI spec's x-client-identity extension — do not edit.
+            |package app.epistola.client.jakarta.identity;
+            |
+            |/**
+            | * The client-identity wire contract, from the spec's {@code x-client-identity} extension.
+            | *
+            | * <p>This client writes these headers and the Epistola server module parses them; both
+            | * generate from this one registry, so the two halves cannot drift apart.
+            | */
+            |final class ContractIdentity {
+            |
+            |    /** Header carrying the caller's node identifier. */
+            |    static final String NODE_ID_HEADER = "${identity["nodeIdHeader"]}";
+            |
+            |    /** The product token every Epistola client's {@code User-Agent} must lead with. */
+            |    static final String CONTRACT_PRODUCT = "${identity["contractProduct"]}";
+            |
+            |    /** Separator between {@code User-Agent} product tokens. */
+            |    static final String PRODUCT_SEPARATOR = "${identity["userAgentProductSeparator"]}";
+            |
+            |    /** Separator between a product name and its version. */
+            |    static final String VERSION_SEPARATOR = "${identity["userAgentVersionSeparator"]}";
+            |
+            |    private ContractIdentity() {
+            |    }
+            |}
+            """.trimMargin() + "\n",
+        )
+        val mediaTypeFile = outDir.get()
+            .file("app/epistola/client/jakarta/ContractMediaTypes.java").asFile
+        mediaTypeFile.parentFile.mkdirs()
+        mediaTypeFile.writeText(
+            """
+            |// Generated from the media types the bundled OpenAPI spec declares — do not edit.
+            |package app.epistola.client.jakarta;
+            |
+            |/**
+            | * The versioned vendor media types this API speaks.
+            | *
+            | * <p>Generated because they carry the API major version: hand-writing them in the request
+            | * paths the generator does not cover would leave those paths behind at the next bump.
+            | * Public because a consumer building its own request needs the same values, and because
+            | * JAX-RS annotations need them as compile-time constants.
+            | */
+            |public final class ContractMediaTypes {
+            |
+            |    /** Request and response bodies. */
+            |    public static final String VENDOR_JSON = "${mediaTypes["json"]}";
+            |
+            |    /** Streamed NDJSON responses, as used by result collection. */
+            |    public static final String VENDOR_NDJSON = "${mediaTypes["ndjson"]}";
+            |
+            |    private ContractMediaTypes() {
+            |    }
+            |}
+            """.trimMargin() + "\n",
+        )
+        logger.lifecycle("Generated ContractIdentity + ContractMediaTypes → ${outFile.relativeTo(project.projectDir)}")
+    }
+}
+
 // --- Contract version resource, read at runtime by ClientIdentity for the User-Agent ---
 val generatedResourcesDir = layout.buildDirectory.dir("generated-resources")
 
@@ -327,6 +457,8 @@ sourceSets {
         java.srcDir(generatedDir.map { it.dir("src/main/java") })
         java.srcDir(generatedProblemSlugsDir)
         java.srcDir(generatedValidationDir)
+        java.srcDir(generatedIdentityDir)
+        java.srcDir(epistolaProtocolSources)
         resources.srcDir(generatedResourcesDir)
     }
 }
@@ -345,7 +477,7 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 tasks.compileJava {
-    dependsOn(generateProblemSlugs, generateValidation)
+    dependsOn(generateProblemSlugs, generateValidation, generateClientIdentityConstants)
 }
 
 tasks.processResources {
@@ -363,6 +495,9 @@ dependencies {
     compileOnly(libs.jakarta.annotation.api)
     compileOnly(libs.microprofile.rest.client.api)
     compileOnly(libs.microprofile.config.api)
+
+    // Needed to compile the shared protocol sources, whose package is @NullMarked.
+    compileOnly(libs.jspecify)
 
     // Optional: only needed by TemplateSchemaValidator / ValidatingGenerationApi. Consumers
     // who want client-side JSON Schema validation add it themselves (see the README).
@@ -513,7 +648,7 @@ tasks.javadoc {
 
 // The vanniktech plugin's jar tasks need the generated sources to exist first.
 tasks.matching { it.name == "javadocJar" || it.name == "sourcesJar" || it.name == "plainJavadocJar" }.configureEach {
-    dependsOn(generateProblemSlugs, generateValidation, generateContractVersionResource)
+    dependsOn(generateProblemSlugs, generateValidation, generateClientIdentityConstants, generateContractVersionResource)
 }
 
 // GitHub Packages repository for snapshot publishing (standard Gradle publishing plugin)

@@ -4,6 +4,7 @@
 
 package app.epistola.client.jakarta.collect;
 
+import app.epistola.client.jakarta.ContractMediaTypes;
 import app.epistola.client.jakarta.api.ApiExceptionMapper;
 import app.epistola.client.jakarta.model.CollectRequest;
 import jakarta.ws.rs.Consumes;
@@ -44,8 +45,8 @@ public interface GenerationCollectApi {
      */
     @POST
     @Path("/generation/collect")
-    @Consumes({"application/vnd.epistola.v1+json"})
-    @Produces({"application/vnd.epistola.v1+ndjson", "application/problem+json"})
+    @Consumes({ContractMediaTypes.VENDOR_JSON})
+    @Produces({ContractMediaTypes.VENDOR_NDJSON, "application/problem+json"})
     Response collectGenerationResults(
             @PathParam("tenantId") String tenantId,
             @HeaderParam("Accept-Encoding") String acceptEncoding,

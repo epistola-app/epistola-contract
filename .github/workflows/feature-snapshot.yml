@@ -41,7 +41,7 @@ jobs:
         include:
           - module: contracts/api/clients/kotlin-spring-restclient
             needs_spec: true
-            publish_task: ':client:publishAllPublicationsToGitHubPackagesRepository'
+            publish_task: 'publishAllPublicationsToGitHubPackagesRepository'
           - module: contracts/api/clients/jakarta
             needs_spec: true
             publish_task: 'publishAllPublicationsToGitHubPackagesRepository'

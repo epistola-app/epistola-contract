@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: EUPL-1.2
 
 // Shared reading of the bundled OpenAPI spec for the contract-derived Gradle builds
-// (the Kotlin Spring client and the Jakarta EE client).
+// (the Kotlin Spring client, the Jakarta EE client, and the Kotlin server stubs).
 //
-// Each client generates the same three things from the contract — the problem-type registry,
-// the constraint validators, and the contract version — but in its own language. What is
-// identical between them is *which* parts of the spec those come from and what counts as a
-// constraint; what differs is only the emitted syntax. That reading lives here, once, so a new
-// constraint keyword or a change to the registry's shape is one edit rather than two that can
-// silently disagree.
+// Each build generates the same things from the contract — the problem-type registry, the
+// client-identity convention, the constraint validators, the contract version — but in its own
+// language. What is identical between them is *which* parts of the spec those come from and what
+// counts as a constraint; what differs is only the emitted syntax. That reading lives here, once,
+// so a new constraint keyword or a change to a registry's shape is one edit rather than several
+// that can silently disagree.
 //
 // Applied from each client's build.gradle.kts via
 //   apply(from = "$rootDir/../../build-logic/contract-spec-model.gradle.kts")
@@ -38,6 +38,17 @@
  *   at least one constraint, with `name` and `fields`. Each field carries `property`, `nullable`
  *   (not required, or explicitly nullable) and `constraints` — a list of maps naming the
  *   `kind` (`length`, `pattern`, `range`, `minItems`) and its bounds.
+ * - `clientIdentity`: `Map<String, String>` — `x-client-identity`, the header name and
+ *   `User-Agent` grammar every client writes and the server parses. Both sides generate their
+ *   constants from this, because a mismatch here makes every request from that client
+ *   unidentifiable and nothing else would catch it.
+ * - `problemExtensionMembers`: `Map<String, List<String>>` — for each problem schema the registry
+ *   names, the members it adds on top of the base `ProblemDetail` (`ValidationProblemDetail` →
+ *   `["errors"]`). The server writes these members and the clients read them by name out of the
+ *   raw body, so a rename would make the extension silently vanish rather than fail.
+ * - `vendorMediaTypes`: `Map<String, String>` — the versioned vendor media types the API speaks,
+ *   keyed `json` and `ndjson`. They carry the API major version, so hand-writing them in the
+ *   hand-written request paths would leave those paths behind at the next version bump.
  *
  * Throws when the spec is missing the pieces the clients depend on, so a truncated or restructured
  * bundle fails the build rather than quietly generating an empty registry.
@@ -74,8 +85,82 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
         )
     }
 
+    val identity = document["x-client-identity"] as? Map<String, Any>
+        ?: throw GradleException(
+            "the bundled spec has no x-client-identity extension — the client-identity constants " +
+                "cannot be generated",
+        )
+    val clientIdentity = listOf(
+        "nodeIdHeader",
+        "contractProduct",
+        "userAgentProductSeparator",
+        "userAgentVersionSeparator",
+    ).associateWith { key ->
+        identity[key] as? String
+            ?: throw GradleException("x-client-identity.$key is missing from the bundled spec")
+    }
+
+    // The versioned vendor media types, taken from what the spec's operations actually declare
+    // rather than from a literal repeated in each module. `check-media-types.sh` keeps the spec
+    // side honest; this keeps the hand-written request paths in step with it.
+    val vendorMediaTypePattern = Regex("application/vnd\\.epistola\\.v\\d+\\+(json|ndjson)")
+
+    // Media types are map *keys* under every operation's `content`, so collect them by walking the
+    // document. (Matching them in the raw YAML would be shorter, but this script is applied with
+    // `apply(from = ...)` and so compiles against the base Gradle API only — no snakeyaml.)
+    fun mediaTypeKeys(node: Any?): Sequence<String> = when (node) {
+        is Map<*, *> -> node.entries.asSequence().flatMap { (key, value) ->
+            sequenceOf(key as? String).filterNotNull() + mediaTypeKeys(value)
+        }
+        is List<*> -> node.asSequence().flatMap { mediaTypeKeys(it) }
+        else -> emptySequence()
+    }
+
+    val vendorMediaTypes = mediaTypeKeys(document)
+        .filter { vendorMediaTypePattern.matches(it) }
+        .distinct()
+        .associateBy { it.substringAfterLast('+') }
+    listOf("json", "ndjson").forEach { suffix ->
+        if (vendorMediaTypes[suffix] == null) {
+            throw GradleException(
+                "the bundled spec declares no application/vnd.epistola.v{n}+$suffix media type — " +
+                    "the hand-written request paths generate their content types from it",
+            )
+        }
+    }
     val schemas = (document["components"] as? Map<String, Any>)?.get("schemas") as? Map<String, Any>
         ?: throw GradleException("the bundled spec has no components.schemas")
+
+    // The members each problem schema adds to the RFC 9457 base. `ProblemDetail` is the base by
+    // name — it is the RFC's own, and the spec's plain problem schema — so anything a registered
+    // problem schema declares beyond it is an extension member.
+    //
+    // The extension schemas are allOf-composed (`[{$ref: ProblemDetail}, {properties: {...}}]`),
+    // so the members are what the inline branches declare; a `$ref` branch contributes the base.
+    fun propertiesOf(schemaName: String): Set<String> {
+        val schema = schemas[schemaName] as? Map<String, Any>
+            ?: throw GradleException("x-problem-types names schema '$schemaName', which components.schemas has not")
+        val direct = (schema["properties"] as? Map<String, Any>).orEmpty().keys
+        val composed = (schema["allOf"] as? List<Map<String, Any>>).orEmpty()
+            .filterNot { it.containsKey("\$ref") }
+            .flatMap { (it["properties"] as? Map<String, Any>).orEmpty().keys }
+        return direct + composed
+    }
+
+    val baseProblemProperties = propertiesOf("ProblemDetail")
+    val problemExtensionMembers = rawTypes
+        .mapNotNull { it["schema"] as? String }
+        .distinct()
+        .filter { it != "ProblemDetail" }
+        .associateWith { schemaName -> (propertiesOf(schemaName) - baseProblemProperties).toList() }
+    problemExtensionMembers.forEach { (schemaName, members) ->
+        if (members.isEmpty()) {
+            throw GradleException(
+                "problem schema '$schemaName' adds nothing to ProblemDetail — either it is redundant " +
+                    "or the base problem schema gained a member that belongs only to the extension",
+            )
+        }
+    }
 
     val constrainedSchemas = mutableListOf<Map<String, Any?>>()
 
@@ -160,6 +245,9 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
         "version" to version,
         "problemTypeBase" to problemTypeBase,
         "problemTypes" to problemTypes.toList(),
+        "clientIdentity" to clientIdentity,
+        "problemExtensionMembers" to problemExtensionMembers,
+        "vendorMediaTypes" to vendorMediaTypes,
         "constrainedSchemas" to constrainedSchemas.toList(),
     )
 }

@@ -146,7 +146,7 @@ Tenant
 
 ### Generated Code Location
 
-- Kotlin client: `contracts/api/clients/kotlin-spring-restclient/client/build/generated/`
+- Kotlin client: `contracts/api/clients/kotlin-spring-restclient/build/generated/`
 - Jakarta client: `contracts/api/clients/jakarta/build/generated/`
 - Server: `contracts/api/server-stubs/kotlin-springboot4/build/generated/`
 
@@ -154,22 +154,79 @@ Generated code is NOT committed - rebuilt from spec each time.
 
 ### Shared build logic
 
-`contracts/api/build-logic/` holds the Gradle scripts the client builds share
+`contracts/api/build-logic/` holds the Gradle scripts the JVM builds share
 (`apply(from = "$rootDir/../../build-logic/…")`):
 
 - `contract-version.gradle.kts` — group and version, derived from the spec.
-- `contract-spec-model.gradle.kts` — reads the bundled spec into the plain-data model the Kotlin
-  and Jakarta clients both generate from (problem types, constrained schemas, contract version).
-  Each build emits its own language from that model; only the emitted syntax is per-client. Add a
-  constraint keyword or change the registry's shape here, not in either build file.
+- `contract-spec-model.gradle.kts` — reads the bundled spec into the plain-data model the two
+  clients and the server stubs all generate from: problem types, the client-identity registry,
+  constrained schemas, and the contract version. Each build emits its own language from that
+  model; only the emitted syntax is per-module. Add a constraint keyword or change a registry's
+  shape here, not in the individual build files.
+
+### Shared protocol logic
+
+`contracts/api/protocol-java/` holds the wire-protocol behaviour that is neither generated nor
+language-specific, used by both JVM clients and the server stubs:
+
+- `PartitionRouting` — the partition math and `routingKeyToMe`
+- `PollBackoff` — the adaptive result-collection polling policy
+- `UserAgent` — the `User-Agent` grammar, **both** formatting (clients) and parsing (server)
+- `ProblemTypeUris` — problem `type` URI ↔ slug, used in opposite directions by client and server
+- `Murmur3` — the hash the server assigns partitions with
+- `ProtocolJwtSigner` — self-signed JWT minting on plain `java.security`, no JOSE library
+- `Compression` — result-collection decompression, chosen by sniffing the stream's magic bytes
+  rather than trusting `Content-Encoding`
+
+**It is not published.** Each consumer adds `src/main/java` to its own source set
+(`epistolaProtocolSources` in their builds) and compiles the classes into its own jar, so the
+published surface stays at four artifacts and no consumer gains a coordinate to resolve. Its own
+Gradle build exists to keep the logic under test in isolation; CI builds it, nothing publishes it.
+
+This rests on an assumption worth stating, because it is what makes source inclusion safe: **an
+application takes one of these artifacts, not two.** It is either a Spring application calling
+Epistola, or a Jakarta EE application calling Epistola, or an implementation of the API — never a
+combination, and never two clients.
+
+All three jars therefore carry `app.epistola.protocol.*` at the same FQCN, which would be a split
+package if two of them ever met on one classpath. They are released in lockstep so the bytecode
+matches and a flat classpath resolves it harmlessly, but JPMS and OSGi reject split packages
+outright. If a consumer ever genuinely needs two — implementing the API while calling another
+Epistola instance, say — relocate the classes per artifact: a `Copy` with a package-rewriting
+filter over five files in each build, no plugin required.
+
+It is **Java, not Kotlin**, so the Jakarta client does not compile in a dependency on
+kotlin-stdlib. It has **no dependencies**; `ProtocolContractTest` asserts that, because whatever it
+gains is gained by every consumer.
+
+The package is `@NullMarked` (JSpecify, `compileOnly`). Kotlin consumers **must** set
+`-Xjspecify-annotations=strict`, or the annotations are silently ignored and they get platform
+types back. Both Kotlin builds set it; the flag carries a comment saying why.
+
+### Contract constants are generated, not copied
+
+Anything both sides of the wire must agree on lives in a machine-readable spec extension and is
+generated into every module that needs it. No module depends on another to get them — the clients
+are standalone artifacts, and the Jakarta client ships no runtime dependencies at all.
+
+| Extension | Generates | Into |
+| --- | --- | --- |
+| `x-problem-types` | `KnownProblemSlugs`, the problem-type base URI | Kotlin client, Jakarta client, server stubs |
+| `x-client-identity` | `ContractIdentity` — the `X-EP-Node-Id` header name and the `User-Agent` product grammar | Kotlin client, Jakarta client, server stubs |
+| the registry's problem schemas | `ProblemExtensionMembers` — the members each problem body adds to the RFC 9457 base (`errors`, `validationErrors`) | Kotlin client, Jakarta client, server stubs |
+| the operations' content types | `ContractMediaTypes` — the versioned vendor media types, which carry the API major version | Kotlin client, Jakarta client (and the server build's `produces` rewrite) |
+
+The clients write those headers and the server parses them, so a divergence would make every
+request from that client unidentifiable with nothing else to catch it. When you change one of
+these registries, expect tests in all three modules to fail — they pin the literals on purpose.
 
 ### The problem-type registry and code that follows it
 
 The machine-readable problem-type registry is the **`x-problem-types` extension** at the top
 of `contracts/api/openapi.yaml`. Automation keeps most consumers aligned with it:
 
-- The Kotlin and Jakarta clients' `KnownProblemSlugs` are **generated** from it
-  (`generateProblemSlugs` task in each build) — do not edit them by hand.
+- `KnownProblemSlugs` is **generated** from it in all three JVM modules — both clients and the
+  server stubs (`generateProblemSlugs` task in each build). Do not edit them by hand.
 - `contracts/api/scripts/check-error-registry.sh` (run by `make lint` and CI) fails when
   `contracts/api/docs/error-types.md` disagrees with `x-problem-types`.
 - Guard tests (`ProblemRegistryTest` in each module's `.../error/` test package) fail when the
@@ -184,8 +241,11 @@ When you add, rename, or change a problem `type`, update in the same change:
   `contracts/api/openapi.yaml` under `components.schemas`; if it should reuse Spring's native
   `ProblemDetail` on the server, add it to `schemaMappings` in the server `build.gradle.kts` —
   and to `.openapi-generator-ignore` if it is allOf-composed).
-- **Server** `ProblemDetails.kt`: the `KnownSlugs` constant, plus a builder + `*_PROPERTY`
-  constant for any new extension member (following `validation` / `ERRORS_PROPERTY`).
+- **Server** `ProblemDetails.kt`: a builder + `*_PROPERTY` constant for any new extension member
+  (following `validation` / `ERRORS_PROPERTY`), and a delegating entry in the compatibility
+  `KnownSlugs` object (`const val X = KnownProblemSlugs.X`) — `ProblemRegistryTest` fails until
+  that object covers every generated slug. The slug *values* are generated; only that
+  compatibility shim is hand-written.
 - **Kotlin client**: only if the problem carries a new extension member — extend
   `ProblemDetailErrorHandler.parseProblem` to surface it on `ProblemDetailException`
   (with an `isXxxProblem` flag, following `errors`/`validationErrors`).

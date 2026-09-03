@@ -9,6 +9,9 @@ import app.epistola.client.jakarta.model.CollectMeta;
 import app.epistola.client.jakarta.model.CollectRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.PartitionAssignment;
+import app.epistola.protocol.Compression;
+import app.epistola.protocol.PartitionRouting;
+import app.epistola.protocol.PollBackoff;
 import jakarta.ws.rs.core.Response;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -72,7 +75,6 @@ public final class ResultCollector {
     private final Duration minInterval;
     private final Duration maxInterval;
     private final Duration kickInterval;
-    private final double backoffMultiplier;
     private final Consumer<GenerationResult> handler;
     private final Consumer<Exception> errorHandler;
     private final MetricsListener metricsListener;
@@ -83,6 +85,10 @@ public final class ResultCollector {
      * means every one of a thousand hashes missed every partition this node owns.
      */
     private static final int MAX_ROUTING_KEY_ATTEMPTS = 1000;
+
+    // The polling policy — shared with the Kotlin client, because the collapse-to-zero bug lived
+    // in this arithmetic in every client.
+    private final PollBackoff backoff;
 
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final ReentrantLock pollLock = new ReentrantLock();
@@ -103,11 +109,12 @@ public final class ResultCollector {
         this.minInterval = builder.minInterval;
         this.maxInterval = builder.maxInterval;
         this.kickInterval = builder.kickInterval;
-        this.backoffMultiplier = builder.backoffMultiplier;
         this.handler = builder.handler;
         this.errorHandler = builder.errorHandler;
         this.metricsListener = builder.metricsListener;
         this.registerShutdownHook = builder.registerShutdownHook;
+        this.backoff = PollBackoff.of(
+                builder.minInterval.toMillis(), builder.maxInterval.toMillis(), builder.backoffMultiplier);
         this.currentInterval = builder.minInterval.toMillis();
     }
 
@@ -154,14 +161,10 @@ public final class ResultCollector {
 
     // --- Partition routing helpers ---
 
-    /**
-     * The partitions assigned to this node. The generated model defaults the list to empty, but a
-     * {@code _meta} line carrying an explicit {@code "mine": null} would still deserialize to
-     * {@code null} — and these are user-facing helpers, not internal ones.
-     */
-    private static List<Integer> mineOf(PartitionAssignment assignment) {
-        List<Integer> mine = assignment.getMine();
-        return mine == null ? List.of() : mine;
+    /** The current assignment as the shared router sees it, or null while it is unknown. */
+    private PartitionRouting routing() {
+        PartitionAssignment assignment = partitionAssignment;
+        return assignment == null ? null : PartitionRouting.of(assignment.getTotal(), assignment.getMine());
     }
 
     /**
@@ -169,58 +172,27 @@ public final class ResultCollector {
      * Returns {@code null} until the first poll has reported an assignment.
      */
     public Integer partitionFor(String routingKey) {
-        PartitionAssignment assignment = partitionAssignment;
-        if (assignment == null || assignment.getTotal() == null || assignment.getTotal() == 0) {
-            return null;
-        }
-        int hash = Murmur3.hash32(routingKey.getBytes(StandardCharsets.UTF_8), 0);
-        return (hash & 0x7FFFFFFF) % assignment.getTotal();
+        PartitionRouting routing = routing();
+        return routing == null ? null : routing.partitionFor(routingKey);
     }
 
     /** True when {@code routingKey} would land on one of this node's partitions. */
     public boolean isMyPartition(String routingKey) {
-        Integer partition = partitionFor(routingKey);
-        PartitionAssignment assignment = partitionAssignment;
-        return partition != null && assignment != null && mineOf(assignment).contains(partition);
+        PartitionRouting routing = routing();
+        return routing != null && routing.isMine(routingKey);
     }
 
     /**
      * A routing key that targets one of this node's partitions — useful to make a submission's
-     * result come back to the node that made it.
-     *
-     * <p>Returns {@code key} unchanged when it already routes here; otherwise searches numbered
-     * prefixes ({@code "0:key"}, {@code "1:key"}, …) for one that does. The search is deterministic,
-     * so the same key always yields the same routed key. Returns {@code null} when the assignment is
-     * not yet known, or in the vanishingly unlikely event that no prefix within
-     * {@link #MAX_ROUTING_KEY_ATTEMPTS} lands here.
+     * result come back to the node that made it. Returns {@code null} until the first poll has
+     * reported an assignment.
      *
      * <p>The prefix is what the server hashes, so a rewritten key is a different key: pass the
      * value returned here as the request's {@code routingKey}, and expect it back on the result.
      */
     public String routingKeyToMe(String key) {
-        PartitionAssignment assignment = partitionAssignment;
-        // getTotal() as well as mine: without a partition count nothing can be my partition, and
-        // the search below would run its full thousand iterations to discover that.
-        if (assignment == null
-                || assignment.getTotal() == null
-                || assignment.getTotal() == 0
-                || mineOf(assignment).isEmpty()) {
-            return null;
-        }
-        if (isMyPartition(key)) {
-            return key;
-        }
-        // Trying only the partition numbers this node owns is not enough: "3:key" hashes to
-        // wherever it hashes, not to partition 3. Only checking the hash of each candidate can
-        // tell us, so keep trying prefixes until one lands. With p partitions of n owned, each
-        // attempt succeeds with probability p/n, so this converges in a handful of iterations.
-        for (int attempt = 0; attempt < MAX_ROUTING_KEY_ATTEMPTS; attempt++) {
-            String candidate = attempt + ":" + key;
-            if (isMyPartition(candidate)) {
-                return candidate;
-            }
-        }
-        return null;
+        PartitionRouting routing = routing();
+        return routing == null ? null : routing.routingKeyToMe(key);
     }
 
     // --- Poll loop ---
@@ -243,11 +215,11 @@ public final class ResultCollector {
                         break;
                     }
                     if (result.isHasMore()) {
-                        currentInterval = 0;
+                        currentInterval = backoff.afterHasMore();
                     } else if (result.getCount() > 0) {
-                        currentInterval = minInterval.toMillis();
+                        currentInterval = backoff.afterResults();
                     } else {
-                        currentInterval = backOff(currentInterval);
+                        currentInterval = backoff.afterIdlePoll(currentInterval);
                     }
                     sleepInterruptibly(currentInterval);
                 } catch (InterruptedException e) {
@@ -258,7 +230,7 @@ public final class ResultCollector {
                         errorHandler.accept(e);
                     }
                     long jitter = ThreadLocalRandom.current().nextLong(currentInterval / 2 + 1);
-                    currentInterval = backOff(currentInterval);
+                    currentInterval = backoff.afterIdlePoll(currentInterval);
                     try {
                         sleepInterruptibly(currentInterval + jitter);
                     } catch (InterruptedException interrupted) {
@@ -283,8 +255,9 @@ public final class ResultCollector {
      * <p>Safe to call from any thread, any number of times.
      */
     public void kick() {
-        if (currentInterval > kickInterval.toMillis()) {
-            currentInterval = kickInterval.toMillis();
+        long shortened = backoff.afterKick(currentInterval, kickInterval.toMillis());
+        if (shortened != currentInterval) {
+            currentInterval = shortened;
             wakeUp.offer(Boolean.TRUE);
         }
     }
@@ -385,19 +358,6 @@ public final class ResultCollector {
             }
         }
         return Boolean.TRUE.equals(meta.getHasMore());
-    }
-
-    /**
-     * The next idle interval, floored at {@code minInterval} and capped at {@code maxInterval}.
-     *
-     * <p>The floor is not cosmetic. A poll reporting {@code hasMore} sets the interval to 0 so the
-     * next one is immediate, and {@code 0 * multiplier} is still 0 — without the floor, a burst
-     * that drains (or a server that goes down mid-burst) would leave the loop polling
-     * {@code /generation/collect} flat out, with no path back to a sane interval.
-     */
-    private long backOff(long interval) {
-        long grown = (long) (interval * backoffMultiplier);
-        return Math.min(Math.max(grown, minInterval.toMillis()), maxInterval.toMillis());
     }
 
     /**

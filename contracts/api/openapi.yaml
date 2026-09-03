@@ -86,6 +86,22 @@ servers:
   - url: /api
     description: Base API path
 
+# Machine-readable form of the client-identity convention described normatively in
+# info.description ("Client Identity"). OpenAPI has no global-parameter mechanism, so these
+# headers are deliberately not modelled per operation (see the note in components.parameters) —
+# which left their names hand-copied into every client and the server module, on both sides of a
+# contract that breaks silently when they disagree. The generated clients and the server stubs
+# now derive their constants from this block instead.
+x-client-identity:
+  # Header carrying the caller's node identifier.
+  nodeIdHeader: X-EP-Node-Id
+  # The product token every client's User-Agent must lead with, as
+  # `<contractProduct>/<contract version>`.
+  contractProduct: epistola-contract
+  # Separator between User-Agent product tokens, and between a product and its version.
+  userAgentProductSeparator: " "
+  userAgentVersionSeparator: "/"
+
 # Machine-readable registry of the canonical problem `type` slugs
 # (human-facing registry: docs/error-types.md — a CI check keeps the two in
 # sync). The Kotlin client's KnownProblemSlugs constants are generated from

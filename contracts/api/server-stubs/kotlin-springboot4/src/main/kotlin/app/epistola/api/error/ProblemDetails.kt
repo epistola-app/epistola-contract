@@ -6,6 +6,7 @@ package app.epistola.api.error
 
 import app.epistola.api.model.DataModelValidationError
 import app.epistola.api.model.ValidationError
+import app.epistola.protocol.ProblemTypeUris
 import org.springframework.http.HttpStatusCode
 import org.springframework.http.ProblemDetail
 import java.net.URI
@@ -39,55 +40,78 @@ import java.net.URI
  */
 object ProblemDetails {
 
-    /** Base URI for Epistola problem `type` values, e.g. `https://epistola.app/errors/not-found`. */
-    const val TYPE_BASE: String = "https://epistola.app/errors/"
+    /**
+     * Base URI for Epistola problem `type` values, e.g. `https://epistola.app/errors/not-found`.
+     * Taken from [GENERATED_PROBLEM_TYPE_BASE], which the build writes from the spec's
+     * `x-problem-types` registry.
+     */
+    const val TYPE_BASE: String = GENERATED_PROBLEM_TYPE_BASE
 
     /** The RFC 9457 default problem type, used when no specific [type] is supplied. */
-    val BLANK_TYPE: URI = URI.create("about:blank")
-
-    /** Extension member carrying field-level validation errors. */
-    const val ERRORS_PROPERTY: String = "errors"
-
-    /** Extension member carrying per-example data-model validation failures. */
-    const val VALIDATION_ERRORS_PROPERTY: String = "validationErrors"
-
-    /** Builds a problem `type` URI from a kebab-case slug, e.g. `typeFor("not-found")`. */
-    fun typeFor(slug: String): URI = URI.create(TYPE_BASE + slug)
+    val BLANK_TYPE: URI = ProblemTypeUris.BLANK_TYPE
 
     /**
-     * The canonical problem `type` slugs from the contract's error-type registry (the spec's
-     * `x-problem-types` extension / `docs/error-types.md`), for use with [typeFor].
+     * Extension member carrying field-level validation errors. Generated from the
+     * `ValidationProblemDetail` schema, so it stays the name the clients read.
+     */
+    const val ERRORS_PROPERTY: String = ProblemExtensionMembers.ERRORS
+
+    /**
+     * Extension member carrying per-example data-model validation failures. Generated from the
+     * `DataModelValidationProblemDetail` schema, so it stays the name the clients read.
+     */
+    const val VALIDATION_ERRORS_PROPERTY: String = ProblemExtensionMembers.VALIDATION_ERRORS
+
+    // The mapping is shared with the clients, which use it in the other direction.
+    private val uris = ProblemTypeUris.of(TYPE_BASE)
+
+    /** Builds a problem `type` URI from a kebab-case slug, e.g. `typeFor("not-found")`. */
+    fun typeFor(slug: String): URI = uris.typeFor(slug)
+
+    /**
+     * The kebab-case slug of a problem `type` URI, or `null` for `about:blank` and non-Epistola
+     * types — the inverse of [typeFor], and what the clients switch on.
+     */
+    fun slugFor(type: URI?): String? = uris.slugFor(type)
+
+    /**
+     * The canonical problem `type` slugs from the contract's error-type registry, for use with
+     * [typeFor].
      *
-     * A guard test asserts these agree with the bundled spec — when the registry changes,
-     * update both. The slug list is open: implementations may also emit slugs not listed here.
+     * Every value here comes from [KnownProblemSlugs], which the build generates from the spec's
+     * `x-problem-types` extension — the same registry the published clients generate their
+     * constants from, so a `when (e.typeSlug)` on the client lines up with what this server emits.
+     * Prefer referring to [KnownProblemSlugs] directly in new code; this object is the shape the
+     * server module has always exposed, and `ProblemRegistryTest` fails if it stops covering the
+     * registry. The slug list is open: implementations may also emit slugs not listed here.
      */
     object KnownSlugs {
         /** 400 — the request body or parameters failed validation (use [validation]). */
-        const val VALIDATION_ERROR: String = "validation-error"
+        const val VALIDATION_ERROR: String = KnownProblemSlugs.VALIDATION_ERROR
 
         /** 400 — malformed or not applicable to the resource state (no `errors`). */
-        const val BAD_REQUEST: String = "bad-request"
+        const val BAD_REQUEST: String = KnownProblemSlugs.BAD_REQUEST
 
         /** 401 — missing or invalid credentials. */
-        const val UNAUTHORIZED: String = "unauthorized"
+        const val UNAUTHORIZED: String = KnownProblemSlugs.UNAUTHORIZED
 
         /** 401 — API-key authentication is disabled for this deployment. */
-        const val API_KEY_AUTH_DISABLED: String = "api-key-auth-disabled"
+        const val API_KEY_AUTH_DISABLED: String = KnownProblemSlugs.API_KEY_AUTH_DISABLED
 
         /** 403 — authenticated but not allowed to perform the operation. */
-        const val FORBIDDEN: String = "forbidden"
+        const val FORBIDDEN: String = KnownProblemSlugs.FORBIDDEN
 
         /** 404 — the addressed resource does not exist. */
-        const val NOT_FOUND: String = "not-found"
+        const val NOT_FOUND: String = KnownProblemSlugs.NOT_FOUND
 
         /** 409 — the request conflicts with the current state of the resource. */
-        const val CONFLICT: String = "conflict"
+        const val CONFLICT: String = KnownProblemSlugs.CONFLICT
 
         /** 422 — data examples do not validate against the data model (use [dataModelValidation]). */
-        const val DATA_MODEL_VALIDATION_ERROR: String = "data-model-validation-error"
+        const val DATA_MODEL_VALIDATION_ERROR: String = KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR
 
         /** 429 — too many requests; the client is being rate limited. */
-        const val RATE_LIMITED: String = "rate-limited"
+        const val RATE_LIMITED: String = KnownProblemSlugs.RATE_LIMITED
     }
 
     /**

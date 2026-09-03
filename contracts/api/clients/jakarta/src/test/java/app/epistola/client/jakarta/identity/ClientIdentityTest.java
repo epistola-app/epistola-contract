@@ -19,6 +19,17 @@ import org.junit.jupiter.api.Test;
 class ClientIdentityTest {
 
     @Test
+    void the_header_name_and_product_token_come_from_the_contract_registry() {
+        // Generated from the spec's x-client-identity extension, as are the Kotlin client's and
+        // the server module's. Pinning the literals means a registry change shows up as a
+        // deliberate test edit rather than a silent change to what every deployed client sends.
+        assertEquals("X-EP-Node-Id", ClientIdentity.HEADER_NODE_ID);
+        assertEquals("epistola-contract", ContractIdentity.CONTRACT_PRODUCT);
+        assertEquals(" ", ContractIdentity.PRODUCT_SEPARATOR);
+        assertEquals("/", ContractIdentity.VERSION_SEPARATOR);
+    }
+
+    @Test
     void the_user_agent_starts_with_the_contract_token() {
         ClientIdentity identity = ClientIdentity.builder().nodeId("node-1").build();
 

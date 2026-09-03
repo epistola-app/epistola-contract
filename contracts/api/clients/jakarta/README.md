@@ -33,6 +33,16 @@ implementation(libs.some.vendor.client) {
 `DependencyHygieneTest` asserts this on every build: no runtime dependencies, no Spring, no
 `javax.*`, no JAX-RS/JSON/servlet implementation.
 
+The wire-protocol logic this client shares with the Kotlin client and the Epistola server module —
+partition routing, poll backoff, the `User-Agent` grammar, problem type URIs — is **compiled in**
+from `contracts/api/protocol-java` rather than depended on, so it costs you no coordinate to
+resolve and no jar to exclude.
+
+Take one Epistola artifact per deployment: this client, *or* the Spring client, *or* the server
+stubs. Each carries its own copy of that shared logic under the same package, so two of them in one
+WAR would be a split package — which a flat classpath tolerates but JPMS and OSGi do not. In
+practice an application is a client or a server, not both.
+
 ## Installation
 
 ```kotlin

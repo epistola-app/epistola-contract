@@ -4,6 +4,7 @@
 
 package app.epistola.api.identity
 
+import app.epistola.protocol.UserAgent
 import jakarta.servlet.http.HttpServletRequest
 
 /**
@@ -47,8 +48,12 @@ data class ClientInfo(
     data class Product(val name: String, val version: String)
 
     companion object {
-        const val HEADER_NODE_ID = "X-EP-Node-Id"
-        internal const val CONTRACT_PRODUCT = "epistola-contract"
+        /** Header carrying the node identifier, from the contract's `x-client-identity` registry. */
+        const val HEADER_NODE_ID = ContractIdentity.NODE_ID_HEADER
+        internal const val CONTRACT_PRODUCT = ContractIdentity.CONTRACT_PRODUCT
+
+        private val USER_AGENT: UserAgent =
+            UserAgent.of(ContractIdentity.PRODUCT_SEPARATOR, ContractIdentity.VERSION_SEPARATOR)
 
         /**
          * Parses client identity from an [HttpServletRequest].
@@ -68,15 +73,8 @@ data class ClientInfo(
          * Tokens without a `/` are included with an empty version.
          */
         fun parseUserAgent(userAgent: String?): List<Product> {
-            if (userAgent.isNullOrBlank()) return emptyList()
-            return userAgent.trim().split("\\s+".toRegex()).map { token ->
-                val slash = token.indexOf('/')
-                if (slash >= 0) {
-                    Product(token.substring(0, slash), token.substring(slash + 1))
-                } else {
-                    Product(token, "")
-                }
-            }
+            // The same grammar the clients format with, so the two halves cannot drift.
+            return USER_AGENT.parse(userAgent).map { Product(it.name(), it.version()) }
         }
     }
 }
