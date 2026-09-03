@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed the Kotlin client sending enum query parameters as the Kotlin constant's name rather than
+  the value the contract declares — `direction=DESC` against `enum: [asc, desc]`, on 39 operations
+  across 11 API classes, and by default, because the parameter's default is the enum constant. The
+  same applied to `status` on versions, consumers, generation jobs and stencil versions. The spec is
+  unchanged: lowercase was and remains the declared wire value. The client now generates with
+  `enumPropertyNaming: original`, which renames every enum constant — `VersionDto.Status.DRAFT`
+  becomes `.draft` — and is source-breaking for Kotlin consumers.
+- Fixed the Python client asking only for the success media type. Its generated
+  `select_header_accept` returns the first JSON entry it finds, so `application/problem+json` was
+  dropped from nearly every operation and the client never asked for the problem document it exists
+  to parse; a server doing strict content negotiation would answer 406 instead.
+- Extended the conformance suite from eight scenarios to thirteen: query-parameter serialization,
+  acknowledgement when a result handler throws, agreement between the four murmur3 implementations
+  and the routing keys derived from them, request-body serialization, and the error `Accept` header.
+- Moved the JVM conformance drivers into their own Gradle build. They had lived in the clients'
+  builds while building those same clients, so `./gradlew build` on the Kotlin client compiled and
+  linted test-harness code; a published artifact's build gate no longer depends on it.
+
 - Added a cross-client conformance suite. One scripted server plays a scenario's responses back,
   records every request it was sent, and judges that record; each client contributes a thin driver
   that asks the server what to do and asserts nothing itself. The expectations therefore live in one

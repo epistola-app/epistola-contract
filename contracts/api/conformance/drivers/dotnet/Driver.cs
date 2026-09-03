@@ -46,6 +46,7 @@ public static class Driver
                 case "collect": Collect(baseUrl, config); break;
                 case "problem": Problem(baseUrl, config); break;
                 case "routing": Routing(baseUrl, config); break;
+                case "generate-document": GenerateDocument(baseUrl, config); break;
                 default: throw new ArgumentException($"unknown action {instruction.GetProperty("action")}");
             }
 
@@ -143,6 +144,28 @@ public static class Driver
                 ["partitionTotal"] = collector.CurrentPartitionAssignment?.Total ?? -1,
             });
         }
+    }
+
+    /// <summary>
+    /// A request body with something in it: required fields, two of the optional ones set, the rest
+    /// left alone, and a free-form <c>data</c> object carrying every JSON type. What the server
+    /// receives is the generator's serialization, which is the part no client hand-writes and no
+    /// client's own tests inspect.
+    /// </summary>
+    private static void GenerateDocument(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        new GenerationApi(http, apiBase).GenerateDocument(
+            Str(config, "tenantId"),
+            new GenerateDocumentRequest(
+                catalogId: Str(config, "catalogId"),
+                templateId: Str(config, "templateId"),
+                // Parsed with Newtonsoft, not System.Text.Json: the generated models serialize
+                // through Newtonsoft, which does not know what to do with a JsonElement and emits
+                // an empty object for it.
+                data: Newtonsoft.Json.JsonConvert.DeserializeObject(config.GetProperty("data").GetRawText()),
+                correlationId: Str(config, "correlationId"),
+                routingKey: Str(config, "routingKey")));
     }
 
     /// <summary>

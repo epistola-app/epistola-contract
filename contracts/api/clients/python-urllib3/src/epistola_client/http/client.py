@@ -69,6 +69,21 @@ class EpistolaApiClient(ApiClient):
             headers["Authorization"] = f"ApiKey {self._api_key}"
         return headers
 
+    def select_header_accept(self, accepts):
+        """Accept every JSON media type the operation declares, not just the first one.
+
+        The stock generated implementation returns the first entry matching ``json``, which drops
+        ``application/problem+json`` from every operation that also returns a success body — so the
+        client asks for a document it cannot be sent. Against a server doing strict content
+        negotiation that turns an error response into a 406, and the typed
+        :class:`~epistola_client.error.problem_detail_exception.ProblemDetailException` this client
+        exists to raise never gets its body. The other three Epistola clients send both types.
+        """
+        json_types = [accept for accept in accepts if "json" in accept.lower()]
+        if json_types:
+            return ", ".join(json_types)
+        return accepts[0] if accepts else None
+
     def param_serialize(self, *args, **kwargs):
         method, url, header_params, body, post_params = super().param_serialize(*args, **kwargs)
         if self._jwt_signer is not None:

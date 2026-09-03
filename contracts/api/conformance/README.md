@@ -56,7 +56,7 @@ The base URL addresses the server's root; a driver appends `/api` itself, becaus
 part of the contract's `servers` entry and a client that drops it is a client with a bug. Exactly
 that turned up in the .NET client on this suite's first run.
 
-Four actions cover the scenarios. A driver implements these, and nothing else:
+Six actions cover the scenarios. A driver implements these, and nothing else:
 
 | Action | What the driver does |
 | --- | --- |
@@ -64,6 +64,8 @@ Four actions cover the scenarios. A driver implements these, and nothing else:
 | `list-templates` | `GET …/templates`, `config.repeat` times |
 | `collect` | build a `ResultCollector` from `config`, run it for `config.runForMs`, stop it, report what it handled |
 | `problem` | make a request the server answers with a problem, report the parsed slug and members |
+| `generate-document` | `POST …/documents/generate` with a real body, through the generated API |
+| `routing` | poll once for a partition assignment, then report what the routing helpers compute |
 
 ## Adding a scenario
 
@@ -99,9 +101,16 @@ the thing under test.
 **Expectations** are `requestCount` / `requestCountAtMost` / `requestCountAtLeast`, a positional
 `requests` list, an `everyRequest` matcher, `gaps`, `jwt`, and `report`. Header and body values match
 literally, or as `{matches: regex}`, `{contains}`, `{oneOf}`, `{absent: true}`; bodies also take
-`{json: {...}}` for a deep subset and `{jsonAbsent: [keys]}`.
+`{json: {...}}` for a deep subset, `{jsonAbsent: [keys]}` and `{jsonNullOrAbsent: [keys]}`. Query
+strings match whole via `query` or per parameter via `queryParams`.
 
-Two are worth knowing about:
+`{whenPresent: {...}}` is worth knowing about: it applies the inner matcher only if the value was
+sent. Some differences between clients are legitimate — a parameter the contract gives a default for
+may be sent explicitly or omitted, and a nullable field may be `null` or absent — and forcing one
+spelling would mean fighting three generators for no contract-level gain. What is never legitimate
+is a value the contract does not allow, which is what these still catch.
+
+Two more are worth knowing about:
 
 - **`gaps`** is the only evidence of a client's polling policy. `minMs` floors every gap, `skipFirst`
   excludes the deliberate immediate poll after `hasMore`, and `increasing` requires the backoff to
@@ -124,8 +133,8 @@ types it as `UUID`) did not. If a fixture only works on some clients, the fixtur
 
 ## What it has caught
 
-Both of these were live in released clients, and both were invisible to the clients' own test
-suites — which is the argument for the suite existing:
+All four of these were live in released clients, and all four were invisible to those clients' own
+test suites — which is the argument for the suite existing:
 
 - **.NET dropped the API base path on result collection.** `HttpClient.BaseAddress` without a
   trailing slash resolves a relative request against the parent, so a base of `…/api` sent polls to
@@ -134,3 +143,10 @@ suites — which is the argument for the suite existing:
   exhausted, and `TextIOWrapper` then raised instead of seeing EOF. The batch went unacknowledged
   and was redelivered forever. The collector's tests were all pure functions; the read loop had no
   coverage at all.
+- **Kotlin sent `direction=DESC` where the contract declares `enum: [asc, desc]`.** Enum query
+  parameters serialize with `toString()`, which returns the constant's name and ignores the
+  `@JsonProperty` wire value — on 39 operations, by default, because the parameter defaults to the
+  enum constant. Servers that parse the direction case-insensitively accepted it.
+- **Python asked only for the success media type.** Its generated `select_header_accept` returns the
+  first JSON entry, dropping `application/problem+json` from nearly every operation — so the client
+  never asked for the problem document all four are built to parse.

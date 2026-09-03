@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: error-accept
+title: A client asks for the problem document it is built to parse
+why: >
+  Every client turns an application/problem+json body into a typed exception carrying the registry
+  slug — it is the headline feature of all four error-handling layers. None of that runs if the
+  request never said it would accept problem+json: a server doing strict content negotiation
+  answers 406, and the caller gets a transport error where the contract promised a structured one.
+
+  Python asked for the success type alone. Its generated `select_header_accept` returns the *first*
+  entry matching "json" from the operation's declared response types, so on every operation with
+  both a success body and a problem body — which is nearly all of them — problem+json was dropped.
+  Nothing caught it, because the conformance server and most real ones return the problem body
+  regardless of what was asked for.
+
+  This is asserted on listTemplates rather than ping because ping declares no error responses at
+  all, so asking only for the success type is correct there.
+
+action:
+  name: list-templates
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    catalogId: main
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      items: []
+      page: { number: 0, size: 20, totalElements: 0, totalPages: 0 }
+
+expect:
+  requestCount: 1
+  everyRequest:
+    headers:
+      # Both, in the order the contract declares them.
+      Accept:
+        matches: 'application/vnd\.epistola\.v1\+json,\s*application/problem\+json'

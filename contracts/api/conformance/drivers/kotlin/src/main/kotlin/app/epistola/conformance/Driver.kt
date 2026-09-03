@@ -5,6 +5,7 @@
 package app.epistola.conformance
 
 import app.epistola.client.ContractMediaTypes
+import app.epistola.client.api.GenerationApi
 import app.epistola.client.api.SystemApi
 import app.epistola.client.api.TemplatesApi
 import app.epistola.client.auth.ApiKeyAuth
@@ -13,6 +14,7 @@ import app.epistola.client.collect.ResultCollector
 import app.epistola.client.error.ProblemDetailException
 import app.epistola.client.error.installProblemDetailHandler
 import app.epistola.client.identity.ClientIdentity
+import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.PingRequest
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -54,6 +56,7 @@ object Driver {
                 "collect" -> collect(baseUrl, config)
                 "problem" -> problem(baseUrl, config)
                 "routing" -> routing(baseUrl, config)
+                "generate-document" -> generateDocument(baseUrl, config)
                 else -> error("unknown action $action")
             }
             done(baseUrl, null)
@@ -131,6 +134,25 @@ object Driver {
                 "correlationIds" to handled.joinToString(",") { it.correlationId ?: "" },
                 "handledSequences" to handled.joinToString(",") { it.sequence.toString() },
                 "partitionTotal" to (collector.partitionAssignment?.total ?: -1),
+            ),
+        )
+    }
+
+    /**
+     * A request body with something in it: required fields, two of the optional ones set, the rest
+     * left alone, and a free-form `data` object carrying every JSON type. What the server receives
+     * is the generator's serialization, which is the part no client hand-writes and no client's own
+     * tests inspect.
+     */
+    private fun generateDocument(baseUrl: String, config: ObjectNode) {
+        GenerationApi(restClient(baseUrl, config)).generateDocument(
+            config["tenantId"].asText(),
+            GenerateDocumentRequest(
+                catalogId = config["catalogId"].asText(),
+                templateId = config["templateId"].asText(),
+                data = mapper.convertValue(config["data"], Map::class.java),
+                correlationId = config["correlationId"].asText(),
+                routingKey = config["routingKey"].asText(),
             ),
         )
     }

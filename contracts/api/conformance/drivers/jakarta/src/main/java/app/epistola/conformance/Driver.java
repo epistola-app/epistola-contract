@@ -5,6 +5,7 @@
 package app.epistola.conformance;
 
 import app.epistola.client.jakarta.EpistolaRestClients;
+import app.epistola.client.jakarta.api.GenerationApi;
 import app.epistola.client.jakarta.api.SystemApi;
 import app.epistola.client.jakarta.api.TemplatesApi;
 import app.epistola.client.jakarta.auth.JwtSigner;
@@ -12,6 +13,7 @@ import app.epistola.client.jakarta.collect.GenerationCollectApi;
 import app.epistola.client.jakarta.collect.ResultCollector;
 import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.identity.ClientIdentity;
+import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
@@ -55,6 +57,7 @@ public final class Driver {
                 case "collect" -> collect(baseUrl, config);
                 case "problem" -> problem(baseUrl, config);
                 case "routing" -> routing(baseUrl, config);
+                case "generate-document" -> generateDocument(baseUrl, config);
                 default -> throw new IllegalArgumentException("unknown action " + instruction.getString("action"));
             }
             done(baseUrl, null);
@@ -149,6 +152,25 @@ public final class Driver {
                                         .map(result -> String.valueOf(result.getSequence()))
                                         .collect(Collectors.joining(",")),
                         "partitionTotal", assignment == null ? -1 : assignment.getTotal()));
+    }
+
+    /**
+     * A request body with something in it: required fields, two of the optional ones set, the rest
+     * left alone, and a free-form {@code data} object carrying every JSON type. What the server
+     * receives is the generator's serialization, which is the part no client hand-writes and no
+     * client's own tests inspect.
+     */
+    private static void generateDocument(String baseUrl, JsonObject config) {
+        clients(baseUrl, config)
+                .api(GenerationApi.class)
+                .generateDocument(
+                        config.getString("tenantId"),
+                        new GenerateDocumentRequest()
+                                .catalogId(config.getString("catalogId"))
+                                .templateId(config.getString("templateId"))
+                                .data(config.getJsonObject("data"))
+                                .correlationId(config.getString("correlationId"))
+                                .routingKey(config.getString("routingKey")));
     }
 
     /**

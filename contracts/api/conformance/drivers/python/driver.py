@@ -22,6 +22,8 @@ import urllib.request
 from epistola_client import (
     ClientIdentity,
     EpistolaClientBuilder,
+    GenerateDocumentRequest,
+    GenerationApi,
     JwtSigner,
     PingRequest,
     ProblemDetailException,
@@ -46,6 +48,7 @@ def main() -> int:
         "collect": _collect,
         "problem": _problem,
         "routing": _routing,
+        "generate-document": _generate_document,
     }
 
     try:
@@ -144,6 +147,24 @@ def _collect(base_url: str, config: dict) -> None:
             "handledSequences": ",".join(str(result.sequence) for result in handled),
             "partitionTotal": assignment.total if assignment is not None else -1,
         },
+    )
+
+
+def _generate_document(base_url: str, config: dict) -> None:
+    """A request body with something in it: required fields, two of the optional ones set, the rest
+    left alone, and a free-form ``data`` object carrying every JSON type. What the server receives
+    is the generator's serialization, which is the part no client hand-writes and no client's own
+    tests inspect.
+    """
+    GenerationApi(_client(base_url, config)).generate_document(
+        config["tenantId"],
+        GenerateDocumentRequest(
+            catalogId=config["catalogId"],
+            templateId=config["templateId"],
+            data=config["data"],
+            correlationId=config["correlationId"],
+            routingKey=config["routingKey"],
+        ),
     )
 
 

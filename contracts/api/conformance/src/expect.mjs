@@ -94,6 +94,23 @@ function checkBody(label, matcher, rawBody, failures) {
     }
     checkSubset(`${label}: body`, matcher.json, parsed, failures)
   }
+  if (matcher.jsonNullOrAbsent !== undefined) {
+    // Absent and null are the same value under a schema that types the field `[string, "null"]`,
+    // and the four serializers do not agree on which they emit. What matters is that neither
+    // carries a real value the caller never set.
+    let parsed
+    try {
+      parsed = JSON.parse(rawBody)
+    } catch {
+      failures.push(`${label}: body is not JSON: ${truncate(rawBody)}`)
+      return
+    }
+    for (const key of matcher.jsonNullOrAbsent) {
+      if (parsed?.[key] !== undefined && parsed[key] !== null) {
+        failures.push(`${label}: body should not set "${key}", got ${JSON.stringify(parsed[key])}`)
+      }
+    }
+  }
   if (matcher.jsonAbsent !== undefined) {
     let parsed
     try {
