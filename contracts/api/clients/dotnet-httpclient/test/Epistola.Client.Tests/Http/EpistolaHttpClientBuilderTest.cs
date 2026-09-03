@@ -18,6 +18,29 @@ namespace Epistola.Client.Tests.Http;
 
 public class EpistolaHttpClientBuilderTest
 {
+    [Theory]
+    [InlineData("http://localhost/api", "http://localhost/api/tenants/acme/generation/collect")]
+    [InlineData("http://localhost/api/", "http://localhost/api/tenants/acme/generation/collect")]
+    [InlineData("http://localhost", "http://localhost/tenants/acme/generation/collect")]
+    public async Task KeepsTheApiPathWhenResolvingRelativeRequests(string baseUrl, string expected)
+    {
+        // Uri resolution drops the last segment of a base that has no trailing slash, so a base of
+        // ".../api" once sent ResultCollector's relative "tenants/…" request to "/tenants/…" —
+        // against the very base URL this library's README tells consumers to configure.
+        HttpRequestMessage? captured = null;
+        var primary = new StubHttpMessageHandler(req =>
+        {
+            captured = req;
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+
+        var http = new EpistolaHttpClientBuilder().BaseUrl(baseUrl).PrimaryHandler(primary).Build();
+
+        await http.PostAsync("tenants/acme/generation/collect", new StringContent("{}"));
+
+        Assert.Equal(expected, captured!.RequestUri!.ToString());
+    }
+
     [Fact]
     public async Task ComposesTheFullHandlerChain()
     {

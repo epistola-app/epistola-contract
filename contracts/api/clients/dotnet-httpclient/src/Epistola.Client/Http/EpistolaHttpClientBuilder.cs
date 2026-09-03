@@ -110,7 +110,12 @@ public sealed class EpistolaHttpClientBuilder
         var client = new HttpClient(inner);
         if (!string.IsNullOrEmpty(_baseUrl))
         {
-            client.BaseAddress = new Uri(_baseUrl);
+            // The trailing slash is load-bearing. Uri resolution treats the last segment of a base
+            // without one as a file rather than a directory, so a base of ".../api" and a relative
+            // request of "tenants/…" resolve to "/tenants/…" — the API path silently dropped.
+            // ResultCollector issues exactly that relative request, so against the base URL this
+            // library's own documentation uses, result collection went to the wrong path.
+            client.BaseAddress = new Uri(_baseUrl.EndsWith('/') ? _baseUrl : _baseUrl + "/");
         }
 
         return client;
