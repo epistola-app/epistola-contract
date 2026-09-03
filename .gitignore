@@ -18,6 +18,9 @@ bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
 
+# .NET intermediate output (the conformance driver builds in place)
+obj/
+
 ### IntelliJ IDEA ###
 .idea
 *.iws
