@@ -45,6 +45,7 @@ public static class Driver
                 case "list-templates": ListTemplates(baseUrl, config); break;
                 case "collect": Collect(baseUrl, config); break;
                 case "problem": Problem(baseUrl, config); break;
+                case "routing": Routing(baseUrl, config); break;
                 default: throw new ArgumentException($"unknown action {instruction.GetProperty("action")}");
             }
 
@@ -105,6 +106,7 @@ public static class Driver
         var (http, _) = Client(baseUrl, config);
         var handled = new List<ResultCollector.GenerationResult>();
         var handledLock = new object();
+        var failOnSequence = config.TryGetProperty("failHandlerOnSequence", out var fail) ? fail.GetInt64() : -1L;
 
         var collector = ResultCollector.Builder()
             .HttpClient(http)
@@ -114,7 +116,11 @@ public static class Driver
             .MaxInterval(TimeSpan.FromMilliseconds(Int(config, "maxIntervalMs")))
             .BackoffMultiplier(config.GetProperty("multiplier").GetDouble())
             .RegisterShutdownHook(false)
-            .Handler(result => { lock (handledLock) { handled.Add(result); } })
+            .Handler(result =>
+            {
+                lock (handledLock) { handled.Add(result); }
+                if (result.Sequence == failOnSequence) throw new InvalidOperationException("conformance: deliberate handler failure");
+            })
             // Without this the loop swallows collection failures and simply backs off, which reaches
             // the harness as "the client chose not to poll" rather than as the cause.
             .ErrorHandler(e => Console.Error.WriteLine(e))
@@ -133,10 +139,43 @@ public static class Driver
                 ["resultsHandled"] = handled.Count,
                 ["statuses"] = string.Join(",", handled.Select(r => r.Status)),
                 ["correlationIds"] = string.Join(",", handled.Select(r => r.CorrelationId ?? "")),
+                ["handledSequences"] = string.Join(",", handled.Select(r => r.Sequence)),
                 ["partitionTotal"] = collector.CurrentPartitionAssignment?.Total ?? -1,
             });
         }
     }
+
+    /// <summary>
+    /// One poll to learn the partition assignment from the _meta line, then the routing helpers.
+    /// The values are reported rather than asserted here: the harness holds all four clients to the
+    /// same answers, which is the only way four independent murmur3 implementations stay in step.
+    /// </summary>
+    private static void Routing(string baseUrl, JsonElement config)
+    {
+        var (http, _) = Client(baseUrl, config);
+        var collector = ResultCollector.Builder()
+            .HttpClient(http)
+            .TenantId(Str(config, "tenantId"))
+            .RegisterShutdownHook(false)
+            .Handler(_ => { })
+            .Build();
+
+        collector.CollectOnce();
+
+        var keys = config.GetProperty("keys").EnumerateArray().Select(k => k.GetString()!).ToList();
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["partitionTotal"] = collector.CurrentPartitionAssignment?.Total ?? -1,
+            ["partitions"] = string.Join(",", keys.Select(k => $"{k}:{Show(collector.PartitionFor(k))}")),
+            ["routed"] = string.Join(",", keys.Select(k => $"{k}={Show(collector.RoutingKeyToMe(k))}")),
+            ["routedPartitions"] = string.Join(",", keys.Select(k => Show(collector.PartitionFor(collector.RoutingKeyToMe(k)!)))),
+            ["mineFlags"] = string.Join(",", keys.Select(k => collector.IsMyPartition(k) ? "true" : "false")),
+        });
+    }
+
+    /// <summary>Renders a null the way the other drivers' languages print theirs, so the harness
+    /// compares one spelling rather than four.</summary>
+    private static string Show(object? value) => value?.ToString() ?? "null";
 
     // --- Client assembly ---
 

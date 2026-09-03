@@ -54,6 +54,7 @@ public final class Driver {
                 case "list-templates" -> listTemplates(baseUrl, config);
                 case "collect" -> collect(baseUrl, config);
                 case "problem" -> problem(baseUrl, config);
+                case "routing" -> routing(baseUrl, config);
                 default -> throw new IllegalArgumentException("unknown action " + instruction.getString("action"));
             }
             done(baseUrl, null);
@@ -103,6 +104,7 @@ public final class Driver {
 
     private static void collect(String baseUrl, JsonObject config) throws InterruptedException {
         List<GenerationResult> handled = new CopyOnWriteArrayList<>();
+        long failOnSequence = config.containsKey("failHandlerOnSequence") ? config.getInt("failHandlerOnSequence") : -1;
 
         ResultCollector collector = ResultCollector.builder()
                 .collectApi(clients(baseUrl, config).api(GenerationCollectApi.class))
@@ -112,7 +114,12 @@ public final class Driver {
                 .maxInterval(Duration.ofMillis(config.getInt("maxIntervalMs")))
                 .backoffMultiplier(config.getJsonNumber("multiplier").doubleValue())
                 .registerShutdownHook(false)
-                .handler(handled::add)
+                .handler(result -> {
+                    handled.add(result);
+                    if (result.getSequence() != null && result.getSequence() == failOnSequence) {
+                        throw new IllegalStateException("conformance: deliberate handler failure");
+                    }
+                })
                 // Without this the loop swallows collection failures and simply backs off, which
                 // reaches the harness as "the client chose not to poll" rather than as the cause.
                 .errorHandler(e -> e.printStackTrace())
@@ -137,7 +144,51 @@ public final class Driver {
                                 handled.stream()
                                         .map(result -> result.getCorrelationId() == null ? "" : result.getCorrelationId())
                                         .collect(Collectors.joining(",")),
+                        "handledSequences",
+                                handled.stream()
+                                        .map(result -> String.valueOf(result.getSequence()))
+                                        .collect(Collectors.joining(",")),
                         "partitionTotal", assignment == null ? -1 : assignment.getTotal()));
+    }
+
+    /**
+     * One poll to learn the partition assignment from the {@code _meta} line, then the routing
+     * helpers. The values are reported rather than asserted here: the harness holds all four
+     * clients to the same answers, which is the only way four independent murmur3 implementations
+     * stay in step.
+     */
+    private static void routing(String baseUrl, JsonObject config) {
+        ResultCollector collector = ResultCollector.builder()
+                .collectApi(clients(baseUrl, config).api(GenerationCollectApi.class))
+                .tenantId(config.getString("tenantId"))
+                .registerShutdownHook(false)
+                .handler(result -> {})
+                .build();
+
+        collector.collectOnce();
+
+        List<String> keys = config.getJsonArray("keys").getValuesAs(jakarta.json.JsonString::getString);
+        PartitionAssignment assignment = collector.getPartitionAssignment();
+        report(
+                baseUrl,
+                Map.of(
+                        "partitionTotal", assignment == null ? -1 : assignment.getTotal(),
+                        "partitions",
+                                keys.stream()
+                                        .map(key -> key + ":" + collector.partitionFor(key))
+                                        .collect(Collectors.joining(",")),
+                        "routed",
+                                keys.stream()
+                                        .map(key -> key + "=" + collector.routingKeyToMe(key))
+                                        .collect(Collectors.joining(",")),
+                        "routedPartitions",
+                                keys.stream()
+                                        .map(key -> String.valueOf(collector.partitionFor(collector.routingKeyToMe(key))))
+                                        .collect(Collectors.joining(",")),
+                        "mineFlags",
+                                keys.stream()
+                                        .map(key -> String.valueOf(collector.isMyPartition(key)))
+                                        .collect(Collectors.joining(","))));
     }
 
     // --- Client assembly ---

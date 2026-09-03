@@ -45,6 +45,7 @@ def main() -> int:
         "list-templates": _list_templates,
         "collect": _collect,
         "problem": _problem,
+        "routing": _routing,
     }
 
     try:
@@ -102,6 +103,12 @@ def _problem(base_url: str, config: dict) -> None:
 
 def _collect(base_url: str, config: dict) -> None:
     handled = []
+    fail_on_sequence = config.get("failHandlerOnSequence")
+
+    def handle(result):
+        handled.append(result)
+        if result.sequence == fail_on_sequence:
+            raise RuntimeError("conformance: deliberate handler failure")
 
     collector = (
         ResultCollector.builder()
@@ -114,7 +121,7 @@ def _collect(base_url: str, config: dict) -> None:
         .max_interval(config["maxIntervalMs"] / 1000)
         .backoff_multiplier(config["multiplier"])
         .register_shutdown_hook(False)
-        .handler(handled.append)
+        .handler(handle)
         # Without this the loop swallows collection failures and simply backs off, which reaches
         # the harness as "the client chose not to poll" rather than as the cause.
         .error_handler(lambda exc: traceback.print_exception(type(exc), exc, exc.__traceback__))
@@ -134,9 +141,49 @@ def _collect(base_url: str, config: dict) -> None:
             "resultsHandled": len(handled),
             "statuses": ",".join(result.status for result in handled),
             "correlationIds": ",".join(result.correlation_id or "" for result in handled),
+            "handledSequences": ",".join(str(result.sequence) for result in handled),
             "partitionTotal": assignment.total if assignment is not None else -1,
         },
     )
+
+
+def _routing(base_url: str, config: dict) -> None:
+    """One poll to learn the partition assignment from the ``_meta`` line, then the routing helpers.
+
+    The values are reported rather than asserted here: the harness holds all four clients to the
+    same answers, which is the only way four independent murmur3 implementations stay in step.
+    """
+    collector = (
+        ResultCollector.builder()
+        .api_client(_client(base_url, config))
+        .tenant_id(config["tenantId"])
+        .register_shutdown_hook(False)
+        .handler(lambda result: None)
+        .build()
+    )
+
+    collector.collect_once()
+
+    keys = config["keys"]
+    assignment = collector.current_partition_assignment
+    _report(
+        base_url,
+        {
+            "partitionTotal": assignment.total if assignment is not None else -1,
+            "partitions": ",".join(f"{k}:{_show(collector.partition_for(k))}" for k in keys),
+            "routed": ",".join(f"{k}={_show(collector.routing_key_to_me(k))}" for k in keys),
+            "routedPartitions": ",".join(
+                _show(collector.partition_for(collector.routing_key_to_me(k))) for k in keys
+            ),
+            "mineFlags": ",".join("true" if collector.is_my_partition(k) else "false" for k in keys),
+        },
+    )
+
+
+def _show(value) -> str:
+    """Renders a missing value the way the other drivers' languages print theirs, so the harness
+    compares one spelling rather than four."""
+    return "null" if value is None else str(value)
 
 
 # --- Client assembly ---

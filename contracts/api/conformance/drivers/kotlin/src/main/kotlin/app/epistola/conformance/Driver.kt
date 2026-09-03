@@ -53,6 +53,7 @@ object Driver {
                 "list-templates" -> listTemplates(baseUrl, config)
                 "collect" -> collect(baseUrl, config)
                 "problem" -> problem(baseUrl, config)
+                "routing" -> routing(baseUrl, config)
                 else -> error("unknown action $action")
             }
             done(baseUrl, null)
@@ -101,6 +102,7 @@ object Driver {
 
     private fun collect(baseUrl: String, config: ObjectNode) {
         val handled = CopyOnWriteArrayList<ResultCollector.GenerationResult>()
+        val failOnSequence = config.path("failHandlerOnSequence").asLong(-1)
 
         val collector = ResultCollector.builder()
             .restClient(restClient(baseUrl, config))
@@ -110,7 +112,10 @@ object Driver {
             .maxInterval(Duration.ofMillis(config["maxIntervalMs"].asLong()))
             .backoffMultiplier(config["multiplier"].asDouble())
             .registerShutdownHook(false)
-            .handler { handled.add(it) }
+            .handler {
+                handled.add(it)
+                if (it.sequence == failOnSequence) error("conformance: deliberate handler failure")
+            }
             .build()
 
         val thread = Thread({ collector.start() }, "conformance-collector").apply { start() }
@@ -124,7 +129,38 @@ object Driver {
                 "resultsHandled" to handled.size,
                 "statuses" to handled.joinToString(",") { it.status },
                 "correlationIds" to handled.joinToString(",") { it.correlationId ?: "" },
+                "handledSequences" to handled.joinToString(",") { it.sequence.toString() },
                 "partitionTotal" to (collector.partitionAssignment?.total ?: -1),
+            ),
+        )
+    }
+
+    /**
+     * One poll to learn the partition assignment from the `_meta` line, then the routing helpers.
+     * The values are reported rather than asserted here: the harness holds all four clients to the
+     * same answers, which is the only way four independent murmur3 implementations stay in step.
+     */
+    private fun routing(baseUrl: String, config: ObjectNode) {
+        val collector = ResultCollector.builder()
+            .restClient(restClient(baseUrl, config))
+            .tenantId(config["tenantId"].asText())
+            .registerShutdownHook(false)
+            .handler { }
+            .build()
+
+        collector.collectOnce()
+
+        val keys = config.path("keys").map { it.asText() }
+        report(
+            baseUrl,
+            mapOf(
+                "partitionTotal" to (collector.partitionAssignment?.total ?: -1),
+                "partitions" to keys.joinToString(",") { "$it:${collector.partitionFor(it)}" },
+                "routed" to keys.joinToString(",") { "$it=${collector.routingKeyToMe(it)}" },
+                "routedPartitions" to keys.joinToString(",") {
+                    collector.routingKeyToMe(it)?.let(collector::partitionFor).toString()
+                },
+                "mineFlags" to keys.joinToString(",") { collector.isMyPartition(it).toString() },
             ),
         )
     }
