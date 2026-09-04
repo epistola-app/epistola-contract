@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added `@epistola.app/epistola-client`, a Node.js client generated from the bundled spec with
+  openapi-generator's `typescript-fetch` on the platform's own `fetch`, with the same conventions as
+  the other four clients: identity headers, API-key and self-signed-JWT authentication (RS256 and
+  ES256 on `node:crypto`, the ES256 signature in the raw `R || S` form JOSE requires), RFC 9457
+  problem parsing into a typed `ProblemDetailException`, the result-collection protocol — with gzip
+  and zstd decoded by sniffing the stream, because Node's `fetch` decodes on its own and leaves
+  `Content-Encoding` on the response — and both layers of client-side validation. The contract
+  constants (problem slugs, identity headers, media types) are generated from the spec as in the JVM
+  modules, plus one the others do not have: `CONTRACT_OPERATIONS`, the method, path and declared
+  response media types of every operation. The generator sets `Content-Type` but never `Accept`, and
+  Node's `fetch` sends `*/*` in its place, so the client derives that header from the table and asks
+  for exactly what the operation is declared to return, the problem document included. A fifth
+  conformance driver holds it to the same wire behaviour as the others; `make conformance` runs five.
+  Releases publish to npm through trusted publishing, which the new package name still needs
+  bootstrapped; snapshots keep their packed tarball as a workflow artifact and publish nowhere.
+- Fixed the conformance suite's Prism proxy sending `Content-Length` twice — the upstream's copy and
+  its own — which the JVM, .NET and Python HTTP stacks accepted and Node's strict parser rejects as a
+  protocol violation. Found on the Node.js client's first run against the spec-validating scenarios.
+
 ## [1.2.0] - 2026-09-03
 
 - Added `EpistolaClient`, a single entry point that assembles identity, the JSON configuration,

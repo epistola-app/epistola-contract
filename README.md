@@ -64,7 +64,7 @@ epistola-contract/
 │   │   ├── openapi.yaml               # Authored REST API entry point
 │   │   ├── paths/                     # Endpoint definitions
 │   │   ├── components/                # API schemas and responses
-│   │   ├── clients/                   # Kotlin, Jakarta EE, .NET, and Python clients
+│   │   ├── clients/                   # Kotlin, Jakarta EE, .NET, Python, and Node.js clients
 │   │   ├── server-stubs/              # Generated server contracts
 │   │   ├── docs/                      # API design documentation
 │   │   └── tools/                     # Pinned API build tools
@@ -162,8 +162,8 @@ This will:
 ## Generated Artifacts
 
 **Take one per application.** An application either calls Epistola — with the Kotlin, Jakarta EE,
-.NET or Python client matching its runtime — or implements the API with the server stubs. It is not
-expected to hold two.
+.NET, Python or Node.js client matching its runtime — or implements the API with the server stubs.
+It is not expected to hold two.
 
 The three JVM artifacts rely on that: each compiles in its own copy of the shared wire-protocol
 logic (partition routing, poll backoff, the `User-Agent` grammar, problem type URIs) under the same
@@ -211,6 +211,15 @@ A Python 3.9+ client library using:
 - **urllib3** transport with **pydantic v2** models
 - Identity headers, self-signed JWT auth, RFC 9457 problem-detail handling, NDJSON
   result collection, and client-side JSON-Schema validation
+
+### Node.js Client (`@epistola.app/epistola-client`)
+
+A Node.js 22.12+ client library, shipped as an ES module with TypeScript declarations, using:
+- The platform's own **`fetch`** (openapi-generator's `typescript-fetch`), no HTTP dependency
+- Identity headers, API-key and self-signed JWT auth on `node:crypto`, RFC 9457 problem-detail
+  handling, NDJSON result collection with gzip/zstd, and client-side JSON-Schema validation
+- The `Accept` header each operation is declared with, derived from a generated table of the
+  contract's operations — the generator sets none, and Node's `fetch` would send `*/*`
 
 ### Portable Catalog (`app.epistola.contract:epistola-catalog` / `@epistola.app/epistola-catalog`)
 
@@ -442,8 +451,8 @@ Configure these secrets in your GitHub repository settings:
 
 ### npm Trusted Publishing
 
-`@epistola.app/epistola-catalog` publishes through npm trusted publishing
-rather than a long-lived token. Configure its npm package settings with:
+`@epistola.app/epistola-catalog` and `@epistola.app/epistola-client` publish through npm trusted
+publishing rather than a long-lived token. Configure each npm package's settings with:
 
 - Provider: GitHub Actions
 - Organization: `epistola-app`
@@ -453,11 +462,13 @@ rather than a long-lived token. Configure its npm package settings with:
 
 Trusted-publisher configuration is package-specific. The configuration for
 the former `@epistola.app/epistola-model` package does not authorize the
-renamed package. Because npm exposes trusted-publisher settings only after the
-package exists, bootstrap the new name once with a narrowly scoped token and a
-prerelease such as `0.14.1-rc.1` under the `next` tag. Configure and verify
-trusted publishing immediately afterwards, then revoke the bootstrap token.
-Normal releases require no npm token.
+renamed package, and the catalog's does not authorize the client. Because npm
+exposes trusted-publisher settings only after the package exists, bootstrap a
+new name once with a narrowly scoped token and a prerelease such as
+`0.14.1-rc.1` under the `next` tag. Configure and verify trusted publishing
+immediately afterwards, then revoke the bootstrap token. Normal releases
+require no npm token. `@epistola.app/epistola-client` still needs this
+bootstrap before its first release.
 
 ### Python Trusted Publishing
 
@@ -622,6 +633,25 @@ See the [Python client README](contracts/api/clients/python-urllib3/README.md) f
 problem-detail error handling (`type_slug` / `KnownProblemSlugs`), NDJSON result collection,
 and client-side schema validation.
 
+### Node.js Client (npm)
+
+```bash
+npm install @epistola.app/epistola-client
+```
+
+```ts
+import { ClientIdentity, EpistolaClient, TemplatesApi } from '@epistola.app/epistola-client'
+
+const client = EpistolaClient.builder('https://api.epistola.app/api', 'epk_...')
+  .identity(ClientIdentity.builder().nodeId('my-pod').build())
+  .build()
+const templates = new TemplatesApi(client)
+```
+
+See the [Node.js client README](contracts/api/clients/nodejs-fetch/README.md) for JWT auth,
+problem-detail error handling (`typeSlug` / `KnownProblemSlugs`), NDJSON result collection,
+and client-side schema validation.
+
 ### Kotlin Server (Gradle)
 
 ```kotlin
@@ -657,6 +687,7 @@ All artifacts are built and tested in parallel via GitHub Actions:
 4. **Kotlin Server**: Generates and builds the Spring server stubs
 5. **.NET Client**: Generates, builds, and tests the HttpClient-based client
 6. **Python Client**: Generates, builds, and tests the urllib3-based client
+7. **Node.js Client**: Generates, builds, and tests the fetch-based client
 
 ## License
 

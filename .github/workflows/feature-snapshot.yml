@@ -112,3 +112,7 @@ jobs:
   # locally instead (`make publish-local`, or
   # `cd contracts/api/clients/python-urllib3 && ./generate.sh && uv build`
   # then `pip install dist/*.whl`). Mainline snapshots still publish to TestPyPI (snapshot.yml).
+  #
+  # The Node.js client likewise: `cd contracts/api/clients/nodejs-fetch && ./generate.sh && pnpm pack`
+  # then `npm install ./epistola.app-epistola-client-*.tgz`. Mainline builds keep their packed
+  # tarball as a workflow artifact (snapshot.yml); nothing is published to npm before a release.
