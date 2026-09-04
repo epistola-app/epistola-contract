@@ -168,9 +168,13 @@ async function proxy(upstream, req, bodyBuffer, res, entry) {
     entry.upstreamStatus = response.status
     entry.violations = parseViolations(response.headers.get('sl-violations'))
 
+    // content-length is excluded because it is set below from the body actually relayed: copying
+    // the upstream's too sends the header twice (fetch lowercases the names it yields, so the two
+    // spellings do not collide in the object), which the JVM, .NET and Python stacks tolerated and
+    // Node's strict HTTP parser rejects as a protocol violation.
     const outHeaders = {}
     for (const [name, value] of response.headers.entries()) {
-      if (!['content-encoding', 'transfer-encoding', 'connection'].includes(name.toLowerCase())) {
+      if (!['content-encoding', 'content-length', 'transfer-encoding', 'connection'].includes(name.toLowerCase())) {
         outHeaders[name] = value
       }
     }

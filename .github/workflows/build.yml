@@ -233,6 +233,50 @@ jobs:
         run: node src/run.mjs --client python
 
 
+  # Node.js fetch client build
+  node-client:
+    name: Node.js Client (fetch)
+    needs: spec-validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v7
+        with:
+          name: openapi-spec
+          path: contracts/api/build
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: contracts/api/tools
+
+      - name: Install dependencies
+        working-directory: contracts/api/clients/nodejs-fetch
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate, build and test
+        working-directory: contracts/api/clients/nodejs-fetch
+        run: ./generate.sh && pnpm build && pnpm test
+
+      - name: Verify npm package contents
+        working-directory: contracts/api/clients/nodejs-fetch
+        run: npm pack --dry-run
+
+      # The client is built above; this drives it against the scripted conformance server, which
+      # judges the requests it makes against the same expectations every other client is held to.
+      - name: Install conformance harness
+        working-directory: contracts/api/conformance
+        run: pnpm install --frozen-lockfile
+
+      - name: Cross-client conformance
+        working-directory: contracts/api/conformance
+        run: node src/run.mjs --client node
+
+
   # Editor model build (no OpenAPI spec dependency)
   epistola-catalog:
     name: Epistola Catalog

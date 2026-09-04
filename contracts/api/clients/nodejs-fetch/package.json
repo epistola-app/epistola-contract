@@ -1,0 +1,60 @@
+{
+  "name": "@epistola.app/epistola-client",
+  "version": "1.2.0",
+  "description": "Node.js client for the Epistola document generation API, on the platform's own fetch. Generated from the Epistola OpenAPI contract, with identity headers, RFC 9457 problem-detail error handling, API-key and self-signed JWT auth, NDJSON result collection, and client-side schema validation.",
+  "license": "EUPL-1.2",
+  "author": "Sander de Groot",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/epistola-app/epistola-contract",
+    "directory": "contracts/api/clients/nodejs-fetch"
+  },
+  "homepage": "https://github.com/epistola-app/epistola-contract",
+  "keywords": [
+    "epistola",
+    "openapi",
+    "document-generation",
+    "client",
+    "api",
+    "fetch"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "generate": "./generate.sh",
+    "build": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.test.json && node --test 'build/test/**/*.test.js'",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "typescript": "^7.0.2",
+    "yaml": "^2.9.0"
+  }
+}

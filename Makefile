@@ -1,4 +1,4 @@
-.PHONY: all lint license license-check conformance conformance-kotlin conformance-jakarta conformance-dotnet conformance-python bundle build-protocol build-client build-jakarta build-server build-catalog build-epistola-catalog build-dotnet build-python build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
+.PHONY: all lint license license-check conformance conformance-kotlin conformance-jakarta conformance-dotnet conformance-python conformance-node bundle build-protocol build-client build-jakarta build-server build-catalog build-epistola-catalog build-dotnet build-python build-node build clean publish-local sbom-dotnet breaking mock validate-impl release docs help
 
 API_DIR := contracts/api
 API_SPEC := $(API_DIR)/openapi.yaml
@@ -42,7 +42,7 @@ bundle: $(REDOCLY)
 	@echo "==> Created $(API_BUNDLE)"
 
 # Build all modules
-build: build-protocol build-client build-jakarta build-server build-catalog build-dotnet build-python
+build: build-protocol build-client build-jakarta build-server build-catalog build-dotnet build-python build-node
 
 # Build the shared wire-protocol logic (consumed by both JVM clients and the server stubs)
 build-protocol:
@@ -86,6 +86,11 @@ build-python: bundle
 	@echo "==> Building Python client..."
 	cd $(API_DIR)/clients/python-urllib3 && ./generate.sh && uv run --group dev pytest
 
+# Build Node.js client (generates from the bundled spec, then compiles and tests)
+build-node: bundle
+	@echo "==> Building Node.js client..."
+	cd $(API_DIR)/clients/nodejs-fetch && pnpm install --frozen-lockfile && ./generate.sh && pnpm build && pnpm test
+
 # Cross-client conformance: every client against one scripted server, one set of expectations
 CONFORMANCE_DIR := $(API_DIR)/conformance
 
@@ -93,7 +98,7 @@ $(CONFORMANCE_DIR)/node_modules: $(CONFORMANCE_DIR)/package.json $(CONFORMANCE_D
 	@echo "==> Installing conformance harness..."
 	pnpm -C $(CONFORMANCE_DIR) install --frozen-lockfile
 
-conformance: conformance-kotlin conformance-jakarta conformance-dotnet conformance-python
+conformance: conformance-kotlin conformance-jakarta conformance-dotnet conformance-python conformance-node
 
 conformance-kotlin: bundle $(CONFORMANCE_DIR)/node_modules
 	node $(CONFORMANCE_DIR)/src/run.mjs --client kotlin
@@ -106,6 +111,9 @@ conformance-dotnet: bundle $(CONFORMANCE_DIR)/node_modules
 
 conformance-python: bundle $(CONFORMANCE_DIR)/node_modules
 	node $(CONFORMANCE_DIR)/src/run.mjs --client python
+
+conformance-node: bundle $(CONFORMANCE_DIR)/node_modules
+	node $(CONFORMANCE_DIR)/src/run.mjs --client node
 
 # Generate a CycloneDX SBOM for the .NET client's dependency closure
 sbom-dotnet:
@@ -124,6 +132,7 @@ clean:
 	cd contracts/catalog && ./gradlew clean
 	cd $(API_DIR)/clients/dotnet-httpclient && rm -rf Generated src/Epistola.Client/Generated bin obj src/*/bin src/*/obj test/*/bin test/*/obj
 	cd $(API_DIR)/clients/python-urllib3 && rm -rf generated src/epistola_client/_generated dist build .venv .pytest_cache && find . -name __pycache__ -type d -prune -exec rm -rf {} +
+	cd $(API_DIR)/clients/nodejs-fetch && rm -rf src/generated dist build
 
 # Publish to local Maven repository (for testing)
 publish-local: build
@@ -137,6 +146,8 @@ publish-local: build
 	cd $(API_DIR)/clients/dotnet-httpclient && dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -o nupkgs
 	@echo "==> Building Python client..."
 	cd $(API_DIR)/clients/python-urllib3 && ./generate.sh && uv build
+	@echo "==> Packing Node.js client..."
+	cd $(API_DIR)/clients/nodejs-fetch && pnpm install --frozen-lockfile && ./generate.sh && pnpm pack
 
 # Check for breaking changes against main branch
 breaking: bundle
@@ -227,8 +238,9 @@ help:
 	@echo "  build-catalog        - Build portable catalog only"
 	@echo "  build-dotnet         - Build .NET client only"
 	@echo "  build-python         - Build Python client only"
-	@echo "  conformance          - Run the cross-client conformance suite (all four clients)"
-	@echo "  conformance-<client> - Run it for one client (kotlin|jakarta|dotnet|python)"
+	@echo "  build-node           - Build Node.js client only"
+	@echo "  conformance          - Run the cross-client conformance suite (all five clients)"
+	@echo "  conformance-<client> - Run it for one client (kotlin|jakarta|dotnet|python|node)"
 	@echo "  sbom-dotnet          - Generate a CycloneDX SBOM for the .NET client"
 	@echo "  clean          - Clean all build artifacts"
 	@echo "  publish-local  - Publish to local Maven repository"

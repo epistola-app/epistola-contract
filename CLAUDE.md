@@ -7,7 +7,8 @@ This is the **contract-first API repository** for the Epistola document generati
 Epistola is a document template management and generation system. This repository defines the API contract and generates:
 - **Kotlin client** using Spring RestClient (for consuming the API)
 - **Java client** using MicroProfile Rest Client, for Jakarta EE application servers
-- **.NET client** using HttpClient, and a **Python client** using urllib3
+- **.NET client** using HttpClient, a **Python client** using urllib3, and a **Node.js client**
+  (TypeScript, on the platform's `fetch`)
 - **Kotlin server stubs** using Spring Boot 4 (for implementing the API)
 
 ## Repository Structure
@@ -27,6 +28,9 @@ epistola-contract/
 │       └── responses/             # Shared error responses
 │   ├── clients/kotlin-spring-restclient/  # Generated Kotlin client
 │   ├── clients/jakarta/                   # Generated Jakarta EE client
+│   ├── clients/dotnet-httpclient/         # Generated .NET client
+│   ├── clients/python-urllib3/            # Generated Python client
+│   ├── clients/nodejs-fetch/              # Generated Node.js client
 │   └── server-stubs/kotlin-springboot4/   # Generated Spring server stubs
 ├── openapi.yaml                   # Bundled spec (generated, gitignored)
 ├── Makefile                       # Build commands
@@ -40,6 +44,7 @@ make lint          # Validate OpenAPI spec
 make bundle        # Bundle spec into openapi.yaml
 make build         # Build every client, the server stubs and the catalog
 make build-jakarta # Build the Jakarta EE client only
+make build-node    # Build the Node.js client only
 make mock          # Start mock server on localhost:4010
 make conformance   # Check every client behaves identically on the wire
 make breaking      # Check for breaking changes vs main
@@ -252,6 +257,8 @@ When you add, rename, or change a problem `type`, update in the same change:
   (with an `isXxxProblem` flag, following `errors`/`validationErrors`).
 - **Jakarta client**: the same, in `ProblemDetailParser.parse` and `ProblemDetailException`
   (`app.epistola.client.jakarta.error`).
+- **Node.js client**: the same, in `src/error/problemDetailParser.ts` and
+  `ProblemDetailException`; the member names come from the generated `ProblemExtensionMembers`.
 - The `when (e.typeSlug)` example / helper example in each module `README.md`.
 - The unit tests in each module's `.../error/` test package.
 
@@ -274,14 +281,14 @@ The spec is validated with Redocly using these rules:
 
 ### Cross-client conformance
 
-`contracts/api/conformance/` holds the suite that keeps the four clients behaving the same way to
+`contracts/api/conformance/` holds the suite that keeps the five clients behaving the same way to
 one server. A scripted server plays a scenario's responses back, records every request, and judges
 that record against the scenario; each client contributes a driver that asks the server what to do
 and **asserts nothing**.
 
 The expectations therefore live in exactly one place, `conformance/scenarios/*.yaml`, and a scenario
-written once is enforced against all four clients. That is the point: four separate test suites
-cannot hold four clients to one behaviour, because nothing keeps them in step.
+written once is enforced against all five clients. That is the point: five separate test suites
+cannot hold five clients to one behaviour, because nothing keeps them in step.
 
 When you change anything both sides of the wire agree on — an identity header, a media type, the
 collect request shape, the backoff policy, an auth scheme — add or update a scenario. Do **not** add
@@ -290,6 +297,17 @@ to prevent.
 
 `conformance/README.md` has the driver contract, the scenario vocabulary, and the two shipped
 defects the suite found on its first run.
+
+### The Node.js client
+
+`contracts/api/clients/nodejs-fetch/` is TypeScript on the platform's `fetch`
+(openapi-generator `typescript-fetch`), published as `@epistola.app/epistola-client`. Its
+`generate.sh` copies the stock output to `src/generated/api/` and `gen/generate-derived.mjs`
+emits the contract constants next to it — the same registries the JVM modules generate from,
+read the same way as `build-logic/contract-spec-model.gradle.kts`, plus `CONTRACT_OPERATIONS`,
+which the client's request middleware uses to set the `Accept` header the generator never does.
+Both are gitignored. Tests are `node:test` against the compiled tree (`pnpm test`). Its
+conformance driver is `conformance/drivers/node/`.
 
 ## Branching Strategy
 
