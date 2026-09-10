@@ -2,13 +2,10 @@
 //
 // SPDX-License-Identifier: EUPL-1.2
 
-import AjvModule, { type ErrorObject, type Options, type ValidateFunction } from 'ajv'
-import Ajv2019Module from 'ajv/dist/2019.js'
-import Ajv2020Module from 'ajv/dist/2020.js'
-import addFormatsModule from 'ajv-formats'
 import type { GenerateDocumentBatchRequest, GenerateDocumentOperationRequest } from '../generated/api/apis/index.js'
 import type { GenerationJobResponse } from '../generated/api/models/index.js'
 import type { InitOverrideFunction } from '../generated/api/runtime.js'
+import { loadAjv, type AjvErrorLike, type AjvInstanceLike, type AjvOptionsLike, type AjvRuntime, type AjvValidateFunctionLike } from './ajvLoader.js'
 
 /** A single field-level validation failure. */
 export interface ValidationFailure {
@@ -102,13 +99,16 @@ export interface TemplateSchemaSource {
  * Fetches the template from the server on first use and caches the schema. No-op when the template
  * has no schema.
  *
+ * Needs the optional peer dependencies `ajv` and `ajv-formats`, loaded on first use; without them
+ * the first validation rejects with an error that says what to install.
+ *
  * ```ts
  * const validator = new TemplateSchemaValidator(templatesApi)
  * await validator.validate('my-tenant', 'my-catalog', 'my-template', data)
  * ```
  */
 export class TemplateSchemaValidator {
-  private readonly compiled = new WeakMap<object, ValidateFunction>()
+  private readonly compiled = new WeakMap<object, AjvValidateFunctionLike>()
 
   constructor(
     private readonly templatesApi: TemplateSchemaSource,
@@ -124,7 +124,7 @@ export class TemplateSchemaValidator {
     if (schema === undefined) {
       return
     }
-    const validate = this.compile(schema)
+    const validate = await this.compile(schema)
     if (validate(data)) {
       return
     }
@@ -137,10 +137,10 @@ export class TemplateSchemaValidator {
     return template.schema ?? undefined
   }
 
-  private compile(schema: object): ValidateFunction {
+  private async compile(schema: object): Promise<AjvValidateFunctionLike> {
     let validate = this.compiled.get(schema)
     if (validate === undefined) {
-      validate = ajvFor(schema).compile(schema)
+      validate = ajvFor(await loadAjv(), schema).compile(schema)
       this.compiled.set(schema, validate)
     }
     return validate
@@ -197,27 +197,18 @@ export class ValidatingGenerationApi {
   }
 }
 
-// Ajv ships CommonJS. Node's ESM interop hands `import X from` the whole `module.exports`, and Ajv
-// assigns its class to both `module.exports` and `module.exports.default`, so `.default` is the
-// class under Node, under TypeScript's NodeNext typing, and under bundlers alike.
-const Ajv = AjvModule.default
-const Ajv2019 = Ajv2019Module.default
-const Ajv2020 = Ajv2020Module.default
-const addFormats = addFormatsModule.default
-type AjvInstance = InstanceType<typeof Ajv>
-
-const AJV_OPTIONS: Options = { allErrors: true, strict: false }
+const AJV_OPTIONS: AjvOptionsLike = { allErrors: true, strict: false }
 
 /** Picks the Ajv dialect the schema declares, defaulting to draft-07 as Ajv itself does. */
-function ajvFor(schema: object): AjvInstance {
+function ajvFor(runtime: AjvRuntime, schema: object): AjvInstanceLike {
   const declared = (schema as { $schema?: unknown }).$schema
   const dialect = typeof declared === 'string' ? declared : ''
-  const ajv = dialect.includes('2020-12') ? new Ajv2020(AJV_OPTIONS) : dialect.includes('2019-09') ? new Ajv2019(AJV_OPTIONS) : new Ajv(AJV_OPTIONS)
-  addFormats(ajv)
+  const ajv = dialect.includes('2020-12') ? new runtime.Ajv2020(AJV_OPTIONS) : dialect.includes('2019-09') ? new runtime.Ajv2019(AJV_OPTIONS) : new runtime.Ajv(AJV_OPTIONS)
+  runtime.addFormats(ajv)
   return ajv
 }
 
-function toFailure(error: ErrorObject): ValidationFailure {
+function toFailure(error: AjvErrorLike): ValidationFailure {
   const segments = error.instancePath.split('/').filter((segment) => segment !== '').map(unescapePointer)
   if (error.keyword === 'required' && typeof error.params.missingProperty === 'string') {
     segments.push(error.params.missingProperty)

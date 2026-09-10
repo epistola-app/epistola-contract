@@ -215,7 +215,8 @@ A Python 3.9+ client library using:
 ### Node.js Client (`@epistola.app/epistola-client`)
 
 A Node.js 22.12+ client library, shipped as an ES module with TypeScript declarations, using:
-- The platform's own **`fetch`** (openapi-generator's `typescript-fetch`), no HTTP dependency
+- The platform's own **`fetch`** (openapi-generator's `typescript-fetch`) and no runtime
+  dependencies; Ajv is an optional peer, loaded on first use, for client-side schema validation
 - Identity headers, API-key and self-signed JWT auth on `node:crypto`, RFC 9457 problem-detail
   handling, NDJSON result collection with gzip/zstd, and client-side JSON-Schema validation
 - The `Accept` header each operation is declared with, derived from a generated table of the

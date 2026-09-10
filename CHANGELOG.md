@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ES256 on `node:crypto`, the ES256 signature in the raw `R || S` form JOSE requires), RFC 9457
   problem parsing into a typed `ProblemDetailException`, the result-collection protocol — with gzip
   and zstd decoded by sniffing the stream, because Node's `fetch` decodes on its own and leaves
-  `Content-Encoding` on the response — and both layers of client-side validation. The contract
+  `Content-Encoding` on the response — and both layers of client-side validation. It has no runtime
+  dependencies: Ajv, which the template-schema validator runs on, is an optional peer loaded on
+  first use, so only consumers who validate on the client install it. The contract
   constants (problem slugs, identity headers, media types) are generated from the spec as in the JVM
   modules, plus one the others do not have: `CONTRACT_OPERATIONS`, the method, path and declared
   response media types of every operation. The generator sets `Content-Type` but never `Accept`, and

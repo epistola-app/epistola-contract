@@ -26,6 +26,11 @@ The package version tracks the Epistola contract version (`info.version`) and re
 with the Kotlin, Jakarta EE, .NET and Python clients. It needs Node.js 22.12 or later and ships as
 an ES module (which Node's `require()` can load as well).
 
+It has **no runtime dependencies**: HTTP is the platform's `fetch`, JWT signing is `node:crypto`,
+decompression is `node:zlib`. The one optional feature that needs a library is client-side template
+validation, which loads `ajv` and `ajv-formats` on first use; they are optional peer dependencies,
+so install them only if you use it (see [Client-side validation](#client-side-validation)).
+
 Release history: [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
@@ -145,6 +150,16 @@ decoded; zstd is offered and decoded where Node's zlib has it (22.15+). `partiti
 whose result comes back to this node.
 
 ## Client-side validation
+
+Validating template data against the template's JSON Schema needs Ajv, which is an optional peer
+dependency so that consumers who never validate do not carry a schema compiler:
+
+```bash
+npm install ajv ajv-formats
+```
+
+Without them, the first `validate` call rejects with an error saying exactly that. The generated
+`validate<Model>` helpers for the contract's own constraints need nothing extra.
 
 ```ts
 import { TemplateSchemaValidator, ValidatingGenerationApi, validateCreateTenantRequest } from '@epistola.app/epistola-client'

@@ -33,8 +33,11 @@ records contract/spec changes. This file records changes specific to the Node.js
     adaptive polling floored at the minimum interval, sequence-based acknowledgement that leaves a
     batch unacknowledged when the handler throws, and murmur3 partition-routing helpers.
   - Client-side JSON Schema validation of template data (`TemplateSchemaValidator`,
-    `ValidatingGenerationApi`, on Ajv) and generated `validateModel` / `validate<Model>` helpers
-    covering every model that carries schema constraints.
+    `ValidatingGenerationApi`) and generated `validateModel` / `validate<Model>` helpers covering
+    every model that carries schema constraints. The schema validator runs on Ajv, which is an
+    optional peer dependency loaded on first use, so the package itself has no runtime
+    dependencies; without `ajv` and `ajv-formats` installed, the first validation rejects with an
+    error naming them.
   - `CONTRACT_OPERATIONS` — the method, path template and declared response media types of every
     operation, generated from the spec. The generated API classes set `Content-Type` but never
     `Accept`, and Node's `fetch` sends `*/*` by default, so the client asks for exactly what each
