@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Deprecated `UpgradeCatalogRequest.includeNewSlugs`, which is now ignored. A catalog upgrade
+  reconciles the whole manifest, so resources the publisher added since the installed release are
+  installed whether or not a caller lists them — a superset of anything the field could request. It
+  existed because a catalog could be installed partially; catalogs are now one install unit, so
+  there is no subset to preserve. The field also never worked as documented here: its example format
+  is `type/slug` and the implementation matched bare slugs, so a correctly formatted value selected
+  nothing. Retained because this API is GA; a candidate for removal in the next major version. The
+  `upgradeCatalog` description now says what the operation does to all three change kinds instead.
+
 - Added `@epistola.app/epistola-client`, a Node.js client generated from the bundled spec with
   openapi-generator's `typescript-fetch` on the platform's own `fetch`, with the same conventions as
   the other four clients: identity headers, API-key and self-signed-JWT authentication (RS256 and

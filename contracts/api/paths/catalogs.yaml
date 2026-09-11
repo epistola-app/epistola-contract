@@ -163,8 +163,15 @@ catalog-upgrade:
     summary: Upgrade a subscribed catalog
     description: |
       Re-fetch the source catalog and apply an upgrade to an existing SUBSCRIBED
-      catalog. Existing resources are upgraded in place. New resources are only
-      installed when listed in `includeNewSlugs`.
+      catalog.
+
+      The whole manifest is reconciled: resources added since the installed release are
+      installed, changed ones are updated in place, and resources the publisher no longer
+      publishes are removed — the last only when nothing outside the catalog still references
+      them, otherwise the upgrade is rejected and nothing changes. Use
+      `GET .../upgrade-preview` to see all three before applying.
+
+      `includeNewSlugs` on the request body is deprecated and ignored.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_MANAGE]
