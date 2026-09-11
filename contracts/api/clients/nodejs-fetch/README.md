@@ -86,7 +86,7 @@ touches nothing else; `{ name: 'Billing', description: null }` also clears the d
 ### Binary downloads
 
 Every operation the contract declares as `format: binary` — `downloadDocument`, `previewDocument`,
-asset content — resolves to a `Blob`; `Buffer.from(await blob.arrayBuffer())` gives you the bytes.
+`downloadImageContent` — resolves to a `Blob`; `Buffer.from(await blob.arrayBuffer())` gives you the bytes.
 
 ## Error handling
 

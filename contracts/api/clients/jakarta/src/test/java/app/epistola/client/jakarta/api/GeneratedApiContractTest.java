@@ -44,6 +44,7 @@ class GeneratedApiContractTest {
             EnvironmentsApi.class,
             FontsApi.class,
             GenerationApi.class,
+            ImagesApi.class,
             StencilsApi.class,
             SystemApi.class,
             TemplatesApi.class,

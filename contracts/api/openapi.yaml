@@ -219,8 +219,18 @@ tags:
       through the UI and catalog exchange only.
       SUBSCRIBED-catalog families (the bundled `system` fonts) are flagged
       `readOnly: true`.
+  - name: Images
+    description: |
+      Catalog-scoped images: metadata, upload, download, and delete. An image is what a
+      template places in an image node, referenced by the image's `key`.
+      Images from a SUBSCRIBED catalog are flagged `readOnly: true`.
   - name: Assets
-    description: Catalog-scoped binary asset metadata, upload, download, and delete operations
+    description: |
+      **Deprecated — use Images.** Removed in the next major version.
+
+      Catalog-scoped binary asset metadata, upload, download, and delete operations. An asset is
+      either an image or the binary behind a font face; images now have their own resource, and
+      the Fonts API describes font binaries as the faces of a family.
   - name: Consumers
     description: |
       Tenant-scoped consumer application registration and lifecycle management.
@@ -320,7 +330,15 @@ paths:
   /tenants/{tenantId}/catalogs/{catalogId}/fonts/{fontSlug}:
     $ref: './paths/fonts.yaml#/fonts-slug'
 
-  # Assets
+  # Images
+  /tenants/{tenantId}/catalogs/{catalogId}/images:
+    $ref: './paths/images.yaml#/images'
+  /tenants/{tenantId}/catalogs/{catalogId}/images/{imageKey}:
+    $ref: './paths/images.yaml#/image-resource'
+  /tenants/{tenantId}/catalogs/{catalogId}/images/{imageKey}/content:
+    $ref: './paths/images.yaml#/image-content'
+
+  # Assets (deprecated in favour of Images; removed in the next major version)
   /tenants/{tenantId}/catalogs/{catalogId}/assets:
     $ref: './paths/assets.yaml#/assets'
   /tenants/{tenantId}/catalogs/{catalogId}/assets/{assetId}:
@@ -495,6 +513,12 @@ components:
       $ref: './components/schemas/environments.yaml#/UpdateEnvironmentRequest'
     EnvironmentListResponse:
       $ref: './components/schemas/environments.yaml#/EnvironmentListResponse'
+
+    # Image schemas
+    ImageDto:
+      $ref: './components/schemas/images.yaml#/ImageDto'
+    ImageListResponse:
+      $ref: './components/schemas/images.yaml#/ImageListResponse'
 
     # Template schemas
     TemplateDto:

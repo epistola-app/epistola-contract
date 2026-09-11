@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added images to the API — `listImages`, `uploadImage`, `downloadImageContent` and `deleteImage`
+  under `/tenants/{tenantId}/catalogs/{catalogId}/images`, with `ImageDto` and `ImageListResponse` —
+  and deprecated the asset operations, `AssetDto` and `AssetListResponse` in their favour, for
+  removal in the next major version. `assets` was a storage table showing through the API. It holds
+  two things that are not alike: images, which an author picks and a template references directly,
+  and the binaries behind font faces, which nothing references but the face that owns them and which
+  the Fonts API already describes as part of a family. A caller listing assets got both mixed
+  together, and `listAssets` had a `mediaCategory` filter whose documented purpose was to hide the
+  fonts again. The Suite's web UI and its MCP tools already call these images.
+
+  `ImageDto` is `AssetDto` without the parts that existed only because it described two kinds of
+  file. It has no `mediaCategory`, since an image is always an image, and the list has no category
+  filter. It carries `key` rather than `id`: the image's public key, which is a string, the value a
+  template references as `props.assetId`, and not an identity. The `{imageKey}` path parameter takes
+  that string, so it can address an image with a readable key. The asset paths take a UUID and cannot. `uploadImage` accepts images only and
+  rejects anything else with 400. Nothing replaces uploading other files, because a font binary only
+  means something as a face of a family.
+
+  Deprecated is not removed: the asset endpoints have shipped in every release since 1.0.0 and keep
+  working until the next major version.
+
 - Deprecated `UpgradeCatalogRequest.includeNewSlugs`, which is now ignored. A catalog upgrade
   reconciles the whole manifest, so resources the publisher added since the installed release are
   installed whether or not a caller lists them — a superset of anything the field could request. It

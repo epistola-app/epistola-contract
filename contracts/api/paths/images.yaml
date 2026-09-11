@@ -1,8 +1,9 @@
-assets:
+images:
   parameters:
     - name: tenantId
       in: path
       required: true
+      description: Unique slug identifier of the tenant.
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -11,51 +12,41 @@ assets:
     - name: catalogId
       in: path
       required: true
+      description: Slug identifier of the catalog.
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
   get:
-    operationId: listAssets
-    summary: List assets in a catalog
-    deprecated: true
+    operationId: listImages
+    summary: List images in a catalog
     description: |
-      **Deprecated — use `listImages` (`GET .../images`).** Removed in the next major version.
-      `listImages` lists images and nothing else, so it has no category filter.
+      List the images in a catalog, as metadata. Images from a SUBSCRIBED catalog are flagged
+      `readOnly: true`.
 
-      List asset metadata for a catalog. Use `mediaCategory=IMAGE` to mirror
-      the suite Images UI, which excludes font binaries managed by the Fonts API.
+      Only images are listed. The binaries behind font faces are not images; the Fonts API
+      describes them as faces of a family.
     tags:
-      - Assets
+      - Images
     x-required-permissions: [TEMPLATE_VIEW]
     parameters:
       - name: search
         in: query
         required: false
-        description: Case-insensitive substring match on asset name.
+        description: Case-insensitive substring match on image name.
         schema:
           type: string
           maxLength: 255
-      - name: mediaCategory
-        in: query
-        required: false
-        description: Filter by broad asset category.
-        schema:
-          type: string
-          enum:
-            - IMAGE
-            - FONT
-            - OTHER
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
     responses:
       '200':
-        description: List of assets.
+        description: List of images.
         content:
           application/vnd.epistola.v1+json:
             schema:
-              $ref: '../components/schemas/assets.yaml#/AssetListResponse'
+              $ref: '../components/schemas/images.yaml#/ImageListResponse'
       '400':
         $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
@@ -65,22 +56,17 @@ assets:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
   post:
-    operationId: uploadAsset
-    summary: Upload an asset
-    deprecated: true
+    operationId: uploadImage
+    summary: Upload an image
     description: |
-      **Deprecated — use `uploadImage` (`POST .../images`).** Removed in the next major version.
+      Upload an image into an AUTHORED catalog. The suite currently limits image content to
+      5 MiB. Supported image types are deployment-configured; common ones are `image/png`,
+      `image/jpeg`, `image/svg+xml`, and `image/webp`. Content whose media type is not a
+      supported image type is rejected with 400.
 
-      `uploadImage` accepts images only. Uploading anything else has no successor: a font binary
-      means something only as a face of a font family, and font families are managed through the
-      UI and catalog exchange.
-
-      Upload a binary asset into an AUTHORED catalog. The suite currently limits
-      asset content to 5 MiB. Supported MIME types are deployment-configured in
-      the asset type registry; common image types are `image/png`, `image/jpeg`,
-      `image/svg+xml`, and `image/webp`.
+      The response carries the new image's generated `key`.
     tags:
-      - Assets
+      - Images
     x-required-permissions: [TEMPLATE_EDIT]
     requestBody:
       required: true
@@ -94,7 +80,7 @@ assets:
               file:
                 type: string
                 format: binary
-                description: Asset content.
+                description: Image content.
               name:
                 type: string
                 minLength: 1
@@ -109,11 +95,11 @@ assets:
                 description: Store content in a tenant-isolated deduplication scope.
     responses:
       '201':
-        description: Asset uploaded.
+        description: Image uploaded.
         content:
           application/vnd.epistola.v1+json:
             schema:
-              $ref: '../components/schemas/assets.yaml#/AssetDto'
+              $ref: '../components/schemas/images.yaml#/ImageDto'
       '400':
         $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
@@ -125,11 +111,12 @@ assets:
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
-asset-content:
+image-content:
   parameters:
     - name: tenantId
       in: path
       required: true
+      description: Unique slug identifier of the tenant.
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -138,45 +125,38 @@ asset-content:
     - name: catalogId
       in: path
       required: true
+      description: Slug identifier of the catalog.
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: assetId
+    - name: imageKey
       in: path
       required: true
+      description: The image's `key`.
       schema:
         type: string
-        format: uuid
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+        maxLength: 50
   get:
-    operationId: downloadAssetContent
-    summary: Download asset content
-    deprecated: true
+    operationId: downloadImageContent
+    summary: Download image content
     description: |
-      **Deprecated — use `downloadImageContent` (`GET .../images/{imageKey}/content`).** Removed in
-      the next major version.
-
-      This path takes a UUID, so it cannot address an image whose key is not one;
-      `downloadImageContent` takes the image's `key` as a string and can.
-
-      Download raw asset bytes.
+      Download the image's bytes, served with the image's own media type. Returns 404 when the
+      catalog has no image with this key, including when the key belongs to a font binary.
     tags:
-      - Assets
+      - Images
     x-required-permissions: [TEMPLATE_VIEW]
     responses:
       '200':
-        description: Asset content.
+        description: Image content.
         headers:
           Cache-Control:
-            description: Long-lived immutable cache directive for content-addressed assets.
+            description: Long-lived immutable cache directive for content-addressed images.
             schema:
               type: string
         content:
-          application/octet-stream:
-            schema:
-              type: string
-              format: binary
           image/png:
             schema:
               type: string
@@ -200,11 +180,12 @@ asset-content:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
-asset-resource:
+image-resource:
   parameters:
     - name: tenantId
       in: path
       required: true
+      description: Unique slug identifier of the tenant.
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -213,32 +194,29 @@ asset-resource:
     - name: catalogId
       in: path
       required: true
+      description: Slug identifier of the catalog.
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: assetId
+    - name: imageKey
       in: path
       required: true
+      description: The image's `key`.
       schema:
         type: string
-        format: uuid
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+        maxLength: 50
   delete:
-    operationId: deleteAsset
-    summary: Delete an asset
-    deprecated: true
+    operationId: deleteImage
+    summary: Delete an image
     description: |
-      **Deprecated — use `deleteImage` (`DELETE .../images/{imageKey}`).** Removed in the next major
-      version.
-
-      This path takes a UUID, so it cannot address an image whose key is not one; `deleteImage`
-      takes the image's `key` as a string and can.
-
-      Delete an asset from an AUTHORED catalog. Returns 409 when the asset is
-      still referenced by templates unless `force=true` is supplied.
+      Delete an image from an AUTHORED catalog. Returns 409 when the image is still referenced
+      by templates unless `force=true` is supplied. Returns 404 when the catalog has no image
+      with this key, including when the key belongs to a font binary.
     tags:
-      - Assets
+      - Images
     x-required-permissions: [TEMPLATE_EDIT]
     parameters:
       - name: force
@@ -249,7 +227,7 @@ asset-resource:
           default: false
     responses:
       '204':
-        description: Asset deleted.
+        description: Image deleted.
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

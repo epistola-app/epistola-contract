@@ -73,8 +73,8 @@ openApiGenerate {
     packageName.set("app.epistola.client")
     apiPackage.set("app.epistola.client.api")
     modelPackage.set("app.epistola.client.model")
-    // Every `format: binary` operation — downloadDocument, previewDocument, asset content,
-    // uploadAsset, importCatalog — generates as java.io.File by default, and Spring has no message
+    // Every `format: binary` operation — downloadDocument, previewDocument, image content,
+    // uploadImage, importCatalog — generates as java.io.File by default, and Spring has no message
     // converter that produces one: those calls fail outright with UnknownContentTypeException,
     // always, whatever the consumer configures. Resource is converted by Spring on both the
     // response and the multipart-upload side with zero configuration.

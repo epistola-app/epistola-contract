@@ -1,6 +1,11 @@
 AssetDto:
   type: object
-  description: Asset metadata. Binary content is fetched separately through the content endpoint.
+  deprecated: true
+  description: |
+    **Deprecated — use `ImageDto`.** Removed in the next major version, with the asset operations
+    that return it.
+
+    Asset metadata. Binary content is fetched separately through the content endpoint.
   required:
     - id
     - tenantId
@@ -81,6 +86,9 @@ AssetDto:
 
 AssetListResponse:
   type: object
+  deprecated: true
+  description: |
+    **Deprecated — use `ImageListResponse`.** Removed in the next major version, with `listAssets`.
   required:
     - items
     - page
