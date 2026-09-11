@@ -41,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `null` dimensions kept as null, `force=true` on a delete, and the suite's first multipart request.
   The upload is judged part by part on the raw request bytes by a new `multipart` body matcher: the
   file part's filename, content type and digest, and optional fields left unset.
+- Documented uploads in the .NET, Python and Node.js client READMEs. A file part needs a filename and
+  the image's content type. Given only bare bytes or a stream, each client sends a placeholder name
+  and `application/octet-stream`, and the server rejects the upload as not an image unless
+  `mediaType` is also passed.
 
 - Deprecated `UpgradeCatalogRequest.includeNewSlugs`, which is now ignored. A catalog upgrade
   reconciles the whole manifest, so resources the publisher added since the installed release are

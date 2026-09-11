@@ -117,6 +117,22 @@ collector = (
 collector.start()   # blocks; adaptive polling until collector.stop()
 ```
 
+## Uploading files
+
+Multipart operations such as `upload_image` and `import_catalog` take the file as a
+`(filename, bytes)` pair. The part's content type is guessed from the filename's extension:
+
+```python
+from epistola_client import ImagesApi
+
+with open("logo.png", "rb") as f:
+    image = ImagesApi(http).upload_image("acme-corp", "main", ("logo.png", f.read()), name="Logo")
+```
+
+Bare `bytes` are sent with the field name, `file`, as their filename and with type
+`application/octet-stream`. The server then names the image `file`, and rejects it as not an image
+unless you also pass `media_type`.
+
 ## Development
 
 The client is generated from the bundled spec. From the repository root:

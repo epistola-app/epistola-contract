@@ -149,6 +149,23 @@ collector.Start();          // blocks, running the adaptive poll loop; Stop() to
 the backoff when a result is expected soon. Partition helpers: `PartitionFor`, `IsMyPartition`,
 `RoutingKeyToMe`.
 
+## Uploading files
+
+Multipart operations such as `UploadImage` and `ImportCatalog` take a `FileParameter`. Give it the
+filename and content type:
+
+```csharp
+using Epistola.Client.Client;
+
+using var content = File.OpenRead("logo.png");
+var image = new ImagesApi(http, "https://epistola.example.com/api").UploadImage(
+    "acme-corp", "main", new FileParameter("logo.png", "image/png", content), name: "Logo");
+```
+
+A `FileParameter` built from a bare stream is sent as `no_name_provided`, with type
+`application/octet-stream`. The server then names the image after that placeholder, and rejects it
+as not an image unless you also pass `mediaType`.
+
 ## Client-side schema validation
 
 Validate request data against a template's JSON Schema before sending:
