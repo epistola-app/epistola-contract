@@ -201,6 +201,18 @@ test suites — which is the argument for the suite existing:
   consumer also erased its description, contact and expiry. A 200 came back. Found by Prism
   rejecting the same habit on a field that does not accept null at all, then reproduced directly by
   the `partial-update` scenario.
+- **The Jakarta client uploaded nothing, and disclosed a path doing it.** Its three multipart
+  operations were generated as `@FormParam("file") File`, which a MicroProfile Rest Client
+  implementation sends as `application/x-www-form-urlencoded` — the local path of the file,
+  url-encoded, with none of its bytes. Every upload it offered had been broken since the client was
+  published, and its own tests could not see it: they assert on what a request carries, and this
+  request carried a plausible-looking form.
+- **Python asked for none of what a binary download returns.** Its `Accept` override kept only the
+  JSON entries an operation declares, and a binary download's only JSON entry is the problem
+  document — so `downloadDocument`, `previewDocument` and the two content downloads asked for
+  `application/problem+json` alone. The stock generated code picked that same entry, so the earlier
+  `Accept` fix above left this half of the defect standing: the scenario that found that one looks at
+  a JSON operation, and nothing looked at a binary one until `image-download`.
 - **The Kotlin client's generated download methods could not run.** Every `format: binary` operation
   is generated as returning `java.io.File`, and Spring ships no converter that produces one, so
   `downloadDocument` threw `UnknownContentTypeException` — with plain wiring and with the generated
