@@ -49,6 +49,7 @@ jobs:
       epistola-catalog: ${{ steps.filter.outputs.epistola-catalog }}
       dotnet: ${{ steps.filter.outputs.dotnet }}
       python: ${{ steps.filter.outputs.python }}
+      node: ${{ steps.filter.outputs.node }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -100,6 +101,12 @@ jobs:
               - 'contracts/api/components/**'
               - 'contracts/catalog/schemas/**'
               - 'contracts/api/clients/python-urllib3/**'
+            node:
+              - 'contracts/api/openapi.yaml'
+              - 'contracts/api/paths/**'
+              - 'contracts/api/components/**'
+              - 'contracts/catalog/schemas/**'
+              - 'contracts/api/clients/nodejs-fetch/**'
 
   # Build and test modules in parallel before publishing.
   # This prevents half-releases where one module publishes but the other fails.
@@ -444,6 +451,74 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: contracts/api/clients/python-urllib3/dist
           skip-existing: true
+
+  # Build and test the Node.js client. There is no npm snapshot publish: GitHub Packages' npm
+  # registry only serves packages scoped to the repository owner (@epistola-app, not this package's
+  # @epistola.app), and a prerelease on npmjs.org is permanent and public — the same reasoning that
+  # keeps the catalog's npm package to releases only. The packed tarball is kept as a workflow
+  # artifact instead, for anyone who needs to try a mainline build.
+  build-node:
+    name: Build Node.js Client
+    needs: [spec-validation, detect-changes]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if should run
+        id: should_run
+        env:
+          CHANGED: ${{ needs.detect-changes.outputs.node }}
+          SKIP_DETECTION: ${{ inputs.skip_detection }}
+        run: |
+          if [ "$CHANGED" == "true" ] || [ "$SKIP_DETECTION" == "true" ]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "enabled=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: actions/checkout@v6
+
+      - name: Download bundled spec
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: actions/download-artifact@v7
+        with:
+          name: openapi-spec
+          path: contracts/api/build
+
+      - name: Setup tools
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: contracts/api/tools
+
+      - name: Build, test and pack
+        if: steps.should_run.outputs.enabled == 'true'
+        working-directory: contracts/api/clients/nodejs-fetch
+        run: |
+          pnpm install --frozen-lockfile
+          ./generate.sh
+          # 1.2-SNAPSHOT is not SemVer; npm needs 1.2.0-snapshot.<run number>.
+          BASE="${{ needs.spec-validation.outputs.snapshot_version }}"
+          BASE="${BASE%-SNAPSHOT}"
+          case "$BASE" in
+            *.*.*) : ;;
+            *.*) BASE="${BASE}.0" ;;
+          esac
+          npm version "${BASE}-snapshot.${GITHUB_RUN_NUMBER}" --no-git-tag-version --allow-same-version
+          pnpm build
+          pnpm test
+          mkdir -p snapshot/npm
+          npm pack --pack-destination snapshot/npm
+
+      - name: Upload packed snapshot
+        if: steps.should_run.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-epistola-client-snapshot
+          path: contracts/api/clients/nodejs-fetch/snapshot/npm/*.tgz
+          if-no-files-found: error
+          retention-days: 7
 
   # Publish mock server snapshot when spec changes
   mock-server:

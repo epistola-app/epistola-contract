@@ -1,0 +1,14 @@
+# OpenAPI Generator config for the Epistola Node.js client (typescript-fetch).
+# Mirrors the other clients' stock-generator approach: no custom templates, no schema/type
+# mappings — only config options.
+#
+# The generated sources are copied into src/generated/api/{apis,models,runtime.ts,index.ts} by
+# generate.sh, and re-exported by the hand-written package root at src/index.ts.
+supportsES6: true
+# The package is ESM: relative imports need the .js extension Node's resolver insists on.
+importFileExtension: .js
+# Keep the FromJSON/ToJSON functions: they are what turn `format: date-time` into Date, and
+# what drops unset optional properties from request bodies instead of writing them as null.
+withoutRuntimeChecks: false
+# Every operation takes one request-parameters object (`api.getTemplate({ tenantId, ... })`).
+useSingleRequestParameter: true

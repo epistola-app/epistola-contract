@@ -247,10 +247,52 @@ jobs:
         working-directory: contracts/api/clients/python-urllib3
         run: ./generate.sh && uv run --group dev pytest
 
+  # Build, test and pack the Node.js client before publishing anything (parallels the gradle build job).
+  # The tarball published later is exactly the one tested here.
+  build-node:
+    needs: validate-and-bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download bundled spec
+        uses: actions/download-artifact@v7
+        with:
+          name: openapi-spec
+          path: contracts/api/build
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+        with:
+          install-npm-deps: 'true'
+          npm-working-directory: contracts/api/tools
+
+      - name: Build, test and pack
+        working-directory: contracts/api/clients/nodejs-fetch
+        run: |
+          pnpm install --frozen-lockfile
+          ./generate.sh
+          npm version ${{ needs.validate-and-bundle.outputs.release_version }} --no-git-tag-version --allow-same-version
+          pnpm build
+          pnpm test
+          mkdir -p release/npm
+          npm pack --pack-destination release/npm
+
+      - name: Upload tested npm artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-epistola-client-${{ needs.validate-and-bundle.outputs.release_version }}
+          path: contracts/api/clients/nodejs-fetch/release/npm/*.tgz
+          if-no-files-found: error
+          retention-days: 7
+
   # Reserve the version by creating a git tag before publishing (release branches only).
   # For GitHub Release events the tag already exists.
   create-tag:
-    needs: [validate-and-bundle, build, build-dotnet, build-python]
+    needs: [validate-and-bundle, build, build-dotnet, build-python, build-node]
     if: needs.validate-and-bundle.outputs.is_release_event == 'false'
     runs-on: ubuntu-latest
     permissions:
@@ -266,13 +308,14 @@ jobs:
 
   # Only publish after ALL builds succeed and version tag is reserved
   publish:
-    needs: [validate-and-bundle, build, build-dotnet, build-python, create-tag]
+    needs: [validate-and-bundle, build, build-dotnet, build-python, build-node, create-tag]
     # Always run after builds succeed — create-tag may be skipped for release events
     if: |
       always() &&
       needs.build.result == 'success' &&
       needs.build-dotnet.result == 'success' &&
       needs.build-python.result == 'success' &&
+      needs.build-node.result == 'success' &&
       (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
@@ -340,12 +383,13 @@ jobs:
 
   # Publish the .NET client release to NuGet.org (parallels the gradle publish job)
   publish-dotnet:
-    needs: [validate-and-bundle, build, build-dotnet, build-python, create-tag]
+    needs: [validate-and-bundle, build, build-dotnet, build-python, build-node, create-tag]
     if: |
       always() &&
       needs.build.result == 'success' &&
       needs.build-dotnet.result == 'success' &&
       needs.build-python.result == 'success' &&
+      needs.build-node.result == 'success' &&
       (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
     runs-on: ubuntu-latest
     # OIDC trusted publishing to NuGet.org — no stored API key (mirrors the npm OIDC publish).
@@ -403,12 +447,13 @@ jobs:
 
   # Publish the Python client release to PyPI (parallels the gradle/nuget publish jobs)
   publish-python:
-    needs: [validate-and-bundle, build, build-dotnet, build-python, create-tag]
+    needs: [validate-and-bundle, build, build-dotnet, build-python, build-node, create-tag]
     if: |
       always() &&
       needs.build.result == 'success' &&
       needs.build-dotnet.result == 'success' &&
       needs.build-python.result == 'success' &&
+      needs.build-node.result == 'success' &&
       (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
     runs-on: ubuntu-latest
     # OIDC trusted publishing to PyPI — no stored token (mirrors the npm/NuGet OIDC publishes).
@@ -446,6 +491,43 @@ jobs:
         with:
           packages-dir: contracts/api/clients/python-urllib3/dist
           skip-existing: true
+
+  # Publish the Node.js client release to npm (parallels the catalog's npm publish: the tarball
+  # tested in build-node, through npm trusted publishing — no stored token).
+  publish-node:
+    needs: [validate-and-bundle, build, build-dotnet, build-python, build-node, create-tag]
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      needs.build-dotnet.result == 'success' &&
+      needs.build-python.result == 'success' &&
+      needs.build-node.result == 'success' &&
+      (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup tools
+        uses: ./.github/actions/setup-build-tools
+
+      - name: Download tested npm artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: npm-epistola-client-${{ needs.validate-and-bundle.outputs.release_version }}
+          path: contracts/api/clients/nodejs-fetch/release/npm
+
+      - name: Setup npm registry
+        uses: actions/setup-node@v6
+        with:
+          registry-url: https://registry.npmjs.org
+
+      - name: Publish to npm
+        working-directory: contracts/api/clients/nodejs-fetch
+        run: npm publish release/npm/*.tgz --provenance --access public
 
   # Verify the public catalog artifacts from clean consumers before finalizing the release.
   verify-catalog-release:
@@ -511,12 +593,13 @@ jobs:
 
   # Upload release assets and create GitHub release for release branch pushes
   finalize-release:
-    needs: [validate-and-bundle, publish, publish-dotnet, publish-python, verify-catalog-release]
+    needs: [validate-and-bundle, publish, publish-dotnet, publish-python, publish-node, verify-catalog-release]
     if: |
       always() &&
       needs.publish.result == 'success' &&
       needs.publish-dotnet.result == 'success' &&
       needs.publish-python.result == 'success' &&
+      needs.publish-node.result == 'success' &&
       needs.verify-catalog-release.result == 'success'
     runs-on: ubuntu-latest
     permissions:
@@ -583,6 +666,7 @@ jobs:
             ### npm
             ```bash
             npm install @epistola.app/epistola-catalog@${{ needs.validate-and-bundle.outputs.release_version }}
+            npm install @epistola.app/epistola-client@${{ needs.validate-and-bundle.outputs.release_version }}
             ```
 
             ### NuGet (.NET)

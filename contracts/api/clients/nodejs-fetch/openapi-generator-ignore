@@ -1,0 +1,16 @@
+# Passed to openapi-generator via --ignore-file-override so it survives the
+# wipe-and-regenerate of the generator's output directory (under build/, gitignored).
+#
+# We keep ONLY the generated TypeScript sources (src/apis, src/models, src/runtime.ts,
+# src/index.ts). The packaging scaffolding — package.json, tsconfig, README, docs — is
+# provided by the hand-written module at the package root instead.
+package.json
+package-lock.json
+tsconfig.json
+tsconfig.esm.json
+README.md
+docs/**
+.gitignore
+.npmignore
+git_push.sh
+.openapi-generator-ignore

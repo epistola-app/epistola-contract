@@ -6,23 +6,23 @@ SPDX-License-Identifier: EUPL-1.2
 
 # Client conformance suite
 
-Four clients — Kotlin/Spring, Jakarta EE, .NET, Python — talk to one server. Their internals differ
-and should: each is idiomatic for its platform, and each generates its models with a different
-generator. What must *not* differ is what the server sees. This suite pins that.
+Five clients — Kotlin/Spring, Jakarta EE, .NET, Python, Node.js — talk to one server. Their
+internals differ and should: each is idiomatic for its platform, and each generates its models with
+a different generator. What must *not* differ is what the server sees. This suite pins that.
 
 ```bash
 pnpm install                       # once
-node src/run.mjs --client kotlin   # kotlin | jakarta | dotnet | python
+node src/run.mjs --client kotlin   # kotlin | jakarta | dotnet | python | node
 node src/run.mjs --list            # what the scenarios are
 node src/run.mjs --client python --scenario collect-backoff-floor
 ```
 
-Or `make conformance` from the repository root, which runs all four.
+Or `make conformance` from the repository root, which runs all five.
 
 ## How it works
 
 ```
-scenarios/*.yaml   the expectations — one file per behaviour, shared by all four clients
+scenarios/*.yaml   the expectations — one file per behaviour, shared by all five clients
 src/server.mjs     a scripted Epistola API that records every request it is sent (and can proxy)
 src/expect.mjs     the judge: evaluates a scenario's `expect` against that record
 src/run.mjs        the harness: per scenario, start the server, run a driver, judge, report
@@ -35,7 +35,7 @@ arrival time. When the driver finishes, the journal is judged against the scenar
 
 **The drivers assert nothing.** A driver asks the server what to do, does it with the published
 client, and says when it is done. Every expectation lives in `scenarios/`, so adding one holds all
-four clients to it at once — the thing four separate test suites cannot do, because they drift.
+five clients to it at once — the thing five separate test suites cannot do, because they drift.
 
 ## The driver contract
 
@@ -96,7 +96,7 @@ seconds. It needs the bundled spec — run `make bundle` first, which `make conf
 
 ## Adding a scenario
 
-Write a YAML file in `scenarios/`. Nothing else changes — the four drivers already implement the
+Write a YAML file in `scenarios/`. Nothing else changes — the five drivers already implement the
 actions, so a new scenario written once is enforced against every client immediately.
 
 ```yaml
@@ -154,8 +154,8 @@ skipped with the reason rather than passing quietly.
 ## Fixtures are contract-shaped, and checked
 
 Scripted responses are validated against the spec's response schema when the scenario loads, before
-anything is built or run. A wrong fixture does not fail honestly otherwise — it surfaces as four
-different clients failing to deserialize, in four dialects, minutes into a run. That happened three
+anything is built or run. A wrong fixture does not fail honestly otherwise — it surfaces as five
+different clients failing to deserialize, in five dialects, minutes into a run. That happened three
 times while these scenarios were being written, and the check found twenty-seven more: every collect
 fixture was missing `templateId` and `completedAt` on its result lines and `lastSequence` on its
 meta line, which the clients parse leniently enough to have never noticed.

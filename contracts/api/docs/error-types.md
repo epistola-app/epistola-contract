@@ -70,6 +70,9 @@ A `validation-error` problem extends the base shape with an `errors` array. Each
 - **Python (urllib3):** opt in with `EpistolaClientBuilder.install_problem_detail_handler()`
   and catch `ProblemDetailException`, switching on `e.type_slug` (see
   [the client README](../clients/python-urllib3/README.md#error-handling)).
+- **Node.js (fetch):** `EpistolaClient` always parses problems; catch `ProblemDetailException`,
+  switching on `e.typeSlug` (see
+  [the client README](../clients/nodejs-fetch/README.md#error-handling)).
 - **Kotlin (Spring server):** build problem bodies with the opt-in
   `app.epistola.api.error.ProblemDetails` helper (see
   [the server README](../server-stubs/kotlin-springboot4/README.md#error-responses)).

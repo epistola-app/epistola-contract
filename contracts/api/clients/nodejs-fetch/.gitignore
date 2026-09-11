@@ -1,0 +1,10 @@
+# Stock OpenAPI-generated client and the derived sources — regenerated from the spec by generate.sh.
+/src/generated/
+
+# Compiled output (dist: the published package; build: the compiled test tree).
+/dist/
+/build/
+
+# Packed tarballs and dependencies.
+*.tgz
+node_modules/

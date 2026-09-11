@@ -7,9 +7,11 @@
  *
  *   node src/run.mjs --client kotlin [--scenario collect-backoff] [--list]
  *
+ *   --client is one of kotlin, jakarta, dotnet, python, node.
+ *
  * For each scenario it starts a scripted server, runs that client's driver against it, and judges
  * the request journal. The driver is told what to do over HTTP, so the only thing a driver needs to
- * know is a base URL — no scenario files, no YAML parser, nothing to keep in step in four
+ * know is a base URL — no scenario files, no YAML parser, nothing to keep in step in five
  * languages.
  */
 
@@ -28,7 +30,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const REPO = resolve(ROOT, '..', '..', '..')
 const PRISM = join(REPO, 'contracts/api/tools/node_modules/.bin/prism')
 const BUNDLED_SPEC = join(REPO, 'contracts/api/build/openapi.yaml')
-const CLIENTS = ['kotlin', 'jakarta', 'dotnet', 'python']
+const CLIENTS = ['kotlin', 'jakarta', 'dotnet', 'python', 'node']
 const DRIVER_TIMEOUT_MS = 120_000
 
 const options = parseArgs(process.argv.slice(2))
