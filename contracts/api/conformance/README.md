@@ -56,7 +56,7 @@ The base URL addresses the server's root; a driver appends `/api` itself, becaus
 part of the contract's `servers` entry and a client that drops it is a client with a bug. Exactly
 that turned up in the .NET client on this suite's first run.
 
-Six actions cover the scenarios. A driver implements these, and nothing else:
+These actions cover the scenarios. A driver implements these, and nothing else:
 
 | Action | What the driver does |
 | --- | --- |
@@ -68,6 +68,13 @@ Six actions cover the scenarios. A driver implements these, and nothing else:
 | `routing` | poll once for a partition assignment, then report what the routing helpers compute |
 | `update-consumer` | `PATCH …/consumers/{id}` setting exactly one field |
 | `download-document` | `GET …/documents/{id}`, reporting the SHA-256 and length of the bytes |
+| `list-images` | `GET …/images?search=…`, reporting the keys, widths, heights and media types it parsed |
+| `upload-image` | `POST …/images` with the file from `config` (bytes, filename, content type) and a name, reporting the returned key and name |
+| `download-image` | `GET …/images/{imageKey}/content`, reporting the SHA-256 and length of the bytes |
+| `delete-image` | `DELETE …/images/{imageKey}` with `force` from `config` |
+
+A new action also needs an entry in `ACTION_OPERATIONS` in `src/fixtures.mjs`, which names the
+operation whose response schema its fixtures are checked against.
 
 ## Backends
 
@@ -130,6 +137,11 @@ the thing under test.
 literally, or as `{matches: regex}`, `{contains}`, `{oneOf}`, `{absent: true}`; bodies also take
 `{json: {...}}` for a deep subset, `{jsonAbsent: [keys]}` and `{jsonNullOrAbsent: [keys]}`. Query
 strings match whole via `query` or per parameter via `queryParams`.
+
+A `multipart/form-data` body is matched part by part with `{multipart: {<field>: {...}}}`. Each field
+takes `filename`, `contentType` and `value` (the part as text) as value matchers, and `byteLength` and
+`sha256` for its content. `{absent: true}` and `{whenPresent: {...}}` work on whole fields. The parts
+are split on the raw request bytes, so a binary file part is judged exactly as the client sent it.
 
 `{whenPresent: {...}}` is worth knowing about: it applies the inner matcher only if the value was
 sent. Some differences between clients are legitimate — a parameter the contract gives a default for

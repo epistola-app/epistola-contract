@@ -74,6 +74,10 @@ export async function startServer(scenario, action, upstream = null) {
         queryParams: Object.fromEntries(new URLSearchParams(queryOf(req.url))),
         headers: lowercaseHeaders(req.headers),
         body: bodyBuffer.toString('utf8'),
+        // The exact bytes as well: a multipart upload carries binary parts, and the string above
+        // has already replaced every invalid UTF-8 sequence in them, which is the corruption an
+        // upload scenario exists to detect.
+        bodyBytes: bodyBuffer,
         atMs: Math.round(performance.now() - startedAt),
       }
       journal.push(entry)

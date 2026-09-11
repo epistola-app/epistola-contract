@@ -1,0 +1,82 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: image-upload
+title: An uploaded image leaves the client as a named file part, byte for byte
+why: >
+  Upload is the only multipart request in the contract, and the five stacks build multipart bodies in
+  five different ways. A server reads the fields below, and each one fails differently.
+
+  `file` must be a file part: a filename, and the image's content type. A part without a filename is
+  a plain form field to most multipart parsers, so the upload is rejected as missing its file. The
+  Suite also defaults the image's name to that filename. Its bytes must be the bytes the caller
+  passed. The fixture has the PNG signature and all 256 byte values, so any text round trip changes
+  the digest.
+
+  `mediaType` was not set, so it must not be sent. A client that sends the part anyway sends either
+  the string `null`, which a server reads as a media type override it cannot resolve, or an empty
+  value the contract gives no meaning.
+
+  `sensitive` was not set either. Its contract default is false, so a client may send `false` or
+  leave it out. It may not send `true`, and it may not send `False`, which is not a boolean in a form
+  field.
+
+  The response carries a readable `key`, which the client must deserialize and hand back intact.
+
+action:
+  name: upload-image
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantId: acme-corp
+    catalogId: main
+    filename: municipality-mark.png
+    fileContentType: image/png
+    # PNG signature + every byte 0x00-0xFF
+    fileBase64: >-
+      iVBORw0KGgoAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/
+    name: Municipality mark
+
+script:
+  - status: 201
+    contentType: application/vnd.epistola.v1+json
+    body:
+      key: municipality-mark
+      tenantId: acme-corp
+      catalog: main
+      catalogType: AUTHORED
+      readOnly: false
+      name: Municipality mark
+      mediaType: image/png
+      sizeBytes: 264
+      width: 1
+      height: 1
+      createdAt: "2026-09-11T10:00:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/main/images
+      headers:
+        Content-Type:
+          matches: '^multipart/form-data;\s*boundary='
+      body:
+        multipart:
+          file:
+            filename: municipality-mark.png
+            contentType: image/png
+            byteLength: 264
+            sha256: 9d0c38e7aafe062c3a6dfc561e42771ec997d9359bb3d417ac4775a303292964
+          name:
+            value: Municipality mark
+          mediaType:
+            absent: true
+          sensitive:
+            whenPresent:
+              value: 'false'
+  report:
+    imageKey: municipality-mark
+    imageName: Municipality mark

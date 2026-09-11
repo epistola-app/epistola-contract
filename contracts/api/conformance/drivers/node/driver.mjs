@@ -20,6 +20,7 @@ const {
   ConsumersApi,
   EpistolaClient,
   GenerationApi,
+  ImagesApi,
   JwtSigner,
   ProblemDetailException,
   ResultCollector,
@@ -36,6 +37,10 @@ const ACTIONS = {
   'generate-document': generateDocument,
   'update-consumer': updateConsumer,
   'download-document': downloadDocument,
+  'list-images': listImages,
+  'upload-image': uploadImage,
+  'download-image': downloadImage,
+  'delete-image': deleteImage,
 }
 
 process.exit(await main())
@@ -158,6 +163,62 @@ async function generateDocument(baseUrl, config) {
  */
 async function downloadDocument(baseUrl, config) {
   const blob = await new GenerationApi(client(baseUrl, config)).downloadDocument({ tenantId: config.tenantId, documentId: config.documentId })
+  await reportBytes(baseUrl, blob)
+}
+
+/**
+ * Lists images and reports what the client made of them. Keys may be UUIDs or readable names, and an
+ * SVG's dimensions are null, which must stay null rather than become 0.
+ */
+async function listImages(baseUrl, config) {
+  const { items } = await new ImagesApi(client(baseUrl, config)).listImages({
+    tenantId: config.tenantId,
+    catalogId: config.catalogId,
+    search: config.search,
+  })
+  await report(baseUrl, {
+    imageKeys: items.map((image) => image.key).join(','),
+    widths: items.map((image) => show(image.width)).join(','),
+    heights: items.map((image) => show(image.height)).join(','),
+    mediaTypes: items.map((image) => image.mediaType).join(','),
+  })
+}
+
+/**
+ * Uploads an image from bytes. The generated method takes a Blob, but a plain Blob always goes out
+ * with the filename `blob`, and as `application/octet-stream` unless it was given a type. So the
+ * driver passes a File, which carries both a name and a type.
+ */
+async function uploadImage(baseUrl, config) {
+  const file = new File([Buffer.from(config.fileBase64, 'base64')], config.filename, { type: config.fileContentType })
+  const image = await new ImagesApi(client(baseUrl, config)).uploadImage({
+    tenantId: config.tenantId,
+    catalogId: config.catalogId,
+    file,
+    name: config.name,
+  })
+  await report(baseUrl, { imageKey: image.key, imageName: image.name })
+}
+
+async function downloadImage(baseUrl, config) {
+  const blob = await new ImagesApi(client(baseUrl, config)).downloadImageContent({
+    tenantId: config.tenantId,
+    catalogId: config.catalogId,
+    imageKey: config.imageKey,
+  })
+  await reportBytes(baseUrl, blob)
+}
+
+async function deleteImage(baseUrl, config) {
+  await new ImagesApi(client(baseUrl, config)).deleteImage({
+    tenantId: config.tenantId,
+    catalogId: config.catalogId,
+    imageKey: config.imageKey,
+    force: config.force,
+  })
+}
+
+async function reportBytes(baseUrl, blob) {
   const bytes = Buffer.from(await blob.arrayBuffer())
   await report(baseUrl, { byteLength: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') })
 }

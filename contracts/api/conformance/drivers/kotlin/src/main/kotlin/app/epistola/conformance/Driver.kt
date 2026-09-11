@@ -7,6 +7,7 @@ package app.epistola.conformance
 import app.epistola.client.epistolaMessageConverters
 import app.epistola.client.api.ConsumersApi
 import app.epistola.client.api.GenerationApi
+import app.epistola.client.api.ImagesApi
 import app.epistola.client.api.SystemApi
 import app.epistola.client.api.TemplatesApi
 import app.epistola.client.auth.ApiKeyAuth
@@ -21,6 +22,7 @@ import app.epistola.client.model.UpdateConsumerRequest
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
+import org.springframework.core.io.ByteArrayResource
 import org.springframework.web.client.RestClient
 import java.net.URI
 import java.net.http.HttpClient
@@ -28,6 +30,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.security.MessageDigest
 import java.time.Duration
+import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -61,6 +64,10 @@ object Driver {
                 "generate-document" -> generateDocument(baseUrl, config)
                 "update-consumer" -> updateConsumer(baseUrl, config)
                 "download-document" -> downloadDocument(baseUrl, config)
+                "list-images" -> listImages(baseUrl, config)
+                "upload-image" -> uploadImage(baseUrl, config)
+                "download-image" -> downloadImage(baseUrl, config)
+                "delete-image" -> deleteImage(baseUrl, config)
                 else -> error("unknown action $action")
             }
             done(baseUrl, null)
@@ -216,17 +223,74 @@ object Driver {
     private fun downloadDocument(baseUrl: String, config: ObjectNode) {
         val resource = GenerationApi(restClient(baseUrl, config))
             .downloadDocument(config["tenantId"].asText(), UUID.fromString(config["documentId"].asText()))
-        val bytes = resource.inputStream.use { it.readBytes() }
+        reportBytes(baseUrl, resource.inputStream.use { it.readBytes() })
+    }
+
+    /**
+     * Lists images and reports what the client made of them. Keys may be UUIDs or readable names, and
+     * an SVG's dimensions are null, which must stay null rather than become 0.
+     */
+    private fun listImages(baseUrl: String, config: ObjectNode) {
+        val images = ImagesApi(restClient(baseUrl, config))
+            .listImages(config["tenantId"].asText(), config["catalogId"].asText(), search = config["search"].asText())
+            .items
 
         report(
             baseUrl,
             mapOf(
-                "byteLength" to bytes.size,
-                "sha256" to MessageDigest.getInstance("SHA-256").digest(bytes)
-                    .joinToString("") { "%02x".format(it) },
+                "imageKeys" to images.joinToString(",") { it.key },
+                "widths" to images.joinToString(",") { it.width.toString() },
+                "heights" to images.joinToString(",") { it.height.toString() },
+                "mediaTypes" to images.joinToString(",") { it.mediaType },
             ),
         )
     }
+
+    /**
+     * Uploads an image from bytes the way the README tells consumers to: as a Resource that reports a
+     * filename, because a part without one is not a file to a multipart parser. Spring derives the
+     * part's content type from that filename.
+     */
+    private fun uploadImage(baseUrl: String, config: ObjectNode) {
+        val filename = config["filename"].asText()
+        val file = object : ByteArrayResource(Base64.getDecoder().decode(config["fileBase64"].asText())) {
+            override fun getFilename() = filename
+        }
+        val image = ImagesApi(restClient(baseUrl, config)).uploadImage(
+            config["tenantId"].asText(),
+            config["catalogId"].asText(),
+            file,
+            name = config["name"].asText(),
+        )
+
+        report(baseUrl, mapOf("imageKey" to image.key, "imageName" to image.name))
+    }
+
+    private fun downloadImage(baseUrl: String, config: ObjectNode) {
+        val resource = ImagesApi(restClient(baseUrl, config)).downloadImageContent(
+            config["tenantId"].asText(),
+            config["catalogId"].asText(),
+            config["imageKey"].asText(),
+        )
+        reportBytes(baseUrl, resource.inputStream.use { it.readBytes() })
+    }
+
+    private fun deleteImage(baseUrl: String, config: ObjectNode) {
+        ImagesApi(restClient(baseUrl, config)).deleteImage(
+            config["tenantId"].asText(),
+            config["catalogId"].asText(),
+            config["imageKey"].asText(),
+            force = config["force"].asBoolean(),
+        )
+    }
+
+    private fun reportBytes(baseUrl: String, bytes: ByteArray) = report(
+        baseUrl,
+        mapOf(
+            "byteLength" to bytes.size,
+            "sha256" to MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) },
+        ),
+    )
 
     // --- Client assembly ---
 

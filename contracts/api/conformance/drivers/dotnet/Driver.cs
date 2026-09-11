@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using Epistola.Client.Api;
 using Epistola.Client.Auth;
+using Epistola.Client.Client;
 using Epistola.Client.Collect;
 using Epistola.Client.Error;
 using Epistola.Client.Http;
@@ -49,6 +50,10 @@ public static class Driver
                 case "generate-document": GenerateDocument(baseUrl, config); break;
                 case "update-consumer": UpdateConsumer(baseUrl, config); break;
                 case "download-document": DownloadDocument(baseUrl, config); break;
+                case "list-images": ListImages(baseUrl, config); break;
+                case "upload-image": UploadImage(baseUrl, config); break;
+                case "download-image": DownloadImage(baseUrl, config); break;
+                case "delete-image": DeleteImage(baseUrl, config); break;
                 default: throw new ArgumentException($"unknown action {instruction.GetProperty("action")}");
             }
 
@@ -231,6 +236,63 @@ public static class Driver
         var file = new GenerationApi(http, apiBase).DownloadDocument(
             Str(config, "tenantId"), Guid.Parse(Str(config, "documentId")));
 
+        ReportBytes(baseUrl, file);
+    }
+
+    /// <summary>
+    /// Lists images and reports what the client made of them. Keys may be UUIDs or readable names,
+    /// and an SVG's dimensions are null, which must stay null rather than become 0.
+    /// </summary>
+    private static void ListImages(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var images = new ImagesApi(http, apiBase)
+            .ListImages(Str(config, "tenantId"), Str(config, "catalogId"), search: Str(config, "search"))
+            .Items;
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["imageKeys"] = string.Join(",", images.Select(image => image.Key)),
+            ["widths"] = string.Join(",", images.Select(image => Show(image.Width))),
+            ["heights"] = string.Join(",", images.Select(image => Show(image.Height))),
+            ["mediaTypes"] = string.Join(",", images.Select(image => image.MediaType)),
+        });
+    }
+
+    /// <summary>
+    /// Uploads an image from bytes. A <c>FileParameter</c> carries the part's filename and content
+    /// type explicitly, so both come from the scenario rather than being inferred.
+    /// </summary>
+    private static void UploadImage(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        using var content = new MemoryStream(Convert.FromBase64String(Str(config, "fileBase64")));
+        var image = new ImagesApi(http, apiBase).UploadImage(
+            Str(config, "tenantId"),
+            Str(config, "catalogId"),
+            new FileParameter(Str(config, "filename"), Str(config, "fileContentType"), content),
+            name: Str(config, "name"));
+
+        Report(baseUrl, new Dictionary<string, object> { ["imageKey"] = image.Key, ["imageName"] = image.Name });
+    }
+
+    private static void DownloadImage(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        ReportBytes(baseUrl, new ImagesApi(http, apiBase).DownloadImageContent(
+            Str(config, "tenantId"), Str(config, "catalogId"), Str(config, "imageKey")));
+    }
+
+    private static void DeleteImage(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        new ImagesApi(http, apiBase).DeleteImage(
+            Str(config, "tenantId"), Str(config, "catalogId"), Str(config, "imageKey"),
+            force: config.GetProperty("force").GetBoolean());
+    }
+
+    private static void ReportBytes(string baseUrl, FileParameter file)
+    {
         using var buffer = new MemoryStream();
         file.Content.CopyTo(buffer);
         var bytes = buffer.ToArray();

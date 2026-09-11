@@ -35,6 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   server doing strict content negotiation would answer 406. The client now sends every declared type
   in order, as the other clients do. The new image scenarios found it, and `binary-download` now
   checks it for documents too.
+- Extended the conformance suite to the image operations. All five drivers implement `list-images`,
+  `upload-image`, `download-image` and `delete-image`, and each has a scenario. The scenarios cover
+  exact bytes and an `Accept` header that admits every image type, a readable key in the path,
+  `null` dimensions kept as null, `force=true` on a delete, and the suite's first multipart request.
+  The upload is judged part by part on the raw request bytes by a new `multipart` body matcher: the
+  file part's filename, content type and digest, and optional fields left unset.
 
 - Deprecated `UpgradeCatalogRequest.includeNewSlugs`, which is now ignored. A catalog upgrade
   reconciles the whole manifest, so resources the publisher added since the installed release are

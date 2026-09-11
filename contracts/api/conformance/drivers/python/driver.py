@@ -11,6 +11,7 @@ expectations rather than four that drift. See ../../README.md for the driver con
 
 from __future__ import annotations
 
+import base64
 import datetime
 import hashlib
 import json
@@ -26,6 +27,7 @@ from epistola_client import (
     EpistolaClientBuilder,
     GenerateDocumentRequest,
     GenerationApi,
+    ImagesApi,
     JwtSigner,
     PingRequest,
     ProblemDetailException,
@@ -54,6 +56,10 @@ def main() -> int:
         "generate-document": _generate_document,
         "update-consumer": _update_consumer,
         "download-document": _download_document,
+        "list-images": _list_images,
+        "upload-image": _upload_image,
+        "download-image": _download_image,
+        "delete-image": _delete_image,
     }
 
     try:
@@ -184,12 +190,57 @@ def _download_document(base_url: str, config: dict) -> None:
     content = GenerationApi(_client(base_url, config)).download_document(
         config["tenantId"], config["documentId"]
     )
-    data = bytes(content)
+    _report_bytes(base_url, bytes(content))
 
+
+def _list_images(base_url: str, config: dict) -> None:
+    """Lists images and reports what the client made of them. Keys may be UUIDs or readable names,
+    and an SVG's dimensions are null, which must stay null rather than become 0.
+    """
+    images = (
+        ImagesApi(_client(base_url, config))
+        .list_images(config["tenantId"], config["catalogId"], search=config["search"])
+        .items
+    )
     _report(
         base_url,
-        {"byteLength": len(data), "sha256": hashlib.sha256(data).hexdigest()},
+        {
+            "imageKeys": ",".join(image.key for image in images),
+            "widths": ",".join(_show(image.width) for image in images),
+            "heights": ",".join(_show(image.height) for image in images),
+            "mediaTypes": ",".join(image.media_type for image in images),
+        },
     )
+
+
+def _upload_image(base_url: str, config: dict) -> None:
+    """Uploads an image from bytes, as the ``(filename, bytes)`` pair the generated method takes. The
+    client derives the part's content type from that filename.
+    """
+    image = ImagesApi(_client(base_url, config)).upload_image(
+        config["tenantId"],
+        config["catalogId"],
+        (config["filename"], base64.b64decode(config["fileBase64"])),
+        name=config["name"],
+    )
+    _report(base_url, {"imageKey": image.key, "imageName": image.name})
+
+
+def _download_image(base_url: str, config: dict) -> None:
+    content = ImagesApi(_client(base_url, config)).download_image_content(
+        config["tenantId"], config["catalogId"], config["imageKey"]
+    )
+    _report_bytes(base_url, bytes(content))
+
+
+def _delete_image(base_url: str, config: dict) -> None:
+    ImagesApi(_client(base_url, config)).delete_image(
+        config["tenantId"], config["catalogId"], config["imageKey"], force=config["force"]
+    )
+
+
+def _report_bytes(base_url: str, data: bytes) -> None:
+    _report(base_url, {"byteLength": len(data), "sha256": hashlib.sha256(data).hexdigest()})
 
 
 def _update_consumer(base_url: str, config: dict) -> None:
