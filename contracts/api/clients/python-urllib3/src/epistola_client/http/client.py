@@ -70,19 +70,20 @@ class EpistolaApiClient(ApiClient):
         return headers
 
     def select_header_accept(self, accepts):
-        """Accept every JSON media type the operation declares, not just the first one.
+        """Accept every media type the operation declares, in the order it declares them.
 
-        The stock generated implementation returns the first entry matching ``json``, which drops
-        ``application/problem+json`` from every operation that also returns a success body — so the
-        client asks for a document it cannot be sent. Against a server doing strict content
-        negotiation that turns an error response into a 406, and the typed
+        The stock generated implementation returns only the first entry matching ``json``. On an
+        operation with a JSON success body that drops ``application/problem+json``, so the typed
         :class:`~epistola_client.error.problem_detail_exception.ProblemDetailException` this client
-        exists to raise never gets its body. The other three Epistola clients send both types.
+        exists to raise never gets its body.
+
+        Keeping only the JSON entries was not enough either. A binary download's only JSON entry is
+        the problem document, so ``download_document`` and ``download_image_content`` asked for
+        ``application/problem+json`` alone and never for the PDF or image they return. Against a
+        server doing strict content negotiation, both cases turn into a 406. The other Epistola
+        clients send every declared type.
         """
-        json_types = [accept for accept in accepts if "json" in accept.lower()]
-        if json_types:
-            return ", ".join(json_types)
-        return accepts[0] if accepts else None
+        return ", ".join(accepts) if accepts else None
 
     def param_serialize(self, *args, **kwargs):
         method, url, header_params, body, post_params = super().param_serialize(*args, **kwargs)

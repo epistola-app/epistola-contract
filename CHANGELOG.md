@@ -28,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Deprecated is not removed: the asset endpoints have shipped in every release since 1.0.0 and keep
   working until the next major version.
 
+- Fixed the Python client asking for none of what a binary download returns. Its `Accept` override
+  kept only the JSON entries an operation declares. On `downloadDocument`, `previewDocument`,
+  `downloadAssetContent` and `downloadImageContent`, the only JSON entry is the problem document, so
+  those operations asked for `application/problem+json` alone and never for the PDF or image. A
+  server doing strict content negotiation would answer 406. The client now sends every declared type
+  in order, as the other clients do. The new image scenarios found it, and `binary-download` now
+  checks it for documents too.
+
 - Deprecated `UpgradeCatalogRequest.includeNewSlugs`, which is now ignored. A catalog upgrade
   reconciles the whole manifest, so resources the publisher added since the installed release are
   installed whether or not a caller lists them — a superset of anything the field could request. It

@@ -4,10 +4,11 @@
 
 """Tests for EpistolaApiClient.select_header_accept.
 
-The generated implementation returns the first entry matching ``json``, which drops
-``application/problem+json`` from every operation that also declares a success body — so the client
-asks for a document it is built to parse and cannot be sent. A server doing strict content
-negotiation answers 406, and the typed ``ProblemDetailException`` never gets a body.
+The generated implementation returns the first entry matching ``json``. That drops
+``application/problem+json`` from every operation that also declares a JSON success body, so the
+client does not ask for the problem document it is built to parse. On a binary download the only
+JSON entry is the problem document, so keeping only JSON types asks for no PDF or image at all. A
+server doing strict content negotiation answers 406 in both cases.
 """
 
 import pytest
@@ -36,8 +37,16 @@ def test_a_single_declared_type_is_sent_alone(client):
     assert client.select_header_accept([VENDOR_JSON]) == VENDOR_JSON
 
 
-def test_non_json_types_fall_back_to_the_first(client):
-    assert client.select_header_accept(["application/pdf", "application/octet-stream"]) == "application/pdf"
+def test_a_binary_download_asks_for_what_it_returns_as_well_as_the_problem_document(client):
+    declared = ["image/png", "image/jpeg", "image/svg+xml", "image/webp", PROBLEM_JSON]
+    assert client.select_header_accept(declared) == ", ".join(declared)
+
+
+def test_every_declared_type_is_sent_when_none_is_json(client):
+    assert (
+        client.select_header_accept(["application/pdf", "application/octet-stream"])
+        == "application/pdf, application/octet-stream"
+    )
 
 
 def test_no_declared_types_means_no_header(client):
