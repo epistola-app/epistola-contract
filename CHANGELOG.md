@@ -28,6 +28,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Deprecated is not removed: the asset endpoints have shipped in every release since 1.0.0 and keep
   working until the next major version.
 
+- Fixed the Jakarta EE client uploading nothing at all. Its three multipart operations —
+  `uploadImage`, `uploadAsset` and `importCatalog` — were generated as `@FormParam("file") File`,
+  which a MicroProfile Rest Client implementation sends as `application/x-www-form-urlencoded`
+  carrying the file's *local path*, url-encoded, and none of its bytes. Every upload through this
+  client therefore uploaded nothing and disclosed a filesystem path to the server, whatever the
+  operation's `@Consumes` said. It has been this way since the client was first published.
+
+  The build now rewrites those methods onto Jakarta REST 3.1's `EntityPart`. Each one keeps its
+  generated signature as a `default` method, so calling code is unchanged, and gains an overload
+  taking `List<EntityPart>` for content that is not a file on disk. `MultipartForm` builds the
+  parts: a file part carries its filename and the media type its extension implies — from the
+  contract's own table, because the JDK's has no entry for `.webp` on Java 17, which this client
+  still supports, though Java 21 does — and a null field
+  is left out rather than sent empty. Building parts needs an `EntityPart` implementation, which
+  every Jakarta EE 10 server provides; only a caller outside a server adds one. The WildFly
+  deployment test now uploads through the injected client, and the new `image-upload` conformance
+  scenario holds all five clients to the same multipart body.
 - Fixed the Python client asking for none of what a binary download returns. Its `Accept` override
   kept only the JSON entries an operation declares. On `downloadDocument`, `previewDocument`,
   `downloadAssetContent` and `downloadImageContent`, the only JSON entry is the problem document, so

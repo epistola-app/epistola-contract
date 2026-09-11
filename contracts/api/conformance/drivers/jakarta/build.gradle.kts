@@ -49,6 +49,8 @@ dependencies {
     // what a real Jakarta EE consumer's runtime provides.
     runtimeOnly(libs.resteasy.client)
     runtimeOnly(libs.resteasy.json.binding.provider)
+    // The EntityPart implementation the uploads need, which an application server would provide.
+    runtimeOnly(libs.resteasy.multipart.provider)
     runtimeOnly(libs.resteasy.microprofile.rest.client)
     runtimeOnly(libs.yasson)
     runtimeOnly(libs.smallrye.config)

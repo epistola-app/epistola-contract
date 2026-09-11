@@ -4,7 +4,9 @@
 
 package app.epistola.smoke;
 
+import app.epistola.client.jakarta.api.ImagesApi;
 import app.epistola.client.jakarta.api.SystemApi;
+import app.epistola.client.jakarta.model.ImageDto;
 import app.epistola.client.jakarta.model.PingRequest;
 import app.epistola.client.jakarta.model.PongResponse;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -13,6 +15,9 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 /**
@@ -31,11 +36,35 @@ public class SmokeResource {
     @RestClient
     SystemApi systemApi;
 
+    @Inject
+    @RestClient
+    ImagesApi imagesApi;
+
     @GET
     @Path("/ping")
     @Produces(MediaType.TEXT_PLAIN)
     public String ping() {
         PongResponse pong = systemApi.ping(new PingRequest().name("epistola-smoke").description("deployment smoke test"));
         return String.valueOf(pong.getStatus());
+    }
+
+    /**
+     * Uploads an image, which is the one operation that needs something the server supplies beyond
+     * the REST client itself: the {@code EntityPart} implementation the multipart body is built
+     * from. Nothing in the WAR provides it, so this fails if the server does not.
+     */
+    @GET
+    @Path("/upload")
+    @Produces(MediaType.TEXT_PLAIN)
+    public String upload() {
+        try {
+            java.io.File file = Files.createTempDirectory("smoke").resolve("logo.png").toFile();
+            Files.write(file.toPath(), "not really a png".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+            ImageDto image = imagesApi.uploadImage("acme-corp", "main", file, "Logo", null, null);
+            return String.valueOf(image.getKey());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }

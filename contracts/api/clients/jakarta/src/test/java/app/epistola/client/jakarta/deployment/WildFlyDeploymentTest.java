@@ -55,12 +55,17 @@ class WildFlyDeploymentTest {
     private static final String PONG =
             "{\"status\":\"UP\",\"timestamp\":\"2026-09-02T10:00:00Z\"}";
 
+    private static final String IMAGE = "{\"key\":\"logo\",\"tenantId\":\"acme-corp\",\"catalog\":\"main\","
+            + "\"catalogType\":\"AUTHORED\",\"readOnly\":false,\"name\":\"Logo\",\"mediaType\":\"image/png\","
+            + "\"sizeBytes\":16,\"createdAt\":\"2026-09-02T10:00:00Z\"}";
+
     @Test
     void the_client_deploys_into_wildfly_and_its_injected_rest_client_reaches_the_api() throws Exception {
         Path war = buildSmokeWar();
 
-        try (StubServer epistola = StubServer.start(request ->
-                StubServer.StubResponse.of(200, "application/vnd.epistola.v1+json", PONG))) {
+        try (StubServer epistola = StubServer.start(request -> request.path().endsWith("/images")
+                ? StubServer.StubResponse.of(201, "application/vnd.epistola.v1+json", IMAGE)
+                : StubServer.StubResponse.of(200, "application/vnd.epistola.v1+json", PONG))) {
 
             int stubPort = epistola.baseUri().getPort();
             Testcontainers.exposeHostPorts(stubPort);
@@ -115,6 +120,31 @@ class WildFlyDeploymentTest {
                         "ApiKey epk_smoke_test",
                         seen.header("Authorization"),
                         "the RestClientListener should have applied the configured API key");
+
+                // An upload needs the EntityPart implementation, which nothing in the WAR carries:
+                // the server provides it, or this fails. Before the multipart rewrite the request
+                // below arrived as a urlencoded form holding the file's path inside the container.
+                HttpResponse<String> uploaded = HttpClient.newHttpClient()
+                        .send(
+                                HttpRequest.newBuilder(URI.create(base + "/" + WAR_NAME + "/api/smoke/upload"))
+                                        .timeout(Duration.ofSeconds(30))
+                                        .build(),
+                                HttpResponse.BodyHandlers.ofString());
+
+                assertEquals(200, uploaded.statusCode(), uploaded.body());
+                assertEquals("logo", uploaded.body().trim(), "the deployed client should parse the ImageDto back");
+
+                StubServer.RecordedRequest upload = epistola.requests().get(1);
+                assertEquals("/api/tenants/acme-corp/catalogs/main/images", upload.path());
+                assertTrue(
+                        upload.header("Content-Type").startsWith("multipart/form-data"),
+                        "an upload must be multipart, was: " + upload.header("Content-Type"));
+                assertTrue(
+                        upload.body().contains("filename=\"logo.png\"") && upload.body().contains("image/png"),
+                        "the file part must carry its filename and media type, body was: " + upload.body());
+                assertTrue(
+                        upload.body().contains("not really a png"),
+                        "the file part must carry the file's content, body was: " + upload.body());
             }
         }
     }

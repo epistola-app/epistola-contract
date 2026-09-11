@@ -96,6 +96,129 @@ openApiGenerate {
     )
 }
 
+// --- Multipart rewrite of the generated interfaces ---
+//
+// The generator emits an upload as `@FormParam("file") File _fileDetail` and friends. A
+// MicroProfile Rest Client implementation reads that as a *form*, not as multipart: RESTEasy sends
+// `application/x-www-form-urlencoded` carrying `file=/tmp/whatever/logo.png` — the local path of
+// the file, url-encoded, with none of its bytes. Every upload the client offered therefore
+// uploaded nothing and leaked a filesystem path, whatever the @Consumes annotation said.
+//
+// Jakarta REST 3.1 (which Jakarta EE 10 requires, and this client targets) has EntityPart for
+// exactly this. So each multipart method becomes two: the request-carrying one takes
+// `List<EntityPart>`, and a default method keeps the generated signature and builds the parts, so
+// callers' source is unchanged.
+//
+// This is a post-process rather than a forked api.mustache, for the reason the server stubs give
+// for theirs: a whole forked template drifts from the generator silently, where a rewrite that
+// stops matching fails the build loudly (see the guards at the end).
+fun rewriteMultipartMethods(source: String): String {
+    // One method per line, as the generator emits it. The parameter list is matched up to the
+    // trailing `throws` rather than to the first `)`, because an annotation carries its own.
+    //   ImageDto uploadImage(@PathParam("tenantId") String tenantId,  @FormParam("file") File x, …) throws …;
+    val declaration = Regex(
+        """^ {4}(\S+(?:<[^>]*>)?) (\w+)\((.*@FormParam.*)\) throws ApiException, ProcessingException;$""",
+        RegexOption.MULTILINE,
+    )
+
+    // Commas inside a generic type or an annotation's arguments do not separate parameters.
+    fun splitParameters(parameterList: String): List<String> {
+        val parameters = mutableListOf<String>()
+        val current = StringBuilder()
+        var depth = 0
+        var quoted = false
+        for (character in parameterList) {
+            when {
+                character == '"' -> quoted = !quoted
+                quoted -> {}
+                character == '<' || character == '(' -> depth++
+                character == '>' || character == ')' -> depth--
+                character == ',' && depth == 0 -> {
+                    parameters.add(current.toString())
+                    current.clear()
+                    continue
+                }
+            }
+            current.append(character)
+        }
+        parameters.add(current.toString())
+        return parameters
+    }
+
+    return declaration.replace(source) { match ->
+        val (returnType, method, parameterList) = match.destructured
+        val parameters = splitParameters(parameterList).map { it.trim().replace(Regex(" {2,}"), " ") }
+        val formParameters = parameters.filter { it.contains("@FormParam(") }
+        val passedThrough = parameters.filterNot { it.contains("@FormParam(") }
+
+        fun nameOf(parameter: String) = parameter.substringAfterLast(' ')
+        fun fieldOf(parameter: String) = Regex("""@FormParam\("([^"]+)"\)""").find(parameter)!!.groupValues[1]
+        fun isFile(parameter: String) = Regex("""(?:^|\s)File \w+$""").containsMatchIn(parameter)
+
+        val partBuilders = formParameters.joinToString("\n") { parameter ->
+            val adder = if (isFile(parameter)) "file" else "field"
+            """                .$adder("${fieldOf(parameter)}", ${nameOf(parameter)})"""
+        }
+        val arguments = (passedThrough.map(::nameOf) + "parts").joinToString(", ")
+        val returns = if (returnType == "void") "" else "return "
+
+        """    $returnType $method(${(passedThrough + "List<EntityPart> parts").joinToString(", ")}) throws ApiException, ProcessingException;
+
+    /**
+     * The same operation with one argument per form field, sent as {@code multipart/form-data}.
+     *
+     * <p>A null field is left out of the body, and the file part's media type is taken from its
+     * filename. Build the parts yourself for content that is not a file on disk.
+     */
+    default $returnType $method(${parameters.map { it.replace(Regex("""@FormParam\("[^"]+"\) """), "") }.joinToString(", ")}) throws ApiException, ProcessingException {
+        $returns$method(${passedThrough.map(::nameOf).joinToString("") { "$it, " }}MultipartForm.create()
+$partBuilders
+                .build());
+    }"""
+    }
+}
+
+// Part of generation rather than a task of its own: a separate task would run again on an
+// incremental build, find the sources it had already rewritten, and fail its own guard.
+tasks.openApiGenerate {
+    val apiDir = generatedDir.map { it.dir("src/main/java/app/epistola/client/jakarta/api") }
+
+    doLast {
+        var rewritten = 0
+        fileTree(apiDir) { include("**/*Api.java") }.forEach { apiFile ->
+            val source = apiFile.readText()
+            if (!source.contains("@FormParam")) {
+                return@forEach
+            }
+            check(source.contains("""@Consumes({ "multipart/form-data" })""")) {
+                "${apiFile.name} has form parameters but does not consume multipart/form-data — " +
+                    "the contract gained a form-urlencoded operation, which this rewrite does not cover"
+            }
+            val body = rewriteMultipartMethods(source)
+            check(!body.contains("@FormParam")) {
+                "${apiFile.name} still has @FormParam after the multipart rewrite — the generator's " +
+                    "emitted method shape changed; update rewriteMultipartMethods in this build file"
+            }
+            apiFile.writeText(
+                body.replaceFirst(
+                    "import jakarta.ws.rs.core.Response;",
+                    "import jakarta.ws.rs.core.EntityPart;\n" +
+                        "import jakarta.ws.rs.core.Response;\n" +
+                        "import app.epistola.client.jakarta.multipart.MultipartForm;",
+                ),
+            )
+            rewritten++
+        }
+        if (rewritten == 0) {
+            throw GradleException(
+                "the multipart rewrite matched no generated API — the contract's upload operations " +
+                    "are gone, or the generator no longer emits them as @FormParam",
+            )
+        }
+        logger.lifecycle("Rewrote multipart uploads onto EntityPart in $rewritten API interface(s)")
+    }
+}
+
 // The spec-walking these three tasks share with the Kotlin client lives in build-logic; only the
 // emitted syntax differs, so only the emitted syntax is here.
 apply(from = "$rootDir/../../build-logic/contract-spec-model.gradle.kts")
@@ -513,6 +636,9 @@ dependencies {
     testImplementation(libs.microprofile.config.api)
     testImplementation(libs.resteasy.client)
     testImplementation(libs.resteasy.json.binding.provider)
+    // The uploads build jakarta.ws.rs.core.EntityPart, whose implementation comes from the Jakarta
+    // REST provider rather than the API jar. An application server has one; this test JVM must add it.
+    testImplementation(libs.resteasy.multipart.provider)
     testImplementation(libs.resteasy.microprofile.rest.client)
     testImplementation(libs.yasson)
     testImplementation(libs.smallrye.config)

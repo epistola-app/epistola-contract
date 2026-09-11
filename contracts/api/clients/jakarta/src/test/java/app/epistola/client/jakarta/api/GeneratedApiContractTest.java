@@ -6,6 +6,7 @@ package app.epistola.client.jakarta.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import app.epistola.client.jakarta.EpistolaRestClients;
@@ -13,8 +14,11 @@ import app.epistola.client.jakarta.StubServer;
 import app.epistola.client.jakarta.model.CreateTenantRequest;
 import app.epistola.client.jakarta.model.TenantDto;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.EntityPart;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.List;
 import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
@@ -33,6 +37,8 @@ import org.junit.jupiter.api.Test;
 class GeneratedApiContractTest {
 
     private static final String VENDOR_JSON = "application/vnd.epistola.v1+json";
+
+    private static final String MULTIPART = "multipart/form-data";
 
     private static final List<Class<?>> GENERATED_APIS = List.of(
             AssetsApi.class,
@@ -90,6 +96,55 @@ class GeneratedApiContractTest {
         assertTrue(
                 List.of(generateDocument.getAnnotation(Produces.class).value()).contains(VENDOR_JSON),
                 "generateDocument should accept the vendor media type");
+    }
+
+    /**
+     * Uploads must carry their parts, not their file's path.
+     *
+     * <p>The generator emits a multipart operation as {@code @FormParam("file") File}, which a
+     * MicroProfile Rest Client implementation sends as {@code application/x-www-form-urlencoded}
+     * containing the file's local path and none of its bytes. The build rewrites those methods onto
+     * {@code List<EntityPart>}, keeping the generated signature as a default method; this fails if a
+     * generator upgrade ever restores the broken shape.
+     */
+    @Test
+    void multipart_operations_send_entity_parts() {
+        int multipartOperations = 0;
+
+        for (Class<?> api : GENERATED_APIS) {
+            for (Method method : api.getMethods()) {
+                for (Parameter parameter : method.getParameters()) {
+                    assertNull(
+                            parameter.getAnnotation(FormParam.class),
+                            api.getSimpleName() + "." + method.getName() + " takes a @FormParam, which is sent"
+                                    + " as a urlencoded form rather than as multipart");
+                }
+
+                Consumes consumes = method.getAnnotation(Consumes.class);
+                if (consumes == null || !List.of(consumes.value()).contains(MULTIPART)) {
+                    continue;
+                }
+                multipartOperations++;
+
+                assertTrue(
+                        Arrays.stream(method.getParameters())
+                                .anyMatch(parameter -> parameter.getType().equals(List.class)
+                                        && parameter.getParameterizedType().getTypeName().contains(EntityPart.class.getName())),
+                        api.getSimpleName() + "." + method.getName() + " consumes multipart but takes no"
+                                + " List<EntityPart> to send");
+
+                assertTrue(
+                        Arrays.stream(api.getMethods())
+                                .anyMatch(candidate -> candidate.getName().equals(method.getName()) && candidate.isDefault()),
+                        api.getSimpleName() + "." + method.getName() + " has no convenience overload, so"
+                                + " callers must build parts by hand");
+            }
+        }
+
+        assertEquals(
+                3,
+                multipartOperations,
+                "expected the contract's three uploads (uploadAsset, uploadImage, importCatalog)");
     }
 
     @Test
