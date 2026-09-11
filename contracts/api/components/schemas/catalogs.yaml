@@ -171,7 +171,20 @@ UpgradeCatalogRequest:
   properties:
     includeNewSlugs:
       type: array
-      description: Newly added `type/slug` resources from the preview to install during the upgrade.
+      deprecated: true
+      description: |
+        **Deprecated and ignored.** An upgrade reconciles the whole catalog manifest, so resources
+        the publisher added since the installed release are installed whether or not they are
+        listed here — a superset of anything this field could request.
+
+        It existed because a catalog could be installed partially: an upgrade then updated only the
+        resources already present, and this was the opt-in for the rest. Catalogs are now one
+        install unit, so there is no subset to preserve and nothing left to opt into.
+
+        Note it never worked as documented over this API. The example format below is `type/slug`,
+        but the implementation matched bare slugs, so a correctly formatted value selected nothing.
+        The field is retained because this API is GA; it is a candidate for removal in the next
+        major version.
       items:
         type: string
       default: []
