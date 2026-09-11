@@ -56,7 +56,7 @@ The base URL addresses the server's root; a driver appends `/api` itself, becaus
 part of the contract's `servers` entry and a client that drops it is a client with a bug. Exactly
 that turned up in the .NET client on this suite's first run.
 
-Six actions cover the scenarios. A driver implements these, and nothing else:
+These actions cover the scenarios. A driver implements these, and nothing else:
 
 | Action | What the driver does |
 | --- | --- |
@@ -68,6 +68,13 @@ Six actions cover the scenarios. A driver implements these, and nothing else:
 | `routing` | poll once for a partition assignment, then report what the routing helpers compute |
 | `update-consumer` | `PATCH …/consumers/{id}` setting exactly one field |
 | `download-document` | `GET …/documents/{id}`, reporting the SHA-256 and length of the bytes |
+| `list-images` | `GET …/images?search=…`, reporting the keys, widths, heights and media types it parsed |
+| `upload-image` | `POST …/images` with the file from `config` (bytes, filename, content type) and a name, reporting the returned key and name |
+| `download-image` | `GET …/images/{imageKey}/content`, reporting the SHA-256 and length of the bytes |
+| `delete-image` | `DELETE …/images/{imageKey}` with `force` from `config` |
+
+A new action also needs an entry in `ACTION_OPERATIONS` in `src/fixtures.mjs`, which names the
+operation whose response schema its fixtures are checked against.
 
 ## Backends
 
@@ -131,6 +138,11 @@ literally, or as `{matches: regex}`, `{contains}`, `{oneOf}`, `{absent: true}`; 
 `{json: {...}}` for a deep subset, `{jsonAbsent: [keys]}` and `{jsonNullOrAbsent: [keys]}`. Query
 strings match whole via `query` or per parameter via `queryParams`.
 
+A `multipart/form-data` body is matched part by part with `{multipart: {<field>: {...}}}`. Each field
+takes `filename`, `contentType` and `value` (the part as text) as value matchers, and `byteLength` and
+`sha256` for its content. `{absent: true}` and `{whenPresent: {...}}` work on whole fields. The parts
+are split on the raw request bytes, so a binary file part is judged exactly as the client sent it.
+
 `{whenPresent: {...}}` is worth knowing about: it applies the inner matcher only if the value was
 sent. Some differences between clients are legitimate — a parameter the contract gives a default for
 may be sent explicitly or omitted, and a nullable field may be `null` or absent — and forcing one
@@ -189,6 +201,18 @@ test suites — which is the argument for the suite existing:
   consumer also erased its description, contact and expiry. A 200 came back. Found by Prism
   rejecting the same habit on a field that does not accept null at all, then reproduced directly by
   the `partial-update` scenario.
+- **The Jakarta client uploaded nothing, and disclosed a path doing it.** Its three multipart
+  operations were generated as `@FormParam("file") File`, which a MicroProfile Rest Client
+  implementation sends as `application/x-www-form-urlencoded` — the local path of the file,
+  url-encoded, with none of its bytes. Every upload it offered had been broken since the client was
+  published, and its own tests could not see it: they assert on what a request carries, and this
+  request carried a plausible-looking form.
+- **Python asked for none of what a binary download returns.** Its `Accept` override kept only the
+  JSON entries an operation declares, and a binary download's only JSON entry is the problem
+  document — so `downloadDocument`, `previewDocument` and the two content downloads asked for
+  `application/problem+json` alone. The stock generated code picked that same entry, so the earlier
+  `Accept` fix above left this half of the defect standing: the scenario that found that one looks at
+  a JSON operation, and nothing looked at a binary one until `image-download`.
 - **The Kotlin client's generated download methods could not run.** Every `format: binary` operation
   is generated as returning `java.io.File`, and Spring ships no converter that produces one, so
   `downloadDocument` threw `UnknownContentTypeException` — with plain wiring and with the generated

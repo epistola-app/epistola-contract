@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: image-download
+title: A downloaded image arrives byte for byte, addressed by a readable key
+why: >
+  `binary-download` holds the clients to exact bytes for a document. An image differs in two ways
+  that a client can get wrong without failing that scenario.
+
+  Its key is a string, where the asset path it replaces took a UUID. A client that still types the
+  parameter as a UUID, or escapes a hyphenated key, cannot reach an image named `municipality-mark`
+  at all.
+
+  It also comes back as one of four image types, chosen by the image rather than the caller, and
+  none of them is `application/octet-stream`. A client that asks for only some of them gets a 406
+  for the rest from a server that negotiates strictly. A client that treats a non-octet-stream body
+  as text corrupts it. Asking with a wildcard is fine. What matters is that every declared type is
+  acceptable.
+
+  The fixture starts with the PNG signature, whose CR LF, SUB and LF bytes exist to detect
+  line-ending conversion. All 256 byte values follow, which are not valid UTF-8.
+
+action:
+  name: download-image
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantId: acme-corp
+    catalogId: main
+    imageKey: municipality-mark
+
+script:
+  - status: 200
+    contentType: image/png
+    # PNG signature + every byte 0x00-0xFF
+    bodyBase64: >-
+      iVBORw0KGgoAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/main/images/municipality-mark/content
+      headers:
+        # Each declared image type is acceptable, by name or by wildcard, and so is the problem
+        # document the client parses on failure.
+        Accept:
+          matches: '^(?=.*(?:image/png|image/\*|\*/\*))(?=.*(?:image/jpeg|image/\*|\*/\*))(?=.*(?:image/svg\+xml|image/\*|\*/\*))(?=.*(?:image/webp|image/\*|\*/\*))(?=.*(?:application/problem\+json|\*/\*))'
+  report:
+    byteLength: 264
+    sha256: 9d0c38e7aafe062c3a6dfc561e42771ec997d9359bb3d417ac4775a303292964

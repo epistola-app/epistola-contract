@@ -34,6 +34,10 @@ const ACTION_OPERATIONS = {
   'generate-document': { method: 'post', path: '/tenants/{tenantId}/documents/generate' },
   'update-consumer': { method: 'patch', path: '/tenants/{tenantId}/consumers/{consumerId}' },
   'download-document': { method: 'get', path: '/tenants/{tenantId}/documents/{documentId}' },
+  'list-images': { method: 'get', path: '/tenants/{tenantId}/catalogs/{catalogId}/images' },
+  'upload-image': { method: 'post', path: '/tenants/{tenantId}/catalogs/{catalogId}/images' },
+  'download-image': { method: 'get', path: '/tenants/{tenantId}/catalogs/{catalogId}/images/{imageKey}/content' },
+  'delete-image': { method: 'delete', path: '/tenants/{tenantId}/catalogs/{catalogId}/images/{imageKey}' },
   collect: { method: 'post', path: '/tenants/{tenantId}/generation/collect' },
   routing: { method: 'post', path: '/tenants/{tenantId}/generation/collect' },
 }

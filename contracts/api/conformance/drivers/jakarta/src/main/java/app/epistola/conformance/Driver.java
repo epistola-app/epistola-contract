@@ -7,6 +7,7 @@ package app.epistola.conformance;
 import app.epistola.client.jakarta.EpistolaRestClients;
 import app.epistola.client.jakarta.api.ConsumersApi;
 import app.epistola.client.jakarta.api.GenerationApi;
+import app.epistola.client.jakarta.api.ImagesApi;
 import app.epistola.client.jakarta.api.SystemApi;
 import app.epistola.client.jakarta.api.TemplatesApi;
 import app.epistola.client.jakarta.auth.JwtSigner;
@@ -16,6 +17,7 @@ import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.identity.ClientIdentity;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
+import app.epistola.client.jakarta.model.ImageDto;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
 import app.epistola.client.jakarta.model.UpdateConsumerRequest;
@@ -30,7 +32,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.security.MessageDigest;
+import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -66,6 +70,10 @@ public final class Driver {
                 case "generate-document" -> generateDocument(baseUrl, config);
                 case "update-consumer" -> updateConsumer(baseUrl, config);
                 case "download-document" -> downloadDocument(baseUrl, config);
+                case "list-images" -> listImages(baseUrl, config);
+                case "upload-image" -> uploadImage(baseUrl, config);
+                case "download-image" -> downloadImage(baseUrl, config);
+                case "delete-image" -> deleteImage(baseUrl, config);
                 default -> throw new IllegalArgumentException("unknown action " + instruction.getString("action"));
             }
             done(baseUrl, null);
@@ -248,8 +256,63 @@ public final class Driver {
         File file = clients(baseUrl, config)
                 .api(GenerationApi.class)
                 .downloadDocument(config.getString("tenantId"), UUID.fromString(config.getString("documentId")));
-        byte[] bytes = Files.readAllBytes(file.toPath());
+        reportBytes(baseUrl, Files.readAllBytes(file.toPath()));
+    }
 
+    /**
+     * Lists images and reports what the client made of them. Keys may be UUIDs or readable names, and
+     * an SVG's dimensions are null, which must stay null rather than become 0.
+     */
+    private static void listImages(String baseUrl, JsonObject config) {
+        List<ImageDto> images = clients(baseUrl, config)
+                .api(ImagesApi.class)
+                .listImages(config.getString("tenantId"), config.getString("catalogId"), config.getString("search"), null, null)
+                .getItems();
+
+        report(
+                baseUrl,
+                Map.of(
+                        "imageKeys", images.stream().map(ImageDto::getKey).collect(Collectors.joining(",")),
+                        "widths", images.stream().map(image -> String.valueOf(image.getWidth())).collect(Collectors.joining(",")),
+                        "heights", images.stream().map(image -> String.valueOf(image.getHeight())).collect(Collectors.joining(",")),
+                        "mediaTypes", images.stream().map(ImageDto::getMediaType).collect(Collectors.joining(","))));
+    }
+
+    /**
+     * Uploads an image. The generated method takes a {@link File}, so the bytes go to a file named the
+     * way the caller wants the part named: the part's filename comes from the file.
+     */
+    private static void uploadImage(String baseUrl, JsonObject config) throws Exception {
+        Path directory = Files.createTempDirectory("conformance-upload");
+        File file = Files.write(
+                        directory.resolve(config.getString("filename")),
+                        Base64.getDecoder().decode(config.getString("fileBase64")))
+                .toFile();
+        try {
+            ImageDto image = clients(baseUrl, config)
+                    .api(ImagesApi.class)
+                    .uploadImage(config.getString("tenantId"), config.getString("catalogId"), file, config.getString("name"), null, null);
+            report(baseUrl, Map.of("imageKey", image.getKey(), "imageName", image.getName()));
+        } finally {
+            Files.deleteIfExists(file.toPath());
+            Files.deleteIfExists(directory);
+        }
+    }
+
+    private static void downloadImage(String baseUrl, JsonObject config) throws Exception {
+        File file = clients(baseUrl, config)
+                .api(ImagesApi.class)
+                .downloadImageContent(config.getString("tenantId"), config.getString("catalogId"), config.getString("imageKey"));
+        reportBytes(baseUrl, Files.readAllBytes(file.toPath()));
+    }
+
+    private static void deleteImage(String baseUrl, JsonObject config) {
+        clients(baseUrl, config)
+                .api(ImagesApi.class)
+                .deleteImage(config.getString("tenantId"), config.getString("catalogId"), config.getString("imageKey"), config.getBoolean("force"));
+    }
+
+    private static void reportBytes(String baseUrl, byte[] bytes) throws Exception {
         StringBuilder hex = new StringBuilder();
         for (byte b : MessageDigest.getInstance("SHA-256").digest(bytes)) {
             hex.append(String.format("%02x", b));

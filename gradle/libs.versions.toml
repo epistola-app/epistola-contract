@@ -99,6 +99,9 @@ microprofile-config-api = { module = "org.eclipse.microprofile.config:microprofi
 # jakarta client — test-only implementations of those APIs
 resteasy-client = { module = "org.jboss.resteasy:resteasy-client", version.ref = "resteasy" }
 resteasy-json-binding-provider = { module = "org.jboss.resteasy:resteasy-json-binding-provider", version.ref = "resteasy" }
+# Supplies the EntityPart implementation the uploads need. An application server has one; a plain
+# RESTEasy client (the tests, the conformance driver) has to add it.
+resteasy-multipart-provider = { module = "org.jboss.resteasy:resteasy-multipart-provider", version.ref = "resteasy" }
 resteasy-microprofile-rest-client = { module = "org.jboss.resteasy.microprofile:microprofile-rest-client", version.ref = "resteasy-microprofile" }
 yasson = { module = "org.eclipse:yasson", version.ref = "yasson" }
 smallrye-config = { module = "io.smallrye.config:smallrye-config", version.ref = "smallrye-config" }

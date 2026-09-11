@@ -37,6 +37,12 @@ expect:
   requests:
     - method: GET
       path: /api/tenants/acme-corp/documents/99999999-9999-4999-8999-000000000001
+      headers:
+        # The PDF is acceptable, by name or by wildcard, and so is the problem document. Python asked
+        # for application/problem+json alone, because it kept only the JSON entries of what the
+        # operation declares, and so asked for no PDF at all.
+        Accept:
+          matches: '^(?=.*(?:application/pdf|application/\*|\*/\*))(?=.*(?:application/problem\+json|\*/\*))'
   report:
     byteLength: 272
     sha256: 5c5169485479e6214e3b5f010689289166910f3cd32691774541ef7e7b65c5ce

@@ -133,7 +133,7 @@ yourself.
 ### Binary operations return `Resource`, not `File`
 
 Every operation the contract declares as `format: binary` — downloading a document, rendering a
-preview, fetching or uploading an asset's content, importing a catalog archive — is generated as
+preview, fetching or uploading an image's content, importing a catalog archive — is generated as
 `org.springframework.core.io.Resource`, both for responses and for multipart request parts. Spring
 converts `Resource` out of the box, on the response side and the multipart side alike, so these
 calls work with a completely default `RestClient` — no converter to install, nothing to opt into.
@@ -363,7 +363,7 @@ val batch = api.generateBatch("acme-corp", GenerateBatchRequest(
 
 ### Downloading the result
 
-`downloadDocument`, `previewDocument`, and an asset's `downloadAssetContent` all return
+`downloadDocument`, `previewDocument`, and an image's `downloadImageContent` all return
 `org.springframework.core.io.Resource` — stream it, don't buffer it, unless the document is known to
 be small:
 

@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: image-delete
+title: Deleting an image addresses it by key and asks to force in a form the server reads
+why: >
+  `force=true` deletes an image that templates still reference. Misreading it does damage in one
+  direction and silently does nothing in the other. Booleans are where the stacks' query serializers
+  disagree: `True` from a language whose booleans print that way, `1`, or no parameter at all when
+  the flag is dropped. The contract's boolean is `true` or `false`. Whether a server also accepts
+  the other spellings depends on the server, and a dropped flag turns a forced delete into a 409.
+
+  The response is a 204 with no body and no content type. A client must treat that as success
+  rather than fail to deserialize an empty body.
+
+action:
+  name: delete-image
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantId: acme-corp
+    catalogId: main
+    imageKey: municipality-mark
+    force: true
+
+script:
+  - status: 204
+
+expect:
+  requestCount: 1
+  requests:
+    - method: DELETE
+      path: /api/tenants/acme-corp/catalogs/main/images/municipality-mark
+      query: force=true

@@ -200,6 +200,36 @@ working. Error responses that are not parseable problem+json stay a plain `ApiEx
 Some Epistola Suite deployments disable API-key authentication entirely; that arrives as
 `KnownProblemSlugs.API_KEY_AUTH_DISABLED`, which is the signal to guide the caller to JWT auth.
 
+## Uploading files
+
+`uploadImage`, `uploadAsset` and `importCatalog` send `multipart/form-data`. Pass a `File` and the
+part gets its filename, and the media type that filename implies:
+
+```java
+@Inject
+@RestClient
+ImagesApi imagesApi;
+
+ImageDto image = imagesApi.uploadImage("acme-corp", "main", new File("logo.png"), "Logo", null, null);
+```
+
+For content that is not a file on disk, or a media type the filename does not imply, build the parts
+and call the overload that takes them:
+
+```java
+ImageDto image = imagesApi.uploadImage("acme-corp", "main", MultipartForm.create()
+        .file("file", "logo.png", "image/png", bytes)
+        .field("name", "Logo")
+        .build());
+```
+
+A field left `null` is not sent at all, rather than sent empty.
+
+Building the parts needs an implementation of `jakarta.ws.rs.core.EntityPart`, which comes from the
+application server and not from this client — inside a WAR there is nothing to add. Only outside a
+server (a plain JAX-RS client in a test, say) do you need a multipart provider of your own, such as
+`org.jboss.resteasy:resteasy-multipart-provider`.
+
 ## Document generation & result collection
 
 Asynchronous generation is the production path, so result collection is not optional.

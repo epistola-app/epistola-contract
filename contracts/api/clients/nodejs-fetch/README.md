@@ -86,7 +86,22 @@ touches nothing else; `{ name: 'Billing', description: null }` also clears the d
 ### Binary downloads
 
 Every operation the contract declares as `format: binary` — `downloadDocument`, `previewDocument`,
-asset content — resolves to a `Blob`; `Buffer.from(await blob.arrayBuffer())` gives you the bytes.
+`downloadImageContent` — resolves to a `Blob`; `Buffer.from(await blob.arrayBuffer())` gives you the bytes.
+
+### Uploading files
+
+Multipart operations such as `uploadImage` and `importCatalog` take a `Blob`. Pass a `File`, which
+carries a name and a type:
+
+```ts
+import { readFile } from 'node:fs/promises'
+
+const file = new File([await readFile('logo.png')], 'logo.png', { type: 'image/png' })
+const image = await new ImagesApi(client).uploadImage({ tenantId: 'acme-corp', catalogId: 'main', file, name: 'Logo' })
+```
+
+A plain `Blob` is always sent with the filename `blob`, and as `application/octet-stream` unless it
+was given a type. The server then names the image `blob`.
 
 ## Error handling
 

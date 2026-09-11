@@ -52,6 +52,27 @@ make breaking      # Check for breaking changes vs main
 
 ## Working with the OpenAPI Spec
 
+### Every contract change updates and tests every client
+
+**A change to the contract is not done until every client is updated for it and tested against
+it** — the Kotlin, Jakarta EE, .NET, Python and Node.js clients, and the server stubs. This applies
+to every change: new operations, changed schemas, deprecations, media types, parameters, and
+headers. It is not done when the spec lints and the modules compile.
+
+- **Updated** covers the hand-written layer, which does not regenerate. That means each client's
+  README examples and operation names, guard tests that enumerate the generated APIs (such as
+  Jakarta's `GeneratedApiContractTest`), the problem parsers, build-file comments, and the
+  conformance drivers. Search every client for the names you changed. Do not stop at the first
+  client that mentions them.
+- **Tested** means each client performs the new or changed behaviour on the wire. Compiling does
+  not count: a generated method that compiles can still fail every call, which is exactly what the
+  Kotlin client's binary downloads did. Add the action to **all five** conformance drivers and a
+  scenario in `contracts/api/conformance/scenarios/` (see "Cross-client conformance" below).
+  Adding it to one client's own tests does not count either.
+- Run `make build` and `make conformance`, and report the results per client.
+- Contract changes go in the root `CHANGELOG.md`. The per-client changelogs (.NET, Python, Node.js)
+  record changes to their hand-written libraries only.
+
 ### Adding a New Endpoint
 
 1. **Add path definition** to the appropriate file in `contracts/api/paths/`
@@ -61,6 +82,9 @@ make breaking      # Check for breaking changes vs main
    - Add schema references under `components: schemas:`
 4. **Validate**: `make lint`
 5. **Test generation**: `make build`
+6. **Update every client** for the new operation (see above)
+7. **Test it in every client**: add a driver action to all five conformance drivers and a scenario,
+   then run `make conformance`
 
 ### Schema File Pattern
 
@@ -275,9 +299,11 @@ The spec is validated with Redocly using these rules:
 
 1. Run `make lint` to validate spec syntax
 2. Run `make bundle` to create bundled spec
-3. Run `make build` to verify client/server generation compiles
+3. Run `make build` to verify client/server generation compiles (necessary, not sufficient)
 4. Run `make mock` to test endpoints with mock server
-5. Run `make conformance` to check every client still behaves identically on the wire
+5. Run `make conformance` to check every client still behaves identically on the wire. New or
+   changed operations need a driver action and a scenario first, or this passes without testing
+   them
 
 ### Cross-client conformance
 

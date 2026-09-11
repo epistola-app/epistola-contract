@@ -1,0 +1,74 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: image-list
+title: Listed images keep their readable keys and their unknown dimensions
+why: >
+  An image's key is a string that may be a UUID or a readable name, and the list mixes both. A
+  client whose model or validation still expects a UUID rejects the page, or silently drops the
+  readable one.
+
+  An SVG has no pixel size, so `width` and `height` are null. A client that turns a null integer
+  into 0 reports a zero-pixel image, and a caller sizing a template element from it gets an empty
+  box instead of a missing value it could handle. The report renders null as `null`, the way every
+  driver prints a missing value.
+
+  The request carries the search term and nothing else of its own. The list has no category filter
+  any more.
+
+action:
+  name: list-images
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantId: acme-corp
+    catalogId: main
+    search: mark
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      items:
+        - key: municipality-mark
+          tenantId: acme-corp
+          catalog: main
+          catalogType: AUTHORED
+          readOnly: false
+          name: municipality-mark.svg
+          mediaType: image/svg+xml
+          sizeBytes: 4096
+          width: null
+          height: null
+          createdAt: "2026-09-11T10:00:00Z"
+        - key: 4a64f2f9-2c7a-4d26-9cf7-d34c7ce92280
+          tenantId: acme-corp
+          catalog: main
+          catalogType: AUTHORED
+          readOnly: false
+          name: watermark.png
+          mediaType: image/png
+          sizeBytes: 12482
+          width: 512
+          height: 128
+          createdAt: "2026-09-11T10:05:00Z"
+      page: { number: 0, size: 20, totalElements: 2, totalPages: 1 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/main/images
+      queryParams:
+        search: mark
+        mediaCategory: { absent: true }
+        # Defaulted by the contract, so either sent with the default or left out.
+        page: { whenPresent: '0' }
+        size: { whenPresent: '20' }
+  report:
+    imageKeys: municipality-mark,4a64f2f9-2c7a-4d26-9cf7-d34c7ce92280
+    widths: null,512
+    heights: null,128
+    mediaTypes: image/svg+xml,image/png

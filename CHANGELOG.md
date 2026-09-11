@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added images to the API — `listImages`, `uploadImage`, `downloadImageContent` and `deleteImage`
+  under `/tenants/{tenantId}/catalogs/{catalogId}/images`, with `ImageDto` and `ImageListResponse` —
+  and deprecated the asset operations, `AssetDto` and `AssetListResponse` in their favour, for
+  removal in the next major version. `assets` was a storage table showing through the API. It holds
+  two things that are not alike: images, which an author picks and a template references directly,
+  and the binaries behind font faces, which nothing references but the face that owns them and which
+  the Fonts API already describes as part of a family. A caller listing assets got both mixed
+  together, and `listAssets` had a `mediaCategory` filter whose documented purpose was to hide the
+  fonts again. The Suite's web UI and its MCP tools already call these images.
+
+  `ImageDto` is `AssetDto` without the parts that existed only because it described two kinds of
+  file. It has no `mediaCategory`, since an image is always an image, and the list has no category
+  filter. It carries `key` rather than `id`: the image's public key, which is a string, the value a
+  template references as `props.assetId`, and not an identity. The `{imageKey}` path parameter takes
+  that string, so it can address an image with a readable key. The asset paths take a UUID and cannot. `uploadImage` accepts images only and
+  rejects anything else with 400. Nothing replaces uploading other files, because a font binary only
+  means something as a face of a family.
+
+  Deprecated is not removed: the asset endpoints have shipped in every release since 1.0.0 and keep
+  working until the next major version.
+
+- Fixed the Jakarta EE client uploading nothing at all. Its three multipart operations —
+  `uploadImage`, `uploadAsset` and `importCatalog` — were generated as `@FormParam("file") File`,
+  which a MicroProfile Rest Client implementation sends as `application/x-www-form-urlencoded`
+  carrying the file's *local path*, url-encoded, and none of its bytes. Every upload through this
+  client therefore uploaded nothing and disclosed a filesystem path to the server, whatever the
+  operation's `@Consumes` said. It has been this way since the client was first published.
+
+  The build now rewrites those methods onto Jakarta REST 3.1's `EntityPart`. Each one keeps its
+  generated signature as a `default` method, so calling code is unchanged, and gains an overload
+  taking `List<EntityPart>` for content that is not a file on disk. `MultipartForm` builds the
+  parts: a file part carries its filename and the media type its extension implies — from the
+  contract's own table, because the JDK's has no entry for `.webp` on Java 17, which this client
+  still supports, though Java 21 does — and a null field
+  is left out rather than sent empty. Building parts needs an `EntityPart` implementation, which
+  every Jakarta EE 10 server provides; only a caller outside a server adds one. The WildFly
+  deployment test now uploads through the injected client, and the new `image-upload` conformance
+  scenario holds all five clients to the same multipart body.
+- Fixed the Python client asking for none of what a binary download returns. Its `Accept` override
+  kept only the JSON entries an operation declares. On `downloadDocument`, `previewDocument`,
+  `downloadAssetContent` and `downloadImageContent`, the only JSON entry is the problem document, so
+  those operations asked for `application/problem+json` alone and never for the PDF or image. A
+  server doing strict content negotiation would answer 406. The client now sends every declared type
+  in order, as the other clients do. The new image scenarios found it, and `binary-download` now
+  checks it for documents too.
+- Extended the conformance suite to the image operations. All five drivers implement `list-images`,
+  `upload-image`, `download-image` and `delete-image`, and each has a scenario. The scenarios cover
+  exact bytes and an `Accept` header that admits every image type, a readable key in the path,
+  `null` dimensions kept as null, `force=true` on a delete, and the suite's first multipart request.
+  The upload is judged part by part on the raw request bytes by a new `multipart` body matcher: the
+  file part's filename, content type and digest, and optional fields left unset.
+- Documented uploads in the .NET, Python and Node.js client READMEs. A file part needs a filename and
+  the image's content type. Given only bare bytes or a stream, each client sends a placeholder name
+  and `application/octet-stream`, and the server rejects the upload as not an image unless
+  `mediaType` is also passed.
+
 - Deprecated `UpgradeCatalogRequest.includeNewSlugs`, which is now ignored. A catalog upgrade
   reconciles the whole manifest, so resources the publisher added since the installed release are
   installed whether or not a caller lists them — a superset of anything the field could request. It

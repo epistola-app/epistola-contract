@@ -11,7 +11,7 @@
  * asks for and what arrived.
  */
 
-import { createPublicKey, verify as verifySignature } from 'node:crypto'
+import { createHash, createPublicKey, verify as verifySignature } from 'node:crypto'
 
 /**
  * @returns an array of failure messages; empty means the client conformed
@@ -101,11 +101,15 @@ function checkRequest(label, matcher, actual, failures) {
   }
 
   if (matcher.body !== undefined) {
-    checkBody(label, matcher.body, actual.body, failures)
+    checkBody(label, matcher.body, actual, failures)
   }
 }
 
-function checkBody(label, matcher, rawBody, failures) {
+function checkBody(label, matcher, entry, failures) {
+  const rawBody = entry.body
+  if (matcher.multipart !== undefined) {
+    checkMultipart(label, matcher.multipart, entry, failures)
+  }
   if (matcher.json !== undefined) {
     let parsed
     try {
@@ -150,6 +154,140 @@ function checkBody(label, matcher, rawBody, failures) {
   if (matcher.equals !== undefined || matcher.matches !== undefined || matcher.contains !== undefined) {
     checkValue(`${label}: body`, matcher, rawBody, failures)
   }
+}
+
+/**
+ * A multipart/form-data body, judged part by part on its raw bytes. Each key names a form field and
+ * takes `filename`, `contentType` and `value` (the part as UTF-8 text) as value matchers, and
+ * `byteLength` and `sha256` for the content; `{absent: true}` requires the field not be sent, and
+ * `{whenPresent: {...}}` checks it only if it was.
+ *
+ * Upload is where the five stacks differ most, and nothing else looks at it: whether a file part
+ * carries a filename, what content type it declares, whether an unset optional field is left out or
+ * sent as "null", and whether the bytes survive encoding.
+ */
+function checkMultipart(label, expected, entry, failures) {
+  const parsed = parseMultipart(entry.bodyBytes ?? Buffer.from(entry.body, 'utf8'), entry.headers['content-type'])
+  if (parsed.error) {
+    failures.push(`${label}: body is not usable multipart/form-data: ${parsed.error}`)
+    return
+  }
+
+  for (const [name, matcher] of Object.entries(expected)) {
+    const part = parsed.parts.get(name)
+    const where = `${label}: multipart field "${name}"`
+    if (matcher?.absent) {
+      if (part) {
+        failures.push(`${where}: expected it not to be sent, got ${describePart(part)}`)
+      }
+      continue
+    }
+    if (matcher?.whenPresent) {
+      if (part) {
+        checkPart(where, matcher.whenPresent, part, failures)
+      }
+      continue
+    }
+    if (!part) {
+      const sent = [...parsed.parts.keys()].map((key) => JSON.stringify(key)).join(', ')
+      failures.push(`${where}: missing, the client sent ${sent || 'no parts'}`)
+      continue
+    }
+    checkPart(where, matcher, part, failures)
+  }
+}
+
+function checkPart(where, matcher, part, failures) {
+  if (matcher.filename !== undefined) {
+    checkValue(`${where} filename`, matcher.filename, part.filename, failures)
+  }
+  if (matcher.contentType !== undefined) {
+    checkValue(`${where} Content-Type`, matcher.contentType, part.contentType, failures)
+  }
+  if (matcher.value !== undefined) {
+    checkValue(`${where} value`, matcher.value, part.content.toString('utf8'), failures)
+  }
+  if (matcher.byteLength !== undefined && part.content.length !== matcher.byteLength) {
+    failures.push(`${where}: expected ${matcher.byteLength} bytes, got ${part.content.length}`)
+  }
+  if (matcher.sha256 !== undefined) {
+    const digest = createHash('sha256').update(part.content).digest('hex')
+    if (digest !== matcher.sha256) {
+      failures.push(`${where}: content has sha256 ${digest}, expected ${matcher.sha256} — the bytes changed on the way out`)
+    }
+  }
+}
+
+function describePart(part) {
+  const attributes = [
+    part.filename !== undefined ? `filename ${JSON.stringify(part.filename)}` : null,
+    part.contentType !== undefined ? `Content-Type ${part.contentType}` : null,
+    `${part.content.length} bytes: ${JSON.stringify(truncate(part.content.toString('utf8'), 40))}`,
+  ]
+  return attributes.filter(Boolean).join(', ')
+}
+
+/**
+ * Splits a multipart/form-data body into its parts without ever decoding the content, so binary
+ * parts keep their exact bytes. Each part is `--boundary CRLF headers CRLF CRLF content CRLF`, and a
+ * boundary followed by `--` closes the body.
+ */
+function parseMultipart(bytes, contentType) {
+  const match = /boundary=(?:"([^"]+)"|([^;\s]+))/i.exec(contentType ?? '')
+  if (!match) {
+    return { error: `the Content-Type ${JSON.stringify(contentType)} names no boundary` }
+  }
+  const delimiter = Buffer.from(`--${match[1] ?? match[2]}`, 'latin1')
+  const crlf = Buffer.from('\r\n', 'latin1')
+  const parts = new Map()
+
+  let position = bytes.indexOf(delimiter)
+  if (position === -1) {
+    return { error: 'the body does not contain its boundary' }
+  }
+  for (;;) {
+    position += delimiter.length
+    if (bytes.subarray(position, position + 2).toString('latin1') === '--') {
+      return { parts }
+    }
+    const next = bytes.indexOf(delimiter, position)
+    if (next === -1) {
+      return { error: 'the body is not closed by a final boundary' }
+    }
+    let part = bytes.subarray(position, next)
+    if (part.subarray(0, 2).equals(crlf)) {
+      part = part.subarray(2)
+    }
+    if (part.subarray(part.length - 2).equals(crlf)) {
+      part = part.subarray(0, part.length - 2)
+    }
+    const headerEnd = part.indexOf('\r\n\r\n', 0, 'latin1')
+    if (headerEnd === -1) {
+      return { error: 'a part has no header block' }
+    }
+    const headers = {}
+    for (const line of part.subarray(0, headerEnd).toString('utf8').split('\r\n')) {
+      const colon = line.indexOf(':')
+      if (colon > 0) {
+        headers[line.slice(0, colon).trim().toLowerCase()] = line.slice(colon + 1).trim()
+      }
+    }
+    const disposition = headers['content-disposition'] ?? ''
+    const name = dispositionParameter(disposition, 'name')
+    parts.set(name, {
+      name,
+      filename: dispositionParameter(disposition, 'filename'),
+      contentType: headers['content-type'],
+      content: part.subarray(headerEnd + 4),
+    })
+    position = next
+  }
+}
+
+/** One parameter of a Content-Disposition header; `name` is not confused with `filename`. */
+function dispositionParameter(disposition, parameter) {
+  const match = new RegExp(`(?:^|;)\\s*${parameter}=(?:"((?:[^"\\\\]|\\\\.)*)"|([^;]*))`, 'i').exec(disposition)
+  return match ? (match[1] ?? match[2].trim()) : undefined
 }
 
 /**
