@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added `AssetDto.key` and deprecated `AssetDto.id`. An asset's public key is the value that
+  appears in template content as `props.assetId` and travels in a catalog export as the asset's
+  slug. It was always a generated UUID, which meant a catalog naming its assets readably —
+  `municipality-mark` — could not be represented here at all, and in an Epistola Suite could not
+  even be installed. `key` is that value as a string; `id` is the same value typed as a UUID and is
+  now optional.
+
+  The name `id` was always wrong: this is an asset's public key, not its identity. Every other
+  catalog resource is addressed by a readable key; assets were the exception only because theirs was
+  generated.
+
+  Every asset an Epistola Suite creates still has a UUID key and still reports it in `id`, so
+  nothing that exists today changes shape. `id` is absent only for an asset whose key is not a UUID,
+  and a client still reading it rather than `key` will fail to deserialize such an asset. Reaching
+  one requires a catalog that names its assets readably, installed from a registry — which no
+  released Epistola Suite can do. No existing deployment holds such an asset, and a client that
+  adopts `key` before that capability ships never meets the case.
+
+  Operations that address an asset by path still take a UUID, so an asset with a readable key
+  cannot yet be fetched or deleted through them. Widening those parameters changes the type
+  generated clients pass, so it is held for a major version.
+
 - Added `@epistola.app/epistola-client`, a Node.js client generated from the bundled spec with
   openapi-generator's `typescript-fetch` on the platform's own `fetch`, with the same conventions as
   the other four clients: identity headers, API-key and self-signed-JWT authentication (RS256 and
