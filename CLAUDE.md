@@ -11,6 +11,10 @@ Epistola is a document template management and generation system. This repositor
   (TypeScript, on the platform's `fetch`)
 - **Kotlin server stubs** using Spring Boot 4 (for implementing the API)
 
+It also defines the **portable catalog contract** (`contracts/catalog`), the archive format catalogs
+are exchanged in, published as `app.epistola.contract:epistola-catalog` (Maven) and
+`@epistola.app/epistola-catalog` (npm). See "The portable catalog contract" below.
+
 ## Repository Structure
 
 ```
@@ -32,6 +36,11 @@ epistola-contract/
 │   ├── clients/python-urllib3/            # Generated Python client
 │   ├── clients/nodejs-fetch/              # Generated Node.js client
 │   └── server-stubs/kotlin-springboot4/   # Generated Spring server stubs
+├── contracts/catalog/             # Portable catalog contract (Kotlin + npm)
+│   ├── schemas/                   # Versioned wire schemas (catalog-manifest-vN, resource-detail-vN)
+│   ├── fixtures/v1/               # Published golden fixtures (wire-vN, migrations/, conformance/)
+│   ├── src/main/kotlin/           # Model, migration, validation, canonical fingerprints
+│   └── ts/                        # npm facade over the generated wire types
 ├── openapi.yaml                   # Bundled spec (generated, gitignored)
 ├── Makefile                       # Build commands
 └── redocly.yaml                   # Spec validation rules
@@ -70,6 +79,10 @@ headers. It is not done when the spec lints and the modules compile.
   scenario in `contracts/api/conformance/scenarios/` (see "Cross-client conformance" below).
   Adding it to one client's own tests does not count either.
 - Run `make build` and `make conformance`, and report the results per client.
+- **A catalog change is a contract change too.** The server stubs build against the catalog
+  source (`includeBuild`) and expose its Kotlin types, and `x-epistola-catalog-contract` in
+  `openapi.yaml` declares the catalog wire version. Searching the API for the field you changed
+  finds nothing, so it looks catalog-only. Run `make build` and `make conformance` anyway.
 - Contract changes go in the root `CHANGELOG.md`. The per-client changelogs (.NET, Python, Node.js)
   record changes to their hand-written libraries only.
 
@@ -285,6 +298,45 @@ When you add, rename, or change a problem `type`, update in the same change:
   `ProblemDetailException`; the member names come from the generated `ProblemExtensionMembers`.
 - The `when (e.typeSlug)` example / helper example in each module `README.md`.
 - The unit tests in each module's `.../error/` test package.
+
+## The portable catalog contract
+
+`contracts/catalog` is a separate compatibility boundary from the API. It defines `catalog.json` and
+the resource-detail documents inside a catalog archive, plus the migration, validation and
+fingerprinting that Suite (which authors and imports catalogs) and Exchange (which publishes them)
+both run. Build it with `make build-catalog`. `contracts/catalog/docs/` holds the detail, and
+`AGENTS.md` ("Catalog Contract Parity") lists the representations that must stay in sync.
+
+### A released wire version is never tightened
+
+`schemaVersion` is catalog-wide. Once a version ships, archives valid under it must stay valid at
+that number, so any change that is not round-trip compatible needs a new version:
+
+- Add `catalog-manifest-vN` and `resource-detail-vN` schemas, keep the previous ones, and point the
+  unversioned schemas at the new version.
+- Bump `CatalogWireSchema.CURRENT_VERSION` and add an explicit `CatalogV{N-1}ToV{N}Migration`, with
+  golden fixtures under `fixtures/v1/migrations/` and a `fixtures/v1/wire-vN/` copy. Bump the
+  `conformance/` fixtures to the new version.
+- A migration **repairs** what it can with a `CatalogMigrationNotice`, as the v6→v7 keyword
+  normalization does. Input that was already invalid under the old version stays a finding. Never
+  launder it.
+- If the migration rewrites content a fingerprint covers, verify the old fingerprint against the
+  source content too (see `CatalogCanonicalizer.matchesSourceV4Fingerprint`), or every migrated
+  archive reports a fingerprint mismatch.
+- Bump `x-epistola-catalog-contract.wireSchemaVersion` in `openapi.yaml`. The server stubs'
+  `CatalogContractVersionTest` fails until you do.
+
+### Rules consumers enforce live here, once
+
+A rule both producers and consumers apply, such as the keyword limits in `CatalogKeywords`, is
+defined in the catalog module and exported to Kotlin and TypeScript. Tests hold it to the schema,
+so Suite and Exchange stop keeping their own copies. Enforce it in the migrator's wire check and
+in `CatalogValidator`, **not in model constructors or Jackson binding**. Exchange rebinds manifests
+it stored under older versions with plain Jackson, and those must keep loading.
+
+TypeScript types are generated with json2ts. It renders an array bound (`maxItems`) as a union of
+every tuple length, which makes a plain `string[]` unassignable. `generate-schema-types.mjs` turns
+that off for the manifest, and `test/wire-types.ts` guards it.
 
 ## Validation
 

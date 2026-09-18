@@ -35,3 +35,21 @@ When changing the public catalog wire model, keep every contract representation 
   generated files by hand.
 - Update versioned fixtures and parity/conformance tests where the wire behavior changes.
 - Run both the JVM catalog tests and the npm wire/build checks before committing.
+
+A released `schemaVersion` is never tightened in place. A change that is not round-trip compatible
+needs a new wire version:
+
+- Add new versioned schemas and keep the previous ones.
+- Bump `CatalogWireSchema.CURRENT_VERSION` and add an explicit migration that repairs with notices.
+- Add golden fixtures under `fixtures/v1/migrations/` and `fixtures/v1/wire-vN/`.
+- Bump the conformance fixtures.
+- Bump `x-epistola-catalog-contract.wireSchemaVersion` in `contracts/api/openapi.yaml`, which the
+  server stubs' `CatalogContractVersionTest` enforces.
+
+Define rules that consumers also enforce (such as `CatalogKeywords`) once in the catalog module,
+and export them to Kotlin and TypeScript with parity tests against the schema. Enforce them in the
+migrator and validator, never in model constructors: consumers rebind stored manifests.
+
+A catalog change also reaches the API side. The server stubs build against the catalog source, so
+run `make build` and `make conformance` from the repository root as well. `CLAUDE.md` ("The
+portable catalog contract") has the detail.
