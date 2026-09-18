@@ -73,14 +73,17 @@ info:
     the roles stored on an API key. Platform-only tenant management uses the
     `TENANT_MANAGER` platform role.
   version: "1.2.0"
-x-epistola-catalog-contract:
-  wireSchemaVersion: 4
-  templateModelVersion: 1
   contact:
     name: Epistola Team
   license:
     name: EUPL-1.2
     identifier: EUPL-1.2
+
+# Catalog wire and template-model versions this API expects. The server stubs' CatalogContractVersionTest
+# holds them to the catalog build.
+x-epistola-catalog-contract:
+  wireSchemaVersion: 7
+  templateModelVersion: 1
 
 servers:
   - url: /api

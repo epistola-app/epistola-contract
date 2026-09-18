@@ -37,6 +37,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   As with v6, a consumer on an older artifact cannot read an archive emitted at v7. The generated
   TypeScript `schemaVersion` literal is now `7`.
 
+  `x-epistola-catalog-contract` in the API spec now declares `wireSchemaVersion: 7`. It still
+  said `4`, having fallen behind at v5 and v6 because nothing checked it. The server stubs build
+  against the catalog source, so a new `CatalogContractVersionTest` there holds both declared
+  versions to the catalog.
+- Fixed the API spec's `info` losing its `contact` and `license`. Since the contract domains were
+  reorganized, `x-epistola-catalog-contract` sat between `info.version` and `info.contact` at the top
+  level. That closed `info` and made `contact` and `license` children of the extension. It is now a
+  top-level key of its own, `info` carries its contact and EUPL-1.2 license again, and Redocly's
+  `info-license` warning is gone. Generated clients pick the license and contact up from `info`
+  again.
+
 - Fixed the snapshot build on `main`. Every run that built the Jakarta EE client has failed in its
   tests since that client was added. The Jakarta snapshot has never been published, and because
   the publish job waits on every build, no JVM snapshot has been published for any spec change
