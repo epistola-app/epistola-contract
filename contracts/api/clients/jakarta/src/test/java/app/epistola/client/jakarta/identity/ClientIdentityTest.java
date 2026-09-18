@@ -43,8 +43,11 @@ class ClientIdentityTest {
 
         assertNotNull(version);
         assertFalse("unknown".equals(version), "the build should have written epistola-contract-version.txt");
+        // CI stamps the bundled spec with the artifact version (.github/actions/calculate-version),
+        // so all three of its shapes reach this resource: 1.2.3 for a release, 1.2-SNAPSHOT on
+        // main, and 1.2.0-<branch>-SNAPSHOT on a feature branch.
         assertTrue(
-                version.matches("\\d+\\.\\d+\\.\\d+(-SNAPSHOT)?"),
+                version.matches("\\d+\\.\\d+(\\.\\d+)?(-[\\w.-]+)?"),
                 "expected a spec version, got: " + version);
     }
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed the snapshot build on `main`. Every run that built the Jakarta EE client has failed in its
+  tests since that client was added. The Jakarta snapshot has never been published, and because
+  the publish job waits on every build, no JVM snapshot has been published for any spec change
+  since. `ClientIdentityTest` required a three-part contract version, but CI stamps the bundled spec
+  with the artifact version, and a snapshot's is `1.2-SNAPSHOT`. Pull request builds do not stamp a
+  version, so they never saw it. The test now accepts all three shapes CI produces. The client
+  itself was correct: the server reads the contract version as an opaque string.
+
 - Added images to the API — `listImages`, `uploadImage`, `downloadImageContent` and `deleteImage`
   under `/tenants/{tenantId}/catalogs/{catalogId}/images`, with `ImageDto` and `ImageListResponse` —
   and deprecated the asset operations, `AssetDto` and `AssetListResponse` in their favour, for
