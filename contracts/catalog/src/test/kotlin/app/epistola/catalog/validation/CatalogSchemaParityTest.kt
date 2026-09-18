@@ -23,7 +23,7 @@ class CatalogSchemaParityTest {
     @Test
     fun `template resource schema exposes pdfa enabled with the Kotlin default`() {
         val schema = requireNotNull(
-            javaClass.getResourceAsStream("/META-INF/epistola-catalog/schemas/resource-detail-v6.schema.json"),
+            javaClass.getResourceAsStream("/META-INF/epistola-catalog/schemas/resource-detail-v7.schema.json"),
         ).use(jsonMapper()::readTree)
         val property = schema["\$defs"]["TemplateResource"]["properties"]["pdfaEnabled"]
 

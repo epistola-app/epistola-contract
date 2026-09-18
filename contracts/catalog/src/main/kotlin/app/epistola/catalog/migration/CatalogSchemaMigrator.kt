@@ -4,7 +4,9 @@
 
 package app.epistola.catalog.migration
 
+import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.KeywordRule
 import app.epistola.catalog.protocol.ResourceDetail
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.node.ObjectNode
@@ -20,7 +22,7 @@ import java.io.InputStream
  * [BASELINE_VERSION] through [CURRENT_VERSION].
  */
 object CatalogWireSchema {
-    const val CURRENT_VERSION: Int = 6
+    const val CURRENT_VERSION: Int = 7
     const val BASELINE_VERSION: Int = 4
 }
 
@@ -73,18 +75,30 @@ object CatalogMigrationCodes {
     const val STALE_DRAFT_MARKER_REMOVED = "CATALOG_STALE_DRAFT_MARKER_REMOVED"
     const val KEYWORD_INVALID = "CATALOG_KEYWORD_INVALID"
     const val KEYWORD_DUPLICATE = "CATALOG_KEYWORD_DUPLICATE"
+    const val KEYWORD_TOO_LONG = "CATALOG_KEYWORD_TOO_LONG"
+    const val KEYWORD_LIMIT_EXCEEDED = "CATALOG_KEYWORD_LIMIT_EXCEEDED"
+
+    /** Notice: a catalog-v6 keyword was rewritten to its catalog-v7 form. */
+    const val KEYWORD_NORMALIZED = "CATALOG_KEYWORD_NORMALIZED"
+
+    /** Notice: a catalog-v6 keyword was rewritten and shortened to fit the catalog-v7 length limit. */
+    const val KEYWORD_TRUNCATED = "CATALOG_KEYWORD_TRUNCATED"
+
+    /** Notice: a catalog-v6 keyword had no letters or digits, or exceeded the catalog-v7 keyword limit. */
+    const val KEYWORD_REMOVED = "CATALOG_KEYWORD_REMOVED"
 }
 
 /**
  * Portable catalog-wide wire-version gate.
  *
- * Catalog v4 is the migration baseline and v6 is the only emitted shape.
+ * Catalog v4 is the migration baseline and v7 is the only emitted shape.
  */
 object CatalogSchemaMigrator {
     private val mapper = jsonMapper { addModule(kotlinModule()) }
     private val migrations: List<CatalogSchemaMigration> = listOf(
         CatalogV4ToV5Migration(),
         CatalogV5ToV6Migration(),
+        CatalogV6ToV7Migration(),
     )
 
     /**
@@ -167,28 +181,27 @@ object CatalogSchemaMigrator {
 
     private fun validateManifestWireValues(tree: ObjectNode): List<CatalogMigrationFinding> {
         val keywords = tree["catalog"]?.get("keywords")?.takeIf { it.isArray } ?: return emptyList()
-        val findings = mutableListOf<CatalogMigrationFinding>()
-        val seen = mutableSetOf<String>()
-        keywords.forEachIndexed { index, node ->
-            if (!node.isString) return@forEachIndexed
-            val keyword = node.asString()
-            val path = "catalog.json.catalog.keywords[$index]"
-            if (keyword.isBlank() || keyword != keyword.trim()) {
-                findings += CatalogMigrationFinding(
-                    CatalogMigrationCodes.KEYWORD_INVALID,
-                    path,
-                    "keyword must be nonblank and must not contain leading or trailing whitespace",
-                )
-            }
-            if (!seen.add(keyword)) {
-                findings += CatalogMigrationFinding(
-                    CatalogMigrationCodes.KEYWORD_DUPLICATE,
-                    path,
-                    "keyword '$keyword' is duplicated",
-                )
+        // Binding would coerce a number to a string, so reject non-strings here.
+        val nonStrings = keywords.mapIndexedNotNull { index, node ->
+            if (node.isString) {
+                null
+            } else {
+                CatalogMigrationFinding(CatalogMigrationCodes.KEYWORD_INVALID, "catalog.json.catalog.keywords[$index]", "keyword must be a string")
             }
         }
-        return findings
+        if (nonStrings.isNotEmpty()) return nonStrings
+        return CatalogKeywords.violations(keywords.mapTo(mutableListOf()) { it.asString() }).map { violation ->
+            CatalogMigrationFinding(
+                code = when (violation.rule) {
+                    KeywordRule.INVALID -> CatalogMigrationCodes.KEYWORD_INVALID
+                    KeywordRule.TOO_LONG -> CatalogMigrationCodes.KEYWORD_TOO_LONG
+                    KeywordRule.DUPLICATE -> CatalogMigrationCodes.KEYWORD_DUPLICATE
+                    KeywordRule.LIMIT_EXCEEDED -> CatalogMigrationCodes.KEYWORD_LIMIT_EXCEEDED
+                },
+                path = violation.index?.let { "catalog.json.catalog.keywords[$it]" } ?: "catalog.json.catalog.keywords",
+                message = violation.message,
+            )
+        }
     }
 
     private fun versionFinding(

@@ -6,6 +6,7 @@ package app.epistola.catalog.archive
 
 import app.epistola.catalog.canonical.CatalogCanonicalizer
 import app.epistola.catalog.canonical.CatalogFingerprintVersion
+import app.epistola.catalog.migration.CatalogWireSchema.CURRENT_VERSION
 import app.epistola.catalog.protocol.AssetResource
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogManifest
@@ -18,7 +19,9 @@ import app.epistola.catalog.validation.CatalogValidator
 import org.apache.commons.compress.archivers.zip.UnixStat
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
+import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jsonMapper
+import tools.jackson.module.kotlin.kotlinModule
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipEntry
@@ -99,11 +102,48 @@ class CatalogArchiveCodecTest {
             ).also { it.sourceSchemaVersion = 5 }
 
             CatalogArchiveReader.read(ByteArrayInputStream(write(withLegacyFingerprint))).archive!!.use { rewritten ->
-                assertEquals(6, rewritten.sourceSchemaVersion)
+                assertEquals(CURRENT_VERSION, rewritten.sourceSchemaVersion)
                 assertEquals(CatalogCanonicalizer.currentFingerprint(rewritten).value, rewritten.manifest.release.fingerprint)
                 assertTrue(CatalogValidator.validate(rewritten).valid)
             }
         }
+    }
+
+    @Test
+    fun `a v6 catalog signed over authored keywords validates and re-exports as v7 with normalized keywords`() {
+        val sourceKeywords = listOf("Financiële Zaken", "Getting Started", "Klantcontactcentrumrapportage 2026", "Letters", "letters")
+        val v6Zip = signedV6Zip(sourceKeywords)
+
+        val read = CatalogArchiveReader.read(ByteArrayInputStream(v6Zip))
+        assertEquals(emptyList(), read.findings)
+        assertEquals(
+            listOf("CATALOG_KEYWORD_NORMALIZED", "CATALOG_KEYWORD_NORMALIZED", "CATALOG_KEYWORD_TRUNCATED", "CATALOG_KEYWORD_NORMALIZED"),
+            read.migrationNotices.map { it.code },
+        )
+        assertEquals(emptyList(), CatalogValidator.validate(ByteArrayInputStream(v6Zip)).findings)
+
+        val reExported = assertNotNull(read.archive).use(::write)
+        val reRead = CatalogArchiveReader.read(ByteArrayInputStream(reExported))
+        assertNotNull(reRead.archive).use { rewritten ->
+            assertEquals(CURRENT_VERSION, rewritten.sourceSchemaVersion)
+            assertEquals(emptyList(), reRead.migrationNotices)
+            assertEquals(
+                listOf("financiele-zaken", "getting-started", "klantcontactcentrumrapportage", "letters"),
+                rewritten.manifest.catalog.keywords.toList(),
+            )
+            assertEquals(CatalogCanonicalizer.currentFingerprint(rewritten).value, rewritten.manifest.release.fingerprint)
+            assertEquals(emptyList(), CatalogValidator.validate(rewritten).findings)
+        }
+    }
+
+    @Test
+    fun `a v6 fingerprint over different keywords still mismatches after migration`() {
+        val tampered = signedV6Zip(listOf("Letters"), shippedKeywords = listOf("Dutch"))
+
+        assertTrue(
+            CatalogValidator.validate(ByteArrayInputStream(tampered)).findings
+                .any { it.code == "CATALOG_RELEASE_FINGERPRINT_MISMATCH" },
+        )
     }
 
     @Test
@@ -223,9 +263,9 @@ class CatalogArchiveCodecTest {
     }
 
     private fun validCatalog(): CatalogArchive {
-        val detail = ResourceDetail(6, ThemeResource(slug = "default", name = "Default"))
+        val detail = ResourceDetail(CURRENT_VERSION, ThemeResource(slug = "default", name = "Default"))
         val manifest = CatalogManifest(
-            schemaVersion = 6,
+            schemaVersion = CURRENT_VERSION,
             catalog = CatalogInfo("example", "Example"),
             publisher = PublisherInfo("Example"),
             release = ReleaseInfo("1.0.0"),
@@ -251,7 +291,7 @@ class CatalogArchiveCodecTest {
         bytes: ByteArray,
     ): CatalogArchive {
         val detail = ResourceDetail(
-            6,
+            CURRENT_VERSION,
             AssetResource(
                 slug = "logo",
                 name = "Logo",
@@ -260,7 +300,7 @@ class CatalogArchiveCodecTest {
             ),
         )
         val manifest = CatalogManifest(
-            schemaVersion = 6,
+            schemaVersion = CURRENT_VERSION,
             catalog = CatalogInfo("example", "Example"),
             publisher = PublisherInfo("Example"),
             release = ReleaseInfo("1.0.0"),
@@ -294,6 +334,34 @@ class CatalogArchiveCodecTest {
     ) {
         assertNull(result.archive)
         assertTrue(result.findings.any { it.code == code }, "Expected $code; got ${result.findings}")
+    }
+
+    /**
+     * A wire-v6 archive whose V4 fingerprint a v6 producer computed over [signedKeywords], shipping
+     * [shippedKeywords] in its manifest.
+     */
+    private fun signedV6Zip(
+        signedKeywords: List<String>,
+        shippedKeywords: List<String> = signedKeywords,
+    ): ByteArray {
+        val mapper = jsonMapper { addModule(kotlinModule()) }
+        val detailBytes = fixtureBytes("wire-v6/resources/theme/default.json")
+        fun manifestTree(keywords: List<String>) = (mapper.readTree(fixtureBytes("wire-v6/catalog.json")) as ObjectNode).also { tree ->
+            (tree["catalog"] as ObjectNode).putArray("keywords").also { array -> keywords.forEach(array::add) }
+        }
+        val signed = CatalogArchive(
+            manifest = mapper.treeToValue(manifestTree(signedKeywords), CatalogManifest::class.java),
+            resourceDetails = mapOf("theme/default" to mapper.readValue(detailBytes, ResourceDetail::class.java)),
+            paths = setOf("resources/theme/default.json"),
+            content = ArchiveContentProvider { ByteArrayInputStream(detailBytes) },
+        )
+        val shipped = manifestTree(shippedKeywords).also { tree ->
+            (tree["release"] as ObjectNode).put("fingerprint", CatalogCanonicalizer.currentFingerprint(signed).value)
+        }
+        return zip(
+            "catalog.json" to mapper.writeValueAsBytes(shipped),
+            "resources/theme/default.json" to detailBytes,
+        )
     }
 
     private fun fixtureBytes(path: String): ByteArray = requireNotNull(

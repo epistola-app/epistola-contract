@@ -1,0 +1,47 @@
+[
+  {
+    "code": "CATALOG_KEYWORD_REMOVED",
+    "path": "catalog.json.catalog.keywords[0]",
+    "message": "keyword '!!!' was removed because it contains no letters or digits"
+  },
+  {
+    "code": "CATALOG_KEYWORD_NORMALIZED",
+    "path": "catalog.json.catalog.keywords[1]",
+    "message": "keyword 'Dutch' was normalized to 'dutch'"
+  },
+  {
+    "code": "CATALOG_KEYWORD_NORMALIZED",
+    "path": "catalog.json.catalog.keywords[2]",
+    "message": "keyword 'Financiële Zaken' was normalized to 'financiele-zaken'"
+  },
+  {
+    "code": "CATALOG_KEYWORD_NORMALIZED",
+    "path": "catalog.json.catalog.keywords[3]",
+    "message": "keyword 'Getting Started' was normalized to 'getting-started'"
+  },
+  {
+    "code": "CATALOG_KEYWORD_TRUNCATED",
+    "path": "catalog.json.catalog.keywords[4]",
+    "message": "keyword 'Klantcontactcentrumrapportage 2026' was shortened to 'klantcontactcentrumrapportage' to fit 30 characters"
+  },
+  {
+    "code": "CATALOG_KEYWORD_NORMALIZED",
+    "path": "catalog.json.catalog.keywords[5]",
+    "message": "keyword 'Letters' was normalized to 'letters' and merged with an identical keyword"
+  },
+  {
+    "code": "CATALOG_KEYWORD_NORMALIZED",
+    "path": "catalog.json.catalog.keywords[6]",
+    "message": "keyword 'WOZ/OZB' was normalized to 'woz-ozb'"
+  },
+  {
+    "code": "CATALOG_KEYWORD_REMOVED",
+    "path": "catalog.json.catalog.keywords[22]",
+    "message": "keyword 'zorg' was removed because a catalog may list at most 20 keywords"
+  },
+  {
+    "code": "CATALOG_KEYWORD_REMOVED",
+    "path": "catalog.json.catalog.keywords[23]",
+    "message": "keyword 'zwembaden' was removed because a catalog may list at most 20 keywords"
+  }
+]

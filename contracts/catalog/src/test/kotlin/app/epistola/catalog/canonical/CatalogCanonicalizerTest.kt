@@ -6,6 +6,7 @@ package app.epistola.catalog.canonical
 
 import app.epistola.catalog.archive.ArchiveContentProvider
 import app.epistola.catalog.archive.CatalogArchive
+import app.epistola.catalog.migration.CatalogWireSchema.CURRENT_VERSION
 import app.epistola.catalog.protocol.AttributeAssignment
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogLicense
@@ -124,7 +125,7 @@ class CatalogCanonicalizerTest {
         val locale = AttributeAssignment("system", "locale", "nl-NL")
         val brand = AttributeAssignment("system", "brand", "epistola")
         val baseInfo = CatalogInfo.create("fixture", "Fixture", attributes = listOf(locale, brand))
-        val base = original.copyWithManifest(original.manifest.copy(schemaVersion = 6, catalog = baseInfo))
+        val base = original.copyWithManifest(original.manifest.copy(schemaVersion = CURRENT_VERSION, catalog = baseInfo))
         val keyword = base.copyWithManifest(
             base.manifest.copy(catalog = baseInfo.copyWithMetadata(keywords = setOf("government"))),
         )
@@ -252,7 +253,7 @@ class CatalogCanonicalizerTest {
             slots = emptyMap(),
         )
         val detail = ResourceDetail(
-            schemaVersion = 6,
+            schemaVersion = CURRENT_VERSION,
             resource = TemplateResource(
                 slug = "permit-confirmation",
                 name = "Permit confirmation",
@@ -278,7 +279,7 @@ class CatalogCanonicalizerTest {
             ),
         )
         return CatalogArchive(
-            manifest = goldenArchive().manifest.copy(schemaVersion = 6, resources = emptyList()),
+            manifest = goldenArchive().manifest.copy(schemaVersion = CURRENT_VERSION, resources = emptyList()),
             resourceDetails = mapOf("template/permit-confirmation" to detail),
             paths = emptySet(),
             content = ArchiveContentProvider { error("unexpected archive content read") },

@@ -86,7 +86,7 @@ sealed class DependencyRef {
  * Stable catalog identity, human-readable metadata, and authored discovery metadata.
  *
  * The three-argument constructor preserves source compatibility for existing producers. Use
- * [create] or [copyWithMetadata] when setting catalog-v6 metadata.
+ * [create] or [copyWithMetadata] when setting discovery metadata.
  */
 class CatalogInfo private constructor(
     val slug: String,
@@ -100,14 +100,19 @@ class CatalogInfo private constructor(
     /** Immutable attributes applied to this catalog, preserving authored order. */
     val attributes: List<AttributeAssignment> = Collections.unmodifiableList(attributes.toList())
 
-    /** Deterministically ordered, immutable authored catalog keywords. */
+    /**
+     * Deterministically ordered, immutable authored catalog keywords.
+     *
+     * Wire v7 restricts keywords to [CatalogKeywords] rules. The model does not enforce them, so
+     * manifests stored under an earlier wire version still bind; the migrator and validator do.
+     */
     val keywords: Set<String> = immutableSortedSet(keywords)
 
     /** Source-compatible constructor retained from catalog 1.0.1. */
     constructor(slug: String, name: String, description: String? = null) :
         this(slug, name, description, emptyList(), emptySet(), null, null)
 
-    /** Copies the catalog while replacing any catalog-v6 metadata. */
+    /** Copies the catalog while replacing any discovery metadata. */
     fun copyWithMetadata(
         attributes: List<AttributeAssignment> = this.attributes,
         keywords: Set<String> = this.keywords,
@@ -140,7 +145,7 @@ class CatalogInfo private constructor(
         "attributes=$attributes, keywords=$keywords, presentation=$presentation, license=$license)"
 
     companion object {
-        /** Creates a catalog identity with optional catalog-v6 metadata. */
+        /** Creates a catalog identity with optional discovery metadata. */
         @JvmStatic
         @JsonCreator
         fun create(

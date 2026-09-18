@@ -30,7 +30,7 @@ value class CatalogFingerprint(val value: String)
  * Versioned canonicalization algorithms accepted by the contract.
  *
  * V1 through V3 are retained for fingerprints already stored by older producers.
- * V4 is the current catalog-v6 algorithm and includes authored discovery metadata.
+ * V4 is the current algorithm, introduced with catalog v6, and includes authored discovery metadata.
  */
 enum class CatalogFingerprintVersion {
     V1,
@@ -58,7 +58,7 @@ object CatalogCanonicalizer {
      */
     fun fingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V1)
 
-    /** Produces the current catalog-v6 V4 fingerprint. */
+    /** Produces the current V4 fingerprint. */
     fun currentFingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V4)
 
     /**
@@ -106,6 +106,33 @@ object CatalogCanonicalizer {
         version: CatalogFingerprintVersion,
     ): Boolean = fingerprint(catalog, version).value == expected
 
+    /**
+     * Whether [expected] is the V4 fingerprint of [catalog] either as migrated or with the keywords
+     * its source `catalog.json` carried.
+     *
+     * Migrating catalog-v6 keywords to catalog v7 may rewrite them, so a fingerprint a v6 producer
+     * computed over the original keywords no longer matches the migrated content.
+     */
+    internal fun matchesSourceV4Fingerprint(
+        catalog: CatalogArchive,
+        expected: String,
+    ): Boolean {
+        if (matchesFingerprint(catalog, expected, CatalogFingerprintVersion.V4)) return true
+        val sourceKeywords = sourceKeywords(catalog) ?: return false
+        val info = catalog.manifest.catalog.copyWithMetadata(keywords = sourceKeywords)
+        return sha256(canonicalV4(catalog, currentEntries(catalog), info).byteInputStream()) == expected
+    }
+
+    /** Keywords exactly as the archive's raw `catalog.json` lists them, or null when unavailable. */
+    private fun sourceKeywords(catalog: CatalogArchive): Set<String>? {
+        if ("catalog.json" !in catalog.paths) return null
+        val keywords = catalog.content.open("catalog.json").use { input -> mapper.readTree(input) }
+            .get("catalog")?.get("keywords")
+            ?.takeIf { it.isArray && it.all { keyword -> keyword.isString } }
+            ?: return null
+        return keywords.mapTo(linkedSetOf()) { it.asString() }
+    }
+
     private fun canonicalV1(
         catalog: CatalogArchive,
         entries: List<Entry>,
@@ -119,9 +146,10 @@ object CatalogCanonicalizer {
         catalog: CatalogArchive,
         entries: List<Entry>,
         includeV6Metadata: Boolean,
+        info: CatalogInfo = catalog.manifest.catalog,
     ): String = buildString {
         append("manifest ")
-            .append(canonicalManifestJson(catalog, includeV6Metadata))
+            .append(canonicalManifestJson(catalog, includeV6Metadata, info))
             .append('\n')
         appendEntries(entries)
     }
@@ -129,9 +157,10 @@ object CatalogCanonicalizer {
     private fun canonicalV4(
         catalog: CatalogArchive,
         entries: List<Entry>,
+        info: CatalogInfo = catalog.manifest.catalog,
     ): String = buildString {
         append("algorithm sha256-v4\n")
-        append(canonicalV2(catalog, entries, includeV6Metadata = true))
+        append(canonicalV2(catalog, entries, includeV6Metadata = true, info))
     }
 
     private fun StringBuilder.appendEntries(entries: List<Entry>) {
@@ -145,10 +174,11 @@ object CatalogCanonicalizer {
     private fun canonicalManifestJson(
         catalog: CatalogArchive,
         includeV6Metadata: Boolean,
+        info: CatalogInfo,
     ): String {
         val manifest = catalog.manifest
         val canonical = linkedMapOf<String, Any?>(
-            "catalog" to canonicalCatalogInfo(manifest.catalog, includeV6Metadata),
+            "catalog" to canonicalCatalogInfo(info, includeV6Metadata),
             "publisher" to manifest.publisher,
             "compatibility" to manifest.compatibility,
             "includes" to manifest.includes.orEmpty().sortedWith(compareBy({ it.url }, { it.description })),

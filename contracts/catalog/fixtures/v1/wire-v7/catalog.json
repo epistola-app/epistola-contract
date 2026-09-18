@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 7,
+  "catalog": {
+    "slug": "fixture",
+    "name": "Fixture Catalog",
+    "description": "Portable golden fixture",
+    "attributes": [
+      {
+        "catalog": "system",
+        "key": "locale",
+        "value": "nl-NL"
+      }
+    ],
+    "keywords": ["documents", "government"],
+    "presentation": null,
+    "license": {
+      "name": "Creative Commons Attribution 4.0 International",
+      "spdxExpression": "CC-BY-4.0",
+      "url": "https://creativecommons.org/licenses/by/4.0/",
+      "copyrightText": "Copyright 2026 Example Publisher"
+    }
+  },
+  "publisher": {
+    "name": "Epistola"
+  },
+  "release": {
+    "version": "1.0.0"
+  },
+  "resources": [
+    {
+      "type": "theme",
+      "slug": "default",
+      "name": "Default",
+      "detailUrl": "./resources/theme/default.json"
+    }
+  ],
+  "dependencies": []
+}
