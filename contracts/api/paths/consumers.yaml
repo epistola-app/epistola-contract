@@ -2,7 +2,7 @@
 
 consumer-register:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant
@@ -54,7 +54,7 @@ consumer-register:
 
 consumer-collection:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant
@@ -103,7 +103,7 @@ consumer-collection:
 
 consumer-resource:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant
@@ -183,7 +183,7 @@ consumer-resource:
       - Uncollected generation results remain in the system but are no longer
         deliverable via the `/generation/collect` endpoint.
       - Generated documents can still be accessed directly via
-        `GET /tenants/{tenantKey}/documents/{documentId}`.
+        `GET /tenants/{tenantId}/documents/{documentId}`.
       - The `createdBy` field on documents retains the consumer ID
         (orphaned reference).
     tags:
@@ -201,7 +201,7 @@ consumer-resource:
 
 consumer-approve:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant
@@ -254,7 +254,7 @@ consumer-approve:
 
 consumer-reject:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant
@@ -306,7 +306,7 @@ consumer-reject:
 
 consumer-public-key:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant

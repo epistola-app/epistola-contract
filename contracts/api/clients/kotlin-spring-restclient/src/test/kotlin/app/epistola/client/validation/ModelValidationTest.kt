@@ -189,6 +189,7 @@ class ModelValidationTest {
     fun `VersionDto validates integer id and slug variantId together`() {
         val now = OffsetDateTime.now()
         val valid = VersionDto(
+            key = 1,
             id = 1,
             variantId = "english",
             status = VersionDto.Status.published,
@@ -214,6 +215,7 @@ class ModelValidationTest {
     fun `VersionDto rejects id above 200`() {
         assertFailsWith<IllegalArgumentException> {
             VersionDto(
+                key = 201,
                 id = 201,
                 variantId = "english",
                 status = VersionDto.Status.draft,
@@ -226,6 +228,7 @@ class ModelValidationTest {
     fun `VersionDto rejects invalid variantId pattern`() {
         assertFailsWith<IllegalArgumentException> {
             VersionDto(
+                key = 1,
                 id = 1,
                 variantId = "English",
                 status = VersionDto.Status.draft,

@@ -51,6 +51,7 @@ class TemplateSchemaValidatorTest {
     )
 
     private fun templateDto(schema: Any? = invoiceSchema) = TemplateDto(
+        key = "invoice",
         id = "invoice",
         tenantId = "acme",
         name = "Invoice",

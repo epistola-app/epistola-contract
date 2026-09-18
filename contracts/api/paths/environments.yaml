@@ -1,6 +1,6 @@
 environments:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -71,7 +71,7 @@ environments:
 
 environments-id:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -80,7 +80,7 @@ environments-id:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: environmentKey
+    - name: environmentId
       in: path
       required: true
       description: Slug identifier of the environment (e.g., "production", "staging")

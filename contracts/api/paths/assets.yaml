@@ -1,6 +1,6 @@
 assets:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       schema:
@@ -8,7 +8,7 @@ assets:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       schema:
@@ -127,7 +127,7 @@ assets:
 
 asset-content:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       schema:
@@ -135,7 +135,7 @@ asset-content:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       schema:
@@ -202,7 +202,7 @@ asset-content:
 
 asset-resource:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       schema:
@@ -210,7 +210,7 @@ asset-resource:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       schema:

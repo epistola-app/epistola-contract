@@ -2,7 +2,7 @@
 
 generation-collect:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")

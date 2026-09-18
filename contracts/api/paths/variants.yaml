@@ -1,6 +1,6 @@
 variants:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -9,7 +9,7 @@ variants:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       description: Slug identifier of the catalog
@@ -18,7 +18,7 @@ variants:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: templateKey
+    - name: templateId
       in: path
       required: true
       description: Slug identifier of the template
@@ -87,7 +87,7 @@ variants:
 
 variants-id:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -96,7 +96,7 @@ variants-id:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       description: Slug identifier of the catalog
@@ -105,7 +105,7 @@ variants-id:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: templateKey
+    - name: templateId
       in: path
       required: true
       description: Slug identifier of the template
@@ -114,7 +114,7 @@ variants-id:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: variantKey
+    - name: variantId
       in: path
       required: true
       description: Slug identifier of the variant
@@ -195,7 +195,7 @@ variants-id:
 
 variant-set-default:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -204,7 +204,7 @@ variant-set-default:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       description: Slug identifier of the catalog
@@ -213,7 +213,7 @@ variant-set-default:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: templateKey
+    - name: templateId
       in: path
       required: true
       description: Slug identifier of the template
@@ -222,7 +222,7 @@ variant-set-default:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: variantKey
+    - name: variantId
       in: path
       required: true
       description: Slug identifier of the variant
@@ -255,7 +255,7 @@ variant-set-default:
 
 variant-draft:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -264,7 +264,7 @@ variant-draft:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       description: Slug identifier of the catalog
@@ -273,7 +273,7 @@ variant-draft:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: templateKey
+    - name: templateId
       in: path
       required: true
       description: Slug identifier of the template
@@ -282,7 +282,7 @@ variant-draft:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: variantKey
+    - name: variantId
       in: path
       required: true
       description: Slug identifier of the variant
@@ -375,7 +375,7 @@ variant-draft:
 
 variant-draft-publish:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       schema:
@@ -383,7 +383,7 @@ variant-draft-publish:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       schema:
@@ -391,7 +391,7 @@ variant-draft-publish:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: templateKey
+    - name: templateId
       in: path
       required: true
       schema:
@@ -399,7 +399,7 @@ variant-draft-publish:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: variantKey
+    - name: variantId
       in: path
       required: true
       schema:
@@ -434,7 +434,7 @@ variant-draft-publish:
 
 variant-draft-discard:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       schema:
@@ -442,7 +442,7 @@ variant-draft-discard:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       schema:
@@ -450,7 +450,7 @@ variant-draft-discard:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: templateKey
+    - name: templateId
       in: path
       required: true
       schema:
@@ -458,7 +458,7 @@ variant-draft-discard:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: variantKey
+    - name: variantId
       in: path
       required: true
       schema:
@@ -489,7 +489,7 @@ variant-draft-discard:
 
 variant-activations:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -498,7 +498,7 @@ variant-activations:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       description: Slug identifier of the catalog
@@ -507,7 +507,7 @@ variant-activations:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: templateKey
+    - name: templateId
       in: path
       required: true
       description: Slug identifier of the template
@@ -516,7 +516,7 @@ variant-activations:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: variantKey
+    - name: variantId
       in: path
       required: true
       description: Slug identifier of the variant
@@ -549,7 +549,7 @@ variant-activations:
 
 variant-activation-env:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -558,7 +558,7 @@ variant-activation-env:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       description: Slug identifier of the catalog
@@ -567,7 +567,7 @@ variant-activation-env:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: templateKey
+    - name: templateId
       in: path
       required: true
       description: Slug identifier of the template
@@ -576,7 +576,7 @@ variant-activation-env:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: variantKey
+    - name: variantId
       in: path
       required: true
       description: Slug identifier of the variant
@@ -585,7 +585,7 @@ variant-activation-env:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: environmentKey
+    - name: environmentId
       in: path
       required: true
       description: Slug identifier of the environment (e.g., "production", "staging")
@@ -614,7 +614,7 @@ variant-activation-env:
 
 variant-active:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -623,7 +623,7 @@ variant-active:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       description: Slug identifier of the catalog
@@ -632,7 +632,7 @@ variant-active:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: templateKey
+    - name: templateId
       in: path
       required: true
       description: Slug identifier of the template
@@ -641,7 +641,7 @@ variant-active:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: variantKey
+    - name: variantId
       in: path
       required: true
       description: Slug identifier of the variant

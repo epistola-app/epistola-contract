@@ -1,6 +1,6 @@
 versions:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -9,7 +9,7 @@ versions:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       description: Slug identifier of the catalog
@@ -18,7 +18,7 @@ versions:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: templateKey
+    - name: templateId
       in: path
       required: true
       description: Slug identifier of the template
@@ -27,7 +27,7 @@ versions:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: variantKey
+    - name: variantId
       in: path
       required: true
       description: Slug identifier of the variant
@@ -76,7 +76,7 @@ versions:
 
 versions-id:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -85,7 +85,7 @@ versions-id:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       description: Slug identifier of the catalog
@@ -94,7 +94,7 @@ versions-id:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: templateKey
+    - name: templateId
       in: path
       required: true
       description: Slug identifier of the template
@@ -103,7 +103,7 @@ versions-id:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: variantKey
+    - name: variantId
       in: path
       required: true
       description: Slug identifier of the variant
@@ -112,7 +112,7 @@ versions-id:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: versionKey
+    - name: versionId
       in: path
       required: true
       description: Version identifier (version number, 1-200)
@@ -173,7 +173,7 @@ versions-id:
 
 version-publish:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -182,7 +182,7 @@ version-publish:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       description: Slug identifier of the catalog
@@ -191,7 +191,7 @@ version-publish:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: templateKey
+    - name: templateId
       in: path
       required: true
       description: Slug identifier of the template
@@ -200,7 +200,7 @@ version-publish:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: variantKey
+    - name: variantId
       in: path
       required: true
       description: Slug identifier of the variant
@@ -209,7 +209,7 @@ version-publish:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: versionKey
+    - name: versionId
       in: path
       required: true
       description: Version identifier (version number, 1-200)
@@ -254,7 +254,7 @@ version-publish:
 
 version-archive:
   parameters:
-    - name: tenantKey
+    - name: tenantId
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -263,7 +263,7 @@ version-archive:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogKey
+    - name: catalogId
       in: path
       required: true
       description: Slug identifier of the catalog
@@ -272,7 +272,7 @@ version-archive:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: templateKey
+    - name: templateId
       in: path
       required: true
       description: Slug identifier of the template
@@ -281,7 +281,7 @@ version-archive:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: variantKey
+    - name: variantId
       in: path
       required: true
       description: Slug identifier of the variant
@@ -290,7 +290,7 @@ version-archive:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: versionKey
+    - name: versionId
       in: path
       required: true
       description: Version identifier (version number, 1-200)

@@ -31,10 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead, so during this window you `POST {"id": "invoice"}` and read back
   `{"key": "invoice", "id": "invoice"}`.
 
-- Renamed the address-valued path parameters to match: `{templateId}` is now `{templateKey}`, and
-  likewise for tenant, catalog, variant, version, stencil, theme, code list and font. **No URL
-  changes** — a path parameter's name is internal to the spec, so this only affects generated
-  method signatures. `{documentId}`, `{requestId}` and `{consumerId}` are unchanged.
+  Path parameters keep their current names. Renaming them looked free, because a parameter name is
+  internal to the spec and every URL stays byte-identical — but the generators turn those names into
+  public API: method arguments in the Kotlin client, operation-request properties in the Node one.
+  That is source-breaking for all five published clients, so it belongs in 2.0.0 (#84) rather than
+  a compatible release.
 
 - Added catalog wire v7, which bounds and normalizes catalog keywords (#81). A keyword is now
   lowercase ASCII letters and digits in hyphen-separated parts, at most 30 characters, and a catalog
