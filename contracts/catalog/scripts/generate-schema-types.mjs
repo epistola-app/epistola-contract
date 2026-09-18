@@ -13,8 +13,13 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const schemasDir = resolve(root, 'schemas');
 
+// json2ts renders a bounded array as a union of every tuple length up to its maxItems. For the
+// manifest that would make a plain string[] unassignable to `keywords`, so its bound is left to
+// runtime validation (`MAX_CATALOG_KEYWORDS`) rather than the type.
+const unboundedArrays = ['--maxItems', '0'];
+
 const schemas = [
-  ['catalog-manifest.schema.json', '../generated/catalog-manifest.ts'],
+  ['catalog-manifest.schema.json', '../generated/catalog-manifest.ts', unboundedArrays],
   ['resource-detail.schema.json', '../generated/resource-detail.ts'],
   ['template-document.schema.json', '../generated/template-document.ts'],
   ['template-shared.schema.json', '../generated/template-shared.ts'],
@@ -23,10 +28,10 @@ const schemas = [
   ['style-registry.schema.json', '../generated/style-registry.ts'],
 ];
 
-for (const [input, output] of schemas) {
+for (const [input, output, options = []] of schemas) {
   const result = spawnSync(
     'json2ts',
-    ['--input', input, '--output', output, '--cwd', '.'],
+    ['--input', input, '--output', output, '--cwd', '.', ...options],
     { cwd: schemasDir, stdio: 'inherit' },
   );
   if (result.status !== 0) process.exit(result.status ?? 1);
