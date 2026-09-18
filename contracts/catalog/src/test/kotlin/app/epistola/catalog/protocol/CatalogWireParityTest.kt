@@ -10,6 +10,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class CatalogWireParityTest {
     private val mapper = jsonMapper { addModule(kotlinModule()) }
@@ -35,6 +36,23 @@ class CatalogWireParityTest {
 
         assertEquals(manifest, mapper.readValue(mapper.writeValueAsBytes(manifest), CatalogManifest::class.java))
         assertEquals(detail, mapper.readValue(mapper.writeValueAsBytes(detail), ResourceDetail::class.java))
+    }
+
+    @Test
+    fun `v7 manifest and resource detail round trip through the public Kotlin model`() {
+        val manifest = fixture("wire-v7/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
+        val detail = fixture("wire-v7/resources/theme/default.json").use { mapper.readValue(it, ResourceDetail::class.java) }
+
+        assertEquals(manifest, mapper.readValue(mapper.writeValueAsBytes(manifest), CatalogManifest::class.java))
+        assertEquals(detail, mapper.readValue(mapper.writeValueAsBytes(detail), ResourceDetail::class.java))
+    }
+
+    @Test
+    fun `the model binds keywords that break v7 rules so manifests stored under v6 still load`() {
+        val stored = fixture("migrations/v6-to-v7/manifest-input.json").use { mapper.readValue(it, CatalogManifest::class.java) }
+
+        assertEquals(24, stored.catalog.keywords.size)
+        assertTrue("Getting Started" in stored.catalog.keywords)
     }
 
     @Test
@@ -86,6 +104,8 @@ class CatalogWireParityTest {
             "resource-detail-v5.schema.json",
             "catalog-manifest-v6.schema.json",
             "resource-detail-v6.schema.json",
+            "catalog-manifest-v7.schema.json",
+            "resource-detail-v7.schema.json",
             "resource-detail.schema.json",
         ).forEach { name ->
             assertNotNull(javaClass.getResource("/META-INF/epistola-catalog/schemas/$name"), name)

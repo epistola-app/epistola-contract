@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 7,
+  "catalog": {
+    "slug": "fixture",
+    "name": "Fixture Catalog",
+    "description": "Portable golden fixture",
+    "attributes": [],
+    "keywords": [
+      "afval",
+      "archief",
+      "belastingen",
+      "bezwaar",
+      "brieven",
+      "burgerzaken",
+      "dutch",
+      "financiele-zaken",
+      "gemeente",
+      "getting-started",
+      "handhaving",
+      "jeugd",
+      "klantcontactcentrumrapportage",
+      "letters",
+      "onderwijs",
+      "parkeren",
+      "subsidies",
+      "vergunningen",
+      "verkiezingen",
+      "woz-ozb"
+    ]
+  },
+  "publisher": {
+    "name": "Epistola"
+  },
+  "release": {
+    "version": "1.0.0"
+  },
+  "resources": [],
+  "dependencies": []
+}

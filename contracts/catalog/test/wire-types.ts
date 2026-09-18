@@ -5,6 +5,8 @@
 import type {
   AssetResource,
   AttributeAssignment,
+  CatalogInfo,
+  CatalogKeyword,
   CatalogLicense,
   CatalogManifest,
   CatalogPresentation,
@@ -13,7 +15,7 @@ import type {
 } from '../ts/index.js'
 
 const manifest: CatalogManifest = {
-  schemaVersion: 6,
+  schemaVersion: 7,
   catalog: {
     slug: 'fixture',
     name: 'Fixture',
@@ -25,6 +27,11 @@ const manifest: CatalogManifest = {
   release: { version: '1.0.0' },
   resources: [],
 }
+
+// The schema bounds keywords at 20; the type must stay a plain array rather than a tuple union.
+const authoredKeywords: string[] = ['documents', 'getting-started']
+const keywordCatalog: CatalogInfo = { slug: 'fixture', name: 'Fixture', keywords: authoredKeywords }
+const keyword: CatalogKeyword = 'documents'
 
 const locale: AttributeAssignment = { catalog: 'system', key: 'locale', value: 'nl-NL' }
 const license: CatalogLicense = { name: 'Proprietary', url: 'https://example.test/license' }
@@ -39,11 +46,13 @@ const asset: AssetResource = {
   contentUrl: './resources/asset/logo.svg',
 }
 
-const detail: ResourceDetail = { schemaVersion: 6, resource: asset }
+const detail: ResourceDetail = { schemaVersion: 7, resource: asset }
 const acceptsTemplate = (resource: TemplateResource): TemplateResource => resource
 const pdfaEnabled: TemplateResource['pdfaEnabled'] = false
 
 void manifest
+void keywordCatalog
+void keyword
 void locale
 void license
 void presentation

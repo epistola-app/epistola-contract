@@ -19,6 +19,8 @@ const schemaNames = [
   'resource-detail-v5.schema.json',
   'catalog-manifest-v6.schema.json',
   'resource-detail-v6.schema.json',
+  'catalog-manifest-v7.schema.json',
+  'resource-detail-v7.schema.json',
   'catalog-manifest.schema.json',
   'resource-detail.schema.json',
 ];
@@ -32,8 +34,12 @@ const cases = [
   ['resource-detail-v5.schema.json', 'fixtures/v1/wire-v5/resources/theme/default.json'],
   ['catalog-manifest-v6.schema.json', 'fixtures/v1/wire-v6/catalog.json'],
   ['resource-detail-v6.schema.json', 'fixtures/v1/wire-v6/resources/theme/default.json'],
-  ['catalog-manifest.schema.json', 'fixtures/v1/wire-v6/catalog.json'],
-  ['resource-detail.schema.json', 'fixtures/v1/wire-v6/resources/theme/default.json'],
+  ['catalog-manifest-v6.schema.json', 'fixtures/v1/migrations/v6-to-v7/manifest-input.json'],
+  ['catalog-manifest-v7.schema.json', 'fixtures/v1/wire-v7/catalog.json'],
+  ['resource-detail-v7.schema.json', 'fixtures/v1/wire-v7/resources/theme/default.json'],
+  ['catalog-manifest-v7.schema.json', 'fixtures/v1/migrations/v6-to-v7/manifest-expected.json'],
+  ['catalog-manifest.schema.json', 'fixtures/v1/wire-v7/catalog.json'],
+  ['resource-detail.schema.json', 'fixtures/v1/wire-v7/resources/theme/default.json'],
 ];
 
 for (const [schemaName, fixtureName] of cases) {
@@ -74,4 +80,40 @@ for (const license of [
   const invalid = await readJson('fixtures/v1/wire-v6/catalog.json');
   invalid.catalog.license = license;
   assert.equal(validateV6Manifest(invalid), false, `invalid catalog license was accepted: ${JSON.stringify(license)}`);
+}
+
+const validateV7Manifest = ajv.getSchema('https://epistola.app/schemas/catalog-manifest-v7.schema.json');
+const withV7Keywords = async (keywords) => {
+  const manifest = await readJson('fixtures/v1/wire-v7/catalog.json');
+  manifest.catalog.keywords = keywords;
+  return manifest;
+};
+const numbered = (count) => Array.from({ length: count }, (_, index) => `keyword-${index}`);
+
+for (const keywords of [['1-loket', 'getting-started'], ['a'.repeat(30)], numbered(20), [], null]) {
+  const manifest = await withV7Keywords(keywords);
+  assert.equal(validateV7Manifest(manifest), true, `valid v7 keywords were rejected: ${JSON.stringify(keywords)}: ${ajv.errorsText(validateV7Manifest.errors)}`);
+}
+
+for (const keywords of [
+  ['Government'],
+  ['getting started'],
+  ['financiële'],
+  ['-a'],
+  ['a-'],
+  ['a--b'],
+  ['snake_case'],
+  [''],
+  ['a'.repeat(31)],
+  ['documents', 'documents'],
+  numbered(21),
+]) {
+  const manifest = await withV7Keywords(keywords);
+  assert.equal(validateV7Manifest(manifest), false, `invalid v7 keywords were accepted: ${JSON.stringify(keywords)}`);
+}
+
+const normalization = await readJson('fixtures/v1/migrations/v6-to-v7/keyword-normalization.json');
+for (const { input, expected } of normalization.cases.filter((entry) => entry.expected !== null)) {
+  const manifest = await withV7Keywords([expected]);
+  assert.equal(validateV7Manifest(manifest), true, `normalization of ${JSON.stringify(input)} is not a valid v7 keyword: ${expected}`);
 }

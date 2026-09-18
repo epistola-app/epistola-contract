@@ -72,19 +72,21 @@ manifest/detail consistency, required files, resource references, resource-speci
 data schemas and examples, release metadata, and the canonical fingerprint. I/O failures remain
 exceptions; ordinary invalid content is returned as deterministic findings.
 
-For wire v6 discovery metadata, catalog attributes use an explicit `catalog`, `key`, and `value`.
-Catalog and key follow the normal lowercase slug syntax, and a catalog may assign each qualified
-attribute at most once. Attribute values remain generic: Suite and Exchange validate them against
-the referenced attribute definition. Keywords preserve authored case and text, must be trimmed and
-nonblank, and may not contain exact duplicates. Catalog icon and ordered gallery slugs resolve only
-against image assets in the same catalog; missing resources, non-assets, non-image media types, and
-duplicate gallery entries have separate stable finding codes. The icon may also appear in the
-gallery.
+For catalog discovery metadata (wire v6 and later), catalog attributes use an explicit `catalog`,
+`key`, and `value`. Catalog and key follow the normal lowercase slug syntax, and a catalog may
+assign each qualified attribute at most once. Attribute values remain generic: Suite and Exchange
+validate them against the referenced attribute definition. From wire v7, keywords are lowercase
+ASCII letters and digits in hyphen-separated parts, at most 30 characters, unique, and at most 20
+per catalog (`CATALOG_KEYWORD_INVALID`, `CATALOG_KEYWORD_TOO_LONG`, `CATALOG_KEYWORD_DUPLICATE`,
+`CATALOG_KEYWORD_LIMIT_EXCEEDED`). The migrator's wire check applies the same rules before binding.
+Catalog icon and ordered gallery slugs resolve only against image assets in the same catalog;
+missing resources, non-assets, non-image media types, and duplicate gallery entries have separate
+stable finding codes. The icon may also appear in the gallery.
 
 Optional catalog-wide license metadata requires a trimmed, nonblank display name. SPDX expressions
 and copyright text, when supplied, must also be trimmed and nonblank; the contract preserves but
 does not resolve or legally interpret SPDX expressions. License URLs must be absolute HTTP or HTTPS
-URLs. Resource-level license overrides are not part of wire v6.
+URLs. Resource-level license overrides are not part of the wire format.
 
 Already-decoded catalogs can use `CatalogValidator.validate(catalog, policy)`, and consumers that
 need to validate one resource can use `ResourceValidator`. Cross-catalog resolution is supplied

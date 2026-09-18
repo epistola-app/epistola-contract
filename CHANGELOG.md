@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added catalog wire v7, which bounds and normalizes catalog keywords (#81). A keyword is now
+  lowercase ASCII letters and digits in hyphen-separated parts, at most 30 characters, and a catalog
+  lists at most 20. Until now the shared schema only required keywords to be trimmed, nonblank and
+  unique. The Suite enforced 30 characters and 20 keywords, but only when someone edited metadata,
+  so a catalog from Exchange could carry keywords the Suite would never have let a user type. Mixed
+  case also put every capitalised keyword first in the canonical order.
+
+  v6 has shipped, so it is not tightened in place. v6 archives migrate to v7 with notices instead
+  of being rejected, because keywords are discovery metadata that nothing references.
+  `Getting Started` becomes `getting-started`, `Financiële Zaken` becomes `financiele-zaken`, and
+  `WOZ/OZB` becomes `woz-ozb` (`CATALOG_KEYWORD_NORMALIZED`). A keyword longer than 30 characters is
+  shortened (`CATALOG_KEYWORD_TRUNCATED`), and keywords that collide are merged. A keyword with no
+  letters or digits, or one sorting beyond the 20th, is removed (`CATALOG_KEYWORD_REMOVED`). Keywords
+  that were already invalid v6 remain findings. A v6 fingerprint computed over the original
+  keywords still verifies, and re-exporting refingerprints the normalized catalog.
+
+  Native v7 input that breaks the rules fails with `CATALOG_KEYWORD_INVALID`,
+  `CATALOG_KEYWORD_TOO_LONG`, `CATALOG_KEYWORD_DUPLICATE` or `CATALOG_KEYWORD_LIMIT_EXCEEDED`, from
+  both the migrator's wire check and `CatalogValidator`. `CatalogInfo` still binds any keywords, so
+  manifests stored under v6 keep loading.
+
+  The rule is defined once: `CatalogKeywords` in Kotlin (`MAX_LENGTH`, `MAX_COUNT`, `PATTERN`,
+  `isValid`, `normalize`), and `MAX_CATALOG_KEYWORD_LENGTH`, `MAX_CATALOG_KEYWORDS`,
+  `CATALOG_KEYWORD_PATTERN` and the `CatalogKeyword` type in TypeScript, all checked against the v7
+  schema. The published `migrations/v6-to-v7/keyword-normalization.json` fixture defines
+  normalization for any other implementation.
+
+  As with v6, a consumer on an older artifact cannot read an archive emitted at v7. The generated
+  TypeScript `schemaVersion` literal is now `7`.
+
+  `x-epistola-catalog-contract` in the API spec now declares `wireSchemaVersion: 7`. It still
+  said `4`, having fallen behind at v5 and v6 because nothing checked it. The server stubs build
+  against the catalog source, so a new `CatalogContractVersionTest` there holds both declared
+  versions to the catalog.
+- Fixed the API spec's `info` losing its `contact` and `license`. Since the contract domains were
+  reorganized, `x-epistola-catalog-contract` sat between `info.version` and `info.contact` at the top
+  level. That closed `info` and made `contact` and `license` children of the extension. It is now a
+  top-level key of its own, `info` carries its contact and EUPL-1.2 license again, and Redocly's
+  `info-license` warning is gone. Generated clients pick the license and contact up from `info`
+  again.
+
 - Fixed the snapshot build on `main`. Every run that built the Jakarta EE client has failed in its
   tests since that client was added. The Jakarta snapshot has never been published, and because
   the publish job waits on every build, no JVM snapshot has been published for any spec change

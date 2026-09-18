@@ -23,7 +23,7 @@ class CatalogSchemaMigratorTest {
 
         assertTrue(result.valid)
         assertEquals(4, result.sourceVersion)
-        assertEquals(6, assertNotNull(result.value).schemaVersion)
+        assertEquals(CatalogWireSchema.CURRENT_VERSION, assertNotNull(result.value).schemaVersion)
         assertEquals("fixture", result.value.catalog.slug)
         assertEquals(emptyList(), result.value.catalog.attributes)
         assertEquals(emptySet(), result.value.catalog.keywords)
@@ -32,12 +32,23 @@ class CatalogSchemaMigratorTest {
 
     @Test
     fun `current golden wire version binds without migration`() {
-        val result = CatalogSchemaMigrator.migrateManifest(resource("wire-v6/catalog.json"))
+        val result = CatalogSchemaMigrator.migrateManifest(resource("wire-v7/catalog.json"))
 
         assertTrue(result.valid)
-        assertEquals(6, result.sourceVersion)
+        assertEquals(CatalogWireSchema.CURRENT_VERSION, result.sourceVersion)
         assertTrue(result.notices.isEmpty())
         assertEquals("fixture", assertNotNull(result.value).catalog.slug)
+    }
+
+    @Test
+    fun `v6 golden wire version with conforming keywords migrates without notices`() {
+        val result = CatalogSchemaMigrator.migrateManifest(resource("wire-v6/catalog.json"))
+
+        assertTrue(result.valid, result.findings.toString())
+        assertEquals(6, result.sourceVersion)
+        assertEquals(CatalogWireSchema.CURRENT_VERSION, assertNotNull(result.value).schemaVersion)
+        assertEquals(setOf("documents", "government"), result.value.catalog.keywords)
+        assertTrue(result.notices.isEmpty())
     }
 
     @Test
@@ -54,7 +65,7 @@ class CatalogSchemaMigratorTest {
 
     @Test
     fun `newer and malformed manifests return findings`() {
-        val tooNew = minimalManifest(7)
+        val tooNew = minimalManifest(CatalogWireSchema.CURRENT_VERSION + 1)
         val malformed = CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream("{".toByteArray()))
 
         assertEquals(CatalogMigrationCodes.SCHEMA_TOO_NEW, tooNew.findings.single().code)
@@ -79,15 +90,59 @@ class CatalogSchemaMigratorTest {
     }
 
     @Test
-    fun `keyword wire validation preserves exact text and rejects malformed arrays before binding`() {
-        val valid = v6ManifestWithKeywords("Government", "government")
-        val duplicate = v6ManifestWithKeywords("documents", "documents")
-        val untrimmed = v6ManifestWithKeywords(" documents ")
+    fun `v6 keywords normalize with notices while keywords that were invalid v6 remain findings`() {
+        val merged = manifestWithKeywords(6, "Government", "government")
+        val duplicate = manifestWithKeywords(6, "documents", "documents")
+        val untrimmed = manifestWithKeywords(6, " documents ")
+        val nonString = manifestWithKeywords(6, 1)
 
-        assertEquals(setOf("Government", "government"), assertNotNull(valid.value).catalog.keywords)
+        assertEquals(setOf("government"), assertNotNull(merged.value).catalog.keywords)
+        assertEquals(
+            listOf(
+                CatalogMigrationNotice(
+                    CatalogMigrationCodes.KEYWORD_NORMALIZED,
+                    "catalog.json.catalog.keywords[0]",
+                    "keyword 'Government' was normalized to 'government' and merged with an identical keyword",
+                ),
+            ),
+            merged.notices,
+        )
         assertEquals(CatalogMigrationCodes.KEYWORD_DUPLICATE, duplicate.findings.single().code)
         assertEquals("catalog.json.catalog.keywords[1]", duplicate.findings.single().path)
         assertEquals(CatalogMigrationCodes.KEYWORD_INVALID, untrimmed.findings.single().code)
+        assertEquals(CatalogMigrationCodes.KEYWORD_INVALID, nonString.findings.single().code)
+    }
+
+    @Test
+    fun `v6 golden keywords migrate to their v7 form with notices`() {
+        val input = resource("migrations/v6-to-v7/manifest-input.json").use(mapper::readTree) as ObjectNode
+        val step = CatalogV6ToV7Migration().migrateManifest(input)
+        val result = CatalogSchemaMigrator.migrateManifest(resource("migrations/v6-to-v7/manifest-input.json"))
+        val expected = resource("migrations/v6-to-v7/manifest-expected.json").use(mapper::readTree)
+
+        assertTrue(step.findings.isEmpty(), step.findings.toString())
+        assertEquals(expected, input)
+        assertEquals(resource("migrations/v6-to-v7/notices.json").use(mapper::readTree), mapper.valueToTree(step.notices))
+        assertTrue(result.valid, result.findings.toString())
+        assertEquals(step.notices, result.notices)
+        assertEquals(expected["catalog"]["keywords"].mapTo(mutableListOf()) { it.asString() }, assertNotNull(result.value).catalog.keywords.toList())
+    }
+
+    @Test
+    fun `native v7 keywords are checked against every wire rule before binding`() {
+        fun codes(vararg keywords: Any) = manifestWithKeywords(CatalogWireSchema.CURRENT_VERSION, *keywords).findings
+            .map { it.code to it.path }
+
+        assertEquals(listOf(CatalogMigrationCodes.KEYWORD_INVALID to "catalog.json.catalog.keywords[0]"), codes("Government"))
+        assertEquals(listOf(CatalogMigrationCodes.KEYWORD_INVALID to "catalog.json.catalog.keywords[0]"), codes("getting started"))
+        assertEquals(listOf(CatalogMigrationCodes.KEYWORD_INVALID to "catalog.json.catalog.keywords[0]"), codes(1))
+        assertEquals(listOf(CatalogMigrationCodes.KEYWORD_TOO_LONG to "catalog.json.catalog.keywords[0]"), codes("a".repeat(31)))
+        assertEquals(listOf(CatalogMigrationCodes.KEYWORD_DUPLICATE to "catalog.json.catalog.keywords[1]"), codes("a", "a"))
+        assertEquals(
+            listOf(CatalogMigrationCodes.KEYWORD_LIMIT_EXCEEDED to "catalog.json.catalog.keywords"),
+            codes(*Array(21) { "keyword-$it" }),
+        )
+        assertTrue(manifestWithKeywords(CatalogWireSchema.CURRENT_VERSION, "1-loket", "a".repeat(30)).valid)
     }
 
     @Test
@@ -198,10 +253,13 @@ class CatalogSchemaMigratorTest {
         return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(json.toByteArray()))
     }
 
-    private fun v6ManifestWithKeywords(vararg keywords: String): CatalogMigrationResult<CatalogManifest> {
+    private fun manifestWithKeywords(
+        version: Int,
+        vararg keywords: Any,
+    ): CatalogMigrationResult<CatalogManifest> {
         val encoded = keywords.joinToString(",") { mapper.writeValueAsString(it) }
         val json = """
-            {"schemaVersion":6,"catalog":{"slug":"x","name":"X","keywords":[$encoded]},
+            {"schemaVersion":$version,"catalog":{"slug":"x","name":"X","keywords":[$encoded]},
             "publisher":{"name":"X"},"release":{"version":"1.0.0"},"resources":[]}
         """.trimIndent()
         return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(json.toByteArray()))

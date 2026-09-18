@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 6,
+  "catalog": {
+    "slug": "fixture",
+    "name": "Fixture Catalog",
+    "description": "Portable golden fixture",
+    "attributes": [],
+    "keywords": [
+      "!!!",
+      "Dutch",
+      "Financiële Zaken",
+      "Getting Started",
+      "Klantcontactcentrumrapportage 2026",
+      "Letters",
+      "WOZ/OZB",
+      "afval",
+      "archief",
+      "belastingen",
+      "bezwaar",
+      "brieven",
+      "burgerzaken",
+      "gemeente",
+      "handhaving",
+      "jeugd",
+      "letters",
+      "onderwijs",
+      "parkeren",
+      "subsidies",
+      "vergunningen",
+      "verkiezingen",
+      "zorg",
+      "zwembaden"
+    ]
+  },
+  "publisher": {
+    "name": "Epistola"
+  },
+  "release": {
+    "version": "1.0.0"
+  },
+  "resources": [],
+  "dependencies": []
+}

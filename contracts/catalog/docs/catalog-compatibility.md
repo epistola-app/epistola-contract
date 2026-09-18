@@ -5,8 +5,9 @@ This document records the compatibility boundary introduced when
 validation, archive handling, migration, and fingerprinting moved into the
 contract repository.
 
-The catalog artifact is stable. Wire v6 is an additive minor-release evolution: a new consumer can
-read v4, v5, and v6, while an old consumer is not expected to read a newly emitted v6 archive.
+The catalog artifact is stable. Wires v6 and v7 are minor-release evolutions: a new consumer can
+read v4 through v7, while an old consumer is not expected to read a newly emitted archive at a newer
+wire version.
 
 ## Explicit breaking changes
 
@@ -14,7 +15,8 @@ read v4, v5, and v6, while an old consumer is not expected to read a newly emitt
 | --- | --- | --- |
 | Artifact rename | `app.epistola.contract:epistola-model`, `@epistola.app/epistola-model`, and `META-INF/epistola-model` are no longer published. | Depend on `app.epistola.contract:epistola-catalog`, `@epistola.app/epistola-catalog`, and `META-INF/epistola-catalog`. |
 | npm public boundary | Implementation-specific `/generated/*` imports are no longer exported. | Import model, component, theme, and style types from the package root. |
-| Explicit wire migration | Catalog-wide `schemaVersion: 6` is current and version 4 is the migration baseline. Pre-v4 and post-v6 archives are rejected. | Confirm the v4-to-v5-to-v6 conversion or re-export from a current producer. |
+| Explicit wire migration | Catalog-wide `schemaVersion: 7` is current and version 4 is the migration baseline. Pre-v4 and post-v7 archives are rejected. | Confirm the stepwise conversion to v7 or re-export from a current producer. |
+| Bounded lowercase keywords | Wire v7 accepts catalog keywords only as lowercase ASCII letters and digits in hyphen-separated parts, at most 30 characters, and at most 20 per catalog. A v7 archive with other keywords is invalid. | v6 archives migrate with notices: keywords are normalized, shortened, merged, or removed. Producers normalize with `CatalogKeywords.normalize` before emitting v7. |
 | Canonical rich text | A text component's `content` must be a ProseMirror document object. Historical string and bare-array forms are invalid. | Open and save the content with a current editor, or transform it to `{ "type": "doc", "content": [...] }` before export. |
 | Exact stencil provenance | Every stencil node declares a valid `stencilId`; published references carry `version`, while authoring references carry exact `draftVersion` and optionally their published base `version`. | Re-save with a current authoring client. Portable catalog content must omit `draftVersion` and include the matching published stencil resource version. |
 | Stricter semantic validation | Malformed graphs, unsupported nodes or property shapes, invalid slots, placeholders, parameter schemas or bindings, expressions, theme/style references, data schemas/examples, and unresolved catalog references that were previously accepted may now produce validation errors. | Correct the reported findings before saving, publishing, or importing the content. Ordinary invalidity is returned as stable findings rather than an I/O exception. |
@@ -32,8 +34,9 @@ that still emits the older stencil-resource shape.
   either Jackson 2 or the Suite's Jackson 3 runtime can inspect them. Public
   APIs do not expose an `ObjectMapper`.
 - Existing V1 through V3 catalog fingerprints remain accepted when reading legacy v4/v5 input.
-  Native v6 catalogs use V4 through `currentFingerprint`; the existing `fingerprint` API retains
-  its V1 result and the new exact-version overload is additive.
+  v6 and v7 catalogs use V4 through `currentFingerprint`; a v6 fingerprint over keywords that the
+  v7 migration rewrote still verifies. The existing `fingerprint` API retains its V1 result and the
+  exact-version overload is additive.
 - The 1.0.1 `CatalogInfo(slug, name, description)` construction shape remains source-compatible.
   New discovery metadata is exposed through `create` and `copyWithMetadata`. Consumers must
   recompile when upgrading the Kotlin artifact; drop-in compatibility with JVM bytecode compiled
@@ -76,7 +79,7 @@ migration finding for templates without examples. Producers must add a valid
 example and re-export those catalogs; the migration must not invent placeholder
 data or silently omit the template.
 
-This is a 2.0 planning decision only. It does not tighten the current v6 wire
+This is a 2.0 planning decision only. It does not tighten the current wire
 schema or prevent 1.x consumers from importing existing catalogs with absent,
 null, or empty `dataExamples`.
 
@@ -87,6 +90,12 @@ using the same qualified attribute vocabulary as other Epistola entities; no att
 declaration; it does not mean public domain or unrestricted use. A future artifact major may make
 selected fields required after consumers have adopted v6; that tightening must not be backported to
 the 1.x contract.
+
+Wire v7 keeps `keywords` optional and changes only which values it accepts. It is not a tightening
+of v6: a v6 archive keeps its meaning and migrates, because keywords are discovery metadata that
+nothing references, and the migration repairs them instead of rejecting the catalog. `CatalogInfo`
+still binds any keywords, so consumers can rebind manifests they stored under v6. The migrator's
+wire check and `CatalogValidator` enforce the v7 rules instead.
 
 Here, backwards compatibility applies to catalog JSON. Common Kotlin construction and property-access
 patterns remain source-compatible where practical, but the Kotlin API is a recompile-on-upgrade

@@ -15,13 +15,18 @@ canonicalization, migrations, and archive handling.
 | Semantic validation and archive behavior | [`src/main/kotlin/`](src/main/kotlin/) |
 | TypeScript public facade | [`ts/`](ts/) and generated sources in [`generated/`](generated/) |
 
-The catalog currently writes wire `schemaVersion: 6`, migrates versions 4 and 5, and uses template
-`modelVersion: 1`. Published Maven and npm artifacts are released on the
+The catalog currently writes wire `schemaVersion: 7`, migrates versions 4, 5, and 6, and uses
+template `modelVersion: 1`. Published Maven and npm artifacts are released on the
 repository's coordinated release train.
 
-The versioned v5 and v6 manifest and resource-detail schemas preserve each accepted wire shape.
-Their unversioned counterparts point at v6, and the npm package root exports TypeScript declarations
+The versioned v5, v6, and v7 manifest and resource-detail schemas preserve each accepted wire shape.
+Their unversioned counterparts point at v7, and the npm package root exports TypeScript declarations
 generated from the current schemas.
+
+Catalog keyword rules are defined once: `CatalogKeywords` in Kotlin (limits, pattern, and
+normalization) and `MAX_CATALOG_KEYWORD_LENGTH`, `MAX_CATALOG_KEYWORDS`, and
+`CATALOG_KEYWORD_PATTERN` in TypeScript, all pinned to the v7 schema. Producers should use these
+rather than their own copies.
 
 ## Build
 

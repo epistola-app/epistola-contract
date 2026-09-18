@@ -44,6 +44,7 @@ export type {
 export type {
   CatalogManifest,
   CatalogInfo,
+  CatalogKeyword,
   AttributeAssignment,
   CatalogPresentation,
   CatalogLicense,
@@ -75,3 +76,12 @@ export type {
 
 /** Maximum number of stencil instances allowed in one ancestor chain. */
 export const MAX_STENCIL_NESTING_DEPTH = 5
+
+/** Maximum characters in one catalog keyword (wire v7). */
+export const MAX_CATALOG_KEYWORD_LENGTH = 30
+
+/** Maximum keywords one catalog may list (wire v7). */
+export const MAX_CATALOG_KEYWORDS = 20
+
+/** Pattern a catalog keyword must match in full: lowercase ASCII letters and digits in hyphen-separated parts (wire v7). */
+export const CATALOG_KEYWORD_PATTERN = '^[a-z0-9]+(?:-[a-z0-9]+)*$'

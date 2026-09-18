@@ -8,14 +8,17 @@ import app.epistola.catalog.archive.CatalogArchive
 import app.epistola.catalog.archive.CatalogArchivePolicy
 import app.epistola.catalog.archive.CatalogArchiveReader
 import app.epistola.catalog.canonical.CatalogCanonicalizer
+import app.epistola.catalog.canonical.CatalogFingerprintVersion
 import app.epistola.catalog.migration.CatalogWireSchema
 import app.epistola.catalog.protocol.AssetResource
 import app.epistola.catalog.protocol.AttributeResource
 import app.epistola.catalog.protocol.CatalogInfo
+import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogResource
 import app.epistola.catalog.protocol.CodeListResource
 import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.FontResource
+import app.epistola.catalog.protocol.KeywordRule
 import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.ResourceEntry
 import app.epistola.catalog.protocol.StencilResource
@@ -120,6 +123,8 @@ object CatalogValidationCodes {
     const val CATALOG_LICENSE_INVALID = "CATALOG_LICENSE_INVALID"
     const val KEYWORD_INVALID = "CATALOG_KEYWORD_INVALID"
     const val KEYWORD_DUPLICATE = "CATALOG_KEYWORD_DUPLICATE"
+    const val KEYWORD_TOO_LONG = "CATALOG_KEYWORD_TOO_LONG"
+    const val KEYWORD_LIMIT_EXCEEDED = "CATALOG_KEYWORD_LIMIT_EXCEEDED"
     const val PRESENTATION_ASSET_MISSING = "CATALOG_PRESENTATION_ASSET_MISSING"
     const val PRESENTATION_RESOURCE_NOT_ASSET = "CATALOG_PRESENTATION_RESOURCE_NOT_ASSET"
     const val PRESENTATION_ASSET_MEDIA_TYPE_INVALID = "CATALOG_PRESENTATION_ASSET_MEDIA_TYPE_INVALID"
@@ -633,10 +638,13 @@ object CatalogValidator {
             if (!SHA256.matches(it)) {
                 findings.error(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID, "catalog.json.release.fingerprint", "fingerprint must be a lowercase SHA-256 hex string")
             } else if (policy.verifyFingerprint) {
-                val matches = if (catalog.sourceSchemaVersion >= CatalogWireSchema.CURRENT_VERSION) {
-                    CatalogCanonicalizer.matchesFingerprint(catalog, it, app.epistola.catalog.canonical.CatalogFingerprintVersion.V4)
-                } else {
-                    CatalogCanonicalizer.matchesFingerprint(catalog, it)
+                val matches = when {
+                    catalog.sourceSchemaVersion >= CatalogWireSchema.CURRENT_VERSION ->
+                        CatalogCanonicalizer.matchesFingerprint(catalog, it, CatalogFingerprintVersion.V4)
+                    // Migration may have rewritten keywords the fingerprint was computed over.
+                    catalog.sourceSchemaVersion >= V4_FINGERPRINT_SINCE_WIRE_VERSION ->
+                        CatalogCanonicalizer.matchesSourceV4Fingerprint(catalog, it)
+                    else -> CatalogCanonicalizer.matchesFingerprint(catalog, it)
                 }
                 if (!matches) {
                     findings.error(
@@ -684,14 +692,17 @@ object CatalogValidator {
                 )
             }
         }
-        catalog.keywords.forEachIndexed { index, keyword ->
-            if (keyword.isBlank() || keyword != keyword.trim()) {
-                findings.error(
-                    CatalogValidationCodes.KEYWORD_INVALID,
-                    "catalog.json.catalog.keywords[$index]",
-                    "keyword must be nonblank and must not contain leading or trailing whitespace",
-                )
-            }
+        CatalogKeywords.violations(catalog.keywords.toList()).forEach { violation ->
+            findings.error(
+                when (violation.rule) {
+                    KeywordRule.INVALID -> CatalogValidationCodes.KEYWORD_INVALID
+                    KeywordRule.TOO_LONG -> CatalogValidationCodes.KEYWORD_TOO_LONG
+                    KeywordRule.DUPLICATE -> CatalogValidationCodes.KEYWORD_DUPLICATE
+                    KeywordRule.LIMIT_EXCEEDED -> CatalogValidationCodes.KEYWORD_LIMIT_EXCEEDED
+                },
+                violation.index?.let { "catalog.json.catalog.keywords[$it]" } ?: "catalog.json.catalog.keywords",
+                violation.message,
+            )
         }
         catalog.license?.let { license ->
             if (license.name.isBlank() || license.name != license.name.trim()) {
@@ -813,6 +824,9 @@ object CatalogValidator {
         "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
     )
     private val SHA256 = Regex("^[0-9a-f]{64}$")
+
+    /** Wire version from which a catalog must carry a V4 fingerprint. */
+    private const val V4_FINGERPRINT_SINCE_WIRE_VERSION = 6
     private val ATTRIBUTE_IDENTITY = Regex("^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 
     private data class StencilResourceIdentity(
