@@ -1,6 +1,6 @@
 images:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       description: Unique slug identifier of the tenant.
@@ -9,7 +9,7 @@ images:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
+    - name: catalogKey
       in: path
       required: true
       description: Slug identifier of the catalog.
@@ -113,7 +113,7 @@ images:
 
 image-content:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       description: Unique slug identifier of the tenant.
@@ -122,7 +122,7 @@ image-content:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
+    - name: catalogKey
       in: path
       required: true
       description: Slug identifier of the catalog.
@@ -182,7 +182,7 @@ image-content:
 
 image-resource:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       description: Unique slug identifier of the tenant.
@@ -191,7 +191,7 @@ image-resource:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
+    - name: catalogKey
       in: path
       required: true
       description: Slug identifier of the catalog.

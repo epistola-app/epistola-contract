@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added `key` to every REST response that addresses a resource, and deprecated the `id` or `slug`
+  it duplicates (#84). The API had three names for one concept: eight DTOs called a resource's
+  public address `id`, four called it `slug`, two called it `key`. The other two layers of the
+  product settled this long ago — the database has `template_key`, `variant_key`, `version_key`,
+  `stencil_key`, `environment_key` and `theme_key`, and every Kotlin value class is a `…Key`. The
+  spec's own wording gave the mismatch away: `TemplateDto.id` was documented as *"Slug identifier
+  of the template"*, with the example `invoice`.
+
+  The rule is that a **key** is a resource's public address within its parent and an **id** is a
+  generated identifier that is not an address. So `documentId`, `requestId`, `batchId`,
+  `correlationId`, `consumerId` and `nodeId` keep their names; anything carrying a slug or an
+  ordinal becomes a key. Versions need no exception — a version's address within its variant is its
+  number, and the database already calls that column `version_key`.
+
+  Nothing breaks. Both properties are required and carry the same value, so a client reading `id`
+  is unaffected and a client adopting `key` works immediately. The deprecated halves are removed in
+  2.0.0 (#84).
+
+  Request bodies are deliberately untouched. Making them compatible would have meant either both
+  properties optional, which stops the spec guaranteeing an identifier is present, or `anyOf`
+  composition — which this spec has never used, across five client generators. They rename in 2.0.0
+  instead, so during this window you `POST {"id": "invoice"}` and read back
+  `{"key": "invoice", "id": "invoice"}`.
+
+- Renamed the address-valued path parameters to match: `{templateId}` is now `{templateKey}`, and
+  likewise for tenant, catalog, variant, version, stencil, theme, code list and font. **No URL
+  changes** — a path parameter's name is internal to the spec, so this only affects generated
+  method signatures. `{documentId}`, `{requestId}` and `{consumerId}` are unchanged.
+
 - Added catalog wire v7, which bounds and normalizes catalog keywords (#81). A keyword is now
   lowercase ASCII letters and digits in hyphen-separated parts, at most 30 characters, and a catalog
   lists at most 20. Until now the shared schema only required keywords to be trimmed, nonblank and

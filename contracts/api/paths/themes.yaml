@@ -1,6 +1,6 @@
 themes:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -9,7 +9,7 @@ themes:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
+    - name: catalogKey
       in: path
       required: true
       description: Slug identifier of the catalog
@@ -85,7 +85,7 @@ themes:
 
 themes-id:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -94,7 +94,7 @@ themes-id:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
+    - name: catalogKey
       in: path
       required: true
       description: Slug identifier of the catalog
@@ -103,7 +103,7 @@ themes-id:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: themeId
+    - name: themeKey
       in: path
       required: true
       description: Slug identifier of the theme

@@ -5,6 +5,7 @@ StencilDto:
     A stencil is a reusable template component that can be inserted into any template.
     Each stencil has versioned content following the same draft/published/archived lifecycle as template versions.
   required:
+    - key
     - id
     - tenantId
     - name
@@ -12,12 +13,22 @@ StencilDto:
     - createdAt
     - lastModified
   properties:
-    id:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Slug identifier of the stencil (e.g., "corporate-header")
+      example: corporate-header
+    id:
+      type: string
+      deprecated: true
+      description: |
+        **Deprecated — use `key`.** The same value, under the name every other layer of the
+        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
       example: corporate-header
     tenantId:
       type: string
@@ -60,6 +71,7 @@ StencilDto:
       description: Timestamp when the stencil was last modified
       example: "2026-03-15T14:30:00Z"
   example:
+    key: corporate-header
     id: corporate-header
     tenantId: acme-corp
     name: Corporate Header
@@ -68,12 +80,14 @@ StencilDto:
       - header
       - corporate
     versions:
-      - id: 1
+      - key: 1
+        id: 1
         status: published
         createdAt: "2026-03-01T10:00:00Z"
         publishedAt: "2026-03-02T09:00:00Z"
         archivedAt: null
-      - id: 2
+      - key: 2
+        id: 2
         status: draft
         createdAt: "2026-03-15T14:30:00Z"
         publishedAt: null
@@ -85,6 +99,7 @@ StencilSummaryDto:
   type: object
   description: Summary view of a stencil for list displays
   required:
+    - key
     - id
     - tenantId
     - name
@@ -92,12 +107,22 @@ StencilSummaryDto:
     - createdAt
     - lastModified
   properties:
-    id:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Slug identifier of the stencil
+      example: corporate-header
+    id:
+      type: string
+      deprecated: true
+      description: |
+        **Deprecated — use `key`.** The same value, under the name every other layer of the
+        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
       example: corporate-header
     tenantId:
       type: string
@@ -143,6 +168,7 @@ StencilSummaryDto:
       description: Timestamp when the stencil was last modified
       example: "2026-03-15T14:30:00Z"
   example:
+    key: corporate-header
     id: corporate-header
     tenantId: acme-corp
     name: Corporate Header
@@ -161,16 +187,26 @@ StencilVersionDto:
     The content is a TemplateDocument fragment (nodes + slots subgraph) that gets copied
     into a template when the stencil is inserted.
   required:
+    - key
     - id
     - stencilId
     - status
     - createdAt
   properties:
-    id:
+    key:
       type: integer
       minimum: 1
       maximum: 200
       description: Version number (1-200)
+      example: 1
+    id:
+      type: integer
+      deprecated: true
+      description: |
+        **Deprecated — use `key`.** The same value, under the name every other layer of the
+        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+      minimum: 1
+      maximum: 200
       example: 1
     stencilId:
       type: string
@@ -229,6 +265,7 @@ StencilVersionDto:
       description: Timestamp when the version was archived
       example: null
   example:
+    key: 1
     id: 1
     stencilId: corporate-header
     status: published
@@ -237,6 +274,7 @@ StencilVersionDto:
       root: node-root
       nodes:
         node-root:
+          key: node-root
           id: node-root
           type: container
           slots:
@@ -244,6 +282,7 @@ StencilVersionDto:
           styles: {}
           props: {}
         node-logo:
+          key: node-logo
           id: node-logo
           type: image
           slots: []
@@ -253,6 +292,7 @@ StencilVersionDto:
             assetId: company-logo
             alt: "Company logo"
         node-company-name:
+          key: node-company-name
           id: node-company-name
           type: text
           slots: []
@@ -270,6 +310,7 @@ StencilVersionDto:
                         expression: company.name
       slots:
         slot-root-children:
+          key: slot-root-children
           id: slot-root-children
           nodeId: node-root
           name: children
@@ -294,15 +335,25 @@ StencilVersionSummaryDto:
   type: object
   description: Summary view of a stencil version for list displays
   required:
+    - key
     - id
     - status
     - createdAt
   properties:
-    id:
+    key:
       type: integer
       minimum: 1
       maximum: 200
       description: Version number (1-200)
+      example: 1
+    id:
+      type: integer
+      deprecated: true
+      description: |
+        **Deprecated — use `key`.** The same value, under the name every other layer of the
+        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+      minimum: 1
+      maximum: 200
       example: 1
     status:
       type: string
@@ -332,6 +383,7 @@ StencilVersionSummaryDto:
       description: Timestamp when the version was archived
       example: null
   example:
+    key: 1
     id: 1
     status: published
     createdAt: "2026-03-01T10:00:00Z"
@@ -687,7 +739,8 @@ StencilListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - id: corporate-header
+      - key: corporate-header
+        id: corporate-header
         tenantId: acme-corp
         name: Corporate Header
         description: Standard corporate header with logo, company name, and address block
@@ -719,12 +772,14 @@ StencilVersionListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - id: 1
+      - key: 1
+        id: 1
         status: published
         createdAt: "2026-03-01T10:00:00Z"
         publishedAt: "2026-03-02T09:00:00Z"
         archivedAt: null
-      - id: 2
+      - key: 2
+        id: 2
         status: draft
         createdAt: "2026-03-15T14:30:00Z"
         publishedAt: null

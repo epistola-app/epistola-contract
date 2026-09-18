@@ -1,6 +1,6 @@
 attributes:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -9,7 +9,7 @@ attributes:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
+    - name: catalogKey
       in: path
       required: true
       description: Slug identifier of the catalog
@@ -80,7 +80,7 @@ attributes:
 
 attributes-key:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -89,7 +89,7 @@ attributes-key:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
+    - name: catalogKey
       in: path
       required: true
       description: Slug identifier of the catalog

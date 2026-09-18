@@ -2,6 +2,7 @@ VariantDto:
   type: object
   description: Full template variant with version summary
   required:
+    - key
     - id
     - templateId
     - title
@@ -12,12 +13,22 @@ VariantDto:
     - createdAt
     - lastModified
   properties:
-    id:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Slug identifier of the variant
+      example: english
+    id:
+      type: string
+      deprecated: true
+      description: |
+        **Deprecated — use `key`.** The same value, under the name every other layer of the
+        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
       example: english
     templateId:
       type: string
@@ -71,6 +82,7 @@ VariantDto:
       description: Timestamp when the variant was last modified
       example: "2026-01-28T11:30:00Z"
   example:
+    key: english
     id: english
     templateId: invoice
     title: English Invoice
@@ -88,6 +100,7 @@ VariantSummaryDto:
   type: object
   description: Summary view of a variant for inclusion in template responses
   required:
+    - key
     - id
     - title
     - attributes
@@ -95,12 +108,22 @@ VariantSummaryDto:
     - hasDraft
     - publishedVersions
   properties:
-    id:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Slug identifier of the variant
+      example: english
+    id:
+      type: string
+      deprecated: true
+      description: |
+        **Deprecated — use `key`.** The same value, under the name every other layer of the
+        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
       example: english
     title:
       type: string
@@ -131,6 +154,7 @@ VariantSummaryDto:
       description: List of published version numbers
       example: [1, 2]
   example:
+    key: english
     id: english
     title: English Invoice
     attributes:
@@ -219,7 +243,8 @@ VariantListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - id: english
+      - key: english
+        id: english
         templateId: invoice
         title: English Invoice
         description: English language invoice for international customers

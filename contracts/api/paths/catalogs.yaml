@@ -1,6 +1,6 @@
 catalogs:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       description: Unique slug identifier of the tenant
@@ -40,7 +40,7 @@ catalogs:
 
 catalog-upgrade-preview:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       description: Unique slug identifier of the tenant
@@ -49,7 +49,7 @@ catalog-upgrade-preview:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
+    - name: catalogKey
       in: path
       required: true
       description: Slug identifier of the SUBSCRIBED catalog
@@ -89,7 +89,7 @@ catalog-upgrade-preview:
 
 catalog-release:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       description: Unique slug identifier of the tenant
@@ -98,7 +98,7 @@ catalog-release:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
+    - name: catalogKey
       in: path
       required: true
       description: Slug identifier of the AUTHORED catalog
@@ -140,7 +140,7 @@ catalog-release:
 
 catalog-upgrade:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       description: Unique slug identifier of the tenant
@@ -149,7 +149,7 @@ catalog-upgrade:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
+    - name: catalogKey
       in: path
       required: true
       description: Slug identifier of the SUBSCRIBED catalog

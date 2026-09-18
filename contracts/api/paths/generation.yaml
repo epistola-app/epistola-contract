@@ -16,7 +16,7 @@ preview-document:
       - Generation
     x-required-permissions: [DOCUMENT_GENERATE]
     parameters:
-      - name: tenantId
+      - name: tenantKey
         in: path
         required: true
         description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -59,7 +59,7 @@ generate-document:
       - Generation
     x-required-permissions: [DOCUMENT_GENERATE]
     parameters:
-      - name: tenantId
+      - name: tenantKey
         in: path
         required: true
         description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -97,7 +97,7 @@ generate-batch:
       - Generation
     x-required-permissions: [DOCUMENT_GENERATE]
     parameters:
-      - name: tenantId
+      - name: tenantKey
         in: path
         required: true
         description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -135,7 +135,7 @@ jobs:
       - Generation
     x-required-permissions: [DOCUMENT_VIEW]
     parameters:
-      - name: tenantId
+      - name: tenantKey
         in: path
         required: true
         description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -168,7 +168,7 @@ jobs:
 
 job-detail:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -234,7 +234,7 @@ documents:
       - Generation
     x-required-permissions: [DOCUMENT_VIEW]
     parameters:
-      - name: tenantId
+      - name: tenantKey
         in: path
         required: true
         description: Unique slug identifier of the tenant (e.g., "acme-corp")
@@ -243,7 +243,7 @@ documents:
           pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
           minLength: 3
           maxLength: 63
-      - name: templateId
+      - name: templateKey
         in: query
         description: Filter by template slug
         schema:
@@ -275,7 +275,7 @@ documents:
 
 document-detail:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
