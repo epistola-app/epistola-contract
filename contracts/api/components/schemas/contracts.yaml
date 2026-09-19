@@ -2,26 +2,16 @@ ContractVersionDto:
   type: object
   description: Versioned data contract for a template.
   required:
-    - key
     - id
     - status
     - dataExamples
     - createdAt
   properties:
-    key:
+    id:
       type: integer
       minimum: 1
       maximum: 200
       description: Contract version number.
-      example: 2
-    id:
-      type: integer
-      deprecated: true
-      description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      minimum: 1
-      maximum: 200
       example: 2
     schema:
       type:
@@ -73,22 +63,12 @@ ContractVersionSummaryDto:
   type: object
   description: Summary view of a template data-contract version.
   required:
-    - key
     - id
     - status
     - createdAt
   properties:
-    key:
-      type: integer
-      minimum: 1
-      maximum: 200
-      example: 2
     id:
       type: integer
-      deprecated: true
-      description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       minimum: 1
       maximum: 200
       example: 2
@@ -124,21 +104,11 @@ CreateContractDraftResponse:
   type: object
   description: Result of creating or returning the current contract draft.
   required:
-    - key
     - id
     - status
   properties:
-    key:
-      type: integer
-      minimum: 1
-      maximum: 200
-      example: 3
     id:
       type: integer
-      deprecated: true
-      description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       minimum: 1
       maximum: 200
       example: 3
@@ -172,24 +142,14 @@ UpdateContractDraftResponse:
   type: object
   required:
     - success
-    - key
     - id
     - status
   properties:
     success:
       type: boolean
       example: true
-    key:
-      type: integer
-      minimum: 1
-      maximum: 200
-      example: 3
     id:
       type: integer
-      deprecated: true
-      description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       minimum: 1
       maximum: 200
       example: 3

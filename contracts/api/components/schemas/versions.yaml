@@ -2,26 +2,16 @@ VersionDto:
   type: object
   description: Template version with content and lifecycle state. The id field IS the version number (1-200).
   required:
-    - key
     - id
     - variantId
     - status
     - createdAt
   properties:
-    key:
+    id:
       type: integer
       minimum: 1
       maximum: 200
       description: Version identifier (also the version number, 1-200)
-      example: 1
-    id:
-      type: integer
-      deprecated: true
-      description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      minimum: 1
-      maximum: 200
       example: 1
     variantId:
       type: string
@@ -60,7 +50,6 @@ VersionDto:
       description: Timestamp when the version was archived
       example: null
   example:
-    key: 1
     id: 1
     variantId: english
     templateModel:
@@ -68,7 +57,6 @@ VersionDto:
       root: node-root
       nodes:
         node-root:
-          key: node-root
           id: node-root
           type: container
           slots:
@@ -76,7 +64,6 @@ VersionDto:
           styles: {}
           props: {}
         node-header:
-          key: node-header
           id: node-header
           type: text
           slots: []
@@ -95,7 +82,6 @@ VersionDto:
                       attrs:
                         expression: invoiceNumber
         node-columns:
-          key: node-columns
           id: node-columns
           type: columns
           slots:
@@ -108,7 +94,6 @@ VersionDto:
               - 1
             gap: 0
         node-from:
-          key: node-from
           id: node-from
           type: text
           slots: []
@@ -133,7 +118,6 @@ VersionDto:
                     - type: text
                       text: "Springfield, IL 62704"
         node-to:
-          key: node-to
           id: node-to
           type: text
           slots: []
@@ -160,7 +144,6 @@ VersionDto:
                       text: "{{customer.address.city}}, {{customer.address.postalCode}}"
       slots:
         slot-root-children:
-          key: slot-root-children
           id: slot-root-children
           nodeId: node-root
           name: children
@@ -168,14 +151,12 @@ VersionDto:
             - node-header
             - node-columns
         slot-col-0:
-          key: slot-col-0
           id: slot-col-0
           nodeId: node-columns
           name: column-0
           children:
             - node-from
         slot-col-1:
-          key: slot-col-1
           id: slot-col-1
           nodeId: node-columns
           name: column-1
@@ -192,26 +173,16 @@ VersionSummaryDto:
   type: object
   description: Summary view of a version for list displays. The id field IS the version number (1-200).
   required:
-    - key
     - id
     - variantId
     - status
     - createdAt
   properties:
-    key:
+    id:
       type: integer
       minimum: 1
       maximum: 200
       description: Version identifier (also the version number, 1-200)
-      example: 1
-    id:
-      type: integer
-      deprecated: true
-      description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      minimum: 1
-      maximum: 200
       example: 1
     variantId:
       type: string
@@ -248,7 +219,6 @@ VersionSummaryDto:
       description: Timestamp when the version was archived
       example: null
   example:
-    key: 1
     id: 1
     variantId: english
     status: published
@@ -293,15 +263,13 @@ VersionListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - key: 1
-        id: 1
+      - id: 1
         variantId: english
         status: published
         createdAt: "2026-01-22T09:00:00Z"
         publishedAt: "2026-01-25T14:00:00Z"
         archivedAt: null
-      - key: 2
-        id: 2
+      - id: 2
         variantId: english
         status: published
         createdAt: "2026-01-26T10:00:00Z"

@@ -80,14 +80,12 @@ StencilDto:
       - header
       - corporate
     versions:
-      - key: 1
-        id: 1
+      - id: 1
         status: published
         createdAt: "2026-03-01T10:00:00Z"
         publishedAt: "2026-03-02T09:00:00Z"
         archivedAt: null
-      - key: 2
-        id: 2
+      - id: 2
         status: draft
         createdAt: "2026-03-15T14:30:00Z"
         publishedAt: null
@@ -187,26 +185,16 @@ StencilVersionDto:
     The content is a TemplateDocument fragment (nodes + slots subgraph) that gets copied
     into a template when the stencil is inserted.
   required:
-    - key
     - id
     - stencilId
     - status
     - createdAt
   properties:
-    key:
+    id:
       type: integer
       minimum: 1
       maximum: 200
       description: Version number (1-200)
-      example: 1
-    id:
-      type: integer
-      deprecated: true
-      description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      minimum: 1
-      maximum: 200
       example: 1
     stencilId:
       type: string
@@ -265,7 +253,6 @@ StencilVersionDto:
       description: Timestamp when the version was archived
       example: null
   example:
-    key: 1
     id: 1
     stencilId: corporate-header
     status: published
@@ -335,25 +322,15 @@ StencilVersionSummaryDto:
   type: object
   description: Summary view of a stencil version for list displays
   required:
-    - key
     - id
     - status
     - createdAt
   properties:
-    key:
+    id:
       type: integer
       minimum: 1
       maximum: 200
       description: Version number (1-200)
-      example: 1
-    id:
-      type: integer
-      deprecated: true
-      description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      minimum: 1
-      maximum: 200
       example: 1
     status:
       type: string
@@ -383,7 +360,6 @@ StencilVersionSummaryDto:
       description: Timestamp when the version was archived
       example: null
   example:
-    key: 1
     id: 1
     status: published
     createdAt: "2026-03-01T10:00:00Z"
@@ -772,14 +748,12 @@ StencilVersionListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - key: 1
-        id: 1
+      - id: 1
         status: published
         createdAt: "2026-03-01T10:00:00Z"
         publishedAt: "2026-03-02T09:00:00Z"
         archivedAt: null
-      - key: 2
-        id: 2
+      - id: 2
         status: draft
         createdAt: "2026-03-15T14:30:00Z"
         publishedAt: null

@@ -10,16 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `key` to every REST response that addresses a resource, and deprecated the `id` or `slug`
   it duplicates (#84). The API had three names for one concept: eight DTOs called a resource's
   public address `id`, four called it `slug`, two called it `key`. The other two layers of the
-  product settled this long ago — the database has `template_key`, `variant_key`, `version_key`,
-  `stencil_key`, `environment_key` and `theme_key`, and every Kotlin value class is a `…Key`. The
-  spec's own wording gave the mismatch away: `TemplateDto.id` was documented as *"Slug identifier
-  of the template"*, with the example `invoice`.
+  product name the concept consistently: every Kotlin value class is a `…Key`, and every column that
+  *references* a resource is `template_key`, `variant_key`, `stencil_key`, `environment_key` or
+  `theme_key`. The spec's own wording gave the mismatch away: `TemplateDto.id` was documented as
+  *"Slug identifier of the template"*, with the example `invoice`.
 
-  The rule is that a **key** is a resource's public address within its parent and an **id** is a
-  generated identifier that is not an address. So `documentId`, `requestId`, `batchId`,
-  `correlationId`, `consumerId` and `nodeId` keep their names; anything carrying a slug or an
-  ordinal becomes a key. Versions need no exception — a version's address within its variant is its
-  number, and the database already calls that column `version_key`.
+  The rule is that a **key** is an address someone chooses and a **id** is an identifier the system
+  assigns. So `documentId`, `requestId`, `batchId`, `correlationId`, `consumerId` and `nodeId` keep
+  their names, and so do version numbers: `VersionDto.id`, `StencilVersionDto.id` and
+  `ContractVersionDto.id` are sequence positions the suite allocates, not names anyone picked. Only
+  slug-valued fields change.
 
   Nothing breaks. Both properties are required and carry the same value, so a client reading `id`
   is unaffected and a client adopting `key` works immediately. The deprecated halves are removed in
