@@ -257,7 +257,7 @@ object CatalogCanonicalizer {
         is DependencyRef.Stencil -> "stencil" to catalogKey
         is DependencyRef.CodeList -> "codeList" to catalogKey
         is DependencyRef.Font -> "font" to catalogKey
-        is DependencyRef.Asset -> "asset" to ""
+        is DependencyRef.Asset -> "asset" to catalogKey
     }
 
     /**

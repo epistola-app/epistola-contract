@@ -78,6 +78,15 @@ object CatalogMigrationCodes {
     const val KEYWORD_TOO_LONG = "CATALOG_KEYWORD_TOO_LONG"
     const val KEYWORD_LIMIT_EXCEEDED = "CATALOG_KEYWORD_LIMIT_EXCEEDED"
 
+    /**
+     * A catalog-v6 asset dependency names no catalog, and catalog-v7 requires one.
+     *
+     * Not repairable: the archive says which asset is depended on but not whose, and guessing
+     * would bind the consumer to whichever catalog happened to match. The publisher re-exports,
+     * which qualifies it from their own installed state.
+     */
+    const val DEPENDENCY_UNQUALIFIED = "CATALOG_DEPENDENCY_UNQUALIFIED"
+
     /** Notice: a catalog-v6 keyword was rewritten to its catalog-v7 form. */
     const val KEYWORD_NORMALIZED = "CATALOG_KEYWORD_NORMALIZED"
 

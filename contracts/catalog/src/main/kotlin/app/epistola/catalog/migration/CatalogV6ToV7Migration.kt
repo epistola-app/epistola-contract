@@ -23,6 +23,7 @@ internal class CatalogV6ToV7Migration : CatalogSchemaMigration {
 
     override fun migrateManifest(tree: ObjectNode): CatalogMigrationStepResult {
         tree.put("schemaVersion", toVersion)
+        unqualifiedAssetDependencies(tree).let { if (it.isNotEmpty()) return CatalogMigrationStepResult(it) }
         val catalog = tree["catalog"] as? ObjectNode ?: return CatalogMigrationStepResult()
         val keywords = catalog["keywords"] as? ArrayNode ?: return CatalogMigrationStepResult()
         // Non-string entries are reported by the wire check that follows migration.
@@ -125,5 +126,26 @@ internal class CatalogV6ToV7Migration : CatalogSchemaMigration {
             }
         }
         return findings
+    }
+
+    /**
+     * Catalog-v7 requires every dependency to name a catalog; catalog-v6 asset dependencies did not.
+     *
+     * Reported rather than repaired. The archive records which asset is depended on but not whose,
+     * and inferring one would bind the consumer to whichever catalog happened to match — the exact
+     * ambiguity the qualification exists to remove. A publisher re-exports instead, which qualifies
+     * it from their own installed state.
+     */
+    private fun unqualifiedAssetDependencies(tree: ObjectNode): List<CatalogMigrationFinding> {
+        val dependencies = tree["dependencies"] as? ArrayNode ?: return emptyList()
+        return dependencies.mapIndexedNotNull { index, dependency ->
+            val entry = dependency as? ObjectNode ?: return@mapIndexedNotNull null
+            if (entry["type"]?.asString() != "asset" || entry.has("catalogKey")) return@mapIndexedNotNull null
+            CatalogMigrationFinding(
+                CatalogMigrationCodes.DEPENDENCY_UNQUALIFIED,
+                "catalog.json.dependencies[$index]",
+                "asset dependency '${entry["slug"]?.asString()}' names no catalog; re-export the catalog to qualify it",
+            )
+        }
     }
 }

@@ -42,7 +42,7 @@ data class CatalogManifest(
 /**
  * A reference to a resource that this catalog depends on.
  * Sealed hierarchy ensures type-safe construction:
- * - Themes, stencils, code lists, and fonts are catalog-scoped (require catalogKey)
+ * - Every kind is catalog-scoped and requires catalogKey (assets too, from wire v7)
  * - Assets are tenant-global (just the UUID)
  *
  * Reserved for a future release (catalog versioning Phase 3): the catalog-scoped
@@ -72,8 +72,15 @@ sealed class DependencyRef {
     /** Stencil in another catalog. */
     data class Stencil(val catalogKey: String, override val slug: String) : DependencyRef()
 
-    /** Asset in the consumer's asset namespace. */
-    data class Asset(override val slug: String) : DependencyRef()
+    /**
+     * Asset in another catalog.
+     *
+     * Qualified like every other kind since wire v7. It was unqualified while an asset's slug was
+     * a generated UUID, unique by construction across every catalog a tenant holds; a readable
+     * slug is not, so two catalogs may each hold `logo` and an unqualified reference to one of
+     * them means nothing.
+     */
+    data class Asset(val catalogKey: String, override val slug: String) : DependencyRef()
 
     /** Code list in another catalog. */
     data class CodeList(val catalogKey: String, override val slug: String) : DependencyRef()

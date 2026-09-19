@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- An asset dependency names its catalog in wire v7 (#86). Every other dependency kind already did.
+  The asset kind did not, and asset references resolved tenant-wide to match — safe only while an
+  asset's slug was a generated UUID, unique by construction across every catalog a tenant holds.
+  epistola-app/epistola-suite#930 makes that slug readable, and two catalogs may then each hold a
+  `logo`, so an unqualified reference to one of them means nothing.
+
+  A v6 archive whose asset dependency names no catalog is reported with
+  `CATALOG_DEPENDENCY_UNQUALIFIED` rather than repaired. The archive records which asset is depended
+  on but not whose, and inferring one would bind the consumer to whichever catalog happened to
+  match — the exact ambiguity this removes. Re-exporting qualifies it from the publisher's own
+  state. No catalog shipped so far declares an asset dependency, so nothing in existence hits this.
+
+  The canonical fingerprint is unaffected for every catalog that has no asset dependency: the
+  canonical form always carried a `catalogKey` slot for a dependency and an explicit special case
+  blanked it out for assets. That special case is gone.
+
 - Catalog wire v7 addresses a template variant by `slug`, not `id` (#86). Every other resource type
   already said `slug`, and a variant's address was always a name someone chose — `english`,
   `default` — so `id` was the same misnomer the REST API just shed. With `VariantDto` converged on

@@ -114,6 +114,30 @@ class CatalogSchemaMigratorTest {
     }
 
     @Test
+    fun `a v6 asset dependency naming no catalog is reported, not guessed`() {
+        val input = mapper.readTree(
+            """{"schemaVersion":6,"catalog":{"slug":"invoices","name":"Invoices"},
+               "dependencies":[{"type":"asset","slug":"logo"},
+                               {"type":"theme","catalogKey":"shared","slug":"base"}]}""",
+        ) as ObjectNode
+        val step = CatalogV6ToV7Migration().migrateManifest(input)
+
+        val finding = step.findings.single()
+        assertEquals(CatalogMigrationCodes.DEPENDENCY_UNQUALIFIED, finding.code)
+        assertEquals("catalog.json.dependencies[0]", finding.path)
+    }
+
+    @Test
+    fun `a v6 manifest whose dependencies are all qualified migrates cleanly`() {
+        val input = mapper.readTree(
+            """{"schemaVersion":6,"catalog":{"slug":"invoices","name":"Invoices"},
+               "dependencies":[{"type":"asset","catalogKey":"shared","slug":"logo"}]}""",
+        ) as ObjectNode
+
+        assertTrue(CatalogV6ToV7Migration().migrateManifest(input).findings.isEmpty())
+    }
+
+    @Test
     fun `v6 variant ids migrate to v7 slugs, values unchanged`() {
         val input = resource("migrations/v6-to-v7/template-variants-input.json").use(mapper::readTree) as ObjectNode
         val step = CatalogV6ToV7Migration().migrateResource(input, "resources/template/invoice.json")
