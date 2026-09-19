@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Added `slug` to every REST response that addresses a resource, and deprecated the `id` it
-  duplicates (#84). Ten DTOs called a resource's readable address `id` while seven already called
+  duplicates (#84). Ten DTOs called a resource's readable address `id`, one called it `key`, and
+  seven already called
   it `slug` — and the spec's own wording gave the mismatch away, documenting `TemplateDto.id` as
   *"Slug identifier of the template"* with the example `invoice`. No DTO ever carried both, so this
   was inconsistency rather than a distinction.
@@ -17,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   resource types. That is the harder contract to change and the one an integrator meets first, so
   the two external contracts now agree on what to call the same value. `key` would also have
   collided with the API keys and signing keys this product already has.
+
+  `AttributeDto.key` becomes `slug` for the same reason. The portable format calls an attribute
+  *definition* a `slug`; its `key` is a different thing entirely — the key half of an attribute
+  *assignment*. Fonts and code lists needed no change at all: they already said `slug` on the wire,
+  in the API and in their path parameters, which is the shape everything else is converging on.
 
   The rule is that a **slug** is an address someone chooses and an **id** is an identifier the
   system assigns. `documentId`, `requestId`, `batchId`, `correlationId`, `consumerId` and `nodeId`
