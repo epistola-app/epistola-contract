@@ -30,7 +30,6 @@ FontDto:
     no create/update/delete via this API. (Write access may be revisited
     later.)
   required:
-    - key
     - slug
     - name
     - kind
@@ -41,22 +40,12 @@ FontDto:
     - createdAt
     - lastModified
   properties:
-    key:
+    slug:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 2
       maxLength: 64
       description: Slug identifier (unique within `tenant + catalog`).
-      example: inter
-    slug:
-      type: string
-      deprecated: true
-      description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 2
-      maxLength: 64
       example: inter
     name:
       type: string

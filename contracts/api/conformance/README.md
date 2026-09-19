@@ -70,8 +70,8 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | `download-document` | `GET …/documents/{id}`, reporting the SHA-256 and length of the bytes |
 | `list-images` | `GET …/images?search=…`, reporting the keys, widths, heights and media types it parsed |
 | `upload-image` | `POST …/images` with the file from `config` (bytes, filename, content type) and a name, reporting the returned key and name |
-| `download-image` | `GET …/images/{imageKey}/content`, reporting the SHA-256 and length of the bytes |
-| `delete-image` | `DELETE …/images/{imageKey}` with `force` from `config` |
+| `download-image` | `GET …/images/{imageSlug}/content`, reporting the SHA-256 and length of the bytes |
+| `delete-image` | `DELETE …/images/{imageSlug}` with `force` from `config` |
 
 A new action also needs an entry in `ACTION_OPERATIONS` in `src/fixtures.mjs`, which names the
 operation whose response schema its fixtures are checked against.

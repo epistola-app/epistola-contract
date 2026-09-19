@@ -26,7 +26,7 @@ public class ValidatingGenerationApiTest
     private static (ValidatingGenerationApi Api, IGenerationApi Delegate) Build()
     {
         var templates = Substitute.For<ITemplatesApi>();
-        templates.GetTemplate("acme", "default", "invoice").Returns(new TemplateDto(key: "invoice", id: "invoice", tenantId: "acme", name: "Invoice", schema: Schema, variants: new List<VariantSummaryDto>()));
+        templates.GetTemplate("acme", "default", "invoice").Returns(new TemplateDto(slug: "invoice", id: "invoice", tenantId: "acme", name: "Invoice", schema: Schema, variants: new List<VariantSummaryDto>()));
         var generation = Substitute.For<IGenerationApi>();
         generation.GenerateDocument("acme", Arg.Any<GenerateDocumentRequest>()).Returns(new GenerationJobResponse());
         generation.GenerateDocumentBatch("acme", Arg.Any<GenerateBatchRequest>()).Returns(new GenerationJobResponse());

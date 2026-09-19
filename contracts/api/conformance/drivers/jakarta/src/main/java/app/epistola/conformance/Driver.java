@@ -272,7 +272,7 @@ public final class Driver {
         report(
                 baseUrl,
                 Map.of(
-                        "imageKeys", images.stream().map(ImageDto::getKey).collect(Collectors.joining(",")),
+                        "imageSlugs", images.stream().map(ImageDto::getSlug).collect(Collectors.joining(",")),
                         "widths", images.stream().map(image -> String.valueOf(image.getWidth())).collect(Collectors.joining(",")),
                         "heights", images.stream().map(image -> String.valueOf(image.getHeight())).collect(Collectors.joining(",")),
                         "mediaTypes", images.stream().map(ImageDto::getMediaType).collect(Collectors.joining(","))));
@@ -292,7 +292,7 @@ public final class Driver {
             ImageDto image = clients(baseUrl, config)
                     .api(ImagesApi.class)
                     .uploadImage(config.getString("tenantId"), config.getString("catalogId"), file, config.getString("name"), null, null);
-            report(baseUrl, Map.of("imageKey", image.getKey(), "imageName", image.getName()));
+            report(baseUrl, Map.of("imageSlug", image.getSlug(), "imageName", image.getName()));
         } finally {
             Files.deleteIfExists(file.toPath());
             Files.deleteIfExists(directory);
@@ -302,14 +302,14 @@ public final class Driver {
     private static void downloadImage(String baseUrl, JsonObject config) throws Exception {
         File file = clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .downloadImageContent(config.getString("tenantId"), config.getString("catalogId"), config.getString("imageKey"));
+                .downloadImageContent(config.getString("tenantId"), config.getString("catalogId"), config.getString("imageSlug"));
         reportBytes(baseUrl, Files.readAllBytes(file.toPath()));
     }
 
     private static void deleteImage(String baseUrl, JsonObject config) {
         clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .deleteImage(config.getString("tenantId"), config.getString("catalogId"), config.getString("imageKey"), config.getBoolean("force"));
+                .deleteImage(config.getString("tenantId"), config.getString("catalogId"), config.getString("imageSlug"), config.getBoolean("force"));
     }
 
     private static void reportBytes(String baseUrl, byte[] bytes) throws Exception {

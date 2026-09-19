@@ -1,12 +1,12 @@
 CatalogDto:
   type: object
   required:
-    - key
+    - slug
     - id
     - name
     - type
   properties:
-    key:
+    slug:
       type: string
       description: Catalog slug identifier
       example: municipality-demo
@@ -14,8 +14,8 @@ CatalogDto:
       type: string
       deprecated: true
       description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+        **Deprecated — use `slug`.** The same value, under the name the portable catalog
+        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       example: municipality-demo
     name:
       type: string
@@ -232,22 +232,14 @@ CatalogInstallResultDto:
   type: object
   required:
     - type
-    - key
     - slug
     - status
   properties:
     type:
       type: string
       example: template
-    key:
-      type: string
-      example: cover-letter
     slug:
       type: string
-      deprecated: true
-      description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       example: cover-letter
     status:
       type: string
@@ -267,19 +259,11 @@ RemovedCatalogResourceDto:
   type: object
   required:
     - type
-    - key
     - slug
   properties:
     type:
       type: string
       example: theme
-    key:
-      type: string
-      example: legacy
     slug:
       type: string
-      deprecated: true
-      description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       example: legacy

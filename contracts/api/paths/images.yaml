@@ -131,7 +131,7 @@ image-content:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: imageKey
+    - name: imageSlug
       in: path
       required: true
       description: The image's `key`.
@@ -200,7 +200,7 @@ image-resource:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: imageKey
+    - name: imageSlug
       in: path
       required: true
       description: The image's `key`.

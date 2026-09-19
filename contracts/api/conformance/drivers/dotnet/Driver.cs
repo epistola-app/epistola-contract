@@ -252,7 +252,7 @@ public static class Driver
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["imageKeys"] = string.Join(",", images.Select(image => image.Key)),
+            ["imageSlugs"] = string.Join(",", images.Select(image => image.Slug)),
             ["widths"] = string.Join(",", images.Select(image => Show(image.Width))),
             ["heights"] = string.Join(",", images.Select(image => Show(image.Height))),
             ["mediaTypes"] = string.Join(",", images.Select(image => image.MediaType)),
@@ -273,21 +273,21 @@ public static class Driver
             new FileParameter(Str(config, "filename"), Str(config, "fileContentType"), content),
             name: Str(config, "name"));
 
-        Report(baseUrl, new Dictionary<string, object> { ["imageKey"] = image.Key, ["imageName"] = image.Name });
+        Report(baseUrl, new Dictionary<string, object> { ["imageSlug"] = image.Slug, ["imageName"] = image.Name });
     }
 
     private static void DownloadImage(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         ReportBytes(baseUrl, new ImagesApi(http, apiBase).DownloadImageContent(
-            Str(config, "tenantId"), Str(config, "catalogId"), Str(config, "imageKey")));
+            Str(config, "tenantId"), Str(config, "catalogId"), Str(config, "imageSlug")));
     }
 
     private static void DeleteImage(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         new ImagesApi(http, apiBase).DeleteImage(
-            Str(config, "tenantId"), Str(config, "catalogId"), Str(config, "imageKey"),
+            Str(config, "tenantId"), Str(config, "catalogId"), Str(config, "imageSlug"),
             force: config.GetProperty("force").GetBoolean());
     }
 

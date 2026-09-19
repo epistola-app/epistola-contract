@@ -36,8 +36,8 @@ const ACTION_OPERATIONS = {
   'download-document': { method: 'get', path: '/tenants/{tenantId}/documents/{documentId}' },
   'list-images': { method: 'get', path: '/tenants/{tenantId}/catalogs/{catalogId}/images' },
   'upload-image': { method: 'post', path: '/tenants/{tenantId}/catalogs/{catalogId}/images' },
-  'download-image': { method: 'get', path: '/tenants/{tenantId}/catalogs/{catalogId}/images/{imageKey}/content' },
-  'delete-image': { method: 'delete', path: '/tenants/{tenantId}/catalogs/{catalogId}/images/{imageKey}' },
+  'download-image': { method: 'get', path: '/tenants/{tenantId}/catalogs/{catalogId}/images/{imageSlug}/content' },
+  'delete-image': { method: 'delete', path: '/tenants/{tenantId}/catalogs/{catalogId}/images/{imageSlug}' },
   collect: { method: 'post', path: '/tenants/{tenantId}/generation/collect' },
   routing: { method: 'post', path: '/tenants/{tenantId}/generation/collect' },
 }

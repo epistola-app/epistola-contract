@@ -43,7 +43,7 @@ script:
   - status: 201
     contentType: application/vnd.epistola.v1+json
     body:
-      key: municipality-mark
+      slug: municipality-mark
       tenantId: acme-corp
       catalog: main
       catalogType: AUTHORED
@@ -78,5 +78,5 @@ expect:
             whenPresent:
               value: 'false'
   report:
-    imageKey: municipality-mark
+    imageSlug: municipality-mark
     imageName: Municipality mark

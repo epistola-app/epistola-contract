@@ -2,12 +2,12 @@ TenantDto:
   type: object
   description: Represents a tenant in the system
   required:
-    - key
+    - slug
     - id
     - name
     - createdAt
   properties:
-    key:
+    slug:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
@@ -18,8 +18,8 @@ TenantDto:
       type: string
       deprecated: true
       description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+        **Deprecated — use `slug`.** The same value, under the name the portable catalog
+        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
@@ -34,7 +34,7 @@ TenantDto:
       description: Timestamp when the tenant was created
       example: "2026-01-15T09:00:00Z"
   example:
-    key: acme-corp
+    slug: acme-corp
     id: acme-corp
     name: Acme Corporation
     createdAt: "2026-01-15T09:00:00Z"
@@ -91,7 +91,7 @@ TenantListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - key: acme-corp
+      - slug: acme-corp
         id: acme-corp
         name: Acme Corporation
         createdAt: "2026-01-15T09:00:00Z"

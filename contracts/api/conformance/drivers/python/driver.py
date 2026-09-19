@@ -205,7 +205,7 @@ def _list_images(base_url: str, config: dict) -> None:
     _report(
         base_url,
         {
-            "imageKeys": ",".join(image.key for image in images),
+            "imageSlugs": ",".join(image.slug for image in images),
             "widths": ",".join(_show(image.width) for image in images),
             "heights": ",".join(_show(image.height) for image in images),
             "mediaTypes": ",".join(image.media_type for image in images),
@@ -223,19 +223,19 @@ def _upload_image(base_url: str, config: dict) -> None:
         (config["filename"], base64.b64decode(config["fileBase64"])),
         name=config["name"],
     )
-    _report(base_url, {"imageKey": image.key, "imageName": image.name})
+    _report(base_url, {"imageSlug": image.slug, "imageName": image.name})
 
 
 def _download_image(base_url: str, config: dict) -> None:
     content = ImagesApi(_client(base_url, config)).download_image_content(
-        config["tenantId"], config["catalogId"], config["imageKey"]
+        config["tenantId"], config["catalogId"], config["imageSlug"]
     )
     _report_bytes(base_url, bytes(content))
 
 
 def _delete_image(base_url: str, config: dict) -> None:
     ImagesApi(_client(base_url, config)).delete_image(
-        config["tenantId"], config["catalogId"], config["imageKey"], force=config["force"]
+        config["tenantId"], config["catalogId"], config["imageSlug"], force=config["force"]
     )
 
 

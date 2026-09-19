@@ -12,7 +12,6 @@ CodeListDto:
     over HTTPS via the manual "refresh" action). Catalog-imported code lists
     always land as `INLINE` because the entries ship in the catalog manifest.
   required:
-    - key
     - slug
     - tenantId
     - catalog
@@ -24,22 +23,12 @@ CodeListDto:
     - createdAt
     - lastModified
   properties:
-    key:
+    slug:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 1
       maxLength: 50
       description: Slug identifier (unique within `tenant + catalog`).
-      example: bcp-47
-    slug:
-      type: string
-      deprecated: true
-      description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 1
-      maxLength: 50
       example: bcp-47
     tenantId:
       type: string
@@ -112,7 +101,6 @@ CodeListDto:
       format: date-time
       example: "2026-05-11T00:00:00Z"
   example:
-    key: bcp-47
     slug: bcp-47
     tenantId: acme-corp
     catalog: system

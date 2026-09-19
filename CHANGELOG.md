@@ -7,170 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Added `key` to every REST response that addresses a resource, and deprecated the `id` or `slug`
-  it duplicates (#84). The API had three names for one concept: eight DTOs called a resource's
-  public address `id`, four called it `slug`, two called it `key`. The other two layers of the
-  product name the concept consistently: every Kotlin value class is a `…Key`, and every column that
-  *references* a resource is `template_key`, `variant_key`, `stencil_key`, `environment_key` or
-  `theme_key`. The spec's own wording gave the mismatch away: `TemplateDto.id` was documented as
-  *"Slug identifier of the template"*, with the example `invoice`.
+- Added `slug` to every REST response that addresses a resource, and deprecated the `id` it
+  duplicates (#84). Ten DTOs called a resource's readable address `id` while seven already called
+  it `slug` — and the spec's own wording gave the mismatch away, documenting `TemplateDto.id` as
+  *"Slug identifier of the template"* with the example `invoice`. No DTO ever carried both, so this
+  was inconsistency rather than a distinction.
 
-  The rule is that a **key** is an address someone chooses and a **id** is an identifier the system
-  assigns. So `documentId`, `requestId`, `batchId`, `correlationId`, `consumerId` and `nodeId` keep
-  their names, and so do version numbers: `VersionDto.id`, `StencilVersionDto.id` and
-  `ContractVersionDto.id` are sequence positions the suite allocates, not names anyone picked. Only
-  slug-valued fields change.
+  `slug` rather than `key`, because the portable catalog format already uses it for all seven
+  resource types. That is the harder contract to change and the one an integrator meets first, so
+  the two external contracts now agree on what to call the same value. `key` would also have
+  collided with the API keys and signing keys this product already has.
+
+  The rule is that a **slug** is an address someone chooses and an **id** is an identifier the
+  system assigns. `documentId`, `requestId`, `batchId`, `correlationId`, `consumerId` and `nodeId`
+  keep their names, and so do version numbers: `VersionDto.id`, `StencilVersionDto.id` and
+  `ContractVersionDto.id` are sequence positions the suite allocates per parent, not names anyone
+  picked, and no separate identity exists for them to be confused with.
 
   Nothing breaks. Both properties are required and carry the same value, so a client reading `id`
-  is unaffected and a client adopting `key` works immediately. The deprecated halves are removed in
-  2.0.0 (#84).
+  is unaffected and a client adopting `slug` works immediately. The deprecated halves are removed
+  in 2.0.0 (#84).
 
-  Request bodies are deliberately untouched. Making them compatible would have meant either both
-  properties optional, which stops the spec guaranteeing an identifier is present, or `anyOf`
-  composition — which this spec has never used, across five client generators. They rename in 2.0.0
-  instead, so during this window you `POST {"id": "invoice"}` and read back
-  `{"key": "invoice", "id": "invoice"}`.
+  Request bodies and path parameter names are unchanged, and rename in 2.0.0 instead. Making
+  request bodies compatible would have meant either both properties optional, which stops the spec
+  guaranteeing an identifier is present, or `anyOf` composition this spec has never used across
+  five client generators. Path parameter names looked free to rename, since every URL stays
+  byte-identical — but the generators turn them into public API, so that is source-breaking for
+  the published clients.
 
-  Path parameters keep their current names. Renaming them looked free, because a parameter name is
-  internal to the spec and every URL stays byte-identical — but the generators turn those names into
-  public API: method arguments in the Kotlin client, operation-request properties in the Node one.
-  That is source-breaking for all five published clients, so it belongs in 2.0.0 (#84) rather than
-  a compatible release.
-
-- Added catalog wire v7, which bounds and normalizes catalog keywords (#81). A keyword is now
-  lowercase ASCII letters and digits in hyphen-separated parts, at most 30 characters, and a catalog
-  lists at most 20. Until now the shared schema only required keywords to be trimmed, nonblank and
-  unique. The Suite enforced 30 characters and 20 keywords, but only when someone edited metadata,
-  so a catalog from Exchange could carry keywords the Suite would never have let a user type. Mixed
-  case also put every capitalised keyword first in the canonical order.
-
-  v6 has shipped, so it is not tightened in place. v6 archives migrate to v7 with notices instead
-  of being rejected, because keywords are discovery metadata that nothing references.
-  `Getting Started` becomes `getting-started`, `Financiële Zaken` becomes `financiele-zaken`, and
-  `WOZ/OZB` becomes `woz-ozb` (`CATALOG_KEYWORD_NORMALIZED`). A keyword longer than 30 characters is
-  shortened (`CATALOG_KEYWORD_TRUNCATED`), and keywords that collide are merged. A keyword with no
-  letters or digits, or one sorting beyond the 20th, is removed (`CATALOG_KEYWORD_REMOVED`). Keywords
-  that were already invalid v6 remain findings. A v6 fingerprint computed over the original
-  keywords still verifies, and re-exporting refingerprints the normalized catalog.
-
-  Native v7 input that breaks the rules fails with `CATALOG_KEYWORD_INVALID`,
-  `CATALOG_KEYWORD_TOO_LONG`, `CATALOG_KEYWORD_DUPLICATE` or `CATALOG_KEYWORD_LIMIT_EXCEEDED`, from
-  both the migrator's wire check and `CatalogValidator`. `CatalogInfo` still binds any keywords, so
-  manifests stored under v6 keep loading.
-
-  The rule is defined once: `CatalogKeywords` in Kotlin (`MAX_LENGTH`, `MAX_COUNT`, `PATTERN`,
-  `isValid`, `normalize`), and `MAX_CATALOG_KEYWORD_LENGTH`, `MAX_CATALOG_KEYWORDS`,
-  `CATALOG_KEYWORD_PATTERN` and the `CatalogKeyword` type in TypeScript, all checked against the v7
-  schema. The published `migrations/v6-to-v7/keyword-normalization.json` fixture defines
-  normalization for any other implementation.
-
-  As with v6, a consumer on an older artifact cannot read an archive emitted at v7. The generated
-  TypeScript `schemaVersion` literal is now `7`.
-
-  `x-epistola-catalog-contract` in the API spec now declares `wireSchemaVersion: 7`. It still
-  said `4`, having fallen behind at v5 and v6 because nothing checked it. The server stubs build
-  against the catalog source, so a new `CatalogContractVersionTest` there holds both declared
-  versions to the catalog.
-- Fixed the API spec's `info` losing its `contact` and `license`. Since the contract domains were
-  reorganized, `x-epistola-catalog-contract` sat between `info.version` and `info.contact` at the top
-  level. That closed `info` and made `contact` and `license` children of the extension. It is now a
-  top-level key of its own, `info` carries its contact and EUPL-1.2 license again, and Redocly's
-  `info-license` warning is gone. Generated clients pick the license and contact up from `info`
-  again.
-
-- Fixed the snapshot build on `main`. Every run that built the Jakarta EE client has failed in its
-  tests since that client was added. The Jakarta snapshot has never been published, and because
-  the publish job waits on every build, no JVM snapshot has been published for any spec change
-  since. `ClientIdentityTest` required a three-part contract version, but CI stamps the bundled spec
-  with the artifact version, and a snapshot's is `1.2-SNAPSHOT`. Pull request builds do not stamp a
-  version, so they never saw it. The test now accepts all three shapes CI produces. The client
-  itself was correct: the server reads the contract version as an opaque string.
-
-- Added images to the API — `listImages`, `uploadImage`, `downloadImageContent` and `deleteImage`
-  under `/tenants/{tenantId}/catalogs/{catalogId}/images`, with `ImageDto` and `ImageListResponse` —
-  and deprecated the asset operations, `AssetDto` and `AssetListResponse` in their favour, for
-  removal in the next major version. `assets` was a storage table showing through the API. It holds
-  two things that are not alike: images, which an author picks and a template references directly,
-  and the binaries behind font faces, which nothing references but the face that owns them and which
-  the Fonts API already describes as part of a family. A caller listing assets got both mixed
-  together, and `listAssets` had a `mediaCategory` filter whose documented purpose was to hide the
-  fonts again. The Suite's web UI and its MCP tools already call these images.
-
-  `ImageDto` is `AssetDto` without the parts that existed only because it described two kinds of
-  file. It has no `mediaCategory`, since an image is always an image, and the list has no category
-  filter. It carries `key` rather than `id`: the image's public key, which is a string, the value a
-  template references as `props.assetId`, and not an identity. The `{imageKey}` path parameter takes
-  that string, so it can address an image with a readable key. The asset paths take a UUID and cannot. `uploadImage` accepts images only and
-  rejects anything else with 400. Nothing replaces uploading other files, because a font binary only
-  means something as a face of a family.
-
-  Deprecated is not removed: the asset endpoints have shipped in every release since 1.0.0 and keep
-  working until the next major version.
-
-- Fixed the Jakarta EE client uploading nothing at all. Its three multipart operations —
-  `uploadImage`, `uploadAsset` and `importCatalog` — were generated as `@FormParam("file") File`,
-  which a MicroProfile Rest Client implementation sends as `application/x-www-form-urlencoded`
-  carrying the file's *local path*, url-encoded, and none of its bytes. Every upload through this
-  client therefore uploaded nothing and disclosed a filesystem path to the server, whatever the
-  operation's `@Consumes` said. It has been this way since the client was first published.
-
-  The build now rewrites those methods onto Jakarta REST 3.1's `EntityPart`. Each one keeps its
-  generated signature as a `default` method, so calling code is unchanged, and gains an overload
-  taking `List<EntityPart>` for content that is not a file on disk. `MultipartForm` builds the
-  parts: a file part carries its filename and the media type its extension implies — from the
-  contract's own table, because the JDK's has no entry for `.webp` on Java 17, which this client
-  still supports, though Java 21 does — and a null field
-  is left out rather than sent empty. Building parts needs an `EntityPart` implementation, which
-  every Jakarta EE 10 server provides; only a caller outside a server adds one. The WildFly
-  deployment test now uploads through the injected client, and the new `image-upload` conformance
-  scenario holds all five clients to the same multipart body.
-- Fixed the Python client asking for none of what a binary download returns. Its `Accept` override
-  kept only the JSON entries an operation declares. On `downloadDocument`, `previewDocument`,
-  `downloadAssetContent` and `downloadImageContent`, the only JSON entry is the problem document, so
-  those operations asked for `application/problem+json` alone and never for the PDF or image. A
-  server doing strict content negotiation would answer 406. The client now sends every declared type
-  in order, as the other clients do. The new image scenarios found it, and `binary-download` now
-  checks it for documents too.
-- Extended the conformance suite to the image operations. All five drivers implement `list-images`,
-  `upload-image`, `download-image` and `delete-image`, and each has a scenario. The scenarios cover
-  exact bytes and an `Accept` header that admits every image type, a readable key in the path,
-  `null` dimensions kept as null, `force=true` on a delete, and the suite's first multipart request.
-  The upload is judged part by part on the raw request bytes by a new `multipart` body matcher: the
-  file part's filename, content type and digest, and optional fields left unset.
-- Documented uploads in the .NET, Python and Node.js client READMEs. A file part needs a filename and
-  the image's content type. Given only bare bytes or a stream, each client sends a placeholder name
-  and `application/octet-stream`, and the server rejects the upload as not an image unless
-  `mediaType` is also passed.
-
-- Deprecated `UpgradeCatalogRequest.includeNewSlugs`, which is now ignored. A catalog upgrade
-  reconciles the whole manifest, so resources the publisher added since the installed release are
-  installed whether or not a caller lists them — a superset of anything the field could request. It
-  existed because a catalog could be installed partially; catalogs are now one install unit, so
-  there is no subset to preserve. The field also never worked as documented here: its example format
-  is `type/slug` and the implementation matched bare slugs, so a correctly formatted value selected
-  nothing. Retained because this API is GA; a candidate for removal in the next major version. The
-  `upgradeCatalog` description now says what the operation does to all three change kinds instead.
-
-- Added `@epistola.app/epistola-client`, a Node.js client generated from the bundled spec with
-  openapi-generator's `typescript-fetch` on the platform's own `fetch`, with the same conventions as
-  the other four clients: identity headers, API-key and self-signed-JWT authentication (RS256 and
-  ES256 on `node:crypto`, the ES256 signature in the raw `R || S` form JOSE requires), RFC 9457
-  problem parsing into a typed `ProblemDetailException`, the result-collection protocol — with gzip
-  and zstd decoded by sniffing the stream, because Node's `fetch` decodes on its own and leaves
-  `Content-Encoding` on the response — and both layers of client-side validation. It has no runtime
-  dependencies: Ajv, which the template-schema validator runs on, is an optional peer loaded on
-  first use, so only consumers who validate on the client install it. The contract
-  constants (problem slugs, identity headers, media types) are generated from the spec as in the JVM
-  modules, plus one the others do not have: `CONTRACT_OPERATIONS`, the method, path and declared
-  response media types of every operation. The generator sets `Content-Type` but never `Accept`, and
-  Node's `fetch` sends `*/*` in its place, so the client derives that header from the table and asks
-  for exactly what the operation is declared to return, the problem document included. A fifth
-  conformance driver holds it to the same wire behaviour as the others; `make conformance` runs five.
-  Releases publish to npm through trusted publishing, which the new package name still needs
-  bootstrapped; snapshots keep their packed tarball as a workflow artifact and publish nowhere.
-- Fixed the conformance suite's Prism proxy sending `Content-Length` twice — the upstream's copy and
-  its own — which the JVM, .NET and Python HTTP stacks accepted and Node's strict parser rejects as a
-  protocol violation. Found on the Node.js client's first run against the spec-validating scenarios.
+- **Breaking (unreleased):** `ImageDto.key` is now `ImageDto.slug`, and `{imageKey}` is
+  `{imageSlug}`. The images API was added in #80 and has not shipped in a release, so it converges
+  on the same vocabulary rather than becoming the one endpoint that disagrees. An image is
+  addressed like a font: by its slug.
 
 ## [1.2.0] - 2026-09-03
 

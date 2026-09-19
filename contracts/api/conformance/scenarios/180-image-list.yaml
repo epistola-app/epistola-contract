@@ -32,7 +32,7 @@ script:
     contentType: application/vnd.epistola.v1+json
     body:
       items:
-        - key: municipality-mark
+        - slug: municipality-mark
           tenantId: acme-corp
           catalog: main
           catalogType: AUTHORED
@@ -43,7 +43,7 @@ script:
           width: null
           height: null
           createdAt: "2026-09-11T10:00:00Z"
-        - key: 4a64f2f9-2c7a-4d26-9cf7-d34c7ce92280
+        - slug: 4a64f2f9-2c7a-4d26-9cf7-d34c7ce92280
           tenantId: acme-corp
           catalog: main
           catalogType: AUTHORED
@@ -68,7 +68,7 @@ expect:
         page: { whenPresent: '0' }
         size: { whenPresent: '20' }
   report:
-    imageKeys: municipality-mark,4a64f2f9-2c7a-4d26-9cf7-d34c7ce92280
+    imageSlugs: municipality-mark,4a64f2f9-2c7a-4d26-9cf7-d34c7ce92280
     widths: null,512
     heights: null,128
     mediaTypes: image/svg+xml,image/png

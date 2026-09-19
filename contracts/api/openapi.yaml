@@ -336,9 +336,9 @@ paths:
   # Images
   /tenants/{tenantId}/catalogs/{catalogId}/images:
     $ref: './paths/images.yaml#/images'
-  /tenants/{tenantId}/catalogs/{catalogId}/images/{imageKey}:
+  /tenants/{tenantId}/catalogs/{catalogId}/images/{imageSlug}:
     $ref: './paths/images.yaml#/image-resource'
-  /tenants/{tenantId}/catalogs/{catalogId}/images/{imageKey}/content:
+  /tenants/{tenantId}/catalogs/{catalogId}/images/{imageSlug}/content:
     $ref: './paths/images.yaml#/image-content'
 
   # Assets (deprecated in favour of Images; removed in the next major version)

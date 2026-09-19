@@ -2,7 +2,7 @@ VariantDto:
   type: object
   description: Full template variant with version summary
   required:
-    - key
+    - slug
     - id
     - templateId
     - title
@@ -13,7 +13,7 @@ VariantDto:
     - createdAt
     - lastModified
   properties:
-    key:
+    slug:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
@@ -24,8 +24,8 @@ VariantDto:
       type: string
       deprecated: true
       description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+        **Deprecated — use `slug`.** The same value, under the name the portable catalog
+        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
@@ -82,7 +82,7 @@ VariantDto:
       description: Timestamp when the variant was last modified
       example: "2026-01-28T11:30:00Z"
   example:
-    key: english
+    slug: english
     id: english
     templateId: invoice
     title: English Invoice
@@ -100,7 +100,7 @@ VariantSummaryDto:
   type: object
   description: Summary view of a variant for inclusion in template responses
   required:
-    - key
+    - slug
     - id
     - title
     - attributes
@@ -108,7 +108,7 @@ VariantSummaryDto:
     - hasDraft
     - publishedVersions
   properties:
-    key:
+    slug:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
@@ -119,8 +119,8 @@ VariantSummaryDto:
       type: string
       deprecated: true
       description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+        **Deprecated — use `slug`.** The same value, under the name the portable catalog
+        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
@@ -154,7 +154,7 @@ VariantSummaryDto:
       description: List of published version numbers
       example: [1, 2]
   example:
-    key: english
+    slug: english
     id: english
     title: English Invoice
     attributes:
@@ -243,7 +243,7 @@ VariantListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - key: english
+      - slug: english
         id: english
         templateId: invoice
         title: English Invoice

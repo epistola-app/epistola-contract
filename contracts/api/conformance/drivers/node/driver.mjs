@@ -177,7 +177,7 @@ async function listImages(baseUrl, config) {
     search: config.search,
   })
   await report(baseUrl, {
-    imageKeys: items.map((image) => image.key).join(','),
+    imageSlugs: items.map((image) => image.slug).join(','),
     widths: items.map((image) => show(image.width)).join(','),
     heights: items.map((image) => show(image.height)).join(','),
     mediaTypes: items.map((image) => image.mediaType).join(','),
@@ -197,14 +197,14 @@ async function uploadImage(baseUrl, config) {
     file,
     name: config.name,
   })
-  await report(baseUrl, { imageKey: image.key, imageName: image.name })
+  await report(baseUrl, { imageSlug: image.slug, imageName: image.name })
 }
 
 async function downloadImage(baseUrl, config) {
   const blob = await new ImagesApi(client(baseUrl, config)).downloadImageContent({
     tenantId: config.tenantId,
     catalogId: config.catalogId,
-    imageKey: config.imageKey,
+    imageSlug: config.imageSlug,
   })
   await reportBytes(baseUrl, blob)
 }
@@ -213,7 +213,7 @@ async function deleteImage(baseUrl, config) {
   await new ImagesApi(client(baseUrl, config)).deleteImage({
     tenantId: config.tenantId,
     catalogId: config.catalogId,
-    imageKey: config.imageKey,
+    imageSlug: config.imageSlug,
     force: config.force,
   })
 }

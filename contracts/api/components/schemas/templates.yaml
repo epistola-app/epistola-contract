@@ -2,7 +2,7 @@ TemplateDto:
   type: object
   description: Full document template with all details including variant summaries
   required:
-    - key
+    - slug
     - id
     - tenantId
     - name
@@ -10,7 +10,7 @@ TemplateDto:
     - createdAt
     - lastModified
   properties:
-    key:
+    slug:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
@@ -21,8 +21,8 @@ TemplateDto:
       type: string
       deprecated: true
       description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+        **Deprecated — use `slug`.** The same value, under the name the portable catalog
+        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
@@ -196,7 +196,7 @@ TemplateDto:
       description: Timestamp when the template was last modified
       example: "2026-01-22T16:45:00Z"
   example:
-    key: invoice
+    slug: invoice
     id: invoice
     tenantId: acme-corp
     name: Monthly Invoice
@@ -361,7 +361,7 @@ TemplateDto:
               quantity: 1
               unitPrice: 500.00
     variants:
-      - key: english
+      - slug: english
         id: english
         title: English Invoice
         attributes:
@@ -377,14 +377,14 @@ TemplateSummaryDto:
   type: object
   description: Summary view of a template for list displays
   required:
-    - key
+    - slug
     - id
     - tenantId
     - name
     - createdAt
     - lastModified
   properties:
-    key:
+    slug:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
@@ -395,8 +395,8 @@ TemplateSummaryDto:
       type: string
       deprecated: true
       description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+        **Deprecated — use `slug`.** The same value, under the name the portable catalog
+        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
@@ -423,7 +423,7 @@ TemplateSummaryDto:
       description: Timestamp when the template was last modified
       example: "2026-01-22T16:45:00Z"
   example:
-    key: invoice
+    slug: invoice
     id: invoice
     tenantId: acme-corp
     name: Monthly Invoice
@@ -777,7 +777,7 @@ TemplateListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - key: invoice
+      - slug: invoice
         id: invoice
         tenantId: acme-corp
         name: Monthly Invoice

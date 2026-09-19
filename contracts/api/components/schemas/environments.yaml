@@ -2,13 +2,13 @@ EnvironmentDto:
   type: object
   description: Tenant environment for version activation (e.g., staging, production)
   required:
-    - key
+    - slug
     - id
     - tenantId
     - name
     - createdAt
   properties:
-    key:
+    slug:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
@@ -19,8 +19,8 @@ EnvironmentDto:
       type: string
       deprecated: true
       description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+        **Deprecated — use `slug`.** The same value, under the name the portable catalog
+        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 30
@@ -42,7 +42,7 @@ EnvironmentDto:
       description: Timestamp when the environment was created
       example: "2026-01-16T10:00:00Z"
   example:
-    key: production
+    slug: production
     id: production
     tenantId: acme-corp
     name: Production
@@ -96,12 +96,12 @@ EnvironmentListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - key: production
+      - slug: production
         id: production
         tenantId: acme-corp
         name: Production
         createdAt: "2026-01-16T10:00:00Z"
-      - key: staging
+      - slug: staging
         id: staging
         tenantId: acme-corp
         name: Staging

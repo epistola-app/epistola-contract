@@ -5,7 +5,7 @@ StencilDto:
     A stencil is a reusable template component that can be inserted into any template.
     Each stencil has versioned content following the same draft/published/archived lifecycle as template versions.
   required:
-    - key
+    - slug
     - id
     - tenantId
     - name
@@ -13,7 +13,7 @@ StencilDto:
     - createdAt
     - lastModified
   properties:
-    key:
+    slug:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
@@ -24,8 +24,8 @@ StencilDto:
       type: string
       deprecated: true
       description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+        **Deprecated — use `slug`.** The same value, under the name the portable catalog
+        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
@@ -71,7 +71,7 @@ StencilDto:
       description: Timestamp when the stencil was last modified
       example: "2026-03-15T14:30:00Z"
   example:
-    key: corporate-header
+    slug: corporate-header
     id: corporate-header
     tenantId: acme-corp
     name: Corporate Header
@@ -97,7 +97,7 @@ StencilSummaryDto:
   type: object
   description: Summary view of a stencil for list displays
   required:
-    - key
+    - slug
     - id
     - tenantId
     - name
@@ -105,7 +105,7 @@ StencilSummaryDto:
     - createdAt
     - lastModified
   properties:
-    key:
+    slug:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
@@ -116,8 +116,8 @@ StencilSummaryDto:
       type: string
       deprecated: true
       description: |
-        **Deprecated — use `key`.** The same value, under the name every other layer of the
-        product uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+        **Deprecated — use `slug`.** The same value, under the name the portable catalog
+        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
@@ -166,7 +166,7 @@ StencilSummaryDto:
       description: Timestamp when the stencil was last modified
       example: "2026-03-15T14:30:00Z"
   example:
-    key: corporate-header
+    slug: corporate-header
     id: corporate-header
     tenantId: acme-corp
     name: Corporate Header
@@ -261,7 +261,7 @@ StencilVersionDto:
       root: node-root
       nodes:
         node-root:
-          key: node-root
+          slug: node-root
           id: node-root
           type: container
           slots:
@@ -269,7 +269,7 @@ StencilVersionDto:
           styles: {}
           props: {}
         node-logo:
-          key: node-logo
+          slug: node-logo
           id: node-logo
           type: image
           slots: []
@@ -279,7 +279,7 @@ StencilVersionDto:
             assetId: company-logo
             alt: "Company logo"
         node-company-name:
-          key: node-company-name
+          slug: node-company-name
           id: node-company-name
           type: text
           slots: []
@@ -297,7 +297,7 @@ StencilVersionDto:
                         expression: company.name
       slots:
         slot-root-children:
-          key: slot-root-children
+          slug: slot-root-children
           id: slot-root-children
           nodeId: node-root
           name: children
@@ -715,7 +715,7 @@ StencilListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - key: corporate-header
+      - slug: corporate-header
         id: corporate-header
         tenantId: acme-corp
         name: Corporate Header

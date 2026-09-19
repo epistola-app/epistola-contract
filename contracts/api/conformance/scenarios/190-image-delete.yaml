@@ -22,7 +22,7 @@ action:
     apiKey: epk_conformance_0123456789
     tenantId: acme-corp
     catalogId: main
-    imageKey: municipality-mark
+    imageSlug: municipality-mark
     force: true
 
 script:
