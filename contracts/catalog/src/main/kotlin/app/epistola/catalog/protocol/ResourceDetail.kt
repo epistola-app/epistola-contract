@@ -262,7 +262,7 @@ data class DataExampleEntry(
  * variant may set [isDefault].
  */
 data class VariantEntry(
-    val id: String,
+    val slug: String,
     val title: String? = null,
     val attributes: Map<String, String>? = null,
     val templateModel: TemplateDocument? = null,

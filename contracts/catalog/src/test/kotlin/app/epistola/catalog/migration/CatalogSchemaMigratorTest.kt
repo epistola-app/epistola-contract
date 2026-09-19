@@ -114,6 +114,30 @@ class CatalogSchemaMigratorTest {
     }
 
     @Test
+    fun `v6 variant ids migrate to v7 slugs, values unchanged`() {
+        val input = resource("migrations/v6-to-v7/template-variants-input.json").use(mapper::readTree) as ObjectNode
+        val step = CatalogV6ToV7Migration().migrateResource(input, "resources/template/invoice.json")
+        val expected = resource("migrations/v6-to-v7/template-variants-expected.json").use(mapper::readTree)
+
+        assertTrue(step.findings.isEmpty(), step.findings.toString())
+        // A rename with no repair: nothing references a variant across catalogs, so no stored
+        // reference elsewhere names it and none is left dangling. Hence no notices either.
+        assertTrue(step.notices.isEmpty(), step.notices.toString())
+        assertEquals(expected, input)
+    }
+
+    @Test
+    fun `a v6 variant already carrying a slug keeps it`() {
+        val input = mapper.readTree(
+            """{"schemaVersion":6,"type":"template","slug":"invoice","name":"Invoice",
+               "variants":[{"slug":"keep","id":"discard"}]}""",
+        ) as ObjectNode
+        CatalogV6ToV7Migration().migrateResource(input, "resources/template/invoice.json")
+
+        assertEquals("keep", input["variants"][0]["slug"].asString())
+    }
+
+    @Test
     fun `v6 golden keywords migrate to their v7 form with notices`() {
         val input = resource("migrations/v6-to-v7/manifest-input.json").use(mapper::readTree) as ObjectNode
         val step = CatalogV6ToV7Migration().migrateManifest(input)

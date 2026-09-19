@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Catalog wire v7 addresses a template variant by `slug`, not `id` (#86). Every other resource type
+  already said `slug`, and a variant's address was always a name someone chose — `english`,
+  `default` — so `id` was the same misnomer the REST API just shed. With `VariantDto` converged on
+  `slug` in the same release, the two external contracts would otherwise disagree about the one
+  field this convergence exists to fix.
+
+  A v6 archive migrates with the value unchanged and no notice: nothing references a variant across
+  catalogs, so no stored reference elsewhere names it and none can be left dangling. The slug is
+  now bounded like the rest — 3 to 50 characters, leading letter — matching the `VARIANT_KEY` a
+  consumer stores it in.
+
 - Catalog wire v7 now constrains every resource slug (#86). Until now the wire constrained none of
   them, while every consumer that stores one does: a catalog naming a theme with 30 characters was
   publishable and then refused on install, with no diagnosis in between. Exchange runs this

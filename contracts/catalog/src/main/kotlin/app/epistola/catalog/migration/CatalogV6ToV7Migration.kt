@@ -78,7 +78,29 @@ internal class CatalogV6ToV7Migration : CatalogSchemaMigration {
         path: String,
     ): CatalogMigrationStepResult {
         tree.put("schemaVersion", toVersion)
+        renameVariantIdToSlug(tree)
         return CatalogMigrationStepResult()
+    }
+
+    /**
+     * Carries a template's variant addresses from catalog-v6's `id` to catalog-v7's `slug`.
+     *
+     * The value is unchanged -- a variant was always addressed by a name someone chose, like
+     * `english` or `default`, and every other resource type already called that a slug. Renaming
+     * the field needs no notice: nothing references a variant across catalogs, so no stored
+     * reference elsewhere names it and none can be left dangling.
+     *
+     * A v6 variant that already carries `slug` is left alone; it cannot have come from a v6
+     * producer, and overwriting it would discard the more specific value.
+     */
+    private fun renameVariantIdToSlug(tree: ObjectNode) {
+        val variants = tree["variants"] as? ArrayNode ?: return
+        for (variant in variants) {
+            val entry = variant as? ObjectNode ?: continue
+            if (entry.has("slug")) continue
+            val id = entry.remove("id") ?: continue
+            entry.set("slug", id)
+        }
     }
 
     /** Catalog-v6's own keyword rules; input that broke them was never a valid v6 catalog. */

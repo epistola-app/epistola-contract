@@ -214,10 +214,10 @@ object ResourceValidator {
             validateReference("theme", themeId, resource.themeCatalogKey, context, "$path.themeId", findings)
         }
         validateDocument(resource.templateModel, context, "$path.templateModel", null, findings)
-        val variantIds = mutableSetOf<String>()
+        val variantSlugs = mutableSetOf<String>()
         resource.variants.forEachIndexed { index, variant ->
-            if (!variantIds.add(variant.id)) {
-                findings.error(CatalogValidationCodes.TEMPLATE_VARIANT_ID_DUPLICATE, "$path.variants[$index].id", "variant id '${variant.id}' is duplicated")
+            if (!variantSlugs.add(variant.slug)) {
+                findings.error(CatalogValidationCodes.TEMPLATE_VARIANT_ID_DUPLICATE, "$path.variants[$index].slug", "variant slug '${variant.slug}' is duplicated")
             }
             variant.templateModel?.let { validateDocument(it, context, "$path.variants[$index].templateModel", null, findings) }
         }
