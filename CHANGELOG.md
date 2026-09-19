@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Catalog wire v7 now constrains every resource slug (#86). Until now the wire constrained none of
+  them, while every consumer that stores one does: a catalog naming a theme with 30 characters was
+  publishable and then refused on install, with no diagnosis in between. Exchange runs this
+  validator at its publication gate, so the mistake is now caught where it is still cheap to fix —
+  before the upload — rather than by whoever installs the release.
+
+  The limits mirror the storage they have to survive rather than inventing new ones, so they differ
+  per type: template, stencil and attribute 3–50, theme 3–20, code list 3–64, font 2–64, and the
+  catalog's own slug 3–50. An asset is the exception at 1–50 with a leading digit allowed, because
+  its slug may be a generated UUID string; every other type requires a leading letter.
+
+  A maximum may be relaxed later without breaking anyone, since a wider bound accepts every value a
+  narrower one held. It may never be tightened once catalogs exist that use the extra room, which
+  is why v7 — merged but unreleased — is the moment to set them.
+
+  Unlike a keyword, a slug that does not conform cannot be repaired: other resources reference it
+  by name, so rewriting one would break those references. Rules live in `CatalogSlugs`, beside
+  `CatalogKeywords`, and are enforced by the schema rather than by resource models, which consumers
+  rebind from manifests stored under earlier wire versions.
+
 - Added `slug` to every REST response that addresses a resource, and deprecated the `id` it
   duplicates (#84). Ten DTOs called a resource's readable address `id`, one called it `key`, and
   seven already called
