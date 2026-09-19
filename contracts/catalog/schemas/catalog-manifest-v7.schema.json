@@ -5,57 +5,134 @@
   "description": "Portable Epistola catalog manifest at wire version 7.",
   "type": "object",
   "properties": {
-    "schemaVersion": { "const": 7 },
-    "catalog": { "$ref": "#/$defs/CatalogInfo" },
-    "publisher": { "$ref": "#/$defs/PublisherInfo" },
-    "release": { "$ref": "#/$defs/ReleaseInfo" },
-    "compatibility": { "oneOf": [{ "$ref": "#/$defs/CompatibilityInfo" }, { "type": "null" }] },
-    "includes": {
+    "schemaVersion": {
+      "const": 7
+    },
+    "catalog": {
+      "$ref": "#/$defs/CatalogInfo"
+    },
+    "publisher": {
+      "$ref": "#/$defs/PublisherInfo"
+    },
+    "release": {
+      "$ref": "#/$defs/ReleaseInfo"
+    },
+    "compatibility": {
       "oneOf": [
-        { "type": "array", "items": { "$ref": "#/$defs/IncludeEntry" } },
-        { "type": "null" }
+        {
+          "$ref": "#/$defs/CompatibilityInfo"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
-    "resources": { "type": "array", "items": { "$ref": "#/$defs/ResourceEntry" } },
+    "includes": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/IncludeEntry"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ResourceEntry"
+      }
+    },
     "dependencies": {
       "oneOf": [
-        { "type": "array", "items": { "$ref": "#/$defs/DependencyRef" } },
-        { "type": "null" }
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DependencyRef"
+          }
+        },
+        {
+          "type": "null"
+        }
       ]
     }
   },
-  "required": ["schemaVersion", "catalog", "publisher", "release", "resources"],
+  "required": [
+    "schemaVersion",
+    "catalog",
+    "publisher",
+    "release",
+    "resources"
+  ],
   "additionalProperties": false,
   "$defs": {
     "CatalogInfo": {
       "type": "object",
       "properties": {
-        "slug": { "type": "string" },
-        "name": { "type": "string" },
-        "description": { "type": ["string", "null"] },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "attributes": {
           "type": "array",
-          "items": { "$ref": "#/$defs/AttributeAssignment" }
+          "items": {
+            "$ref": "#/$defs/AttributeAssignment"
+          }
         },
         "keywords": {
           "oneOf": [
             {
               "type": "array",
-              "items": { "$ref": "#/$defs/CatalogKeyword" },
+              "items": {
+                "$ref": "#/$defs/CatalogKeyword"
+              },
               "maxItems": 20,
               "uniqueItems": true
             },
-            { "type": "null" }
+            {
+              "type": "null"
+            }
           ]
         },
         "presentation": {
-          "oneOf": [{ "$ref": "#/$defs/CatalogPresentation" }, { "type": "null" }]
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CatalogPresentation"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "license": {
-          "oneOf": [{ "$ref": "#/$defs/CatalogLicense" }, { "type": "null" }]
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CatalogLicense"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
-      "required": ["slug", "name"],
+      "required": [
+        "slug",
+        "name"
+      ],
       "additionalProperties": false
     },
     "CatalogKeyword": {
@@ -76,18 +153,31 @@
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
         },
-        "value": { "type": "string" }
+        "value": {
+          "type": "string"
+        }
       },
-      "required": ["catalog", "key", "value"],
+      "required": [
+        "catalog",
+        "key",
+        "value"
+      ],
       "additionalProperties": false
     },
     "CatalogPresentation": {
       "type": "object",
       "properties": {
-        "iconAssetSlug": { "type": ["string", "null"] },
+        "iconAssetSlug": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "imageAssetSlugs": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "uniqueItems": true
         }
       },
@@ -102,80 +192,172 @@
           "pattern": "^\\S(?:.*\\S)?$"
         },
         "spdxExpression": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "pattern": "^\\S(?:.*\\S)?$"
         },
         "url": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "pattern": "^https?://\\S+$"
         },
         "copyrightText": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "pattern": "^\\S(?:.*\\S)?$"
         }
       },
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "additionalProperties": false
     },
     "PublisherInfo": {
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "url": { "type": ["string", "null"] }
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       },
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "additionalProperties": false
     },
     "ReleaseInfo": {
       "type": "object",
       "properties": {
-        "version": { "type": "string" },
-        "releasedAt": { "type": ["string", "null"] },
-        "fingerprint": { "type": ["string", "null"] }
+        "version": {
+          "type": "string"
+        },
+        "releasedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fingerprint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       },
-      "required": ["version"],
+      "required": [
+        "version"
+      ],
       "additionalProperties": false
     },
     "CompatibilityInfo": {
       "type": "object",
       "properties": {
-        "epistolaVersions": { "type": ["string", "null"] }
+        "epistolaVersions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       },
       "additionalProperties": false
     },
     "IncludeEntry": {
       "type": "object",
       "properties": {
-        "url": { "type": "string" },
-        "description": { "type": ["string", "null"] }
+        "url": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       },
-      "required": ["url"],
+      "required": [
+        "url"
+      ],
       "additionalProperties": false
     },
     "ResourceEntry": {
       "type": "object",
       "properties": {
-        "type": { "type": "string" },
-        "slug": { "type": "string" },
-        "name": { "type": "string" },
-        "description": { "type": ["string", "null"] },
-        "updatedAt": { "type": ["string", "null"] },
-        "detailUrl": { "type": "string" },
-        "compatibility": { "oneOf": [{ "$ref": "#/$defs/CompatibilityInfo" }, { "type": "null" }] }
+        "type": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updatedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "detailUrl": {
+          "type": "string"
+        },
+        "compatibility": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CompatibilityInfo"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
       },
-      "required": ["type", "slug", "name", "detailUrl"],
+      "required": [
+        "type",
+        "slug",
+        "name",
+        "detailUrl"
+      ],
       "additionalProperties": false
     },
     "DependencyRef": {
       "oneOf": [
-        { "$ref": "#/$defs/CatalogDependencyRef" },
+        {
+          "$ref": "#/$defs/CatalogDependencyRef"
+        },
         {
           "type": "object",
           "properties": {
-            "type": { "const": "asset" },
-            "slug": { "type": "string" }
+            "type": {
+              "const": "asset"
+            },
+            "slug": {
+              "type": "string"
+            }
           },
-          "required": ["type", "slug"],
+          "required": [
+            "type",
+            "slug"
+          ],
           "additionalProperties": false
         }
       ]
@@ -183,11 +365,32 @@
     "CatalogDependencyRef": {
       "type": "object",
       "properties": {
-        "type": { "enum": ["theme", "stencil", "codeList", "font"] },
-        "catalogKey": { "type": "string" },
-        "slug": { "type": "string" }
+        "type": {
+          "enum": [
+            "theme",
+            "stencil",
+            "codeList",
+            "font"
+          ]
+        },
+        "catalogKey": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "minLength": 1,
+          "maxLength": 64
+        }
       },
-      "required": ["type", "catalogKey", "slug"],
+      "required": [
+        "type",
+        "catalogKey",
+        "slug"
+      ],
       "additionalProperties": false
     }
   }

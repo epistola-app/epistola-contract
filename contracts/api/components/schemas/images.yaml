@@ -7,7 +7,7 @@ ImageDto:
     A template places an image by referencing its `key` from an image node, as `props.assetId`
     alongside the owning catalog's `props.catalogKey`.
   required:
-    - key
+    - slug
     - tenantId
     - catalog
     - catalogType
@@ -17,13 +17,13 @@ ImageDto:
     - sizeBytes
     - createdAt
   properties:
-    key:
+    slug:
       type: string
       pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       maxLength: 50
       description: |
-        The image's public key, unique within its catalog. It is the value a template references as
-        `props.assetId`, the image's slug in a catalog export, and the `{imageKey}` that addresses
+        The image's slug, unique within its catalog. It is the value a template references as
+        `props.assetId`, the image's slug in a catalog export, and the `{imageSlug}` that addresses
         the image in this API.
 
         An image this installation creates has a generated UUID as its key. An image from a catalog

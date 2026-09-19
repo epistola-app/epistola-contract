@@ -11,6 +11,7 @@ AttributeDto:
     Attributes from a SUBSCRIBED catalog (e.g. the bundled `system` catalog)
     are flagged `readOnly: true`. Writes to them via this API return 409.
   required:
+    - slug
     - key
     - tenantId
     - catalog
@@ -21,12 +22,24 @@ AttributeDto:
     - createdAt
     - lastModified
   properties:
-    key:
+    slug:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 1
       maxLength: 50
       description: Slug identifier of the attribute (unique within `tenant + catalog`).
+      example: locale
+    key:
+      type: string
+      deprecated: true
+      description: |
+        **Deprecated — use `slug`.** The same value, under the name the portable catalog
+        format already uses for an attribute definition. The wire's `key` is a different
+        thing: the key half of an attribute *assignment*. Removed in 2.0.0
+        (epistola-app/epistola-contract#84).
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 1
+      maxLength: 50
       example: locale
     tenantId:
       type: string
@@ -103,6 +116,7 @@ AttributeDto:
       format: date-time
       example: "2026-05-11T12:00:00Z"
   example:
+    slug: locale
     key: locale
     tenantId: acme-corp
     catalog: system
@@ -213,7 +227,8 @@ AttributeListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - key: locale
+      - slug: locale
+        key: locale
         tenantId: acme-corp
         catalog: system
         displayName: Locale
@@ -223,7 +238,8 @@ AttributeListResponse:
         readOnly: true
         createdAt: "2026-01-16T10:00:00Z"
         lastModified: "2026-05-11T12:00:00Z"
-      - key: priority
+      - slug: priority
+        key: priority
         tenantId: acme-corp
         catalog: default
         displayName: Priority

@@ -238,7 +238,7 @@ object Driver {
         report(
             baseUrl,
             mapOf(
-                "imageKeys" to images.joinToString(",") { it.key },
+                "imageSlugs" to images.joinToString(",") { it.slug },
                 "widths" to images.joinToString(",") { it.width.toString() },
                 "heights" to images.joinToString(",") { it.height.toString() },
                 "mediaTypes" to images.joinToString(",") { it.mediaType },
@@ -263,14 +263,14 @@ object Driver {
             name = config["name"].asText(),
         )
 
-        report(baseUrl, mapOf("imageKey" to image.key, "imageName" to image.name))
+        report(baseUrl, mapOf("imageSlug" to image.slug, "imageName" to image.name))
     }
 
     private fun downloadImage(baseUrl: String, config: ObjectNode) {
         val resource = ImagesApi(restClient(baseUrl, config)).downloadImageContent(
             config["tenantId"].asText(),
             config["catalogId"].asText(),
-            config["imageKey"].asText(),
+            config["imageSlug"].asText(),
         )
         reportBytes(baseUrl, resource.inputStream.use { it.readBytes() })
     }
@@ -279,7 +279,7 @@ object Driver {
         ImagesApi(restClient(baseUrl, config)).deleteImage(
             config["tenantId"].asText(),
             config["catalogId"].asText(),
-            config["imageKey"].asText(),
+            config["imageSlug"].asText(),
             force = config["force"].asBoolean(),
         )
     }

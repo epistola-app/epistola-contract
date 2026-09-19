@@ -27,7 +27,7 @@ public class TemplateSchemaValidatorTest
     private static ITemplatesApi ApiReturningSchema(object? schema)
     {
         var api = Substitute.For<ITemplatesApi>();
-        api.GetTemplate("acme", "default", "person").Returns(new TemplateDto(id: "person", tenantId: "acme", name: "Person", schema: schema, variants: new List<VariantSummaryDto>()));
+        api.GetTemplate("acme", "default", "person").Returns(new TemplateDto(slug: "person", id: "person", tenantId: "acme", name: "Person", schema: schema, variants: new List<VariantSummaryDto>()));
         return api;
     }
 

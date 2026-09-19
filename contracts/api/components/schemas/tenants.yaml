@@ -2,16 +2,27 @@ TenantDto:
   type: object
   description: Represents a tenant in the system
   required:
+    - slug
     - id
     - name
     - createdAt
   properties:
-    id:
+    slug:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
       description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      example: acme-corp
+    id:
+      type: string
+      deprecated: true
+      description: |
+        **Deprecated — use `slug`.** The same value, under the name the portable catalog
+        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 63
       example: acme-corp
     name:
       type: string
@@ -23,6 +34,7 @@ TenantDto:
       description: Timestamp when the tenant was created
       example: "2026-01-15T09:00:00Z"
   example:
+    slug: acme-corp
     id: acme-corp
     name: Acme Corporation
     createdAt: "2026-01-15T09:00:00Z"
@@ -79,7 +91,8 @@ TenantListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - id: acme-corp
+      - slug: acme-corp
+        id: acme-corp
         name: Acme Corporation
         createdAt: "2026-01-15T09:00:00Z"
     page:

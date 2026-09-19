@@ -2,6 +2,7 @@ ThemeDto:
   type: object
   description: A theme defines reusable styling that can be applied across multiple templates
   required:
+    - slug
     - id
     - tenantId
     - name
@@ -9,12 +10,22 @@ ThemeDto:
     - createdAt
     - lastModified
   properties:
-    id:
+    slug:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 20
       description: Slug identifier of the theme (e.g., "corporate")
+      example: corporate
+    id:
+      type: string
+      deprecated: true
+      description: |
+        **Deprecated — use `slug`.** The same value, under the name the portable catalog
+        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 20
       example: corporate
     tenantId:
       type: string
@@ -73,6 +84,7 @@ ThemeDto:
       description: Timestamp when the theme was last modified
       example: "2026-01-18T14:30:00Z"
   example:
+    slug: corporate
     id: corporate
     tenantId: acme-corp
     name: Corporate Theme
@@ -209,7 +221,8 @@ ThemeListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - id: corporate
+      - slug: corporate
+        id: corporate
         tenantId: acme-corp
         name: Corporate Theme
         description: Default corporate branding with Acme colors and fonts

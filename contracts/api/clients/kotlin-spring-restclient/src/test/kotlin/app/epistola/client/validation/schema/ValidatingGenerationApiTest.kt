@@ -32,6 +32,7 @@ class ValidatingGenerationApiTest {
     )
 
     private fun templateDto(id: String = "invoice", schemaObj: Any? = schema) = TemplateDto(
+        slug = id,
         id = id,
         tenantId = "acme",
         name = "Test",

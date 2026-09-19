@@ -62,7 +62,7 @@ public class SmokeResource {
             Files.write(file.toPath(), "not really a png".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
             ImageDto image = imagesApi.uploadImage("acme-corp", "main", file, "Logo", null, null);
-            return String.valueOf(image.getKey());
+            return String.valueOf(image.getSlug());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

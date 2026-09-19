@@ -1,13 +1,21 @@
 CatalogDto:
   type: object
   required:
+    - slug
     - id
     - name
     - type
   properties:
-    id:
+    slug:
       type: string
       description: Catalog slug identifier
+      example: municipality-demo
+    id:
+      type: string
+      deprecated: true
+      description: |
+        **Deprecated — use `slug`.** The same value, under the name the portable catalog
+        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       example: municipality-demo
     name:
       type: string
