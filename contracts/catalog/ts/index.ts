@@ -64,7 +64,7 @@ export type {
   ThemeResource,
   StencilResource,
   AttributeResource,
-  AssetResource,
+  ImageResource,
   CodeListResource,
   FontResource,
   CodeListBindingRef,

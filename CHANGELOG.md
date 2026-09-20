@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking (unreleased):** a binary is identified by its content in wire v7, not by a name (#86).
+  `AssetResource` is now `ImageResource` and carries `contentHash`; a font face carries its own
+  `contentUrl` and `contentHash` instead of pointing at a separate asset by slug.
+
+  An asset's slug was a generated UUID that named nothing — the human name was already on `name`,
+  and the identity was always the bytes. Every other layer agreed: `asset_content` is keyed by
+  content hash, and the canonicaliser already hashed each binary into the fingerprint through a
+  side channel. The wire was the only layer still pretending a binary has a name.
+
+  Images become a primary resource type because they are the named thing; assets stop being one
+  because they are not. A font face's binary was never independently meaningful, and now is not
+  independently addressable either.
+
+  The hash is checked rather than believed: `CATALOG_ASSET_CONTENT_HASH_MISMATCH` reports a binary
+  whose bytes do not hash to what it declares, which the previous computed side channel could not
+  express at all.
+
+  A v6 archive migrates without a content migration. Each asset becomes an image **keeping its
+  slug**, so template content referencing it as `props.assetId` keeps resolving untouched; each
+  font face is given its binary by reading the asset it used to name. Migrations now receive the
+  archive's content for this, since a manifest lists a resource's entry but not its bytes. An
+  archive that cannot be resolved this way reports `CATALOG_ASSET_CONTENT_UNRESOLVED` rather than
+  inventing a hash.
+
+  Catalog fingerprints move once, because the manifest's shape changes. The published TypeScript
+  surface renames `AssetResource` to `ImageResource`.
+
 - An asset dependency names its catalog in wire v7 (#86). Every other dependency kind already did.
   The asset kind did not, and asset references resolved tenant-wide to match — safe only while an
   asset's slug was a generated UUID, unique by construction across every catalog a tenant holds.

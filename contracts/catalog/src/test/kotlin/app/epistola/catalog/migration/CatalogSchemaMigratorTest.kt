@@ -4,7 +4,10 @@
 
 package app.epistola.catalog.migration
 
+import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.PublisherInfo
+import app.epistola.catalog.protocol.ReleaseInfo
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
@@ -140,7 +143,7 @@ class CatalogSchemaMigratorTest {
     @Test
     fun `v6 variant ids migrate to v7 slugs, values unchanged`() {
         val input = resource("migrations/v6-to-v7/template-variants-input.json").use(mapper::readTree) as ObjectNode
-        val step = CatalogV6ToV7Migration().migrateResource(input, "resources/template/invoice.json")
+        val step = CatalogV6ToV7Migration().migrateResource(input, "resources/template/invoice.json", CatalogMigrationContext(6, emptyManifest()))
         val expected = resource("migrations/v6-to-v7/template-variants-expected.json").use(mapper::readTree)
 
         assertTrue(step.findings.isEmpty(), step.findings.toString())
@@ -156,7 +159,7 @@ class CatalogSchemaMigratorTest {
             """{"schemaVersion":6,"type":"template","slug":"invoice","name":"Invoice",
                "variants":[{"slug":"keep","id":"discard"}]}""",
         ) as ObjectNode
-        CatalogV6ToV7Migration().migrateResource(input, "resources/template/invoice.json")
+        CatalogV6ToV7Migration().migrateResource(input, "resources/template/invoice.json", CatalogMigrationContext(6, emptyManifest()))
 
         assertEquals("keep", input["variants"][0]["slug"].asString())
     }
@@ -264,7 +267,7 @@ class CatalogSchemaMigratorTest {
         ) as ObjectNode
         val parameterSchema = tree["resource"]["parameterSchema"].toString()
 
-        val result = CatalogV4ToV5Migration().migrateResource(tree, "resources/stencil/letter.json")
+        val result = CatalogV4ToV5Migration().migrateResource(tree, "resources/stencil/letter.json", CatalogMigrationContext(6, emptyManifest()))
 
         assertTrue(result.findings.isEmpty())
         assertTrue(result.notices.isEmpty())
@@ -314,4 +317,13 @@ class CatalogSchemaMigratorTest {
     }
 
     private fun resource(path: String) = requireNotNull(javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/$path"))
+
+    /** A manifest with no resources: enough for a migration that does not look anything up. */
+    private fun emptyManifest() = CatalogManifest(
+        schemaVersion = 6,
+        catalog = CatalogInfo("invoices", "Invoices"),
+        publisher = PublisherInfo("Example"),
+        release = ReleaseInfo("1.0.0"),
+        resources = emptyList(),
+    )
 }

@@ -17,6 +17,7 @@ internal interface CatalogSchemaMigration {
     fun migrateResource(
         tree: ObjectNode,
         path: String,
+        context: CatalogMigrationContext,
     ): CatalogMigrationStepResult
 }
 
@@ -43,6 +44,7 @@ internal class CatalogV4ToV5Migration : CatalogSchemaMigration {
     override fun migrateResource(
         tree: ObjectNode,
         path: String,
+        @Suppress("UNUSED_PARAMETER") context: CatalogMigrationContext,
     ): CatalogMigrationStepResult {
         val findings = mutableListOf<CatalogMigrationFinding>()
         val notices = mutableListOf<CatalogMigrationNotice>()

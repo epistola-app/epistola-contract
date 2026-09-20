@@ -58,7 +58,7 @@ data class CatalogManifest(
 @JsonSubTypes(
     JsonSubTypes.Type(value = DependencyRef.Theme::class, name = "theme"),
     JsonSubTypes.Type(value = DependencyRef.Stencil::class, name = "stencil"),
-    JsonSubTypes.Type(value = DependencyRef.Asset::class, name = "asset"),
+    JsonSubTypes.Type(value = DependencyRef.Image::class, name = "image"),
     JsonSubTypes.Type(value = DependencyRef.CodeList::class, name = "codeList"),
     JsonSubTypes.Type(value = DependencyRef.Font::class, name = "font"),
 )
@@ -73,14 +73,14 @@ sealed class DependencyRef {
     data class Stencil(val catalogKey: String, override val slug: String) : DependencyRef()
 
     /**
-     * Asset in another catalog.
+     * Image in another catalog.
      *
-     * Qualified like every other kind since wire v7. It was unqualified while an asset's slug was
-     * a generated UUID, unique by construction across every catalog a tenant holds; a readable
-     * slug is not, so two catalogs may each hold `logo` and an unqualified reference to one of
-     * them means nothing.
+     * Qualified like every other kind since wire v7. It was unqualified while an image was an
+     * asset whose slug was a generated UUID, unique by construction across every catalog a tenant
+     * holds; a readable slug is not, so two catalogs may each hold a `logo` and an unqualified
+     * reference to one of them means nothing.
      */
-    data class Asset(val catalogKey: String, override val slug: String) : DependencyRef()
+    data class Image(val catalogKey: String, override val slug: String) : DependencyRef()
 
     /** Code list in another catalog. */
     data class CodeList(val catalogKey: String, override val slug: String) : DependencyRef()

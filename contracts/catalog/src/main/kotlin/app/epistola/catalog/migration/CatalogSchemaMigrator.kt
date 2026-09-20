@@ -4,6 +4,7 @@
 
 package app.epistola.catalog.migration
 
+import app.epistola.catalog.archive.ArchiveContentProvider
 import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.KeywordRule
@@ -62,6 +63,15 @@ data class CatalogMigrationResult<T>(
 data class CatalogMigrationContext(
     val sourceVersion: Int,
     val manifest: CatalogManifest,
+    /**
+     * The archive's files, when the caller has them.
+     *
+     * A migration that has to reason about a resource's *bytes* -- hashing a binary, or resolving
+     * what another resource points at -- cannot do it from [manifest] alone, which carries resource
+     * entries but not their contents. Null when a resource detail is migrated on its own, outside
+     * an archive; a migration that needs content reports a finding rather than guessing.
+     */
+    val content: ArchiveContentProvider? = null,
 )
 
 /** Stable finding codes emitted by [CatalogSchemaMigrator]. */
@@ -86,6 +96,16 @@ object CatalogMigrationCodes {
      * which qualifies it from their own installed state.
      */
     const val DEPENDENCY_UNQUALIFIED = "CATALOG_DEPENDENCY_UNQUALIFIED"
+
+    /**
+     * A catalog-v6 binary could not be identified by its content while migrating to catalog-v7.
+     *
+     * Raised when an asset declares no `contentUrl`, when a font face names an asset the archive
+     * does not hold, or when a resource detail is migrated outside an archive so there are no
+     * bytes to hash. Not repairable: catalog-v7 identifies a binary by what it is, and that cannot
+     * be invented.
+     */
+    const val ASSET_CONTENT_UNRESOLVED = "CATALOG_ASSET_CONTENT_UNRESOLVED"
 
     /** Notice: a catalog-v6 keyword was rewritten to its catalog-v7 form. */
     const val KEYWORD_NORMALIZED = "CATALOG_KEYWORD_NORMALIZED"
@@ -173,7 +193,7 @@ object CatalogSchemaMigrator {
             )
         }
         versionFinding(source, "$path.schemaVersion")?.let { return CatalogMigrationResult(null, source, listOf(it)) }
-        val migration = migrate(source) { step -> step.migrateResource(tree, path) }
+        val migration = migrate(source) { step -> step.migrateResource(tree, path, context) }
         if (migration.findings.isNotEmpty()) return CatalogMigrationResult(null, source, migration.findings, migration.notices)
         return bind(tree, ResourceDetail::class.java, source, path, migration.notices)
     }

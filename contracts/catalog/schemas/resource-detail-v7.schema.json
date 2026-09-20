@@ -33,7 +33,7 @@
           "$ref": "#/$defs/AttributeResource"
         },
         {
-          "$ref": "#/$defs/AssetResource"
+          "$ref": "#/$defs/ImageResource"
         },
         {
           "$ref": "#/$defs/CodeListResource"
@@ -264,11 +264,11 @@
       ],
       "additionalProperties": false
     },
-    "AssetResource": {
+    "ImageResource": {
       "type": "object",
       "properties": {
         "type": {
-          "const": "asset"
+          "const": "image"
         },
         "slug": {
           "type": "string",
@@ -296,6 +296,10 @@
         },
         "contentUrl": {
           "type": "string"
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
         }
       },
       "required": [
@@ -303,7 +307,8 @@
         "slug",
         "name",
         "mediaType",
-        "contentUrl"
+        "contentUrl",
+        "contentHash"
       ],
       "additionalProperties": false
     },
@@ -426,17 +431,19 @@
         "italic": {
           "type": "boolean"
         },
-        "assetSlug": {
+        "contentUrl": {
+          "type": "string"
+        },
+        "contentHash": {
           "type": "string",
-          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
-          "minLength": 1,
-          "maxLength": 50
+          "pattern": "^[0-9a-f]{64}$"
         }
       },
       "required": [
         "weight",
         "italic",
-        "assetSlug"
+        "contentUrl",
+        "contentHash"
       ],
       "additionalProperties": false
     },

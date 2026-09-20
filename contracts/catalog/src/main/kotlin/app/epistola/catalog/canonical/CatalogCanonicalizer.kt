@@ -5,9 +5,9 @@
 package app.epistola.catalog.canonical
 
 import app.epistola.catalog.archive.CatalogArchive
-import app.epistola.catalog.protocol.AssetResource
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.DependencyRef
+import app.epistola.catalog.protocol.ImageResource
 import app.epistola.catalog.protocol.ResourceDetail
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.JsonNode
@@ -257,7 +257,7 @@ object CatalogCanonicalizer {
         is DependencyRef.Stencil -> "stencil" to catalogKey
         is DependencyRef.CodeList -> "codeList" to catalogKey
         is DependencyRef.Font -> "font" to catalogKey
-        is DependencyRef.Asset -> "asset" to catalogKey
+        is DependencyRef.Image -> "image" to catalogKey
     }
 
     /**
@@ -290,7 +290,7 @@ object CatalogCanonicalizer {
         } else {
             mapper.valueToTree(detail.resource)
         }
-        val assetHash = (detail.resource as? AssetResource)?.let { asset ->
+        val assetHash = (detail.resource as? ImageResource)?.let { asset ->
             val path = asset.contentUrl.removePrefix("./")
             if (path in catalog.paths) {
                 catalog.content.open(path).use(::sha256)
@@ -335,7 +335,7 @@ object CatalogCanonicalizer {
     private fun assetHash(
         catalog: CatalogArchive,
         detail: ResourceDetail,
-    ): String = (detail.resource as? AssetResource)?.let { asset ->
+    ): String = (detail.resource as? ImageResource)?.let { asset ->
         val path = asset.contentUrl.removePrefix("./")
         if (path in catalog.paths) catalog.content.open(path).use(::sha256) else "MISSING"
     }.orEmpty()

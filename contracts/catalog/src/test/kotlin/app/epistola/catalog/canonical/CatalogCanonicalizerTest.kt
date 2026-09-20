@@ -206,8 +206,8 @@ class CatalogCanonicalizerTest {
 
     private fun assetArchive(bytes: ByteArray): CatalogArchive {
         val json = """
-            {"schemaVersion":4,"resource":{"type":"asset","slug":"logo","name":"Logo",
-            "mediaType":"image/png","contentUrl":"./resources/asset/logo.png"}}
+            {"schemaVersion":4,"resource":{"type":"image","slug":"logo","name":"Logo",
+            "mediaType":"image/png","contentUrl":"./resources/asset/logo.png","contentHash":"0000000000000000000000000000000000000000000000000000000000000000"}}
         """.trimIndent().toByteArray()
         val detail = mapper.readValue(json, ResourceDetail::class.java)
         val base = goldenArchive()

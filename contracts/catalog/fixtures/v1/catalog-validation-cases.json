@@ -40,5 +40,7 @@
   "CATALOG_TEMPLATE_DATA_SCHEMA_INVALID": "template data schema has an invalid shape",
   "CATALOG_TEMPLATE_DATA_EXAMPLE_INVALID": "example does not satisfy the template data schema",
   "CATALOG_TEMPLATE_VARIANT_ID_DUPLICATE": "template repeats a variant id",
-  "CATALOG_TEMPLATE_VARIANT_DEFAULT_INVALID": "template has multiple default variants"
+  "CATALOG_TEMPLATE_VARIANT_DEFAULT_INVALID": "template has multiple default variants",
+  "CATALOG_ASSET_CONTENT_HASH_INVALID": "binary contentHash is not a lowercase hex sha-256",
+  "CATALOG_ASSET_CONTENT_HASH_MISMATCH": "binary contentHash is not what its bytes hash to"
 }

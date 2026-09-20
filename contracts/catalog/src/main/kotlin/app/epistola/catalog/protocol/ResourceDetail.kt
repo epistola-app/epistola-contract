@@ -25,7 +25,7 @@ data class ResourceDetail(
         JsonSubTypes.Type(value = ThemeResource::class, name = "theme"),
         JsonSubTypes.Type(value = StencilResource::class, name = "stencil"),
         JsonSubTypes.Type(value = AttributeResource::class, name = "attribute"),
-        JsonSubTypes.Type(value = AssetResource::class, name = "asset"),
+        JsonSubTypes.Type(value = ImageResource::class, name = "image"),
         JsonSubTypes.Type(value = CodeListResource::class, name = "codeList"),
         JsonSubTypes.Type(value = FontResource::class, name = "font"),
     )
@@ -207,24 +207,24 @@ data class CodeListEntryEntry(
  * available through [app.epistola.catalog.archive.ArchiveContentProvider] and
  * participate in per-resource and catalog fingerprints.
  */
-data class AssetResource(
+data class ImageResource(
     override val slug: String,
     override val name: String,
     val mediaType: String,
     val width: Int? = null,
     val height: Int? = null,
     val contentUrl: String,
+    val contentHash: String,
 ) : CatalogResource {
-    override val type: String get() = "asset"
+    override val type: String get() = "image"
 }
 
 /**
  * Inline catalog representation of a font family. A font family is a thin
- * grouping over up to four font-face binaries; each binary rides the catalog
- * as an ordinary [AssetResource], referenced here by its asset slug. The
+ * grouping over its face binaries, each carried by a [FontVariantEntry]. The
  * `FontResource` itself carries no binary. Bundled system fonts are
  * classpath-backed locally and are never exported, so the wire format only
- * ever describes catalog-authored (asset-backed) fonts.
+ * ever describes catalog-authored fonts.
  */
 data class FontResource(
     override val slug: String,
@@ -237,16 +237,22 @@ data class FontResource(
 
 /**
  * One face of a [FontResource], identified by CSS-style numeric `weight`
- * (1–1000; 400 = regular, 700 = bold) and `italic`. `assetSlug` points at an
- * [AssetResource] in the same catalog holding that face's binary. A family
- * carries as many faces as it ships (Light/Medium/SemiBold/…), not a fixed
- * four. Every face is a static binary — variable fonts are instanced into
- * static faces at upload, never represented here.
+ * (1–1000; 400 = regular, 700 = bold) and `italic`.
+ *
+ * A face names its binary the way an image does: [contentUrl] is where the bytes sit in the
+ * archive and [contentHash] is what they are. Until wire v7 it pointed at a separate asset
+ * resource by slug, which gave a binary a name it never had — nothing chooses what a font face
+ * is called, and two catalogs shipping the same face shipped it twice under different names.
+ *
+ * A family carries as many faces as it ships (Light/Medium/SemiBold/…), not a fixed four. Every
+ * face is a static binary — variable fonts are instanced into static faces at upload, never
+ * represented here.
  */
 data class FontVariantEntry(
     val weight: Int,
     val italic: Boolean,
-    val assetSlug: String,
+    val contentUrl: String,
+    val contentHash: String,
 )
 
 /** Named example payload checked against [TemplateResource.dataModel]. */

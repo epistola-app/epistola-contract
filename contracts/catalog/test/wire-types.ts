@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: EUPL-1.2
 
 import type {
-  AssetResource,
+  ImageResource,
   AttributeAssignment,
   CatalogInfo,
   CatalogKeyword,
@@ -38,12 +38,13 @@ const license: CatalogLicense = { name: 'Proprietary', url: 'https://example.tes
 
 const presentation: CatalogPresentation = { iconAssetSlug: 'logo', imageAssetSlugs: ['hero'] }
 
-const asset: AssetResource = {
-  type: 'asset',
+const asset: ImageResource = {
+  type: 'image',
   slug: 'logo',
   name: 'Logo',
   mediaType: 'image/svg+xml',
   contentUrl: './resources/asset/logo.svg',
+  contentHash: '0000000000000000000000000000000000000000000000000000000000000000',
 }
 
 const detail: ResourceDetail = { schemaVersion: 7, resource: asset }

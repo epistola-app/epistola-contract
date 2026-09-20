@@ -96,9 +96,19 @@ object CatalogArchiveReader {
             }
             val details = linkedMapOf<String, app.epistola.catalog.protocol.ResourceDetail>()
             val entriesByPath = manifest.resources.associateBy { it.detailUrl.removePrefix("./") }
+            val contentProvider = ArchiveContentProvider { requested ->
+                val normalized = normalizePath(requested)
+                    ?: throw IllegalArgumentException("Invalid archive content path: $requested")
+                val resolved = expandedRoot.resolve(normalized).normalize()
+                require(resolved.startsWith(expandedRoot) && Files.isRegularFile(resolved)) {
+                    "Archive content does not exist: $requested"
+                }
+                Files.newInputStream(resolved)
+            }
             val migrationContext = CatalogMigrationContext(
                 sourceVersion = requireNotNull(manifestResult.sourceVersion),
                 manifest = manifest,
+                content = contentProvider,
             )
             extraction.paths.asSequence()
                 .filter { it.startsWith("resources/") && it.endsWith(".json") }

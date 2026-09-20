@@ -18,6 +18,8 @@ import tools.jackson.databind.node.ObjectNode
  * [CatalogKeywords.MAX_COUNT]. Keywords that were already invalid catalog-v6 remain findings.
  */
 internal class CatalogV6ToV7Migration : CatalogSchemaMigration {
+    private val mapper = tools.jackson.databind.json.JsonMapper.builder().build()
+
     override val fromVersion: Int = 6
     override val toVersion: Int = 7
 
@@ -77,11 +79,117 @@ internal class CatalogV6ToV7Migration : CatalogSchemaMigration {
     override fun migrateResource(
         tree: ObjectNode,
         path: String,
+        context: CatalogMigrationContext,
     ): CatalogMigrationStepResult {
         tree.put("schemaVersion", toVersion)
         renameVariantIdToSlug(tree)
+        return when (tree["type"]?.asString()) {
+            "asset" -> assetToImage(tree, path, context)
+            "font" -> fontFacesTakeTheirBinary(tree, path, context)
+            else -> CatalogMigrationStepResult()
+        }
+    }
+
+    /**
+     * Turns a catalog-v6 asset into a catalog-v7 image, identified by what its bytes are.
+     *
+     * The slug is carried over unchanged. It was a generated UUID that named nothing, but template
+     * content references it as `props.assetId`, so preserving it is what keeps every stored
+     * document resolving without a content migration.
+     */
+    private fun assetToImage(
+        tree: ObjectNode,
+        path: String,
+        context: CatalogMigrationContext,
+    ): CatalogMigrationStepResult {
+        tree.put("type", "image")
+        val contentUrl = tree["contentUrl"]?.asString()
+            ?: return finding(path, "asset has no contentUrl, so its content cannot be identified")
+        val hash = hashOf(contentUrl, context)
+            ?: return finding("$path.contentUrl", "content '$contentUrl' is not in the archive, so its hash cannot be computed")
+        tree.put("contentHash", hash)
         return CatalogMigrationStepResult()
     }
+
+    /**
+     * Gives each font face its binary directly, in place of a slug pointing at an asset resource.
+     *
+     * The face's asset is read from the archive to recover where its bytes are and what they are.
+     * This is why a migration is given the archive's content: the manifest lists an asset's entry
+     * but not its `contentUrl`, so neither the path nor the hash can be recovered without it.
+     */
+    private fun fontFacesTakeTheirBinary(
+        tree: ObjectNode,
+        path: String,
+        context: CatalogMigrationContext,
+    ): CatalogMigrationStepResult {
+        val variants = tree["variants"] as? ArrayNode ?: return CatalogMigrationStepResult()
+        val findings = mutableListOf<CatalogMigrationFinding>()
+        variants.forEachIndexed { index, variant ->
+            val face = variant as? ObjectNode ?: return@forEachIndexed
+            if (face.has("contentUrl")) return@forEachIndexed
+            val assetSlug = face.remove("assetSlug")?.asString()
+                ?: return@forEachIndexed findings.plusAssign(
+                    listOf(finding("$path.variants[$index]", "font face names no asset").findings.single()),
+                )
+            val contentUrl = assetContentUrl(assetSlug, context)
+            if (contentUrl == null) {
+                findings += finding("$path.variants[$index].assetSlug", "asset '$assetSlug' is not in the archive").findings
+                return@forEachIndexed
+            }
+            val hash = hashOf(contentUrl, context)
+            if (hash == null) {
+                findings += finding("$path.variants[$index].assetSlug", "content '$contentUrl' is not in the archive").findings
+                return@forEachIndexed
+            }
+            face.put("contentUrl", contentUrl)
+            face.put("contentHash", hash)
+        }
+        return CatalogMigrationStepResult(findings)
+    }
+
+    /** The `contentUrl` of the v6 asset with this slug, read from its own document in the archive. */
+    private fun assetContentUrl(
+        assetSlug: String,
+        context: CatalogMigrationContext,
+    ): String? {
+        val entry = context.manifest.resources.firstOrNull { it.type == "asset" && it.slug == assetSlug } ?: return null
+        val detailPath = entry.detailUrl.removePrefix("./")
+        val content = context.content ?: return null
+        return runCatching {
+            content.open(detailPath).use { input ->
+                (mapper.readTree(input) as? ObjectNode)?.get("resource")?.get("contentUrl")?.asString()
+            }
+        }.getOrNull()
+    }
+
+    /** The sha-256 of an archive-relative content path, or null when the archive does not hold it. */
+    private fun hashOf(
+        contentUrl: String,
+        context: CatalogMigrationContext,
+    ): String? {
+        val content = context.content ?: return null
+        val contentPath = contentUrl.removePrefix("./")
+        return runCatching {
+            content.open(contentPath).use { input ->
+                val digest = java.security.MessageDigest.getInstance("SHA-256")
+                val buffer = ByteArray(8192)
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    digest.update(buffer, 0, read)
+                }
+                digest.digest().joinToString("") { "%02x".format(it) }
+            }
+        }.getOrNull()
+    }
+
+    private fun finding(
+        path: String,
+        message: String,
+    ) = CatalogMigrationStepResult(
+        listOf(CatalogMigrationFinding(CatalogMigrationCodes.ASSET_CONTENT_UNRESOLVED, path, message)),
+    )
 
     /**
      * Carries a template's variant addresses from catalog-v6's `id` to catalog-v7's `slug`.
