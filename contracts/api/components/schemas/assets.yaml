@@ -7,7 +7,6 @@ AssetDto:
 
     Asset metadata. Binary content is fetched separately through the content endpoint.
   required:
-    - id
     - tenantId
     - catalog
     - catalogType
@@ -21,7 +20,15 @@ AssetDto:
     id:
       type: string
       format: uuid
-      description: Stable asset identifier.
+      deprecated: true
+      description: |
+        **Deprecated — use `ImageDto.slug` via `listImages`.** Removed in the next major version.
+
+        **Absent** for an image whose slug is not a UUID. This field is declared `format: uuid`,
+        so a generated client types it as a UUID and cannot carry a readable slug such as
+        `municipality-mark`. A catalog published elsewhere may name its images readably, and this
+        endpoint simply omits `id` for those rather than failing the whole response. Read `slug`
+        from `listImages` to see every image.
       example: "4a64f2f9-2c7a-4d26-9cf7-d34c7ce92280"
     tenantId:
       type: string
