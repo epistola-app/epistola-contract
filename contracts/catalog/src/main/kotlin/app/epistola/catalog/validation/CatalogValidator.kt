@@ -12,6 +12,7 @@ import app.epistola.catalog.canonical.CatalogCanonicalizer
 import app.epistola.catalog.canonical.CatalogFingerprintVersion
 import app.epistola.catalog.migration.CatalogWireSchema
 import app.epistola.catalog.protocol.AttributeResource
+import app.epistola.catalog.protocol.BinaryRef
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogResource
@@ -373,7 +374,7 @@ object ResourceValidator {
         path: String,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        validateBinary(resource.contentUrl, resource.contentHash, context, path, findings)
+        validateBinary(resource, context, path, findings)
         if (!MEDIA_TYPE.matches(resource.mediaType)) {
             findings.error(CatalogValidationCodes.ASSET_MEDIA_TYPE_INVALID, "$path.mediaType", "mediaType is not a valid type/subtype")
         }
@@ -404,14 +405,15 @@ object ResourceValidator {
     }
 
     private fun validateBinary(
-        contentUrl: String,
-        contentHash: String,
+        binary: BinaryRef,
         context: ResourceValidationContext,
         path: String,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        val contentPath = contentUrl.removePrefix("./")
-        if (!contentUrl.startsWith("./") || '\\' in contentUrl || ".." in contentUrl.split('/')) {
+        val contentHash = binary.contentHash
+        val contentPath = binary.contentPath()
+        val contentUrl = binary.contentUrl
+        if (contentUrl != null && (!contentUrl.startsWith("./") || '\\' in contentUrl || ".." in contentUrl.split('/'))) {
             findings.error(CatalogValidationCodes.ASSET_PATH_INVALID, "$path.contentUrl", "contentUrl must be a safe relative archive path")
             return
         }
@@ -451,7 +453,7 @@ object ResourceValidator {
             if (!faces.add(face.weight to face.italic)) {
                 findings.error(CatalogValidationCodes.FONT_VARIANT_DUPLICATE, "$path.variants[$index]", "font face weight/italic combination is duplicated")
             }
-            validateBinary(face.contentUrl, face.contentHash, context, "$path.variants[$index]", findings)
+            validateBinary(face, context, "$path.variants[$index]", findings)
         }
     }
 

@@ -291,7 +291,7 @@ object CatalogCanonicalizer {
             mapper.valueToTree(detail.resource)
         }
         val assetHash = (detail.resource as? ImageResource)?.let { asset ->
-            val path = asset.contentUrl.removePrefix("./")
+            val path = asset.contentPath()
             if (path in catalog.paths) {
                 catalog.content.open(path).use(::sha256)
             } else {
@@ -336,7 +336,7 @@ object CatalogCanonicalizer {
         catalog: CatalogArchive,
         detail: ResourceDetail,
     ): String = (detail.resource as? ImageResource)?.let { asset ->
-        val path = asset.contentUrl.removePrefix("./")
+        val path = asset.contentPath()
         if (path in catalog.paths) catalog.content.open(path).use(::sha256) else "MISSING"
     }.orEmpty()
 

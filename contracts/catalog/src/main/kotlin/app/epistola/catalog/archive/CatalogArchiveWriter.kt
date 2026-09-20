@@ -81,8 +81,8 @@ object CatalogArchiveWriter {
         val binaries = catalog.resourceDetails.values
             .flatMap { detail ->
                 when (val resource = detail.resource) {
-                    is ImageResource -> listOf(resource.contentUrl)
-                    is FontResource -> resource.variants.map { it.contentUrl }
+                    is ImageResource -> listOf(resource.contentPath())
+                    is FontResource -> resource.variants.map { it.contentPath() }
                     else -> emptyList()
                 }
             }

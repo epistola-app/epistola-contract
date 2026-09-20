@@ -307,7 +307,6 @@
         "slug",
         "name",
         "mediaType",
-        "contentUrl",
         "contentHash"
       ],
       "additionalProperties": false
@@ -431,6 +430,9 @@
         "italic": {
           "type": "boolean"
         },
+        "mediaType": {
+          "type": "string"
+        },
         "contentUrl": {
           "type": "string"
         },
@@ -442,8 +444,8 @@
       "required": [
         "weight",
         "italic",
-        "contentUrl",
-        "contentHash"
+        "contentHash",
+        "mediaType"
       ],
       "additionalProperties": false
     },

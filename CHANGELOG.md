@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- A binary is placed by its hash in wire v7, and a font face states what it is (#86). `contentUrl`
+  is optional: a catalog written at v7 omits it and files every binary at `bin/<contentHash>`, so
+  identical bytes are one file and there is no path convention to disagree about. An archive
+  migrated from v6 keeps the path it already has — a migration rewrites documents and cannot move
+  files — which is what lets the convention be adopted without rewriting existing archives.
+
+  `FontVariantEntry.mediaType` says whether a face is `font/ttf` or `font/otf`. Inlining the face
+  had dropped it, leaving consumers to guess from a file extension.
+
 - **Breaking (unreleased):** a binary is identified by its content in wire v7, not by a name (#86).
   `AssetResource` is now `ImageResource` and carries `contentHash`; a font face carries its own
   `contentUrl` and `contentHash` instead of pointing at a separate asset by slug.

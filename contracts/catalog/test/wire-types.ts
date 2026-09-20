@@ -43,7 +43,6 @@ const asset: ImageResource = {
   slug: 'logo',
   name: 'Logo',
   mediaType: 'image/svg+xml',
-  contentUrl: './resources/asset/logo.svg',
   contentHash: '0000000000000000000000000000000000000000000000000000000000000000',
 }
 

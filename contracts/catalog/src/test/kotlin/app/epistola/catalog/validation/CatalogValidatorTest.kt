@@ -490,7 +490,22 @@ class CatalogValidatorTest {
                 "brand",
                 "Brand",
                 "unknown",
-                listOf(FontVariantEntry(0, false, "./resources/font/missing.woff2", "0000000000000000000000000000000000000000000000000000000000000000"), FontVariantEntry(0, false, "./resources/font/missing.woff2", "0000000000000000000000000000000000000000000000000000000000000000")),
+                listOf(
+                    FontVariantEntry(
+                        weight = 0,
+                        italic = false,
+                        mediaType = "font/ttf",
+                        contentHash = "0000000000000000000000000000000000000000000000000000000000000000",
+                        contentUrl = "./resources/font/missing.woff2",
+                    ),
+                    FontVariantEntry(
+                        weight = 0,
+                        italic = false,
+                        mediaType = "font/ttf",
+                        contentHash = "0000000000000000000000000000000000000000000000000000000000000000",
+                        contentUrl = "./resources/font/missing.woff2",
+                    ),
+                ),
             ),
         )
         val details = resources.associate { "${it.type}/${it.slug}" to ResourceDetail(CURRENT_VERSION, it) }

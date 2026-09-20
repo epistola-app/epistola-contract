@@ -132,33 +132,40 @@ internal class CatalogV6ToV7Migration : CatalogSchemaMigration {
                 ?: return@forEachIndexed findings.plusAssign(
                     listOf(finding("$path.variants[$index]", "font face names no asset").findings.single()),
                 )
-            val contentUrl = assetContentUrl(assetSlug, context)
-            if (contentUrl == null) {
+            val binary = assetBinary(assetSlug, context)
+            if (binary == null) {
                 findings += finding("$path.variants[$index].assetSlug", "asset '$assetSlug' is not in the archive").findings
                 return@forEachIndexed
             }
+            val (contentUrl, mediaType) = binary
             val hash = hashOf(contentUrl, context)
             if (hash == null) {
                 findings += finding("$path.variants[$index].assetSlug", "content '$contentUrl' is not in the archive").findings
                 return@forEachIndexed
             }
+            // The binary keeps the path it already has: a migration rewrites documents and
+            // cannot move files, so it cannot file it under its hash.
             face.put("contentUrl", contentUrl)
             face.put("contentHash", hash)
+            face.put("mediaType", mediaType)
         }
         return CatalogMigrationStepResult(findings)
     }
 
-    /** The `contentUrl` of the v6 asset with this slug, read from its own document in the archive. */
-    private fun assetContentUrl(
+    /** The `contentUrl` and `mediaType` of the v6 asset with this slug, from its own document. */
+    private fun assetBinary(
         assetSlug: String,
         context: CatalogMigrationContext,
-    ): String? {
+    ): Pair<String, String>? {
         val entry = context.manifest.resources.firstOrNull { it.type == "asset" && it.slug == assetSlug } ?: return null
         val detailPath = entry.detailUrl.removePrefix("./")
         val content = context.content ?: return null
         return runCatching {
             content.open(detailPath).use { input ->
-                (mapper.readTree(input) as? ObjectNode)?.get("resource")?.get("contentUrl")?.asString()
+                val resource = (mapper.readTree(input) as? ObjectNode)?.get("resource")
+                val url = resource?.get("contentUrl")?.asString() ?: return@use null
+                val type = resource.get("mediaType")?.asString() ?: return@use null
+                url to type
             }
         }.getOrNull()
     }

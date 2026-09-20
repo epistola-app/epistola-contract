@@ -207,15 +207,43 @@ data class CodeListEntryEntry(
  * available through [app.epistola.catalog.archive.ArchiveContentProvider] and
  * participate in per-resource and catalog fingerprints.
  */
+/**
+ * Something that names a binary in the archive.
+ *
+ * [contentHash] is the identity: what the bytes are. [contentUrl] is only a location, and only
+ * when the archive does not put the binary where its hash says. A catalog written from wire v7
+ * onwards omits it and files every binary at [canonicalPath], so identical bytes are one file and
+ * there is no naming convention to disagree about. An archive migrated from an earlier version
+ * keeps the path it already had, because a migration rewrites documents and cannot move files.
+ */
+interface BinaryRef {
+    val contentUrl: String?
+    val contentHash: String
+
+    /**
+     * Where the bytes are: the declared path, or the one the hash implies.
+     *
+     * Derived, never serialised. It is a reading convenience, and putting it on the wire would
+     * add a field that says nothing new and would move every fingerprint that carries a binary.
+     */
+    fun contentPath(): String = contentUrl?.removePrefix("./") ?: canonicalPath(contentHash)
+
+    companion object {
+        /** The archive path a binary takes when nothing says otherwise. */
+        fun canonicalPath(contentHash: String): String = "bin/$contentHash"
+    }
+}
+
 data class ImageResource(
     override val slug: String,
     override val name: String,
     val mediaType: String,
     val width: Int? = null,
     val height: Int? = null,
-    val contentUrl: String,
-    val contentHash: String,
-) : CatalogResource {
+    override val contentHash: String,
+    override val contentUrl: String? = null,
+) : CatalogResource,
+    BinaryRef {
     override val type: String get() = "image"
 }
 
@@ -251,9 +279,11 @@ data class FontResource(
 data class FontVariantEntry(
     val weight: Int,
     val italic: Boolean,
-    val contentUrl: String,
-    val contentHash: String,
-)
+    /** What the face's binary is -- `font/ttf` or `font/otf`. Stated, never inferred from a path. */
+    val mediaType: String,
+    override val contentHash: String,
+    override val contentUrl: String? = null,
+) : BinaryRef
 
 /** Named example payload checked against [TemplateResource.dataModel]. */
 data class DataExampleEntry(
