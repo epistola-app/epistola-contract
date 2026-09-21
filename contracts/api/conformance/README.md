@@ -61,7 +61,7 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | Action | What the driver does |
 | --- | --- |
 | `ping` | `POST /ping` with client metadata, through the generated API |
-| `list-templates` | `GET …/templates`, `config.repeat` times |
+| `list-templates` | `GET …/templates`, `config.repeat` times, reporting the ids and slugs it parsed from the last response |
 | `collect` | build a `ResultCollector` from `config`, run it for `config.runForMs`, stop it, report what it handled |
 | `problem` | make a request the server answers with a problem, report the parsed slug and members |
 | `generate-document` | `POST …/documents/generate` with a real body, through the generated API |
@@ -219,3 +219,9 @@ test suites — which is the argument for the suite existing:
   convenience constructor alike. A hand-written `body(ByteArray::class.java)` call always worked, so
   a consumer who wrote their own download never met it. Nothing in the client's test suite mentioned
   the operation; the other three clients returned the bytes correctly.
+- **Three clients refused every response from an older server.** Contract 1.3.0 declared the new
+  `slug` required on eleven read models, and no server before 1.3.0 sends it. Kotlin, .NET and
+  Python generate a required property as one the response must carry, so each rejected a whole
+  template listing from any released Suite; Jakarta and Node.js read it. Their tests only ever saw
+  responses shaped by the current spec, which is the one shape an older server never sends. The
+  `older-server-response` scenario plays one.

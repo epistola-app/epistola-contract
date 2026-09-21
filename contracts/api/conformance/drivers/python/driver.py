@@ -92,9 +92,17 @@ def _ping(base_url: str, config: dict) -> None:
 
 
 def _list_templates(base_url: str, config: dict) -> None:
+    """Reports what the client made of the last listing, `id` included while it is still served."""
     api = TemplatesApi(_client(base_url, config))
     for _ in range(config.get("repeat", 1)):
-        api.list_templates(config["tenantId"], config["catalogId"])
+        response = api.list_templates(config["tenantId"], config["catalogId"])
+    _report(
+        base_url,
+        {
+            "templateIds": ",".join(template.id for template in response.items),
+            "templateSlugs": ",".join(_show(template.slug) for template in response.items),
+        },
+    )
 
 
 def _problem(base_url: str, config: dict) -> None:

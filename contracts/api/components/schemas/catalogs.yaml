@@ -1,14 +1,19 @@
 CatalogDto:
   type: object
   required:
-    - slug
     - id
     - name
     - type
   properties:
     slug:
       type: string
-      description: Catalog slug identifier
+      description: |
+        Catalog slug identifier
+
+        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
+        older 1.x contract omits it and a client must still read its responses: when it is
+        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
+        `id` (epistola-app/epistola-contract#84).
       example: municipality-demo
     id:
       type: string

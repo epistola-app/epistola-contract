@@ -89,11 +89,21 @@ object Driver {
         )
     }
 
+    /** Reports what the client made of the last listing, `id` included while it is still served. */
+    @Suppress("DEPRECATION")
     private fun listTemplates(baseUrl: String, config: ObjectNode) {
         val api = TemplatesApi(restClient(baseUrl, config))
-        repeat(config.path("repeat").asInt(1)) {
+        val templates = List(config.path("repeat").asInt(1)) {
             api.listTemplates(config["tenantId"].asText(), config["catalogId"].asText())
-        }
+        }.last().items
+
+        report(
+            baseUrl,
+            mapOf(
+                "templateIds" to templates.joinToString(",") { it.id },
+                "templateSlugs" to templates.joinToString(",") { it.slug.toString() },
+            ),
+        )
     }
 
     private fun problem(baseUrl: String, config: ObjectNode) {

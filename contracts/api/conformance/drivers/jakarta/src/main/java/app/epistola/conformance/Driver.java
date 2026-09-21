@@ -20,6 +20,8 @@ import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.ImageDto;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
+import app.epistola.client.jakarta.model.TemplateListResponse;
+import app.epistola.client.jakarta.model.TemplateSummaryDto;
 import app.epistola.client.jakarta.model.UpdateConsumerRequest;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
@@ -94,11 +96,21 @@ public final class Driver {
                         .contact("conformance@epistola.app"));
     }
 
+    /** Reports what the client made of the last listing, {@code id} included while it is still served. */
+    @SuppressWarnings("deprecation")
     private static void listTemplates(String baseUrl, JsonObject config) {
         TemplatesApi api = clients(baseUrl, config).api(TemplatesApi.class);
+        TemplateListResponse response = null;
         for (int i = 0; i < config.getInt("repeat", 1); i++) {
-            api.listTemplates(config.getString("tenantId"), config.getString("catalogId"), null, 0, 20, null, "desc");
+            response = api.listTemplates(config.getString("tenantId"), config.getString("catalogId"), null, 0, 20, null, "desc");
         }
+        List<TemplateSummaryDto> templates = response.getItems();
+
+        report(
+                baseUrl,
+                Map.of(
+                        "templateIds", templates.stream().map(TemplateSummaryDto::getId).collect(Collectors.joining(",")),
+                        "templateSlugs", templates.stream().map(template -> String.valueOf(template.getSlug())).collect(Collectors.joining(","))));
     }
 
     private static void problem(String baseUrl, JsonObject config) {

@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: older-server-response
+title: A response from a server on an older 1.x contract is read, not refused
+why: >
+  Contract 1.3.0 added `slug` beside the `id` it duplicates on eleven read models and declared it
+  required. No server before 1.3.0 sends it, and a generated model that takes a required property
+  as non-null refuses the whole response when it is missing — the Kotlin client's
+  `TemplateSummaryDto` failed with "missing (therefore NULL) value for creator parameter slug", so
+  a 1.3.0 Kotlin client could not list templates against any released Suite. Adding a required
+  field to an existing schema is breaking by this repository's own rules, and a minor release has
+  to keep a client working against the servers of its major that came before it.
+
+  So `slug` stays optional until 2.0.0, and this plays exactly what an older server sends: the
+  deprecated `id` and no `slug`. A client must read the listing, surface the `id`, and leave the
+  slug absent rather than invent one. The fixture check holds the other half — this fixture only
+  loads while the spec allows a template without a slug, so re-requiring the field fails here
+  before any client is built.
+
+action:
+  name: list-templates
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    catalogId: main
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      items:
+        - id: invoice
+          tenantId: acme-corp
+          name: Invoice
+          createdAt: '2026-08-20T10:00:00Z'
+          lastModified: '2026-08-20T10:00:00Z'
+        - id: reminder-letter
+          tenantId: acme-corp
+          name: Reminder letter
+          createdAt: '2026-08-20T10:00:00Z'
+          lastModified: '2026-08-21T09:30:00Z'
+      page: { number: 0, size: 20, totalElements: 2, totalPages: 1 }
+
+expect:
+  requestCount: 1
+  report:
+    templateIds: invoice,reminder-letter
+    # Absent on the wire, so absent in the model: every driver spells a missing value `null`.
+    templateSlugs: null,null

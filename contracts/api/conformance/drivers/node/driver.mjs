@@ -80,11 +80,17 @@ async function ping(baseUrl, config) {
   })
 }
 
+/** Reports what the client made of the last listing, `id` included while it is still served. */
 async function listTemplates(baseUrl, config) {
   const api = new TemplatesApi(client(baseUrl, config))
+  let response
   for (let i = 0; i < (config.repeat ?? 1); i++) {
-    await api.listTemplates({ tenantId: config.tenantId, catalogId: config.catalogId })
+    response = await api.listTemplates({ tenantId: config.tenantId, catalogId: config.catalogId })
   }
+  await report(baseUrl, {
+    templateIds: response.items.map((template) => template.id).join(','),
+    templateSlugs: response.items.map((template) => show(template.slug)).join(','),
+  })
 }
 
 async function problem(baseUrl, config) {

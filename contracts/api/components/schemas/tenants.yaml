@@ -2,7 +2,6 @@ TenantDto:
   type: object
   description: Represents a tenant in the system
   required:
-    - slug
     - id
     - name
     - createdAt
@@ -12,7 +11,13 @@ TenantDto:
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: |
+        Unique slug identifier of the tenant (e.g., "acme-corp")
+
+        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
+        older 1.x contract omits it and a client must still read its responses: when it is
+        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
+        `id` (epistola-app/epistola-contract#84).
       example: acme-corp
     id:
       type: string
