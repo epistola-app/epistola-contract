@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-21
+
 - Wire v7 drops the per-resource `compatibility` (#86). A `ResourceEntry` could declare an
   `epistolaVersions` range of its own, separate from the catalog's. No producer ever wrote one, no
   consumer ever read one, and a version range per template answered no question anyone asked — the
