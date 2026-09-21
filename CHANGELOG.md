@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-21
+
 - API keys are the supported authentication method, and both JWT methods are now marked
   experimental. `apiKeyAuth` said *"Deprecated — use JWT Bearer authentication (OAuth or
   self-signed) instead"*, but Epistola Suite authenticates API keys and may not implement the
