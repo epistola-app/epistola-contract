@@ -41,7 +41,6 @@ class GeneratedApiContractTest {
     private static final String MULTIPART = "multipart/form-data";
 
     private static final List<Class<?>> GENERATED_APIS = List.of(
-            AssetsApi.class,
             AttributesApi.class,
             CatalogsApi.class,
             CodeListsApi.class,
@@ -142,9 +141,9 @@ class GeneratedApiContractTest {
         }
 
         assertEquals(
-                3,
+                2,
                 multipartOperations,
-                "expected the contract's three uploads (uploadAsset, uploadImage, importCatalog)");
+                "expected the contract's two uploads (uploadImage, importCatalog)");
     }
 
     @Test

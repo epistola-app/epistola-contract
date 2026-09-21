@@ -16,6 +16,7 @@ import app.epistola.catalog.protocol.BinaryRef
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogResource
+import app.epistola.catalog.protocol.CatalogSlugs
 import app.epistola.catalog.protocol.CodeListResource
 import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.FontResource
@@ -197,8 +198,17 @@ object ResourceValidator {
     ): CatalogValidationReport {
         val findings = mutableListOf<CatalogValidationFinding>()
         val resource = detail.resource
-        if (!SLUG.matches(resource.slug)) {
-            findings.error(CatalogValidationCodes.RESOURCE_SLUG_INVALID, "$path.resource.slug", "slug must contain lowercase letters, digits, and hyphens")
+        // Per type, not one loose rule for all of them: the bounds mirror the columns a consumer
+        // stores a slug in, so a name that passes here is one every consumer can actually hold.
+        // Checking the loose rule instead let a catalog publish a 30-character theme slug that
+        // then failed on install with a database error, with no diagnosis in between.
+        val rule = CatalogSlugs.byType[resource.type] ?: CatalogSlugs.ANY
+        if (!CatalogSlugs.matches(rule, resource.slug)) {
+            findings.error(
+                CatalogValidationCodes.RESOURCE_SLUG_INVALID,
+                "$path.resource.slug",
+                "slug must be ${rule.minLength} to ${rule.maxLength} characters matching ${rule.pattern}",
+            )
         }
         when (resource) {
             is TemplateResource -> validateTemplate(resource, context, "$path.resource", findings)
@@ -494,7 +504,6 @@ object ResourceValidator {
         return ResourceResolution.PRESENT
     }
 
-    private val SLUG = Regex("^[a-z0-9]+(?:-[a-z0-9]+)*$")
     private val MEDIA_TYPE = Regex("^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$")
 }
 

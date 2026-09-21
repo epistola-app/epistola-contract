@@ -341,14 +341,6 @@ paths:
   /tenants/{tenantId}/catalogs/{catalogId}/images/{imageSlug}/content:
     $ref: './paths/images.yaml#/image-content'
 
-  # Assets (deprecated in favour of Images; removed in the next major version)
-  /tenants/{tenantId}/catalogs/{catalogId}/assets:
-    $ref: './paths/assets.yaml#/assets'
-  /tenants/{tenantId}/catalogs/{catalogId}/assets/{assetId}:
-    $ref: './paths/assets.yaml#/asset-resource'
-  /tenants/{tenantId}/catalogs/{catalogId}/assets/{assetId}/content:
-    $ref: './paths/assets.yaml#/asset-content'
-
   # Templates
   /tenants/{tenantId}/catalogs/{catalogId}/templates:
     $ref: './paths/templates.yaml#/templates'

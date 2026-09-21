@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking (unreleased):** the asset operations are removed (#86). `listAssets`, `uploadAsset`,
+  `downloadAssetContent` and `deleteAsset` are gone, with `AssetDto` and `AssetListResponse`.
+  `/images` replaces them: it addresses an image by its slug, a plain string, and lists images
+  only, where the asset operations mixed in the font-face binaries that back a font family.
+
+  `AssetDto.id` is `format: uuid`, so it could not name an image such as `municipality-mark` and
+  had begun omitting the field for those — and for font faces too, once a face's key became its
+  content hash. `{assetId}` is `format: uuid` as well, so a plain-string `id` would have been
+  listed but not downloadable. Removing the operations closes the hole instead of widening it, and
+  makes REST agree with the wire, where from v7 a font face's binary is deliberately not
+  addressable. Added in #80 and never released, so nothing depends on them.
+
+- A resource slug is validated against its own type's bounds (#86). `CatalogSlugs` declared them
+  and nothing read it: `ResourceValidator` checked one loose pattern with no length for every type,
+  so a catalog naming a theme with 30 characters validated, published, and then failed on install
+  with a `value too long for type character varying(20)` database error. Validation now looks the
+  rule up by type and reports `CATALOG_RESOURCE_SLUG_INVALID` naming the limit, which is what makes
+  a publication gate catch it before the upload.
+
+  The theme bound is 50 rather than 20. Nothing else was 20, and the suite widens its column to
+  match in the same release — a maximum may be relaxed later but never tightened once catalogs use
+  the extra room, so this is the moment. `CatalogSlugs` is also keyed by the v7 type token now
+  (`image`, not `asset`), without which every image fell through to the loosest bound.
+
 - **Breaking (unreleased):** a binary is identified by its content in wire v7, not by a name (#86).
   `AssetResource` becomes `ImageResource` and carries `contentHash`; a font face carries its own
   binary instead of pointing at a separate asset by slug, and states what it is through

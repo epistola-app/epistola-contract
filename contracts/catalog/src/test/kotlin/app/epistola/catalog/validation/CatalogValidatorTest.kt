@@ -275,6 +275,39 @@ class CatalogValidatorTest {
         assertTrue(CatalogValidationCodes.PRESENTATION_IMAGE_DUPLICATE in report.codes())
     }
 
+    /**
+     * The bound is per type, and it is the publication gate that has to catch it.
+     *
+     * A 51-character theme slug is storable nowhere -- `THEME_KEY` is `VARCHAR(50)` -- so without
+     * this the publisher is told the catalog is fine and every consumer's install dies on a
+     * database error instead.
+     */
+    @Test
+    fun `a slug longer than its type allows is refused`() {
+        val slug = "a".repeat(51)
+        val detail = ResourceDetail(CURRENT_VERSION, app.epistola.catalog.protocol.ThemeResource(slug, "Theme"))
+        val manifest = manifest(resources = listOf(ResourceEntry("theme", slug, "Theme", detailUrl = "./resources/theme/$slug.json")))
+
+        val report = CatalogValidator.validate(archive(manifest, mapOf("theme/$slug" to detail)))
+
+        assertTrue(CatalogValidationCodes.RESOURCE_SLUG_INVALID in report.codes())
+    }
+
+    /** An image is the one type admitting a leading digit, because its slug may be a UUID string. */
+    @Test
+    fun `an image slug may start with a digit where other types may not`() {
+        val slug = "01966a00-0000-7000-8000-000000000001"
+        val detail = ResourceDetail(
+            CURRENT_VERSION,
+            ImageResource(slug, "Logo", "image/svg+xml", contentHash = "0".repeat(64)),
+        )
+        val manifest = manifest(resources = listOf(ResourceEntry("image", slug, "Logo", detailUrl = "./resources/image/$slug.json")))
+
+        val report = CatalogValidator.validate(archive(manifest, mapOf("image/$slug" to detail)))
+
+        assertTrue(CatalogValidationCodes.RESOURCE_SLUG_INVALID !in report.codes(), "findings: ${report.findings}")
+    }
+
     @Test
     fun `manifest and detail findings aggregate deterministically`() {
         val detail = ResourceDetail(3, ImageResource("Bad Slug", "Different", "bad", width = 0, contentUrl = "../asset", contentHash = "0000000000000000000000000000000000000000000000000000000000000000"))
