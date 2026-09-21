@@ -7,17 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- **Breaking (unreleased):** the asset operations are removed (#86). `listAssets`, `uploadAsset`,
-  `downloadAssetContent` and `deleteAsset` are gone, with `AssetDto` and `AssetListResponse`.
-  `/images` replaces them: it addresses an image by its slug, a plain string, and lists images
-  only, where the asset operations mixed in the font-face binaries that back a font family.
+- **Breaking, and shipped in a MINOR by decision:** the asset operations are removed (#86).
+  `listAssets`, `uploadAsset`, `downloadAssetContent` and `deleteAsset` are gone, with `AssetDto`
+  and `AssetListResponse`. `/images` replaces them: it addresses an image by its slug, a plain
+  string, and lists images only, where the asset operations mixed in the font-face binaries that
+  back a font family.
+
+  These have shipped since 1.0.0, so this is a real break of a GA surface, which the stability
+  contract says needs a major release. It goes out in a minor anyway because nothing consumes it:
+  no known integration calls the asset operations, the suite's own UI never did (it uses UI
+  routes), and the only client that could was generated from this spec. Deferring to 2.0.0 would
+  mean carrying a surface that cannot name half the rows it returns, and publishing a deprecation
+  window for an audience of nobody. Recorded here so the departure is deliberate and visible
+  rather than inferred from a version number.
 
   `AssetDto.id` is `format: uuid`, so it could not name an image such as `municipality-mark` and
   had begun omitting the field for those — and for font faces too, once a face's key became its
   content hash. `{assetId}` is `format: uuid` as well, so a plain-string `id` would have been
   listed but not downloadable. Removing the operations closes the hole instead of widening it, and
   makes REST agree with the wire, where from v7 a font face's binary is deliberately not
-  addressable. Added in #80 and never released, so nothing depends on them.
+  addressable.
 
 - A resource slug is validated against its own type's bounds (#86). `CatalogSlugs` declared them
   and nothing read it: `ResourceValidator` checked one loose pattern with no length for every type,
