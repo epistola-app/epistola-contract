@@ -13,6 +13,9 @@ const DEFAULT_TOKEN_LIFETIME_SECONDS = 60
 /**
  * Mints the short-lived self-signed JWTs Epistola accepts for consumer authentication.
  *
+ * **Experimental.** Epistola Suite may not implement self-signed JWT authentication yet, and the
+ * flow may still change. Use API-key authentication (`apiKey`) for production integrations.
+ *
  * Each token carries:
  * - `iss` — the consumer ID
  * - `iat` — issued-at

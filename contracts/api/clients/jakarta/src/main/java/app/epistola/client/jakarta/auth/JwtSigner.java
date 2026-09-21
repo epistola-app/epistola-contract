@@ -15,6 +15,9 @@ import java.time.Duration;
 /**
  * Creates and signs short-lived JWTs for self-signed JWT authentication with Epistola.
  *
+ * <p><strong>Experimental.</strong> Epistola Suite may not implement self-signed JWT authentication
+ * yet, and the flow may still change. Use {@link ApiKeyAuth} for production integrations.
+ *
  * <p>Each token contains:
  * <ul>
  *   <li>{@code iss} — the consumer ID</li>

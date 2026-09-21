@@ -9,6 +9,11 @@ records contract/spec changes. This file records changes specific to the Node.js
 
 ## [Unreleased]
 
+### Changed
+
+- `JwtSigner` is documented as **experimental**: Epistola Suite may not implement self-signed JWT
+  authentication yet. The README's quick start now authenticates with an API key.
+
 ### Added
 
 - **Initial release** — a Node.js client for the Epistola API, generated from the OpenAPI contract

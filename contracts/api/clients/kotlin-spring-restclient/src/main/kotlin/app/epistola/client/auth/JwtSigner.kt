@@ -16,6 +16,9 @@ import java.time.Duration
 /**
  * Creates and signs short-lived JWTs for self-signed JWT authentication with Epistola.
  *
+ * **Experimental.** Epistola Suite may not implement self-signed JWT authentication yet, and the
+ * flow may still change. Use [ApiKeyAuth] for production integrations.
+ *
  * The signing itself is [ProtocolJwtSigner], shared with the Jakarta client: the JDK's own
  * `java.security` primitives, no JOSE library on the classpath. This class is the Spring face of
  * it.

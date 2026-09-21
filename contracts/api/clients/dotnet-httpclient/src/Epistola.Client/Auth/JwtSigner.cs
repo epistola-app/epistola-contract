@@ -18,6 +18,9 @@ namespace Epistola.Client.Auth;
 /// <summary>
 /// Creates and signs short-lived JWTs for self-signed JWT authentication with Epistola.
 ///
+/// <b>Experimental.</b> Epistola Suite may not implement self-signed JWT authentication yet, and the
+/// flow may still change. Use <see cref="ApiKeyAuth"/> for production integrations.
+///
 /// Each token contains:
 /// <list type="bullet">
 /// <item><c>iss</c>: the consumer ID</item>

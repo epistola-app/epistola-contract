@@ -14,8 +14,11 @@ consumer-register:
 
   post:
     operationId: registerConsumer
+    x-experimental: true
     summary: Register a new consumer in this tenant
     description: |
+      **Experimental** — Epistola Suite may not implement this operation yet.
+
       Self-service registration for consumer applications using self-signed JWT
       authentication. The consumer is created in `pending` status within this
       tenant until a tenant manager approves the registration.
@@ -66,8 +69,11 @@ consumer-collection:
 
   get:
     operationId: listConsumers
+    x-experimental: true
     summary: List consumers in this tenant
     description: |
+      **Experimental** — Epistola Suite may not implement this operation yet.
+
       Retrieve a paginated list of consumers registered in this tenant
       with optional filtering by status.
     tags:
@@ -124,8 +130,12 @@ consumer-resource:
 
   get:
     operationId: getConsumer
+    x-experimental: true
     summary: Get consumer by ID
-    description: Retrieve details of a specific consumer in this tenant.
+    description: |
+      **Experimental** — Epistola Suite may not implement this operation yet.
+
+      Retrieve details of a specific consumer in this tenant.
     tags:
       - Consumers
     x-required-permissions: [TENANT_USERS]
@@ -145,8 +155,12 @@ consumer-resource:
 
   patch:
     operationId: updateConsumer
+    x-experimental: true
     summary: Update consumer metadata or permissions
-    description: Update a consumer's metadata or permissions within this tenant.
+    description: |
+      **Experimental** — Epistola Suite may not implement this operation yet.
+
+      Update a consumer's metadata or permissions within this tenant.
     tags:
       - Consumers
     x-required-permissions: [TENANT_USERS]
@@ -174,8 +188,11 @@ consumer-resource:
 
   delete:
     operationId: deleteConsumer
+    x-experimental: true
     summary: Delete a consumer
     description: |
+      **Experimental** — Epistola Suite may not implement this operation yet.
+
       Permanently remove a consumer from this tenant.
 
       **Effect on generation results:**
@@ -222,8 +239,11 @@ consumer-approve:
 
   post:
     operationId: approveConsumer
+    x-experimental: true
     summary: Approve a pending consumer
     description: |
+      **Experimental** — Epistola Suite may not implement this operation yet.
+
       Approve a consumer registration within this tenant. Sets the granted
       permissions and optional expiry. The consumer transitions from `pending`
       to `active`.
@@ -275,8 +295,11 @@ consumer-reject:
 
   post:
     operationId: rejectConsumer
+    x-experimental: true
     summary: Reject a pending consumer
     description: |
+      **Experimental** — Epistola Suite may not implement this operation yet.
+
       Reject a consumer registration. The consumer transitions from `pending`
       to `rejected`. Optionally provide a reason.
     tags:
@@ -327,8 +350,11 @@ consumer-public-key:
 
   put:
     operationId: rotatePublicKey
+    x-experimental: true
     summary: Rotate public key
     description: |
+      **Experimental** — Epistola Suite may not implement this operation yet.
+
       Replace the public key for a self-signed JWT consumer. Must authenticate
       with a valid JWT signed by the current key. After rotation, the old key
       is immediately invalidated.

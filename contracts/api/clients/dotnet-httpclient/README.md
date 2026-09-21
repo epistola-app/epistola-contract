@@ -23,7 +23,6 @@ The generated API namespaces are `Epistola.Client.Api` (operations) and `Epistol
 
 ```csharp
 using Epistola.Client.Api;
-using Epistola.Client.Auth;
 using Epistola.Client.Http;
 using Epistola.Client.Identity;
 using Epistola.Client.Model;
@@ -33,15 +32,10 @@ var identity = ClientIdentity.Builder()
     .Product("my-app", "1.0.0")                 // appended to User-Agent
     .Build();
 
-var signer = JwtSigner.Builder()
-    .ConsumerId("my-consumer")
-    .PrivateKey(JwtSigner.LoadPrivateKey("private.pem"))
-    .Build();
-
 var http = new EpistolaHttpClientBuilder()
     .BaseUrl("https://epistola.example.com/api")
     .Identity(identity)                         // User-Agent + X-EP-Node-Id
-    .JwtSigner(signer)                          // Authorization: Bearer <jwt>
+    .ApiKey("epk_...")                          // Authorization: ApiKey <key>
     .InstallProblemDetailHandler()              // typed ProblemDetailException
     .Build();
 
@@ -77,15 +71,18 @@ X-EP-Node-Id: my-pod-123
 
 ## Authentication
 
-`JwtSigner` mints short-lived self-signed JWTs (RSA-2048+ or EC P-256) with `iss`, `iat`, `exp`, and a
-unique `jti` per request. For OAuth 2.0 client-credentials, supply your own bearer handler via
-`EpistolaHttpClientBuilder.PrimaryHandler(...)` or add a `DelegatingHandler` around the chain.
-
-Static tenant API keys can be sent with `.ApiKey("epk_...")`, which sets
+Static tenant API keys are the supported method. `.ApiKey("epk_...")` sets
 `Authorization: ApiKey <key>`. The legacy `X-API-Key` header remains supported for existing
 integrations, but is deprecated. Some Epistola Suite deployments may disable API-key authentication
 entirely; with `InstallProblemDetailHandler()`, switch on `ProblemDetailException.TypeSlug ==
 KnownProblemSlugs.API_KEY_AUTH_DISABLED` and guide the caller to JWT auth.
+
+`JwtSigner` (**experimental**) mints short-lived self-signed JWTs (RSA-2048+ or EC P-256) with `iss`,
+`iat`, `exp`, and a unique `jti` per request; pass it with `.JwtSigner(signer)` instead of
+`.ApiKey(...)`. Epistola Suite may not implement self-signed JWT authentication yet, and the flow
+may still change. For OAuth 2.0 client-credentials (also experimental on the server side), supply
+your own bearer handler via `EpistolaHttpClientBuilder.PrimaryHandler(...)` or add a
+`DelegatingHandler` around the chain.
 
 ## Error handling
 

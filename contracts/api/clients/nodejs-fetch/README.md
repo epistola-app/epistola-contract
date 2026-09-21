@@ -11,9 +11,9 @@ It adds, on top of the stock generated client:
 - **Client identity** headers (`User-Agent` + `X-EP-Node-Id`) required on every request.
 - **RFC 9457 problem-detail** error handling — a typed `ProblemDetailException` with a `typeSlug`
   discriminator and generated `KnownProblemSlugs` constants.
-- **Self-signed JWT** authentication (`JwtSigner`), minting a fresh short-lived token per request on
-  `node:crypto` alone.
-- **Static API-key** authentication via `Authorization: ApiKey <key>`.
+- **Static API-key** authentication via `Authorization: ApiKey <key>`, the supported method.
+- **Self-signed JWT** authentication (`JwtSigner`, **experimental**), minting a fresh short-lived
+  token per request on `node:crypto` alone.
 - **The `Accept` header each operation is declared with.** The generated classes never set one, and
   Node's `fetch` sends `*/*` by default — so without this a request never says it accepts
   `application/problem+json`, the document every error handler here is built to parse.
@@ -42,32 +42,38 @@ npm install @epistola.app/epistola-client
 ## Quick start
 
 ```ts
-import { ClientIdentity, EpistolaClient, JwtSigner, TemplatesApi } from '@epistola.app/epistola-client'
+import { ClientIdentity, EpistolaClient, TemplatesApi } from '@epistola.app/epistola-client'
 
 const identity = ClientIdentity.builder()
   .nodeId('my-pod-123')                       // defaults to the hostname
   .product('my-app', '1.0.0')                 // appended to User-Agent
   .build()
 
-const signer = JwtSigner.builder()
-  .consumerId('invoice-service')
-  .privateKey(JwtSigner.loadPrivateKey('private.pem'))
-  .build()
-
 const client = EpistolaClient.builder('https://epistola.example.com/api')
   .identity(identity)                         // User-Agent + X-EP-Node-Id
-  .jwtSigner(signer)                          // Authorization: Bearer <jwt>, fresh per request
+  .apiKey('epk_...')                          // Authorization: ApiKey <key>
   .build()
 
 const templates = new TemplatesApi(client)
 const template = await templates.getTemplate({ tenantId: 'acme', catalogId: 'invoices', templateId: 'invoice' })
 ```
 
-For static tenant API keys, use `.apiKey('epk_...')` instead of `.jwtSigner(...)`, or the shorthand
-`EpistolaClient.builder(baseUrl, apiKey)`. The legacy `X-API-Key` header is not sent: it remains
-supported server-side but is deprecated. Some Epistola Suite deployments disable API-key
-authentication entirely; switch on `e.typeSlug === KnownProblemSlugs.API_KEY_AUTH_DISABLED` and
-guide the caller to JWT auth.
+`EpistolaClient.builder(baseUrl, apiKey)` is a shorthand for the same thing. The legacy `X-API-Key`
+header is not sent: it remains supported server-side but is deprecated. Some Epistola Suite
+deployments disable API-key authentication entirely; switch on
+`e.typeSlug === KnownProblemSlugs.API_KEY_AUTH_DISABLED` and guide the caller to JWT auth.
+
+Self-signed JWT authentication is **experimental**: Epistola Suite may not implement it yet, and the
+flow may still change. To try it, pass `.jwtSigner(signer)` instead of `.apiKey(...)`:
+
+```ts
+import { JwtSigner } from '@epistola.app/epistola-client'
+
+const signer = JwtSigner.builder()
+  .consumerId('invoice-service')
+  .privateKey(JwtSigner.loadPrivateKey('private.pem'))
+  .build()
+```
 
 `EpistolaClient` *is* a generated `Configuration`, so every generated API class takes it directly.
 One builder can produce more than one client: call `build()` again after changing

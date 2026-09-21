@@ -4,6 +4,10 @@
 
 """Creates and signs short-lived JWTs for self-signed JWT authentication with Epistola.
 
+**Experimental.** Epistola Suite may not implement self-signed JWT authentication yet, and the
+flow may still change. Use API-key authentication (``EpistolaClientBuilder.api_key``) for
+production integrations.
+
 Each token contains:
 
 * ``iss``: the consumer ID

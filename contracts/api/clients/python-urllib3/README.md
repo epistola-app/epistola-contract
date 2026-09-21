@@ -9,8 +9,9 @@ It adds, on top of the stock generated client:
 - **Client identity** headers (`User-Agent` + `X-EP-Node-Id`) required on every request.
 - **RFC 9457 problem-detail** error handling — typed `ProblemDetailException` with a
   `type_slug` discriminator and generated `KnownProblemSlugs` constants.
-- **Self-signed JWT** authentication (`JwtSigner`), minting a fresh short-lived token per request.
-- **Static API-key** authentication via `Authorization: ApiKey <key>`.
+- **Static API-key** authentication via `Authorization: ApiKey <key>`, the supported method.
+- **Self-signed JWT** authentication (`JwtSigner`, **experimental**), minting a fresh short-lived
+  token per request.
 - **NDJSON result collection** (`ResultCollector`) with adaptive polling, compression, and
   partition-aware routing helpers.
 - **Client-side JSON Schema validation** of template data (`TemplateSchemaValidator`).
@@ -35,22 +36,16 @@ pip install -i https://test.pypi.org/simple/ \
 
 ```python
 from epistola_client import (
-    EpistolaClientBuilder, ClientIdentity, JwtSigner, TemplatesApi,
+    EpistolaClientBuilder, ClientIdentity, TemplatesApi,
 )
 
 identity = ClientIdentity.builder().node_id("my-pod-123").build()
-signer = (
-    JwtSigner.builder()
-    .consumer_id("invoice-service")
-    .private_key(JwtSigner.load_private_key("private.pem"))
-    .build()
-)
 
 http = (
     EpistolaClientBuilder()
     .base_url("https://epistola.example.com/api")
     .identity(identity)
-    .jwt_signer(signer)
+    .api_key("epk_...")
     .install_problem_detail_handler()
     .build()
 )
@@ -59,11 +54,24 @@ templates = TemplatesApi(http)
 template = templates.get_template("acme", "invoices", "invoice")
 ```
 
-For static tenant API keys, use `.api_key("epk_...")` instead of `.jwt_signer(...)`.
-The legacy `X-API-Key` header remains supported for existing integrations, but is deprecated.
-Some Epistola Suite deployments may disable API-key authentication entirely; with
-`.install_problem_detail_handler()`, switch on `e.type_slug == KnownProblemSlugs.API_KEY_AUTH_DISABLED`
-and guide the caller to JWT auth.
+`.api_key(...)` sends `Authorization: ApiKey <key>`. The legacy `X-API-Key` header remains
+supported for existing integrations, but is deprecated. Some Epistola Suite deployments may disable
+API-key authentication entirely; with `.install_problem_detail_handler()`, switch on
+`e.type_slug == KnownProblemSlugs.API_KEY_AUTH_DISABLED` and guide the caller to JWT auth.
+
+Self-signed JWT authentication is **experimental**: Epistola Suite may not implement it yet, and the
+flow may still change. To try it, pass `.jwt_signer(signer)` instead of `.api_key(...)`:
+
+```python
+from epistola_client import JwtSigner
+
+signer = (
+    JwtSigner.builder()
+    .consumer_id("invoice-service")
+    .private_key(JwtSigner.load_private_key("private.pem"))
+    .build()
+)
+```
 
 ## Error handling
 
