@@ -295,7 +295,9 @@
           ]
         },
         "contentUrl": {
-          "type": "string"
+          "type": "string",
+          "deprecated": true,
+          "description": "Deprecated. Where the bytes are, when the archive does not put them where the hash says. A catalog written at wire v7 omits this and files every binary at bin/<contentHash>; only an archive migrated from an earlier version still carries a path, because a migration rewrites documents and cannot move files. Read, never written. Removed with the next wire version, by which time no archive in circulation should set it."
         },
         "contentHash": {
           "type": "string",
@@ -434,7 +436,9 @@
           "type": "string"
         },
         "contentUrl": {
-          "type": "string"
+          "type": "string",
+          "deprecated": true,
+          "description": "Deprecated. Where the bytes are, when the archive does not put them where the hash says. A catalog written at wire v7 omits this and files every binary at bin/<contentHash>; only an archive migrated from an earlier version still carries a path, because a migration rewrites documents and cannot move files. Read, never written. Removed with the next wire version, by which time no archive in circulation should set it."
         },
         "contentHash": {
           "type": "string",

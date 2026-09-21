@@ -25,7 +25,10 @@ internal class CatalogV6ToV7Migration : CatalogSchemaMigration {
 
     override fun migrateManifest(tree: ObjectNode): CatalogMigrationStepResult {
         tree.put("schemaVersion", toVersion)
+        // Checked before the rename below, which would otherwise hide the very entries it looks
+        // for by turning them into images first.
         unqualifiedAssetDependencies(tree).let { if (it.isNotEmpty()) return CatalogMigrationStepResult(it) }
+        assetEntriesBecomeImages(tree)
         val catalog = tree["catalog"] as? ObjectNode ?: return CatalogMigrationStepResult()
         val keywords = catalog["keywords"] as? ArrayNode ?: return CatalogMigrationStepResult()
         // Non-string entries are reported by the wire check that follows migration.
@@ -82,10 +85,12 @@ internal class CatalogV6ToV7Migration : CatalogSchemaMigration {
         context: CatalogMigrationContext,
     ): CatalogMigrationStepResult {
         tree.put("schemaVersion", toVersion)
-        renameVariantIdToSlug(tree)
-        return when (tree["type"]?.asString()) {
-            "asset" -> assetToImage(tree, path, context)
-            "font" -> fontFacesTakeTheirBinary(tree, path, context)
+        // The payload is nested: a resource document is {schemaVersion, resource:{...}}.
+        val resource = tree["resource"] as? ObjectNode ?: return CatalogMigrationStepResult()
+        renameVariantIdToSlug(resource)
+        return when (resource["type"]?.asString()) {
+            "asset" -> assetToImage(resource, "$path.resource", context)
+            "font" -> fontFacesTakeTheirBinary(resource, "$path.resource", context)
             else -> CatalogMigrationStepResult()
         }
     }
@@ -261,6 +266,23 @@ internal class CatalogV6ToV7Migration : CatalogSchemaMigration {
                 "catalog.json.dependencies[$index]",
                 "asset dependency '${entry["slug"]?.asString()}' names no catalog; re-export the catalog to qualify it",
             )
+        }
+    }
+
+    /**
+     * Renames the manifest's `asset` tokens to `image`.
+     *
+     * The index and the dependency list both carry a resource's type, and catalog v7 has no
+     * `asset`. Without this a v6 manifest still announces resources the reader cannot resolve,
+     * even though each resource document migrates correctly on its own.
+     */
+    private fun assetEntriesBecomeImages(tree: ObjectNode) {
+        for (field in listOf("resources", "dependencies")) {
+            val entries = tree[field] as? ArrayNode ?: continue
+            for (entry in entries) {
+                val node = entry as? ObjectNode ?: continue
+                if (node["type"]?.asString() == "asset") node.put("type", "image")
+            }
         }
     }
 }

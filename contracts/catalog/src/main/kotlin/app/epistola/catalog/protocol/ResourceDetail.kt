@@ -7,6 +7,7 @@ package app.epistola.catalog.protocol
 import app.epistola.template.model.BlockStylePreset
 import app.epistola.template.model.PageSettings
 import app.epistola.template.model.TemplateDocument
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
@@ -217,6 +218,16 @@ data class CodeListEntryEntry(
  * keeps the path it already had, because a migration rewrites documents and cannot move files.
  */
 interface BinaryRef {
+    /**
+     * Where the bytes are, when the archive does not put them where the hash says.
+     *
+     * Read, never written: a catalog written at wire v7 omits it, and only an archive migrated
+     * from an earlier version still carries a path. Removed with the next wire version, by which
+     * time no archive in circulation should set it. Resolve through [contentPath] rather than
+     * reading this directly.
+     */
+    @Deprecated("A binary is placed by its hash; read contentPath() instead.")
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
     val contentUrl: String?
     val contentHash: String
 
@@ -226,6 +237,7 @@ interface BinaryRef {
      * Derived, never serialised. It is a reading convenience, and putting it on the wire would
      * add a field that says nothing new and would move every fingerprint that carries a binary.
      */
+    @Suppress("DEPRECATION") // The one place that reads it: resolving it away is its whole job.
     fun contentPath(): String = contentUrl?.removePrefix("./") ?: canonicalPath(contentHash)
 
     companion object {
@@ -241,6 +253,7 @@ data class ImageResource(
     val width: Int? = null,
     val height: Int? = null,
     override val contentHash: String,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
     override val contentUrl: String? = null,
 ) : CatalogResource,
     BinaryRef {
@@ -282,6 +295,7 @@ data class FontVariantEntry(
     /** What the face's binary is -- `font/ttf` or `font/otf`. Stated, never inferred from a path. */
     val mediaType: String,
     override val contentHash: String,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
     override val contentUrl: String? = null,
 ) : BinaryRef
 

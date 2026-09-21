@@ -183,7 +183,11 @@ object CatalogSchemaMigrator {
                 source,
             )
         }
+        // Compared through the same rename the manifest went through. A catalog-v6 archive says
+        // `asset` in both places; its manifest entry has already migrated to `image` by the time
+        // this runs, so a literal comparison would report every image as a type mismatch.
         val actualType = tree["resource"]?.get("type")?.takeIf { it.isString }?.asString()
+            ?.let { if (it == "asset") "image" else it }
         if (actualType != null && actualType != declaredType) {
             return failure(
                 CatalogMigrationCodes.RESOURCE_TYPE_MISMATCH,

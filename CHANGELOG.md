@@ -7,127 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- A binary is placed by its hash in wire v7, and a font face states what it is (#86). `contentUrl`
-  is optional: a catalog written at v7 omits it and files every binary at `bin/<contentHash>`, so
-  identical bytes are one file and there is no path convention to disagree about. An archive
-  migrated from v6 keeps the path it already has — a migration rewrites documents and cannot move
-  files — which is what lets the convention be adopted without rewriting existing archives.
-
-  `FontVariantEntry.mediaType` says whether a face is `font/ttf` or `font/otf`. Inlining the face
-  had dropped it, leaving consumers to guess from a file extension.
-
 - **Breaking (unreleased):** a binary is identified by its content in wire v7, not by a name (#86).
-  `AssetResource` is now `ImageResource` and carries `contentHash`; a font face carries its own
-  `contentUrl` and `contentHash` instead of pointing at a separate asset by slug.
+  `AssetResource` becomes `ImageResource` and carries `contentHash`; a font face carries its own
+  binary instead of pointing at a separate asset by slug, and states what it is through
+  `FontVariantEntry.mediaType` (`font/ttf` or `font/otf`), which inlining the face had dropped.
+  `contentUrl` is deprecated and optional: a catalog written at v7 omits it and files every binary
+  at `bin/<contentHash>`, so identical bytes are one file and there is no path convention to
+  disagree about.
 
-  An asset's slug was a generated UUID that named nothing — the human name was already on `name`,
-  and the identity was always the bytes. Every other layer agreed: `asset_content` is keyed by
-  content hash, and the canonicaliser already hashed each binary into the fingerprint through a
-  side channel. The wire was the only layer still pretending a binary has a name.
+  An asset's slug was a generated UUID naming nothing — the human name was already on `name`, and
+  every other layer keyed on the bytes. The hash is now checked rather than believed:
+  `CATALOG_ASSET_CONTENT_HASH_MISMATCH` reports a binary whose bytes do not hash to what it
+  declares.
 
-  Images become a primary resource type because they are the named thing; assets stop being one
-  because they are not. A font face's binary was never independently meaningful, and now is not
-  independently addressable either.
+  A v6 archive migrates without a content migration: each asset becomes an image **keeping its
+  slug**, so template content referencing it as `props.assetId` keeps resolving, and each font face
+  is given the binary of the asset it used to name — migrations now receive the archive's content
+  for this. A migrated archive keeps the paths it already has, since a migration rewrites documents
+  and cannot move files. One that cannot be resolved reports `CATALOG_ASSET_CONTENT_UNRESOLVED`
+  rather than inventing a hash. Catalog fingerprints move once, because the manifest's shape
+  changes; the published TypeScript surface renames `AssetResource` to `ImageResource`.
 
-  The hash is checked rather than believed: `CATALOG_ASSET_CONTENT_HASH_MISMATCH` reports a binary
-  whose bytes do not hash to what it declares, which the previous computed side channel could not
-  express at all.
+- An image dependency names its catalog in wire v7 (#86). Every other dependency kind already did.
+  Image references resolved tenant-wide, which was safe only while an image's slug was a generated
+  UUID; epistola-app/epistola-suite#930 makes it readable, so two catalogs may each hold a `logo`
+  and an unqualified reference means nothing. A v6 archive whose asset dependency names no catalog
+  is reported with `CATALOG_DEPENDENCY_UNQUALIFIED` rather than repaired — inferring a catalog
+  would bind the consumer to whichever happened to match. No catalog published so far declares one.
 
-  A v6 archive migrates without a content migration. Each asset becomes an image **keeping its
-  slug**, so template content referencing it as `props.assetId` keeps resolving untouched; each
-  font face is given its binary by reading the asset it used to name. Migrations now receive the
-  archive's content for this, since a manifest lists a resource's entry but not its bytes. An
-  archive that cannot be resolved this way reports `CATALOG_ASSET_CONTENT_UNRESOLVED` rather than
-  inventing a hash.
+- Wire v7 addresses a template variant by `slug`, not `id` (#86). Every other resource type already
+  said `slug`, and a variant's address was always a name someone chose (`english`, `default`). A v6
+  archive migrates with the value unchanged and no notice: nothing references a variant across
+  catalogs, so nothing can be left dangling. The slug is bounded like the rest — 3 to 50
+  characters, leading letter — matching the `VARIANT_KEY` a consumer stores it in.
 
-  Catalog fingerprints move once, because the manifest's shape changes. The published TypeScript
-  surface renames `AssetResource` to `ImageResource`.
+- Wire v7 constrains every resource slug (#86). The wire constrained none of them while every
+  consumer storing one did, so a catalog naming a theme with 30 characters was publishable and then
+  refused on install with no diagnosis in between. Exchange runs this validator at its publication
+  gate, so the mistake is now caught before the upload.
 
-- An asset dependency names its catalog in wire v7 (#86). Every other dependency kind already did.
-  The asset kind did not, and asset references resolved tenant-wide to match — safe only while an
-  asset's slug was a generated UUID, unique by construction across every catalog a tenant holds.
-  epistola-app/epistola-suite#930 makes that slug readable, and two catalogs may then each hold a
-  `logo`, so an unqualified reference to one of them means nothing.
-
-  A v6 archive whose asset dependency names no catalog is reported with
-  `CATALOG_DEPENDENCY_UNQUALIFIED` rather than repaired. The archive records which asset is depended
-  on but not whose, and inferring one would bind the consumer to whichever catalog happened to
-  match — the exact ambiguity this removes. Re-exporting qualifies it from the publisher's own
-  state. No catalog shipped so far declares an asset dependency, so nothing in existence hits this.
-
-  The canonical fingerprint is unaffected for every catalog that has no asset dependency: the
-  canonical form always carried a `catalogKey` slot for a dependency and an explicit special case
-  blanked it out for assets. That special case is gone.
-
-- Catalog wire v7 addresses a template variant by `slug`, not `id` (#86). Every other resource type
-  already said `slug`, and a variant's address was always a name someone chose — `english`,
-  `default` — so `id` was the same misnomer the REST API just shed. With `VariantDto` converged on
-  `slug` in the same release, the two external contracts would otherwise disagree about the one
-  field this convergence exists to fix.
-
-  A v6 archive migrates with the value unchanged and no notice: nothing references a variant across
-  catalogs, so no stored reference elsewhere names it and none can be left dangling. The slug is
-  now bounded like the rest — 3 to 50 characters, leading letter — matching the `VARIANT_KEY` a
-  consumer stores it in.
-
-- Catalog wire v7 now constrains every resource slug (#86). Until now the wire constrained none of
-  them, while every consumer that stores one does: a catalog naming a theme with 30 characters was
-  publishable and then refused on install, with no diagnosis in between. Exchange runs this
-  validator at its publication gate, so the mistake is now caught where it is still cheap to fix —
-  before the upload — rather than by whoever installs the release.
-
-  The limits mirror the storage they have to survive rather than inventing new ones, so they differ
-  per type: template, stencil and attribute 3–50, theme 3–20, code list 3–64, font 2–64, and the
-  catalog's own slug 3–50. An asset is the exception at 1–50 with a leading digit allowed, because
-  its slug may be a generated UUID string; every other type requires a leading letter.
-
-  A maximum may be relaxed later without breaking anyone, since a wider bound accepts every value a
-  narrower one held. It may never be tightened once catalogs exist that use the extra room, which
-  is why v7 — merged but unreleased — is the moment to set them.
-
-  Unlike a keyword, a slug that does not conform cannot be repaired: other resources reference it
-  by name, so rewriting one would break those references. Rules live in `CatalogSlugs`, beside
-  `CatalogKeywords`, and are enforced by the schema rather than by resource models, which consumers
-  rebind from manifests stored under earlier wire versions.
+  Limits mirror the storage they have to survive: template, stencil and attribute 3–50, theme 3–20,
+  code list 3–64, font 2–64, catalog 3–50, and image 1–50 with a leading digit allowed because its
+  slug may still be a generated UUID. A maximum may be relaxed later but never tightened once
+  catalogs use the extra room, which is why v7 — merged but unreleased — is the moment to set them.
+  Unlike a keyword, a non-conforming slug cannot be repaired, because other resources reference it
+  by name. Rules live in `CatalogSlugs`, beside `CatalogKeywords`, enforced by the schema.
 
 - Added `slug` to every REST response that addresses a resource, and deprecated the `id` it
-  duplicates (#84). Ten DTOs called a resource's readable address `id`, one called it `key`, and
-  seven already called
-  it `slug` — and the spec's own wording gave the mismatch away, documenting `TemplateDto.id` as
-  *"Slug identifier of the template"* with the example `invoice`. No DTO ever carried both, so this
-  was inconsistency rather than a distinction.
+  duplicates (#84). Ten DTOs called a resource's readable address `id`, one called it `key`, seven
+  already said `slug` — and the spec documented `TemplateDto.id` as *"Slug identifier of the
+  template"* with the example `invoice`. `slug` wins because the portable catalog format already
+  uses it for all seven resource types, so the two external contracts now agree; `key` would also
+  have collided with API keys and signing keys. `AttributeDto.key` becomes `slug` for the same
+  reason — an attribute *definition* has a slug, while `key` is the key half of an attribute
+  *assignment*.
 
-  `slug` rather than `key`, because the portable catalog format already uses it for all seven
-  resource types. That is the harder contract to change and the one an integrator meets first, so
-  the two external contracts now agree on what to call the same value. `key` would also have
-  collided with the API keys and signing keys this product already has.
+  The rule: a **slug** is an address someone chooses, an **id** is an identifier the system
+  assigns. `documentId`, `requestId`, `batchId`, `correlationId`, `consumerId` and `nodeId` keep
+  their names, as do version numbers — `VersionDto.id`, `StencilVersionDto.id` and
+  `ContractVersionDto.id` are sequence positions the suite allocates, not names anyone picked.
 
-  `AttributeDto.key` becomes `slug` for the same reason. The portable format calls an attribute
-  *definition* a `slug`; its `key` is a different thing entirely — the key half of an attribute
-  *assignment*. Fonts and code lists needed no change at all: they already said `slug` on the wire,
-  in the API and in their path parameters, which is the shape everything else is converging on.
-
-  The rule is that a **slug** is an address someone chooses and an **id** is an identifier the
-  system assigns. `documentId`, `requestId`, `batchId`, `correlationId`, `consumerId` and `nodeId`
-  keep their names, and so do version numbers: `VersionDto.id`, `StencilVersionDto.id` and
-  `ContractVersionDto.id` are sequence positions the suite allocates per parent, not names anyone
-  picked, and no separate identity exists for them to be confused with.
-
-  Nothing breaks. Both properties are required and carry the same value, so a client reading `id`
-  is unaffected and a client adopting `slug` works immediately. The deprecated halves are removed
-  in 2.0.0 (#84).
-
-  Request bodies and path parameter names are unchanged, and rename in 2.0.0 instead. Making
-  request bodies compatible would have meant either both properties optional, which stops the spec
-  guaranteeing an identifier is present, or `anyOf` composition this spec has never used across
-  five client generators. Path parameter names looked free to rename, since every URL stays
-  byte-identical — but the generators turn them into public API, so that is source-breaking for
-  the published clients.
+  Nothing breaks: both properties are required and carry the same value. The deprecated halves are
+  removed in 2.0.0 (#84), along with request bodies and path parameter names, which are unchanged
+  here — the generators turn parameter names into public API, so renaming one is source-breaking
+  for the published clients.
 
 - **Breaking (unreleased):** `ImageDto.key` is now `ImageDto.slug`, and `{imageKey}` is
-  `{imageSlug}`. The images API was added in #80 and has not shipped in a release, so it converges
-  on the same vocabulary rather than becoming the one endpoint that disagrees. An image is
-  addressed like a font: by its slug.
+  `{imageSlug}`. The images API was added in #80 and has not shipped, so it converges on the same
+  vocabulary rather than becoming the one endpoint that disagrees.
 
 ## [1.2.0] - 2026-09-03
 

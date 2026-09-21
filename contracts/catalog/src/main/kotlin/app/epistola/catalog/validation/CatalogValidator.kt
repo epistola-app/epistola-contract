@@ -412,6 +412,10 @@ object ResourceValidator {
     ) {
         val contentHash = binary.contentHash
         val contentPath = binary.contentPath()
+
+        // Read directly because a *declared* path is what needs checking for traversal; one the
+        // hash implies cannot escape the archive.
+        @Suppress("DEPRECATION")
         val contentUrl = binary.contentUrl
         if (contentUrl != null && (!contentUrl.startsWith("./") || '\\' in contentUrl || ".." in contentUrl.split('/'))) {
             findings.error(CatalogValidationCodes.ASSET_PATH_INVALID, "$path.contentUrl", "contentUrl must be a safe relative archive path")
@@ -561,14 +565,19 @@ object CatalogValidator {
             }
             entriesByKey[key] = entry
             val expectedPath = "resources/$key.json"
-            if (entry.detailUrl.removePrefix("./") != expectedPath) {
+            // An image migrated from catalog v6 keeps its file under `resources/asset/`: the
+            // migration renames the type and cannot move the file. Accepted so such an archive
+            // stays installable; anything written at v7 uses the type's own directory.
+            val legacyPath = if (entry.type == "image") "resources/asset/${entry.slug}.json" else null
+            val declaredPath = entry.detailUrl.removePrefix("./")
+            if (declaredPath != expectedPath && declaredPath != legacyPath) {
                 findings.error(
                     CatalogValidationCodes.MANIFEST_DETAIL_PATH_INVALID,
                     "catalog.json.resources[$index].detailUrl",
                     "detailUrl must be './$expectedPath' or '$expectedPath'",
                 )
             }
-            if (expectedPath !in catalog.paths || key !in catalog.resourceDetails) {
+            if ((expectedPath !in catalog.paths && legacyPath !in catalog.paths) || key !in catalog.resourceDetails) {
                 findings.error(CatalogValidationCodes.MANIFEST_DETAIL_MISSING, expectedPath, "manifest resource '$key' has no detail document")
             }
         }

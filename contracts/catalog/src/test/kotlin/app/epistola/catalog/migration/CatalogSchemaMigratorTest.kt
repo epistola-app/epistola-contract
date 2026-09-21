@@ -156,12 +156,12 @@ class CatalogSchemaMigratorTest {
     @Test
     fun `a v6 variant already carrying a slug keeps it`() {
         val input = mapper.readTree(
-            """{"schemaVersion":6,"type":"template","slug":"invoice","name":"Invoice",
-               "variants":[{"slug":"keep","id":"discard"}]}""",
+            """{"schemaVersion":6,"resource":{"type":"template","slug":"invoice","name":"Invoice",
+               "variants":[{"slug":"keep","id":"discard"}]}}""",
         ) as ObjectNode
         CatalogV6ToV7Migration().migrateResource(input, "resources/template/invoice.json", CatalogMigrationContext(6, emptyManifest()))
 
-        assertEquals("keep", input["variants"][0]["slug"].asString())
+        assertEquals("keep", input["resource"]["variants"][0]["slug"].asString())
     }
 
     @Test
