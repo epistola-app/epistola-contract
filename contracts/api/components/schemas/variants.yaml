@@ -2,7 +2,6 @@ VariantDto:
   type: object
   description: Full template variant with version summary
   required:
-    - slug
     - id
     - templateId
     - title
@@ -18,7 +17,13 @@ VariantDto:
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the variant
+      description: |
+        Slug identifier of the variant
+
+        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
+        older 1.x contract omits it and a client must still read its responses: when it is
+        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
+        `id` (epistola-app/epistola-contract#84).
       example: english
     id:
       type: string
@@ -100,7 +105,6 @@ VariantSummaryDto:
   type: object
   description: Summary view of a variant for inclusion in template responses
   required:
-    - slug
     - id
     - title
     - attributes
@@ -113,7 +117,13 @@ VariantSummaryDto:
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the variant
+      description: |
+        Slug identifier of the variant
+
+        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
+        older 1.x contract omits it and a client must still read its responses: when it is
+        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
+        `id` (epistola-app/epistola-contract#84).
       example: english
     id:
       type: string

@@ -79,14 +79,27 @@ public static class Driver
             contact: "conformance@epistola.app"));
     }
 
+    /// <summary>
+    /// Reports what the client made of the last listing, <c>id</c> included while it is still served.
+    /// </summary>
     private static void ListTemplates(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         var api = new TemplatesApi(http, apiBase);
+        TemplateListResponse? response = null;
         for (var i = 0; i < Int(config, "repeat", 1); i++)
         {
-            api.ListTemplates(Str(config, "tenantId"), Str(config, "catalogId"));
+            response = api.ListTemplates(Str(config, "tenantId"), Str(config, "catalogId"));
         }
+        var templates = response!.Items;
+
+#pragma warning disable CS0618 // Id is deprecated in favour of Slug, and still what an older server sends
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["templateIds"] = string.Join(",", templates.Select(template => template.Id)),
+            ["templateSlugs"] = string.Join(",", templates.Select(template => Show(template.Slug))),
+        });
+#pragma warning restore CS0618
     }
 
     private static void Problem(string baseUrl, JsonElement config)

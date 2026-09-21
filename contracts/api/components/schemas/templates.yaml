@@ -2,7 +2,6 @@ TemplateDto:
   type: object
   description: Full document template with all details including variant summaries
   required:
-    - slug
     - id
     - tenantId
     - name
@@ -15,7 +14,13 @@ TemplateDto:
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the template (e.g., "monthly-invoice")
+      description: |
+        Slug identifier of the template (e.g., "monthly-invoice")
+
+        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
+        older 1.x contract omits it and a client must still read its responses: when it is
+        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
+        `id` (epistola-app/epistola-contract#84).
       example: invoice
     id:
       type: string
@@ -377,7 +382,6 @@ TemplateSummaryDto:
   type: object
   description: Summary view of a template for list displays
   required:
-    - slug
     - id
     - tenantId
     - name
@@ -389,7 +393,13 @@ TemplateSummaryDto:
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the template (e.g., "monthly-invoice")
+      description: |
+        Slug identifier of the template (e.g., "monthly-invoice")
+
+        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
+        older 1.x contract omits it and a client must still read its responses: when it is
+        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
+        `id` (epistola-app/epistola-contract#84).
       example: invoice
     id:
       type: string

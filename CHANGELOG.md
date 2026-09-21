@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed 1.3.0 clients refusing every response from an older server (#84). 1.3.0 added `slug` to
+  eleven read models and declared it required, and no server before 1.3.0 sends it. The Kotlin,
+  .NET and Python clients treat a required property as one the response must carry, so they
+  rejected the whole response — Kotlin with *"missing (therefore NULL) value for creator parameter
+  slug"*, .NET with *"Required property 'slug' not found in JSON"*, Python with a pydantic
+  `ValidationError`. A 1.3.0 client in any of those three could not list templates, environments
+  or variants against any released Suite. Jakarta and Node.js read the response.
+
+  Adding a required field to an existing schema is breaking by this repository's own rules
+  (CONTRIBUTING.md), and 1.3.0's *"Nothing breaks"* held only for servers: a minor release must
+  keep a new client working against the older servers of its major. `slug` is now optional on
+  `AttributeDto`, `CatalogDto`, `EnvironmentDto`, `StencilDto`, `StencilSummaryDto`, `TemplateDto`,
+  `TemplateSummaryDto`, `TenantDto`, `ThemeDto`, `VariantDto` and `VariantSummaryDto`. A server on
+  1.3.0 or later still sends it on every response; when it is absent, read the deprecated `id`
+  (`key` on `AttributeDto`), which carries the same value and stays required. `slug` becomes
+  required again in 2.0.0, which removes `id` and `key`.
+
+  `make breaking` reports this as `response-property-became-optional` on 33 responses — measured
+  against 1.3.0, it withdraws a guarantee, but no server before 1.3.0 could honour it. The check
+  did not flag 1.3.0 for adding the required field, because it treats a new response property as
+  additive, which holds for servers but not for clients that generate strict models.
+
+  Source-breaking against the 1.3.0 generated models, released less than a day earlier: Kotlin
+  reads `slug` as `String?`, and its constructor parameter moves from first to last with a `null`
+  default, so a Java caller that constructs one of these models positionally has to reorder its
+  arguments (named Kotlin arguments are unaffected). The Python and .NET properties become optional
+  in the same way.
+
+  A new conformance scenario, `older-server-response`, plays a pre-1.3.0 template listing and fails
+  the Kotlin, .NET and Python clients generated from the 1.3.0 spec; `list-templates` now reports
+  the ids and slugs the client parsed. The fixture check covers the spec side: the scenario's
+  slug-less fixture loads only while the spec allows one, so making `slug` required again fails
+  before any client is built.
+
 ## [1.3.0] - 2026-09-21
 
 - Wire v7 drops the per-resource `compatibility` (#86). A `ResourceEntry` could declare an
