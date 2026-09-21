@@ -17,6 +17,8 @@ import jakarta.servlet.http.HttpServletRequest
  * The server implementation is responsible for parsing the JWT and passing the
  * claims map to this resolver. This class does not handle JWT validation itself.
  *
+ * **Experimental**, like both JWT authentication methods in the contract: they may still change.
+ *
  * Example usage:
  * ```
  * // In a Spring filter or controller

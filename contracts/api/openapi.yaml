@@ -10,14 +10,16 @@ info:
 
     ## Authentication
     The API accepts authentication through the `Authorization` header:
-    - **Bearer JWT**: `Authorization: Bearer <jwt>` using OAuth 2.0 Client Credentials
-      or self-signed JWTs
-    - **API key**: `Authorization: ApiKey <key>` for static tenant API keys
+    - **API key**: `Authorization: ApiKey <key>` for static tenant API keys. This is
+      the supported method. A tenant manager issues each key for one tenant with a
+      set of tenant roles.
+    - **Bearer JWT** (**experimental**): `Authorization: Bearer <jwt>`, either issued
+      by an OAuth 2.0 identity provider or self-signed with a key pair registered
+      through the Consumers API. Epistola Suite may not implement the consumer model
+      these rely on yet, and the flow may still change.
 
     The legacy `X-API-Key` header remains supported for existing integrations, but
     is deprecated. New API-key integrations should use `Authorization: ApiKey <key>`.
-    Permissions and allowed tenants are managed in Epistola's consumer record,
-    not in JWT claims.
 
     See the [Authentication Guide](/docs/auth.md) for details.
 
@@ -238,6 +240,10 @@ tags:
     description: |
       Tenant-scoped consumer application registration and lifecycle management.
 
+      **Experimental.** Epistola Suite may not implement these operations yet, and
+      they may still change. Every operation in this group carries
+      `x-experimental: true`.
+
       Each tenant independently manages which applications can access their resources.
       The same application can register in multiple tenants with separate approvals.
 
@@ -265,8 +271,9 @@ tags:
     description: Asynchronous document generation operations
 
 # Global security — any method is accepted.
-# bearerAuth (JWT) and authorizationApiKeyAuth are the current Authorization-header
-# paths. apiKeyAuth is deprecated and retained for backwards compatibility.
+# authorizationApiKeyAuth is the supported path. bearerAuth (JWT) is experimental: the
+# server may not implement the consumer model it relies on yet. apiKeyAuth is the
+# deprecated X-API-Key header, retained for backwards compatibility.
 security:
   - bearerAuth: []
   - authorizationApiKeyAuth: []
@@ -702,10 +709,17 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      # OpenAPI has no `experimental` flag for security schemes; this vendor extension
+      # makes the status (also stated in the description) machine-readable.
+      x-experimental: true
       description: |
-        JWT Bearer token. Two authentication paths are supported:
+        **Experimental.** Epistola Suite may not implement the consumer model below
+        yet, and both paths may still change. Use an API key
+        (`Authorization: ApiKey <key>`) for production integrations.
 
-        **OAuth (recommended for environments with an IdP):**
+        JWT Bearer token. Two authentication paths are defined:
+
+        **OAuth (for environments with an IdP):**
         Obtain a token via OAuth 2.0 Client Credentials flow from your
         Identity Provider (Keycloak, Azure AD, or any OIDC-compliant IdP).
         The JWT `client_id` claim identifies the consumer.
@@ -725,14 +739,16 @@ components:
       in: header
       name: X-API-Key
       # OpenAPI has no `deprecated` flag for security schemes; this vendor extension
-      # makes the deprecation (also stated in the description) machine-readable.
+      # makes the deprecation (also stated in the description) machine-readable. It
+      # deprecates this header only: API keys themselves are the supported method.
       x-deprecated: true
       description: |
-        **Deprecated — use JWT Bearer authentication (OAuth or self-signed) instead.**
+        **Deprecated header — send the same key as `Authorization: ApiKey <key>` instead.**
 
-        Static API key for legacy environments. Keys are issued by administrators
-        and stored server-side with associated Suite roles and tenant access.
-        Prefer `Authorization: ApiKey <key>` for new API-key integrations.
+        Static API key through the legacy `X-API-Key` header. API-key authentication
+        itself is supported; only this transport is deprecated. Keys are issued by
+        administrators and stored server-side with associated Suite roles and tenant
+        access.
 
     authorizationApiKeyAuth:
       type: apiKey
@@ -745,5 +761,6 @@ components:
 
         The auth scheme token is case-insensitive; examples use `ApiKey`.
         Keys are issued by administrators and stored server-side with associated
-        Suite roles and tenant access. This is the preferred API-key
-        transport. The legacy `X-API-Key` header remains supported but deprecated.
+        Suite roles and tenant access. This is the supported authentication
+        method and the preferred API-key transport. The legacy `X-API-Key` header
+        remains supported but deprecated.

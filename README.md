@@ -184,8 +184,8 @@ A Java client library for Jakarta EE application servers (WildFly, Open Liberty,
 Quarkus) using:
 - **MicroProfile Rest Client** interfaces — `@Inject @RestClient` with configuration alone
 - **JSON-B** for binding, supplied by the server
-- Identity headers, API-key and self-signed JWT auth, RFC 9457 problem-detail handling,
-  NDJSON result collection, and client-side schema validation
+- Identity headers, API-key auth (and experimental self-signed JWT auth), RFC 9457
+  problem-detail handling, NDJSON result collection, and client-side schema validation
 
 It ships **no runtime dependencies**: every container-supplied API is `compileOnly`, so
 nothing is added to a consumer's WAR and no REST implementation is bundled. See the
@@ -202,23 +202,23 @@ headers.
 A .NET 8 client library using:
 - **HttpClient** with a composable handler chain
 - Newtonsoft.Json serialization
-- Identity headers, self-signed JWT auth, RFC 9457 problem-detail handling, NDJSON
-  result collection, and client-side schema validation
+- Identity headers, API-key auth (and experimental self-signed JWT auth), RFC 9457
+  problem-detail handling, NDJSON result collection, and client-side schema validation
 
 ### Python Client (`epistola-client`)
 
 A Python 3.9+ client library using:
 - **urllib3** transport with **pydantic v2** models
-- Identity headers, self-signed JWT auth, RFC 9457 problem-detail handling, NDJSON
-  result collection, and client-side JSON-Schema validation
+- Identity headers, API-key auth (and experimental self-signed JWT auth), RFC 9457
+  problem-detail handling, NDJSON result collection, and client-side JSON-Schema validation
 
 ### Node.js Client (`@epistola.app/epistola-client`)
 
 A Node.js 22.12+ client library, shipped as an ES module with TypeScript declarations, using:
 - The platform's own **`fetch`** (openapi-generator's `typescript-fetch`) and no runtime
   dependencies; Ajv is an optional peer, loaded on first use, for client-side schema validation
-- Identity headers, API-key and self-signed JWT auth on `node:crypto`, RFC 9457 problem-detail
-  handling, NDJSON result collection with gzip/zstd, and client-side JSON-Schema validation
+- Identity headers, API-key auth (and experimental self-signed JWT auth on `node:crypto`), RFC 9457
+  problem-detail handling, NDJSON result collection with gzip/zstd, and client-side JSON-Schema validation
 - The `Accept` header each operation is declared with, derived from a generated table of the
   contract's operations — the generator sets none, and Node's `fetch` would send `*/*`
 
@@ -609,7 +609,7 @@ dotnet add package Epistola.Contract.Client
 ```
 
 See the [.NET client README](contracts/api/clients/dotnet-httpclient/README.md) for identity,
-JWT auth, problem-detail error handling, result collection, and schema validation.
+authentication, problem-detail error handling, result collection, and schema validation.
 
 ### Python Client (pip)
 
@@ -630,7 +630,7 @@ http = (
 templates = TemplatesApi(http)
 ```
 
-See the [Python client README](contracts/api/clients/python-urllib3/README.md) for JWT auth,
+See the [Python client README](contracts/api/clients/python-urllib3/README.md) for authentication,
 problem-detail error handling (`type_slug` / `KnownProblemSlugs`), NDJSON result collection,
 and client-side schema validation.
 
@@ -649,7 +649,7 @@ const client = EpistolaClient.builder('https://api.epistola.app/api', 'epk_...')
 const templates = new TemplatesApi(client)
 ```
 
-See the [Node.js client README](contracts/api/clients/nodejs-fetch/README.md) for JWT auth,
+See the [Node.js client README](contracts/api/clients/nodejs-fetch/README.md) for authentication,
 problem-detail error handling (`typeSlug` / `KnownProblemSlugs`), NDJSON result collection,
 and client-side schema validation.
 

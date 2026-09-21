@@ -156,6 +156,10 @@ The first token is always `epistola-contract/{version}` (set by the client libra
 
 The `ConsumerResolver` extracts consumer identity from JWT claims. Works for both OAuth and self-signed JWT consumers.
 
+> **Experimental.** Both JWT authentication methods, and the Consumers API they rely on, are
+> experimental in the contract (`x-experimental: true`) and may still change. API keys are the
+> supported authentication method.
+
 ```kotlin
 // In a Spring Security filter or controller
 val claims: Map<String, Any?> = extractClaimsFromJwt(token)

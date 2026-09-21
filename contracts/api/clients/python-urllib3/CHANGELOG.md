@@ -11,6 +11,8 @@ records contract/spec changes. This file records changes specific to the Python 
 
 ### Changed
 
+- `JwtSigner` is documented as **experimental**: Epistola Suite may not implement self-signed JWT
+  authentication yet. The README's quick start now authenticates with an API key.
 - **Breaking:** Generated portable template models now use the catalog contract's canonical names
   without the `_dto` suffix.
 

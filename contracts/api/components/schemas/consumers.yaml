@@ -3,6 +3,9 @@ ConsumerDto:
   description: |
     Represents a consumer application registered within a tenant.
 
+    **Experimental** — part of the Consumers API, which Epistola Suite may not
+    implement yet.
+
     Consumers are tenant-scoped — each tenant independently manages which
     applications can access their resources. The same application can register
     in multiple tenants with separate approvals.
@@ -67,12 +70,12 @@ ConsumerDto:
       enum: [oauth, self-signed-jwt, api-key]
       description: |
         How this consumer authenticates:
-        - `oauth`: JWT tokens issued by an external Identity Provider.
-        - `self-signed-jwt`: Short-lived JWTs signed with the consumer's private key.
-        - `api-key`: Long-lived `X-API-Key` header value provisioned by a tenant
-          manager. Simpler than the JWT flows; recommended only for trusted
-          server-to-server integrations where key rotation is operationally
-          manageable. The consumer cannot self-rotate an api key —
+        - `oauth` (**experimental**): JWT tokens issued by an external Identity Provider.
+        - `self-signed-jwt` (**experimental**): Short-lived JWTs signed with the
+          consumer's private key.
+        - `api-key`: Long-lived static key provisioned by a tenant manager, sent as
+          `Authorization: ApiKey <key>` (or the deprecated `X-API-Key` header). This
+          is the supported method. The consumer cannot self-rotate an api key —
           `PUT /consumers/{cid}/public-key` does not apply; rotation requires
           a tenant manager to issue a new key and revoke the old one out of
           band.
@@ -85,7 +88,7 @@ ConsumerDto:
       type: ['string', 'null']
       description: |
         PEM-encoded public key for self-signed JWT consumers.
-        Null for OAuth consumers.
+        Null unless `authMethod` is `self-signed-jwt`.
       example: null
     expiresAt:
       type: ['string', 'null']

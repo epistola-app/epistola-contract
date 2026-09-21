@@ -106,7 +106,7 @@ app.epistola.client.jakarta.api.GenerationApi/mp-rest/url=https://epistola.examp
 epistola.client.node-id=${HOSTNAME}
 epistola.client.user-agent.products=zaakafhandelcomponent/3.4.0
 
-# Authentication — an API key, or a self-signed JWT; not both
+# Authentication — an API key, or a self-signed JWT (experimental); not both
 epistola.client.api-key=epk_...
 # epistola.client.jwt.consumer-id=invoice-service
 # epistola.client.jwt.private-key-path=/run/secrets/epistola-key.pem
@@ -132,10 +132,7 @@ EpistolaRestClients clients = EpistolaRestClients.builder()
                 .nodeId("my-pod-123")            // defaults to the hostname
                 .product("my-app", "1.0.0")      // appended to User-Agent
                 .build())
-        .jwtSigner(JwtSigner.builder()
-                .consumerId("invoice-service")
-                .privateKey(JwtSigner.loadPrivateKey(Path.of("private.pem")))
-                .build())                        // or .apiKey("epk_...")
+        .apiKey("epk_...")                       // or, experimental: .jwtSigner(...)
         .build();
 
 TemplatesApi templates = clients.api(TemplatesApi.class);
@@ -157,15 +154,18 @@ X-EP-Node-Id: my-pod-123
 
 ## Authentication
 
-`JwtSigner` mints short-lived self-signed JWTs (RSA-2048+ → RS256, EC P-256 → ES256) with `iss`,
-`iat`, `exp` and a fresh `jti` per request. It signs with the JDK's own `java.security` primitives
-rather than a JOSE library, so it adds nothing to your deployment.
+Static tenant API keys are the supported method. They are sent as `Authorization: ApiKey <key>`.
+The legacy `X-API-Key` header remains supported by the API but is deprecated and is not sent by this
+client.
 
-Static tenant API keys are sent as `Authorization: ApiKey <key>`. The legacy `X-API-Key` header
-remains supported by the API but is deprecated and is not sent by this client.
+`JwtSigner` (**experimental**) mints short-lived self-signed JWTs (RSA-2048+ → RS256, EC P-256 →
+ES256) with `iss`, `iat`, `exp` and a fresh `jti` per request. It signs with the JDK's own
+`java.security` primitives rather than a JOSE library, so it adds nothing to your deployment.
+Epistola Suite may not implement self-signed JWT authentication yet, and the flow may still change.
 
-For OAuth 2.0 client credentials, or any other scheme, register a `ClientRequestFilter` of your own
-and configure neither `epistola.client.api-key` nor `epistola.client.jwt.consumer-id`.
+For OAuth 2.0 client credentials (also experimental on the server side), or any other scheme,
+register a `ClientRequestFilter` of your own and configure neither `epistola.client.api-key` nor
+`epistola.client.jwt.consumer-id`.
 
 ## Error handling
 

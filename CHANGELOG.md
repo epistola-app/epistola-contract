@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- API keys are the supported authentication method, and both JWT methods are now marked
+  experimental. `apiKeyAuth` said *"Deprecated — use JWT Bearer authentication (OAuth or
+  self-signed) instead"*, but Epistola Suite authenticates API keys and may not implement the
+  consumer model either JWT method relies on yet. `bearerAuth` and every Consumers API operation now
+  carry `x-experimental: true` and say so in their descriptions. `apiKeyAuth` keeps
+  `x-deprecated: true`, which now deprecates only the `X-API-Key` header in favour of
+  `Authorization: ApiKey <key>`. API keys themselves are not deprecated. Nothing changes on the
+  wire. The authentication guide, `ConsumerDto.authMethod`, the client READMEs and the `JwtSigner`
+  docs in all five clients follow. Every client's quick start now uses an API key rather than a
+  `JwtSigner`.
+
 - Fixed 1.3.0 clients refusing every response from an older server (#84). 1.3.0 added `slug` to
   eleven read models and declared it required, and no server before 1.3.0 sends it. The Kotlin,
   .NET and Python clients treat a required property as one the response must carry, so they
