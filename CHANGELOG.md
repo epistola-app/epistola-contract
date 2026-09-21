@@ -13,13 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   string, and lists images only, where the asset operations mixed in the font-face binaries that
   back a font family.
 
-  These have shipped since 1.0.0, so this is a real break of a GA surface, which the stability
-  contract says needs a major release. It goes out in a minor anyway because nothing consumes it:
-  no known integration calls the asset operations, the suite's own UI never did (it uses UI
-  routes), and the only client that could was generated from this spec. Deferring to 2.0.0 would
-  mean carrying a surface that cannot name half the rows it returns, and publishing a deprecation
-  window for an audience of nobody. Recorded here so the departure is deliberate and visible
-  rather than inferred from a version number.
+  These have shipped since 1.0.0 and the released suite 1.1.0 serves all four, so this breaks a
+  **live** GA surface — which the stability contract says needs a major release and a deprecation
+  path. Shipping it as 1.3.0 is an explicit decision, and not one we would normally make.
+
+  It rests on one thing: nothing calls them. No integration we know of uses the asset operations,
+  the suite's own UI never did — it uses UI routes, not `/api/**` — and the only client that could
+  was generated from this spec. (1.2.0 is released with no suite release consuming it yet; true,
+  but it does not apply here, because these operations predate it.) Holding them to 2.0.0 would
+  mean carrying a surface that cannot name half the rows it returns, and running a deprecation
+  window for an audience of nobody. Recorded so the departure is visible as a decision rather than
+  inferred from a version number.
 
   `AssetDto.id` is `format: uuid`, so it could not name an image such as `municipality-mark` and
   had begun omitting the field for those — and for font faces too, once a face's key became its
