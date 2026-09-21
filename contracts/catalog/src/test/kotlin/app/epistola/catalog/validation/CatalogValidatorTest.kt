@@ -9,7 +9,6 @@ import app.epistola.catalog.archive.CatalogArchive
 import app.epistola.catalog.canonical.CatalogCanonicalizer
 import app.epistola.catalog.canonical.CatalogFingerprintVersion
 import app.epistola.catalog.migration.CatalogWireSchema.CURRENT_VERSION
-import app.epistola.catalog.protocol.AssetResource
 import app.epistola.catalog.protocol.AttributeAssignment
 import app.epistola.catalog.protocol.AttributeResource
 import app.epistola.catalog.protocol.CatalogInfo
@@ -23,6 +22,7 @@ import app.epistola.catalog.protocol.CodeListResource
 import app.epistola.catalog.protocol.DataExampleEntry
 import app.epistola.catalog.protocol.FontResource
 import app.epistola.catalog.protocol.FontVariantEntry
+import app.epistola.catalog.protocol.ImageResource
 import app.epistola.catalog.protocol.PublisherInfo
 import app.epistola.catalog.protocol.ReleaseInfo
 import app.epistola.catalog.protocol.ResourceDetail
@@ -229,8 +229,8 @@ class CatalogValidatorTest {
     @Test
     fun `catalog presentation resolves same-catalog image assets`() {
         val details = mapOf(
-            "asset/icon" to ResourceDetail(CURRENT_VERSION, AssetResource("icon", "Icon", "image/svg+xml", contentUrl = "./resources/asset/icon.svg")),
-            "asset/hero" to ResourceDetail(CURRENT_VERSION, AssetResource("hero", "Hero", "IMAGE/PNG", contentUrl = "./resources/asset/hero.png")),
+            "image/icon" to ResourceDetail(CURRENT_VERSION, ImageResource("icon", "Icon", "image/svg+xml", contentUrl = "./resources/asset/icon.svg", contentHash = "0000000000000000000000000000000000000000000000000000000000000000")),
+            "image/hero" to ResourceDetail(CURRENT_VERSION, ImageResource("hero", "Hero", "IMAGE/PNG", contentUrl = "./resources/asset/hero.png", contentHash = "0000000000000000000000000000000000000000000000000000000000000000")),
         )
         val entries = details.map { (key, detail) ->
             ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
@@ -256,7 +256,7 @@ class CatalogValidatorTest {
     fun `catalog presentation reports missing non-asset non-image and duplicate references`() {
         val details = mapOf(
             "theme/not-asset" to ResourceDetail(CURRENT_VERSION, app.epistola.catalog.protocol.ThemeResource("not-asset", "Theme")),
-            "asset/document" to ResourceDetail(CURRENT_VERSION, AssetResource("document", "Document", "application/pdf", contentUrl = "./document.pdf")),
+            "image/document" to ResourceDetail(CURRENT_VERSION, ImageResource("document", "Document", "application/pdf", contentUrl = "./document.pdf", contentHash = "0000000000000000000000000000000000000000000000000000000000000000")),
         )
         val entries = details.map { (key, detail) ->
             ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
@@ -275,14 +275,47 @@ class CatalogValidatorTest {
         assertTrue(CatalogValidationCodes.PRESENTATION_IMAGE_DUPLICATE in report.codes())
     }
 
+    /**
+     * The bound is per type, and it is the publication gate that has to catch it.
+     *
+     * A 51-character theme slug is storable nowhere -- `THEME_KEY` is `VARCHAR(50)` -- so without
+     * this the publisher is told the catalog is fine and every consumer's install dies on a
+     * database error instead.
+     */
+    @Test
+    fun `a slug longer than its type allows is refused`() {
+        val slug = "a".repeat(51)
+        val detail = ResourceDetail(CURRENT_VERSION, app.epistola.catalog.protocol.ThemeResource(slug, "Theme"))
+        val manifest = manifest(resources = listOf(ResourceEntry("theme", slug, "Theme", detailUrl = "./resources/theme/$slug.json")))
+
+        val report = CatalogValidator.validate(archive(manifest, mapOf("theme/$slug" to detail)))
+
+        assertTrue(CatalogValidationCodes.RESOURCE_SLUG_INVALID in report.codes())
+    }
+
+    /** An image is the one type admitting a leading digit, because its slug may be a UUID string. */
+    @Test
+    fun `an image slug may start with a digit where other types may not`() {
+        val slug = "01966a00-0000-7000-8000-000000000001"
+        val detail = ResourceDetail(
+            CURRENT_VERSION,
+            ImageResource(slug, "Logo", "image/svg+xml", contentHash = "0".repeat(64)),
+        )
+        val manifest = manifest(resources = listOf(ResourceEntry("image", slug, "Logo", detailUrl = "./resources/image/$slug.json")))
+
+        val report = CatalogValidator.validate(archive(manifest, mapOf("image/$slug" to detail)))
+
+        assertTrue(CatalogValidationCodes.RESOURCE_SLUG_INVALID !in report.codes(), "findings: ${report.findings}")
+    }
+
     @Test
     fun `manifest and detail findings aggregate deterministically`() {
-        val detail = ResourceDetail(3, AssetResource("Bad Slug", "Different", "bad", width = 0, contentUrl = "../asset"))
+        val detail = ResourceDetail(3, ImageResource("Bad Slug", "Different", "bad", width = 0, contentUrl = "../asset", contentHash = "0000000000000000000000000000000000000000000000000000000000000000"))
         val manifest = manifest(
             ReleaseInfo("latest", "yesterday", "bad"),
             listOf(ResourceEntry("theme", "declared", "Declared", detailUrl = "wrong.json")),
         )
-        val report = CatalogValidator.validate(archive(manifest, mapOf("asset/actual" to detail)))
+        val report = CatalogValidator.validate(archive(manifest, mapOf("image/actual" to detail)))
 
         assertTrue(CatalogValidationCodes.RELEASE_VERSION_INVALID in report.codes())
         assertTrue(CatalogValidationCodes.RELEASE_TIMESTAMP_INVALID in report.codes())
@@ -477,17 +510,35 @@ class CatalogValidatorTest {
             ),
             templateModel = validDocument(),
             variants = listOf(VariantEntry("same", isDefault = true), VariantEntry("same", isDefault = true)),
+            // A face no longer names a resource, so the missing-reference case is covered by a
+            // reference that still is one.
+            themeId = "absent",
         )
         val resources = listOf(
             template,
             AttributeResource("locale", "Locale", listOf("nl"), CodeListBindingRef(slug = "countries")),
             CodeListResource("countries", "Countries", entries = listOf(CodeListEntryEntry("NL", "NL"), CodeListEntryEntry("NL", "Duplicate"))),
-            AssetResource("face", "Face", "bad", width = -1, contentUrl = "./resources/asset/missing.woff2"),
+            ImageResource("face", "Face", "bad", width = -1, contentUrl = "./resources/asset/missing.woff2", contentHash = "0000000000000000000000000000000000000000000000000000000000000000"),
             FontResource(
                 "brand",
                 "Brand",
                 "unknown",
-                listOf(FontVariantEntry(0, false, "missing"), FontVariantEntry(0, false, "missing")),
+                listOf(
+                    FontVariantEntry(
+                        weight = 0,
+                        italic = false,
+                        mediaType = "font/ttf",
+                        contentHash = "0000000000000000000000000000000000000000000000000000000000000000",
+                        contentUrl = "./resources/font/missing.woff2",
+                    ),
+                    FontVariantEntry(
+                        weight = 0,
+                        italic = false,
+                        mediaType = "font/ttf",
+                        contentHash = "0000000000000000000000000000000000000000000000000000000000000000",
+                        contentUrl = "./resources/font/missing.woff2",
+                    ),
+                ),
             ),
         )
         val details = resources.associate { "${it.type}/${it.slug}" to ResourceDetail(CURRENT_VERSION, it) }

@@ -7,9 +7,9 @@ package app.epistola.catalog.archive
 import app.epistola.catalog.canonical.CatalogCanonicalizer
 import app.epistola.catalog.canonical.CatalogFingerprintVersion
 import app.epistola.catalog.migration.CatalogWireSchema.CURRENT_VERSION
-import app.epistola.catalog.protocol.AssetResource
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.ImageResource
 import app.epistola.catalog.protocol.PublisherInfo
 import app.epistola.catalog.protocol.ReleaseInfo
 import app.epistola.catalog.protocol.ResourceDetail
@@ -292,11 +292,12 @@ class CatalogArchiveCodecTest {
     ): CatalogArchive {
         val detail = ResourceDetail(
             CURRENT_VERSION,
-            AssetResource(
+            ImageResource(
                 slug = "logo",
                 name = "Logo",
                 mediaType = "application/octet-stream",
                 contentUrl = contentUrl,
+                contentHash = "0000000000000000000000000000000000000000000000000000000000000000",
             ),
         )
         val manifest = CatalogManifest(

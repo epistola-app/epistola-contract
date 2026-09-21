@@ -7,6 +7,7 @@ package app.epistola.catalog.protocol
 import app.epistola.template.model.BlockStylePreset
 import app.epistola.template.model.PageSettings
 import app.epistola.template.model.TemplateDocument
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
@@ -25,7 +26,7 @@ data class ResourceDetail(
         JsonSubTypes.Type(value = ThemeResource::class, name = "theme"),
         JsonSubTypes.Type(value = StencilResource::class, name = "stencil"),
         JsonSubTypes.Type(value = AttributeResource::class, name = "attribute"),
-        JsonSubTypes.Type(value = AssetResource::class, name = "asset"),
+        JsonSubTypes.Type(value = ImageResource::class, name = "image"),
         JsonSubTypes.Type(value = CodeListResource::class, name = "codeList"),
         JsonSubTypes.Type(value = FontResource::class, name = "font"),
     )
@@ -207,24 +208,64 @@ data class CodeListEntryEntry(
  * available through [app.epistola.catalog.archive.ArchiveContentProvider] and
  * participate in per-resource and catalog fingerprints.
  */
-data class AssetResource(
+/**
+ * Something that names a binary in the archive.
+ *
+ * [contentHash] is the identity: what the bytes are. [contentUrl] is only a location, and only
+ * when the archive does not put the binary where its hash says. A catalog written from wire v7
+ * onwards omits it and files every binary at [canonicalPath], so identical bytes are one file and
+ * there is no naming convention to disagree about. An archive migrated from an earlier version
+ * keeps the path it already had, because a migration rewrites documents and cannot move files.
+ */
+interface BinaryRef {
+    /**
+     * Where the bytes are, when the archive does not put them where the hash says.
+     *
+     * Read, never written: a catalog written at wire v7 omits it, and only an archive migrated
+     * from an earlier version still carries a path. Removed with the next wire version, by which
+     * time no archive in circulation should set it. Resolve through [contentPath] rather than
+     * reading this directly.
+     */
+    @Deprecated("A binary is placed by its hash; read contentPath() instead.")
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val contentUrl: String?
+    val contentHash: String
+
+    /**
+     * Where the bytes are: the declared path, or the one the hash implies.
+     *
+     * Derived, never serialised. It is a reading convenience, and putting it on the wire would
+     * add a field that says nothing new and would move every fingerprint that carries a binary.
+     */
+    @Suppress("DEPRECATION") // The one place that reads it: resolving it away is its whole job.
+    fun contentPath(): String = contentUrl?.removePrefix("./") ?: canonicalPath(contentHash)
+
+    companion object {
+        /** The archive path a binary takes when nothing says otherwise. */
+        fun canonicalPath(contentHash: String): String = "bin/$contentHash"
+    }
+}
+
+data class ImageResource(
     override val slug: String,
     override val name: String,
     val mediaType: String,
     val width: Int? = null,
     val height: Int? = null,
-    val contentUrl: String,
-) : CatalogResource {
-    override val type: String get() = "asset"
+    override val contentHash: String,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    override val contentUrl: String? = null,
+) : CatalogResource,
+    BinaryRef {
+    override val type: String get() = "image"
 }
 
 /**
  * Inline catalog representation of a font family. A font family is a thin
- * grouping over up to four font-face binaries; each binary rides the catalog
- * as an ordinary [AssetResource], referenced here by its asset slug. The
+ * grouping over its face binaries, each carried by a [FontVariantEntry]. The
  * `FontResource` itself carries no binary. Bundled system fonts are
  * classpath-backed locally and are never exported, so the wire format only
- * ever describes catalog-authored (asset-backed) fonts.
+ * ever describes catalog-authored fonts.
  */
 data class FontResource(
     override val slug: String,
@@ -237,17 +278,26 @@ data class FontResource(
 
 /**
  * One face of a [FontResource], identified by CSS-style numeric `weight`
- * (1–1000; 400 = regular, 700 = bold) and `italic`. `assetSlug` points at an
- * [AssetResource] in the same catalog holding that face's binary. A family
- * carries as many faces as it ships (Light/Medium/SemiBold/…), not a fixed
- * four. Every face is a static binary — variable fonts are instanced into
- * static faces at upload, never represented here.
+ * (1–1000; 400 = regular, 700 = bold) and `italic`.
+ *
+ * A face names its binary the way an image does: [contentUrl] is where the bytes sit in the
+ * archive and [contentHash] is what they are. Until wire v7 it pointed at a separate asset
+ * resource by slug, which gave a binary a name it never had — nothing chooses what a font face
+ * is called, and two catalogs shipping the same face shipped it twice under different names.
+ *
+ * A family carries as many faces as it ships (Light/Medium/SemiBold/…), not a fixed four. Every
+ * face is a static binary — variable fonts are instanced into static faces at upload, never
+ * represented here.
  */
 data class FontVariantEntry(
     val weight: Int,
     val italic: Boolean,
-    val assetSlug: String,
-)
+    /** What the face's binary is -- `font/ttf` or `font/otf`. Stated, never inferred from a path. */
+    val mediaType: String,
+    override val contentHash: String,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    override val contentUrl: String? = null,
+) : BinaryRef
 
 /** Named example payload checked against [TemplateResource.dataModel]. */
 data class DataExampleEntry(
@@ -262,7 +312,7 @@ data class DataExampleEntry(
  * variant may set [isDefault].
  */
 data class VariantEntry(
-    val id: String,
+    val slug: String,
     val title: String? = null,
     val attributes: Map<String, String>? = null,
     val templateModel: TemplateDocument? = null,

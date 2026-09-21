@@ -6,7 +6,8 @@ package app.epistola.catalog.archive
 
 import app.epistola.catalog.canonical.CatalogCanonicalizer
 import app.epistola.catalog.migration.CatalogWireSchema
-import app.epistola.catalog.protocol.AssetResource
+import app.epistola.catalog.protocol.FontResource
+import app.epistola.catalog.protocol.ImageResource
 import org.apache.commons.compress.archivers.zip.Zip64Mode
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
@@ -74,12 +75,21 @@ object CatalogArchiveWriter {
                 put("resources/$key.json", mapper.writeValueAsBytes(detail))
             }
         }
-        val assets = catalog.resourceDetails.values
-            .mapNotNull { it.resource as? AssetResource }
-            .map { asset -> normalizedContentPath(asset.contentUrl) }
+        // Every binary the catalog carries: an image's own bytes, and each font face's. A face
+        // holds its binary directly since wire v7, so the writer no longer finds them all by
+        // walking one resource type.
+        val binaries = catalog.resourceDetails.values
+            .flatMap { detail ->
+                when (val resource = detail.resource) {
+                    is ImageResource -> listOf(resource.contentPath())
+                    is FontResource -> resource.variants.map { it.contentPath() }
+                    else -> emptyList()
+                }
+            }
+            .map(::normalizedContentPath)
             .distinct()
             .sorted()
-        val paths = (jsonEntries.keys + assets).sorted()
+        val paths = (jsonEntries.keys + binaries).sorted()
         require(paths.size <= policy.maxEntries) { "catalog archive would exceed ${policy.maxEntries} entries" }
 
         var expanded = 0L

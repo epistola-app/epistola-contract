@@ -12,7 +12,7 @@ package app.epistola.catalog.protocol
  * publishable and then refused on install, with no diagnosis anywhere in between.
  *
  * The limits mirror the storage they have to survive rather than inventing new ones, which is why
- * they differ per type and why [ASSET] is the odd one. An asset's slug was historically a generated
+ * they differ per type and why [IMAGE] is the odd one. An image's slug may be a generated
  * UUID string, so it must admit a leading digit; every other type requires a leading letter. A
  * maximum may be relaxed later without breaking anyone — a wider column accepts every value a
  * narrower one held — but it may never be tightened once catalogs exist that use the extra room.
@@ -24,22 +24,22 @@ package app.epistola.catalog.protocol
  * enforce them.
  */
 object CatalogSlugs {
-    /** Every type except an asset: a leading letter, then lowercase alphanumeric hyphen-separated parts. */
+    /** Every type except an image: a leading letter, then lowercase alphanumeric hyphen-separated parts. */
     const val PATTERN: String = "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
 
-    /** An asset additionally admits a leading digit, because its slug may be a generated UUID string. */
-    const val ASSET_PATTERN: String = "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    /** An image additionally admits a leading digit, because its slug may be a generated UUID string. */
+    const val IMAGE_PATTERN: String = "^[a-z0-9]+(?:-[a-z0-9]+)*$"
 
     /** Bounds for one resource type's slug. */
     data class Rule(val pattern: String, val minLength: Int, val maxLength: Int)
 
     val TEMPLATE = Rule(PATTERN, 3, 50)
-    val THEME = Rule(PATTERN, 3, 20)
+    val THEME = Rule(PATTERN, 3, 50)
     val STENCIL = Rule(PATTERN, 3, 50)
     val ATTRIBUTE = Rule(PATTERN, 3, 50)
     val CODE_LIST = Rule(PATTERN, 3, 64)
     val FONT = Rule(PATTERN, 2, 64)
-    val ASSET = Rule(ASSET_PATTERN, 1, 50)
+    val IMAGE = Rule(IMAGE_PATTERN, 1, 50)
 
     /** The catalog's own slug. */
     val CATALOG = Rule(PATTERN, 3, 50)
@@ -52,7 +52,7 @@ object CatalogSlugs {
         "attribute" to ATTRIBUTE,
         "codeList" to CODE_LIST,
         "font" to FONT,
-        "asset" to ASSET,
+        "image" to IMAGE,
     )
 
     /**
@@ -60,7 +60,7 @@ object CatalogSlugs {
      * alone -- a manifest resource entry or a dependency reference. Both also appear as a typed
      * resource document, where the exact rule applies, so nothing escapes the tighter check.
      */
-    val ANY = Rule(ASSET_PATTERN, 1, 64)
+    val ANY = Rule(IMAGE_PATTERN, 1, 64)
 
     private val compiled = HashMap<String, Regex>()
 

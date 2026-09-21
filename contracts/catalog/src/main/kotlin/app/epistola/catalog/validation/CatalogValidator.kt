@@ -4,20 +4,23 @@
 
 package app.epistola.catalog.validation
 
+import app.epistola.catalog.archive.ArchiveContentProvider
 import app.epistola.catalog.archive.CatalogArchive
 import app.epistola.catalog.archive.CatalogArchivePolicy
 import app.epistola.catalog.archive.CatalogArchiveReader
 import app.epistola.catalog.canonical.CatalogCanonicalizer
 import app.epistola.catalog.canonical.CatalogFingerprintVersion
 import app.epistola.catalog.migration.CatalogWireSchema
-import app.epistola.catalog.protocol.AssetResource
 import app.epistola.catalog.protocol.AttributeResource
+import app.epistola.catalog.protocol.BinaryRef
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogResource
+import app.epistola.catalog.protocol.CatalogSlugs
 import app.epistola.catalog.protocol.CodeListResource
 import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.FontResource
+import app.epistola.catalog.protocol.ImageResource
 import app.epistola.catalog.protocol.KeywordRule
 import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.ResourceEntry
@@ -133,6 +136,12 @@ object CatalogValidationCodes {
     const val ASSET_FILE_MISSING = "CATALOG_ASSET_FILE_MISSING"
     const val ASSET_MEDIA_TYPE_INVALID = "CATALOG_ASSET_MEDIA_TYPE_INVALID"
     const val ASSET_DIMENSIONS_INVALID = "CATALOG_ASSET_DIMENSIONS_INVALID"
+
+    /** A binary's declared contentHash is not a lowercase hex sha-256. */
+    const val ASSET_CONTENT_HASH_INVALID = "CATALOG_ASSET_CONTENT_HASH_INVALID"
+
+    /** A binary's declared contentHash is not what its bytes hash to. */
+    const val ASSET_CONTENT_HASH_MISMATCH = "CATALOG_ASSET_CONTENT_HASH_MISMATCH"
     const val FONT_KIND_INVALID = "CATALOG_FONT_KIND_INVALID"
     const val FONT_VARIANT_INVALID = "CATALOG_FONT_VARIANT_INVALID"
     const val FONT_VARIANT_DUPLICATE = "CATALOG_FONT_VARIANT_DUPLICATE"
@@ -158,6 +167,14 @@ data class ResourceValidationContext(
     val resources: Map<String, CatalogResource>,
     val paths: Set<String>,
     val dependencyResolver: CatalogDependencyResolver = CatalogDependencyResolver.UNKNOWN,
+    /**
+     * The archive's files, when the caller has them.
+     *
+     * Needed to check that a binary's declared `contentHash` is what its bytes actually hash to.
+     * Null when a resource is validated outside an archive, and the check is then skipped rather
+     * than failed -- an absent archive is not a wrong hash.
+     */
+    val content: ArchiveContentProvider? = null,
 )
 
 /**
@@ -181,8 +198,17 @@ object ResourceValidator {
     ): CatalogValidationReport {
         val findings = mutableListOf<CatalogValidationFinding>()
         val resource = detail.resource
-        if (!SLUG.matches(resource.slug)) {
-            findings.error(CatalogValidationCodes.RESOURCE_SLUG_INVALID, "$path.resource.slug", "slug must contain lowercase letters, digits, and hyphens")
+        // Per type, not one loose rule for all of them: the bounds mirror the columns a consumer
+        // stores a slug in, so a name that passes here is one every consumer can actually hold.
+        // Checking the loose rule instead let a catalog publish a 30-character theme slug that
+        // then failed on install with a database error, with no diagnosis in between.
+        val rule = CatalogSlugs.byType[resource.type] ?: CatalogSlugs.ANY
+        if (!CatalogSlugs.matches(rule, resource.slug)) {
+            findings.error(
+                CatalogValidationCodes.RESOURCE_SLUG_INVALID,
+                "$path.resource.slug",
+                "slug must be ${rule.minLength} to ${rule.maxLength} characters matching ${rule.pattern}",
+            )
         }
         when (resource) {
             is TemplateResource -> validateTemplate(resource, context, "$path.resource", findings)
@@ -198,7 +224,7 @@ object ResourceValidator {
             is ThemeResource -> validateTheme(resource, context, "$path.resource", findings)
             is AttributeResource -> validateAttribute(resource, context, "$path.resource", findings)
             is CodeListResource -> validateCodeList(resource, "$path.resource", findings)
-            is AssetResource -> validateAsset(resource, context, "$path.resource", findings)
+            is ImageResource -> validateImage(resource, context, "$path.resource", findings)
             is FontResource -> validateFont(resource, context, "$path.resource", findings)
         }
         return CatalogValidationReport(findings.sorted())
@@ -214,10 +240,10 @@ object ResourceValidator {
             validateReference("theme", themeId, resource.themeCatalogKey, context, "$path.themeId", findings)
         }
         validateDocument(resource.templateModel, context, "$path.templateModel", null, findings)
-        val variantIds = mutableSetOf<String>()
+        val variantSlugs = mutableSetOf<String>()
         resource.variants.forEachIndexed { index, variant ->
-            if (!variantIds.add(variant.id)) {
-                findings.error(CatalogValidationCodes.TEMPLATE_VARIANT_ID_DUPLICATE, "$path.variants[$index].id", "variant id '${variant.id}' is duplicated")
+            if (!variantSlugs.add(variant.slug)) {
+                findings.error(CatalogValidationCodes.TEMPLATE_VARIANT_ID_DUPLICATE, "$path.variants[$index].slug", "variant slug '${variant.slug}' is duplicated")
             }
             variant.templateModel?.let { validateDocument(it, context, "$path.variants[$index].templateModel", null, findings) }
         }
@@ -352,23 +378,75 @@ object ResourceValidator {
         }
     }
 
-    private fun validateAsset(
-        resource: AssetResource,
+    private fun validateImage(
+        resource: ImageResource,
         context: ResourceValidationContext,
         path: String,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        val contentPath = resource.contentUrl.removePrefix("./")
-        if (!resource.contentUrl.startsWith("./resources/asset/") || '\\' in resource.contentUrl || ".." in resource.contentUrl.split('/')) {
-            findings.error(CatalogValidationCodes.ASSET_PATH_INVALID, "$path.contentUrl", "asset contentUrl must be a relative resources/asset path")
-        } else if (contentPath !in context.paths) {
-            findings.error(CatalogValidationCodes.ASSET_FILE_MISSING, "$path.contentUrl", "asset content file '$contentPath' is missing")
-        }
+        validateBinary(resource, context, path, findings)
         if (!MEDIA_TYPE.matches(resource.mediaType)) {
             findings.error(CatalogValidationCodes.ASSET_MEDIA_TYPE_INVALID, "$path.mediaType", "mediaType is not a valid type/subtype")
         }
         if ((resource.width != null && resource.width <= 0) || (resource.height != null && resource.height <= 0)) {
-            findings.error(CatalogValidationCodes.ASSET_DIMENSIONS_INVALID, path, "asset dimensions must be positive")
+            findings.error(CatalogValidationCodes.ASSET_DIMENSIONS_INVALID, path, "image dimensions must be positive")
+        }
+    }
+
+    /**
+     * Checks one binary: that its path is safe and present, and that its declared hash is what the
+     * bytes actually hash to.
+     *
+     * The hash is the binary's identity from wire v7, so a declared one that does not match its
+     * content is a catalog claiming to carry something it does not. Checked here rather than
+     * trusted, and skipped when the caller has no archive to read.
+     */
+    private val CONTENT_HASH = Regex("^[0-9a-f]{64}$")
+
+    private fun sha256Hex(input: java.io.InputStream): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        val buffer = ByteArray(8192)
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) break
+            digest.update(buffer, 0, read)
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private fun validateBinary(
+        binary: BinaryRef,
+        context: ResourceValidationContext,
+        path: String,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        val contentHash = binary.contentHash
+        val contentPath = binary.contentPath()
+
+        // Read directly because a *declared* path is what needs checking for traversal; one the
+        // hash implies cannot escape the archive.
+        @Suppress("DEPRECATION")
+        val contentUrl = binary.contentUrl
+        if (contentUrl != null && (!contentUrl.startsWith("./") || '\\' in contentUrl || ".." in contentUrl.split('/'))) {
+            findings.error(CatalogValidationCodes.ASSET_PATH_INVALID, "$path.contentUrl", "contentUrl must be a safe relative archive path")
+            return
+        }
+        if (contentPath !in context.paths) {
+            findings.error(CatalogValidationCodes.ASSET_FILE_MISSING, "$path.contentUrl", "content file '$contentPath' is missing")
+            return
+        }
+        if (!CONTENT_HASH.matches(contentHash)) {
+            findings.error(CatalogValidationCodes.ASSET_CONTENT_HASH_INVALID, "$path.contentHash", "contentHash must be a lowercase hex sha-256")
+            return
+        }
+        val provider = context.content ?: return
+        val actual = provider.open(contentPath).use(::sha256Hex)
+        if (actual != contentHash) {
+            findings.error(
+                CatalogValidationCodes.ASSET_CONTENT_HASH_MISMATCH,
+                "$path.contentHash",
+                "content file '$contentPath' hashes to '$actual', not the declared '$contentHash'",
+            )
         }
     }
 
@@ -389,7 +467,7 @@ object ResourceValidator {
             if (!faces.add(face.weight to face.italic)) {
                 findings.error(CatalogValidationCodes.FONT_VARIANT_DUPLICATE, "$path.variants[$index]", "font face weight/italic combination is duplicated")
             }
-            validateReference("asset", face.assetSlug, null, context, "$path.variants[$index].assetSlug", findings)
+            validateBinary(face, context, "$path.variants[$index]", findings)
         }
     }
 
@@ -426,7 +504,6 @@ object ResourceValidator {
         return ResourceResolution.PRESENT
     }
 
-    private val SLUG = Regex("^[a-z0-9]+(?:-[a-z0-9]+)*$")
     private val MEDIA_TYPE = Regex("^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$")
 }
 
@@ -497,14 +574,19 @@ object CatalogValidator {
             }
             entriesByKey[key] = entry
             val expectedPath = "resources/$key.json"
-            if (entry.detailUrl.removePrefix("./") != expectedPath) {
+            // An image migrated from catalog v6 keeps its file under `resources/asset/`: the
+            // migration renames the type and cannot move the file. Accepted so such an archive
+            // stays installable; anything written at v7 uses the type's own directory.
+            val legacyPath = if (entry.type == "image") "resources/asset/${entry.slug}.json" else null
+            val declaredPath = entry.detailUrl.removePrefix("./")
+            if (declaredPath != expectedPath && declaredPath != legacyPath) {
                 findings.error(
                     CatalogValidationCodes.MANIFEST_DETAIL_PATH_INVALID,
                     "catalog.json.resources[$index].detailUrl",
                     "detailUrl must be './$expectedPath' or '$expectedPath'",
                 )
             }
-            if (expectedPath !in catalog.paths || key !in catalog.resourceDetails) {
+            if ((expectedPath !in catalog.paths && legacyPath !in catalog.paths) || key !in catalog.resourceDetails) {
                 findings.error(CatalogValidationCodes.MANIFEST_DETAIL_MISSING, expectedPath, "manifest resource '$key' has no detail document")
             }
         }
@@ -770,7 +852,7 @@ object CatalogValidator {
         resources: Map<String, CatalogResource>,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        val asset = resources["asset/$slug"] as? AssetResource
+        val asset = resources["image/$slug"] as? ImageResource
         if (asset == null) {
             val code = if (resources.values.any { it.slug == slug }) {
                 CatalogValidationCodes.PRESENTATION_RESOURCE_NOT_ASSET
@@ -804,7 +886,7 @@ object CatalogValidator {
                 is DependencyRef.Stencil -> CatalogResourceReference("stencil", dependency.slug, dependency.catalogKey)
                 is DependencyRef.CodeList -> CatalogResourceReference("codeList", dependency.slug, dependency.catalogKey)
                 is DependencyRef.Font -> CatalogResourceReference("font", dependency.slug, dependency.catalogKey)
-                is DependencyRef.Asset -> CatalogResourceReference("asset", dependency.slug)
+                is DependencyRef.Image -> CatalogResourceReference("image", dependency.slug, dependency.catalogKey)
             }
             val key = "${reference.type}|${reference.catalogKey.orEmpty()}|${reference.slug}"
             if (!seen.add(key)) {

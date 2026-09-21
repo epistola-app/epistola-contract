@@ -96,9 +96,19 @@ object CatalogArchiveReader {
             }
             val details = linkedMapOf<String, app.epistola.catalog.protocol.ResourceDetail>()
             val entriesByPath = manifest.resources.associateBy { it.detailUrl.removePrefix("./") }
+            val contentProvider = ArchiveContentProvider { requested ->
+                val normalized = normalizePath(requested)
+                    ?: throw IllegalArgumentException("Invalid archive content path: $requested")
+                val resolved = expandedRoot.resolve(normalized).normalize()
+                require(resolved.startsWith(expandedRoot) && Files.isRegularFile(resolved)) {
+                    "Archive content does not exist: $requested"
+                }
+                Files.newInputStream(resolved)
+            }
             val migrationContext = CatalogMigrationContext(
                 sourceVersion = requireNotNull(manifestResult.sourceVersion),
                 manifest = manifest,
+                content = contentProvider,
             )
             extraction.paths.asSequence()
                 .filter { it.startsWith("resources/") && it.endsWith(".json") }
@@ -113,7 +123,13 @@ object CatalogArchiveReader {
                     }
                     migrationNotices += result.notices
                     result.value?.let { detail ->
-                        details[path.removePrefix("resources/").removeSuffix(".json")] = detail
+                        // Keyed by what the manifest calls the resource, not by where its file
+                        // sits. The two agree for anything written at the current wire version.
+                        // They part company for a catalog-v6 archive holding images: its files are
+                        // under `resources/asset/`, and a migration renames the type but cannot
+                        // move the file.
+                        val slug = path.removePrefix("resources/").removeSuffix(".json").substringAfterLast('/')
+                        details["$declaredType/$slug"] = detail
                     }
                 }
             val archive = CatalogArchive(

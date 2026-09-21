@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 7,
+  "resource": {
+    "type": "template",
+    "slug": "invoice",
+    "name": "Invoice",
+    "dataModel": {
+      "type": "object"
+    },
+    "variants": [
+      {
+        "slug": "default",
+        "title": "Standaard",
+        "isDefault": true
+      },
+      {
+        "slug": "english",
+        "title": "English",
+        "attributes": {
+          "language": "en"
+        }
+      }
+    ]
+  }
+}

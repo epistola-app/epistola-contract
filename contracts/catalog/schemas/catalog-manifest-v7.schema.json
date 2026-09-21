@@ -319,16 +319,6 @@
         },
         "detailUrl": {
           "type": "string"
-        },
-        "compatibility": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/CompatibilityInfo"
-            },
-            {
-              "type": "null"
-            }
-          ]
         }
       },
       "required": [
@@ -340,25 +330,10 @@
       "additionalProperties": false
     },
     "DependencyRef": {
+      "description": "Every dependency names a catalog from wire v7, so this is exactly CatalogDependencyRef.",
       "oneOf": [
         {
           "$ref": "#/$defs/CatalogDependencyRef"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "asset"
-            },
-            "slug": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "slug"
-          ],
-          "additionalProperties": false
         }
       ]
     },
@@ -370,7 +345,8 @@
             "theme",
             "stencil",
             "codeList",
-            "font"
+            "font",
+            "image"
           ]
         },
         "catalogKey": {

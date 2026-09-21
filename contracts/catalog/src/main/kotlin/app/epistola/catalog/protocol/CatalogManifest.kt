@@ -42,7 +42,7 @@ data class CatalogManifest(
 /**
  * A reference to a resource that this catalog depends on.
  * Sealed hierarchy ensures type-safe construction:
- * - Themes, stencils, code lists, and fonts are catalog-scoped (require catalogKey)
+ * - Every kind is catalog-scoped and requires catalogKey (assets too, from wire v7)
  * - Assets are tenant-global (just the UUID)
  *
  * Reserved for a future release (catalog versioning Phase 3): the catalog-scoped
@@ -58,7 +58,7 @@ data class CatalogManifest(
 @JsonSubTypes(
     JsonSubTypes.Type(value = DependencyRef.Theme::class, name = "theme"),
     JsonSubTypes.Type(value = DependencyRef.Stencil::class, name = "stencil"),
-    JsonSubTypes.Type(value = DependencyRef.Asset::class, name = "asset"),
+    JsonSubTypes.Type(value = DependencyRef.Image::class, name = "image"),
     JsonSubTypes.Type(value = DependencyRef.CodeList::class, name = "codeList"),
     JsonSubTypes.Type(value = DependencyRef.Font::class, name = "font"),
 )
@@ -72,8 +72,15 @@ sealed class DependencyRef {
     /** Stencil in another catalog. */
     data class Stencil(val catalogKey: String, override val slug: String) : DependencyRef()
 
-    /** Asset in the consumer's asset namespace. */
-    data class Asset(override val slug: String) : DependencyRef()
+    /**
+     * Image in another catalog.
+     *
+     * Qualified like every other kind since wire v7. It was unqualified while an image was an
+     * asset whose slug was a generated UUID, unique by construction across every catalog a tenant
+     * holds; a readable slug is not, so two catalogs may each hold a `logo` and an unqualified
+     * reference to one of them means nothing.
+     */
+    data class Image(val catalogKey: String, override val slug: String) : DependencyRef()
 
     /** Code list in another catalog. */
     data class CodeList(val catalogKey: String, override val slug: String) : DependencyRef()
@@ -235,6 +242,10 @@ data class IncludeEntry(
  *
  * [detailUrl] is archive-relative and whole-catalog validation requires it to
  * resolve to `resources/{type}/{slug}.json`.
+ *
+ * Wire v7 dropped a per-resource `compatibility`. It was never written and never read, and a
+ * version range per template -- separate from the catalog's own -- answered no question anyone
+ * asked. [CatalogManifest.compatibility] still declares one for the catalog as a whole.
  */
 data class ResourceEntry(
     val type: String,
@@ -243,5 +254,4 @@ data class ResourceEntry(
     val description: String? = null,
     val updatedAt: String? = null,
     val detailUrl: String,
-    val compatibility: CompatibilityInfo? = null,
 )

@@ -26,6 +26,7 @@ internal class CatalogV5ToV6Migration : CatalogSchemaMigration {
     override fun migrateResource(
         tree: ObjectNode,
         path: String,
+        @Suppress("UNUSED_PARAMETER") context: CatalogMigrationContext,
     ): CatalogMigrationStepResult {
         tree.put("schemaVersion", toVersion)
         return CatalogMigrationStepResult()

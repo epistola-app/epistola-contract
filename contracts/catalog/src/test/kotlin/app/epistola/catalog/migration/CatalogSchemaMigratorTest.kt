@@ -4,7 +4,10 @@
 
 package app.epistola.catalog.migration
 
+import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.PublisherInfo
+import app.epistola.catalog.protocol.ReleaseInfo
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
@@ -114,6 +117,54 @@ class CatalogSchemaMigratorTest {
     }
 
     @Test
+    fun `a v6 asset dependency naming no catalog is reported, not guessed`() {
+        val input = mapper.readTree(
+            """{"schemaVersion":6,"catalog":{"slug":"invoices","name":"Invoices"},
+               "dependencies":[{"type":"asset","slug":"logo"},
+                               {"type":"theme","catalogKey":"shared","slug":"base"}]}""",
+        ) as ObjectNode
+        val step = CatalogV6ToV7Migration().migrateManifest(input)
+
+        val finding = step.findings.single()
+        assertEquals(CatalogMigrationCodes.DEPENDENCY_UNQUALIFIED, finding.code)
+        assertEquals("catalog.json.dependencies[0]", finding.path)
+    }
+
+    @Test
+    fun `a v6 manifest whose dependencies are all qualified migrates cleanly`() {
+        val input = mapper.readTree(
+            """{"schemaVersion":6,"catalog":{"slug":"invoices","name":"Invoices"},
+               "dependencies":[{"type":"asset","catalogKey":"shared","slug":"logo"}]}""",
+        ) as ObjectNode
+
+        assertTrue(CatalogV6ToV7Migration().migrateManifest(input).findings.isEmpty())
+    }
+
+    @Test
+    fun `v6 variant ids migrate to v7 slugs, values unchanged`() {
+        val input = resource("migrations/v6-to-v7/template-variants-input.json").use(mapper::readTree) as ObjectNode
+        val step = CatalogV6ToV7Migration().migrateResource(input, "resources/template/invoice.json", CatalogMigrationContext(6, emptyManifest()))
+        val expected = resource("migrations/v6-to-v7/template-variants-expected.json").use(mapper::readTree)
+
+        assertTrue(step.findings.isEmpty(), step.findings.toString())
+        // A rename with no repair: nothing references a variant across catalogs, so no stored
+        // reference elsewhere names it and none is left dangling. Hence no notices either.
+        assertTrue(step.notices.isEmpty(), step.notices.toString())
+        assertEquals(expected, input)
+    }
+
+    @Test
+    fun `a v6 variant already carrying a slug keeps it`() {
+        val input = mapper.readTree(
+            """{"schemaVersion":6,"resource":{"type":"template","slug":"invoice","name":"Invoice",
+               "variants":[{"slug":"keep","id":"discard"}]}}""",
+        ) as ObjectNode
+        CatalogV6ToV7Migration().migrateResource(input, "resources/template/invoice.json", CatalogMigrationContext(6, emptyManifest()))
+
+        assertEquals("keep", input["resource"]["variants"][0]["slug"].asString())
+    }
+
+    @Test
     fun `v6 golden keywords migrate to their v7 form with notices`() {
         val input = resource("migrations/v6-to-v7/manifest-input.json").use(mapper::readTree) as ObjectNode
         val step = CatalogV6ToV7Migration().migrateManifest(input)
@@ -216,7 +267,7 @@ class CatalogSchemaMigratorTest {
         ) as ObjectNode
         val parameterSchema = tree["resource"]["parameterSchema"].toString()
 
-        val result = CatalogV4ToV5Migration().migrateResource(tree, "resources/stencil/letter.json")
+        val result = CatalogV4ToV5Migration().migrateResource(tree, "resources/stencil/letter.json", CatalogMigrationContext(6, emptyManifest()))
 
         assertTrue(result.findings.isEmpty())
         assertTrue(result.notices.isEmpty())
@@ -266,4 +317,13 @@ class CatalogSchemaMigratorTest {
     }
 
     private fun resource(path: String) = requireNotNull(javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/$path"))
+
+    /** A manifest with no resources: enough for a migration that does not look anything up. */
+    private fun emptyManifest() = CatalogManifest(
+        schemaVersion = 6,
+        catalog = CatalogInfo("invoices", "Invoices"),
+        publisher = PublisherInfo("Example"),
+        release = ReleaseInfo("1.0.0"),
+        resources = emptyList(),
+    )
 }
