@@ -147,9 +147,10 @@ object CatalogCanonicalizer {
         entries: List<Entry>,
         includeV6Metadata: Boolean,
         info: CatalogInfo = catalog.manifest.catalog,
+        includeResourceCompatibility: Boolean = true,
     ): String = buildString {
         append("manifest ")
-            .append(canonicalManifestJson(catalog, includeV6Metadata, info))
+            .append(canonicalManifestJson(catalog, includeV6Metadata, info, includeResourceCompatibility))
             .append('\n')
         appendEntries(entries)
     }
@@ -160,7 +161,10 @@ object CatalogCanonicalizer {
         info: CatalogInfo = catalog.manifest.catalog,
     ): String = buildString {
         append("algorithm sha256-v4\n")
-        append(canonicalV2(catalog, entries, includeV6Metadata = true, info))
+        // Wire v7 dropped the per-resource `compatibility`; nothing ever set it, and nothing read
+        // it. The legacy forms above still emit the null it always was, because their whole job is
+        // reproducing bytes a published catalog was fingerprinted with.
+        append(canonicalV2(catalog, entries, includeV6Metadata = true, info, includeResourceCompatibility = false))
     }
 
     private fun StringBuilder.appendEntries(entries: List<Entry>) {
@@ -175,6 +179,7 @@ object CatalogCanonicalizer {
         catalog: CatalogArchive,
         includeV6Metadata: Boolean,
         info: CatalogInfo,
+        includeResourceCompatibility: Boolean,
     ): String {
         val manifest = catalog.manifest
         val canonical = linkedMapOf<String, Any?>(
@@ -185,13 +190,12 @@ object CatalogCanonicalizer {
             "resources" to manifest.resources
                 .sortedWith(compareBy({ it.type }, { it.slug }))
                 .map { resource ->
-                    linkedMapOf(
+                    linkedMapOf<String, Any?>(
                         "type" to resource.type,
                         "slug" to resource.slug,
                         "name" to resource.name,
                         "description" to resource.description,
-                        "compatibility" to resource.compatibility,
-                    )
+                    ).also { if (includeResourceCompatibility) it["compatibility"] = null }
                 },
             "dependencies" to canonicalDependenciesV2(manifest.dependencies),
         )

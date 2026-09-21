@@ -242,6 +242,10 @@ data class IncludeEntry(
  *
  * [detailUrl] is archive-relative and whole-catalog validation requires it to
  * resolve to `resources/{type}/{slug}.json`.
+ *
+ * Wire v7 dropped a per-resource `compatibility`. It was never written and never read, and a
+ * version range per template -- separate from the catalog's own -- answered no question anyone
+ * asked. [CatalogManifest.compatibility] still declares one for the catalog as a whole.
  */
 data class ResourceEntry(
     val type: String,
@@ -250,5 +254,4 @@ data class ResourceEntry(
     val description: String? = null,
     val updatedAt: String? = null,
     val detailUrl: String,
-    val compatibility: CompatibilityInfo? = null,
 )

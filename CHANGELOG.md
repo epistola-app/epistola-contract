@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Wire v7 drops the per-resource `compatibility` (#86). A `ResourceEntry` could declare an
+  `epistolaVersions` range of its own, separate from the catalog's. No producer ever wrote one, no
+  consumer ever read one, and a version range per template answered no question anyone asked — the
+  catalog-level `compatibility`, which is still here, is where that belongs.
+
+  A v6 manifest's entries have the field stripped on migration, silently: nothing set it, so there
+  is nothing a publisher could act on. The current catalog fingerprint moves once, as it already
+  does in this release; fingerprint versions V1 to V3 are unchanged, because reproducing the bytes
+  an older catalog was fingerprinted with is their whole job.
+
 - **Breaking, and shipped in a MINOR by decision:** the asset operations are removed (#86).
   `listAssets`, `uploadAsset`, `downloadAssetContent` and `deleteAsset` are gone, with `AssetDto`
   and `AssetListResponse`. `/images` replaces them: it addresses an image by its slug, a plain

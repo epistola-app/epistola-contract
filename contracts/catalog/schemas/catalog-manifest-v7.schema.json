@@ -319,16 +319,6 @@
         },
         "detailUrl": {
           "type": "string"
-        },
-        "compatibility": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/CompatibilityInfo"
-            },
-            {
-              "type": "null"
-            }
-          ]
         }
       },
       "required": [

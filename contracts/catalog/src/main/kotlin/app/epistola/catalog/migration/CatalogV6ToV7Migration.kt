@@ -29,6 +29,7 @@ internal class CatalogV6ToV7Migration : CatalogSchemaMigration {
         // for by turning them into images first.
         unqualifiedAssetDependencies(tree).let { if (it.isNotEmpty()) return CatalogMigrationStepResult(it) }
         assetEntriesBecomeImages(tree)
+        resourceCompatibilityIsDropped(tree)
         val catalog = tree["catalog"] as? ObjectNode ?: return CatalogMigrationStepResult()
         val keywords = catalog["keywords"] as? ArrayNode ?: return CatalogMigrationStepResult()
         // Non-string entries are reported by the wire check that follows migration.
@@ -281,6 +282,18 @@ internal class CatalogV6ToV7Migration : CatalogSchemaMigration {
      * `asset`. Without this a v6 manifest still announces resources the reader cannot resolve,
      * even though each resource document migrates correctly on its own.
      */
+    /**
+     * Drops a v6 resource entry's `compatibility`, which wire v7 does not have.
+     *
+     * Silent rather than a notice: the field was never written by any producer and never read by
+     * any consumer, so removing it tells a publisher nothing they could act on. The catalog-level
+     * declaration, which is the one that could ever mean something, is untouched.
+     */
+    private fun resourceCompatibilityIsDropped(tree: ObjectNode) {
+        val entries = tree["resources"] as? ArrayNode ?: return
+        for (entry in entries) (entry as? ObjectNode)?.remove("compatibility")
+    }
+
     private fun assetEntriesBecomeImages(tree: ObjectNode) {
         for (field in listOf("resources", "dependencies")) {
             val entries = tree[field] as? ArrayNode ?: continue
