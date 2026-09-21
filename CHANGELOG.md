@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fixed the release workflow skipping its last two jobs on every GitHub release. `verify-catalog-release`
+  had no status function in its `if`, so GitHub implied `success()`, which also fails when any upstream
+  job was skipped — and `create-tag` is skipped for every release created on GitHub. The published
+  catalog was therefore never checked against Maven Central and npm, and `finalize-release` never
+  attached `openapi.yaml` and the .NET SBOM to the release: no release since v0.16.0 has either. The job
+  now uses the same `always() && needs.publish.result == 'success'` guard as `mock-server`.
+
 ## [1.3.1] - 2026-09-21
 
 - API keys are the supported authentication method, and both JWT methods are now marked

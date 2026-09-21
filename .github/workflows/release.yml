@@ -532,7 +532,12 @@ jobs:
   # Verify the public catalog artifacts from clean consumers before finalizing the release.
   verify-catalog-release:
     needs: [validate-and-bundle, publish]
-    if: needs.publish.result == 'success'
+    # always(): without a status function GitHub implies success(), which also fails when an
+    # upstream job was skipped — and create-tag is skipped on every GitHub-release event, so this
+    # job (and finalize-release after it) never ran for those releases.
+    if: |
+      always() &&
+      needs.publish.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
