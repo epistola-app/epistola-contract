@@ -219,6 +219,12 @@ template-validate:
       Validate input data against the template's JSON Schema before submitting a generation job.
       This endpoint provides pre-flight validation to catch schema violations early, enabling
       faster feedback during development and before batch submission.
+
+      Besides `errors`, the result says which fields are missing (`missingFields`), which supplied
+      values are wrong (`invalidFields`), and gives `missingDataSchema`: the contract cut down to the
+      missing part, which a client can render as a form. Pass `variantId`, `versionId` or
+      `environmentId` to check against the version that would be rendered; the optional fields that
+      version's template reads are then reported as missing too.
     tags:
       - Templates
     x-required-permissions: [TEMPLATE_VIEW]
@@ -235,6 +241,8 @@ template-validate:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/validation.yaml#/TemplateDataValidationResult'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

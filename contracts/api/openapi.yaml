@@ -123,6 +123,13 @@ x-problem-types:
       description: >-
         The request body or parameters failed validation; the `errors[]`
         array carries the field-level failures.
+    - slug: template-data-invalid
+      status: 400
+      schema: TemplateDataValidationProblemDetail
+      description: >-
+        The template data breaks the template's data contract; `errors[]` lists
+        each field, and `missingFields`, `invalidFields` and `missingDataSchema`
+        describe what to supply or correct.
     - slug: bad-request
       status: 400
       schema: ProblemDetail
@@ -569,6 +576,10 @@ components:
       $ref: './components/schemas/validation.yaml#/TemplateDataValidationResult'
     TemplateDataValidationError:
       $ref: './components/schemas/validation.yaml#/TemplateDataValidationError'
+    MissingDataField:
+      $ref: './components/schemas/validation.yaml#/MissingDataField'
+    InvalidDataField:
+      $ref: './components/schemas/validation.yaml#/InvalidDataField'
 
     # Variant schemas
     VariantDto:
@@ -685,6 +696,8 @@ components:
       $ref: './components/responses/errors.yaml#/DataModelValidationProblemDetail'
     DataModelValidationError:
       $ref: './components/responses/errors.yaml#/DataModelValidationError'
+    TemplateDataValidationProblemDetail:
+      $ref: './components/responses/errors.yaml#/TemplateDataValidationProblemDetail'
 
   parameters:
     # The required client-identity headers (User-Agent, X-EP-Node-Id) are described

@@ -98,3 +98,28 @@ DataModelValidationError:
       type: string
       description: Description of the validation failure
       example: required property 'name' not found
+
+# Extension for template data that breaks the template's data contract
+TemplateDataValidationProblemDetail:
+  allOf:
+    - $ref: '#/ValidationProblemDetail'
+    - type: object
+      properties:
+        missingFields:
+          type: array
+          description: >-
+            Absent fields, outermost node first, in schema declaration order. Paths are JSON
+            Pointers into the request's `data`.
+          items:
+            $ref: '../schemas/validation.yaml#/MissingDataField'
+        invalidFields:
+          type: array
+          description: Supplied values that break the contract. Paths are JSON Pointers into `data`.
+          items:
+            $ref: '../schemas/validation.yaml#/InvalidDataField'
+        missingDataSchema:
+          type: object
+          additionalProperties: true
+          description: >-
+            The contract cut down to the missing fields, as one JSON Schema a form generator can
+            render as-is. Fields inside array items are left out. Absent when nothing is missing.

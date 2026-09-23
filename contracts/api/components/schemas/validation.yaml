@@ -1,9 +1,35 @@
 ValidateTemplateDataRequest:
   type: object
-  description: Request body for validating template input data against the template's JSON Schema
+  description: |
+    Request body for validating template input data against the template's JSON Schema.
+
+    Without `variantId`, `versionId` or `environmentId` the data is checked against the template's
+    latest data contract, as before. With any of them, it is checked against the contract of the
+    published version that selection resolves to — the same version preview and generation would
+    render — and absent optional fields that version's template reads are reported too.
   required:
     - data
   properties:
+    variantId:
+      type: [string, "null"]
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Slug identifier of the variant to check against. If omitted while `versionId` or `environmentId` is set, the default variant is used.
+      example: null
+    versionId:
+      type: [integer, "null"]
+      minimum: 1
+      maximum: 200
+      description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId).
+      example: null
+    environmentId:
+      type: [string, "null"]
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 30
+      description: Slug identifier of the environment whose active version to check against (mutually exclusive with versionId).
+      example: null
     data:
       type: object
       description: Template input data to validate against the template's schema
@@ -46,9 +72,34 @@ TemplateDataValidationResult:
       description: List of validation errors (empty when valid is true)
       items:
         $ref: '#/TemplateDataValidationError'
+    missingFields:
+      type: array
+      description: |
+        Absent fields, in schema declaration order. Each entry is the outermost absent node, so a
+        missing object is one entry, not one per leaf. Required fields are always listed; optional
+        fields only when the resolved version's template reads them. Absent optional fields do not
+        make the data invalid.
+      items:
+        $ref: '#/MissingDataField'
+    invalidFields:
+      type: array
+      description: Supplied values that break the contract.
+      items:
+        $ref: '#/InvalidDataField'
+    missingDataSchema:
+      type: [object, "null"]
+      additionalProperties: true
+      description: |
+        The contract cut down to the missing fields, keeping its `required` lists, as one JSON
+        Schema a form generator can render as-is. Fields inside array items are listed in
+        `missingFields` but left out of it, because a schema cannot address one array element.
+        Null when nothing is missing.
   example:
     valid: true
     errors: []
+    missingFields: []
+    invalidFields: []
+    missingDataSchema: null
 
 TemplateDataValidationError:
   type: object
@@ -73,3 +124,62 @@ TemplateDataValidationError:
     path: "$.customer.email"
     message: "must be a valid email address"
     keyword: "format"
+
+MissingDataField:
+  type: object
+  description: A field the data does not supply
+  required:
+    - path
+    - required
+    - schema
+  properties:
+    path:
+      type: string
+      description: JSON Pointer (RFC 6901) into the data
+      example: /customer/address
+    required:
+      type: boolean
+      description: Whether the contract requires the field
+      example: true
+    schema:
+      type: object
+      additionalProperties: true
+      description: >-
+        The contract's schema for the field, with local `$ref`s inlined. Rich-text `$ref`s keep their
+        canonical URL.
+      example:
+        type: object
+        properties:
+          city:
+            type: string
+        required: [city]
+
+InvalidDataField:
+  type: object
+  description: A supplied value that breaks the contract
+  required:
+    - path
+    - keyword
+    - message
+  properties:
+    path:
+      type: string
+      description: JSON Pointer (RFC 6901) into the data the failing keyword was evaluated against
+      example: /customer/age
+    keyword:
+      type: string
+      description: The JSON Schema keyword that failed (e.g. "type", "enum", "minimum")
+      example: type
+    message:
+      type: string
+      description: Human-readable message describing the failure
+      example: "string found, integer expected"
+    schema:
+      type: [object, "null"]
+      additionalProperties: true
+      description: >-
+        The contract's schema at `path`, with local `$ref`s inlined; null when the location has no
+        schema of its own (an unknown property, a node inside rich text)
+      example:
+        type: integer
+        minimum: 0
