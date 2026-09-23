@@ -89,6 +89,9 @@ object ProblemDetails {
         /** 400 — the request body or parameters failed validation (use [validation]). */
         const val VALIDATION_ERROR: String = KnownProblemSlugs.VALIDATION_ERROR
 
+        /** 400 — template data breaks the template's data contract (`errors` plus the missing and invalid fields). */
+        const val TEMPLATE_DATA_INVALID: String = KnownProblemSlugs.TEMPLATE_DATA_INVALID
+
         /** 400 — malformed or not applicable to the resource state (no `errors`). */
         const val BAD_REQUEST: String = KnownProblemSlugs.BAD_REQUEST
 

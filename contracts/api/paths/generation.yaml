@@ -40,7 +40,7 @@ preview-document:
               type: string
               format: binary
       '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+        $ref: '../components/responses/problem-responses.yaml#/TemplateDataInvalidError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

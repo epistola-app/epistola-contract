@@ -55,6 +55,31 @@ ConflictError:
         status: 409
         detail: The request conflicts with the current state of the resource
 
+TemplateDataInvalidError:
+  description: >-
+    The request failed validation. When the template data breaks the template's data contract, the
+    problem is `template-data-invalid`: `errors[]` lists each field (`field` a JSON Pointer into the
+    request body), and `missingFields` and `invalidFields` describe what to supply or correct. Other
+    request validation failures use `validation-error`.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/TemplateDataValidationProblemDetail'
+      example:
+        type: https://epistola.app/errors/template-data-invalid
+        title: Template Data Invalid
+        status: 400
+        detail: "Data validation failed: /customer/name: is required"
+        errors:
+          - field: /data/customer/name
+            message: is required
+        missingFields:
+          - path: /customer/name
+            required: true
+            schema:
+              type: string
+        invalidFields: []
+
 UnprocessableEntityError:
   description: >-
     The request was well-formed but cannot be processed because its content is
