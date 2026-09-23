@@ -23,7 +23,7 @@ Clients must ignore members they do not recognize.
 | `type` | slug | status | shape | when |
 | --- | --- | --- | --- | --- |
 | `https://epistola.app/errors/validation-error` | `validation-error` | 400 | `ValidationProblemDetail` | the request body or parameters failed validation; the `errors[]` array carries the field-level failures |
-| `https://epistola.app/errors/template-data-invalid` | `template-data-invalid` | 400 | `ValidationProblemDetail` + `missingFields`, `invalidFields`, `missingDataSchema` | the template data (e.g. a preview's `data`) breaks the template's data contract; `errors[]` lists each field with `field` a JSON Pointer into the request body, and the extension members describe what to supply or correct, with paths into `data` |
+| `https://epistola.app/errors/template-data-invalid` | `template-data-invalid` | 400 | `ValidationProblemDetail` + `missingFields`, `invalidFields` | the template data (e.g. a preview's `data`) breaks the template's data contract; `errors[]` lists each field with `field` a JSON Pointer into the request body, and the extension members describe what to supply or correct, with paths into `data` |
 | `https://epistola.app/errors/bad-request` | `bad-request` | 400 | `ProblemDetail` | the request is malformed or not applicable to the resource's current state, but not a field-level validation failure (no `errors[]`) |
 | `https://epistola.app/errors/unauthorized` | `unauthorized` | 401 | `ProblemDetail` | missing or invalid authentication credentials |
 | `https://epistola.app/errors/api-key-auth-disabled` | `api-key-auth-disabled` | 401 | `ProblemDetail` | API-key authentication is disabled for this deployment; use `Authorization: Bearer <jwt>` instead |

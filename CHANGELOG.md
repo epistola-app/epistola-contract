@@ -10,10 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Template data that breaks a template's data contract is now described field by field (#978 in
   epistola-suite). Preview answers such data with a new `template-data-invalid` problem type (still
   status 400, schema `TemplateDataValidationProblemDetail`): `errors[]` lists each field with `field`
-  a JSON Pointer into the request body, and the new members `missingFields`, `invalidFields` and
-  `missingDataSchema` say what to supply or correct. `missingDataSchema` is the contract cut down to
-  the missing part, as one JSON Schema a client can render as a form. `validateTemplateData` returns
-  the same three fields, takes optional `variantId`, `versionId` and `environmentId` to check against
+  a JSON Pointer into the request body, and the new members `missingFields` and `invalidFields`
+  give each field's JSON Pointer into `data` and its JSON Schema. `validateTemplateData` returns the
+  same two fields, takes optional `variantId`, `versionId` and `environmentId` to check against
   the version that would be rendered, and documents its 400 response. All additive: every new field
   is optional, and clients already keep a default branch for unknown problem types.
 

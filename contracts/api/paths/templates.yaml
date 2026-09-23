@@ -220,9 +220,9 @@ template-validate:
       This endpoint provides pre-flight validation to catch schema violations early, enabling
       faster feedback during development and before batch submission.
 
-      Besides `errors`, the result says which fields are missing (`missingFields`), which supplied
-      values are wrong (`invalidFields`), and gives `missingDataSchema`: the contract cut down to the
-      missing part, which a client can render as a form. Pass `variantId`, `versionId` or
+      Besides `errors`, the result says which fields are missing (`missingFields`) and which supplied
+      values are wrong (`invalidFields`), each with a JSON Pointer into `data` and the field's JSON
+      Schema, so a client can ask for exactly those. Pass `variantId`, `versionId` or
       `environmentId` to check against the version that would be rendered; the optional fields that
       version's template reads are then reported as missing too.
     tags:

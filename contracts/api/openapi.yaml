@@ -128,8 +128,8 @@ x-problem-types:
       schema: TemplateDataValidationProblemDetail
       description: >-
         The template data breaks the template's data contract; `errors[]` lists
-        each field, and `missingFields`, `invalidFields` and `missingDataSchema`
-        describe what to supply or correct.
+        each field, and `missingFields` and `invalidFields` describe what to
+        supply or correct.
     - slug: bad-request
       status: 400
       schema: ProblemDetail

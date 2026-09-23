@@ -117,9 +117,3 @@ TemplateDataValidationProblemDetail:
           description: Supplied values that break the contract. Paths are JSON Pointers into `data`.
           items:
             $ref: '../schemas/validation.yaml#/InvalidDataField'
-        missingDataSchema:
-          type: object
-          additionalProperties: true
-          description: >-
-            The contract cut down to the missing fields, as one JSON Schema a form generator can
-            render as-is. Fields inside array items are left out. Absent when nothing is missing.

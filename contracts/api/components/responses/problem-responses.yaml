@@ -59,8 +59,8 @@ TemplateDataInvalidError:
   description: >-
     The request failed validation. When the template data breaks the template's data contract, the
     problem is `template-data-invalid`: `errors[]` lists each field (`field` a JSON Pointer into the
-    request body), and `missingFields`, `invalidFields` and `missingDataSchema` describe what to supply
-    or correct. Other request validation failures use `validation-error`.
+    request body), and `missingFields` and `invalidFields` describe what to supply or correct. Other
+    request validation failures use `validation-error`.
   content:
     application/problem+json:
       schema:
@@ -79,16 +79,6 @@ TemplateDataInvalidError:
             schema:
               type: string
         invalidFields: []
-        missingDataSchema:
-          type: object
-          properties:
-            customer:
-              type: object
-              properties:
-                name:
-                  type: string
-              required: [name]
-          required: [customer]
 
 UnprocessableEntityError:
   description: >-

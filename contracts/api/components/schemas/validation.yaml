@@ -86,20 +86,11 @@ TemplateDataValidationResult:
       description: Supplied values that break the contract.
       items:
         $ref: '#/InvalidDataField'
-    missingDataSchema:
-      type: [object, "null"]
-      additionalProperties: true
-      description: |
-        The contract cut down to the missing fields, keeping its `required` lists, as one JSON
-        Schema a form generator can render as-is. Fields inside array items are listed in
-        `missingFields` but left out of it, because a schema cannot address one array element.
-        Null when nothing is missing.
   example:
     valid: true
     errors: []
     missingFields: []
     invalidFields: []
-    missingDataSchema: null
 
 TemplateDataValidationError:
   type: object
