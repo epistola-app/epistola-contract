@@ -11,7 +11,6 @@ import app.epistola.template.model.ThemeRefOverride
 import tools.jackson.databind.json.JsonMapper
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TemplateValidatorFixtureTest {
@@ -43,11 +42,15 @@ class TemplateValidatorFixtureTest {
         fixture["invalidCases"].forEach { invalid ->
             val code = invalid["code"].asString()
             val scenario = invalid["scenario"].asString()
+            val severity = invalid["severity"]?.asString()?.let(ValidationSeverity::valueOf) ?: ValidationSeverity.ERROR
             val (document, context) = scenario(scenario)
             val report = TemplateValidator.validate(document, context)
 
-            assertFalse(report.valid, scenario)
-            assertTrue(report.findings.any { it.code == code }, "$scenario should produce $code; got ${report.findings}")
+            assertEquals(severity == ValidationSeverity.WARNING, report.valid, scenario)
+            assertTrue(
+                report.findings.any { it.code == code && it.severity == severity },
+                "$scenario should produce $code as $severity; got ${report.findings}",
+            )
             assertEquals(
                 report.findings.sortedWith(compareBy({ it.path }, { it.code }, { it.message })),
                 report.findings,
@@ -90,9 +93,8 @@ class TemplateValidatorFixtureTest {
         "RESERVED_PARAMETER_NAME" -> bindingDocument(emptyMap<String, String>(), parameterSchema("sys")) to TemplateValidationContext.EMPTY
         "UNSUPPORTED_PARAMETER_TYPE" -> bindingDocument(emptyMap<String, String>(), parameterSchema(type = "object")) to TemplateValidationContext.EMPTY
         "PARAMETER_DEFAULT_MISMATCH" -> bindingDocument(emptyMap<String, String>(), parameterSchema(default = 42)) to TemplateValidationContext.EMPTY
-        "TOO_MANY_PAGEHEADERS" -> withChildren(pageHeader("h-1"), pageHeader("h-2"), pageHeader("h-3")) to TemplateValidationContext.EMPTY
-        "PAGEHEADER_WITHOUT_ROOT" -> withChild(pageHeader("h-1")).copy(root = "missing") to TemplateValidationContext.EMPTY
-        "PAGEHEADER_NOT_AT_ROOT" -> nestedPageHeader() to TemplateValidationContext.EMPTY
+        "PAGEBAND_NESTED" -> footerInsideHeader() to TemplateValidationContext.EMPTY
+        "PAGEFOOTERS_NOT_ADJACENT" -> withBands(pageFooter("f-1"), emptyText("n-text"), pageFooter("f-2")) to TemplateValidationContext.EMPTY
         else -> error("Unknown fixture scenario: $name")
     }
 
@@ -128,6 +130,18 @@ class TemplateValidatorFixtureTest {
     )
 
     private fun pageHeader(id: String): Node = Node(id, "pageheader", slots = listOf("$id-children"))
+
+    private fun pageFooter(id: String): Node = Node(id, "pagefooter", slots = listOf("$id-children"))
+
+    private fun emptyText(id: String): Node = Node(id, "text", props = mapOf("content" to mapOf("type" to "doc", "content" to emptyList<Any>())))
+
+    /** Root children, with an empty `children` slot for every node that declares one. */
+    private fun withBands(vararg children: Node): TemplateDocument {
+        val base = withChildren(*children)
+        return base.copy(
+            slots = base.slots + children.flatMap(Node::slots).associateWith { Slot(it, it.substringBeforeLast("-children"), "children") },
+        )
+    }
 
     private fun stencil(id: String, slug: String): Node = Node(
         id,
@@ -216,15 +230,15 @@ class TemplateValidatorFixtureTest {
         return mapOf("type" to "object", "properties" to mapOf(name to property), "required" to required)
     }
 
-    private fun nestedPageHeader(): TemplateDocument {
-        val container = Node("n-container", "container", slots = listOf("s-container"))
+    private fun footerInsideHeader(): TemplateDocument {
         val header = pageHeader("h-1")
-        val base = withChild(container)
+        val footer = pageFooter("f-1")
+        val base = withChild(header)
         return base.copy(
-            nodes = base.nodes + (header.id to header),
+            nodes = base.nodes + (footer.id to footer),
             slots = base.slots +
-                ("s-container" to Slot("s-container", container.id, "children", listOf(header.id))) +
-                ("h-1-children" to Slot("h-1-children", header.id, "children")),
+                ("h-1-children" to Slot("h-1-children", header.id, "children", listOf(footer.id))) +
+                ("f-1-children" to Slot("f-1-children", footer.id, "children")),
         )
     }
 

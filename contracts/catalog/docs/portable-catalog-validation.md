@@ -18,7 +18,7 @@ before extraction:
 | `NodeParameterBindingValidator` | Portable | Declared/required bindings and JSONata syntax through `TemplateValidationContext` |
 | `NodeParameterSchemaProvider` | Portable boundary; Suite wiring is product-specific | `TemplateValidationContext.resolveParameterSchema` |
 | `ParameterSchemaValidator` | Portable | Parameter schema/name/type/default findings |
-| `PageHeaderCardinalityValidator` | Portable | Page-header count and root-placement findings |
+| `PageHeaderCardinalityValidator` | Portable | Page header and footer placement findings (see below); the count and root-placement limits were dropped in 1.4.0 |
 | `JsonSchemaValidator` data/schema checks | Portable at whole-catalog level | Owned by `ResourceValidator`/`CatalogValidator`, not the template graph validator |
 | `JsonSchemaValidator` compatibility suggestions | Suite editing/migration UX | Remains in Suite |
 | `DataModelValidationException` and Suite `ValidationException` mapping | Suite presentation/API | Remains in a Suite adapter |
@@ -57,6 +57,23 @@ round-tripping conforming catalog content.
 All findings contain a stable string code, `ERROR` or `WARNING` severity,
 document-relative path, and human-readable message. Reports are deduplicated
 and sorted by path, code, then message.
+
+## Page headers and footers
+
+A template may contain any number of `pageheader` and `pagefooter` nodes,
+anywhere in the flow: inside stencils, conditionals and loops. Page breaks
+divide the flow into sections, and position decides which pages each applies
+to. A header applies to what comes after it; a footer covers its section and
+the footer-less sections above it. The renderer owns that schedule; the
+validator reports two shapes:
+
+- `PAGEBAND_NESTED` (error): a header or footer inside another header or
+  footer.
+- `PAGEFOOTER_NOT_ADJACENT` (warning): a section whose footers are not
+  adjacent children of one slot. Several footers in a section apply by order,
+  first page first, so scattered footers usually mean a stencil's footer met
+  the template's own. Sections are determined statically, counting every
+  `pagebreak` outside a header or footer, including ones inside conditionals.
 
 The validator loads component and style rules from the registries packaged at
 `META-INF/epistola-catalog`; it does not maintain a second component vocabulary.

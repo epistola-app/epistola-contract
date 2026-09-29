@@ -215,8 +215,22 @@ object TemplateValidationCodes {
     const val PARAMETER_TYPE_UNSUPPORTED = "PARAMETER_TYPE_UNSUPPORTED"
     const val PARAMETER_DEFAULT_TYPE_MISMATCH = "PARAMETER_DEFAULT_TYPE_MISMATCH"
 
+    /** A `pageheader` or `pagefooter` inside another `pageheader` or `pagefooter`. */
+    const val PAGEBAND_NESTED = "PAGEBAND_NESTED"
+
+    /**
+     * Warning: a page section holds several `pagefooter` nodes that are not adjacent children of
+     * one slot, so which footer lands on which page follows their order rather than their position.
+     */
+    const val PAGEFOOTER_NOT_ADJACENT = "PAGEFOOTER_NOT_ADJACENT"
+
+    @Deprecated("Page headers are no longer limited in number; no longer emitted.")
     const val PAGEHEADER_TOO_MANY = "PAGEHEADER_TOO_MANY"
+
+    @Deprecated("Page headers may sit anywhere in the flow; no longer emitted.")
     const val PAGEHEADER_ROOT_MISSING = "PAGEHEADER_ROOT_MISSING"
+
+    @Deprecated("Page headers may sit anywhere in the flow; no longer emitted.")
     const val PAGEHEADER_NOT_AT_ROOT = "PAGEHEADER_NOT_AT_ROOT"
 
     /** Complete published code set, used to enforce fixture coverage. */
@@ -252,8 +266,7 @@ object TemplateValidationCodes {
         PARAMETER_NAME_RESERVED,
         PARAMETER_TYPE_UNSUPPORTED,
         PARAMETER_DEFAULT_TYPE_MISMATCH,
-        PAGEHEADER_TOO_MANY,
-        PAGEHEADER_ROOT_MISSING,
-        PAGEHEADER_NOT_AT_ROOT,
+        PAGEBAND_NESTED,
+        PAGEFOOTER_NOT_ADJACENT,
     )
 }

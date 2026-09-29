@@ -11,9 +11,8 @@ import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BI
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDING_SYNTAX_INVALID
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDING_UNKNOWN
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMS_ALIAS_RESERVED
-import app.epistola.catalog.validation.TemplateValidationCodes.PAGEHEADER_NOT_AT_ROOT
-import app.epistola.catalog.validation.TemplateValidationCodes.PAGEHEADER_ROOT_MISSING
-import app.epistola.catalog.validation.TemplateValidationCodes.PAGEHEADER_TOO_MANY
+import app.epistola.catalog.validation.TemplateValidationCodes.PAGEBAND_NESTED
+import app.epistola.catalog.validation.TemplateValidationCodes.PAGEFOOTER_NOT_ADJACENT
 import app.epistola.catalog.validation.TemplateValidationCodes.PLACEHOLDER_NAME_DUPLICATE
 import app.epistola.catalog.validation.TemplateValidationCodes.PLACEHOLDER_NAME_INVALID
 import app.epistola.catalog.validation.TemplateValidationCodes.PLACEHOLDER_NESTED_DEFINITION
@@ -43,7 +42,7 @@ import tools.jackson.databind.JsonNode
  *
  * Validation covers graph integrity, component and style registries, slot
  * cardinality and allowed children, property shapes, expressions,
- * placeholders, page headers, stencil references, parameter bindings, theme
+ * placeholders, page header and footer placement, stencil references, parameter bindings, theme
  * references, recursion, and nesting depth. Consumer-owned resource lookups
  * enter only through [TemplateValidationContext].
  *
@@ -58,6 +57,7 @@ object TemplateValidator {
     private val slugRegex = Regex("^[a-z][a-z0-9-]{0,63}$")
     private val parameterNameRegex = Regex("^[a-z][a-zA-Z0-9_]{0,63}$")
     private val reservedAliases = setOf("sys", "item", "index")
+    private val pageBandTypes = setOf("pageheader", "pagefooter")
 
     /**
      * Validates [document] using optional catalog resolution [context].
@@ -84,9 +84,9 @@ object TemplateValidator {
         validateRegistryRules(document, findings)
         validateBindings(document, context, findings)
         validateReferences(document, context, findings)
-        validatePageHeaders(document, findings)
         if (safeGraph) {
             validatePlaceholders(document, context, findings)
+            validatePageBands(document, findings)
         }
         context.resolveStylePresets(document)?.let { presets ->
             document.nodes.values.sortedBy(Node::id).forEach { node ->
@@ -511,21 +511,58 @@ object TemplateValidator {
         val slug: String,
     )
 
-    private fun validatePageHeaders(
+    /**
+     * Page headers and footers may appear in any number, anywhere in the flow; where one sits
+     * decides which pages it applies to. Page breaks divide the flow into sections, and a footer
+     * covers the pages of its section, so several footers in one section apply by order: the
+     * first to the section's first page, the next to the following pages.
+     *
+     * Two shapes are still reported: a header or footer nested inside another (an error), and a
+     * section whose footers are not adjacent children of one slot (a warning), which is usually
+     * a stencil's footer meeting the template's own.
+     */
+    private fun validatePageBands(
         document: TemplateDocument,
         findings: MutableList<TemplateValidationFinding>,
     ) {
-        val headers = document.nodes.values.filter { it.type == "pageheader" }.sortedBy(Node::id)
-        if (headers.size > 2) findings.error(PAGEHEADER_TOO_MANY, "nodes", "a template may declare at most two 'pageheader' nodes, found ${headers.size}")
-        val root = document.nodes[document.root]
-        if (headers.isNotEmpty() && root == null) {
-            findings.error(PAGEHEADER_ROOT_MISSING, "root", "cannot validate pageheader placement without a root node")
-            return
+        val footersPerSection = mutableListOf(mutableListOf<Pair<String, String>>())
+        fun walk(nodeId: String, slotId: String?, insideBand: Boolean) {
+            val node = document.nodes[nodeId] ?: return
+            val isBand = node.type in pageBandTypes
+            if (isBand && insideBand) {
+                findings.error(PAGEBAND_NESTED, "nodes.$nodeId", "${node.type} node '$nodeId' must not be inside a page header or footer")
+            }
+            if (!insideBand) {
+                when (node.type) {
+                    "pagebreak" -> footersPerSection += mutableListOf<Pair<String, String>>()
+                    "pagefooter" -> if (slotId != null) footersPerSection.last() += nodeId to slotId
+                }
+            }
+            node.slots.mapNotNull(document.slots::get).forEach { slot ->
+                slot.children.forEach { walk(it, slot.id, insideBand || isBand) }
+            }
         }
-        val rootChildren = root?.slots.orEmpty().mapNotNull(document.slots::get).flatMap { it.children }.toSet()
-        headers.filterNot { it.id in rootChildren }.forEach { header ->
-            findings.error(PAGEHEADER_NOT_AT_ROOT, "nodes.${header.id}", "pageheader node '${header.id}' must be a direct child of the root slot")
+        walk(document.root, null, false)
+
+        footersPerSection.filter { it.size > 1 && !adjacentInOneSlot(document, it) }.forEach { footers ->
+            val ids = footers.joinToString { "'${it.first}'" }
+            findings.warning(
+                PAGEFOOTER_NOT_ADJACENT,
+                "nodes.${footers.first().first}",
+                "pagefooter nodes $ids share a page section but are not next to each other; " +
+                    "the first applies to the section's first page and the next to the pages after it",
+            )
         }
+    }
+
+    private fun adjacentInOneSlot(
+        document: TemplateDocument,
+        footers: List<Pair<String, String>>,
+    ): Boolean {
+        val slotId = footers.map { it.second }.distinct().singleOrNull() ?: return false
+        val children = document.slots.getValue(slotId).children
+        val indices = footers.map { children.indexOf(it.first) }.sorted()
+        return indices.last() - indices.first() == indices.size - 1
     }
 
     private fun validateBindings(
@@ -606,6 +643,14 @@ object TemplateValidator {
     }
 
     private fun duplicates(values: List<String>): List<String> = values.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.sorted()
+
+    private fun MutableList<TemplateValidationFinding>.warning(
+        code: String,
+        path: String,
+        message: String,
+    ) {
+        add(TemplateValidationFinding(code, ValidationSeverity.WARNING, path, message))
+    }
 
     private fun MutableList<TemplateValidationFinding>.error(
         code: String,
