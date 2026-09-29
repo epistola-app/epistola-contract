@@ -106,6 +106,11 @@ libraries.
   font-face binaries into the listing. We know of no caller, the Suite UI never used them, and a
   deprecation window would have served nobody.
 
+### Fixed
+
+- The Python client's binary downloads asked only for `application/problem+json`, never the PDF or
+  image they return; it now accepts every media type an operation declares.
+
 ## [1.2.0] - 2026-09-03
 
 ### Added
@@ -310,6 +315,7 @@ libraries.
 
 ### Added
 
+- The Python client `epistola-client` (PyPI).
 - The editor component and style registries ship in `epistola-model` as a typed TypeScript facade,
   raw JSON exports and Maven classpath resources, with validation of examples, child rules and style
   keys.
@@ -329,7 +335,6 @@ libraries.
 
 - The .NET client `Epistola.Contract.Client` (NuGet), with a CycloneDX SBOM attached to each
   release.
-- The Python client `epistola-client` (PyPI).
 - `NodeDto.props` documents the stencil node's identity props (`stencilId`, `catalogKey`,
   `version`, `isDraft`).
 - The `pagefooter` convention is documented next to `pageheader`.

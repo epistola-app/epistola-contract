@@ -1,54 +1,77 @@
 # Changelog — Epistola Python Client
 
-All notable changes to the `epistola-client` PyPI package are documented here.
+All notable changes to the `epistola-client` package are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This package's
 version tracks the Epistola contract version (`info.version` in the OpenAPI spec), so it releases in
-lockstep with the other generated artifacts; the repository-level [CHANGELOG](../../../../CHANGELOG.md)
-records contract/spec changes. This file records changes specific to the Python client library.
+lockstep with the other generated artifacts. The repository-level [CHANGELOG](../../../../CHANGELOG.md)
+records contract changes; this file records changes to the hand-written library only.
 
 ## [Unreleased]
+
+## [1.3.1] - 2026-09-21
 
 ### Changed
 
 - `JwtSigner` is documented as **experimental**: Epistola Suite may not implement self-signed JWT
-  authentication yet. The README's quick start now authenticates with an API key.
-- **Breaking:** Generated portable template models now use the catalog contract's canonical names
-  without the `_dto` suffix.
+  authentication yet. The README's quick start authenticates with an API key.
+
+## [1.3.0] - 2026-09-21
 
 ### Fixed
 
-- `generate.sh` now runs the derived-source generator without installing the package first, fixing
-  GitHub Actions failures where hatchling tried to read the generated `contract_version.py` before
-  it existed.
-- Pull request CI now builds the Python wheel and source distribution after tests, so packaging
-  failures are caught before release or snapshot publishing.
-- Snapshot CI now stamps the generated contract version to a PEP 440 `dev` version before pytest
-  installs the package, matching the TestPyPI publish version.
+- Binary downloads (`download_document`, `download_image_content`) sent only
+  `application/problem+json` in `Accept`, never the PDF or image they return. The client now
+  accepts every media type an operation declares.
+
+## [1.2.0] - 2026-09-03
 
 ### Changed
 
-- Documented that PyPI/TestPyPI trusted publishing should temporarily be configured under Sander de
-  Groot's personal PyPI account while the Epistola organization approval is pending.
+- **Source-breaking:** `SchemaCache.get_or_load` and `TtlSchemaCache.evict` take the catalog id, so custom cache implementations must be
+  updated.
+
+### Fixed
+
+- `ResultCollector` could busy-loop after a burst of results or a server outage; the backoff is now
+  floored at the minimum interval. **Anyone running a collector should upgrade.**
+- The routing-key helper returned keys that routed to other nodes.
+- The template schema cache ignored the catalog, so two catalogs holding the same template id
+  shared one schema.
+- Partition lookup divided by zero when the server reported no partitions.
+- Only the first line of an uncompressed result batch was read, so batches were never
+  acknowledged and were redelivered forever. **Anyone running a collector should upgrade.**
+- Requests did not accept `application/problem+json`, so the problem document this client parses
+  was never asked for.
+
+## [0.15.0] - 2026-07-28
+
+### Changed
+
+- **Breaking:** generated portable template models use the catalog contract's canonical names,
+  without the `_dto` suffix.
+
+## [0.14.0] - 2026-07-23
 
 ### Added
 
-- `EpistolaClientBuilder.api_key(...)` now supports `Authorization: ApiKey <key>`
-  authentication. `X-API-Key` remains a server-side compatibility path but is deprecated.
-- **Initial release** — a Python client for the Epistola API, generated from the OpenAPI contract
-  with OpenAPI Generator (`python` / urllib3, pydantic v2 models), at feature parity with the Kotlin
-  and .NET clients.
-  - `ClientIdentity` — mandatory `User-Agent` / `X-EP-Node-Id` headers, built via a fluent builder.
-  - `JwtSigner` — self-signed RSA / EC P-256 JWT bearer authentication, minting a fresh short-lived
-    token per request.
-  - `ProblemDetailException` and the opt-in problem-detail handler — RFC 9457 problem-detail error
-    handling, with `KnownProblemSlugs` generated from the spec's `x-problem-types` registry.
-  - `EpistolaClientBuilder` / `EpistolaApiClient` — compose identity, JWT, and problem-detail
-    handling onto the generated `ApiClient` for the generated APIs. (No media-type handler is needed:
-    the Python generator already emits the versioned `application/vnd.epistola.v1+json` content type.)
-  - `ResultCollector` — NDJSON result streaming with constant memory, gzip (plus optional lz4/zstd),
-    adaptive polling, and murmur3 partition-routing helpers.
-  - Client-side JSON-Schema validation (`TemplateSchemaValidator`, `ValidatingGenerationApi`) and a
-    generated `validate()` helper covering the models that carry schema constraints.
-  - A `ProblemRegistryTest`-equivalent guard test keeping the hand-written problem-type base in sync
-    with the value the build-time generator derives from the spec.
+- `EpistolaClientBuilder.api_key(...)` authenticates with `Authorization: ApiKey <key>`. The server
+  still accepts the deprecated `X-API-Key`.
+
+## [0.13.0] - 2026-07-22
+
+### Added
+
+- **Initial release:** a Python client generated with OpenAPI Generator (`python` / urllib3,
+  pydantic v2 models), at feature parity with the Kotlin and .NET clients.
+  - `ClientIdentity`: the required `User-Agent` and `X-EP-Node-Id` headers.
+  - `JwtSigner`: self-signed RSA and EC P-256 JWT bearer authentication, minting a short-lived token
+    per request.
+  - `ProblemDetailException` and an opt-in handler for RFC 9457 errors, with `KnownProblemSlugs`
+    generated from `x-problem-types`.
+  - `EpistolaClientBuilder` and `EpistolaApiClient`, which add identity, JWT and problem handling
+    to the generated `ApiClient`.
+  - `ResultCollector`: constant-memory NDJSON result streaming with gzip (optionally lz4 and zstd),
+    adaptive polling and murmur3 partition routing.
+  - Client-side JSON Schema validation (`TemplateSchemaValidator`, `ValidatingGenerationApi`) and a
+    generated `validate()` helper.
