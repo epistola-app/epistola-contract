@@ -4,398 +4,204 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The .NET, Python and Node.js clients keep their own changelogs for changes to their hand-written
+libraries.
 
 ## [Unreleased]
 
-- Template data that breaks a template's data contract is now described field by field (#978 in
-  epistola-suite). Preview answers such data with a new `template-data-invalid` problem type (still
-  status 400, schema `TemplateDataValidationProblemDetail`): `errors[]` lists each field with `field`
-  a JSON Pointer into the request body, and the new members `missingFields` and `invalidFields`
-  give each field's JSON Pointer into `data` and its JSON Schema. `validateTemplateData` returns the
-  same two fields, takes optional `variantId`, `versionId` and `environmentId` to check against
-  the version that would be rendered, and documents its 400 response. All additive: every new field
-  is optional, and clients already keep a default branch for unknown problem types.
+## [1.4.0] - 2026-09-30
 
-- Fixed the release workflow skipping its last two jobs on every GitHub release. `verify-catalog-release`
-  had no status function in its `if`, so GitHub implied `success()`, which also fails when any upstream
-  job was skipped — and `create-tag` is skipped for every release created on GitHub. The published
-  catalog was therefore never checked against Maven Central and npm, and `finalize-release` never
-  attached `openapi.yaml` and the .NET SBOM to the release: no release since v0.16.0 has either. The job
-  now uses the same `always() && needs.publish.result == 'success'` guard as `mock-server`.
+### Added
 
-- Page headers and footers may now appear in any number, anywhere in a template's flow, including
-  inside stencils, conditionals and loops (#1020 in epistola-suite). The portable validator no
-  longer reports `PAGEHEADER_TOO_MANY`, `PAGEHEADER_ROOT_MISSING` or `PAGEHEADER_NOT_AT_ROOT`; the
-  constants stay, deprecated, for consumers that reference them. It reports one new finding,
-  `PAGEBAND_NESTED` (error), for a header or footer inside another. The component registry drops
-  `maxInstancesPerDocument` from `pageheader` and `pagefooter` and describes where each applies. The
-  catalog wire format is unchanged, and every catalog valid before stays valid. A catalog that uses several footers
-  should only be imported by a Suite that renders them, because an older Suite renders its first
-  footer on every page.
+- Template data that breaks a template's data contract is now described field by field
+  (epistola-suite#978). Preview answers it with a new `template-data-invalid` problem type (status
+  400, schema `TemplateDataValidationProblemDetail`) whose `errors[]` points into the request body
+  and whose new `missingFields` and `invalidFields` members give each field's JSON Pointer into
+  `data` and its JSON Schema. `validateTemplateData` returns the same two fields, documents its 400
+  response, and accepts optional `variantId`, `versionId` and `environmentId` to validate against
+  the version that would be rendered. All new fields are optional.
+
+### Changed
+
+- Page headers and footers may appear any number of times, anywhere in a template's flow,
+  including inside stencils, conditionals and loops (epistola-suite#1020). The validator no longer
+  reports `PAGEHEADER_TOO_MANY`, `PAGEHEADER_ROOT_MISSING` or `PAGEHEADER_NOT_AT_ROOT` (the
+  constants remain, deprecated) and adds `PAGEBAND_NESTED` for a header or footer nested in
+  another. The component registry drops `maxInstancesPerDocument` from `pageheader` and
+  `pagefooter`. The wire format is unchanged and every previously valid catalog stays valid, but a
+  catalog with several footers should only be imported by a Suite that renders them: older Suites
+  render the first footer on every page.
+
+### Fixed
+
+- The release workflow skipped its last two jobs on every release created on GitHub, so the
+  published catalog was never verified against Maven Central and npm, and no release since v0.16.0
+  has attached `openapi.yaml` and the .NET SBOM.
 
 ## [1.3.1] - 2026-09-21
 
-- API keys are the supported authentication method, and both JWT methods are now marked
-  experimental. `apiKeyAuth` said *"Deprecated — use JWT Bearer authentication (OAuth or
-  self-signed) instead"*, but Epistola Suite authenticates API keys and may not implement the
-  consumer model either JWT method relies on yet. `bearerAuth` and every Consumers API operation now
-  carry `x-experimental: true` and say so in their descriptions. `apiKeyAuth` keeps
-  `x-deprecated: true`, which now deprecates only the `X-API-Key` header in favour of
-  `Authorization: ApiKey <key>`. API keys themselves are not deprecated. Nothing changes on the
-  wire. The authentication guide, `ConsumerDto.authMethod`, the client READMEs and the `JwtSigner`
-  docs in all five clients follow. Every client's quick start now uses an API key rather than a
-  `JwtSigner`.
+### Changed
 
-- Fixed 1.3.0 clients refusing every response from an older server (#84). 1.3.0 added `slug` to
-  eleven read models and declared it required, and no server before 1.3.0 sends it. The Kotlin,
-  .NET and Python clients treat a required property as one the response must carry, so they
-  rejected the whole response — Kotlin with *"missing (therefore NULL) value for creator parameter
-  slug"*, .NET with *"Required property 'slug' not found in JSON"*, Python with a pydantic
-  `ValidationError`. A 1.3.0 client in any of those three could not list templates, environments
-  or variants against any released Suite. Jakarta and Node.js read the response.
+- API keys are the supported authentication method. `bearerAuth` and every Consumers API
+  operation are now marked `x-experimental: true`, since Epistola Suite may not implement the
+  consumer model JWT authentication relies on yet. `apiKeyAuth` no longer says "use JWT instead";
+  its `x-deprecated: true` now deprecates only the `X-API-Key` header in favour of
+  `Authorization: ApiKey <key>`. Nothing changes on the wire; the docs and every client's quick
+  start now use an API key.
 
-  Adding a required field to an existing schema is breaking by this repository's own rules
-  (CONTRIBUTING.md), and 1.3.0's *"Nothing breaks"* held only for servers: a minor release must
-  keep a new client working against the older servers of its major. `slug` is now optional on
-  `AttributeDto`, `CatalogDto`, `EnvironmentDto`, `StencilDto`, `StencilSummaryDto`, `TemplateDto`,
-  `TemplateSummaryDto`, `TenantDto`, `ThemeDto`, `VariantDto` and `VariantSummaryDto`. A server on
-  1.3.0 or later still sends it on every response; when it is absent, read the deprecated `id`
-  (`key` on `AttributeDto`), which carries the same value and stays required. `slug` becomes
-  required again in 2.0.0, which removes `id` and `key`.
+### Fixed
 
-  `make breaking` reports this as `response-property-became-optional` on 33 responses — measured
-  against 1.3.0, it withdraws a guarantee, but no server before 1.3.0 could honour it. The check
-  did not flag 1.3.0 for adding the required field, because it treats a new response property as
-  additive, which holds for servers but not for clients that generate strict models.
-
-  Source-breaking against the 1.3.0 generated models, released less than a day earlier: Kotlin
-  reads `slug` as `String?`, and its constructor parameter moves from first to last with a `null`
-  default, so a Java caller that constructs one of these models positionally has to reorder its
-  arguments (named Kotlin arguments are unaffected). The Python and .NET properties become optional
-  in the same way.
-
-  A new conformance scenario, `older-server-response`, plays a pre-1.3.0 template listing and fails
-  the Kotlin, .NET and Python clients generated from the 1.3.0 spec; `list-templates` now reports
-  the ids and slugs the client parsed. The fixture check covers the spec side: the scenario's
-  slug-less fixture loads only while the spec allows one, so making `slug` required again fails
-  before any client is built.
+- 1.3.0 clients refused every response from a pre-1.3.0 server (#84): `slug` was added to eleven
+  read models as required, and the Kotlin, .NET and Python clients rejected responses without it.
+  `slug` is now optional on `AttributeDto`, `CatalogDto`, `EnvironmentDto`, `StencilDto`,
+  `StencilSummaryDto`, `TemplateDto`, `TemplateSummaryDto`, `TenantDto`, `ThemeDto`, `VariantDto`
+  and `VariantSummaryDto`; fall back to the deprecated `id` (`key` on `AttributeDto`) when it is
+  absent. It becomes required again in 2.0.0, which removes `id` and `key`.
+  - Source-breaking against the 1.3.0 models: Kotlin reads `slug` as `String?` and its constructor
+    parameter moves last with a `null` default, so positional Java callers must reorder arguments.
+    The Python and .NET properties become optional too.
+  - A new conformance scenario, `older-server-response`, guards against this in every client.
 
 ## [1.3.0] - 2026-09-21
 
-- Wire v7 drops the per-resource `compatibility` (#86). A `ResourceEntry` could declare an
-  `epistolaVersions` range of its own, separate from the catalog's. No producer ever wrote one, no
-  consumer ever read one, and a version range per template answered no question anyone asked — the
-  catalog-level `compatibility`, which is still here, is where that belongs.
+### Added
 
-  A v6 manifest's entries have the field stripped on migration, silently: nothing set it, so there
-  is nothing a publisher could act on. The current catalog fingerprint moves once, as it already
-  does in this release; fingerprint versions V1 to V3 are unchanged, because reproducing the bytes
-  an older catalog was fingerprinted with is their whole job.
+- The Node.js client, `@epistola.app/epistola-client`: TypeScript on the platform's `fetch`, at
+  feature parity with the other clients.
+- `slug` on every REST response that addresses a resource, deprecating the `id` it duplicates
+  (`key` on `AttributeDto`) (#84). A **slug** is an address someone chooses; an **id** is one the
+  system assigns, so `documentId`, `requestId`, version numbers and the like keep their names. Both
+  properties carry the same value. `id`/`key`, request bodies and path parameter names change in
+  2.0.0.
+- `/images`, which addresses a catalog image by its slug and lists images only (#80).
 
-- **Breaking, and shipped in a MINOR by decision:** the asset operations are removed (#86).
-  `listAssets`, `uploadAsset`, `downloadAssetContent` and `deleteAsset` are gone, with `AssetDto`
-  and `AssetListResponse`. `/images` replaces them: it addresses an image by its slug, a plain
-  string, and lists images only, where the asset operations mixed in the font-face binaries that
-  back a font family.
+### Changed
 
-  These have shipped since 1.0.0 and the released suite 1.1.0 serves all four, so this breaks a
-  **live** GA surface — which the stability contract says needs a major release and a deprecation
-  path. Shipping it as 1.3.0 is an explicit decision, and not one we would normally make.
+- **Catalog wire v7** (#86). Older archives migrate automatically; catalog fingerprints change
+  once, while V1–V3 fingerprint verification is unchanged.
+  - Binaries are identified by content: `AssetResource` becomes `ImageResource` with a
+    `contentHash`, binaries are filed at `bin/<contentHash>`, and `contentUrl` is deprecated and
+    optional. A font face carries its own binary and states `FontVariantEntry.mediaType`
+    (`font/ttf` or `font/otf`). A v6 asset becomes an image that keeps its slug, so template
+    references keep resolving.
+  - Content hashes are verified (`CATALOG_ASSET_CONTENT_HASH_MISMATCH`); a v6 binary that cannot be
+    resolved reports `CATALOG_ASSET_CONTENT_UNRESOLVED`.
+  - An image dependency names its catalog, like every other dependency kind. A v6 image dependency
+    without one reports `CATALOG_DEPENDENCY_UNQUALIFIED` rather than being guessed.
+  - A template variant is addressed by `slug` instead of `id`.
+  - The unused per-resource `compatibility` is removed; the catalog-level one remains.
+  - Every resource slug is validated against its type's bounds, defined in `CatalogSlugs` and
+    reported as `CATALOG_RESOURCE_SLUG_INVALID`: template, stencil, attribute, theme and catalog
+    3–50 characters, code list 3–64, font 2–64, image 1–50 (leading digit allowed), variant 3–50.
+    Exchange's publication gate now catches a slug a Suite would reject on install.
+- `ImageDto.key` is `ImageDto.slug` and `{imageKey}` is `{imageSlug}`, matching the rest of the API.
+  The images API had not shipped before this release.
+- The TypeScript catalog surface renames `AssetResource` to `ImageResource`.
 
-  It rests on one thing: nothing calls them. No integration we know of uses the asset operations,
-  the suite's own UI never did — it uses UI routes, not `/api/**` — and the only client that could
-  was generated from this spec. (1.2.0 is released with no suite release consuming it yet; true,
-  but it does not apply here, because these operations predate it.) Holding them to 2.0.0 would
-  mean carrying a surface that cannot name half the rows it returns, and running a deprecation
-  window for an audience of nobody. Recorded so the departure is visible as a decision rather than
-  inferred from a version number.
+### Removed
 
-  `AssetDto.id` is `format: uuid`, so it could not name an image such as `municipality-mark` and
-  had begun omitting the field for those — and for font faces too, once a face's key became its
-  content hash. `{assetId}` is `format: uuid` as well, so a plain-string `id` would have been
-  listed but not downloadable. Removing the operations closes the hole instead of widening it, and
-  makes REST agree with the wire, where from v7 a font face's binary is deliberately not
-  addressable.
-
-- A resource slug is validated against its own type's bounds (#86). `CatalogSlugs` declared them
-  and nothing read it: `ResourceValidator` checked one loose pattern with no length for every type,
-  so a catalog naming a theme with 30 characters validated, published, and then failed on install
-  with a `value too long for type character varying(20)` database error. Validation now looks the
-  rule up by type and reports `CATALOG_RESOURCE_SLUG_INVALID` naming the limit, which is what makes
-  a publication gate catch it before the upload.
-
-  The theme bound is 50 rather than 20. Nothing else was 20, and the suite widens its column to
-  match in the same release — a maximum may be relaxed later but never tightened once catalogs use
-  the extra room, so this is the moment. `CatalogSlugs` is also keyed by the v7 type token now
-  (`image`, not `asset`), without which every image fell through to the loosest bound.
-
-- **Breaking (unreleased):** a binary is identified by its content in wire v7, not by a name (#86).
-  `AssetResource` becomes `ImageResource` and carries `contentHash`; a font face carries its own
-  binary instead of pointing at a separate asset by slug, and states what it is through
-  `FontVariantEntry.mediaType` (`font/ttf` or `font/otf`), which inlining the face had dropped.
-  `contentUrl` is deprecated and optional: a catalog written at v7 omits it and files every binary
-  at `bin/<contentHash>`, so identical bytes are one file and there is no path convention to
-  disagree about.
-
-  An asset's slug was a generated UUID naming nothing — the human name was already on `name`, and
-  every other layer keyed on the bytes. The hash is now checked rather than believed:
-  `CATALOG_ASSET_CONTENT_HASH_MISMATCH` reports a binary whose bytes do not hash to what it
-  declares.
-
-  A v6 archive migrates without a content migration: each asset becomes an image **keeping its
-  slug**, so template content referencing it as `props.assetId` keeps resolving, and each font face
-  is given the binary of the asset it used to name — migrations now receive the archive's content
-  for this. A migrated archive keeps the paths it already has, since a migration rewrites documents
-  and cannot move files. One that cannot be resolved reports `CATALOG_ASSET_CONTENT_UNRESOLVED`
-  rather than inventing a hash. Catalog fingerprints move once, because the manifest's shape
-  changes; the published TypeScript surface renames `AssetResource` to `ImageResource`.
-
-- An image dependency names its catalog in wire v7 (#86). Every other dependency kind already did.
-  Image references resolved tenant-wide, which was safe only while an image's slug was a generated
-  UUID; epistola-app/epistola-suite#930 makes it readable, so two catalogs may each hold a `logo`
-  and an unqualified reference means nothing. A v6 archive whose asset dependency names no catalog
-  is reported with `CATALOG_DEPENDENCY_UNQUALIFIED` rather than repaired — inferring a catalog
-  would bind the consumer to whichever happened to match. No catalog published so far declares one.
-
-- Wire v7 addresses a template variant by `slug`, not `id` (#86). Every other resource type already
-  said `slug`, and a variant's address was always a name someone chose (`english`, `default`). A v6
-  archive migrates with the value unchanged and no notice: nothing references a variant across
-  catalogs, so nothing can be left dangling. The slug is bounded like the rest — 3 to 50
-  characters, leading letter — matching the `VARIANT_KEY` a consumer stores it in.
-
-- Wire v7 constrains every resource slug (#86). The wire constrained none of them while every
-  consumer storing one did, so a catalog naming a theme with 30 characters was publishable and then
-  refused on install with no diagnosis in between. Exchange runs this validator at its publication
-  gate, so the mistake is now caught before the upload.
-
-  Limits mirror the storage they have to survive: template, stencil and attribute 3–50, theme 3–20,
-  code list 3–64, font 2–64, catalog 3–50, and image 1–50 with a leading digit allowed because its
-  slug may still be a generated UUID. A maximum may be relaxed later but never tightened once
-  catalogs use the extra room, which is why v7 — merged but unreleased — is the moment to set them.
-  Unlike a keyword, a non-conforming slug cannot be repaired, because other resources reference it
-  by name. Rules live in `CatalogSlugs`, beside `CatalogKeywords`, enforced by the schema.
-
-- Added `slug` to every REST response that addresses a resource, and deprecated the `id` it
-  duplicates (#84). Ten DTOs called a resource's readable address `id`, one called it `key`, seven
-  already said `slug` — and the spec documented `TemplateDto.id` as *"Slug identifier of the
-  template"* with the example `invoice`. `slug` wins because the portable catalog format already
-  uses it for all seven resource types, so the two external contracts now agree; `key` would also
-  have collided with API keys and signing keys. `AttributeDto.key` becomes `slug` for the same
-  reason — an attribute *definition* has a slug, while `key` is the key half of an attribute
-  *assignment*.
-
-  The rule: a **slug** is an address someone chooses, an **id** is an identifier the system
-  assigns. `documentId`, `requestId`, `batchId`, `correlationId`, `consumerId` and `nodeId` keep
-  their names, as do version numbers — `VersionDto.id`, `StencilVersionDto.id` and
-  `ContractVersionDto.id` are sequence positions the suite allocates, not names anyone picked.
-
-  Nothing breaks: both properties are required and carry the same value. The deprecated halves are
-  removed in 2.0.0 (#84), along with request bodies and path parameter names, which are unchanged
-  here — the generators turn parameter names into public API, so renaming one is source-breaking
-  for the published clients.
-
-- **Breaking (unreleased):** `ImageDto.key` is now `ImageDto.slug`, and `{imageKey}` is
-  `{imageSlug}`. The images API was added in #80 and has not shipped, so it converges on the same
-  vocabulary rather than becoming the one endpoint that disagrees.
+- **Breaking, shipped in a minor by decision:** the asset operations `listAssets`, `uploadAsset`,
+  `downloadAssetContent` and `deleteAsset`, with `AssetDto` and `AssetListResponse` (#86). Use
+  `/images`. These addressed assets by UUID, so they could not name readable image slugs and mixed
+  font-face binaries into the listing. We know of no caller, the Suite UI never used them, and a
+  deprecation window would have served nobody.
 
 ## [1.2.0] - 2026-09-03
 
-- Added `EpistolaClient`, a single entry point that assembles identity, the JSON configuration,
-  RFC 9457 problem parsing, and API-key or self-signed-JWT authentication into one `RestClient`:
-  `EpistolaClient.builder(baseUrl, apiKey).build()`. Installing `epistolaMessageConverters()` without
-  also calling `installProblemDetailHandler()` compiles and runs, and every error response then
-  silently comes back as a bare `RestClientResponseException` rather than a typed
-  `ProblemDetailException`, with nothing to catch the mistake; `EpistolaClient` installs both, always.
-  One `Builder` can produce more than one `RestClient` — call `build()` again after changing
-  `readTimeout(...)` — for the two timeout profiles a long-running consumer typically needs against
-  the same backend: unbounded for polling, rendering and large transfers, bounded for everything
-  else. Its request factory is `java.net.http.HttpClient`, not `SimpleClientHttpRequestFactory`:
-  the latter wraps `java.net.HttpURLConnection`, which rejects `PATCH` outright
-  (`ProtocolException: Invalid HTTP method: PATCH`) — found while testing this feature, on the
-  contract's thirteen `PATCH` operations, `updateConsumer` among them.
+### Added
 
-- Fixed the Kotlin client silently dropping problem-body members outside `type`/`title`/`status`/
-  `detail`/`instance`. `ProblemDetail` was a generated, closed data class — Jackson ignores unknown
-  properties by default, so an extension member on any problem type the contract adds later
-  (`catalog-schema-too-old`'s `version`/`baselineVersion`, say) was parsed and thrown away with no
-  error and no way to reach it. `ProblemDetail` is now hand-written, substituted for the generated
-  model via `schemaMappings` (same fully-qualified name, so no call-site changes), with a catch-all
-  `extensions: Map<String, Any?>` populated by Jackson's creator-parameter any-setter. Also exposed
-  as `ProblemDetailException.extensions`. `errors` and `validationErrors` are unaffected — those two
-  known extensions were already read separately and still are.
+- `app.epistola.contract:client-jakarta`, a Java client for Jakarta EE application servers
+  (WildFly, Open Liberty, Payara, Quarkus) built on MicroProfile Rest Client. It has the same
+  features as the Spring client and no runtime dependencies: every container-supplied API is
+  `compileOnly`.
+- `EpistolaClient` in the Kotlin client: one builder that assembles identity, JSON configuration,
+  problem parsing and API-key or JWT authentication into a `RestClient`. It always installs the
+  problem handler, can build several clients with different read timeouts, and uses
+  `java.net.http.HttpClient`, which supports `PATCH`.
+- `ProblemDetail.extensions` and `ProblemDetailException.extensions` in the Kotlin client, exposing
+  problem-body members beyond the RFC 9457 base that were previously discarded.
+- `x-client-identity` in the spec: a machine-readable form of the `X-EP-Node-Id` header and the
+  `User-Agent` grammar.
+- The contract constants both sides of the wire share — problem-type slugs, client identity,
+  problem extension members and the versioned media types — are generated into every JVM module.
+  Both clients expose `ContractMediaTypes`.
+- A cross-client conformance suite (`make conformance`). A scripted server plays each scenario in
+  `contracts/api/conformance/scenarios` against every client and judges the recorded requests. It
+  covers identity headers, media types, both auth schemes, result collection and backoff,
+  compression, query and body serialization, murmur3 routing and RFC 9457 parsing, can validate
+  requests against the spec through Prism (`backend: prism`), and checks fixtures against the
+  response schemas.
 
-- Fixed the Kotlin client's generated binary operations — every operation the contract declares as
-  `format: binary`: `downloadDocument`, `previewDocument`, asset content, `uploadAsset`,
-  `importCatalog`. They generated as `java.io.File`, which Spring has no message converter for, so
-  every one of them failed outright with `UnknownContentTypeException`, always, whatever the
-  consumer configured; a hand-written `body(ByteArray::class.java)` call was unaffected. They now
-  generate as `org.springframework.core.io.Resource`, which Spring converts on both the response and
-  the multipart-upload side with no configuration at all — so the fix is a generator config change,
-  not a hand-written converter, and nothing needs to be installed to use them. A multipart `Resource`
-  needs a `filename` for a server to treat it as a file part rather than a form field; `File`-backed
-  resources always had one, so this is a new obligation only for a caller who builds one from bytes
-  directly (e.g. `ByteArrayResource`), documented in the README. The Jakarta, .NET and Python clients
-  were unaffected.
-- Added fixture validation to the conformance suite: a scenario's scripted responses are checked
-  against the spec's response schema at load time, so a fixture that does not match the contract
-  reports one precise message instead of four clients failing to deserialize it. It found
-  twenty-seven existing problems, all in the result-collection fixtures.
+### Changed
 
-- Fixed the Kotlin and .NET clients erasing fields on partial updates. The generated request models
-  are plain nullable properties with no way to distinguish "not set" from "explicitly null", and
-  both serializers wrote `null` for every property the caller left alone — so on the API's thirteen
-  `PATCH` operations, where the contract documents `null` as "clear this", renaming a consumer also
-  erased its description, contact and expiry, and the server answered 200. The Kotlin client now
-  ships `EpistolaJson` and a `RestClient.Builder.epistolaMessageConverters()` extension; the .NET
-  client's builder installs a handler that drops unset top-level properties. Clearing a field is no
-  longer expressible in either, which it effectively never was — you could not clear one field
-  without clearing every other you had not set.
-- Fixed the Kotlin client sending `attributes: null` on generation requests, which the contract types
-  `array` with no null in the union, so any server validating against the spec rejected a request
-  that simply did not select variants by attribute.
-- Added a spec-validating backend to the conformance suite. Scenarios can declare `backend: prism`,
-  which runs the client against the bundled contract itself: every schema constraint on every
-  operation is enforced without a scenario naming it, and violations are reported from Prism's
-  `sl-violations` header. This is what found the `attributes` defect above.
+- **Source-breaking (Kotlin):** enum constants keep the contract's spelling
+  (`VersionDto.Status.DRAFT` becomes `.draft`), so enum query parameters are sent as declared.
+- **Source-breaking:** `SchemaCache.getOrLoad` and `TtlSchemaCache.evict` (and their .NET and
+  Python equivalents) take the catalog id.
+- The Kotlin client depends on `spring-web` instead of `spring-boot-starter-web` (15 artifacts
+  instead of 33) and exposes Spring and Jackson in `compile` scope. Applications that relied on it
+  for the web starter must declare it themselves.
+- The Kotlin client signs JWTs with plain `java.security` (RS256, ES256) instead of
+  `nimbus-jose-jwt`.
+- Wire-protocol logic shared by the JVM modules (partition routing, backoff, decompression,
+  `User-Agent`, problem URIs, JWT signing, murmur3) lives in `contracts/api/protocol-java` and is
+  compiled into each artifact rather than published. An application should use one Epistola
+  artifact, not two.
+- An incomplete `JwtSigner.builder()` throws `IllegalArgumentException` in both JVM clients.
+- The Kotlin client detects result-stream compression from its leading bytes instead of
+  `Content-Encoding`.
+- The JVM conformance drivers build separately from the published clients, and the Kotlin client
+  is a single-project Gradle build.
 
-- Fixed the Kotlin client sending enum query parameters as the Kotlin constant's name rather than
-  the value the contract declares — `direction=DESC` against `enum: [asc, desc]`, on 39 operations
-  across 11 API classes, and by default, because the parameter's default is the enum constant. The
-  same applied to `status` on versions, consumers, generation jobs and stencil versions. The spec is
-  unchanged: lowercase was and remains the declared wire value. The client now generates with
-  `enumPropertyNaming: original`, which renames every enum constant — `VersionDto.Status.DRAFT`
-  becomes `.draft` — and is source-breaking for Kotlin consumers.
-- Fixed the Python client asking only for the success media type. Its generated
-  `select_header_accept` returns the first JSON entry it finds, so `application/problem+json` was
-  dropped from nearly every operation and the client never asked for the problem document it exists
-  to parse; a server doing strict content negotiation would answer 406 instead.
-- Extended the conformance suite from eight scenarios to thirteen: query-parameter serialization,
-  acknowledgement when a result handler throws, agreement between the four murmur3 implementations
-  and the routing keys derived from them, request-body serialization, and the error `Accept` header.
-- Moved the JVM conformance drivers into their own Gradle build. They had lived in the clients'
-  builds while building those same clients, so `./gradlew build` on the Kotlin client compiled and
-  linted test-harness code; a published artifact's build gate no longer depends on it.
+### Fixed
 
-- Added a cross-client conformance suite. One scripted server plays a scenario's responses back,
-  records every request it was sent, and judges that record; each client contributes a thin driver
-  that asks the server what to do and asserts nothing itself. The expectations therefore live in one
-  place — `contracts/api/conformance/scenarios` — instead of in four test suites that drift, and a
-  scenario written once holds all four clients to it. It covers the identity headers, the versioned
-  vendor media types, both authentication schemes (verifying the JWT signatures against a key pair
-  generated per run), the result-collection request shape and backoff, compression, and RFC 9457
-  parsing. Run it with `make conformance`; CI runs each client's share in that client's own job.
-- Fixed the .NET client dropping the API base path on result collection. `HttpClient.BaseAddress`
-  was set to the configured URL verbatim, and URI resolution treats the last segment of a base
-  without a trailing slash as a file rather than a directory — so a base of `https://…/api` and the
-  collector's relative `tenants/…` request resolved to `/tenants/…`. Against the base URL the
-  client's own README tells consumers to configure, polling went to a path the server does not
-  serve. Every existing test used a root URL, where the defect cannot appear.
-- Fixed the Python client reading only the first line of a result batch. urllib3 closes its response
-  once the body is exhausted, and `TextIOWrapper` then raised `I/O operation on closed file` instead
-  of seeing EOF, so the handler got one result, the `_meta` line carrying `hasMore` and the
-  partition assignment was never reached, and the batch went unacknowledged and was redelivered
-  indefinitely. Only uncompressed streams were affected; the gzip path stops at its own trailer.
-  Anyone running a Python collector should take this release.
-
-- Added `app.epistola.contract:client-jakarta`, a Java client for Jakarta EE application servers
-  (WildFly, Open Liberty, Payara, Quarkus), generated from the bundled spec with openapi-generator's
-  `java`/`microprofile` library. Generated interfaces are MicroProfile Rest Client interfaces, so
-  `@Inject @RestClient GenerationApi` works with configuration alone, and it carries the same
-  conventions as the Spring client: identity headers, API-key and self-signed-JWT authentication,
-  RFC 9457 problem parsing into a typed `ProblemDetailException`, the asynchronous
-  result-collection protocol, and both layers of client-side validation.
-- Kept the Jakarta client free of runtime dependencies: every container-supplied API (JAX-RS,
-  JSON-B, JSON-P, MicroProfile Rest Client and Config) is `compileOnly`, so nothing is added to a
-  consumer's WAR and no REST implementation is bundled for them to exclude. A test asserts this
-  rather than leaving it to review, and an opt-in Testcontainers test deploys the client into a
-  real WildFly.
-- Fixed a busy loop in every client's `ResultCollector`. A poll reporting `hasMore` sets the
-  interval to 0 so the next one is immediate, and `0 * multiplier` is still 0, so once a burst
-  drained — or the server went down mid-burst — the next request went out with no delay,
-  indefinitely, bounded only by round-trip time. The backoff is now floored at `minInterval`.
-  Anyone running a collector should take this release.
-- Fixed `routingKeyToMe` in every client returning routing keys that do not route to the calling
-  node: the fallback assumed `"3:key"` hashes to partition 3, which it does not. With two of eight
-  partitions owned it produced a foreign key more often than not, sending results to another node.
-  It now searches numbered prefixes and checks each candidate's actual partition.
-- Fixed the template schema cache in every client omitting the catalog from its key while loading
-  by catalog, so two catalogs of one tenant holding the same template id shared one compiled schema
-  for the whole TTL and data was validated against the wrong contract. This changes the signatures
-  of `SchemaCache.getOrLoad` / `get_or_load` / `GetOrLoad` and `TtlSchemaCache.evict` / `Evict` to
-  take the catalog id, which is source-breaking for anyone with a custom cache implementation.
-- Fixed `partitionFor` dividing by zero when the server reports no partitions; it returns null.
-- Removed `spring-boot-starter-web` from the Kotlin client, which resolved 33 artifacts onto every
-  consumer's classpath including embedded Tomcat and Spring MVC, for a library that calls HTTP
-  rather than serving it. It now declares `spring-web` and resolves 15, and a dependency-hygiene
-  test pins that. Applications relying on this client to supply Spring Boot's web starter
-  transitively must declare it themselves; any application using a Spring client already has it.
-- Moved the Spring types the Kotlin client exposes — `RestClient.Builder`,
-  `RestClientResponseException`, `ClientHttpRequestInterceptor` — and the Jackson types from
-  `runtime` to `compile` scope, since a consumer catching `ProblemDetailException` has to compile
-  against them and previously had to declare `spring-web` itself.
-- Removed `nimbus-jose-jwt` from the Kotlin client. JWT signing is now plain `java.security`,
-  RS256 and ES256, shared with the Jakarta client. Nimbus is kept as a test dependency, where it
-  parses and verifies the tokens: a hand-rolled signer checked against an independent JOSE
-  implementation is a stronger guarantee than either client had before.
-- Generated the contract constants both sides of the wire must agree on into every JVM module
-  instead of hand-copying them: the problem-type slugs and type base, the client-identity headers,
-  the problem-body extension member names, and the versioned vendor media types. No module depends
-  on another to get them, so the clients stay standalone. Both clients now expose a public
-  `ContractMediaTypes` for consumers building their own requests.
-- Added `x-client-identity` to the spec, a machine-readable form of the client-identity convention
-  `info.description` describes normatively. The `X-EP-Node-Id` header name and the `User-Agent`
-  product grammar were previously hand-written in all three JVM modules, and since the clients
-  write those headers and the server parses them, a divergence would have made every request from
-  that client unidentifiable with nothing to catch it.
-- Shared the wire-protocol behaviour the JVM clients and the server stubs had each implemented
-  separately — partition routing, the result-collection backoff and decompression, the `User-Agent`
-  grammar in both directions, problem type URI to slug, JWT signing, and the murmur3 hash. It lives
-  in `contracts/api/protocol-java` and is compiled into each consumer rather than published, so the
-  published surface and every POM but the Kotlin client's are unchanged. This assumes an
-  application takes one Epistola artifact rather than two, which the READMEs now state.
-- Unified which exception an incomplete `JwtSigner.builder()` throws. The Kotlin client raised
-  `IllegalArgumentException` and the Jakarta client `IllegalStateException`; both now raise
-  `IllegalArgumentException`, the behaviour already released.
-- Changed the Kotlin client's result-collection decompression to identify the codec from the
-  stream's leading bytes rather than the `Content-Encoding` header, which was correct only if
-  every request factory it might be configured with either leaves the body encoded or strips the
-  header when it decodes.
-- Flattened the Kotlin client to a single-project Gradle build; its root project existed only to
-  aggregate coverage across a single subproject. Published coordinates and its artifact contents
-  are unchanged.
+- Every client's `ResultCollector` could busy-loop after a burst of results or a server outage;
+  the backoff is now floored at `minInterval`. **Anyone running a collector should upgrade.**
+- `routingKeyToMe` returned keys that routed to other nodes.
+- The template schema cache ignored the catalog, so two catalogs holding the same template id
+  shared one schema.
+- `partitionFor` divided by zero when the server reported no partitions.
+- Kotlin client:
+  - Binary operations (`downloadDocument`, `previewDocument`, `importCatalog`, asset content) always
+    failed with `UnknownContentTypeException`. They now use Spring's `Resource`; a multipart
+    `Resource` built from bytes needs a `filename`.
+  - Enum query parameters were sent as the constant name (`direction=DESC`).
+  - Generation requests sent `attributes: null`, which a spec-validating server rejects.
+- Kotlin and .NET clients: partial updates sent `null` for every unset field, so a `PATCH` erased
+  fields the caller never touched. Unset fields are now omitted.
+- .NET client: result collection dropped the base path of a base URL without a trailing slash.
+- Python client:
+  - Only the first line of an uncompressed result batch was read, so batches were never
+    acknowledged and redelivered forever. **Anyone running a Python collector should upgrade.**
+  - Requests did not accept `application/problem+json`.
 
 ## [1.1.0] - 2026-08-20
 
-- Documented the planned contract 2.0 requirement that every template data contract contains at
-  least one valid named data example, including the explicit migration and re-export policy for
-  legacy catalogs without examples; current 1.x and wire v6 behavior remains unchanged.
-- Added inheritable `listItemSpacing` presentation metadata for text, rich-text block, and data-list
-  components, with `sp`/`pt` units and a shared `0.5sp` default.
-- Added complete, versioned portable catalog manifest and resource-detail JSON Schemas, generated
-  public TypeScript wire types, and shared Kotlin/TypeScript wire fixture checks.
-- Added backwards-compatible catalog wire v6 with optional qualified catalog attributes, exact-case
-  keywords, and same-catalog icon/gallery image references; v4/v5 archives migrate explicitly to
-  empty attribute and keyword collections without inventing a locale.
-- Added the domain-separated V4 catalog fingerprint over v6 discovery metadata while preserving
-  legacy V1-V3 verification for source v4/v5 archives and recomputing present legacy fingerprints
-  when migrated catalogs are re-exported.
-- Added optional catalog-wide license metadata with a required display name and optional SPDX
-  expression, license URL, and copyright text, included in v6 canonical fingerprints; v4/v5
-  migrations preserve its unspecified state.
-- Kept `CatalogInfo` lean by omitting JVM-only destructuring and legacy `copy` shims; consumers
-  recompile when upgrading while its three-argument Kotlin construction shape remains
-  source-compatible.
-- Added an optional `pdfaEnabled` field to `TemplateResource`, recording whether a template
-  renders PDF/A-compliant output. Absent on the wire defaults to `true`, preserving the
-  behavior of catalogs from exporters that predate this field. Additive and round-trip
-  compatible, so it needs no `schemaVersion` bump.
-- Documented and tested the required parity between Kotlin catalog models, versioned JSON
-  Schemas, generated TypeScript definitions, and wire fixtures.
+### Added
+
+- Catalog wire v6: optional qualified catalog attributes, exact-case keywords, and same-catalog
+  icon and gallery images. v4 and v5 archives migrate to empty attributes and keywords.
+- The V4 catalog fingerprint, covering v6 discovery metadata. Legacy V1–V3 verification is kept
+  for v4 and v5 archives.
+- Optional catalog-wide license metadata: a display name plus optional SPDX expression, URL and
+  copyright text.
+- Optional `TemplateResource.pdfaEnabled`, defaulting to `true` when absent.
+- Inheritable `listItemSpacing` for text, rich-text block and data-list components (`sp`/`pt`,
+  default `0.5sp`).
+- Complete versioned JSON Schemas for the catalog manifest and resource details, generated
+  TypeScript wire types, and shared Kotlin/TypeScript fixture checks that keep them in parity.
+- Documented the planned 2.0 requirement that every data contract has at least one valid named
+  example, with its migration policy. 1.x behaviour is unchanged.
+
+### Changed
+
+- `CatalogInfo` no longer offers JVM destructuring or legacy `copy` shims; consumers recompile.
 
 ## [1.0.1] - 2026-08-04
 
-- Fixed semantic catalog fingerprinting for resources containing JSON Schema objects whose `type`
-  property is itself an object, matching the existing v4-to-v5 import migration guard.
+### Fixed
+
+- Catalog fingerprinting of JSON Schemas with a property named `type` whose value is an object.
 
 ## [1.0.0] - 2026-07-30
 
@@ -403,732 +209,358 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.16.1] - 2026-07-30
 
-- Fixed catalog v4-to-v5 migration of resources containing JSON Schema objects whose `type`
-  property is itself an object, while preserving recursive stencil `isDraft` handling.
+### Fixed
+
+- Catalog v4→v5 migration of JSON Schemas with a property named `type` whose value is an object.
 
 ## [0.16.0] - 2026-07-29
 
-- **BREAKING (catalog):** Advanced the portable catalog wire format to v5 and replaced
-  stencil `isDraft` flags with exact `draftVersion` provenance. Version 4 archives migrate
-  explicitly with stale-marker notices, writers emit only v5, and semantic V3 fingerprints
-  preserve legacy release compatibility.
-- Fixed component style validation to expand style-family allowlists exactly like the editor, so
-  valid side-specific values such as `paddingTop` and `marginLeft` remain importable.
-- Added REUSE-compliant EUPL-1.2 licensing metadata, automated SPDX header insertion, and a
-  pull-request CI check that prevents unlicensed files from being introduced.
+### Added
+
+- REUSE-compliant EUPL-1.2 licensing, with a CI check for unlicensed files.
+
+### Changed
+
+- **Breaking (catalog):** wire v5 replaces stencil `isDraft` flags with exact `draftVersion`
+  provenance. v4 archives migrate with notices, and V3 fingerprints keep older releases verifiable.
+
+### Fixed
+
+- Component style validation expands style families like the editor does, so values such as
+  `paddingTop` are accepted.
 
 ## [0.15.0] - 2026-07-28
 
-- Made the Kotlin Spring server artifact reuse the catalog's Kotlin data classes for portable
-  template and theme values instead of generating a second JVM representation. The server POM now
-  exposes `epistola-catalog` transitively, and `BlockStylePreset` is a strongly typed catalog model.
-- **BREAKING (REST API):** Replaced the API's duplicate portable template-model DTO schemas with
-  direct references to the catalog contract. Generated API models now use the canonical names
-  `TemplateDocument`, `Node`, `Slot`, `ThemeRef`, `PageSettings`, `Margins`, `DocumentStyles`, and
-  `BlockStylePreset` instead of their `*Dto` variants. Catalog schemas, validation behavior,
-  package exports, and published coordinates are unchanged.
-- Kept the generated Kotlin API client and server models strongly typed when consuming the
-  catalog schemas: `modelVersion` remains integer-backed, and inherited theme references no
-  longer incorrectly require override-only fields.
-- Reorganized the REST API as the self-contained `contracts/api` domain, co-locating its authored
-  specification, documentation, build tooling, generated clients, server stubs, and mock server.
-  The bundled specification is now generated at `contracts/api/build/openapi.yaml`; published
-  artifact names and coordinates are unchanged.
-- Reorganized the portable catalog as the self-contained `contracts/catalog` domain, co-locating
-  its schemas, registries, fixtures, implementation, documentation, scripts, and build metadata
-  without changing published coordinates, exports, resource paths, or wire behavior.
-- Added a small executable, language-neutral catalog conformance suite with actual valid and
-  invalid catalog files plus exact expected reports, and distinguished those fixtures from the
-  exhaustive finding-code registries and Kotlin unit tests.
-- Defined `CatalogArchive.paths` as regular readable files only. Explicit ZIP directory entries
-  remain safety-checked and count toward archive limits, but no longer appear as content paths.
-- Hardened catalog publication by validating release tags and source branches, failing on
-  Maven/NuGet publication errors, preflighting and reusing the exact tested npm tarball,
-  verifying the public Maven/npm artifacts from clean consumers, and documenting the renamed
-  npm package's one-time trusted-publisher bootstrap.
-- Published the Kotlin KDoc as a non-empty Dokka API documentation JAR and added release-artifact
-  checks for Maven coordinates, catalog classes, registries, schemas, fixtures, sources, npm
-  metadata, and package exports.
-- Expanded Kotlin API documentation for archive ownership and safety, migration outcomes,
-  canonical fingerprints, validation contexts and reports, resource models, deterministic
-  ordering, and the boundary between portable catalog behavior and Suite-specific policy.
-- Preserved the editor's established stencil-reference semantics by treating an omitted `isDraft`
-  property as non-draft during portable validation. Explicit non-boolean values remain invalid,
-  and portable catalog validation still rejects explicit draft references.
-- **BREAKING:** Documented the catalog aggregate's explicit pre-1.0 changes and
-  migration actions, including artifact coordinates, npm exports, the strict
-  version-4 wire gate, canonical rich text, complete stencil identities,
-  semantic validation, and the five-level nesting limit.
-- Added portable, version-pinned stencil composition to the catalog specification. Stencil
-  resources may contain references to other published stencil versions; standalone and
-  whole-catalog validation now enforce exact-version resolution, owner-aware direct and
-  transitive recursion checks, cross-resource cycles, and the shared five-level depth limit.
-  Standalone validation preserves Suite-style draft identities for authoring contexts, while
-  whole-catalog validation rejects draft references at the portable publication boundary.
-  Suite authoring support remains a separate consumer capability.
-- Expanded new catalog fingerprints to V2 so publisher, compatibility, include, and portable
-  resource-manifest metadata participate in content identity. Whole-catalog validation continues
-  to accept legacy V1 hashes, and the existing `fingerprint(catalog)` API retains its V1 result.
-  Existing stored fingerprints, callers, and installations therefore remain valid; new
-  fingerprints can opt into the corrected semantics through `currentFingerprint(catalog)`.
-- **Validation tightening:** Whole-catalog validation now rejects stencil resources with invalid
-  parameter schemas, template documents whose `modelVersion` is not `1`, and template resource
-  themes that explicitly resolve as missing. Existing installed data is not modified, but a
-  previously accepted invalid catalog can fail when it is re-imported or explicitly revalidated.
-- Aligned the optional cross-catalog theme key across the Kotlin, JSON Schema, and TypeScript
-  `ThemeRefOverride` contracts, made pull-request CI compile and verify the npm package after type
-  generation, and corrected the wire-version documentation to match the strict version-4 gate.
-- Limited template stencil nesting to five instances per ancestor chain, with a stable
-  `STENCIL_NESTING_DEPTH_EXCEEDED` finding, a shared JVM/npm limit, and authoritative boundary
-  fixtures.
-- Removed the implementation-specific npm `/generated/*` entry point, exposed the public theme,
-  component, and style types from the `@epistola.app/epistola-catalog` package root, and added a
-  package-boundary check that prevents the internal path from becoming public again.
-- Published the same versioned catalog conformance fixtures in both Maven and npm artifacts from
-  one language-neutral fixture tree.
-- Exposed standalone portable parameter-schema validation, corrected nested template finding paths,
-  and allowed non-recursive nested stencil instances in templates with direct, transitive,
-  placeholder-fill, sibling, and deterministic regression coverage.
-- Moved the rich-text reference schemas into the catalog artifact and made catalog example-data
-  validation use the full JSON Schema 2020-12 engine and Suite-compatible date-time semantics.
-- Enforced the single current catalog wire model: an older `schemaVersion` is rejected unless a
-  future explicit migration is implemented, even when its JSON happens to bind to the current model.
-- Kept registry-declared static component slots optional when a template does not use them,
-  matching existing Suite stencil documents.
-- Enforced one canonical ProseMirror document object for text-node content; historical string and
-  bare-array representations are intentionally not accepted.
-- Made the public template finding-code set executable so tests guarantee that versioned fixtures
-  cover every stable validation code.
-- Included JavaScript source maps in the packed npm catalog so consumers do not receive dangling
-  source-map references.
-- Fixed portable template property validation for Jackson 3 tree values, declared directional
-  border, directional spacing, font-style, and width styles, aligned table style applicability
-  with canonical catalogs, and declared the `pageheader` examples' `hideOnFirstPage` property in
-  the component registry.
-### Changed
-
-- **The portable catalog replaces the model artifact boundary.** The canonical JVM coordinate is
-  now `app.epistola.contract:epistola-catalog`, the npm package is
-  `@epistola.app/epistola-catalog`, and registry classpath resources live under
-  `META-INF/epistola-catalog`. This is a clean pre-1.0 rename: consumers must migrate their
-  dependency coordinates and resource paths; no duplicate-class compatibility artifact is
-  published.
-
 ### Added
 
-- **Portable template validation.** `TemplateValidator` now returns deterministic reports with
-  stable codes, severities, paths, and messages for graph integrity, registry-driven component and
-  style rules, placeholders, stencil references, parameter schemas/bindings, expressions, themes,
-  style presets, and page headers. `TemplateValidationContext` provides a product-neutral resource
-  resolution boundary, and versioned fixture metadata covers every finding code.
-- **Safe deterministic catalog archives.** Streaming archive reader/writer APIs now enforce
-  normalized paths, duplicate/symlink/encryption rejection, compressed and expanded size limits,
-  entry-count and expansion-ratio limits, stable metadata/path ordering, and portable binary
-  content providers without exposing filesystem or mapper types. Versioned fixture metadata and
-  executable cases cover every stable archive finding code.
-- **Portable catalog migration and canonical fingerprints.** `CatalogSchemaMigrator` centralizes
-  wire-version gating and current-model binding behind stream-based APIs, while
-  `CatalogCanonicalizer` produces stable per-resource hashes and an aggregate fingerprint from
-  canonical catalog content rather than ZIP metadata or entry layout. Versioned golden fixtures
-  publish the authoritative current wire representation and expected hashes.
-- **Whole-catalog validation.** `CatalogValidator` and `ResourceValidator` now compose archive
-  safety, migration, manifest/detail binding, portable template validation, reference closure,
-  resource-specific checks, example-data validation, SemVer metadata, and canonical fingerprints
-  into deterministic product-neutral reports. The validation policy exposes only portable limits
-  and dependency resolution; Suite persistence, authorization, conflicts, and renderer checks
-  remain outside the artifact.
+- Portable template validation (`TemplateValidator`) with stable finding codes, and
+  `TemplateValidationContext` for resolving resources.
+- Safe, deterministic catalog archive reading and writing with size, entry-count and
+  expansion-ratio limits.
+- `CatalogSchemaMigrator` for wire-version gating and `CatalogCanonicalizer` for content-based
+  fingerprints.
+- Whole-catalog validation (`CatalogValidator`, `ResourceValidator`).
+- Version-pinned stencil composition: stencils can reference other published stencil versions,
+  with cycle detection and a five-level nesting limit (`STENCIL_NESTING_DEPTH_EXCEEDED`).
+- V2 catalog fingerprints covering publisher, compatibility and manifest metadata, via
+  `currentFingerprint(catalog)`. `fingerprint(catalog)` still returns V1, and V1 hashes still
+  validate.
+- A language-neutral catalog conformance suite, published in both the Maven and npm artifacts.
+- Standalone parameter-schema validation.
+- A non-empty Dokka documentation JAR and expanded KDoc.
+
+### Changed
+
+- **Breaking:** the catalog artifact is `app.epistola.contract:epistola-catalog` (npm
+  `@epistola.app/epistola-catalog`), and registry resources live under `META-INF/epistola-catalog`.
+  No compatibility artifact is published.
+- **Breaking (REST API):** template-model schemas reference the catalog contract directly, so the
+  generated models are `TemplateDocument`, `Node`, `Slot`, `ThemeRef`, `PageSettings`, `Margins`,
+  `DocumentStyles` and `BlockStylePreset` instead of their `*Dto` variants.
+- The server stubs reuse the catalog's Kotlin classes and expose `epistola-catalog` transitively.
+- **Validation tightening:** whole-catalog validation rejects invalid stencil parameter schemas, a
+  `modelVersion` other than `1`, and missing template themes. Installed data is untouched, but
+  re-importing an invalid catalog fails.
+- An older `schemaVersion` is rejected unless an explicit migration exists.
+- Text-node content must be a ProseMirror document object.
+- The npm package no longer exposes `/generated/*`; theme, component and style types are exported
+  from the package root.
+- Rich-text reference schemas moved into the catalog artifact, and example data is validated with
+  a full JSON Schema 2020-12 engine.
+- `CatalogArchive.paths` lists regular files only.
+- The repository is organised as two self-contained domains, `contracts/api` and
+  `contracts/catalog`. Published coordinates are unchanged.
+- Catalog publishing verifies release tags, fails on publication errors, and checks the published
+  artifacts from clean consumers.
+
+### Fixed
+
+- Omitted stencil `isDraft` is treated as non-draft, as the editor does.
+- Optional static component slots, nested template finding paths, and non-recursive nested
+  stencils.
+- Template property validation with Jackson 3, several missing style declarations, and table style
+  applicability.
+- The optional cross-catalog theme key is consistent across Kotlin, JSON Schema and TypeScript.
+- Generated Kotlin models keep `modelVersion` integer-typed, and inherited theme references no
+  longer require override-only fields.
+- The npm package includes its source maps.
 
 ## [0.14.0] - 2026-07-23
 
 ### Added
 
-- **Authorization-header API-key authentication.** The contract now accepts static API keys through
-  `Authorization: ApiKey <key>` while retaining deprecated `X-API-Key` support for existing
-  integrations. The Kotlin, .NET, and Python client helpers can set the new header, and
-  `api-key-auth-disabled` is a canonical Problem Details type for deployments that disable API-key
-  authentication.
-- **Suite-backed API parity for contract and draft lifecycle actions.** The contract now documents
-  data-contract draft/update/publish/list endpoints, variant draft create/publish/discard actions,
-  and code-list entry hide/show toggles that already exist in Epistola Suite.
-- **Catalog-scoped Assets API.** The suite's image/asset capabilities are now represented in the
-  public contract with asset list, upload, content download, and delete endpoints.
-- **Catalog and stencil apply actions.** Authored catalog release, subscribed catalog upgrade apply,
-  and stencil upgrade apply actions are now documented as public API endpoints.
-
-### Fixed
-
-- **Kotlin server artifact manifests now expose `Implementation-Version`.** The
-  `server-kotlin-springboot4` JAR now stamps the contract version into its manifest so Epistola
-  Suite can read the generated server-stub version and expose it through `/api/ping` instead of
-  reporting `apiVersion: "unknown"`.
+- API-key authentication through `Authorization: ApiKey <key>`. `X-API-Key` still works but is
+  deprecated. New problem type `api-key-auth-disabled`.
+- Endpoints that already existed in Epistola Suite: data-contract draft, update, publish and list;
+  variant draft create, publish and discard; code-list entry hide and show; catalog release,
+  subscribed catalog upgrade and stencil upgrade.
+- Catalog-scoped asset list, upload, download and delete endpoints.
 
 ### Changed
 
-- **Operation authorization metadata now matches Epistola Suite permissions.** The OpenAPI
-  extensions now use `x-required-permissions`, `x-required-platform-roles`, or
-  `x-required-authentication` instead of the legacy `reader`/`editor`/`generator`/`manager`
-  role labels, aligning the contract with Suite's `Permission`, `TenantRole`, and `PlatformRole`
-  model.
-- **GitHub Actions Node runtime compatibility.** CI workflows now use Node 24-compatible action
-  majors for artifact transfer, mise setup, npm setup, and Docker image publishing to avoid the
-  Node 20 deprecation warnings emitted by GitHub-hosted runners.
-- **Renovate GitHub Actions grouping.** Renovate now groups GitHub Actions updates separately so
-  runtime/deprecation fixes can be reviewed independently from application dependency updates.
+- Operations declare `x-required-permissions`, `x-required-platform-roles` or
+  `x-required-authentication`, matching Suite's permission model, instead of the old role labels.
+
+### Fixed
+
+- The server stubs JAR sets `Implementation-Version`, so Suite reports the contract version in
+  `/api/ping`.
 
 ## [0.13.0] - 2026-07-22
 
 ### Added
 
-- **Shared agent release skill.** The release workflow now lives under `.agents/skills/release`
-  as an agent-neutral source of truth, with Claude and Codex adapters pointing at it and
-  `AGENTS.md` documenting shared skill discovery for future agents.
-- **Editor component vocabulary in `epistola-model`.** The model artifact now ships the static editor
-  component registry and style registry as a typed TypeScript facade, raw npm JSON exports, and Maven
-  classpath resources, with a lint guard that validates component examples, child-type references, and
-  style-key references. This makes `epistola-contract` the source for the editor model vocabulary
-  instead of relying on suite-local registry dumps.
-- **Editor model registry documentation.** The registry split is documented for TypeScript, JVM, and
-  `epistola-suite` consumers, and model schema type generation now lives in a dedicated script instead
-  of a long package script.
-- **Stronger editor registry validation.** Component examples are now required by schema and the
-  registry guard validates example node/slot references, child rules, style registry versioning, and
-  default style keys.
-
-### Breaking Changes
-
-- **Editor component `parameters` metadata is now explicit.** The registry no longer uses
-  `parameters: null` to mean dynamic per-node parameters. Dynamic components now declare
-  `parameters: { "kind": "dynamic" }`; static parameter schemas use
-  `parameters: { "kind": "static", "schema": { ... } }`; missing `parameters` means no parameter
-  support.
-
-### Fixed
-
-- **Python client CI generation.** `client-python-urllib3/generate.sh` now runs its
-  derived-source generator without asking `uv` to install the package first, avoiding the circular
-  hatchling dynamic-version failure where `contract_version.py` had to exist before it could be
-  generated.
-- **Python client packaging checks.** Pull request CI now builds the Python wheel and source
-  distribution after the test suite, so packaging regressions are caught before release or snapshot
-  publishing.
-- **Python snapshot version stamping.** The snapshot workflow now stamps the Python client to the
-  same PEP 440 `dev` version before test installation as it uses before publishing, so TestPyPI
-  snapshot runs no longer fail on `*-SNAPSHOT` package metadata.
+- The editor component and style registries ship in `epistola-model` as a typed TypeScript facade,
+  raw JSON exports and Maven classpath resources, with validation of examples, child rules and style
+  keys.
 
 ### Changed
 
-- **Python trusted-publisher staging.** The release documentation now records that PyPI/TestPyPI
-  trusted publishers should temporarily be configured under Sander de Groot's personal PyPI account
-  while the Epistola organization approval is pending.
+- **Breaking:** editor component `parameters` are explicit: `{ "kind": "dynamic" }` or
+  `{ "kind": "static", "schema": … }` instead of `null`; a missing `parameters` means none.
+
+### Fixed
+
+- Python client generation, packaging checks and snapshot versioning in CI.
 
 ## [0.12.0] - 2026-07-17
 
 ### Added
 
-- **.NET (C#) client library (`Epistola.Contract.Client`).** A new `client-dotnet-httpclient/` module generates a full .NET 8 client from the same bundled OpenAPI spec using OpenAPI Generator (`csharp` / `HttpClient`), at full feature parity with the Kotlin client and consumable by any modern .NET project via NuGet. See [.NET client changelog](contracts/api/clients/dotnet-httpclient/CHANGELOG.md) for the client's feature list and ongoing history. Wired into the `Makefile` (`make build-dotnet`) and the build/snapshot/feature-snapshot/release workflows; releases publish to NuGet.org via OIDC trusted publishing (no stored API key, mirroring the npm OIDC publish), while snapshots and feature snapshots publish to GitHub Packages (NuGet.org has no transient snapshot feed). Each release also attaches a CycloneDX SBOM (`epistola-dotnet-client-sbom.json`) for the .NET client's dependency closure (`make sbom-dotnet` locally). Requires `dotnet` in `.mise.toml` and a NuGet.org trusted-publisher policy for the `release.yml` workflow.
-- **`NodeDto.props` documents the stencil node's identity props** — `stencilId`, `catalogKey`, `version`, `isDraft` — alongside the previously documented parameter wiring (`parameterBindings`, `parameterSchemaSnapshot`, `paramsAlias`). Without these there was no documented way to state *which* stencil a `stencil` node embeds.
-- **`pagefooter` page-decoration convention documented** in `TemplateDocumentDto`, next to the existing `pageheader` rules: renders at the bottom of every page, at most one per document, placed at the document root, with `height` and `hideOnFirstPage` props. Unlike `pageheader` (server-validated), the max-1 rule is enforced by the suite's editor only; the renderer uses the first `pagefooter` and ignores any others.
-
-### Fixed
-
-- **Template-model examples now match what the suite's renderer actually accepts** (#18). Every `TemplateDocumentDto` example previously showed a `text` node's `props.content` as a markdown-ish string (`"Invoice {{invoiceNumber}}"`); the renderer expects a rich-text document *object* (ProseMirror JSON: `doc` → `paragraph`/`heading` → `text` runs / inline `expression` nodes / `hardBreak`), so a document built from the old examples rendered nothing. The examples in `template-model.yaml`, `versions.yaml`, and `stencils.yaml` are rewritten to the real shape, and `NodeDto.props` now documents it. Two more example fixes in the same sweep: `image` nodes reference an uploaded asset via `assetId` (+ optional `catalogKey`), not a `src` URL, and `columns` nodes are sized with `columnSizes` (relative weights) + `gap`, not `columnCount`.
-
-### Breaking Changes
-
-- **Variant `title` is now required.** `CreateVariantRequest.title` and `UpdateVariantRequest.title` change from optional, nullable strings to **required, non-nullable** `string`s (`minLength: 1`, `maxLength: 100`). A client must now send a non-blank title when creating or updating a variant. This makes the contract factual: the server already rejects a missing or blank title with `400 problem+json` (field `title`). (epistola-suite #631)
+- The .NET client `Epistola.Contract.Client` (NuGet), with a CycloneDX SBOM attached to each
+  release.
+- The Python client `epistola-client` (PyPI).
+- `NodeDto.props` documents the stencil node's identity props (`stencilId`, `catalogKey`,
+  `version`, `isDraft`).
+- The `pagefooter` convention is documented next to `pageheader`.
 
 ### Changed
 
-- **`VariantDto.title` and `VariantSummaryDto.title` are now required and non-nullable.** The server stores `template_variants.title` as `NOT NULL`, so every variant response carries a non-blank title (`minLength: 1`, `maxLength: 100`). Additive for consumers — a stronger guarantee, not a breaking change.
+- **Breaking:** `CreateVariantRequest.title` and `UpdateVariantRequest.title` are required and
+  non-blank, as the server already enforced.
+- `VariantDto.title` and `VariantSummaryDto.title` are required and non-nullable.
 
-- **Python client library (`epistola-client`).** A new `client-python-urllib3/` module generates a full Python client from the same bundled OpenAPI spec using OpenAPI Generator (`python` / urllib3, pydantic v2 models), at full feature parity with the Kotlin and .NET clients and consumable by any Python 3.9+ project via pip. It follows the same three-part structure — stock generated code, hand-written glue (identity headers, self-signed JWT auth, RFC 9457 problem-detail handling, NDJSON result collection with murmur3 partition routing, client-side JSON-Schema validation), and build-time derived sources (`contract_version`, `known_problem_slugs`, `model_validation`) generated from the spec's `info.version`, `x-problem-types` registry, and schema constraints. See [Python client changelog](contracts/api/clients/python-urllib3/CHANGELOG.md) for the client's feature list and ongoing history. Wired into the `Makefile` (`make build-python`) and the build/snapshot/release workflows; releases publish to PyPI via OIDC trusted publishing (no stored token, mirroring the npm/NuGet OIDC publishes), while mainline snapshots publish to TestPyPI (also via OIDC — GitHub Packages has no PyPI registry and pypi.org is reserved for releases). Feature branches build/install locally (`make publish-local`) rather than publishing. Requires `python` and `uv` in `.mise.toml` and trusted-publisher policies on pypi.org (for `release.yml`) and test.pypi.org (for `snapshot.yml`).
+### Fixed
+
+- Template-model examples match what the renderer accepts: rich-text documents for text content,
+  `assetId` for images, and `columnSizes` for columns (#18).
 
 ## [0.11.0] - 2026-07-10
 
 ### Added
 
-- **`sort` and `direction` query parameters on the paginated list endpoints.** Each paginated list `GET` (templates, catalogs, tenants, environments, themes, fonts, attributes, code lists, variants, versions, stencils, stencil versions, stencil usages) now accepts `sort` and `direction`, both defined as shared components in `spec/components/parameters/sorting.yaml`. `sort` (`#/Sort`) is a free-form `string`: the set of sortable fields differs per resource, so the server is the authority on which values it accepts and on the per-resource default when `sort` is omitted; an unsupported value is rejected with `400`. `direction` (`#/Direction`) is an `enum` of `asc`/`desc` defaulting to `desc` (uniform across every endpoint; it applies once a `sort` field is selected), and an unsupported value is likewise rejected with `400`. Each of these list `GET`s documents a `400` response. The non-paginated list endpoints (`listCodeListEntries`, which has its own fixed `sortOrder`/`code` ordering, and `listVariantActivations`, a bounded per-environment set), the document-generation paths (`listGenerationJobs`, `listDocuments`), and `listConsumers` (which does not sort server-side) are intentionally left unchanged. Additive and backward-compatible — existing callers keep the previous ordering, and the response shapes are unchanged.
+- `sort` and `direction` (`asc`/`desc`, default `desc`) on the paginated list endpoints. The server
+  decides which `sort` fields it accepts and rejects others with 400.
 
 ## [0.10.0] - 2026-07-03
 
-### Breaking Changes
-
-- **Pagination metadata moved under a nested `page` object.** Every collection response now carries pagination under a shared `page` object (`spec/components/schemas/common.yaml#/PageMeta`: `number`, `size`, `totalElements`, `totalPages`), matching Spring's `PagedModel` serialization, and every list `GET` accepts the shared `page`/`size` query parameters. Previously only 4 of ~17 list responses were paginated, with the fields flat alongside `items`. The four already-paginated endpoints (tenants, consumers, generation jobs, documents) **break**: their top-level `page`/`size`/`totalElements`/`totalPages` fields move into the `page` object, and the page-index field is renamed `page` → `page.number` (the request query parameter stays `page`). The other ~13 list endpoints gain the `page` object additively. Bounded sub-resource lists (variant activations, stencil upgrade previews) stay unpaginated.
-
-  _Migration:_ read `response.page.number` / `response.page.totalElements` / etc. instead of the top-level fields on the four affected list endpoints; no request-side change (query params are unchanged). New list endpoints follow the same nested shape.
-
 ### Added
 
-- **Consistent, generated pagination across all list endpoints** — see the breaking-change note above. The shared `PageMeta` schema and `page`/`size` parameters (`spec/components/parameters/pagination.yaml`) are referenced by every list endpoint via a plain property `$ref`, so the envelope is defined once and generated models carry a shared `page: PageMeta` field.
-- **Machine-readable problem-type registry (`x-problem-types`).** The canonical problem `type` slugs now live in a top-level `x-problem-types` extension in `epistola-api.yaml` (base URI + slug/status/schema/description per type), fixing live drift where the API description's own table was missing `data-model-validation-error` (422). The prose table in the API description is replaced by a pointer to [error registry](contracts/api/docs/error-types.md); a new `scripts/check-error-registry.sh` (run by `make lint` and CI) fails when the docs table and the spec registry disagree.
-- **Client `KnownProblemSlugs` is now generated from the spec.** A new `generateProblemSlugs` Gradle task emits the constants from the bundled spec's `x-problem-types`, so the client can no longer drift from the registry; new `ProblemRegistryTest` guard tests in both Kotlin modules assert the remaining hand-written pieces (`TYPE_BASE`, the server's new `ProblemDetails.KnownSlugs` constants) agree with the spec.
-- **`BadRequestError` reusable response.** The `bad-request` problem type now has a shared response component in `problem-responses.yaml` like the other seven types; the two operations that previously declared it inline (catalog import, code-list refresh) reference it.
-- **Machine-readable security-scheme deprecation.** `apiKeyAuth` carries an `x-deprecated: true` vendor extension alongside its existing prose deprecation, so tooling can detect it (OpenAPI has no native `deprecated` flag for security schemes).
-- **Media-type allowlist guard.** A new `scripts/check-media-types.sh` (run by `make lint` and CI) fails when a media type outside the intended set (`application/vnd.epistola.v1+json`, `+ndjson`, `problem+json`, `application/pdf`, `multipart/form-data`) appears in the spec — the closest enforceable substitute for the fact that OpenAPI cannot `$ref` a content-type key.
+- Pagination on every list endpoint, through shared `page`/`size` parameters and a `PageMeta`
+  object.
+- The machine-readable problem-type registry `x-problem-types`, with a check that keeps
+  `docs/error-types.md` in line. The Kotlin `KnownProblemSlugs` is generated from it.
+- A reusable `BadRequestError` response.
+- `x-deprecated: true` on `apiKeyAuth`.
+- A lint check that restricts the spec to its allowed media types.
 
 ### Changed
 
-- **Server no longer generates a `DataModelValidationProblemDetail` DTO.** The schema is now mapped to Spring's native `org.springframework.http.ProblemDetail` (like `ProblemDetail`/`ValidationProblemDetail` already were), matching what the hand-written `ProblemDetails.dataModelValidation(...)` helper actually returns; the orphaned allOf model is suppressed via `.openapi-generator-ignore`.
-- **`oasdiff` now flattens `allOf` and shared parameters before diffing.** `make breaking` and the CI breaking-change check pass `--flatten-allof --flatten-params`, so the remaining `allOf` compositions (the problem-detail schemas) and path-level parameters are understood correctly instead of being misreported as removed properties.
-- **Client-identity headers are no longer modeled as unused components.** The unreferenced `UserAgent`/`NodeId` parameter components were removed; the required `User-Agent` / `X-EP-Node-Id` headers remain documented normatively in the API description (the generated clients set them automatically) rather than added to all 86 operation signatures.
-- **Version-agnostic `User-Agent` examples.** The stale `epistola-contract/0.3.0` example (the spec is at 0.9.0) is now `epistola-contract/x.y.z` in the API description, `consumers.yaml`, and both module READMEs, so it cannot drift again.
-- **Pinned spec tooling.** `@redocly/cli` (2.36.0) and `@stoplight/prism-cli` (5.15.11) are now exact-pinned in `tools/package.json` with a committed `pnpm-lock.yaml`; the Makefile and all CI workflows use the pinned binaries instead of unpinned `npx @redocly/cli` (which pulled latest on every run). The CI breaking-change check now runs the mise-pinned `oasdiff` binary (same version as local `make breaking`) instead of an untagged `tufin/oasdiff` docker image, and all CI jobs use the mise-pinned Node 24 (previously Node 22 was hardcoded in two workflows and the mock-server image).
-- **Single spec-version parser.** A new `scripts/spec-version.sh` is the one place that parses `info.version` out of `epistola-api.yaml`; the Makefile `release` target, the `calculate-version` action, and the docs/mock-server workflows all use it (previously the same grep/sed pipeline was copy-pasted in five places).
-- **One shared Gradle version catalog.** The three Gradle builds now import a single root `gradle/libs.versions.toml` (module-local catalogs removed); shared versions (Kotlin, ktlint, kover, OpenAPI Generator, vanniktech maven-publish, Java toolchain) are declared once, and the deliberately divergent lines are explicit aliases (`spring-boot3`/`jackson2` for the client vs `spring-boot4`/`jackson3` for the server). The Kotlin `Regex` that derived the artifact version from the spec, previously duplicated in the client and server build files, moved to a shared `gradle/contract-version.gradle.kts`.
-- **Fragile codegen post-processing now fails loudly.** The server's generated-`produces` rewrite throws (instead of warning) when an OpenAPI Generator upgrade changes the emitted string and the rewrite stops matching, and the client's `generateValidation` task throws if it produces no validators instead of silently writing nothing.
+- **Breaking:** pagination fields move into a nested `page` object, and `page` becomes
+  `page.number`, on the tenant, consumer, generation-job and document lists.
+- `DataModelValidationProblemDetail` maps to Spring's `ProblemDetail` in the server stubs.
+- `make breaking` flattens `allOf` and shared parameters before diffing.
+- Spec tooling (Redocly, Prism, oasdiff, Node) is pinned, and Gradle builds share one version
+  catalog.
 
 ## [0.9.0] - 2026-07-03
 
 ### Added
 
-- **`parameterSchema` on stencil-version API schemas.** `StencilVersionDto` (response) and the `CreateStencilRequest`, `CreateStencilVersionRequest`, and `UpdateStencilDraftRequest` request bodies now carry an optional `parameterSchema` object — the stencil version's typed input parameters as a JSON Schema (`{ type, properties, required }`), the same value carried on the catalog `StencilResource.parameterSchema` and stored on the stencil version. Optional and additive: omit or send null to declare no parameters. The `NodeDto.props` description now documents the consumer-side stencil-node prop keys (`parameterBindings`, `parameterSchemaSnapshot`, `paramsAlias`) that bind those parameters within a template.
-- **`data-model-validation-error` problem type (422).** A new canonical problem `type` (`https://epistola.app/errors/data-model-validation-error`) documents semantic-validation failures where supplied data examples do not validate against a template's data model. It carries a `validationErrors` extension member (example name → failures) and is registered in [error registry](contracts/api/docs/error-types.md) with a reusable `UnprocessableEntityError` response component.
-- **Typed error handling for `data-model-validation-error` in both modules.** The hand-written error helpers now cover the new problem type: the Kotlin client adds `KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR`, surfaces the per-example failures via `ProblemDetailException.validationErrors` (a `Map<String, List<DataModelValidationError>>`) and an `isDataModelValidationProblem` flag; the Kotlin server adds `ProblemDetails.dataModelValidation(...)` and a `VALIDATION_ERRORS_PROPERTY` constant to build the response.
-- **`updateTemplate` now documents `409` and `422` responses.** `PATCH /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}` can return `409` (`conflict`) when a backwards-incompatible data-model change is not confirmed, and `422` (`data-model-validation-error`) when data examples are incompatible with the data model.
+- Optional `parameterSchema` on stencil versions and their create and update requests.
+- The `data-model-validation-error` problem type (422), with typed handling in the Kotlin client
+  (`isDataModelValidationProblem`, `validationErrors`) and a builder in the server stubs.
+- `updateTemplate` documents its 409 and 422 responses.
 
-### Changed
+### Fixed
 
-- **`UpdateTemplateRequest.forceUpdate` description corrected.** The flag confirms publishing a backwards-incompatible (breaking) data-model change (auto-upgrading dependent template versions); it does **not** bypass data-example validation — an incompatible example is still rejected with `422` even when `forceUpdate` is true. (Previously described as "save schema even if data examples don't match.")
+- `UpdateTemplateRequest.forceUpdate` is described correctly: it confirms a breaking data-model
+  change and does not bypass example validation.
 
 ## [0.8.0] - 2026-06-24
 
 ### Added
 
-- **`StencilResource.parameterSchema: Map<String, Any?>?` (optional).** Carries the stencil version's typed input parameters (a JSON Schema object) through catalog export/import so a parametrised stencil keeps its schema on round-trip and templates binding to those parameters stay bound on the receiving side. Optional and additive — a ZIP from a stencil without declared parameters (or a pre-this-version exporter) simply omits it and an older consumer ignores it, so no catalog `schemaVersion` bump is required.
+- Optional `StencilResource.parameterSchema`, so a stencil's parameters survive a catalog
+  round-trip.
 
 ## [0.7.0] - 2026-06-05
 
 ### Added
 
-- **Kotlin client: opt-in typed error handling.** A new `app.epistola.client.error` package adds `RestClient.Builder.installProblemDetailHandler()`, which parses `application/problem+json` responses and throws a typed `ProblemDetailException` (extends `RestClientResponseException`, so existing catch sites keep working). The exception exposes the problem `type`, `typeSlug`, `title`, `problemStatus`, `detail`, and field-level `errors`; switch on `typeSlug` (see `KnownProblemSlugs`). Non-problem error bodies still surface as plain `RestClientResponseException`.
-- **Error-type registry.** A new [error registry](contracts/api/docs/error-types.md) documents the canonical problem `type` slugs (`validation-error`, `bad-request`, `unauthorized`, `forbidden`, `not-found`, `conflict`, `rate-limited`), their status codes, shapes, and meaning; the same table is summarized in the API description. Both module READMEs link to it.
-- **`bad-request` problem type.** Application-level `400` responses that are not field-level validation failures (an invalid catalog ZIP, refreshing a non-URL-sourced code list) now declare the `https://epistola.app/errors/bad-request` `type` in their contract example, so clients can switch on it (`KnownProblemSlugs.BAD_REQUEST`) instead of seeing an undocumented `type`.
+- Opt-in typed error handling in the Kotlin client: `installProblemDetailHandler()` throws a
+  `ProblemDetailException` with the problem type, slug and field errors.
+- The error-type registry (`docs/error-types.md`) and the `bad-request` problem type.
 
 ### Changed
 
-- **Error responses now reference shared problem-response components per `type`.** Each error response points at a reusable component (`NotFoundError`, `ValidationFailedError`, `ConflictError`, `RateLimitedError`, plus the existing `UnauthorizedError`/`ForbiddenError`) carrying an example with the concrete `type` URI, so the contract states which problem type each operation returns. `429` responses now consistently advertise the `Retry-After` header.
+- Errors are RFC 9457 Problem Details (`application/problem+json`), discriminated by their `type`
+  URI. Each error response references a shared component per problem type, and 429 responses
+  advertise `Retry-After`.
+- The server stubs use Spring's `ProblemDetail`, with an opt-in `ProblemDetails` helper.
+- Problem `instance` is a URI reference.
 
-- **Error responses now use RFC 9457 Problem Details.** Error response media types are `application/problem+json`; problem bodies include `type`, `title`, `status`, `detail`, and `instance`. The problem **`type` URI is the machine-readable discriminator** clients switch on (`https://epistola.app/errors/{slug}`, or `about:blank` for framework-level errors) — there is no separate `code` member. Validation errors use the `ValidationProblemDetail` shape with top-level `errors`. (RFC 9457 obsoletes RFC 7807.)
-- **Generated Spring server stubs reuse Spring's native `org.springframework.http.ProblemDetail`** instead of a generated DTO — it serializes to `application/problem+json` via `ResponseEntityExceptionHandler` out of the box. The server module adds an opt-in `app.epistola.api.error.ProblemDetails` helper for building problem bodies (`type`/`errors`) consistent with the contract, and the README documents a reference `@RestControllerAdvice`.
-- **Removed the deprecated pre-Problem-Details error schemas** (`ErrorResponse`, `ValidationErrorResponse`, `FieldError`); they were unreferenced after the Problem Details migration.
-- **Problem `instance` values are documented as URI references.** Runtime responses may use relative `/api/...` paths with query strings, so the schema now uses `format: uri-reference` instead of requiring absolute URIs.
+### Removed
 
-- **Generated Spring server stubs preserve the success media type for bodyless responses.** Post-generation normalization keeps `application/vnd.epistola.v1+json` alongside `application/problem+json` for generated mappings whose success response has no body.
+- The pre-Problem-Details schemas `ErrorResponse`, `ValidationErrorResponse` and `FieldError`.
+
+### Fixed
+
+- Server stubs keep the success media type on responses without a body.
 
 ## [0.6.0] - 2026-05-21
 
 ### Changed
 
-- **`StencilResource.version: Int` is now required.** The exported wire format carries the published version number of each stencil so that templates pinning a specific version survive a catalog round-trip. No default value: ZIPs produced by pre-`0.6.0` exporters lack the field and must be re-exported before they can be imported. **BREAKING** for any consumer producing/consuming `StencilResource` directly.
+- **Breaking (catalog):** `StencilResource.version` is required. Archives from older exporters must
+  be re-exported.
 
 ## [0.5.3] - 2026-05-19
 
 ### Added
 
-- **`importCatalog`: optional `authoredMode` form field (`MERGE` | `REPLACE`,
-  default `MERGE`).** For a ZIP that targets an existing **AUTHORED** catalog,
-  `MERGE` upserts the ZIP's resources and keeps local-only resources;
-  `REPLACE` additionally deletes local-only resources (conflict-checked before
-  any mutation). Release state is never changed. Ignored for a newly-created
-  or SUBSCRIBED catalog. Brings the REST surface to parity with the web UI's
-  Merge/Replace choice (it previously always merged).
-- **`ImportCatalogResponse.aborted` (boolean, required).** `true` when a
-  SUBSCRIBED-catalog ZIP upgrade was aborted (a resource install failed, so
-  nothing was pruned and the installed-release pointers were not advanced —
-  the catalog is unchanged and a re-import is a meaningful retry); `false`
-  when the import finalized (any `failed` resources are permanent for that
-  import and the catalog moved forward). Lets API clients distinguish
-  retry-safe from escalate, which `{installed,updated,failed,total}` alone
-  could not. Always `false` for AUTHORED imports.
+- `importCatalog` takes an optional `authoredMode` (`MERGE`, the default, or `REPLACE`, which also
+  deletes resources missing from the archive) for authored catalogs.
+- `ImportCatalogResponse.aborted`, telling a retryable aborted upgrade apart from a finished import.
 
 ## [0.5.2] - 2026-05-19
 
 ### Added
 
-- **REST: `GET /tenants/{tenantId}/catalogs/{catalogId}/upgrade-preview`
-  (`previewCatalogUpgrade`) + `CatalogUpgradeDiff` schema.** Read-only
-  source-vs-source preview of upgrading a SUBSCRIBED catalog to its source's
-  latest release: `previousVersion` / `newVersion` / `upgradeAvailable`,
-  `added` / `removed` / `changed` / `unchanged` (each `"type/slug"`),
-  `conflicts` (cross-catalog references that would block removals) and
-  `blockedByConflicts`. The upgrade *action* is intentionally not exposed over
-  REST — upgrades are applied through the UI (mirrors the release-action
-  decision); this is read parity only. Spec version `0.5.1` → `0.5.2`.
+- `previewCatalogUpgrade`, a read-only preview of upgrading a subscribed catalog.
 
 ## [0.5.1] - 2026-05-18
 
 ### Added
 
-- **Catalog protocol: `ReleaseInfo.fingerprint`.** Optional lowercase hex
-  SHA-256 of a catalog's canonical content (deterministic, order-independent,
-  excludes volatile fields). Lets consumers detect that catalog content
-  actually changed independently of the `version` label, enabling
-  content-based upgrade/drift detection alongside author-controlled SemVer.
-  Nullable — catalogs produced before fingerprinting read unchanged.
-- **REST `CatalogDto`: `releasedVersion` and `fingerprint`.** Read-only
-  exposure of a catalog's current version label (latest released SemVer for
-  AUTHORED, installed version for SUBSCRIBED) and content fingerprint.
-
-### Reserved
-
-- **`DependencyRef` versioning (Phase 3, not yet implemented).** KDoc reserves
-  a future optional `versionRange` on the catalog-scoped `DependencyRef`
-  subtypes for catalog-level SemVer dependency constraints. No wire change
-  yet; documented so consumers expect it.
+- Optional `ReleaseInfo.fingerprint`, a SHA-256 of a catalog's canonical content.
+- `CatalogDto.releasedVersion` and `CatalogDto.fingerprint`.
 
 ## [0.5.0] - 2026-05-17
 
 ### Added
 
-- **REST API: read-only font endpoints.** `GET /tenants/{tenantId}/catalogs/{catalogId}/fonts` (list) and `.../fonts/{fontSlug}` (get) — `FontDto` with `slug`/`name`/`kind`/`catalog`/`catalogType`/`readOnly`/`variants` (each face `{ weight, italic }`) + timestamps. Read-only by design, mirroring assets: font families and binaries are managed via the UI and catalog exchange, never created/updated/deleted over REST (write access deferred, may be revisited). New `spec/paths/fonts.yaml` + `spec/components/schemas/fonts.yaml`, wired into `epistola-api.yaml` with a `Fonts` tag. This documents the font REST surface the suite already ships (previously hand-written with no contract coverage).
-- **Catalog protocol: `FontResource`, `FontVariantEntry`, `DependencyRef.Font`, and `FontRef`.** Catalogs can now distribute font families. A font family is a thin grouping over its font-face binaries; each face rides the catalog as an ordinary `AssetResource`, referenced from `FontResource.variants[].assetSlug` (the `FontResource` carries no binary). A face is identified by CSS-style numeric `weight` (1–1000) + `italic` (not a fixed four named variants); every face is a static binary (variable fonts are instanced into static faces at upload, never represented on the wire). Bundled system fonts are classpath-backed locally and never exported, so the wire format only ever describes catalog-authored (asset-backed) fonts. `FontRef { catalogKey?, slug }` mirrors `CodeListBindingRef` and is the shape stored under the `fontFamily` key in `documentStyles` / block-style presets / inline node styles. The discriminator `"font"` joins `theme`/`stencil`/`asset`/`codeList` in both `ResourceDetail` and `DependencyRef`. Manifest `schemaVersion` only needs bumping when a catalog actually declares fonts; existing catalogs read unchanged.
+- Read-only font endpoints (list and get).
+- Catalogs can distribute font families: `FontResource`, `FontVariantEntry`, `DependencyRef.Font`
+  and `FontRef`.
 
 ## [0.4.0] - 2026-05-12
 
 ### Added
 
-- **Catalog protocol: `CodeListResource`, `DependencyRef.CodeList`, and `AttributeResource.codeListBinding`.** Catalogs can now distribute code lists alongside attributes, and an attribute can reference a code list either inside its own catalog (`codeListBinding.catalogKey == null`) or in another catalog of the same tenant (`codeListBinding.catalogKey = "system"`). Manifest `schemaVersion` bumps to `3` only when these features are used; older v2 catalogs read unchanged. The discriminator `"codeList"` joins `theme`/`stencil`/`asset` in `DependencyRef`.
-- **REST API: code-list CRUD endpoints.** New surface at `/tenants/{tenantId}/catalogs/{catalogId}/code-lists/...` — list, get, create, update, delete, refresh-from-source, and list-entries. SUBSCRIBED-catalog code lists are flagged `readOnly: true` and return 409 on writes. See `spec/paths/code-lists.yaml` and `spec/components/schemas/code-lists.yaml`.
-- **REST API: `AttributeDto` grows catalog + read-only + constraint fields.** Now carries `catalog`, `displayName`, `allowedValues`, `codeListBinding`, `catalogType` (AUTHORED/SUBSCRIBED), and `readOnly`. `CreateAttributeRequest` + `UpdateAttributeRequest` accept the same constraint shapes (inline values / code-list binding) that the UI already supports. PATCH/DELETE on SUBSCRIBED-catalog attributes return 409.
-- **REST API: `VariantSelectionAttribute` carries optional `catalog`.** Lets clients write `{ catalog: "system", key: "locale", value: "en-US" }` rather than relying on the dotted-form (`"system.locale"`) or bare-slug (legacy, tenant-wide lookup) fallbacks. All three forms remain supported; the explicit `catalog` field is the recommended shape.
+- Code-list endpoints (CRUD, refresh from source, list entries), and catalogs can distribute code
+  lists (`CodeListResource`, `DependencyRef.CodeList`).
+- Attributes can be bound to a code list in the same or another catalog, and `AttributeDto` gains
+  `catalog`, `displayName`, `allowedValues`, `codeListBinding`, `catalogType` and `readOnly`.
+- Optional `catalog` on `VariantSelectionAttribute`.
 
 ## [0.3.0] - 2026-05-05
 
 ### Added
-- **`ResultCollector.kick()` + tunable backoff** — public API on the polling client. Producer-side hint that a result is expected soon: when the collector has backed off into idle mode, `kick()` resets the next-poll wait to `kickInterval` (new builder field, default 3s) instead of waiting out the full backoff. Threshold-guarded so a kick during active polling is a no-op. Implementation replaces `Thread.sleep` with a wakeable `LinkedBlockingQueue` so `kick()` can interrupt an in-progress wait. Also adds `backoffMultiplier` (new builder field, default 3.0; previously hard-coded to 2.0) — gives the sequence 1s → 3s → 9s → 27s → 30s (capped at `maxInterval`), reaching idle faster which reduces poll volume now that the kick is the safety net for fast resumption. Both fields are backward-compatible additions; existing callers keep working.
-- **Consumer onboarding** — Full consumer lifecycle with two registration paths: self-service via `POST /consumers/register` (with public key for self-signed JWT auth) or auto-registration from OAuth. Admin approval (`POST /consumers/{id}/approve`) sets allowed tenants, roles, and optional expiry. Includes reject, update, delete, and public key rotation endpoints.
-- **Self-signed JWT authentication** — Applications without an IdP can authenticate by signing short-lived JWTs with a registered private key. Includes replay protection via `jti` nonce and `exp` claims.
-- **Permissions managed in Epistola** — Allowed tenants, roles, and expiry are set in the consumer record, not JWT claims. Single source of truth for authorization.
-- **Ping metadata** — Extend `POST /ping` request body with optional `name`, `description`, and `contact` fields for application self-description.
-- **JwtSigner (client)** — Utility for creating and signing short-lived JWTs for self-signed JWT authentication. Builder pattern with RSA/EC key support and a Spring `ClientHttpRequestInterceptor` for automatic Bearer token injection.
-- **Generation result collection** — `POST /tenants/{tenantId}/generation/collect` streams completed/failed generation results as compressed NDJSON. Node-affinity with failover: results go to the node that requested them first, orphaned results from dead nodes are redistributed to active nodes. Supports compression negotiation (lz4, zstd, gzip) and adaptive polling via `hasMore` flag.
-- **ConsumerResolver (server)** — Extracts consumer identity from JWT claims (`client_id`, `azp`, or `iss`). Works for both OAuth and self-signed JWT consumers.
-- **Ping/Pong endpoint** — `POST /ping` for bidirectional health checking and metadata exchange. Unauthenticated requests receive basic health status; authenticated requests also get server version, API spec version, and node identity.
-- **Client identity headers** — two required headers on all requests: `User-Agent` (must start with `epistola-contract/{version}`, additional product tokens for the software stack) and `X-EP-Node-Id` (pod name, container ID, or hostname).
-- **ClientIdentity (client)** — builder class for managing `User-Agent` and `X-EP-Node-Id` headers with key/value product registration. Creates a `ClientHttpRequestInterceptor` for Spring RestClient. Contract version is baked in automatically at build time.
-- **ClientInfo (server)** — parser for extracting client identity from incoming requests. Provides `contractVersion`, `nodeId`, and `productVersion(name)` for easy access to any product in the software stack.
+
+- Consumer onboarding: self-registration or OAuth auto-registration, then admin approval of tenants,
+  roles and expiry, all managed in Epistola rather than in JWT claims.
+- Self-signed JWT authentication, with `JwtSigner` in the client and `ConsumerResolver` in the
+  server stubs.
+- `POST /ping` for health and metadata exchange.
+- Required client identity headers, `User-Agent` and `X-EP-Node-Id`, with `ClientIdentity` in the
+  client and `ClientInfo` in the server stubs.
+- Result collection: `POST /tenants/{tenantId}/generation/collect` streams results as compressed
+  NDJSON with node affinity and failover. The client's `ResultCollector` adds `kick()` and a
+  configurable backoff.
 
 ### Changed
-- **API version bumped to 0.3.0** — new System endpoint group for ping/pong, client identity headers
-- **Auth model expanded** — `ConsumerDto.authMethod` is now an enum of `[oauth, self-signed-jwt, api-key]`. `oauth` and `self-signed-jwt` are the registration paths exposed by the new Consumer Management API; `api-key` covers the existing long-lived `X-API-Key` model (provisioned out of band by tenant managers, not a self-service flow). All authorization (tenants, roles, granted permissions) is managed in Epistola's consumer record across all three auth methods, not via JWT claims. The contract surface for `X-API-Key` is unchanged and continues to work; suite-side implementation of the JWT paths is a follow-on.
-- **Release process** — `make release` now updates `info.version` in `epistola-api.yaml` to the full release version before creating the GitHub Release, ensuring the spec always reflects the exact artifact version
+
+- `ConsumerDto.authMethod` is `oauth`, `self-signed-jwt` or `api-key`.
+- `make release` writes the full release version into `info.version`.
 
 ## [0.2.7] - 2026-05-05
 
 ### Changed
-- **`epistola-model` Margins fields optional** — the `Margins` JSON Schema in `epistola-model` no longer requires `top`, `right`, `bottom`, and `left` (removed from `required`). Generated Kotlin (`Long? = null`) and TypeScript (`?: number`) types now allow these fields to be omitted, matching the relaxed `MarginsDto` contract introduced in v0.2.6. Wire format still rejects explicit `null` — fields must either be omitted or be a non-negative integer.
-- **`epistola-model` PageSettings.margins optional** — the `PageSettings` JSON Schema no longer requires `margins`. Generated TypeScript declares `margins?: Margins`; the manually-defined Kotlin `PageSettings` now uses `val margins: Margins? = null` instead of defaulting to `Margins(20, 20, 20, 20)`, so callers can distinguish "no margins specified" (cascade) from explicit margins. The OpenAPI `PageSettingsDto.margins` was already optional; this brings the JSON Schema in line.
-- **Mock server CI** — multi-arch Docker builds now run on native runners (`ubuntu-latest` for amd64, `ubuntu-24.04-arm` for arm64) with a manifest-merge step, replacing the QEMU-emulated single-job build. This eliminates ~30 min of arm64 emulation time per release.
+
+- `Margins` fields and `PageSettings.margins` are optional in `epistola-model`.
+- Multi-arch mock server images build on native runners.
 
 ## [0.2.6] - 2026-05-01
 
 ### Changed
-- **MarginsDto** — `top`, `right`, `bottom`, and `left` are no longer required, matching the relaxed contract in `@epistola.app/epistola-model`. Clients may now send a partial margins object (e.g. `{ "top": 40 }`); `minimum: 0` still applies when a value is provided.
+
+- `MarginsDto` sides are optional.
 
 ### Fixed
-- **Docs version** — docs workflow now uses the actual release tag version (e.g., 0.2.5) instead of only major.minor from the API spec
+
+- The docs are published under the full release version.
 
 ## [0.2.5] - 2026-04-21
 
 ### Added
-- **themeCatalogKey on TemplateResource** — added optional `themeCatalogKey` field to indicate which catalog a template's theme belongs to, enabling cross-catalog theme references in exports
+
+- Optional `TemplateResource.themeCatalogKey` for cross-catalog theme references.
 
 ## [0.2.4] - 2026-04-21
 
 ### Added
-- **themeId on TemplateResource** — added `themeId` field to link templates to catalog themes
+
+- `TemplateResource.themeId`.
 
 ### Fixed
-- **GitHub Pages deployment** — docs workflow was skipped for releases because `workflow_run` branch filter didn't match tag-based release runs; removed the branch filter so docs deploy triggers on any successful release
+
+- The docs deploy after releases.
 
 ## [0.2.0] - 2026-04-16
 
+This entry also covers the 0.1.x releases, which were not recorded separately.
+
 ### Added
-- **Catalogs API** — `GET /tenants/{tenantId}/catalogs` lists all catalogs. `POST /tenants/{tenantId}/catalogs/import` imports a self-contained ZIP archive.
-- **Catalog protocol** — shared `epistola-model` module (renamed from `editor-model`) with `CatalogManifest`, `ResourceDetail`, `DependencyRef` types for catalog exchange. Published as both Maven (`app.epistola.contract:epistola-model`) and npm (`@epistola.app/epistola-model`).
-- **Stencils API** — full CRUD for reusable template components (stencils) with versioned content
-  - `GET/POST /tenants/{tenantId}/stencils` — list and create stencils
-  - `GET/PATCH/DELETE /tenants/{tenantId}/stencils/{stencilId}` — manage individual stencils
-  - `GET/POST /tenants/{tenantId}/stencils/{stencilId}/versions` — list and create stencil versions
-  - `GET/PATCH .../versions/{versionId}` — get and update draft versions
-  - `POST .../versions/{versionId}/publish` — publish with no-nesting validation
-  - `POST .../versions/{versionId}/archive` — archive published versions
-  - `GET .../versions/{versionId}/usage` — find templates using a stencil version
-  - `POST .../versions/{versionId}/upgrade-preview` — before/after diff for bulk upgrades
-- **Stencil component type** — stencil instances in templates use a dedicated `stencil` node type with `stencilId` and `version` in props, rather than a generic reference on all nodes
-- **Version fallback** — `versionId` and `environmentId` are both optional in generate/preview requests. When neither is specified, the latest published version is used.
+
+- Catalogs: list, and import from a self-contained ZIP. The shared `epistola-model` module
+  (Maven and npm) defines the catalog manifest and resource types.
+- Stencils: CRUD, versions with publish and archive, usage lookup, and upgrade preview. Templates
+  embed them through a dedicated `stencil` node type.
+- `POST /tenants/{tenantId}/documents/preview`: a rate-limited synchronous PDF preview.
+- Generate and preview requests fall back to the latest published version when neither
+  `versionId` nor `environmentId` is given.
+- Client-side JSON Schema validation of generation requests (`ValidatingGenerationApi`, pluggable
+  `SchemaCache`) and generated `.validate()` extensions for constrained models.
+- Theme `spacingUnit`, and `PageSettingsDto.backgroundColor`.
+- Typed template-model schemas (`TemplateDocumentDto`, `NodeDto`, `SlotDto`, `ThemeRefDto`,
+  `BlockStylePresetDto`).
+- Authentication (OAuth 2.0 client credentials, or an API key), role-based access control and
+  tenant authorization, with 401 and 403 responses.
+- Template data validation (`POST …/templates/{templateId}/validate`).
+- Development tooling: `make breaking`, `make mock`, a published Prism mock server image with
+  deterministic example responses, and versioned API docs on GitHub Pages.
+- Design documents for consumer registration and the event system.
+
+### Changed
+
+- **Breaking:** catalog-scoped endpoints are nested under `/tenants/{tenantId}/catalogs/{catalogId}`,
+  and generate and preview requests require `catalogId`.
+- **Breaking:** `templateModel` is a typed `TemplateDocumentDto`, `DocumentStylesDto` is an open
+  object, and `blockStylePresets` values are `BlockStylePresetDto`.
+- **Breaking:** paths have no `/v1` prefix; the version is in the media type.
+- **Breaking:** the server module is `server-kotlin-springboot4`, on Spring Boot 4 and Jackson 3.
+- **Breaking:** publishing moved to the Sonatype Central Portal.
+- The repository became contract-first: the OpenAPI spec is the source of truth and code is
+  generated at build time. The Kotlin client uses Spring RestClient instead of Ktor.
+- Releases are created as GitHub Releases, with one `vX.Y.Z` tag for all artifacts, and publish only
+  after every module builds.
 
 ### Removed
-- **Template import endpoint** `POST /tenants/{tenantId}/catalogs/{catalogId}/templates/import` — superseded by catalog import (`POST /tenants/{tenantId}/catalogs/import`). Related schemas (`ImportTemplatesRequest`, `ImportTemplateDto`, `ImportVariantDto`, `ImportTemplatesResponse`) removed.
 
-### Changed
-- **BREAKING: All catalog-scoped paths now include `{catalogId}`** — endpoints for templates, themes, stencils, attributes, and variants are nested under `/tenants/{tenantId}/catalogs/{catalogId}/...`. Generation and preview requests require a `catalogId` field.
-- **Release trigger changed from `[release]` commit to GitHub Release** — releases are now triggered by creating a GitHub Release (`gh release create vX.Y.Z` or `make release`) instead of pushing a commit containing `[release]` to `main`
-  - `make release` now auto-calculates the next patch version and creates a GitHub Release directly (no more empty marker commits)
-  - Snapshot workflow no longer needs to check for `[release]` commits — all pushes to `main` publish snapshots
-  - Release branches (`release/**`) continue to auto-release on push
-  - Aligns release approach with epistola-suite
-
-### Added
-- **Document preview endpoint** `POST /tenants/{tenantId}/documents/preview`
-  - Synchronous endpoint that returns a PDF directly in the response body
-  - For preview purposes only — not PDF/A compliant, rate-limited, no latency/throughput guarantees
-  - Documents are not stored; use the async generation endpoint for production use
-  - New `PreviewDocumentRequest` schema (same as generation request without `filename`/`correlationId`)
-  - Returns `429 Too Many Requests` when rate limit is exceeded
-- **Client-side JSON Schema validation** for document generation requests
-  - `TemplateSchemaValidator` fetches the template's JSON Schema from the server, caches it, and validates the `data` field locally before submission
-  - `ValidatingGenerationApi` wraps `GenerationApi` to transparently validate on `generateDocument` and `generateDocumentBatch` calls
-  - `SchemaCache` fun interface with pluggable caching; default `TtlSchemaCache` uses ConcurrentHashMap with configurable TTL (5 min default)
-  - Auto-detects JSON Schema draft version from `$schema` keyword (supports Draft 4/6/7/2019-09/2020-12)
-  - Batch validation collects all errors across all items into a single `TemplateDataValidationException`
-  - Optional dependency: `com.networknt:json-schema-validator:1.5.7` (consumers add it only if using validation)
-- **Theme `spacingUnit` property** — `ThemeDto`, `CreateThemeRequest`, and `UpdateThemeRequest` now include an optional `spacingUnit` field (number, 1-16). This is the base spacing unit in points for the sp spacing scale system. Null means default (4pt).
-
-### Changed
-- **CI/CD simplification** — extracted 3 composite actions to eliminate duplication across workflows
-  - `setup-build-tools`: unified tool setup via mise (Java, Gradle, Node, pnpm) with optional npm dependency installation
-  - `bundle-spec`: OpenAPI validation, bundling, optional version injection, and artifact upload
-  - `calculate-version`: version calculation for release, snapshot, and feature-snapshot modes
-- **All workflows refactored** to use composite actions instead of duplicated inline steps
-  - Removed hardcoded Node 22 references (now uses Node 24 from `.mise.toml` via mise)
-  - Removed manual `npm install -g pnpm`, `setup-node@v4`, and `pnpm/action-setup@v4` in favor of mise
-- **Feature snapshot workflow** now validates the OpenAPI spec, uses matrix strategy for parallel builds, and publishes epistola-model to GitHub Packages
-- **Mock server workflow** now reuses bundled spec artifact from caller workflow instead of re-bundling
-- **Client version catalog aligned** with server — Kotlin `2.3.0` → `2.3.10`, OpenAPI Generator `7.13.0` → `7.19.0`
+- The bulk template import endpoint, superseded by catalog import.
 
 ### Fixed
-- Release workflow npm publish now correctly installs pnpm and npm dependencies before publishing (was missing `pnpm install`, would fail at runtime)
-- Release workflow now creates the git tag **before** publishing to Maven Central/npm, preventing a stuck-version loop where a partial publish failure leaves no tag, causing the next release attempt to retry the same version and fail with "already exists"
 
-### Changed
-- **Consolidated GitHub releases** — releases now create a single unified release per version (e.g. `v0.1.3`) instead of two separate per-module releases (e.g. `client-spring3-restclient-v0.1.3` and `server-kotlin-springboot4-v0.1.3`)
-  - Release tag format changed from `{artifact_id}-v{version}` to `v{version}`
-  - Version calculation scans both new unified tags and legacy module-prefixed tags for backwards compatibility
-
-### Changed
-- **Snapshot workflow restructured** to match release workflow pattern
-  - Replaced sequential `build-all` job with parallel matrix-based `build` job (client and server build concurrently)
-  - Consolidated `publish-client` and `publish-server` into a single matrix-based `publish` job
-  - Build jobs now skip when no relevant files changed (previously always built both modules)
-  - `detect-changes` job now skips on `[release]` commits (previously ran unnecessarily)
-  - `mock-server` job no longer waits for Gradle builds (only needs bundled spec)
-
-### Fixed
-- CLAUDE.md `security-defined` validation rule documented as "Disabled" but was actually set to `error` in `redocly.yaml`
-- Version injection `sed` command in release and snapshot workflows replaced all `version:` lines in bundled spec, corrupting schema property definitions (now only replaces the first match: `info.version`)
-
-### Added
-- **Trunk-based release flow** — releases are triggered by including `[release]` in a commit message on `main`
-- **`make release`** convenience target that creates a `[release]` marker commit with safety checks (must be on `main`, clean working tree)
-- Snapshot publishing automatically skips when a `[release]` commit is pushed (prevents duplicate artifacts)
-- Release branches (`release/X.Y`) are still supported for hotfixing older versions — any push to a release branch triggers a release
-
-### Removed
-- `version-bump.yml` workflow (was for release-branch model)
-- `make cut-release` target (replaced by `make release`)
-
-### Added
-- **Bulk template import endpoint** `POST /tenants/{tenantId}/templates/import`
-  - Create-or-update semantics for idempotent template synchronization
-  - Supports full template definition: metadata, dataModel, dataExamples, templateModel, variants
-  - Per-variant templateModel override (falls back to top-level templateModel)
-  - Automatic publishing to specified environments after import
-  - Per-template result status: `created`, `updated`, `unchanged`, `failed`
-  - New schemas: `ImportTemplatesRequest`, `ImportTemplateDto`, `ImportVariantDto`, `ImportTemplatesResponse`, `ImportTemplateResultDto`
-
-### Added
-- **Template model schema types** for the node/slot graph model (`spec/components/schemas/template-model.yaml`)
-  - `TemplateDocumentDto`: root document with modelVersion, root, nodes, slots, themeRef, and optional overrides
-  - `NodeDto`: graph node with id, type, slots, styles (open), stylePreset, and props (open)
-  - `SlotDto`: graph slot with id, nodeId, name, and children
-  - `ThemeRefDto`: theme reference with type enum (`inherit` / `override`) and optional themeId
-  - `BlockStylePresetDto`: structured preset with label, styles (open), and optional applicableTo
-- `PageSettingsDto.backgroundColor` property for page background color
-
-### Changed
-- **BREAKING**: `VersionDto.templateModel` and `UpdateDraftRequest.templateModel` changed from bare `type: object` to `TemplateDocumentDto`
-  - Server stubs: `ObjectNode` → `TemplateDocumentDto`
-  - Client: `Any?` → `TemplateDocumentDto`
-  - Wire format remains compatible — same JSON, now properly described
-  - All examples updated from old block-based model to node/slot graph format
-- **BREAKING**: `DocumentStylesDto` changed from explicit properties to an open object
-  - Matches `template-shared.schema.json#DocumentStyles` where available properties are driven by the style registry
-  - Server stubs: typed data class → `Map`/`ObjectNode`
-  - Client: typed data class → `Any`
-- **BREAKING**: `blockStylePresets` in `ThemeDto`, `CreateThemeRequest`, and `UpdateThemeRequest` changed
-  from unstructured `additionalProperties: type: object` to `additionalProperties: $ref: BlockStylePresetDto`
-  - Each preset now has `label` (required), `styles` (required), and `applicableTo` (optional)
-  - Server/client: `Map<String, Any>` → `Map<String, BlockStylePresetDto>`
-
-### Fixed
-- `MarginsDto` description corrected from "pixels" to "millimeters" matching the source of truth
-  - Added `required` constraint on all four sides and `minimum: 0` validation
-
-### Added
-- Consumer registration design document (`docs/consumer_registration.md`) covering:
-  - Consumer registry for tracking which systems consume the Epistola API (platform-level CRUD)
-  - Template dependency declaration per tenant for impact analysis
-  - 409 Conflict responses on delete when dependent consumers exist
-  - Attribution via `DocumentDto.createdBy` population
-  - Integration with the event system actor model
-  - Phased implementation recommendation (registry, dependencies, events)
-
-### Fixed
-- Fix mock server Docker image pull failure ("manifest unknown") by disabling provenance attestations,
-  which forced OCI-only manifest format incompatible with older Docker clients
-- Prevent half-releases by separating build and publish phases in CI workflows
-  - Release and snapshot workflows now build and test all modules first
-  - Publishing only starts after all builds succeed
-  - Previously, modules built and published independently — if one succeeded and the other failed,
-    only one artifact would be published to Maven Central
-
-### Added
-- Event system design document (`docs/event_system.md`) exploring five delivery mechanisms:
-  Long Polling, SSE, Webhooks, Polling with Event Log, and gRPC Hybrid (notification
-  channel + REST event log). Recommends Polling with Event Log for contract-first
-  compatibility, with two upgrade paths: Long Polling (primary) and gRPC Hybrid (future).
-- Client-side validation extension functions generated from OpenAPI schema constraints
-  - `.validate()` extension on all model classes that have constrained properties (25 models)
-  - Enforces `pattern`, `minLength`/`maxLength`, `minimum`/`maximum`, and `minItems` constraints
-  - Nullable fields use safe `?.let` pattern; null values skip validation
-  - Returns `this` for fluent chaining (e.g., `createTenantRequest.validate()`)
-  - Generated into `build/generated-validation/` (not committed) alongside the OpenAPI-generated client code
-- OpenAPI examples for consistent, deterministic mock server responses
-  - Schema-level examples on all response/DTO types (used by Prism for reliable static responses)
-  - Property-level examples on all properties (used by documentation renderers like Redoc)
-  - Examples follow a coherent "Epistola story" narrative (Acme Corp tenant, invoice template, English variant)
-  - All IDs, timestamps, and references are cross-consistent across schemas
-  - List responses include realistic multi-item arrays (e.g., production + staging environments)
-
-### Changed
-- Switched Prism mock server from dynamic (`-d`) to static mode
-  - Responses are now deterministic and consistent across repeated requests
-  - Mock data is derived from schema examples instead of randomly generated
-
-### Fixed
-- Mock server Docker image now receives the correct auto-incremented version during releases
-  - Previously used static spec version from `epistola-api.yaml` (e.g., always `0.1.0`)
-  - Now uses the same centralized version calculation as Maven artifacts (e.g., `0.1.2`)
-- Centralized release version calculation in `validate-and-bundle` job
-  - All artifacts (client, server, mock server) now share the same version per release
-  - Eliminates potential version drift between independently calculated artifact versions
-
-### Changed
-- Enabled automatic release to Maven Central (no more manual "Publish" click in Sonatype Central Portal)
-
-### Added
-- **Dual authentication support** for system-to-system communication
-  - OAuth 2.0 Client Credentials flow with JWT (recommended)
-  - API Key authentication via `X-API-Key` header (fallback)
-- **Role-based access control** with five independent roles (can be combined)
-  - `reader`: Read-only access to resources within allowed tenants
-  - `editor`: Create and update resources within allowed tenants
-  - `generator`: Submit document generation jobs
-  - `manager`: Delete resources and cancel jobs within allowed tenants
-  - `tenant_control`: Manage tenants (list all, create, update, delete)
-- **Tenant authorization** via JWT claims (`allowed_tenants`)
-- **Security schemes** in OpenAPI spec: `bearerAuth` (JWT) and `apiKeyAuth`
-- **401/403 error responses** for authentication/authorization failures
-- **`x-required-roles`** extension on all endpoints documenting permission requirements
-- Authentication documentation at `docs/auth.md`
-- Template data validation endpoint `POST /tenants/{tenantId}/templates/{templateId}/validate`
-  - Pre-flight validation of input data against template JSON Schema
-  - Returns validation result with detailed error information (path, message, keyword)
-  - Enables faster feedback before batch submission without rendering overhead
-
-### Changed
-- **BREAKING**: Removed `/v1` prefix from all URL paths
-  - API versioning is handled via `Accept` header (`application/vnd.epistola.v1+json`)
-  - Paths now start with `/tenants` instead of `/v1/tenants`
-- Standardized version handling across all workflows to use `-Pversion=` consistently
-  - Release workflow now passes full version (e.g., `1.0.3`) instead of patch version
-  - Snapshot workflow centralizes version calculation in spec-validation job
-- Mock server is now automatically published as part of release and snapshot workflows
-  - Releases publish with spec version tag (e.g., `1.0.0`) and `latest`
-  - Snapshots publish with snapshot version tag (e.g., `1.0-SNAPSHOT`) and `latest`
-- Removed redundant `build-summary` job from build workflow (use GitHub's native required checks)
-
-### Added
-- OpenAPI development tooling
-  - `make breaking` - Check for breaking API changes against main branch using oasdiff
-  - `make mock` - Start Prism mock server for API testing on http://localhost:4010
-  - `make validate-impl` - Validate implementation against OpenAPI spec using Prism proxy
-  - CI workflow for automatic breaking change detection on PRs modifying the spec
-- Mock server Docker image published to GitHub Container Registry (ghcr.io)
-  - Based on Stoplight Prism with bundled OpenAPI spec
-  - Automatically released with snapshots and releases, also available via manual workflow dispatch
-- Claude skill for OpenAPI spec maintenance (`.claude/skills/openapi.md`)
-  - Guidance for file structure navigation
-  - Patterns for adding endpoints and schemas
-  - REST best practices and versioning guidelines
-- GitHub Pages API documentation with Redoc
-  - Multi-version support with version selector
-  - Landing page showing all available versions
-  - Automatic deployment after successful releases to Maven Central
-  - Manual deployment via workflow dispatch
-
-### Changed
-- **BREAKING**: Renamed server module from `epistola-server-kotlin` to `server-kotlin-springboot4`
-  - Artifact ID changed from `server-spring-boot4` to `server-kotlin-springboot4`
-  - Removed submodule structure (flattened to single module)
-- Upgraded vanniktech/gradle-maven-publish-plugin from 0.30.0 to 0.36.0 for snapshot support
-  - Plugin API changed: removed `SonatypeHost` enum (Central Portal is now default)
-- **BREAKING**: Migrated Maven publishing from OSSRH (s01.oss.sonatype.org) to Sonatype Central Portal
-  - Replaced manual `maven-publish` and `signing` plugins with vanniktech/gradle-maven-publish-plugin 0.36.0
-  - Publishing now uses `publishToMavenCentral` command instead of `publish`
-  - GPG signing now uses in-memory keys instead of requiring GPG binary
-  - **User action required**: Generate new Central Portal token at https://central.sonatype.com/account
-- **BREAKING**: Server module now targets Spring Boot 4.x with Jackson 3
-  - Updated Spring Boot from 3.5.1 to 4.0.2
-  - Updated OpenAPI Generator from 7.13.0 to 7.19.0
-  - Added Jackson 3 module (`tools.jackson.module:jackson-module-kotlin`)
-  - Added `useJakartaEe` configuration option
-
-### Added
-- Manual workflow dispatch for snapshot publishing with option to skip change detection
-- Maven Central publishing configuration for both modules
-  - Signing plugin with GPG support
-  - Complete POM metadata (name, description, license, developers, SCM)
-  - Sources and Javadoc JAR generation
-  - OSSRH repository configuration
-- GitHub Actions release workflow (`release.yml`)
-  - Manual dispatch with module selection
-  - Automatic patch version calculation from git tags
-  - GitHub release creation with Maven coordinates
-- Automatic version reading from OpenAPI spec
-  - API version (major.minor) read from `epistola-api.yaml`
-  - Patch version calculated from existing git tags
-  - Local builds use version `X.Y.0` (not for release)
-
-### Changed
-- Moved `epistola-api.yaml` to repository root for easier access
-- Moved `redocly.yaml` to repository root
-
-### Changed
-- **BREAKING**: Transformed repository into contract-first architecture
-- Renamed repository concept from `epistola-api-clients` to `epistola-contract`
-- OpenAPI specification is now the source of truth in `spec/` directory
-- Generated code is no longer committed - built fresh from spec during each build
-- Renamed Kotlin client module to `client-kotlin-spring-restclient`
-- Kotlin client now uses Spring RestClient (Spring Boot 3.2+) instead of Ktor
-- Updated Java toolchain from 25 to 21 for broader compatibility
-- GitHub Actions workflow now runs spec validation, client, and server builds in parallel
-
-### Added
-- OpenAPI specification in `spec/` directory (copied from epistola-suite)
-- `client-kotlin-spring-restclient` module with OpenAPI Generator configuration
-  - Spring RestClient for HTTP communication
-  - Jackson for JSON serialization
-  - Java 8 date/time handling
-- `server-kotlin-springboot4` module for Spring server stubs
-  - Interface-only generation for clean implementations
-  - Spring Boot 4.x compatible (Jackson 3)
-  - Bean validation annotations
-- Redocly configuration for spec validation (`redocly.yaml`)
-- Spec validation job in CI pipeline
-- Maven publishing configuration for both modules
-
-### Removed
-- Placeholder EpistolaClient class (replaced by generated code)
-- Placeholder test class (replaced by generated tests)
+- `MarginsDto` is documented in millimetres, not pixels.
+- The mock server image receives the release version and pulls on older Docker clients.
