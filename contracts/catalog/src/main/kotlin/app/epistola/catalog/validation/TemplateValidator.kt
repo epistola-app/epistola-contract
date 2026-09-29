@@ -12,7 +12,6 @@ import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BI
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDING_UNKNOWN
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMS_ALIAS_RESERVED
 import app.epistola.catalog.validation.TemplateValidationCodes.PAGEBAND_NESTED
-import app.epistola.catalog.validation.TemplateValidationCodes.PAGEFOOTER_NOT_ADJACENT
 import app.epistola.catalog.validation.TemplateValidationCodes.PLACEHOLDER_NAME_DUPLICATE
 import app.epistola.catalog.validation.TemplateValidationCodes.PLACEHOLDER_NAME_INVALID
 import app.epistola.catalog.validation.TemplateValidationCodes.PLACEHOLDER_NESTED_DEFINITION
@@ -513,56 +512,24 @@ object TemplateValidator {
 
     /**
      * Page headers and footers may appear in any number, anywhere in the flow; where one sits
-     * decides which pages it applies to. Page breaks divide the flow into sections, and a footer
-     * covers the pages of its section, so several footers in one section apply by order: the
-     * first to the section's first page, the next to the following pages.
-     *
-     * Two shapes are still reported: a header or footer nested inside another (an error), and a
-     * section whose footers are not adjacent children of one slot (a warning), which is usually
-     * a stencil's footer meeting the template's own.
+     * decides which pages it applies to, which the renderer resolves. One shape is still an
+     * error: a header or footer nested inside another.
      */
     private fun validatePageBands(
         document: TemplateDocument,
         findings: MutableList<TemplateValidationFinding>,
     ) {
-        val footersPerSection = mutableListOf(mutableListOf<Pair<String, String>>())
-        fun walk(nodeId: String, slotId: String?, insideBand: Boolean) {
+        fun walk(nodeId: String, insideBand: Boolean) {
             val node = document.nodes[nodeId] ?: return
             val isBand = node.type in pageBandTypes
             if (isBand && insideBand) {
                 findings.error(PAGEBAND_NESTED, "nodes.$nodeId", "${node.type} node '$nodeId' must not be inside a page header or footer")
             }
-            if (!insideBand) {
-                when (node.type) {
-                    "pagebreak" -> footersPerSection += mutableListOf<Pair<String, String>>()
-                    "pagefooter" -> if (slotId != null) footersPerSection.last() += nodeId to slotId
-                }
-            }
             node.slots.mapNotNull(document.slots::get).forEach { slot ->
-                slot.children.forEach { walk(it, slot.id, insideBand || isBand) }
+                slot.children.forEach { walk(it, insideBand || isBand) }
             }
         }
-        walk(document.root, null, false)
-
-        footersPerSection.filter { it.size > 1 && !adjacentInOneSlot(document, it) }.forEach { footers ->
-            val ids = footers.joinToString { "'${it.first}'" }
-            findings.warning(
-                PAGEFOOTER_NOT_ADJACENT,
-                "nodes.${footers.first().first}",
-                "pagefooter nodes $ids share a page section but are not next to each other; " +
-                    "the first applies to the section's first page and the next to the pages after it",
-            )
-        }
-    }
-
-    private fun adjacentInOneSlot(
-        document: TemplateDocument,
-        footers: List<Pair<String, String>>,
-    ): Boolean {
-        val slotId = footers.map { it.second }.distinct().singleOrNull() ?: return false
-        val children = document.slots.getValue(slotId).children
-        val indices = footers.map { children.indexOf(it.first) }.sorted()
-        return indices.last() - indices.first() == indices.size - 1
+        walk(document.root, false)
     }
 
     private fun validateBindings(
@@ -643,14 +610,6 @@ object TemplateValidator {
     }
 
     private fun duplicates(values: List<String>): List<String> = values.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.sorted()
-
-    private fun MutableList<TemplateValidationFinding>.warning(
-        code: String,
-        path: String,
-        message: String,
-    ) {
-        add(TemplateValidationFinding(code, ValidationSeverity.WARNING, path, message))
-    }
 
     private fun MutableList<TemplateValidationFinding>.error(
         code: String,

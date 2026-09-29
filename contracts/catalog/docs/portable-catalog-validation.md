@@ -61,25 +61,11 @@ and sorted by path, code, then message.
 ## Page headers and footers
 
 A template may contain any number of `pageheader` and `pagefooter` nodes,
-anywhere in the flow: inside stencils, conditionals and loops. Page breaks
-divide the flow into sections, and position decides which pages each applies
-to. A header applies to what comes after it; a footer covers its section and
-the footer-less sections above it. The renderer owns that schedule; the
-validator reports two shapes:
-
-- `PAGEBAND_NESTED` (error): a header or footer inside another header or
-  footer.
-- `PAGEFOOTER_NOT_ADJACENT` (warning): a section whose footers are not
-  adjacent children of one slot. Several footers in a section apply by order,
-  first page first, so scattered footers usually mean a stencil's footer met
-  the template's own. Sections are determined statically, counting every
-  `pagebreak` outside a header or footer, including ones inside conditionals.
-
-The validator loads component and style rules from the registries packaged at
-`META-INF/epistola-catalog`; it does not maintain a second component vocabulary.
-Versioned fixture data is packaged under
-`META-INF/epistola-catalog/fixtures/` in Maven and
-`@epistola.app/epistola-catalog/fixtures/` in npm.
+anywhere in the flow: inside stencils, conditionals and loops. Where one sits
+decides which pages it applies to: a header applies to what comes after it, a
+footer from the page it lands on. The renderer owns that schedule; the
+validator reports one shape, `PAGEBAND_NESTED` (error): a header or footer
+inside another header or footer.
 
 ## Whole-catalog validation
 

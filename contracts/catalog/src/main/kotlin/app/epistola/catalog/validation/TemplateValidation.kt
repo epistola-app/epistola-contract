@@ -218,12 +218,6 @@ object TemplateValidationCodes {
     /** A `pageheader` or `pagefooter` inside another `pageheader` or `pagefooter`. */
     const val PAGEBAND_NESTED = "PAGEBAND_NESTED"
 
-    /**
-     * Warning: a page section holds several `pagefooter` nodes that are not adjacent children of
-     * one slot, so which footer lands on which page follows their order rather than their position.
-     */
-    const val PAGEFOOTER_NOT_ADJACENT = "PAGEFOOTER_NOT_ADJACENT"
-
     @Deprecated("Page headers are no longer limited in number; no longer emitted.")
     const val PAGEHEADER_TOO_MANY = "PAGEHEADER_TOO_MANY"
 
@@ -267,6 +261,5 @@ object TemplateValidationCodes {
         PARAMETER_TYPE_UNSUPPORTED,
         PARAMETER_DEFAULT_TYPE_MISMATCH,
         PAGEBAND_NESTED,
-        PAGEFOOTER_NOT_ADJACENT,
     )
 }

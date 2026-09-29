@@ -12,7 +12,6 @@ import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BI
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDING_UNKNOWN
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMS_ALIAS_RESERVED
 import app.epistola.catalog.validation.TemplateValidationCodes.PAGEBAND_NESTED
-import app.epistola.catalog.validation.TemplateValidationCodes.PAGEFOOTER_NOT_ADJACENT
 import app.epistola.catalog.validation.TemplateValidationCodes.PARAMETER_DEFAULT_TYPE_MISMATCH
 import app.epistola.catalog.validation.TemplateValidationCodes.PARAMETER_NAME_INVALID
 import app.epistola.catalog.validation.TemplateValidationCodes.PARAMETER_NAME_RESERVED
@@ -269,34 +268,6 @@ class TemplateValidatorSuiteParityTest {
 
         val finding = TemplateValidator.validate(nested).findings.single()
         assertTrue(finding.code == PAGEBAND_NESTED && finding.path == "nodes.footer", "got $finding")
-    }
-
-    @Test
-    fun `footers that share a page section warn unless they are adjacent in one slot`() {
-        val first = pageFooter("first")
-        val second = pageFooter("second")
-
-        assertNoFinding(document(first, second, text("body")), PAGEFOOTER_NOT_ADJACENT)
-        assertNoFinding(document(first, text("body"), Node("break", "pagebreak"), second), PAGEFOOTER_NOT_ADJACENT)
-
-        val scattered = TemplateValidator.validate(document(first, text("body"), second))
-        assertTrue(scattered.valid, "a warning must not make the document invalid")
-        assertTrue(
-            scattered.findings.any { it.code == PAGEFOOTER_NOT_ADJACENT && it.severity == ValidationSeverity.WARNING },
-            "got ${scattered.findings}",
-        )
-
-        // A letter-shell stencil ending in a footer, followed by the template's own footer.
-        val shellAndOwn = nestedIn("stencil", text("letter"), first).let { shell ->
-            shell.copy(
-                nodes = shell.nodes + (second.id to second),
-                slots = shell.slots +
-                    ("root-slot" to shell.slots.getValue("root-slot").let { it.copy(children = it.children + second.id) }) +
-                    ("second-slot" to Slot("second-slot", second.id, "children")),
-            )
-        }
-        val shellReport = TemplateValidator.validate(shellAndOwn)
-        assertTrue(shellReport.valid && shellReport.findings.single().code == PAGEFOOTER_NOT_ADJACENT, "got ${shellReport.findings}")
     }
 
     private fun assertParameterSchemaFinding(schema: Map<String, Any?>, code: String) {

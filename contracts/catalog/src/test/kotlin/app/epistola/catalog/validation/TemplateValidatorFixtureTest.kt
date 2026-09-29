@@ -11,6 +11,7 @@ import app.epistola.template.model.ThemeRefOverride
 import tools.jackson.databind.json.JsonMapper
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TemplateValidatorFixtureTest {
@@ -42,15 +43,11 @@ class TemplateValidatorFixtureTest {
         fixture["invalidCases"].forEach { invalid ->
             val code = invalid["code"].asString()
             val scenario = invalid["scenario"].asString()
-            val severity = invalid["severity"]?.asString()?.let(ValidationSeverity::valueOf) ?: ValidationSeverity.ERROR
             val (document, context) = scenario(scenario)
             val report = TemplateValidator.validate(document, context)
 
-            assertEquals(severity == ValidationSeverity.WARNING, report.valid, scenario)
-            assertTrue(
-                report.findings.any { it.code == code && it.severity == severity },
-                "$scenario should produce $code as $severity; got ${report.findings}",
-            )
+            assertFalse(report.valid, scenario)
+            assertTrue(report.findings.any { it.code == code }, "$scenario should produce $code; got ${report.findings}")
             assertEquals(
                 report.findings.sortedWith(compareBy({ it.path }, { it.code }, { it.message })),
                 report.findings,
@@ -94,7 +91,6 @@ class TemplateValidatorFixtureTest {
         "UNSUPPORTED_PARAMETER_TYPE" -> bindingDocument(emptyMap<String, String>(), parameterSchema(type = "object")) to TemplateValidationContext.EMPTY
         "PARAMETER_DEFAULT_MISMATCH" -> bindingDocument(emptyMap<String, String>(), parameterSchema(default = 42)) to TemplateValidationContext.EMPTY
         "PAGEBAND_NESTED" -> footerInsideHeader() to TemplateValidationContext.EMPTY
-        "PAGEFOOTERS_NOT_ADJACENT" -> withBands(pageFooter("f-1"), emptyText("n-text"), pageFooter("f-2")) to TemplateValidationContext.EMPTY
         else -> error("Unknown fixture scenario: $name")
     }
 
@@ -132,16 +128,6 @@ class TemplateValidatorFixtureTest {
     private fun pageHeader(id: String): Node = Node(id, "pageheader", slots = listOf("$id-children"))
 
     private fun pageFooter(id: String): Node = Node(id, "pagefooter", slots = listOf("$id-children"))
-
-    private fun emptyText(id: String): Node = Node(id, "text", props = mapOf("content" to mapOf("type" to "doc", "content" to emptyList<Any>())))
-
-    /** Root children, with an empty `children` slot for every node that declares one. */
-    private fun withBands(vararg children: Node): TemplateDocument {
-        val base = withChildren(*children)
-        return base.copy(
-            slots = base.slots + children.flatMap(Node::slots).associateWith { Slot(it, it.substringBeforeLast("-children"), "children") },
-        )
-    }
 
     private fun stencil(id: String, slug: String): Node = Node(
         id,

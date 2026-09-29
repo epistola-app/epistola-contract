@@ -26,13 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Page headers and footers may now appear in any number, anywhere in a template's flow, including
   inside stencils, conditionals and loops (#1020 in epistola-suite). The portable validator no
   longer reports `PAGEHEADER_TOO_MANY`, `PAGEHEADER_ROOT_MISSING` or `PAGEHEADER_NOT_AT_ROOT`; the
-  constants stay, deprecated, for consumers that reference them. It reports two new findings:
-  `PAGEBAND_NESTED` (error) for a header or footer inside another, and `PAGEFOOTER_NOT_ADJACENT`
-  (warning) for a page section whose footers are not next to each other. This is the first
-  `WARNING` the template validator emits; a warning leaves the report valid. The component registry
-  drops `maxInstancesPerDocument` from `pageheader` and `pagefooter` and describes where each
-  applies. The validation fixture gains an optional `severity` per case. The catalog wire format is
-  unchanged, and every catalog valid before stays valid. A catalog that uses several footers
+  constants stay, deprecated, for consumers that reference them. It reports one new finding,
+  `PAGEBAND_NESTED` (error), for a header or footer inside another. The component registry drops
+  `maxInstancesPerDocument` from `pageheader` and `pagefooter` and describes where each applies. The
+  catalog wire format is unchanged, and every catalog valid before stays valid. A catalog that uses several footers
   should only be imported by a Suite that renders them, because an older Suite renders its first
   footer on every page.
 

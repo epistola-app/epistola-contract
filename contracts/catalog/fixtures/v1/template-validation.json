@@ -1,6 +1,6 @@
 {
   "fixtureVersion": 1,
-  "description": "One focused scenario per stable portable template-validation finding code. A case without a severity is an ERROR and makes the document invalid; a WARNING case leaves it valid.",
+  "description": "One focused invalid scenario per stable portable template-validation finding code.",
   "limits": {
     "maxStencilNestingDepth": 5
   },
@@ -37,7 +37,6 @@
     {"code": "PARAMETER_NAME_RESERVED", "scenario": "RESERVED_PARAMETER_NAME"},
     {"code": "PARAMETER_TYPE_UNSUPPORTED", "scenario": "UNSUPPORTED_PARAMETER_TYPE"},
     {"code": "PARAMETER_DEFAULT_TYPE_MISMATCH", "scenario": "PARAMETER_DEFAULT_MISMATCH"},
-    {"code": "PAGEBAND_NESTED", "scenario": "PAGEBAND_NESTED"},
-    {"code": "PAGEFOOTER_NOT_ADJACENT", "scenario": "PAGEFOOTERS_NOT_ADJACENT", "severity": "WARNING"}
+    {"code": "PAGEBAND_NESTED", "scenario": "PAGEBAND_NESTED"}
   ]
 }
