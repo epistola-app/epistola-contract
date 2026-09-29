@@ -1,10 +1,10 @@
 [tools]
-java = "temurin-25.0.2+10.0.LTS"
-gradle = "9.3.1"
-node = "24.13.0"
-pnpm = "10.28.2"
-dotnet = "8.0.423"
+java = "temurin-25.0.4+7.0.LTS"
+gradle = "9.8.0"
+node = "24.21.0"
+pnpm = "10.34.6"
+dotnet = "8.0.425"
 python = "3.13"
-"github:astral-sh/uv" = "0.11.29"
-"ubi:oasdiff/oasdiff" = "1.18.1"
+"github:astral-sh/uv" = "0.12.21"
+"ubi:oasdiff/oasdiff" = "1.32.1"
 "pipx:reuse" = { version = "6.2.0", extras = "charset-normalizer" }

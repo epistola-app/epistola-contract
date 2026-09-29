@@ -48,7 +48,7 @@ if (!bundledSpec.exists()) {
 openApiGenerate {
     generatorName.set("java")
     inputSpec.set(bundledSpec.absolutePath)
-    outputDir.set(generatedDir.map { it.asFile.absolutePath })
+    outputDir.set(generatedDir)
     // Wipe first: the generator only ever adds files, so a schema removed from the spec would
     // otherwise keep compiling from a stale generated source.
     cleanupOutput.set(true)

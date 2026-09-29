@@ -37,13 +37,13 @@
 
   <ItemGroup>
     <!-- Dependencies required by the generated client. -->
-    <PackageReference Include="JsonSubTypes" Version="2.0.1" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="Polly" Version="8.5.0" />
+    <PackageReference Include="JsonSubTypes" Version="2.1.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="Polly" Version="8.8.0" />
     <!-- Self-signed JWT auth (JwtSigner). -->
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.23.0" />
     <!-- Client-side JSON Schema validation (Newtonsoft-based, matches the client serializer). -->
-    <PackageReference Include="NJsonSchema" Version="11.1.0" />
+    <PackageReference Include="NJsonSchema" Version="11.6.1" />
   </ItemGroup>
 
   <ItemGroup>

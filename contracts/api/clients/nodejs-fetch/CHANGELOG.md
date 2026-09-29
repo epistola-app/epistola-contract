@@ -9,6 +9,14 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-30
+
+### Changed
+
+- A date property that is `null` in a response is read as `null` instead of `undefined`, matching
+  its declared `Date | null` type. Code that checks such a field with `=== undefined` must also
+  handle `null`.
+
 ## [1.3.1] - 2026-09-21
 
 ### Changed

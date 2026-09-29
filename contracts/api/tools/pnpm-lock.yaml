@@ -9,14 +9,14 @@ importers:
   .:
     devDependencies:
       '@openapitools/openapi-generator-cli':
-        specifier: 2.39.1
-        version: 2.39.1
+        specifier: 2.41.0
+        version: 2.41.0
       '@redocly/cli':
-        specifier: 2.36.0
-        version: 2.36.0
+        specifier: 2.55.0
+        version: 2.55.0
       '@stoplight/prism-cli':
-        specifier: 5.15.11
-        version: 5.15.11
+        specifier: 5.16.0
+        version: 5.16.0
 
 packages:
 
@@ -69,8 +69,8 @@ packages:
       axios: ^1.3.1
       rxjs: ^7.0.0
 
-  '@nestjs/common@11.1.27':
-    resolution: {integrity: sha512-kEGSzqM2lWr4whh4Ubflw+oPZSEzxvRMu9WL+LveZploJWTjec5bBlCiRVlVzTPg2kIwBiLwWSvCCW7Wnin1gg==}
+  '@nestjs/common@11.2.1':
+    resolution: {integrity: sha512-SEgtP+M9DqNhQkgJIlJ3oTp3gemo/8owySovzMGmJj2kcfIH1G6QP45AAb8dE4a3IpVicpUvdDAy7Syk7ebjBw==}
     peerDependencies:
       class-transformer: '>=0.4.1'
       class-validator: '>=0.13.2'
@@ -82,8 +82,8 @@ packages:
       class-validator:
         optional: true
 
-  '@nestjs/core@11.1.27':
-    resolution: {integrity: sha512-K6DX7hcqmZdeXkv7tsPakKBRCgqL19a4mtbX4FluY0hWtFdtPKp6lbe+lb8gWPfvLdbOWr/CPScn7BSjBX+Ecg==}
+  '@nestjs/core@11.2.1':
+    resolution: {integrity: sha512-M5PWFU8NdRTgX9Po49d7TQKg7f5t8GAVUa/Esy4tmaMWcKugTzg3ZzpJfD3LEPMuRHjfs6+8pQYgtuP2uz3rDw==}
     engines: {node: '>= 20'}
     peerDependencies:
       '@nestjs/common': ^11.0.0
@@ -108,15 +108,18 @@ packages:
     engines: {node: '>=8.0.0', npm: '>=5.0.0'}
     hasBin: true
 
-  '@openapitools/openapi-generator-cli@2.39.1':
-    resolution: {integrity: sha512-DChyB2rqEBcG9QOKRxuYfs/yRH7P21iSJukLTo443K9/DJdc9VZVm8RtgA+KqmlikmWgfBsjMvL+XTCnd2i1nQ==}
+  '@openapitools/openapi-generator-cli@2.41.0':
+    resolution: {integrity: sha512-T/cDW4XeO2MJJCgR+Teuc2z3jIuxlIlboFxFPMDvo9m/6hpIagtGGI+Z+ucMuaPVAVIM13FdVr+Zizwq4xUHJA==}
     engines: {node: '>=22.0.0'}
     hasBin: true
 
-  '@redocly/cli@2.36.0':
-    resolution: {integrity: sha512-0ky8u/Zzx4zT35rJZY27KOuzXMI29JLt5FMbfzFV7AtVlK3DLjDmJjqprnhqUMJlt04R+FKSXahBZo1dUF6R5A==}
+  '@redocly/cli@2.55.0':
+    resolution: {integrity: sha512-YKDNfgv7hHsbWeudSLw8CQumX8LZeztdBht82yfFZLIg62BL6srKBzM0SIG+Ct+cnkHfkM0jzJ7OSP0I62W53Q==}
     engines: {node: '>=22.12.0 || >=20.19.0 <21.0.0', npm: '>=10'}
     hasBin: true
+
+  '@scarf/scarf@1.4.0':
+    resolution: {integrity: sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==}
 
   '@stoplight/http-spec@7.1.0':
     resolution: {integrity: sha512-Z2XqKX2SV8a1rrgSzFqccX2TolfcblT+l4pNvUU+THaLl50tKDoeidwWWZTzYUzqU0+UV97ponvqEbWWN3PaXg==}
@@ -147,22 +150,22 @@ packages:
     resolution: {integrity: sha512-lyIc6JUlUA8Ve5ELywPC8I2Sdnh1zc1zmbYgVarhXIp9YeAB0ReeqmGEOWNtlHkbP2DAA1AL65Wfn2ncjK/jtQ==}
     engines: {node: '>=8'}
 
-  '@stoplight/prism-cli@5.15.11':
-    resolution: {integrity: sha512-jzKRElV0bq/mzBJgq033hsShbGR+NVeJqv20FyqbTMIrYksyxbZtCKTO64kvl1Z131+DcypACEvF06AI2bu2DA==}
-    engines: {node: '>=24.14.0'}
+  '@stoplight/prism-cli@5.16.0':
+    resolution: {integrity: sha512-lkkchTfCVwRjo4GC/lDOK4dFZ8Sxggw4O0V5lpiIKPHRpm1MFnLDsjA55PuP5EZHcmV0jpcQn/qVBOoN2YRVtg==}
+    engines: {node: '>=24.18.0'}
     hasBin: true
 
-  '@stoplight/prism-core@5.15.11':
-    resolution: {integrity: sha512-7KbfyOO8jjmdqvNd1i3fb3X7q0SVICnKVBbwEZvFGKmtwnfh7BnipGr5jpSDmdLUF1vI88QABmK2f3TETlYR8Q==}
-    engines: {node: '>=24.14.0'}
+  '@stoplight/prism-core@5.16.0':
+    resolution: {integrity: sha512-akuIOfe2jvyPbAu9XOIXP+UpiVl+rctU8laJsxvWsFX2X4m8rANTWC2/682/f35MtJv3h5jCYB4tAt8qJWx/OA==}
+    engines: {node: '>=24.18.0'}
 
-  '@stoplight/prism-http-server@5.15.11':
-    resolution: {integrity: sha512-HKt0FmvpC3tevXNdxZTeHyDy4bNzS4M6K3+XoUHmv2NnFaQvcr2VfiArg5zQ9eSkDncyqVbRalPycS/acPypLw==}
-    engines: {node: '>=24.14.0'}
+  '@stoplight/prism-http-server@5.16.0':
+    resolution: {integrity: sha512-vdbxE45cNjm4DNg/4igLqrS+9LyL5TSrf3FUYGDLBRcW5YGd5JvDdoMOi7nlAnilK9gpa2cHQbxEYkomZkJj7Q==}
+    engines: {node: '>=24.18.0'}
 
-  '@stoplight/prism-http@5.15.11':
-    resolution: {integrity: sha512-fy8XUiITrBcurq/js/wuHfYIy0mempotySe12ozt007UVUeYT6jZmJ4A4BhNFMXLBIzILBiBJ9bI8q4NGciDDQ==}
-    engines: {node: '>=24.14.0'}
+  '@stoplight/prism-http@5.16.0':
+    resolution: {integrity: sha512-+ZDU+33I3K7+uO2Ma1dZBgQRD4RarfBzHQcU/o3VMA850ez39H7AqJpMugeG2xKnzzzs8DNA442K2wfT1Ve9NA==}
+    engines: {node: '>=24.18.0'}
 
   '@stoplight/types@13.20.0':
     resolution: {integrity: sha512-2FNTv05If7ib79VPDA/r9eUet76jewXFH2y2K5vuge6SXbRHtWBhcaRmu+6QpF4/WRNoJj5XYRSwLGXDxysBGA==}
@@ -285,8 +288,8 @@ packages:
     resolution: {integrity: sha512-kNOjDqAh7px0XWNI+4QbzoiR/nTkHAWNud2uvnJquD1/x5a7EQZMJT0AczqK0Qn67oY/TTQ1LbUKajZpp3I9tQ==}
     engines: {node: '>=8.0.0'}
 
-  axios@1.18.1:
-    resolution: {integrity: sha512-3nTvFlvpn9Zu/RkHUqtc7/+al4UpRW5az71ap5zccp6e8RAYEzhMTecX8Dz1wWDYrPpUoB1HAQEGEAEvUr7S9g==}
+  axios@1.20.0:
+    resolution: {integrity: sha512-r8aOh8j9cGKpgQAqpzrUHnSIc6a59Y3Xf/cv8sy1DrHCkZHzQGEuoq1tARk6qSyDdtQGSDgpb9kFlruzPvrgwg==}
 
   balanced-match@4.0.4:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
@@ -394,8 +397,8 @@ packages:
   compute-lcm@1.1.2:
     resolution: {integrity: sha512-OFNPdQAXnQhDSKioX8/XYT6sdUlXwpeMjfd6ApxMJfyZ4GxmLR1xvMERctlYhlHwIiz6CSpBc2+qYKjHGZw4TQ==}
 
-  concurrently@10.0.3:
-    resolution: {integrity: sha512-hc3LH4UaKWd/bbyDK/IGVa4RB6PtQ3CUYwtrkzqHn+wIG3Hr5fhpRlk0L/gCa8ZE1L/Ufj50Zho69cI5w8SQBA==}
+  concurrently@10.0.5:
+    resolution: {integrity: sha512-JaP/CoftUrCcAFW/g//RbgEGwlelnEae6cfBLgH6ZdO6s8jPkn6p9SB9u6pdVxYXoiSnFqseOlHfrEfF82TVOg==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -569,8 +572,8 @@ packages:
   fp-ts@2.16.11:
     resolution: {integrity: sha512-LaI+KaX2NFkfn1ZGHoKCmcfv7yrZsC3b8NtWsTVQeHkq4F27vI5igUuO53sxqDEa2gNQMHFPmpojDw/1zmUK7w==}
 
-  fs-extra@11.3.6:
-    resolution: {integrity: sha512-w8ZNZr2mKIc7qeNaQ9AVPT1+iFaI+Avd4xudVOvdDJ8VytREi1Ft5Ih7hd9jjehod8vAM5GMsfQ/TpPf4EyoEA==}
+  fs-extra@11.4.0:
+    resolution: {integrity: sha512-EQsFzMUJkCKGr1ePqlYADkIUmHW1s3ZXr5Yqy6wbGrfUCphpl2maM/kyOIRA2HpP3AaFQTZXD4ldjek+nccddA==}
     engines: {node: '>=14.14'}
 
   fsevents@2.3.3:
@@ -1009,8 +1012,8 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
-  shell-quote@1.8.4:
-    resolution: {integrity: sha512-VsC6n6vz1ihYYyZZwX7YZSF5l5x36ca17OC+a69h94YqB7X6XLwf+5MOgynYir2SLFUbl8gIYvBo8K8RoNQ6bQ==}
+  shell-quote@1.9.0:
+    resolution: {integrity: sha512-Iov+JwFv/2HcTpcwNMKd8+IWNb8tboQJNQTkAY/LLVK7gGH9jy+LGkVqPxfekHl+yMmiqXszdGWXgkfml7hjqA==}
     engines: {node: '>= 0.4'}
 
   side-channel-list@1.0.1:
@@ -1282,13 +1285,13 @@ snapshots:
 
   '@lukeed/csprng@1.1.0': {}
 
-  '@nestjs/axios@4.0.1(@nestjs/common@11.1.27(reflect-metadata@0.2.2)(rxjs@7.8.2))(axios@1.18.1)(rxjs@7.8.2)':
+  '@nestjs/axios@4.0.1(@nestjs/common@11.2.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(axios@1.20.0)(rxjs@7.8.2)':
     dependencies:
-      '@nestjs/common': 11.1.27(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      axios: 1.18.1
+      '@nestjs/common': 11.2.1(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      axios: 1.20.0
       rxjs: 7.8.2
 
-  '@nestjs/common@11.1.27(reflect-metadata@0.2.2)(rxjs@7.8.2)':
+  '@nestjs/common@11.2.1(reflect-metadata@0.2.2)(rxjs@7.8.2)':
     dependencies:
       file-type: 21.3.4
       iterare: 1.2.1
@@ -1300,9 +1303,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@nestjs/core@11.1.27(@nestjs/common@11.1.27(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)':
+  '@nestjs/core@11.2.1(@nestjs/common@11.2.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)':
     dependencies:
-      '@nestjs/common': 11.1.27(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common': 11.2.1(reflect-metadata@0.2.2)(rxjs@7.8.2)
       fast-safe-stringify: 2.1.1
       iterare: 1.2.1
       path-to-regexp: 8.4.2
@@ -1321,20 +1324,20 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  '@openapitools/openapi-generator-cli@2.39.1':
+  '@openapitools/openapi-generator-cli@2.41.0':
     dependencies:
       '@inquirer/select': 1.3.3
-      '@nestjs/axios': 4.0.1(@nestjs/common@11.1.27(reflect-metadata@0.2.2)(rxjs@7.8.2))(axios@1.18.1)(rxjs@7.8.2)
-      '@nestjs/common': 11.1.27(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/core': 11.1.27(@nestjs/common@11.1.27(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/axios': 4.0.1(@nestjs/common@11.2.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(axios@1.20.0)(rxjs@7.8.2)
+      '@nestjs/common': 11.2.1(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 11.2.1(@nestjs/common@11.2.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nuxtjs/opencollective': 0.3.2
-      axios: 1.18.1
+      axios: 1.20.0
       chalk: 4.1.2
       commander: 8.3.0
       compare-versions: 6.1.1
-      concurrently: 10.0.3
+      concurrently: 10.0.5
       console.table: 0.10.0
-      fs-extra: 11.3.6
+      fs-extra: 11.4.0
       glob: 13.0.6
       proxy-agent: 8.0.2
       reflect-metadata: 0.2.2
@@ -1351,7 +1354,9 @@ snapshots:
       - kerberos
       - supports-color
 
-  '@redocly/cli@2.36.0': {}
+  '@redocly/cli@2.55.0': {}
+
+  '@scarf/scarf@1.4.0': {}
 
   '@stoplight/http-spec@7.1.0':
     dependencies:
@@ -1412,13 +1417,14 @@ snapshots:
 
   '@stoplight/path@1.3.2': {}
 
-  '@stoplight/prism-cli@5.15.11':
+  '@stoplight/prism-cli@5.16.0':
     dependencies:
+      '@scarf/scarf': 1.4.0
       '@stoplight/json': 3.21.7
       '@stoplight/json-schema-ref-parser': 10.0.0
-      '@stoplight/prism-core': 5.15.11
-      '@stoplight/prism-http': 5.15.11
-      '@stoplight/prism-http-server': 5.15.11
+      '@stoplight/prism-core': 5.16.0
+      '@stoplight/prism-http': 5.16.0
+      '@stoplight/prism-http-server': 5.16.0
       '@stoplight/types': 14.1.1
       chalk: 4.1.2
       chokidar: 3.6.0
@@ -1439,17 +1445,19 @@ snapshots:
       - kerberos
       - supports-color
 
-  '@stoplight/prism-core@5.15.11':
+  '@stoplight/prism-core@5.16.0':
     dependencies:
+      '@scarf/scarf': 1.4.0
       fp-ts: 2.16.11
       lodash: 4.18.1
       pino: 6.14.0
       tslib: 2.8.1
 
-  '@stoplight/prism-http-server@5.15.11':
+  '@stoplight/prism-http-server@5.16.0':
     dependencies:
-      '@stoplight/prism-core': 5.15.11
-      '@stoplight/prism-http': 5.15.11
+      '@scarf/scarf': 1.4.0
+      '@stoplight/prism-core': 5.16.0
+      '@stoplight/prism-http': 5.16.0
       '@stoplight/types': 14.1.1
       fast-xml-parser: 5.9.3
       fp-ts: 2.16.11
@@ -1465,15 +1473,16 @@ snapshots:
       - kerberos
       - supports-color
 
-  '@stoplight/prism-http@5.15.11':
+  '@stoplight/prism-http@5.16.0':
     dependencies:
       '@faker-js/faker': 10.5.0
+      '@scarf/scarf': 1.4.0
       '@stoplight/http-spec': 7.1.0
       '@stoplight/json': 3.21.7
       '@stoplight/json-schema-merge-allof': 0.7.8
       '@stoplight/json-schema-ref-parser': 10.0.0
       '@stoplight/json-schema-sampler': 0.3.0
-      '@stoplight/prism-core': 5.15.11
+      '@stoplight/prism-core': 5.16.0
       '@stoplight/types': 14.1.1
       '@stoplight/yaml': 4.3.0
       abstract-logging: 2.0.1
@@ -1508,7 +1517,7 @@ snapshots:
 
   '@stoplight/types@14.1.0':
     dependencies:
-      '@types/json-schema': 7.0.11
+      '@types/json-schema': 7.0.15
       utility-types: 3.11.0
 
   '@stoplight/types@14.1.1':
@@ -1621,7 +1630,7 @@ snapshots:
 
   atomic-sleep@1.0.0: {}
 
-  axios@1.18.1:
+  axios@1.20.0:
     dependencies:
       follow-redirects: 1.16.0
       form-data: 4.0.6
@@ -1740,11 +1749,11 @@ snapshots:
       validate.io-function: 1.0.2
       validate.io-integer-array: 1.0.0
 
-  concurrently@10.0.3:
+  concurrently@10.0.5:
     dependencies:
       chalk: 5.6.2
       rxjs: 7.8.2
-      shell-quote: 1.8.4
+      shell-quote: 1.9.0
       supports-color: 10.2.2
       tree-kill: 1.2.2
       yargs: 18.0.0
@@ -1903,7 +1912,7 @@ snapshots:
 
   fp-ts@2.16.11: {}
 
-  fs-extra@11.3.6:
+  fs-extra@11.4.0:
     dependencies:
       graceful-fs: 4.2.11
       jsonfile: 6.2.1
@@ -2318,7 +2327,7 @@ snapshots:
 
   semver@7.6.3: {}
 
-  shell-quote@1.8.4: {}
+  shell-quote@1.9.0: {}
 
   side-channel-list@1.0.1:
     dependencies:

@@ -69,7 +69,7 @@ if (!bundledSpec.exists()) {
 openApiGenerate {
     generatorName.set("kotlin")
     inputSpec.set(bundledSpec.absolutePath)
-    outputDir.set(generatedDir.map { it.asFile.absolutePath })
+    outputDir.set(generatedDir)
     packageName.set("app.epistola.client")
     apiPackage.set("app.epistola.client.api")
     modelPackage.set("app.epistola.client.model")

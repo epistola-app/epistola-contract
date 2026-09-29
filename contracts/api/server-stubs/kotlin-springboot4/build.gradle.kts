@@ -252,7 +252,7 @@ val generateClientIdentityConstants by tasks.registering {
 openApiGenerate {
     generatorName.set("kotlin-spring")
     inputSpec.set(bundledSpec.absolutePath)
-    outputDir.set(generatedDir.map { it.asFile.absolutePath })
+    outputDir.set(generatedDir)
 
     apiPackage.set("app.epistola.api")
     modelPackage.set("app.epistola.api.model")
@@ -272,6 +272,10 @@ openApiGenerate {
             "gradleBuildFile" to "false",
             "documentationProvider" to "none",
             "useJakartaEe" to "true",
+            // Added in openapi-generator 7.24. Pinned off so property inclusion and null handling
+            // stay governed by the application's ObjectMapper, as before the option existed.
+            "generateJsonIncludeAnnotations" to "false",
+            "generateJsonSetterNullsAnnotations" to "false",
         ),
     )
 

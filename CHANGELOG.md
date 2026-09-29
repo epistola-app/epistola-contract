@@ -31,6 +31,20 @@ libraries.
   `pagefooter`. The wire format is unchanged and every previously valid catalog stays valid, but a
   catalog with several footers should only be imported by a Suite that renders them: older Suites
   render the first footer on every page.
+- Dependencies are updated within their major versions. The Kotlin client builds on Spring
+  Framework 6.2.19 (Spring Boot 3.5.16), Jackson 2.21.4 and Kotlin 2.4.20; the server stubs on
+  Spring Boot 4.1.1 and Jackson 3.1.5; the catalog on json-schema-validator 3.0.7. The .NET client
+  raises its package minimums (see its changelog).
+- The clients and server stubs are generated with OpenAPI Generator 7.25.0 instead of 7.19.0.
+  Wire behaviour is unchanged: every client passes the full conformance suite. Visible in source:
+  - Kotlin client: enums serialize through `@get:JsonValue`, and constructor parameters carry
+    `@param:JsonProperty`.
+  - Server stubs: required properties are declared `@param:JsonProperty(required = true)`.
+  - Jakarta client: model fields are `protected` instead of `private`.
+  - .NET client: deprecated properties are marked `[Obsolete]`, which newly includes
+    `UpgradeCatalogRequest.IncludeNewSlugs`.
+  - Node.js client: a date that is `null` on the wire is read as `null` rather than `undefined`,
+    as its type already declared.
 
 ### Fixed
 

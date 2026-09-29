@@ -9,6 +9,16 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-30
+
+### Changed
+
+- Raised the package minimums, which NuGet installs by default: System.IdentityModel.Tokens.Jwt
+  8.23.0, Polly 8.8.0, NJsonSchema 11.6.1, Newtonsoft.Json 13.0.4 and JsonSubTypes 2.1.0.
+- Deprecated model properties are marked `[Obsolete]`, which newly includes
+  `UpgradeCatalogRequest.IncludeNewSlugs`. Projects that treat warnings as errors and set it will
+  see CS0612.
+
 ## [1.3.1] - 2026-09-21
 
 ### Changed
