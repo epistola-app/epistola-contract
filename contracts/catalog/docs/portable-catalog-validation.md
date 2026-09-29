@@ -18,7 +18,7 @@ before extraction:
 | `NodeParameterBindingValidator` | Portable | Declared/required bindings and JSONata syntax through `TemplateValidationContext` |
 | `NodeParameterSchemaProvider` | Portable boundary; Suite wiring is product-specific | `TemplateValidationContext.resolveParameterSchema` |
 | `ParameterSchemaValidator` | Portable | Parameter schema/name/type/default findings |
-| `PageHeaderCardinalityValidator` | Portable | Page-header count and root-placement findings |
+| `PageHeaderCardinalityValidator` | Portable | Page header and footer placement findings (see below); the count and root-placement limits were dropped in 1.4.0 |
 | `JsonSchemaValidator` data/schema checks | Portable at whole-catalog level | Owned by `ResourceValidator`/`CatalogValidator`, not the template graph validator |
 | `JsonSchemaValidator` compatibility suggestions | Suite editing/migration UX | Remains in Suite |
 | `DataModelValidationException` and Suite `ValidationException` mapping | Suite presentation/API | Remains in a Suite adapter |
@@ -58,11 +58,14 @@ All findings contain a stable string code, `ERROR` or `WARNING` severity,
 document-relative path, and human-readable message. Reports are deduplicated
 and sorted by path, code, then message.
 
-The validator loads component and style rules from the registries packaged at
-`META-INF/epistola-catalog`; it does not maintain a second component vocabulary.
-Versioned fixture data is packaged under
-`META-INF/epistola-catalog/fixtures/` in Maven and
-`@epistola.app/epistola-catalog/fixtures/` in npm.
+## Page headers and footers
+
+A template may contain any number of `pageheader` and `pagefooter` nodes,
+anywhere in the flow: inside stencils, conditionals and loops. Where one sits
+decides which pages it applies to: a header applies to what comes after it, a
+footer from the page it lands on. The renderer owns that schedule; the
+validator reports one shape, `PAGEBAND_NESTED` (error): a header or footer
+inside another header or footer.
 
 ## Whole-catalog validation
 

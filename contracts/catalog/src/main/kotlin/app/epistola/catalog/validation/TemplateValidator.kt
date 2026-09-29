@@ -11,9 +11,7 @@ import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BI
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDING_SYNTAX_INVALID
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDING_UNKNOWN
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMS_ALIAS_RESERVED
-import app.epistola.catalog.validation.TemplateValidationCodes.PAGEHEADER_NOT_AT_ROOT
-import app.epistola.catalog.validation.TemplateValidationCodes.PAGEHEADER_ROOT_MISSING
-import app.epistola.catalog.validation.TemplateValidationCodes.PAGEHEADER_TOO_MANY
+import app.epistola.catalog.validation.TemplateValidationCodes.PAGEBAND_NESTED
 import app.epistola.catalog.validation.TemplateValidationCodes.PLACEHOLDER_NAME_DUPLICATE
 import app.epistola.catalog.validation.TemplateValidationCodes.PLACEHOLDER_NAME_INVALID
 import app.epistola.catalog.validation.TemplateValidationCodes.PLACEHOLDER_NESTED_DEFINITION
@@ -43,7 +41,7 @@ import tools.jackson.databind.JsonNode
  *
  * Validation covers graph integrity, component and style registries, slot
  * cardinality and allowed children, property shapes, expressions,
- * placeholders, page headers, stencil references, parameter bindings, theme
+ * placeholders, page header and footer placement, stencil references, parameter bindings, theme
  * references, recursion, and nesting depth. Consumer-owned resource lookups
  * enter only through [TemplateValidationContext].
  *
@@ -58,6 +56,7 @@ object TemplateValidator {
     private val slugRegex = Regex("^[a-z][a-z0-9-]{0,63}$")
     private val parameterNameRegex = Regex("^[a-z][a-zA-Z0-9_]{0,63}$")
     private val reservedAliases = setOf("sys", "item", "index")
+    private val pageBandTypes = setOf("pageheader", "pagefooter")
 
     /**
      * Validates [document] using optional catalog resolution [context].
@@ -84,9 +83,9 @@ object TemplateValidator {
         validateRegistryRules(document, findings)
         validateBindings(document, context, findings)
         validateReferences(document, context, findings)
-        validatePageHeaders(document, findings)
         if (safeGraph) {
             validatePlaceholders(document, context, findings)
+            validatePageBands(document, findings)
         }
         context.resolveStylePresets(document)?.let { presets ->
             document.nodes.values.sortedBy(Node::id).forEach { node ->
@@ -511,21 +510,26 @@ object TemplateValidator {
         val slug: String,
     )
 
-    private fun validatePageHeaders(
+    /**
+     * Page headers and footers may appear in any number, anywhere in the flow; where one sits
+     * decides which pages it applies to, which the renderer resolves. One shape is still an
+     * error: a header or footer nested inside another.
+     */
+    private fun validatePageBands(
         document: TemplateDocument,
         findings: MutableList<TemplateValidationFinding>,
     ) {
-        val headers = document.nodes.values.filter { it.type == "pageheader" }.sortedBy(Node::id)
-        if (headers.size > 2) findings.error(PAGEHEADER_TOO_MANY, "nodes", "a template may declare at most two 'pageheader' nodes, found ${headers.size}")
-        val root = document.nodes[document.root]
-        if (headers.isNotEmpty() && root == null) {
-            findings.error(PAGEHEADER_ROOT_MISSING, "root", "cannot validate pageheader placement without a root node")
-            return
+        fun walk(nodeId: String, insideBand: Boolean) {
+            val node = document.nodes[nodeId] ?: return
+            val isBand = node.type in pageBandTypes
+            if (isBand && insideBand) {
+                findings.error(PAGEBAND_NESTED, "nodes.$nodeId", "${node.type} node '$nodeId' must not be inside a page header or footer")
+            }
+            node.slots.mapNotNull(document.slots::get).forEach { slot ->
+                slot.children.forEach { walk(it, insideBand || isBand) }
+            }
         }
-        val rootChildren = root?.slots.orEmpty().mapNotNull(document.slots::get).flatMap { it.children }.toSet()
-        headers.filterNot { it.id in rootChildren }.forEach { header ->
-            findings.error(PAGEHEADER_NOT_AT_ROOT, "nodes.${header.id}", "pageheader node '${header.id}' must be a direct child of the root slot")
-        }
+        walk(document.root, false)
     }
 
     private fun validateBindings(

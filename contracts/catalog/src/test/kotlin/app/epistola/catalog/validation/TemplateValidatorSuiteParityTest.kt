@@ -11,8 +11,7 @@ import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BI
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDING_SYNTAX_INVALID
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDING_UNKNOWN
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMS_ALIAS_RESERVED
-import app.epistola.catalog.validation.TemplateValidationCodes.PAGEHEADER_NOT_AT_ROOT
-import app.epistola.catalog.validation.TemplateValidationCodes.PAGEHEADER_TOO_MANY
+import app.epistola.catalog.validation.TemplateValidationCodes.PAGEBAND_NESTED
 import app.epistola.catalog.validation.TemplateValidationCodes.PARAMETER_DEFAULT_TYPE_MISMATCH
 import app.epistola.catalog.validation.TemplateValidationCodes.PARAMETER_NAME_INVALID
 import app.epistola.catalog.validation.TemplateValidationCodes.PARAMETER_NAME_RESERVED
@@ -236,20 +235,39 @@ class TemplateValidatorSuiteParityTest {
     }
 
     @Test
-    fun `page header cardinality and placement match Suite`() {
-        val first = pageHeader("first")
-        val second = pageHeader("second")
-        assertNoFinding(document(first, second), PAGEHEADER_TOO_MANY)
-        assertFinding(document(first, second, pageHeader("third")), PAGEHEADER_TOO_MANY)
-
-        val container = Node("container", "container", listOf("container-slot"))
-        val nested = document(container).copy(
-            nodes = document(container).nodes + (first.id to first),
-            slots = document(container).slots +
-                ("container-slot" to Slot("container-slot", container.id, "children", listOf(first.id))) +
-                ("first-slot" to Slot("first-slot", first.id, "children")),
+    fun `page headers and footers are accepted in any number and anywhere in the flow`() {
+        val header = pageHeader("header")
+        val footer = pageFooter("footer")
+        val cases = listOf(
+            document(pageHeader("first"), pageHeader("second"), pageHeader("third")),
+            nestedIn("container", header, footer),
+            nestedIn("conditional", header),
+            nestedIn("loop", footer),
+            nestedIn("stencil", header, text("letter"), footer),
+            document(footer, text("body"), header),
         )
-        assertFinding(nested, PAGEHEADER_NOT_AT_ROOT)
+
+        cases.forEach { document ->
+            val report = TemplateValidator.validate(document)
+            assertTrue(report.findings.isEmpty(), "expected no findings, got ${report.findings}")
+        }
+    }
+
+    @Test
+    fun `a page header or footer inside another is an error`() {
+        val header = pageHeader("header")
+        val footer = pageFooter("footer")
+        val nested = document(header).let {
+            it.copy(
+                nodes = it.nodes + (footer.id to footer),
+                slots = it.slots +
+                    ("header-slot" to Slot("header-slot", header.id, "children", listOf(footer.id))) +
+                    ("footer-slot" to Slot("footer-slot", footer.id, "children")),
+            )
+        }
+
+        val finding = TemplateValidator.validate(nested).findings.single()
+        assertTrue(finding.code == PAGEBAND_NESTED && finding.path == "nodes.footer", "got $finding")
     }
 
     private fun assertParameterSchemaFinding(schema: Map<String, Any?>, code: String) {
@@ -339,6 +357,25 @@ class TemplateValidatorSuiteParityTest {
     )
 
     private fun pageHeader(id: String): Node = Node(id, "pageheader", listOf("$id-slot"))
+
+    private fun pageFooter(id: String): Node = Node(id, "pagefooter", listOf("$id-slot"))
+
+    /** [children] inside a single wrapper node of [wrapperType] under the root. */
+    private fun nestedIn(wrapperType: String, vararg children: Node): TemplateDocument {
+        val (props, slotName) = when (wrapperType) {
+            "conditional" -> mapOf("condition" to mapOf("raw" to "true", "language" to "jsonata")) to "body"
+            "loop" -> mapOf("expression" to mapOf("raw" to "items", "language" to "jsonata"), "itemAlias" to "item") to "body"
+            "stencil" -> mapOf("stencilId" to "letter-shell", "version" to 1) to "children"
+            else -> null to "children"
+        }
+        val wrapper = Node("wrapper", wrapperType, listOf("wrapper-slot"), props = props)
+        val base = document(wrapper, *children)
+        return base.copy(
+            slots = base.slots +
+                ("root-slot" to base.slots.getValue("root-slot").copy(children = listOf(wrapper.id))) +
+                ("wrapper-slot" to Slot("wrapper-slot", wrapper.id, slotName, children.map(Node::id))),
+        )
+    }
 
     private fun bindingNode(
         parameterBindings: Any,

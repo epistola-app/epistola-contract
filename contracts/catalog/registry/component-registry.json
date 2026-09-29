@@ -2184,11 +2184,10 @@
           "type": "boolean"
         }
       ],
-      "maxInstancesPerDocument": 2,
       "examples": [
         {
           "name": "title-only",
-          "description": "Minimal page header with a single text block. Anchored to the top of every page. When the document declares a second pageheader the second one renders on pages 2..N and this one applies only to page 1.",
+          "description": "Minimal page header with a single text block, drawn at the top of the page. A header applies to what comes after it: placed at the start of the document or right after a page break it applies from that page, placed after content it takes over from the next page, and it lasts until the next header.",
           "fragment": {
             "rootNodeId": "n-pageheader",
             "nodes": {
@@ -2240,7 +2239,7 @@
         },
         {
           "name": "first-page-cover",
-          "description": "A taller first-page header for cover-page patterns.",
+          "description": "A taller header for a cover page. Placed directly before a second header at the start of a section, it applies to the section's first page only and the second header to the pages after it.",
           "fragment": {
             "rootNodeId": "n-pageheader-first",
             "nodes": {
@@ -2296,7 +2295,7 @@
         },
         {
           "name": "running-header",
-          "description": "A compact running header for pages after the cover page.",
+          "description": "A compact running header, the second of two headers at the start of a section: it applies from the section's second page until the next header.",
           "fragment": {
             "rootNodeId": "n-pageheader-rest",
             "nodes": {
@@ -2384,11 +2383,10 @@
           "type": "boolean"
         }
       ],
-      "maxInstancesPerDocument": 1,
       "examples": [
         {
           "name": "centered-text",
-          "description": "Page footer with a single centered text block. Anchored to the bottom of every page.",
+          "description": "Page footer with a single centered text block, drawn at the bottom of the page. A footer applies from the page it lands on and continues until another footer lands; a later footer landing on a page that already has one is skipped. The first footer also covers the pages before it, so a single footer anywhere covers the whole document.",
           "fragment": {
             "rootNodeId": "n-pagefooter",
             "nodes": {
