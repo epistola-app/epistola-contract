@@ -135,19 +135,30 @@ clean:
 	cd $(API_DIR)/clients/nodejs-fetch && rm -rf src/generated dist build
 
 # Publish to local Maven repository (for testing)
+#
+# Every artifact is stamped with one version, as the release workflow does: the spec's
+# info.version unless VERSION is given. Left to their defaults the builds disagree — the JVM
+# builds would use patch 0, the catalog 0.1.0-SNAPSHOT, .NET 0.0.0-dev, and Node.js whatever
+# package.json holds — and the server stubs' POM would name a catalog version nobody published.
+# Python reads the full spec version itself, so it follows the spec even when VERSION is set.
+publish-local: VERSION ?= $(shell $(API_DIR)/scripts/spec-version.sh)
 publish-local: build
-	@echo "==> Publishing to local Maven repository..."
-	cd $(API_DIR)/clients/kotlin-spring-restclient && ./gradlew publishToMavenLocal
-	cd $(API_DIR)/clients/jakarta && ./gradlew publishToMavenLocal
-	cd $(API_DIR)/server-stubs/kotlin-springboot4 && ./gradlew publishToMavenLocal
-	cd contracts/catalog && ./gradlew publishToMavenLocal
+	@echo "==> Publishing $(VERSION) to local Maven repository..."
+	cd $(API_DIR)/clients/kotlin-spring-restclient && ./gradlew publishToMavenLocal -Pversion=$(VERSION)
+	cd $(API_DIR)/clients/jakarta && ./gradlew publishToMavenLocal -Pversion=$(VERSION)
+	cd $(API_DIR)/server-stubs/kotlin-springboot4 && ./gradlew publishToMavenLocal -Pversion=$(VERSION)
+	cd contracts/catalog && ./gradlew publishToMavenLocal -Pversion=$(VERSION)
 	@echo "==> Published to ~/.m2/repository/app/epistola/contract/"
 	@echo "==> Packing .NET client..."
-	cd $(API_DIR)/clients/dotnet-httpclient && dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -o nupkgs
+	cd $(API_DIR)/clients/dotnet-httpclient && dotnet pack src/Epistola.Client/Epistola.Client.csproj -c Release -p:Version=$(VERSION) -o nupkgs
 	@echo "==> Building Python client..."
 	cd $(API_DIR)/clients/python-urllib3 && ./generate.sh && uv build
 	@echo "==> Packing Node.js client..."
-	cd $(API_DIR)/clients/nodejs-fetch && pnpm install --frozen-lockfile && ./generate.sh && pnpm pack
+	@# npm version rewrites package.json; restore it so a local pack leaves the tree clean.
+	cd $(API_DIR)/clients/nodejs-fetch && pnpm install --frozen-lockfile && ./generate.sh && \
+		cp package.json package.json.publish-local && \
+		{ npm version $(VERSION) --no-git-tag-version --allow-same-version && pnpm pack; rc=$$?; \
+		  mv package.json.publish-local package.json; exit $$rc; }
 
 # Check for breaking changes against main branch
 breaking: bundle
@@ -243,7 +254,7 @@ help:
 	@echo "  conformance-<client> - Run it for one client (kotlin|jakarta|dotnet|python|node)"
 	@echo "  sbom-dotnet          - Generate a CycloneDX SBOM for the .NET client"
 	@echo "  clean          - Clean all build artifacts"
-	@echo "  publish-local  - Publish to local Maven repository"
+	@echo "  publish-local  - Publish every artifact locally at the spec version (override: VERSION=x.y.z)"
 	@echo "  breaking       - Check for breaking API changes against main branch"
 	@echo "  docs           - Build API docs and serve at http://localhost:8888"
 	@echo "  mock           - Start Prism mock server on http://localhost:4010"

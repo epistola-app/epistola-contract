@@ -9,6 +9,13 @@ libraries.
 
 ## [Unreleased]
 
+### Fixed
+
+- `make publish-local` stamps every artifact with the spec version (or `VERSION=`), as the release
+  workflow does. It published the catalog as `0.1.0-SNAPSHOT`, the .NET client as `0.0.0-dev` and
+  the Node.js client with a stale `package.json` version, so the local server stubs named a catalog
+  version that was never published.
+
 ## [1.4.0] - 2026-09-30
 
 ### Added
