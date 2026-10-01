@@ -14,7 +14,8 @@ It adds, on top of the stock generated client:
   token per request.
 - **NDJSON result collection** (`ResultCollector`) with adaptive polling, compression, and
   partition-aware routing helpers.
-- **Client-side JSON Schema validation** of template data (`TemplateSchemaValidator`).
+- **Template data validation** (`TemplateSchemaValidator`), asking the server, with a pluggable
+  `TemplateDataValidator` for consumers who want the check in-process.
 
 The package version tracks the Epistola contract version (`info.version`) and releases in
 lockstep with the Kotlin and .NET clients.

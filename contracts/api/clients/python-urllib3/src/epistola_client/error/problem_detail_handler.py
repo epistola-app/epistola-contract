@@ -18,10 +18,12 @@ the generated default. This module holds the self-contained, unit-testable parse
 from __future__ import annotations
 
 import json
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from epistola_client_generated import (
     DataModelValidationError,
+    InvalidDataField,
+    MissingDataField,
     ProblemDetail,
     ValidationError,
 )
@@ -41,8 +43,9 @@ def parse_problem(
     ``None`` on any parse failure (so the caller can fall back to the generic exception).
 
     Parses the base :class:`ProblemDetail` plus the field-level ``errors`` array
-    (``ValidationProblemDetail``) and the per-example ``validationErrors`` map
-    (``DataModelValidationProblemDetail``). The three generated models are independent,
+    (``ValidationProblemDetail``), the per-example ``validationErrors`` map
+    (``DataModelValidationProblemDetail``), and the ``missingFields`` / ``invalidFields``
+    arrays (``TemplateDataValidationProblemDetail``). The generated models are independent,
     so the base fields and each extension are carried separately.
     """
     try:
@@ -87,4 +90,21 @@ def parse_problem(
         status_code=status_code,
         raw_body=body,
         headers=headers,
+        missing_fields=_members(tree, "missingFields", MissingDataField),
+        invalid_fields=_members(tree, "invalidFields", InvalidDataField),
     )
+
+
+def _members(tree: Dict[str, Any], member: str, model: Any) -> List[Any]:
+    """One extension member that is an array of objects, or ``[]`` when absent or malformed.
+
+    A malformed member yields nothing rather than a guess: a bad problem body should not become a
+    confident claim about a particular field, and it must not hide the problem it decorates.
+    """
+    raw = tree.get(member)
+    if not isinstance(raw, list):
+        return []
+    try:
+        return [model.from_dict(entry) for entry in raw if isinstance(entry, dict)]
+    except Exception:
+        return []

@@ -59,10 +59,10 @@ from epistola_client.error import (
 from epistola_client.http import EpistolaApiClient, EpistolaClientBuilder
 from epistola_client.identity import ClientIdentity
 from epistola_client.validation import (
-    SchemaCache,
+    ServerTemplateDataValidator,
     TemplateDataValidationError,
+    TemplateDataValidator,
     TemplateSchemaValidator,
-    TtlSchemaCache,
     ValidatingGenerationApi,
     ValidationFailure,
 )
@@ -90,10 +90,10 @@ _epistola_exports = [
     "MetricsListener",
     "TemplateSchemaValidator",
     "ValidatingGenerationApi",
+    "ServerTemplateDataValidator",
     "TemplateDataValidationError",
+    "TemplateDataValidator",
     "ValidationFailure",
-    "SchemaCache",
-    "TtlSchemaCache",
 ]
 
 __all__ = list(_generated_all) + _epistola_exports
