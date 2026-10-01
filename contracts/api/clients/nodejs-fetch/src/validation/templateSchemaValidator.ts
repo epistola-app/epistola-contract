@@ -5,39 +5,13 @@
 import type { GenerateDocumentBatchRequest, GenerateDocumentOperationRequest } from '../generated/api/apis/index.js'
 import type { GenerationJobResponse } from '../generated/api/models/index.js'
 import type { InitOverrideFunction } from '../generated/api/runtime.js'
-import { loadAjv, type AjvErrorLike, type AjvInstanceLike, type AjvOptionsLike, type AjvRuntime, type AjvValidateFunctionLike } from './ajvLoader.js'
+import { KnownProblemSlugs } from '../generated/knownProblemSlugs.js'
+import { ProblemDetailException } from '../error/problemDetailException.js'
+import { ServerTemplateDataValidator, problemValidationFailures, type TemplateDataValidationSource } from './serverTemplateDataValidator.js'
+import { TemplateDataValidationException, type TemplateDataValidator, type ValidationFailure } from './templateDataValidator.js'
 
-/** A single field-level validation failure. */
-export interface ValidationFailure {
-  /** Path to the invalid field, e.g. `customer.name`; empty for the root. */
-  readonly path: string
-  /** Human-readable error description. */
-  readonly message: string
-  /** JSON Schema keyword that failed, e.g. `required`, `type`. */
-  readonly keyword: string | undefined
-}
-
-/**
- * Thrown when template data fails JSON Schema validation on the client side. Mirrors the server's
- * validation error structure. (Named an exception rather than an error because the contract's own
- * `TemplateDataValidationError` model — the server's validation result item — is exported alongside.)
- */
-export class TemplateDataValidationException extends Error {
-  override readonly name = 'TemplateDataValidationException'
-
-  constructor(
-    /** Every failure found. */
-    readonly errors: readonly ValidationFailure[],
-    message?: string,
-  ) {
-    super(message ?? `Template data validation failed with ${errors.length} error(s)`)
-  }
-
-  /** Formats all failures as a multi-line string. */
-  formatErrors(): string {
-    return this.errors.map((failure) => `  ${failure.path}: ${failure.message}`).join('\n')
-  }
-}
+export { TemplateDataValidationException } from './templateDataValidator.js'
+export type { TemplateDataValidator, ValidationFailure } from './templateDataValidator.js'
 
 /** Loads a template's JSON Schema; resolves to undefined when the template has none. */
 export type SchemaLoader = () => Promise<object | undefined>
@@ -47,6 +21,11 @@ export type SchemaLoader = () => Promise<object | undefined>
  *
  * The catalog is part of the key, not decoration: the same template id in two catalogs of one
  * tenant is two different templates with two different schemas.
+ *
+ * Nothing this package ships uses this any more — the default validator asks the server, which has
+ * no schema to cache. It is kept, and exported, because a {@link TemplateDataValidator} that
+ * validates in-process does need it: such a validator is only "local" after a round trip for the
+ * template, and without a cache it is slower than asking the server outright.
  */
 export interface SchemaCache {
   /**
@@ -88,62 +67,46 @@ export class TtlSchemaCache implements SchemaCache {
   }
 }
 
-/** The one call on `TemplatesApi` the validator needs — a stub satisfies it in tests. */
-export interface TemplateSchemaSource {
-  getTemplate(requestParameters: { tenantId: string; catalogId: string; templateId: string }): Promise<{ schema?: object }>
-}
-
 /**
- * Validates template data against the JSON Schema defined on the template.
+ * Checks template data against a template's data contract, rejecting when it does not fit.
  *
- * Fetches the template from the server on first use and caches the schema. No-op when the template
- * has no schema.
- *
- * Needs the optional peer dependencies `ajv` and `ajv-formats`, loaded on first use; without them
- * the first validation rejects with an error that says what to install.
+ * The check itself is delegated to a {@link TemplateDataValidator}; this class is the thin,
+ * rejecting façade over it. By default that is {@link ServerTemplateDataValidator}, so no JSON
+ * Schema compiler is involved and the verdict is the server's:
  *
  * ```ts
  * const validator = new TemplateSchemaValidator(templatesApi)
  * await validator.validate('my-tenant', 'my-catalog', 'my-template', data)
  * ```
+ *
+ * To have the check run in-process instead, pass an implementation built on the compiler of your
+ * choice:
+ *
+ * ```ts
+ * const validator = new TemplateSchemaValidator(new MyAjvValidator(templatesApi))
+ * ```
+ *
+ * @see TemplateDataValidator for the failure shape every implementation owes its callers.
  */
 export class TemplateSchemaValidator {
-  private readonly compiled = new WeakMap<object, AjvValidateFunctionLike>()
+  private readonly validator: TemplateDataValidator
 
-  constructor(
-    private readonly templatesApi: TemplateSchemaSource,
-    private readonly cache: SchemaCache = new TtlSchemaCache(),
-  ) {}
+  constructor(validatorOrApi: TemplateDataValidator | TemplateDataValidationSource) {
+    this.validator = isValidator(validatorOrApi) ? validatorOrApi : new ServerTemplateDataValidator(validatorOrApi)
+  }
 
   /**
-   * Validates `data` against the schema of the specified template. Resolves when the data is valid
-   * or the template has no schema; rejects with {@link TemplateDataValidationException} otherwise.
+   * Validates `data` against the template's data contract. Resolves when it fits; rejects with
+   * {@link TemplateDataValidationException} when it does not.
+   *
+   * Against a server older than contract 1.4.0 the default validator rejects with the API's own
+   * error, because `validateTemplateData` does not exist there.
    */
   async validate(tenantId: string, catalogId: string, templateId: string, data: unknown): Promise<void> {
-    const schema = await this.cache.getOrLoad(tenantId, catalogId, templateId, () => this.loadSchema(tenantId, catalogId, templateId))
-    if (schema === undefined) {
-      return
+    const failures = await this.validator.validate(tenantId, catalogId, templateId, data)
+    if (failures.length > 0) {
+      throw new TemplateDataValidationException(failures)
     }
-    const validate = await this.compile(schema)
-    if (validate(data)) {
-      return
-    }
-    const failures = (validate.errors ?? []).map(toFailure).sort((a, b) => a.path.localeCompare(b.path))
-    throw new TemplateDataValidationException(failures)
-  }
-
-  private async loadSchema(tenantId: string, catalogId: string, templateId: string): Promise<object | undefined> {
-    const template = await this.templatesApi.getTemplate({ tenantId, catalogId, templateId })
-    return template.schema ?? undefined
-  }
-
-  private async compile(schema: object): Promise<AjvValidateFunctionLike> {
-    let validate = this.compiled.get(schema)
-    if (validate === undefined) {
-      validate = ajvFor(await loadAjv(), schema).compile(schema)
-      this.compiled.set(schema, validate)
-    }
-    return validate
   }
 }
 
@@ -154,70 +117,77 @@ export interface GenerationApiLike {
 }
 
 /**
- * Wraps a `GenerationApi` and validates request data against the template's JSON Schema before
- * sending it to the server.
+ * Wraps a `GenerationApi` and reports unacceptable template data as a
+ * {@link TemplateDataValidationException} rather than a generic problem response.
  *
- * For single-document requests, validation errors are thrown immediately. For batch requests, all
- * items are validated and errors are collected into one {@link TemplateDataValidationException},
- * with each failure's path prefixed `items[<index>].`.
+ * It gets there two ways, and which one applies is the {@link TemplateDataValidator}'s call:
+ *
+ * - **Before the request**, when the validator answers in-process
+ *   (`preflightsGeneration`). Nothing is sent, and every item of a batch is reported at once with
+ *   its `items[<index>]` prefix — otherwise fixing a hundred-item batch takes a hundred round trips.
+ * - **From the response**, always. The server validates the data it is given, so a rejected request
+ *   comes back as a `template-data-invalid` problem, which is translated into the same exception
+ *   with the same field pointers.
+ *
+ * The default validator asks the server, and therefore declines the pre-flight: checking first
+ * would spend an extra round trip — one per item, for a batch — to learn what submitting already
+ * tells us. Either way the caller catches one error type and reads one failure shape.
  */
 export class ValidatingGenerationApi {
-  private readonly validator: TemplateSchemaValidator
+  private readonly validator: TemplateDataValidator
 
   constructor(
     private readonly delegate: GenerationApiLike,
-    templatesApi: TemplateSchemaSource,
-    cache?: SchemaCache,
+    validatorOrApi: TemplateDataValidator | TemplateDataValidationSource,
   ) {
-    this.validator = new TemplateSchemaValidator(templatesApi, cache)
+    this.validator = isValidator(validatorOrApi) ? validatorOrApi : new ServerTemplateDataValidator(validatorOrApi)
   }
 
   async generateDocument(requestParameters: GenerateDocumentOperationRequest, initOverrides?: RequestInit | InitOverrideFunction): Promise<GenerationJobResponse> {
-    const request = requestParameters.generateDocumentRequest
-    await this.validator.validate(requestParameters.tenantId, request.catalogId, request.templateId, request.data)
-    return this.delegate.generateDocument(requestParameters, initOverrides)
+    if (this.validator.preflightsGeneration !== false) {
+      const request = requestParameters.generateDocumentRequest
+      const failures = await this.validator.validate(requestParameters.tenantId, request.catalogId, request.templateId, request.data)
+      if (failures.length > 0) {
+        throw new TemplateDataValidationException(failures)
+      }
+    }
+    return this.translatingProblem(() => this.delegate.generateDocument(requestParameters, initOverrides))
   }
 
   async generateDocumentBatch(requestParameters: GenerateDocumentBatchRequest, initOverrides?: RequestInit | InitOverrideFunction): Promise<GenerationJobResponse> {
-    const failures: ValidationFailure[] = []
-    for (const [index, item] of requestParameters.generateBatchRequest.items.entries()) {
-      try {
-        await this.validator.validate(requestParameters.tenantId, item.catalogId, item.templateId, item.data)
-      } catch (error) {
-        if (!(error instanceof TemplateDataValidationException)) throw error
-        for (const failure of error.errors) {
-          failures.push({ ...failure, path: failure.path ? `items[${index}].${failure.path}` : `items[${index}]` })
+    if (this.validator.preflightsGeneration !== false) {
+      const failures: ValidationFailure[] = []
+      for (const [index, item] of requestParameters.generateBatchRequest.items.entries()) {
+        for (const failure of await this.validator.validate(requestParameters.tenantId, item.catalogId, item.templateId, item.data)) {
+          failures.push({ ...failure, path: `items[${index}]${failure.path}` })
         }
       }
+      if (failures.length > 0) {
+        throw new TemplateDataValidationException(failures)
+      }
     }
-    if (failures.length > 0) {
-      throw new TemplateDataValidationException(failures)
+    return this.translatingProblem(() => this.delegate.generateDocumentBatch(requestParameters, initOverrides))
+  }
+
+  /**
+   * Rewrites the server's `template-data-invalid` problem into the error a caller of this class is
+   * already catching. Every other problem propagates untouched — this class narrows one failure
+   * mode, it does not swallow failures.
+   */
+  private async translatingProblem(call: () => Promise<GenerationJobResponse>): Promise<GenerationJobResponse> {
+    try {
+      return await call()
+    } catch (error) {
+      if (error instanceof ProblemDetailException && error.typeSlug === KnownProblemSlugs.TEMPLATE_DATA_INVALID) {
+        throw new TemplateDataValidationException(problemValidationFailures(error.extensions))
+      }
+      throw error
     }
-    return this.delegate.generateDocumentBatch(requestParameters, initOverrides)
   }
 }
 
-const AJV_OPTIONS: AjvOptionsLike = { allErrors: true, strict: false }
-
-/** Picks the Ajv dialect the schema declares, defaulting to draft-07 as Ajv itself does. */
-function ajvFor(runtime: AjvRuntime, schema: object): AjvInstanceLike {
-  const declared = (schema as { $schema?: unknown }).$schema
-  const dialect = typeof declared === 'string' ? declared : ''
-  const ajv = dialect.includes('2020-12') ? new runtime.Ajv2020(AJV_OPTIONS) : dialect.includes('2019-09') ? new runtime.Ajv2019(AJV_OPTIONS) : new runtime.Ajv(AJV_OPTIONS)
-  runtime.addFormats(ajv)
-  return ajv
-}
-
-function toFailure(error: AjvErrorLike): ValidationFailure {
-  const segments = error.instancePath.split('/').filter((segment) => segment !== '').map(unescapePointer)
-  if (error.keyword === 'required' && typeof error.params.missingProperty === 'string') {
-    segments.push(error.params.missingProperty)
-  }
-  return { path: segments.join('.'), message: error.message ?? error.keyword, keyword: error.keyword }
-}
-
-function unescapePointer(segment: string): string {
-  return segment.replace(/~1/g, '/').replace(/~0/g, '~')
+function isValidator(candidate: TemplateDataValidator | TemplateDataValidationSource): candidate is TemplateDataValidator {
+  return typeof (candidate as TemplateDataValidator).validate === 'function'
 }
 
 function cacheKey(tenantId: string, catalogId: string, templateId: string): string {

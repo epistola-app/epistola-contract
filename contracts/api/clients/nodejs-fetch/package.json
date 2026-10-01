@@ -48,18 +48,6 @@
     "test": "tsc -p tsconfig.test.json && node --test 'build/test/**/*.test.js'",
     "prepack": "pnpm build"
   },
-  "peerDependencies": {
-    "ajv": "^8.0.0",
-    "ajv-formats": "^3.0.0"
-  },
-  "peerDependenciesMeta": {
-    "ajv": {
-      "optional": true
-    },
-    "ajv-formats": {
-      "optional": true
-    }
-  },
   "devDependencies": {
     "@types/node": "^24.19.0",
     "ajv": "^8.20.0",

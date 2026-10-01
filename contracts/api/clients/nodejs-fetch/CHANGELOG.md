@@ -9,6 +9,33 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+### Changed
+
+- **Template data is validated by the server, not by a bundled schema compiler.**
+  `TemplateSchemaValidator` and `ValidatingGenerationApi` now call `validateTemplateData` through a
+  pluggable `TemplateDataValidator`, whose only shipped implementation is
+  `ServerTemplateDataValidator`. `ajv` and `ajv-formats` are no longer peer dependencies, optional
+  or otherwise, so the package has no optional dependencies at all. The verdict is the server's,
+  which is the one that decides what renders.
+- **`ValidationFailure.path` is now a JSON Pointer** (`/customer/email`) rather than a dotted key
+  (`customer.name`), and a batch item's failures are prefixed `items[0]/customer/email` rather than
+  `items[0].customer.name`. Code that split a path on `.` must read pointer segments instead. The
+  format is pinned on `TemplateDataValidator`, so every implementation reports it the same way —
+  previously each of the five clients reported a different one.
+- `ValidatingGenerationApi` no longer pre-validates when the validator asks the server
+  (`preflightsGeneration === false`), since the server checks the same data on submit; it translates
+  the resulting `template-data-invalid` problem into `TemplateDataValidationException` instead. One
+  request instead of two, or instead of one per batch item. A validator that answers in-process
+  still pre-flights, batch aggregation included.
+- `ProblemDetailException` gained `missingFields`, `invalidFields` and `isTemplateDataProblem`,
+  typed views over the members contract 1.4.0 added. They were already reachable through
+  `extensions`; this only saves the cast.
+
+### Removed
+
+- `AJV_INSTALL_HINT`, and the Ajv loader behind it. Nothing loads Ajv any more. The worked adapter
+  in `test/validation/local/` shows how to validate in-process if you want to.
+
 ## [1.4.0] - 2026-09-30
 
 ### Changed
