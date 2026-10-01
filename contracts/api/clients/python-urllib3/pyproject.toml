@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "epistola-client"
 dynamic = ["version"]
-description = "Python client library for the Epistola document generation API, using urllib3. Generated from the Epistola OpenAPI contract, with identity headers, RFC 9457 problem-detail error handling, self-signed JWT auth, NDJSON result collection, and client-side schema validation."
+description = "Python client library for the Epistola document generation API, using urllib3. Generated from the Epistola OpenAPI contract, with identity headers, RFC 9457 problem-detail error handling, self-signed JWT auth, NDJSON result collection, and server-backed template data validation."
 readme = "README.md"
 license = "EUPL-1.2"
 requires-python = ">=3.9"
@@ -24,8 +24,6 @@ dependencies = [
     "typing-extensions>=4.7.1",
     # Self-signed JWT auth (JwtSigner).
     "pyjwt[crypto]>=2.8.0",
-    # Client-side JSON Schema validation (TemplateSchemaValidator).
-    "jsonschema>=4.21.0",
 ]
 
 [project.urls]
@@ -35,6 +33,12 @@ Repository = "https://github.com/epistola-app/epistola-contract.git"
 [dependency-groups]
 dev = [
     "pytest>=8.0",
+    # Test-scope only, for the reference TemplateDataValidator adapter under
+    # tests/validation/local/. The published client ships no JSON Schema library: it validates
+    # through the server by default and lets a consumer plug in their own (see
+    # TemplateDataValidator). Keeping one real library here proves the protocol is implementable
+    # and gives consumers something to copy, without installing it for everyone.
+    "jsonschema>=4.21.0",
     # Build-time derived-source generator (gen/generate_derived.py).
     "PyYAML>=6.0",
 ]

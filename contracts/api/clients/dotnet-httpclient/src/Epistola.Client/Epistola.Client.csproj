@@ -43,7 +43,6 @@
     <!-- Self-signed JWT auth (JwtSigner). -->
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.23.0" />
     <!-- Client-side JSON Schema validation (Newtonsoft-based, matches the client serializer). -->
-    <PackageReference Include="NJsonSchema" Version="11.6.1" />
   </ItemGroup>
 
   <ItemGroup>

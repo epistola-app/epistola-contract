@@ -5,119 +5,188 @@
 package app.epistola.client.jakarta.validation.schema;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import app.epistola.client.jakarta.FakeApis;
 import app.epistola.client.jakarta.api.GenerationApi;
 import app.epistola.client.jakarta.api.TemplatesApi;
+import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.model.BatchGenerationItem;
 import app.epistola.client.jakarta.model.GenerateBatchRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationJobResponse;
-import app.epistola.client.jakarta.model.TemplateDto;
+import app.epistola.client.jakarta.model.InvalidDataField;
+import app.epistola.client.jakarta.model.MissingDataField;
+import app.epistola.client.jakarta.model.ProblemDetail;
+import app.epistola.client.jakarta.validation.schema.TemplateDataValidationException.ValidationError;
+import jakarta.ws.rs.core.Response;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
+/**
+ * {@link ValidatingGenerationApi} reaches one exception type by two routes, and which route applies
+ * is the validator's call. Both are pinned here, including that the server-backed default spends no
+ * extra request to reach it.
+ */
 class ValidatingGenerationApiTest {
 
-    private static final Map<String, Object> INVOICE_SCHEMA = Map.of(
-            "type", "object",
-            "required", List.of("customerName"),
-            "properties", Map.of("customerName", Map.of("type", "string")));
+    private final AtomicInteger validations = new AtomicInteger();
+    private final AtomicInteger submissions = new AtomicInteger();
 
-    private final List<String> submitted = new ArrayList<>();
+    private final GenerateDocumentRequest request =
+            new GenerateDocumentRequest().catalogId("default").templateId("invoice").data(Map.of());
 
-    private final TemplatesApi templatesApi = FakeApis.of(
-            TemplatesApi.class,
-            Map.of("getTemplate", args -> new TemplateDto()
-                    .id((String) args[2])
-                    .tenantId((String) args[0])
-                    .name((String) args[2])
-                    .schema(INVOICE_SCHEMA)));
+    private final GenerateBatchRequest batch = new GenerateBatchRequest()
+            .items(List.of(
+                    new BatchGenerationItem().catalogId("default").templateId("invoice").data(Map.of()),
+                    new BatchGenerationItem().catalogId("default").templateId("reminder").data(Map.of())));
 
-    private final GenerationApi generationApi = FakeApis.of(
-            GenerationApi.class,
-            Map.of(
-                    "generateDocument", args -> {
-                        submitted.add("single");
-                        return new GenerationJobResponse().requestId(UUID.randomUUID());
-                    },
-                    "generateDocumentBatch", args -> {
-                        submitted.add("batch");
-                        return new GenerationJobResponse().requestId(UUID.randomUUID());
-                    }));
+    /** A validator that answers in-process, so it takes the pre-flight. */
+    private TemplateDataValidator local(String... paths) {
+        return (tenantId, catalogId, templateId, data) -> {
+            validations.incrementAndGet();
+            List<ValidationError> findings = new ArrayList<>();
+            for (String path : paths) {
+                findings.add(new ValidationError(path, "is required but was not supplied", "required"));
+            }
+            return findings;
+        };
+    }
 
-    @Test
-    void valid_data_is_forwarded_to_the_delegate() {
-        ValidatingGenerationApi api = new ValidatingGenerationApi(generationApi, templatesApi);
+    private TemplatesApi countingTemplatesApi() {
+        return FakeApis.of(TemplatesApi.class, Map.of("validateTemplateData", args -> {
+            validations.incrementAndGet();
+            throw new AssertionError("the server must not be asked to pre-flight a generation request");
+        }));
+    }
 
-        api.generateDocument("acme-corp", request(Map.of("customerName", "Jane")));
+    private GenerationApi generationApi(RuntimeException failure) {
+        Map<String, java.util.function.Function<Object[], Object>> stubs = Map.of(
+                "generateDocument", args -> {
+                    submissions.incrementAndGet();
+                    if (failure != null) {
+                        throw failure;
+                    }
+                    return new GenerationJobResponse();
+                },
+                "generateDocumentBatch", args -> {
+                    submissions.incrementAndGet();
+                    if (failure != null) {
+                        throw failure;
+                    }
+                    return new GenerationJobResponse();
+                });
+        return FakeApis.of(GenerationApi.class, stubs);
+    }
 
-        assertEquals(List.of("single"), submitted);
+    private static ProblemDetailException templateDataInvalid(
+            List<MissingDataField> missingFields, List<InvalidDataField> invalidFields) {
+        ProblemDetail problem = new ProblemDetail()
+                .type(URI.create("https://epistola.app/errors/template-data-invalid"))
+                .title("Template data invalid")
+                .status(400)
+                .detail("The supplied data does not fit the template's data contract");
+        return new ProblemDetailException(
+                Response.status(400).build(), problem, List.of(), Map.of(), missingFields, invalidFields, "{}");
     }
 
     @Test
-    void invalid_data_never_reaches_the_server() {
-        ValidatingGenerationApi api = new ValidatingGenerationApi(generationApi, templatesApi);
+    void the_default_validator_submits_without_a_preflight_request() {
+        new ValidatingGenerationApi(generationApi(null), countingTemplatesApi()).generateDocument("acme-corp", request);
 
-        assertThrows(
-                TemplateDataValidationException.class,
-                () -> api.generateDocument("acme-corp", request(Map.of("wrongField", "Jane"))));
-
-        assertTrue(submitted.isEmpty(), "a request that cannot succeed should not cost a round trip");
+        // The point of ServerTemplateDataValidator.preflightsGeneration() being false: the server
+        // validates what it is given, so asking it first would be a second round trip for the same
+        // verdict.
+        assertEquals(0, validations.get());
+        assertEquals(1, submissions.get());
     }
 
     @Test
-    void a_valid_batch_is_forwarded_once() {
-        ValidatingGenerationApi api = new ValidatingGenerationApi(generationApi, templatesApi);
-
-        api.generateDocumentBatch(
-                "acme-corp",
-                new GenerateBatchRequest()
-                        .items(List.of(item(Map.of("customerName", "A")), item(Map.of("customerName", "B")))));
-
-        assertEquals(List.of("batch"), submitted);
-    }
-
-    @Test
-    void every_failing_batch_item_is_reported_at_once_with_its_index() {
-        ValidatingGenerationApi api = new ValidatingGenerationApi(generationApi, templatesApi);
+    void a_rejected_submission_becomes_a_template_data_validation_exception() {
+        ProblemDetailException rejected = templateDataInvalid(
+                List.of(
+                        new MissingDataField().path("/invoiceNumber").required(true).schema(Map.of()),
+                        new MissingDataField().path("/customer/phone").required(false).schema(Map.of())),
+                List.of(new InvalidDataField()
+                        .path("/customer/email")
+                        .keyword("format")
+                        .message("must be a valid email address")));
 
         TemplateDataValidationException e = assertThrows(
                 TemplateDataValidationException.class,
-                () -> api.generateDocumentBatch(
-                        "acme-corp",
-                        new GenerateBatchRequest()
-                                .items(List.of(
-                                        item(Map.of("customerName", "A")),
-                                        item(Map.of("nope", "B")),
-                                        item(Map.of("customerName", "C")),
-                                        item(Map.of("also-nope", "D"))))));
+                () -> new ValidatingGenerationApi(generationApi(rejected), countingTemplatesApi())
+                        .generateDocument("acme-corp", request));
 
-        // Fixing a hundred-item batch one failure per round trip is the thing to avoid.
-        assertEquals(2, e.getErrors().size(), e.formatErrors());
-        assertTrue(e.getErrors().get(0).getPath().startsWith("items[1]"), e.getErrors().get(0).getPath());
-        assertTrue(e.getErrors().get(1).getPath().startsWith("items[3]"), e.getErrors().get(1).getPath());
-        assertTrue(submitted.isEmpty());
+        // The optional missing field is not a finding; the required one is.
+        assertEquals(
+                List.of("/customer/email", "/invoiceNumber"),
+                e.getErrors().stream().map(ValidationError::getPath).toList());
+        assertEquals(List.of("format", "required"), e.getErrors().stream().map(ValidationError::getKeyword).toList());
     }
 
-    private static GenerateDocumentRequest request(Object data) {
-        return new GenerateDocumentRequest()
-                .catalogId("default")
-                .templateId("invoice")
-                .variantId("english")
-                .data(data);
+    @Test
+    void any_other_problem_propagates_untouched() {
+        ProblemDetailException notFound = new ProblemDetailException(
+                Response.status(404).build(),
+                new ProblemDetail()
+                        .type(URI.create("https://epistola.app/errors/not-found"))
+                        .title("Not Found")
+                        .status(404),
+                List.of(),
+                Map.of(),
+                "{}");
+
+        ProblemDetailException thrown = assertThrows(
+                ProblemDetailException.class,
+                () -> new ValidatingGenerationApi(generationApi(notFound), countingTemplatesApi())
+                        .generateDocument("acme-corp", request));
+
+        assertSame(notFound, thrown);
     }
 
-    private static BatchGenerationItem item(Object data) {
-        return new BatchGenerationItem()
-                .catalogId("default")
-                .templateId("invoice")
-                .variantId("english")
-                .data(data);
+    @Test
+    void a_local_validator_throws_before_the_request_is_sent() {
+        assertThrows(
+                TemplateDataValidationException.class,
+                () -> new ValidatingGenerationApi(generationApi(null), local("/name"))
+                        .generateDocument("acme-corp", request));
+
+        assertEquals(0, submissions.get());
+    }
+
+    @Test
+    void a_local_validator_reports_every_item_of_a_batch_at_once() {
+        TemplateDataValidationException e = assertThrows(
+                TemplateDataValidationException.class,
+                () -> new ValidatingGenerationApi(generationApi(null), local("/name"))
+                        .generateDocumentBatch("acme-corp", batch));
+
+        assertEquals(
+                List.of("items[0]/name", "items[1]/name"),
+                e.getErrors().stream().map(ValidationError::getPath).toList());
+        assertEquals(0, submissions.get());
+    }
+
+    @Test
+    void a_local_validator_that_finds_nothing_lets_the_request_through() {
+        new ValidatingGenerationApi(generationApi(null), local()).generateDocumentBatch("acme-corp", batch);
+
+        assertEquals(1, submissions.get());
+        assertTrue(validations.get() >= 2, "every item is checked");
+    }
+
+    @Test
+    void the_default_validator_preflights_nothing_per_batch_item_either() {
+        new ValidatingGenerationApi(generationApi(null), countingTemplatesApi())
+                .generateDocumentBatch("acme-corp", batch);
+
+        assertEquals(0, validations.get());
+        assertEquals(1, submissions.get());
     }
 }

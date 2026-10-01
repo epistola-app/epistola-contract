@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: EUPL-1.2
 
-import type { DataModelValidationError, ProblemDetail, ValidationError } from '../generated/api/models/index.js'
+import type { DataModelValidationError, InvalidDataField, MissingDataField, ProblemDetail, ValidationError } from '../generated/api/models/index.js'
 import { ResponseError } from '../generated/api/runtime.js'
+import { ProblemExtensionMembers } from '../generated/knownProblemSlugs.js'
 import { BLANK_TYPE, slugFor } from './problemTypes.js'
 
 /**
@@ -93,6 +94,44 @@ export class ProblemDetailException extends ResponseError {
   get isDataModelValidationProblem(): boolean {
     return Object.keys(this.validationErrors).length > 0
   }
+
+  /**
+   * Absent fields reported by a `template-data-invalid` problem; empty for any other.
+   *
+   * Each `path` is a JSON Pointer into the request's `data`, and `schema` is the contract's schema
+   * for that field, so a caller can ask for exactly what is missing. An entry whose `required` is
+   * false is informational: the resolved version's template reads the field, but leaving it out
+   * does not make the data invalid.
+   *
+   * Read off {@link extensions}, which already carries every member the base problem does not
+   * model, so this is a typed view rather than extra parsing.
+   */
+  get missingFields(): readonly MissingDataField[] {
+    return objectsAt(this.extensions, ProblemExtensionMembers.MISSING_FIELDS) as readonly MissingDataField[]
+  }
+
+  /** Supplied values the template's data contract rejected; empty for any other problem. */
+  get invalidFields(): readonly InvalidDataField[] {
+    return objectsAt(this.extensions, ProblemExtensionMembers.INVALID_FIELDS) as readonly InvalidDataField[]
+  }
+
+  /** True when this problem described template data field by field. */
+  get isTemplateDataProblem(): boolean {
+    return this.missingFields.length > 0 || this.invalidFields.length > 0
+  }
+}
+
+/**
+ * One extension member's array of objects, or empty when absent or malformed. Entries of an
+ * unexpected shape are dropped rather than guessed at: a malformed problem body should not become a
+ * confident claim about a particular field.
+ */
+function objectsAt(extensions: Readonly<Record<string, unknown>>, member: string): readonly object[] {
+  const value = extensions[member]
+  if (!Array.isArray(value)) {
+    return []
+  }
+  return value.filter((entry): entry is object => entry !== null && typeof entry === 'object' && !Array.isArray(entry))
 }
 
 function buildMessage(status: number, problem: ProblemDetail): string {

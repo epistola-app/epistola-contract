@@ -2,201 +2,266 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-"""Validates template data against the JSON Schema defined on the template.
+"""Checks template data against a template's data contract.
 
-Fetches the template from the server on first use and caches the compiled schema.
+The verdict comes from Epistola, through ``validateTemplateData``. Nothing is compiled here, so
+there is no JSON Schema library to install, and the answer cannot disagree with what generation
+will do.
 
 Example::
 
     validator = TemplateSchemaValidator(templates_api)
     validator.validate("my-tenant", "my-catalog", "my-template", my_data)
+
+To validate in-process instead, implement :class:`TemplateDataValidator` and pass it in place of
+the API — see its docstring for the failure shape an implementation owes its callers.
 """
 
 from __future__ import annotations
 
-import threading
-import time
-from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Protocol, Tuple
-
-from jsonschema.validators import validator_for
+from typing import Any, List, Optional, Sequence, Union
 
 from epistola_client_generated import (
     GenerateBatchRequest,
     GenerateDocumentRequest,
     GenerationApi,
     GenerationJobResponse,
+    InvalidDataField,
+    MissingDataField,
+    TemplateDataValidationError as TemplateDataValidationErrorModel,
     TemplatesApi,
+    ValidateTemplateDataRequest,
+)
+
+from epistola_client._generated.known_problem_slugs import KnownProblemSlugs
+from epistola_client.error.problem_detail_exception import ProblemDetailException
+from epistola_client.validation.template_data_validator import (
+    TemplateDataValidationError,
+    TemplateDataValidator,
+    ValidationFailure,
+)
+
+#: The message for a required field the data does not supply.
+MISSING_REQUIRED_MESSAGE = "is required but was not supplied"
+
+#: The finding for a rejection that names nothing.
+_UNSPECIFIED = ValidationFailure(
+    path="",
+    message="does not fit this template's data contract, which gave no field-level detail",
+    keyword=None,
 )
 
 
-@dataclass(frozen=True)
-class ValidationFailure:
-    """A single field-level validation failure."""
+def to_validation_failures(
+    errors: Optional[Sequence[Any]] = None,
+    missing_fields: Optional[Sequence[Any]] = None,
+    invalid_fields: Optional[Sequence[Any]] = None,
+) -> List[ValidationFailure]:
+    """Turn what the server reports about template data into the one shape the protocol pins.
 
-    #: JSON path to the invalid field, e.g. ``customer.name``.
-    path: str
-    #: Human-readable error description.
-    message: str
-    #: JSON Schema keyword that failed, e.g. ``required``, ``type``.
-    keyword: Optional[str] = None
+    ``invalid_fields`` and ``missing_fields`` are preferred over ``errors`` where the server sends
+    them, and not only because they carry more. Their ``path`` is specified as a JSON Pointer into
+    the data, which is what :class:`TemplateDataValidator` promises callers; ``errors[].path``
+    describes itself as a pointer but is documented with a JSONPath example
+    (``$.customer.email``), so passing it through unexamined would make the promise depend on which
+    member the server happened to fill. The fallback to ``errors`` exists so a server that sends
+    only that is still reported rather than silently accepted, and the last resort exists because an
+    empty result means "acceptable" to a caller — a rejection that names no field must not become a
+    pass.
+
+    An absent **optional** field is not a finding: the contract says so explicitly, and the server
+    lists those in ``missing_fields`` too so a client can offer them.
+    """
+    from_fields: List[ValidationFailure] = []
+    for field in invalid_fields or ():
+        from_fields.append(
+            ValidationFailure(
+                path=field.path,
+                message=field.message,
+                keyword=field.keyword,
+            )
+        )
+    for field in missing_fields or ():
+        if field.required is False:
+            continue
+        from_fields.append(
+            ValidationFailure(path=field.path, message=MISSING_REQUIRED_MESSAGE, keyword="required")
+        )
+    if from_fields:
+        return from_fields
+
+    from_errors = [
+        ValidationFailure(path=error.path, message=error.message, keyword=error.keyword)
+        for error in errors or ()
+    ]
+    return from_errors or [_UNSPECIFIED]
 
 
-class TemplateDataValidationError(Exception):
-    """Raised when template data fails JSON Schema validation on the client side.
+class ServerTemplateDataValidator:
+    """The :class:`TemplateDataValidator` this package ships: it asks Epistola.
 
-    Mirrors the server's validation error structure.
+    This is the default, and it carries no JSON Schema library. The server already owns the verdict
+    — it validates every generation request whatever the client did first — so asking it is the only
+    answer that cannot disagree with what generation will do. It also knows things a schema alone
+    does not: which optional fields the resolved version's template actually reads.
+
+    Validation is a far cheaper call than rendering, so checking as data is entered is reasonable.
+    It is still a network call, which is why :attr:`preflights_generation` is ``False``.
+
+    **Server floor.** ``validateTemplateData`` arrived with contract **1.4.0**. Against an older
+    server the call fails like any other unknown operation; it is not degraded into "valid",
+    because silently reporting unvalidated data as acceptable is worse than failing.
+
+    :param templates_api: the generated API used to reach ``validateTemplateData``
+    :param variant_id: optional variant to check against
+    :param version_id: optional explicit version number (mutually exclusive with
+        ``environment_id``)
+    :param environment_id: optional environment whose active version to check against
     """
 
-    def __init__(self, errors: List[ValidationFailure], message: Optional[str] = None) -> None:
-        self.errors = errors
-        super().__init__(message or f"Template data validation failed with {len(errors)} error(s)")
-
-    def format_errors(self) -> str:
-        """Format all failures as a multi-line string."""
-        return "\n".join(f"  {e.path}: {e.message}" for e in self.errors)
-
-
-class SchemaCache(Protocol):
-    """Cache for JSON Schemas keyed by (tenant_id, catalog_id, template_id).
-
-    The catalog is part of the key, not decoration: the same template id in two catalogs of one
-    tenant is two different templates with two different schemas.
-    """
-
-    def get_or_load(
+    def __init__(
         self,
-        tenant_id: str,
-        catalog_id: str,
-        template_id: str,
-        loader: Callable[[], Optional[Dict[str, Any]]],
-    ) -> Optional[Dict[str, Any]]:
-        """Return a cached schema, or invoke ``loader`` on a miss and store the result.
-        A ``None`` result means the template has no schema defined.
-        """
-        ...
-
-
-class TtlSchemaCache:
-    """Default TTL-based cache. Entries expire after ``ttl`` seconds from when stored."""
-
-    def __init__(self, ttl_seconds: float = 300.0) -> None:
-        self._ttl = ttl_seconds
-        self._lock = threading.Lock()
-        self._cache: Dict[Tuple[str, str, str], Tuple[Optional[Dict[str, Any]], float]] = {}
-
-    def get_or_load(
-        self,
-        tenant_id: str,
-        catalog_id: str,
-        template_id: str,
-        loader: Callable[[], Optional[Dict[str, Any]]],
-    ) -> Optional[Dict[str, Any]]:
-        key = (tenant_id, catalog_id, template_id)
-        now = time.monotonic()
-        with self._lock:
-            entry = self._cache.get(key)
-            if entry is not None and now < entry[1] + self._ttl:
-                return entry[0]
-        schema = loader()
-        with self._lock:
-            self._cache[key] = (schema, time.monotonic())
-        return schema
-
-    def evict(self, tenant_id: str, catalog_id: str, template_id: str) -> None:
-        """Evict a specific entry (useful after template updates)."""
-        with self._lock:
-            self._cache.pop((tenant_id, catalog_id, template_id), None)
-
-    def evict_all(self) -> None:
-        """Evict all entries."""
-        with self._lock:
-            self._cache.clear()
-
-
-class TemplateSchemaValidator:
-    """Validates template data against the JSON Schema defined on the template."""
-
-    def __init__(self, templates_api: TemplatesApi, cache: Optional[SchemaCache] = None) -> None:
+        templates_api: TemplatesApi,
+        variant_id: Optional[str] = None,
+        version_id: Optional[int] = None,
+        environment_id: Optional[str] = None,
+    ) -> None:
         self._templates_api = templates_api
-        self._cache: SchemaCache = cache or TtlSchemaCache()
+        self._variant_id = variant_id
+        self._version_id = version_id
+        self._environment_id = environment_id
 
-    def validate(self, tenant_id: str, catalog_id: str, template_id: str, data: Any) -> None:
-        """Validate ``data`` against the schema of the specified template.
-
-        No-op when the template has no schema. Raises :class:`TemplateDataValidationError`
-        on failure.
+    @property
+    def preflights_generation(self) -> bool:
+        """``False`` — the server checks the same data when the generation request is submitted,
+        so pre-flighting here would only spend a second round trip to learn the same thing.
         """
-        schema = self._cache.get_or_load(
+        return False
+
+    def validate(
+        self,
+        tenant_id: str,
+        catalog_id: str,
+        template_id: str,
+        data: Any,
+    ) -> List[ValidationFailure]:
+        result = self._templates_api.validate_template_data(
             tenant_id,
             catalog_id,
             template_id,
-            lambda: self._load_schema(tenant_id, catalog_id, template_id),
+            ValidateTemplateDataRequest(
+                data=data if data is not None else {},
+                variantId=self._variant_id,
+                versionId=self._version_id,
+                environmentId=self._environment_id,
+            ),
         )
-        if schema is None:
-            return  # No schema defined on the template — nothing to validate.
+        if result is None or result.valid:
+            return []
+        return to_validation_failures(result.errors, result.missing_fields, result.invalid_fields)
 
-        validator_cls = validator_for(schema)
-        validator_cls.check_schema(schema)
-        validator = validator_cls(schema)
 
-        failures = [
-            ValidationFailure(
-                path=_format_path(error.absolute_path),
-                message=error.message,
-                keyword=str(error.validator) if error.validator is not None else None,
-            )
-            for error in sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path))
-        ]
+class TemplateSchemaValidator:
+    """Checks template data against a template's data contract, raising when it does not fit.
+
+    The check itself is delegated to a :class:`TemplateDataValidator`; this class is the thin,
+    raising façade over it. By default that is :class:`ServerTemplateDataValidator`, so no JSON
+    Schema library is involved and the verdict is the server's.
+    """
+
+    def __init__(self, validator_or_api: Union[TemplateDataValidator, TemplatesApi]) -> None:
+        self._validator: TemplateDataValidator = (
+            validator_or_api
+            if _is_validator(validator_or_api)
+            else ServerTemplateDataValidator(validator_or_api)  # type: ignore[arg-type]
+        )
+
+    def validate(self, tenant_id: str, catalog_id: str, template_id: str, data: Any) -> None:
+        """Validate ``data`` against the template's data contract.
+
+        Raises :class:`TemplateDataValidationError` when it does not fit. Against a server older
+        than contract 1.4.0 the default validator raises the generated ``ApiException`` instead,
+        because ``validateTemplateData`` does not exist there.
+        """
+        failures = list(self._validator.validate(tenant_id, catalog_id, template_id, data))
         if failures:
             raise TemplateDataValidationError(failures)
 
-    def _load_schema(self, tenant_id: str, catalog_id: str, template_id: str) -> Optional[Dict[str, Any]]:
-        template = self._templates_api.get_template(tenant_id, catalog_id, template_id)
-        return template.var_schema
-
-
-def _format_path(path) -> str:
-    parts = [str(p) for p in path]
-    return ".".join(parts) if parts else ""
-
 
 class ValidatingGenerationApi:
-    """A wrapper around :class:`GenerationApi` that validates request data against the
-    template's JSON Schema before sending it to the server.
+    """Wraps :class:`GenerationApi` and reports unacceptable template data as a
+    :class:`TemplateDataValidationError` rather than a generic problem response.
 
-    For single-document requests, validation errors are raised immediately. For batch
-    requests, all items are validated and errors are collected into a single
-    :class:`TemplateDataValidationError`.
+    It gets there two ways, and which one applies is the validator's call:
+
+    * **Before the request**, when the validator answers in-process
+      (:attr:`TemplateDataValidator.preflights_generation`). Nothing is sent, and every item of a
+      batch is reported at once with its ``items[<index>]`` prefix.
+    * **From the response**, always. The server validates the data it is given, so a rejected
+      request comes back as a ``template-data-invalid`` problem, which is translated into the same
+      error with the same field pointers.
+
+    The default validator asks the server, and therefore declines the pre-flight: checking first
+    would spend an extra round trip — one per item, for a batch — to learn what submitting already
+    tells us.
     """
 
     def __init__(
         self,
         generation_api: GenerationApi,
-        templates_api: TemplatesApi,
-        cache: Optional[SchemaCache] = None,
+        validator_or_api: Union[TemplateDataValidator, TemplatesApi],
     ) -> None:
         self._delegate = generation_api
-        self._validator = TemplateSchemaValidator(templates_api, cache or TtlSchemaCache())
+        self._validator: TemplateDataValidator = (
+            validator_or_api
+            if _is_validator(validator_or_api)
+            else ServerTemplateDataValidator(validator_or_api)  # type: ignore[arg-type]
+        )
 
     def generate_document(self, tenant_id: str, request: GenerateDocumentRequest) -> GenerationJobResponse:
-        self._validator.validate(tenant_id, request.catalog_id, request.template_id, request.data)
-        return self._delegate.generate_document(tenant_id, request)
+        if self._validator.preflights_generation:
+            failures = list(
+                self._validator.validate(tenant_id, request.catalog_id, request.template_id, request.data)
+            )
+            if failures:
+                raise TemplateDataValidationError(failures)
+        return self._translating_problem(lambda: self._delegate.generate_document(tenant_id, request))
 
     def generate_document_batch(self, tenant_id: str, request: GenerateBatchRequest) -> GenerationJobResponse:
-        self._validate_batch(tenant_id, request)
-        return self._delegate.generate_document_batch(tenant_id, request)
+        if self._validator.preflights_generation:
+            all_failures: List[ValidationFailure] = []
+            for index, item in enumerate(request.items):
+                for failure in self._validator.validate(
+                    tenant_id, item.catalog_id, item.template_id, item.data
+                ):
+                    all_failures.append(
+                        ValidationFailure(
+                            path=f"items[{index}]{failure.path}",
+                            message=failure.message,
+                            keyword=failure.keyword,
+                        )
+                    )
+            if all_failures:
+                raise TemplateDataValidationError(all_failures)
+        return self._translating_problem(
+            lambda: self._delegate.generate_document_batch(tenant_id, request)
+        )
 
-    def _validate_batch(self, tenant_id: str, request: GenerateBatchRequest) -> None:
-        all_errors: List[ValidationFailure] = []
-        for index, item in enumerate(request.items):
-            try:
-                self._validator.validate(tenant_id, item.catalog_id, item.template_id, item.data)
-            except TemplateDataValidationError as exc:
-                all_errors.extend(
-                    ValidationFailure(path=f"items[{index}].{e.path}" if e.path else f"items[{index}]",
-                                      message=e.message, keyword=e.keyword)
-                    for e in exc.errors
-                )
-        if all_errors:
-            raise TemplateDataValidationError(all_errors)
+    @staticmethod
+    def _translating_problem(call: Any) -> GenerationJobResponse:
+        """Rewrite the server's ``template-data-invalid`` problem into the error a caller of this
+        class is already catching. Every other problem propagates untouched — this class narrows
+        one failure mode, it does not swallow failures.
+        """
+        try:
+            return call()
+        except ProblemDetailException as exc:
+            if exc.type_slug != KnownProblemSlugs.TEMPLATE_DATA_INVALID:
+                raise
+            raise TemplateDataValidationError(
+                to_validation_failures(None, exc.missing_fields, exc.invalid_fields)
+            ) from exc
+
+
+def _is_validator(candidate: Any) -> bool:
+    return hasattr(candidate, "validate") and hasattr(candidate, "preflights_generation")

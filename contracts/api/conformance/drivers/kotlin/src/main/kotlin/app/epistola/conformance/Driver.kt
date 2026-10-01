@@ -19,6 +19,8 @@ import app.epistola.client.identity.ClientIdentity
 import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.PingRequest
 import app.epistola.client.model.UpdateConsumerRequest
+import app.epistola.client.validation.schema.TemplateDataValidationException
+import app.epistola.client.validation.schema.TemplateSchemaValidator
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
@@ -60,6 +62,7 @@ object Driver {
                 "list-templates" -> listTemplates(baseUrl, config)
                 "collect" -> collect(baseUrl, config)
                 "problem" -> problem(baseUrl, config)
+                "validate-template-data" -> validateTemplateData(baseUrl, config)
                 "routing" -> routing(baseUrl, config)
                 "generate-document" -> generateDocument(baseUrl, config)
                 "update-consumer" -> updateConsumer(baseUrl, config)
@@ -119,6 +122,36 @@ object Driver {
                     "problemStatus" to e.statusCode.value(),
                     "problemTitle" to (e.problem.title ?: "<null>"),
                     "problemFieldErrors" to e.errors.joinToString(",") { "${it.field}:${it.message}" },
+                    "problemMissingFields" to e.missingFields.joinToString(",") { "${it.path}:${it.required}" },
+                    "problemInvalidFields" to e.invalidFields.joinToString(",") { "${it.path}:${it.keyword}" },
+                ),
+            )
+        }
+    }
+
+    /** Reports the failures the client surfaced, which is the shape every client owes its callers. */
+    private fun validateTemplateData(baseUrl: String, config: ObjectNode) {
+        val validator = TemplateSchemaValidator(TemplatesApi(restClient(baseUrl, config)))
+        try {
+            validator.validate(
+                config["tenantId"].asText(),
+                config["catalogId"].asText(),
+                config["templateId"].asText(),
+                mapper.convertValue(config["data"] ?: mapper.createObjectNode(), Map::class.java),
+            )
+            report(
+                baseUrl,
+                mapOf(
+                    "validationFailurePaths" to "<accepted>",
+                    "validationFailureKeywords" to "<accepted>",
+                ),
+            )
+        } catch (e: TemplateDataValidationException) {
+            report(
+                baseUrl,
+                mapOf(
+                    "validationFailurePaths" to e.errors.joinToString(",") { it.path },
+                    "validationFailureKeywords" to e.errors.joinToString(",") { it.keyword ?: "<null>" },
                 ),
             )
         }

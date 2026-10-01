@@ -5,141 +5,294 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
+  ProblemDetailException,
+  ServerTemplateDataValidator,
   TemplateDataValidationException,
   TemplateSchemaValidator,
-  TtlSchemaCache,
   ValidatingGenerationApi,
   type GenerationApiLike,
   type GenerationJobResponse,
-  type TemplateSchemaSource,
+  type TemplateDataValidationSource,
+  type TemplateDataValidator,
+  type ValidationFailure,
 } from '../../src/index.js'
 
-const SCHEMA = {
-  type: 'object',
-  required: ['name'],
-  properties: {
-    name: { type: 'string' },
-    age: { type: 'integer', minimum: 0 },
-    email: { type: 'string', format: 'email' },
-  },
+/**
+ * The validation façade over the shipped default, `ServerTemplateDataValidator`.
+ *
+ * The behaviour worth pinning is the mapping, not the HTTP: the server answers in three members of
+ * one result and the client owes its callers a single shape, documented on `TemplateDataValidator`.
+ */
+
+interface Result {
+  valid: boolean
+  errors?: { path?: string; message?: string; keyword?: string }[]
+  missingFields?: { path?: string; required?: boolean }[]
+  invalidFields?: { path?: string; keyword?: string; message?: string }[]
 }
 
-class StubTemplatesApi implements TemplateSchemaSource {
+class StubTemplatesApi implements TemplateDataValidationSource {
   calls = 0
-  constructor(private readonly schema: object | undefined) {}
-  async getTemplate(): Promise<{ schema?: object }> {
-    this.calls++
-    return { schema: this.schema }
+  sent: unknown[] = []
+  constructor(private readonly result: Result) {}
+  async validateTemplateData(requestParameters: { validateTemplateDataRequest: unknown }): Promise<never> {
+    this.calls += 1
+    this.sent.push(requestParameters.validateTemplateDataRequest)
+    return this.result as never
   }
 }
+
+const JOB = { requestId: 'job-1' } as unknown as GenerationJobResponse
 
 class StubGenerationApi implements GenerationApiLike {
-  generated: unknown[] = []
-  private readonly job: GenerationJobResponse = { requestId: '88888888-8888-4888-8888-000000000001', status: 'PENDING', jobType: 'SINGLE', totalCount: 1, createdAt: new Date() }
-  async generateDocument(params: unknown): Promise<GenerationJobResponse> {
-    this.generated.push(params)
-    return this.job
+  submissions = 0
+  constructor(private readonly failure?: unknown) {}
+  async generateDocument(): Promise<GenerationJobResponse> {
+    this.submissions += 1
+    if (this.failure !== undefined) throw this.failure
+    return JOB
   }
-  async generateDocumentBatch(params: unknown): Promise<GenerationJobResponse> {
-    this.generated.push(params)
-    return this.job
+  async generateDocumentBatch(): Promise<GenerationJobResponse> {
+    this.submissions += 1
+    if (this.failure !== undefined) throw this.failure
+    return JOB
   }
 }
 
-test('valid data passes', async () => {
-  await new TemplateSchemaValidator(new StubTemplatesApi(SCHEMA)).validate('t', 'c', 'tpl', { name: 'Ada', age: 30 })
-})
+const singleRequest = {
+  tenantId: 'acme-corp',
+  generateDocumentRequest: { catalogId: 'default', templateId: 'invoice', data: {} },
+} as never
 
-test('invalid data fails with field-level failures', async () => {
-  await assert.rejects(new TemplateSchemaValidator(new StubTemplatesApi(SCHEMA)).validate('t', 'c', 'tpl', { age: -1, email: 'nope' }), (error: unknown) => {
-    assert.ok(error instanceof TemplateDataValidationException)
-    assert.deepEqual(error.errors.map((f) => [f.path, f.keyword]), [
-      ['age', 'minimum'],
-      ['email', 'format'],
-      ['name', 'required'],
-    ])
-    assert.match(error.formatErrors(), /name: must have required property/)
-    return true
-  })
-})
+const batchRequest = {
+  tenantId: 'acme-corp',
+  generateBatchRequest: {
+    items: [
+      { catalogId: 'default', templateId: 'invoice', data: {} },
+      { catalogId: 'default', templateId: 'reminder', data: {} },
+    ],
+  },
+} as never
 
-test('a template without a schema is a no-op', async () => {
-  await new TemplateSchemaValidator(new StubTemplatesApi(undefined)).validate('t', 'c', 'tpl', { whatever: true })
-})
-
-test('the schema is cached between calls', async () => {
-  const api = new StubTemplatesApi(SCHEMA)
-  const validator = new TemplateSchemaValidator(api)
-  await validator.validate('t', 'c', 'tpl', { name: 'a' })
-  await validator.validate('t', 'c', 'tpl', { name: 'b' })
-  assert.equal(api.calls, 1)
-})
-
-test('the same template id in two catalogs is two cache entries', async () => {
-  // Two catalogs of one tenant can both hold a "tpl" template, with different schemas. Keying on
-  // (tenant, template) alone would validate one against the other's contract.
-  const api = new StubTemplatesApi(SCHEMA)
-  const validator = new TemplateSchemaValidator(api)
-  await validator.validate('t', 'catalog-a', 'tpl', { name: 'a' })
-  await validator.validate('t', 'catalog-b', 'tpl', { name: 'b' })
-  assert.equal(api.calls, 2)
-})
-
-test('a TTL cache expires and can be evicted', async () => {
-  const api = new StubTemplatesApi(SCHEMA)
-  const cache = new TtlSchemaCache(20)
-  const validator = new TemplateSchemaValidator(api, cache)
-  await validator.validate('t', 'c', 'tpl', { name: 'a' })
-  await new Promise((resolve) => setTimeout(resolve, 30))
-  await validator.validate('t', 'c', 'tpl', { name: 'a' })
-  assert.equal(api.calls, 2)
-  cache.evict('t', 'c', 'tpl')
-  await validator.validate('t', 'c', 'tpl', { name: 'a' })
-  assert.equal(api.calls, 3)
-  assert.throws(() => new TtlSchemaCache(0), RangeError)
-})
-
-test('a 2020-12 schema is validated with that dialect', async () => {
-  const schema = {
-    $schema: 'https://json-schema.org/draft/2020-12/schema',
-    type: 'object',
-    properties: { lines: { type: 'array', prefixItems: [{ type: 'string' }], items: false } },
-  }
-  const validator = new TemplateSchemaValidator(new StubTemplatesApi(schema))
-  await validator.validate('t', 'c', 'tpl', { lines: ['ok'] })
-  await assert.rejects(validator.validate('t', 'c', 'tpl', { lines: ['ok', 'extra'] }), TemplateDataValidationException)
-})
-
-test('ValidatingGenerationApi validates before delegating', async () => {
-  const generation = new StubGenerationApi()
-  const api = new ValidatingGenerationApi(generation, new StubTemplatesApi(SCHEMA))
-  await assert.rejects(
-    api.generateDocument({ tenantId: 't', generateDocumentRequest: { catalogId: 'c', templateId: 'tpl', data: { age: -5 } } }),
-    TemplateDataValidationException,
-  )
-  assert.deepEqual(generation.generated, [])
-  await api.generateDocument({ tenantId: 't', generateDocumentRequest: { catalogId: 'c', templateId: 'tpl', data: { name: 'ok' } } })
-  assert.equal(generation.generated.length, 1)
-})
-
-test('batch validation aggregates errors with the item index', async () => {
-  const generation = new StubGenerationApi()
-  const api = new ValidatingGenerationApi(generation, new StubTemplatesApi(SCHEMA))
-  await assert.rejects(
-    api.generateDocumentBatch({
-      tenantId: 't',
-      generateBatchRequest: {
-        items: [
-          { catalogId: 'c', templateId: 'tpl', data: { name: 'ok' } },
-          { catalogId: 'c', templateId: 'tpl', data: {} },
-        ],
-      },
-    }),
-    (error: unknown) => {
-      assert.ok(error instanceof TemplateDataValidationException)
-      assert.ok(error.errors.some((f) => f.path.startsWith('items[1]')))
-      return true
+/** A validator that answers in-process, so it takes the pre-flight. */
+function local(...paths: string[]): TemplateDataValidator {
+  return {
+    preflightsGeneration: true,
+    async validate(): Promise<readonly ValidationFailure[]> {
+      return paths.map((path) => ({ path, message: 'is required but was not supplied', keyword: 'required' }))
     },
+  }
+}
+
+function templateDataInvalid(extensions: Record<string, unknown>): ProblemDetailException {
+  return new ProblemDetailException(
+    {
+      type: 'https://epistola.app/errors/template-data-invalid',
+      title: 'Template data invalid',
+      status: 400,
+      detail: 'The supplied data does not fit the template’s data contract',
+    },
+    [],
+    {},
+    extensions,
+    400,
+    '{}',
+    new Response('{}', { status: 400 }),
   )
-  assert.deepEqual(generation.generated, [])
+}
+
+test('valid data passes without throwing', async () => {
+  const api = new StubTemplatesApi({ valid: true })
+
+  await new TemplateSchemaValidator(api).validate('acme-corp', 'default', 'invoice', { name: 'Jane' })
+
+  assert.equal(api.calls, 1)
+  assert.deepEqual((api.sent[0] as { data: unknown }).data, { name: 'Jane' })
 })
+
+test('invalidFields become failures keyed by their JSON Pointer', async () => {
+  const api = new StubTemplatesApi({
+    valid: false,
+    invalidFields: [
+      { path: '/customer/email', keyword: 'format', message: 'must be a valid email address' },
+      { path: '/lineItems/0/quantity', keyword: 'minimum', message: 'must be at least 1' },
+    ],
+  })
+
+  const thrown = await capture(() => new TemplateSchemaValidator(api).validate('acme-corp', 'default', 'invoice', {}))
+
+  assert.deepEqual(
+    thrown.errors.map((failure) => failure.path),
+    ['/customer/email', '/lineItems/0/quantity'],
+  )
+  assert.deepEqual(
+    thrown.errors.map((failure) => failure.keyword),
+    ['format', 'minimum'],
+  )
+})
+
+test('a missing required field is a failure and a missing optional field is not', async () => {
+  const api = new StubTemplatesApi({
+    valid: false,
+    missingFields: [
+      { path: '/customer/address', required: true },
+      { path: '/customer/phone', required: false },
+    ],
+  })
+
+  const thrown = await capture(() => new TemplateSchemaValidator(api).validate('acme-corp', 'default', 'invoice', {}))
+
+  assert.deepEqual(
+    thrown.errors.map((failure) => failure.path),
+    ['/customer/address'],
+  )
+  assert.equal(thrown.errors[0]?.keyword, 'required')
+})
+
+test('errors is used when the server sends no field members', async () => {
+  const api = new StubTemplatesApi({
+    valid: false,
+    errors: [{ path: '/invoiceNumber', message: 'does not match the required format', keyword: 'pattern' }],
+  })
+
+  const thrown = await capture(() => new TemplateSchemaValidator(api).validate('acme-corp', 'default', 'invoice', {}))
+
+  assert.equal(thrown.errors[0]?.path, '/invoiceNumber')
+  assert.equal(thrown.errors[0]?.keyword, 'pattern')
+})
+
+test('the field members win over errors, which may describe the same failure differently', async () => {
+  // `errors[].path` documents itself as a JSON Pointer but is specified with a JSONPath example,
+  // so preferring invalidFields keeps the promise from depending on which member the server filled.
+  const api = new StubTemplatesApi({
+    valid: false,
+    errors: [{ path: '$.customer.email', message: 'must be a valid email address', keyword: 'format' }],
+    invalidFields: [{ path: '/customer/email', keyword: 'format', message: 'must be a valid email address' }],
+  })
+
+  const thrown = await capture(() => new TemplateSchemaValidator(api).validate('acme-corp', 'default', 'invoice', {}))
+
+  assert.equal(thrown.errors.length, 1)
+  assert.equal(thrown.errors[0]?.path, '/customer/email')
+})
+
+test('an invalid result with nothing to report still throws', async () => {
+  // `valid: false` is the verdict, and reporting no reason must not become "fine".
+  const thrown = await capture(() =>
+    new TemplateSchemaValidator(new StubTemplatesApi({ valid: false })).validate('acme-corp', 'default', 'invoice', {}),
+  )
+
+  assert.equal(thrown.errors.length, 1)
+  assert.equal(thrown.errors[0]?.path, '')
+})
+
+test('the version selectors are passed through when configured', async () => {
+  const api = new StubTemplatesApi({ valid: true })
+
+  await new TemplateSchemaValidator(
+    new ServerTemplateDataValidator(api, { variantId: 'nl-nl', environmentId: 'production' }),
+  ).validate('acme-corp', 'default', 'invoice', {})
+
+  const sent = api.sent[0] as { variantId?: string; environmentId?: string }
+  assert.equal(sent.variantId, 'nl-nl')
+  assert.equal(sent.environmentId, 'production')
+})
+
+test('a plugged-in validator replaces the server entirely', async () => {
+  const api = new StubTemplatesApi({ valid: true })
+
+  const thrown = await capture(() =>
+    new TemplateSchemaValidator(local('/name')).validate('acme-corp', 'default', 'invoice', {}),
+  )
+
+  assert.equal(thrown.errors[0]?.path, '/name')
+  assert.equal(api.calls, 0)
+})
+
+test('the default validator submits without a pre-flight request', async () => {
+  const templates = new StubTemplatesApi({ valid: true })
+  const generation = new StubGenerationApi()
+
+  await new ValidatingGenerationApi(generation, templates).generateDocument(singleRequest)
+
+  // The server validates what it is given, so asking it first would be a second round trip for
+  // the same verdict.
+  assert.equal(templates.calls, 0)
+  assert.equal(generation.submissions, 1)
+})
+
+test('a rejected submission becomes a TemplateDataValidationException', async () => {
+  const rejected = templateDataInvalid({
+    invalidFields: [{ path: '/customer/email', keyword: 'format', message: 'must be a valid email address' }],
+    missingFields: [
+      { path: '/invoiceNumber', required: true },
+      { path: '/customer/phone', required: false },
+    ],
+  })
+  const api = new ValidatingGenerationApi(new StubGenerationApi(rejected), new StubTemplatesApi({ valid: true }))
+
+  const thrown = await capture(() => api.generateDocument(singleRequest))
+
+  assert.deepEqual(
+    thrown.errors.map((failure) => failure.path),
+    ['/customer/email', '/invoiceNumber'],
+  )
+})
+
+test('any other problem propagates untouched', async () => {
+  const notFound = new ProblemDetailException(
+    { type: 'https://epistola.app/errors/not-found', title: 'Not Found', status: 404 },
+    [],
+    {},
+    {},
+    404,
+    '{}',
+    new Response('{}', { status: 404 }),
+  )
+  const api = new ValidatingGenerationApi(new StubGenerationApi(notFound), new StubTemplatesApi({ valid: true }))
+
+  await assert.rejects(() => api.generateDocument(singleRequest), (error: unknown) => error === notFound)
+})
+
+test('a local validator throws before the request is sent', async () => {
+  const generation = new StubGenerationApi()
+
+  await capture(() => new ValidatingGenerationApi(generation, local('/name')).generateDocument(singleRequest))
+
+  assert.equal(generation.submissions, 0)
+})
+
+test('a local validator reports every item of a batch at once, prefixed by its index', async () => {
+  const generation = new StubGenerationApi()
+
+  const thrown = await capture(() =>
+    new ValidatingGenerationApi(generation, local('/name')).generateDocumentBatch(batchRequest),
+  )
+
+  assert.deepEqual(
+    thrown.errors.map((failure) => failure.path),
+    ['items[0]/name', 'items[1]/name'],
+  )
+  assert.equal(generation.submissions, 0)
+})
+
+test('the default validator pre-flights nothing per batch item either', async () => {
+  const templates = new StubTemplatesApi({ valid: true })
+  const generation = new StubGenerationApi()
+
+  await new ValidatingGenerationApi(generation, templates).generateDocumentBatch(batchRequest)
+
+  assert.equal(templates.calls, 0)
+  assert.equal(generation.submissions, 1)
+})
+
+/** Runs `call`, expecting it to reject with a TemplateDataValidationException, and returns it. */
+async function capture(call: () => Promise<unknown>): Promise<TemplateDataValidationException> {
+  try {
+    await call()
+  } catch (error) {
+    assert.ok(error instanceof TemplateDataValidationException, `expected a validation exception, got ${String(error)}`)
+    return error
+  }
+  throw new assert.AssertionError({ message: 'expected a TemplateDataValidationException, but the call resolved' })
+}

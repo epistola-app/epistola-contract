@@ -41,6 +41,21 @@ public class ProblemDetailException : ApiException
     /// </summary>
     public IReadOnlyDictionary<string, List<DataModelValidationError>> ValidationErrors { get; }
 
+    /// <summary>
+    /// Absent fields reported by a <c>template-data-invalid</c> problem; empty for any other.
+    ///
+    /// <para>
+    /// Each <c>Path</c> is a JSON Pointer into the request's <c>data</c> and <c>Schema</c> is the
+    /// contract's schema for that field, so a caller can ask for exactly what is missing. An entry
+    /// whose <c>Required</c> is <c>false</c> is informational: the resolved version's template reads
+    /// the field, but leaving it out does not make the data invalid.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<MissingDataField> MissingFields { get; }
+
+    /// <summary>Supplied values the template's data contract rejected; empty for any other problem.</summary>
+    public IReadOnlyList<InvalidDataField> InvalidFields { get; }
+
     /// <summary>The HTTP status of the error response.</summary>
     public HttpStatusCode StatusCode { get; }
 
@@ -50,7 +65,9 @@ public class ProblemDetailException : ApiException
         IReadOnlyDictionary<string, List<DataModelValidationError>> validationErrors,
         HttpStatusCode statusCode,
         string? rawBody,
-        Multimap<string, string>? headers)
+        Multimap<string, string>? headers,
+        IReadOnlyList<MissingDataField>? missingFields = null,
+        IReadOnlyList<InvalidDataField>? invalidFields = null)
         // ApiException is generated and nullable-oblivious; its errorContent/headers are
         // optional and accept null at runtime, so bridge the nullable values with `!`.
         : base((int)statusCode, BuildMessage(statusCode, problem), rawBody!, headers!)
@@ -58,6 +75,8 @@ public class ProblemDetailException : ApiException
         Problem = problem;
         Errors = errors;
         ValidationErrors = validationErrors;
+        MissingFields = missingFields ?? new List<MissingDataField>();
+        InvalidFields = invalidFields ?? new List<InvalidDataField>();
         StatusCode = statusCode;
     }
 
@@ -84,6 +103,9 @@ public class ProblemDetailException : ApiException
 
     /// <summary>True when this problem carried per-example data-model validation failures.</summary>
     public bool IsDataModelValidationProblem => ValidationErrors.Count > 0;
+
+    /// <summary>True when this problem described template data field by field.</summary>
+    public bool IsTemplateDataProblem => MissingFields.Count > 0 || InvalidFields.Count > 0;
 
     private static string BuildMessage(HttpStatusCode status, ProblemDetail problem)
     {

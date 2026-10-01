@@ -51,15 +51,23 @@ export { murmur3x86_32, murmur3x86_32String } from './protocol/murmur3.js'
 export { acceptEncoding, decompress, detectCodec, supportsZstd, type Codec } from './protocol/compression.js'
 export { lines as ndjsonLines } from './protocol/ndjson.js'
 export { ModelValidationException, type ConstraintViolation } from './validation/modelValidationException.js'
-export { AJV_INSTALL_HINT } from './validation/ajvLoader.js'
 export {
   TemplateDataValidationException,
+  type TemplateDataValidator,
+  type ValidationFailure,
+} from './validation/templateDataValidator.js'
+export {
+  ServerTemplateDataValidator,
+  problemValidationFailures,
+  toValidationFailures,
+  type ServerValidationTarget,
+  type TemplateDataValidationSource,
+} from './validation/serverTemplateDataValidator.js'
+export {
   TemplateSchemaValidator,
   TtlSchemaCache,
   ValidatingGenerationApi,
   type GenerationApiLike,
   type SchemaCache,
   type SchemaLoader,
-  type TemplateSchemaSource,
-  type ValidationFailure,
 } from './validation/templateSchemaValidator.js'

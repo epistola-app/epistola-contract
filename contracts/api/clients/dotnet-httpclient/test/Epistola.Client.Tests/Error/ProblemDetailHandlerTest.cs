@@ -78,4 +78,66 @@ public class ProblemDetailHandlerTest
     {
         Assert.Null(ProblemDetailHandler.ParseProblem("{not json"));
     }
+
+    [Fact]
+    public void ParseProblemReadsTemplateDataFieldPointers()
+    {
+        // The members contract 1.4.0 added. They were specified and generated, but nothing here
+        // read them, so a `template-data-invalid` response arrived with its pointers discarded.
+        var parsed = ProblemDetailHandler.ParseProblem("""
+            {
+              "type": "https://epistola.app/errors/template-data-invalid",
+              "title": "Template data invalid",
+              "status": 400,
+              "errors": [],
+              "missingFields": [
+                {"path": "/customer/address", "required": true, "schema": {"type": "object"}},
+                {"path": "/customer/phone", "required": false, "schema": {"type": "string"}}
+              ],
+              "invalidFields": [
+                {"path": "/customer/age", "keyword": "type",
+                 "message": "string found, integer expected", "schema": {"type": "integer"}}
+              ]
+            }
+            """);
+
+        Assert.NotNull(parsed);
+        Assert.Equal(2, parsed!.MissingFields.Count);
+        Assert.Equal("/customer/address", parsed.MissingFields[0].Path);
+        Assert.True(parsed.MissingFields[0].Required);
+        Assert.False(parsed.MissingFields[1].Required);
+        Assert.Single(parsed.InvalidFields);
+        Assert.Equal("/customer/age", parsed.InvalidFields[0].Path);
+        Assert.Equal("type", parsed.InvalidFields[0].Keyword);
+    }
+
+    [Fact]
+    public void ParseProblemReportsNoTemplateDataFieldsForAnyOtherProblem()
+    {
+        var parsed = ProblemDetailHandler.ParseProblem(
+            """{"type":"https://epistola.app/errors/not-found","title":"Not Found","status":404}""");
+
+        Assert.NotNull(parsed);
+        Assert.Empty(parsed!.MissingFields);
+        Assert.Empty(parsed.InvalidFields);
+    }
+
+    [Fact]
+    public void ParseProblemSkipsAMalformedTemplateDataMember()
+    {
+        // A bad problem body must not hide the problem it decorates, nor become a confident claim
+        // about a particular field.
+        var parsed = ProblemDetailHandler.ParseProblem("""
+            {
+              "type": "https://epistola.app/errors/template-data-invalid",
+              "title": "Template data invalid",
+              "status": 400,
+              "missingFields": "not an array"
+            }
+            """);
+
+        Assert.NotNull(parsed);
+        Assert.Equal("Template data invalid", parsed!.Problem.Title);
+        Assert.Empty(parsed.MissingFields);
+    }
 }

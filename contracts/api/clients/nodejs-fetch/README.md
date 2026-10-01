@@ -19,17 +19,18 @@ It adds, on top of the stock generated client:
   `application/problem+json`, the document every error handler here is built to parse.
 - **NDJSON result collection** (`ResultCollector`) with adaptive polling, compression, and
   partition-aware routing helpers.
-- **Client-side JSON Schema validation** of template data (`TemplateSchemaValidator`) and
-  generated `validate<Model>` helpers for the contract's own constraints.
+- **Template data validation** (`TemplateSchemaValidator`), asking the server, with a pluggable
+  `TemplateDataValidator` for consumers who want the check in-process; and generated
+  `validate<Model>` helpers for the contract's own constraints.
 
 The package version tracks the Epistola contract version (`info.version`) and releases in lockstep
 with the Kotlin, Jakarta EE, .NET and Python clients. It needs Node.js 22.12 or later and ships as
 an ES module (which Node's `require()` can load as well).
 
-It has **no runtime dependencies**: HTTP is the platform's `fetch`, JWT signing is `node:crypto`,
-decompression is `node:zlib`. The one optional feature that needs a library is client-side template
-validation, which loads `ajv` and `ajv-formats` on first use; they are optional peer dependencies,
-so install them only if you use it (see [Client-side validation](#client-side-validation)).
+It has **no runtime dependencies and no optional ones**: HTTP is the platform's `fetch`, JWT signing
+is `node:crypto`, decompression is `node:zlib`. Template data validation asks the server rather than
+compiling schemas here, so there is no longer a JSON Schema compiler to install (see
+[Template data validation](#template-data-validation)).
 
 Release history: [CHANGELOG.md](CHANGELOG.md).
 
@@ -170,31 +171,56 @@ decoded; zstd is offered and decoded where Node's zlib has it (22.15+). `partiti
 `isMyPartition` and `routingKeyToMe` compute, from the assignment the server reports, a routing key
 whose result comes back to this node.
 
-## Client-side validation
+## Template data validation
 
-Validating template data against the template's JSON Schema needs Ajv, which is an optional peer
-dependency so that consumers who never validate do not carry a schema compiler:
-
-```bash
-npm install ajv ajv-formats
-```
-
-Without them, the first `validate` call rejects with an error saying exactly that. The generated
-`validate<Model>` helpers for the contract's own constraints need nothing extra.
+Template data is checked by **Epistola**, through `validateTemplateData`. Nothing is compiled here,
+so there is no schema compiler to install, and the verdict cannot disagree with what generation will
+do — the server validates the same data when a job is submitted, and it also knows which optional
+fields the version being rendered actually reads.
 
 ```ts
 import { TemplateSchemaValidator, ValidatingGenerationApi, validateCreateTenantRequest } from '@epistola.app/epistola-client'
 
-// Data against the template's JSON Schema, fetched once and cached (TtlSchemaCache, 5 minutes).
 const validator = new TemplateSchemaValidator(templatesApi)
-await validator.validate('acme', 'invoices', 'invoice', data)     // throws TemplateDataValidationException
+await validator.validate('acme', 'invoices', 'invoice', data)   // throws TemplateDataValidationException
 
-// Or transparently, before every generation call:
+// Or around generation, which turns the server's `template-data-invalid` problem into the same error:
 const generation = new ValidatingGenerationApi(new GenerationApi(client), templatesApi)
 
 // A request model against the constraints the contract declares on it (slug patterns, lengths, ranges):
 validateCreateTenantRequest({ id: 'Acme Corp', name: 'Acme' })  // throws ModelValidationException
 ```
+
+Each failure carries a **JSON Pointer** into the data (`/customer/email`), the JSON Schema `keyword`
+that failed, and a human-readable `message` — so a form can mark the field that is wrong.
+
+`validateTemplateData` arrived with contract **1.4.0**; against an older server the call fails like
+any other unknown operation rather than reporting unvalidated data as acceptable.
+
+### Validating in-process instead
+
+To avoid a request per check — pre-flighting a large batch, say — implement `TemplateDataValidator`
+over the compiler of your choice and pass it instead of the API:
+
+```ts
+const validator = new TemplateSchemaValidator(new MyAjvValidator(templatesApi))
+const generation = new ValidatingGenerationApi(new GenerationApi(client), new MyAjvValidator(templatesApi))
+```
+
+A validator that answers in-process declares `preflightsGeneration = true` (the default), so
+`ValidatingGenerationApi` checks before submitting and reports every item of a batch at once, each
+path prefixed `items[<index>]`. `TtlSchemaCache` is still exported for caching the fetched schema;
+without it a "local" validator costs a round trip per call anyway.
+
+Two things an implementation owes its callers, both described on `TemplateDataValidator`: an empty
+array means the data is acceptable, and `path` is a JSON Pointer. Compilers do not agree on that
+last point — Ajv's `instancePath` is already a pointer but names a missing property separately,
+while other engines emit a JSONPath — so converting is the adapter's job. A worked Ajv adapter,
+roughly forty lines, is in `test/validation/local/ajvTemplateDataValidator.ts`; copy it.
+
+Be aware that a local verdict is its own: `format` assertion, dialect coverage and unknown-keyword
+handling are the compiler's choices, so it can accept data Epistola will refuse, or refuse data
+Epistola would render.
 
 ## Development
 

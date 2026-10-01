@@ -4,7 +4,10 @@
 
 package app.epistola.client.error
 
+import app.epistola.client.infrastructure.Serializer
 import app.epistola.client.model.DataModelValidationError
+import app.epistola.client.model.InvalidDataField
+import app.epistola.client.model.MissingDataField
 import app.epistola.client.model.ProblemDetail
 import app.epistola.client.model.ValidationError
 import org.springframework.http.HttpHeaders
@@ -91,6 +94,37 @@ class ProblemDetailException(
 
     /** True when this problem carried per-example data-model validation failures. */
     val isDataModelValidationProblem: Boolean get() = validationErrors.isNotEmpty()
+
+    /**
+     * Absent fields reported by a `template-data-invalid` problem; empty for any other.
+     *
+     * Each `path` is a JSON Pointer into the request's `data` and `schema` is the contract's schema
+     * for that field, so a caller can ask for exactly what is missing. An entry whose `required` is
+     * false is informational: the resolved version's template reads the field, but leaving it out
+     * does not make the data invalid.
+     *
+     * A typed view over [extensions], which already carries every member the base problem does not
+     * model, so this only saves the conversion.
+     */
+    val missingFields: List<MissingDataField> get() = membersAt(ProblemExtensionMembers.MISSING_FIELDS)
+
+    /** Supplied values the template's data contract rejected; empty for any other problem. */
+    val invalidFields: List<InvalidDataField> get() = membersAt(ProblemExtensionMembers.INVALID_FIELDS)
+
+    /** True when this problem described template data field by field. */
+    val isTemplateDataProblem: Boolean get() = missingFields.isNotEmpty() || invalidFields.isNotEmpty()
+
+    /**
+     * One extension member's array of objects, converted to [T]. An entry of an unexpected shape
+     * yields nothing rather than a guess: a malformed problem body should not become a confident
+     * claim about a particular field, nor hide the problem it decorates.
+     */
+    private inline fun <reified T> membersAt(member: String): List<T> {
+        val raw = extensions[member] as? List<*> ?: return emptyList()
+        return raw.mapNotNull { entry ->
+            runCatching { Serializer.jacksonObjectMapper.convertValue(entry, T::class.java) }.getOrNull()
+        }
+    }
 
     private companion object {
         fun buildMessage(status: HttpStatusCode, problem: ProblemDetail): String = "$status ${problem.title}" + (problem.detail?.let { ": $it" } ?: "")

@@ -6,6 +6,8 @@ package app.epistola.client.jakarta.error;
 
 import app.epistola.client.jakarta.EpistolaJson;
 import app.epistola.client.jakarta.model.DataModelValidationError;
+import app.epistola.client.jakarta.model.InvalidDataField;
+import app.epistola.client.jakarta.model.MissingDataField;
 import app.epistola.client.jakarta.model.ProblemDetail;
 import app.epistola.client.jakarta.model.ValidationError;
 import jakarta.json.Json;
@@ -43,14 +45,20 @@ public final class ProblemDetailParser {
         private final ProblemDetail problem;
         private final List<ValidationError> errors;
         private final Map<String, List<DataModelValidationError>> validationErrors;
+        private final List<MissingDataField> missingFields;
+        private final List<InvalidDataField> invalidFields;
 
         ParsedProblem(
                 ProblemDetail problem,
                 List<ValidationError> errors,
-                Map<String, List<DataModelValidationError>> validationErrors) {
+                Map<String, List<DataModelValidationError>> validationErrors,
+                List<MissingDataField> missingFields,
+                List<InvalidDataField> invalidFields) {
             this.problem = problem;
             this.errors = errors;
             this.validationErrors = validationErrors;
+            this.missingFields = missingFields;
+            this.invalidFields = invalidFields;
         }
 
         public ProblemDetail problem() {
@@ -65,6 +73,23 @@ public final class ProblemDetailParser {
         /** Per-example failures from a {@code DataModelValidationProblemDetail}; empty when absent. */
         public Map<String, List<DataModelValidationError>> validationErrors() {
             return validationErrors;
+        }
+
+        /**
+         * Absent fields from a {@code TemplateDataValidationProblemDetail}; empty when absent.
+         *
+         * <p>Each entry carries a JSON Pointer into the request's {@code data} and the contract's
+         * schema for that field, so a caller can ask for exactly what is missing. An entry with
+         * {@code required} false is informational: the resolved version's template reads the field,
+         * but leaving it out does not make the data invalid.
+         */
+        public List<MissingDataField> missingFields() {
+            return missingFields;
+        }
+
+        /** Supplied values that break the contract, from the same problem; empty when absent. */
+        public List<InvalidDataField> invalidFields() {
+            return invalidFields;
         }
     }
 
@@ -102,7 +127,12 @@ public final class ProblemDetailParser {
             if (problem == null) {
                 return null;
             }
-            return new ParsedProblem(problem, readErrors(root), readValidationErrors(root));
+            return new ParsedProblem(
+                    problem,
+                    readErrors(root),
+                    readValidationErrors(root),
+                    readArray(root, ProblemExtensionMembers.MISSING_FIELDS, MissingDataField[].class),
+                    readArray(root, ProblemExtensionMembers.INVALID_FIELDS, InvalidDataField[].class));
         } catch (RuntimeException e) {
             return null;
         }
@@ -114,6 +144,15 @@ public final class ProblemDetailParser {
             return Collections.emptyList();
         }
         return Arrays.asList(EpistolaJson.jsonb().fromJson(errors.toString(), ValidationError[].class));
+    }
+
+    /** One extension member that is an array of objects, or an empty list when absent or malformed. */
+    private static <T> List<T> readArray(JsonObject root, String member, Class<T[]> type) {
+        JsonValue value = root.get(member);
+        if (value == null || value.getValueType() != JsonValue.ValueType.ARRAY) {
+            return Collections.emptyList();
+        }
+        return Arrays.asList(EpistolaJson.jsonb().fromJson(value.toString(), type));
     }
 
     private static Map<String, List<DataModelValidationError>> readValidationErrors(JsonObject root) {

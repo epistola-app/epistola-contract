@@ -5,299 +5,181 @@
 package app.epistola.client.validation.schema
 
 import app.epistola.client.api.TemplatesApi
-import app.epistola.client.model.TemplateDto
+import app.epistola.client.model.InvalidDataField
+import app.epistola.client.model.MissingDataField
+import app.epistola.client.model.TemplateDataValidationError
+import app.epistola.client.model.TemplateDataValidationResult
+import app.epistola.client.model.ValidateTemplateDataRequest
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
-import java.time.OffsetDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+/**
+ * [TemplateSchemaValidator] over the shipped default, [ServerTemplateDataValidator].
+ *
+ * The behaviour worth pinning is the mapping, not the HTTP: the server answers in three members of
+ * one result and the client owes its callers a single shape, documented on [TemplateDataValidator].
+ */
 class TemplateSchemaValidatorTest {
 
     private val templatesApi = mockk<TemplatesApi>()
 
-    private val invoiceSchema = mapOf(
-        "type" to "object",
-        "required" to listOf("customer", "invoiceNumber"),
-        "properties" to mapOf(
-            "customer" to mapOf(
-                "type" to "object",
-                "required" to listOf("name", "email"),
-                "properties" to mapOf(
-                    "name" to mapOf("type" to "string", "minLength" to 1, "maxLength" to 200),
-                    "email" to mapOf("type" to "string", "format" to "email"),
+    private fun result(
+        valid: Boolean,
+        errors: List<TemplateDataValidationError>? = null,
+        missingFields: List<MissingDataField>? = null,
+        invalidFields: List<InvalidDataField>? = null,
+    ) = TemplateDataValidationResult(valid, errors, missingFields, invalidFields)
+
+    private fun answering(result: TemplateDataValidationResult) {
+        every { templatesApi.validateTemplateData("acme", "default", "invoice", any()) } returns result
+    }
+
+    @Test
+    fun `valid data passes without throwing`() {
+        answering(result(valid = true))
+
+        TemplateSchemaValidator(templatesApi).validate("acme", "default", "invoice", mapOf("name" to "Jane"))
+
+        verify(exactly = 1) { templatesApi.validateTemplateData("acme", "default", "invoice", any()) }
+    }
+
+    @Test
+    fun `the data is sent as the request body`() {
+        answering(result(valid = true))
+        val body = slot<ValidateTemplateDataRequest>()
+        every { templatesApi.validateTemplateData("acme", "default", "invoice", capture(body)) } returns result(valid = true)
+
+        TemplateSchemaValidator(templatesApi).validate("acme", "default", "invoice", mapOf("name" to "Jane"))
+
+        assertEquals(mapOf("name" to "Jane"), body.captured.data)
+    }
+
+    @Test
+    fun `invalidFields become errors keyed by their JSON Pointer`() {
+        answering(
+            result(
+                valid = false,
+                invalidFields = listOf(
+                    InvalidDataField(path = "/customer/email", keyword = "format", message = "must be a valid email address"),
+                    InvalidDataField(path = "/lineItems/0/quantity", keyword = "minimum", message = "must be at least 1"),
                 ),
             ),
-            "invoiceNumber" to mapOf(
-                "type" to "string",
-                "pattern" to "^INV-\\d{4}-\\d{3}$",
-            ),
-            "lineItems" to mapOf(
-                "type" to "array",
-                "minItems" to 1,
-                "items" to mapOf(
-                    "type" to "object",
-                    "required" to listOf("description", "quantity"),
-                    "properties" to mapOf(
-                        "description" to mapOf("type" to "string"),
-                        "quantity" to mapOf("type" to "integer", "minimum" to 1),
-                    ),
+        )
+
+        val thrown = assertFailsWith<TemplateDataValidationException> {
+            TemplateSchemaValidator(templatesApi).validate("acme", "default", "invoice", emptyMap<String, Any>())
+        }
+
+        assertEquals(
+            listOf("/customer/email", "/lineItems/0/quantity"),
+            thrown.errors.map { it.path },
+        )
+        assertEquals(listOf("format", "minimum"), thrown.errors.map { it.keyword })
+        assertTrue(thrown.errors.first().message.contains("email"))
+    }
+
+    @Test
+    fun `a missing required field is an error and a missing optional field is not`() {
+        answering(
+            result(
+                valid = false,
+                missingFields = listOf(
+                    MissingDataField(path = "/customer/address", required = true, schema = mapOf("type" to "object")),
+                    MissingDataField(path = "/customer/phone", required = false, schema = mapOf("type" to "string")),
                 ),
             ),
-        ),
-    )
+        )
 
-    private fun templateDto(schema: Any? = invoiceSchema) = TemplateDto(
-        slug = "invoice",
-        id = "invoice",
-        tenantId = "acme",
-        name = "Invoice",
-        variants = emptyList(),
-        createdAt = OffsetDateTime.now(),
-        lastModified = OffsetDateTime.now(),
-        schema = schema,
-    )
+        val thrown = assertFailsWith<TemplateDataValidationException> {
+            TemplateSchemaValidator(templatesApi).validate("acme", "default", "invoice", emptyMap<String, Any>())
+        }
+
+        assertEquals(listOf("/customer/address"), thrown.errors.map { it.path })
+        assertEquals("required", thrown.errors.single().keyword)
+    }
 
     @Test
-    fun `valid data passes without exception`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
-        val validator = TemplateSchemaValidator(templatesApi)
-
-        validator.validate(
-            "acme",
-            "default",
-            "invoice",
-            mapOf(
-                "customer" to mapOf("name" to "Jane", "email" to "jane@example.com"),
-                "invoiceNumber" to "INV-2026-001",
+    fun `errors is used when the server sends no field members`() {
+        answering(
+            result(
+                valid = false,
+                errors = listOf(TemplateDataValidationError(path = "/invoiceNumber", message = "does not match the required format", keyword = "pattern")),
             ),
         )
-    }
 
-    @Test
-    fun `missing required field throws with correct keyword`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
-        val validator = TemplateSchemaValidator(templatesApi)
-
-        val ex = assertFailsWith<TemplateDataValidationException> {
-            validator.validate(
-                "acme",
-                "default",
-                "invoice",
-                mapOf("customer" to mapOf("name" to "Jane", "email" to "j@e.com")),
-            )
+        val thrown = assertFailsWith<TemplateDataValidationException> {
+            TemplateSchemaValidator(templatesApi).validate("acme", "default", "invoice", emptyMap<String, Any>())
         }
 
-        assertTrue(ex.errors.any { it.keyword == "required" && it.message.contains("invoiceNumber") })
+        assertEquals("/invoiceNumber", thrown.errors.single().path)
+        assertEquals("pattern", thrown.errors.single().keyword)
     }
 
     @Test
-    fun `wrong type throws with correct error`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
-        val validator = TemplateSchemaValidator(templatesApi)
+    fun `the field members win over errors, which may describe the same failure differently`() {
+        // The one case where both arrive. `errors[].path` documents itself as a JSON Pointer but is
+        // specified with a JSONPath example, so preferring invalidFields is what keeps the
+        // interface's promise from depending on which member the server filled.
+        answering(
+            result(
+                valid = false,
+                errors = listOf(TemplateDataValidationError(path = "\$.customer.email", message = "must be a valid email address", keyword = "format")),
+                invalidFields = listOf(InvalidDataField(path = "/customer/email", keyword = "format", message = "must be a valid email address")),
+            ),
+        )
 
-        val ex = assertFailsWith<TemplateDataValidationException> {
-            validator.validate(
-                "acme",
-                "default",
-                "invoice",
-                mapOf(
-                    "customer" to "not-an-object",
-                    "invoiceNumber" to "INV-2026-001",
-                ),
-            )
+        val thrown = assertFailsWith<TemplateDataValidationException> {
+            TemplateSchemaValidator(templatesApi).validate("acme", "default", "invoice", emptyMap<String, Any>())
         }
 
-        assertTrue(ex.errors.any { it.keyword == "type" })
+        assertEquals("/customer/email", thrown.errors.single().path)
     }
 
     @Test
-    fun `nested object validation reports correct path`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
-        val validator = TemplateSchemaValidator(templatesApi)
+    fun `an invalid result with nothing to report still throws`() {
+        // Defensive: `valid=false` is the verdict, and reporting no reason must not become "fine".
+        answering(result(valid = false))
 
-        val ex = assertFailsWith<TemplateDataValidationException> {
-            validator.validate(
-                "acme",
-                "default",
-                "invoice",
-                mapOf(
-                    "customer" to mapOf("name" to "Jane"),
-                    "invoiceNumber" to "INV-2026-001",
-                ),
-            )
+        assertFailsWith<TemplateDataValidationException> {
+            TemplateSchemaValidator(templatesApi).validate("acme", "default", "invoice", emptyMap<String, Any>())
+        }
+    }
+
+    @Test
+    fun `the version selectors are passed through when configured`() {
+        val body = slot<ValidateTemplateDataRequest>()
+        every { templatesApi.validateTemplateData("acme", "default", "invoice", capture(body)) } returns result(valid = true)
+
+        val validator = ServerTemplateDataValidator(templatesApi, variantId = "nl-nl", environmentId = "production")
+        TemplateSchemaValidator(validator).validate("acme", "default", "invoice", emptyMap<String, Any>())
+
+        assertEquals("nl-nl", body.captured.variantId)
+        assertEquals("production", body.captured.environmentId)
+    }
+
+    @Test
+    fun `a plugged-in validator replaces the server entirely`() {
+        val findings = listOf(TemplateDataValidationException.ValidationError("/name", "is required but was not supplied", "required"))
+        val local = TemplateDataValidator { _, _, _, _ -> findings }
+
+        val thrown = assertFailsWith<TemplateDataValidationException> {
+            TemplateSchemaValidator(local).validate("acme", "default", "invoice", emptyMap<String, Any>())
         }
 
-        assertTrue(ex.errors.any { it.path.contains("customer") && it.keyword == "required" })
+        assertEquals(findings, thrown.errors)
+        verify(exactly = 0) { templatesApi.validateTemplateData(any(), any(), any(), any()) }
     }
 
     @Test
-    fun `array item validation reports correct path`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
-        val validator = TemplateSchemaValidator(templatesApi)
-
-        val ex = assertFailsWith<TemplateDataValidationException> {
-            validator.validate(
-                "acme",
-                "default",
-                "invoice",
-                mapOf(
-                    "customer" to mapOf("name" to "Jane", "email" to "j@e.com"),
-                    "invoiceNumber" to "INV-2026-001",
-                    "lineItems" to listOf(
-                        mapOf("description" to "Item", "quantity" to 0),
-                    ),
-                ),
-            )
-        }
-
-        assertTrue(ex.errors.any { it.path.contains("lineItems") && it.path.contains("0") })
-    }
-
-    @Test
-    fun `null schema on template skips validation`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto(schema = null)
-        val validator = TemplateSchemaValidator(templatesApi)
-
-        // Should not throw
-        validator.validate(
-            "acme",
-            "default",
-            "invoice",
-            mapOf("anything" to "goes"),
-        )
-    }
-
-    @Test
-    fun `schema is cached across calls`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
-        val validator = TemplateSchemaValidator(templatesApi)
-
-        val validData = mapOf(
-            "customer" to mapOf("name" to "Jane", "email" to "j@e.com"),
-            "invoiceNumber" to "INV-2026-001",
-        )
-
-        validator.validate(
-            "acme",
-            "default",
-            "invoice",
-            validData,
-        )
-        validator.validate(
-            "acme",
-            "default",
-            "invoice",
-            validData,
-        )
-
-        verify(exactly = 1) { templatesApi.getTemplate("acme", "default", "invoice") }
-    }
-
-    @Test
-    fun `the same template id in two catalogs is two cache entries`() {
-        // Two catalogs of one tenant can both hold an "invoice" template, with different schemas.
-        // Keying on (tenant, template) alone would validate one against the other's contract.
-        every { templatesApi.getTemplate("acme", "catalog-a", "invoice") } returns templateDto()
-        every { templatesApi.getTemplate("acme", "catalog-b", "invoice") } returns templateDto()
-        val validator = TemplateSchemaValidator(templatesApi)
-
-        val validData = mapOf(
-            "customer" to mapOf("name" to "Jane", "email" to "j@e.com"),
-            "invoiceNumber" to "INV-2026-001",
-        )
-
-        validator.validate("acme", "catalog-a", "invoice", validData)
-        validator.validate("acme", "catalog-b", "invoice", validData)
-
-        verify(exactly = 1) { templatesApi.getTemplate("acme", "catalog-a", "invoice") }
-        verify(exactly = 1) { templatesApi.getTemplate("acme", "catalog-b", "invoice") }
-    }
-
-    @Test
-    fun `cache eviction triggers re-fetch`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
-        val cache = TtlSchemaCache()
-        val validator = TemplateSchemaValidator(templatesApi, cache = cache)
-
-        val validData = mapOf(
-            "customer" to mapOf("name" to "Jane", "email" to "j@e.com"),
-            "invoiceNumber" to "INV-2026-001",
-        )
-
-        validator.validate(
-            "acme",
-            "default",
-            "invoice",
-            validData,
-        )
-        cache.evict("acme", "default", "invoice")
-        validator.validate(
-            "acme",
-            "default",
-            "invoice",
-            validData,
-        )
-
-        verify(exactly = 2) { templatesApi.getTemplate("acme", "default", "invoice") }
-    }
-
-    @Test
-    fun `pattern validation reports correct keyword`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
-        val validator = TemplateSchemaValidator(templatesApi)
-
-        val ex = assertFailsWith<TemplateDataValidationException> {
-            validator.validate(
-                "acme",
-                "default",
-                "invoice",
-                mapOf(
-                    "customer" to mapOf("name" to "Jane", "email" to "j@e.com"),
-                    "invoiceNumber" to "INVALID",
-                ),
-            )
-        }
-
-        assertTrue(ex.errors.any { it.keyword == "pattern" })
-    }
-
-    @Test
-    fun `formatErrors produces readable output`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
-        val validator = TemplateSchemaValidator(templatesApi)
-
-        val ex = assertFailsWith<TemplateDataValidationException> {
-            validator.validate(
-                "acme",
-                "default",
-                "invoice",
-                emptyMap<String, Any>(),
-            )
-        }
-
-        val formatted = ex.formatErrors()
-        assertTrue(formatted.contains("customer"))
-        assertTrue(formatted.contains("invoiceNumber"))
-    }
-
-    @Test
-    fun `multiple errors are collected`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
-        val validator = TemplateSchemaValidator(templatesApi)
-
-        val ex = assertFailsWith<TemplateDataValidationException> {
-            validator.validate(
-                "acme",
-                "default",
-                "invoice",
-                emptyMap<String, Any>(),
-            )
-        }
-
-        assertEquals(2, ex.errors.size)
+    fun `the server-backed validator declines generation pre-flight, a local one takes it`() {
+        assertFalse(ServerTemplateDataValidator(templatesApi).preflightsGeneration)
+        assertTrue(TemplateDataValidator { _, _, _, _ -> emptyList() }.preflightsGeneration)
     }
 }

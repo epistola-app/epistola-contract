@@ -11,6 +11,8 @@ from typing import Dict, List, Optional
 from epistola_client_generated import (
     ApiException,
     DataModelValidationError,
+    InvalidDataField,
+    MissingDataField,
     ProblemDetail,
     ValidationError,
 )
@@ -31,7 +33,8 @@ class ProblemDetailException(ApiException):
     :attr:`type_slug`. Field-level validation errors (the ``ValidationProblemDetail``
     shape) are surfaced via :attr:`errors`; per-example data-model validation failures
     (the ``DataModelValidationProblemDetail`` shape, ``data-model-validation-error``)
-    via :attr:`validation_errors`.
+    via :attr:`validation_errors`; and a ``template-data-invalid`` problem's field-by-field
+    account of template data via :attr:`missing_fields` and :attr:`invalid_fields`.
     """
 
     def __init__(
@@ -42,6 +45,8 @@ class ProblemDetailException(ApiException):
         status_code: int,
         raw_body: Optional[str] = None,
         headers: Optional[object] = None,
+        missing_fields: Optional[List[MissingDataField]] = None,
+        invalid_fields: Optional[List[InvalidDataField]] = None,
     ) -> None:
         super().__init__(
             status=status_code,
@@ -56,6 +61,14 @@ class ProblemDetailException(ApiException):
         #: Per-example data-model validation failures (example name -> failures) when the
         #: body was a ``DataModelValidationProblemDetail`` (422), else ``{}``.
         self.validation_errors = validation_errors
+        #: Absent fields when the body was a ``TemplateDataValidationProblemDetail``, else ``[]``.
+        #: Each ``path`` is a JSON Pointer into the request's ``data`` and ``schema`` is the
+        #: contract's schema for that field, so a caller can ask for exactly what is missing. An
+        #: entry whose ``required`` is ``False`` is informational: the resolved version's template
+        #: reads the field, but leaving it out does not make the data invalid.
+        self.missing_fields = missing_fields or []
+        #: Supplied values the template's data contract rejected, else ``[]``.
+        self.invalid_fields = invalid_fields or []
         #: The HTTP status of the error response.
         self.status_code = status_code
 
@@ -91,6 +104,11 @@ class ProblemDetailException(ApiException):
     def is_validation_problem(self) -> bool:
         """True when this problem carried field-level validation errors."""
         return len(self.errors) > 0
+
+    @property
+    def is_template_data_problem(self) -> bool:
+        """True when this problem described template data field by field."""
+        return bool(self.missing_fields or self.invalid_fields)
 
     @property
     def is_data_model_validation_problem(self) -> bool:
