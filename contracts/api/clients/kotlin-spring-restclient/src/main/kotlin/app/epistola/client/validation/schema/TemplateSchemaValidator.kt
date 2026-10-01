@@ -5,83 +5,53 @@
 package app.epistola.client.validation.schema
 
 import app.epistola.client.api.TemplatesApi
-import app.epistola.client.infrastructure.Serializer
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.networknt.schema.JsonSchema
-import com.networknt.schema.JsonSchemaFactory
-import com.networknt.schema.SpecVersion
 
 /**
- * Validates template data against the JSON Schema defined on the template.
+ * Checks template data against a template's data contract, throwing when it does not fit.
  *
- * Fetches the template from the server on first use and caches the compiled schema.
+ * The check itself is delegated to a [TemplateDataValidator]; this class is the thin, throwing
+ * façade over it. By default that is [ServerTemplateDataValidator], so no JSON Schema library is
+ * involved and the verdict is the server's:
  *
  * ```kotlin
  * val validator = TemplateSchemaValidator(templatesApi)
- * validator.validate("my-tenant", "my-template", myDataMap)
+ * validator.validate("my-tenant", "default", "my-template", myDataMap)
  * ```
  *
- * @param templatesApi The generated [TemplatesApi] used to fetch template metadata.
- * @param cache Schema cache implementation. Defaults to [TtlSchemaCache] with 5-minute TTL.
- * @param objectMapper ObjectMapper for converting data to [JsonNode]. Defaults to the client's shared mapper.
+ * To have the check run in-process instead, pass an implementation of [TemplateDataValidator] built
+ * on the JSON Schema engine of your choice:
+ *
+ * ```kotlin
+ * val validator = TemplateSchemaValidator(MyNetworkntValidator(templatesApi))
+ * ```
+ *
+ * @see TemplateDataValidator for the error shape every implementation owes its callers.
  */
-class TemplateSchemaValidator(
-    private val templatesApi: TemplatesApi,
-    private val cache: SchemaCache = TtlSchemaCache(),
-    private val objectMapper: ObjectMapper = Serializer.jacksonObjectMapper,
-) {
+class TemplateSchemaValidator(private val validator: TemplateDataValidator) {
+
     /**
-     * Validates [data] against the schema of the specified template.
+     * Validates against the server, using [ServerTemplateDataValidator].
+     *
+     * @param templatesApi The generated [TemplatesApi] used to reach `validateTemplateData`.
+     */
+    constructor(templatesApi: TemplatesApi) : this(ServerTemplateDataValidator(templatesApi))
+
+    /**
+     * Validates [data] against the data contract of the specified template.
      *
      * @param tenantId Tenant identifier.
      * @param catalogId Catalog identifier.
      * @param templateId Template identifier.
      * @param data The data object (typically a `Map<String, Any?>`) to validate.
-     * @throws TemplateDataValidationException if validation fails.
-     * @throws org.springframework.web.client.RestClientResponseException if template fetch fails.
+     * @throws TemplateDataValidationException if the data does not fit the contract.
+     * @throws org.springframework.web.client.RestClientResponseException if the validator reaches
+     *   the server and the call fails — including against a server older than contract 1.4.0,
+     *   which does not offer `validateTemplateData`.
      */
     fun validate(tenantId: String, catalogId: String, templateId: String, data: Any) {
-        val schema = cache.getOrLoad(tenantId, catalogId, templateId) { loadSchema(tenantId, catalogId, templateId) }
-            ?: return // No schema defined on template -- nothing to validate
-
-        val dataNode: JsonNode = objectMapper.valueToTree(data)
-        val messages = schema.validate(dataNode)
-
-        if (messages.isNotEmpty()) {
-            val errors = messages.map { msg ->
-                TemplateDataValidationException.ValidationError(
-                    path = msg.instanceLocation.toString(),
-                    message = msg.message,
-                    keyword = msg.type,
-                )
-            }
+        val errors = validator.validate(tenantId, catalogId, templateId, data)
+        if (errors.isNotEmpty()) {
             throw TemplateDataValidationException(errors)
         }
-    }
-
-    private fun loadSchema(tenantId: String, catalogId: String, templateId: String): JsonSchema? {
-        val template = templatesApi.getTemplate(tenantId, catalogId, templateId)
-        val schemaObj = template.schema ?: return null
-        val schemaNode: JsonNode = objectMapper.valueToTree(schemaObj)
-        val versionFlag = detectVersion(schemaNode)
-        val factory = JsonSchemaFactory.getInstance(versionFlag)
-        return factory.getSchema(schemaNode)
-    }
-
-    private fun detectVersion(schemaNode: JsonNode): SpecVersion.VersionFlag {
-        val schemaUri = schemaNode.path("\$schema").asText(null) ?: return DEFAULT_VERSION
-        return when {
-            schemaUri.contains("draft-04") -> SpecVersion.VersionFlag.V4
-            schemaUri.contains("draft-06") -> SpecVersion.VersionFlag.V6
-            schemaUri.contains("draft-07") -> SpecVersion.VersionFlag.V7
-            schemaUri.contains("2019-09") -> SpecVersion.VersionFlag.V201909
-            schemaUri.contains("2020-12") -> SpecVersion.VersionFlag.V202012
-            else -> DEFAULT_VERSION
-        }
-    }
-
-    private companion object {
-        val DEFAULT_VERSION = SpecVersion.VersionFlag.V202012
     }
 }

@@ -414,7 +414,6 @@ dependencies {
     api(libs.spring.web)
     api(libs.jackson2.module.kotlin)
     api(libs.jackson2.datatype.jsr310)
-    compileOnly(libs.json.schema.validator)
 
     // Kept for tests only: JwtSignerTest parses and verifies the tokens with a real, third-party
     // JOSE library, which is a stronger check of the hand-rolled signer than verifying it with
@@ -422,6 +421,11 @@ dependencies {
     testImplementation(libs.nimbus.jose.jwt)
     testImplementation(kotlin("test"))
     testImplementation(libs.mockk)
+    // Test-scope only, for the reference TemplateDataValidator adapter under
+    // src/test/.../validation/schema/local/. The published client ships no JSON Schema engine: it
+    // validates through the server by default and lets a consumer plug in their own (see
+    // TemplateDataValidator). Keeping one real engine here proves the interface is implementable
+    // and gives consumers something to copy, without putting a dependency on their classpath.
     testImplementation(libs.json.schema.validator)
 }
 
