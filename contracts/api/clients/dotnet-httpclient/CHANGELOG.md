@@ -9,6 +9,37 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+### Changed
+
+- **Template data is validated by the server, not by a bundled library.** `TemplateSchemaValidator`
+  and `ValidatingGenerationApi` now call `validateTemplateData` through a pluggable
+  `ITemplateDataValidator`, whose only shipped implementation is `ServerTemplateDataValidator`.
+  **The `NJsonSchema` package reference is gone**, so installing this client no longer pulls in a
+  schema library. The verdict is the server's, which is the one that decides what renders.
+- **`ValidationError.Path` is now a JSON Pointer** (`/customer/email`) rather than NJsonSchema's
+  `#/customer.name`, and **`Keyword` is a JSON Schema keyword** (`type`, `required`, `minLength`)
+  rather than NJsonSchema's `ValidationErrorKind` name (`StringExpected`, `PropertyRequired`). A
+  batch item's errors are prefixed `items[0]/customer/email`. Code that matched on either value
+  must be updated; both formats are now pinned on `ITemplateDataValidator`, so every implementation
+  reports them the same way.
+- `ValidatingGenerationApi` no longer pre-validates when the validator asks the server
+  (`PreflightsGeneration` is `false`), since the server checks the same data on submit; it
+  translates the resulting `template-data-invalid` problem into `TemplateDataValidationException`
+  instead. One request instead of two, or instead of one per batch item. A validator that answers
+  in-process still pre-flights, batch aggregation included.
+- `ProblemDetailException` gained `MissingFields`, `InvalidFields` and `IsTemplateDataProblem`, and
+  `ProblemDetailHandler.ParseProblem` reads the two arrays contract 1.4.0 added; it had been
+  discarding them. The new constructor parameters are optional, so existing call sites compile
+  unchanged.
+- `TemplateSchemaValidator` and `ValidatingGenerationApi` take either an `ITemplatesApi` or an
+  `ITemplateDataValidator`. The `ISchemaCache?` parameter is gone.
+
+### Removed
+
+- `ISchemaCache` and `TtlSchemaCache`. They were typed on NJsonSchema's `JsonSchema`, so they could
+  not survive dropping the library. Caching a fetched schema is an in-process validator's concern;
+  the reference adapter under `test/Epistola.Client.Tests/Validation/Schema/Local/` shows one.
+
 ## [1.4.0] - 2026-09-30
 
 ### Changed

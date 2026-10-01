@@ -74,13 +74,17 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             parsed.ValidationErrors,
             response.StatusCode,
             body,
-            headers: null);
+            headers: null,
+            missingFields: parsed.MissingFields,
+            invalidFields: parsed.InvalidFields);
     }
 
     /// <summary>
     /// Parses a problem+json body into its base <see cref="ProblemDetail"/> plus the field-level
-    /// <c>errors</c> array and the per-example <c>validationErrors</c> map. Returns <c>null</c> on any
-    /// parse failure. Internal and self-contained so it can be unit-tested without a live server.
+    /// <c>errors</c> array, the per-example <c>validationErrors</c> map, and the
+    /// <c>missingFields</c> / <c>invalidFields</c> arrays a <c>template-data-invalid</c> problem
+    /// carries. Returns <c>null</c> on any parse failure. Internal and self-contained so it can be
+    /// unit-tested without a live server.
     /// </summary>
     internal static ParsedProblem? ParseProblem(string body)
     {
@@ -107,7 +111,12 @@ public sealed class ProblemDetailHandler : DelegatingHandler
                     ?? new Dictionary<string, List<DataModelValidationError>>();
             }
 
-            return new ParsedProblem(problem, errors, validationErrors);
+            return new ParsedProblem(
+                problem,
+                errors,
+                validationErrors,
+                Members<MissingDataField>(tree, "missingFields"),
+                Members<InvalidDataField>(tree, "invalidFields"));
         }
         catch (JsonException)
         {
@@ -115,7 +124,28 @@ public sealed class ProblemDetailHandler : DelegatingHandler
         }
     }
 
-    /// <summary>A parsed problem body: base <see cref="ProblemDetail"/> plus the two extension collections.</summary>
+    /// <summary>
+    /// One extension member that is an array of objects, or an empty list when absent or malformed.
+    /// A malformed member yields nothing rather than a guess: a bad problem body should not become a
+    /// confident claim about a particular field, and must not hide the problem it decorates.
+    /// </summary>
+    private static List<T> Members<T>(JObject tree, string member)
+    {
+        if (tree[member] is not JArray array)
+        {
+            return new List<T>();
+        }
+        try
+        {
+            return array.ToObject<List<T>>() ?? new List<T>();
+        }
+        catch (JsonException)
+        {
+            return new List<T>();
+        }
+    }
+
+    /// <summary>A parsed problem body: base <see cref="ProblemDetail"/> plus each extension collection.</summary>
     internal sealed class ParsedProblem
     {
         public ProblemDetail Problem { get; }
@@ -124,14 +154,24 @@ public sealed class ProblemDetailHandler : DelegatingHandler
 
         public IReadOnlyDictionary<string, List<DataModelValidationError>> ValidationErrors { get; }
 
+        /// <summary>Absent fields from a <c>TemplateDataValidationProblemDetail</c>; empty when absent.</summary>
+        public IReadOnlyList<MissingDataField> MissingFields { get; }
+
+        /// <summary>Supplied values that break the contract, from the same problem; empty when absent.</summary>
+        public IReadOnlyList<InvalidDataField> InvalidFields { get; }
+
         public ParsedProblem(
             ProblemDetail problem,
             IReadOnlyList<ValidationError> errors,
-            IReadOnlyDictionary<string, List<DataModelValidationError>> validationErrors)
+            IReadOnlyDictionary<string, List<DataModelValidationError>> validationErrors,
+            IReadOnlyList<MissingDataField> missingFields,
+            IReadOnlyList<InvalidDataField> invalidFields)
         {
             Problem = problem;
             Errors = errors;
             ValidationErrors = validationErrors;
+            MissingFields = missingFields;
+            InvalidFields = invalidFields;
         }
     }
 }

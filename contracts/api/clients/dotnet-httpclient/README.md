@@ -163,16 +163,53 @@ A `FileParameter` built from a bare stream is sent as `no_name_provided`, with t
 `application/octet-stream`. The server then names the image after that placeholder, and rejects it
 as not an image unless you also pass `mediaType`.
 
-## Client-side schema validation
+## Template data validation
 
-Validate request data against a template's JSON Schema before sending:
+Template data is checked by **Epistola**, through `validateTemplateData`. Nothing is compiled
+locally, so the package references no JSON Schema library, and the verdict cannot disagree with what
+generation will do — the server validates the same data when a job is submitted, and it also knows
+which optional fields the version being rendered actually reads.
 
 ```csharp
 using Epistola.Client.Validation.Schema;
 
+var validator = new TemplateSchemaValidator(new TemplatesApi(http));
+validator.Validate("my-tenant", "default", "invoice", data);   // throws TemplateDataValidationException
+
+// Or around generation, which turns the server's `template-data-invalid` problem into the same exception:
 var validating = new ValidatingGenerationApi(new GenerationApi(http), new TemplatesApi(http));
-validating.GenerateDocument("my-tenant", request);   // throws TemplateDataValidationException on failure
+validating.GenerateDocument("my-tenant", request);
 ```
+
+Each error carries a **JSON Pointer** into the data (`/customer/email`), the JSON Schema `Keyword`
+that failed, and a human-readable `Message` — so a form can mark the field that is wrong.
+
+`validateTemplateData` arrived with contract **1.4.0**; against an older server the call fails like
+any other unknown operation rather than reporting unvalidated data as acceptable.
+
+### Validating in-process instead
+
+To avoid a request per check — pre-flighting a large batch, say — implement
+`ITemplateDataValidator` over the library of your choice and pass it instead of the API:
+
+```csharp
+var validator = new TemplateSchemaValidator(new MyNJsonSchemaValidator(templatesApi));
+```
+
+An implementation that answers in-process leaves `PreflightsGeneration` at its default `true`, so
+`ValidatingGenerationApi` checks before submitting and reports every item of a batch at once, each
+path prefixed `items[<index>]`.
+
+Two things an implementation owes its callers, both described on `ITemplateDataValidator`: an empty
+list means the data is acceptable, and `Path` is a JSON Pointer while `Keyword` is a JSON Schema
+keyword. Neither is what a library hands you — NJsonSchema reports `#/customer.name` and a `Kind`
+enum like `StringExpected`, and it raises nested failures against the container rather than the
+field. A worked adapter that deals with all three is in
+`test/Epistola.Client.Tests/Validation/Schema/Local/`; copy it.
+
+Be aware that a local verdict is its own: draft coverage, `format` handling and error vocabulary are
+the library's choices, so it can accept data Epistola will refuse, or refuse data Epistola would
+render.
 
 The generated request/response models also carry fail-fast constraint checks via `Validate()`
 extension methods (from `Epistola.Client.Validation`):

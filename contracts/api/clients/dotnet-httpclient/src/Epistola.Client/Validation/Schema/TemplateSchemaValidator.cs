@@ -2,75 +2,66 @@
 //
 // SPDX-License-Identifier: EUPL-1.2
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Epistola.Client.Api;
-using Newtonsoft.Json;
-using NJsonSchema;
 
 namespace Epistola.Client.Validation.Schema;
 
 /// <summary>
-/// Validates template data against the JSON Schema defined on the template.
+/// Checks template data against a template's data contract, throwing when it does not fit.
 ///
-/// Fetches the template from the server on first use and caches the compiled schema.
+/// <para>
+/// The check itself is delegated to an <see cref="ITemplateDataValidator"/>; this class is the thin,
+/// throwing façade over it. By default that is <see cref="ServerTemplateDataValidator"/>, so no
+/// JSON Schema library is involved and the verdict is the server's:
+/// </para>
 ///
 /// <code>
 /// var validator = new TemplateSchemaValidator(templatesApi);
 /// validator.Validate("my-tenant", "my-catalog", "my-template", myData);
 /// </code>
+///
+/// <para>
+/// To have the check run in-process instead, pass an implementation built on the library of your
+/// choice:
+/// </para>
+///
+/// <code>
+/// var validator = new TemplateSchemaValidator(new MyNJsonSchemaValidator(templatesApi));
+/// </code>
+///
+/// <para>See <see cref="ITemplateDataValidator"/> for the error shape every implementation owes its callers.</para>
 /// </summary>
 public sealed class TemplateSchemaValidator
 {
-    private readonly ITemplatesApi _templatesApi;
-    private readonly ISchemaCache _cache;
+    private readonly ITemplateDataValidator _validator;
 
-    /// <param name="templatesApi">The generated <see cref="ITemplatesApi"/> used to fetch template metadata.</param>
-    /// <param name="cache">Schema cache. Defaults to <see cref="TtlSchemaCache"/> with a 5-minute TTL.</param>
-    public TemplateSchemaValidator(ITemplatesApi templatesApi, ISchemaCache? cache = null)
+    /// <summary>Validates against the server, using <see cref="ServerTemplateDataValidator"/>.</summary>
+    /// <param name="templatesApi">The generated API used to reach <c>validateTemplateData</c>.</param>
+    public TemplateSchemaValidator(ITemplatesApi templatesApi)
+        : this(new ServerTemplateDataValidator(templatesApi))
     {
-        _templatesApi = templatesApi;
-        _cache = cache ?? new TtlSchemaCache();
+    }
+
+    /// <param name="validator">Where the verdict comes from.</param>
+    public TemplateSchemaValidator(ITemplateDataValidator validator)
+    {
+        _validator = validator;
     }
 
     /// <summary>
-    /// Validates <paramref name="data"/> against the schema of the specified template.
-    /// No-op when the template has no schema.
+    /// Validates <paramref name="data"/> against the template's data contract.
     /// </summary>
-    /// <exception cref="TemplateDataValidationException">If validation fails.</exception>
+    /// <exception cref="TemplateDataValidationException">If the data does not fit the contract.</exception>
+    /// <exception cref="Epistola.Client.Client.ApiException">
+    /// If the validator reaches the server and the call fails — including against a server older
+    /// than contract 1.4.0, which does not offer <c>validateTemplateData</c>.
+    /// </exception>
     public void Validate(string tenantId, string catalogId, string templateId, object data)
     {
-        var schema = _cache.GetOrLoad(tenantId, catalogId, templateId, () => LoadSchema(tenantId, catalogId, templateId));
-        if (schema == null)
+        var errors = _validator.Validate(tenantId, catalogId, templateId, data);
+        if (errors.Count > 0)
         {
-            return; // No schema defined on the template — nothing to validate.
-        }
-
-        var dataJson = JsonConvert.SerializeObject(data);
-        var messages = schema.Validate(dataJson);
-
-        if (messages.Count > 0)
-        {
-            var errors = messages
-                .Select(m => new TemplateDataValidationException.ValidationError(
-                    m.Path ?? string.Empty,
-                    m.ToString(),
-                    m.Kind.ToString()))
-                .ToList();
             throw new TemplateDataValidationException(errors);
         }
-    }
-
-    private JsonSchema? LoadSchema(string tenantId, string catalogId, string templateId)
-    {
-        var template = _templatesApi.GetTemplate(tenantId, catalogId, templateId);
-        if (template.Schema == null)
-        {
-            return null;
-        }
-
-        var schemaJson = JsonConvert.SerializeObject(template.Schema);
-        return JsonSchema.FromJsonAsync(schemaJson).GetAwaiter().GetResult();
     }
 }
