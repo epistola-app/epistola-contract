@@ -11,7 +11,10 @@ its own idea of how to name a location, converted to the one shape callers read.
 
 from types import SimpleNamespace
 
-from tests.validation.local.jsonschema_template_data_validator import JsonSchemaTemplateDataValidator
+# By module name, not a package path: the repo's tests carry no `__init__.py`, so pytest's prepend
+# import mode puts this directory on sys.path and `tests.validation.local...` does not resolve under
+# `uv run pytest`, only under `python -m pytest` where the cwd happens to be there too.
+from jsonschema_template_data_validator import JsonSchemaTemplateDataValidator
 
 _INVOICE_SCHEMA = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
