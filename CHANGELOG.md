@@ -9,7 +9,43 @@ libraries.
 
 ## [Unreleased]
 
+### Changed
+
+- **The clients no longer bundle a JSON Schema library.** Every client validated template data
+  itself, each with a different library and under a different dependency policy — networknt 1.5.9
+  `compileOnly` in the two JVM clients, NJsonSchema 11.6.1 as a hard reference in .NET,
+  `jsonschema` as a hard dependency in Python, ajv as an optional peer in Node.js. On the JVM the
+  dependency was never published at all, so `TemplateSchemaValidator` threw
+  `NoClassDefFoundError` for any consumer who did not already happen to have a 1.x copy on the
+  classpath; it worked only in the clients' own tests. Validation now goes through a pluggable
+  `TemplateDataValidator` (`ITemplateDataValidator` in .NET, a `Protocol` in Python) whose one
+  shipped implementation asks the server's `validateTemplateData`. See each client's changelog for
+  its breaking details, and #9.
+
+  The server was always going to validate the same data on submit, so this removes a second
+  authority rather than a check: a client-side verdict could only agree, or disagree and be wrong.
+  Two reference adapters kept in test sources now disagree *on purpose and under test* — ajv with
+  `ajv-formats` rejects an `email` field holding `not-an-email`, while networknt under 2020-12
+  treats `format` as an annotation and accepts it — which is the clearest statement of why.
+
+- **One failure shape, pinned across the five clients.** Each client had reported a different one,
+  all of them contradicting their own documentation: `$.customer.email` (Kotlin, Jakarta — neither
+  set `PathType.JSON_POINTER`), `customer.name` (Node.js, Python) and `#/customer.name` with
+  NJsonSchema's `StringExpected` as the keyword (.NET). `path` is now a JSON Pointer (RFC 6901) into
+  the data and `keyword` a JSON Schema keyword, in every client, enforced by the new
+  `template-data-validation` conformance scenario rather than by five separate test suites.
+
 ### Fixed
+
+- **`missingFields` and `invalidFields` reach consumers.** Contract 1.4.0 added both to
+  `TemplateDataValidationProblemDetail`, but no client's hand-written problem parser read them: the
+  Jakarta, Python and .NET parsers surfaced `errors` and `validationErrors` only, and the Kotlin and
+  Node.js clients saw them solely because they expose unmodelled members generically. A
+  `template-data-invalid` response therefore arrived with the field-by-field account that is the
+  whole point of the problem type discarded. All five now expose them, with an
+  `isTemplateDataProblem` flag, and the new `template-data-problem` conformance scenario holds them
+  to it. A malformed member yields no findings rather than a guess.
+
 
 - `make publish-local` stamps every artifact with the spec version (or `VERSION=`), as the release
   workflow does. It published the catalog as `0.1.0-SNAPSHOT`, the .NET client as `0.0.0-dev` and

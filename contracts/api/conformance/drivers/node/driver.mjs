@@ -25,12 +25,15 @@ const {
   ProblemDetailException,
   ResultCollector,
   SystemApi,
+  TemplateDataValidationException,
+  TemplateSchemaValidator,
   TemplatesApi,
 } = await import(CLIENT)
 
 const ACTIONS = {
   ping,
   'list-templates': listTemplates,
+  'validate-template-data': validateTemplateData,
   collect,
   problem,
   routing,
@@ -104,6 +107,22 @@ async function problem(baseUrl, config) {
       problemStatus: error.statusCode,
       problemTitle: error.title ?? '<null>',
       problemFieldErrors: error.errors.map((e) => `${e.field}:${e.message}`).join(','),
+      problemMissingFields: error.missingFields.map((f) => `${f.path}:${f.required}`).join(','),
+      problemInvalidFields: error.invalidFields.map((f) => `${f.path}:${f.keyword}`).join(','),
+    })
+  }
+}
+
+async function validateTemplateData(baseUrl, config) {
+  const validator = new TemplateSchemaValidator(new TemplatesApi(client(baseUrl, config)))
+  try {
+    await validator.validate(config.tenantId, config.catalogId, config.templateId, config.data ?? {})
+    await report(baseUrl, { validationFailurePaths: '<accepted>', validationFailureKeywords: '<accepted>' })
+  } catch (error) {
+    if (!(error instanceof TemplateDataValidationException)) throw error
+    await report(baseUrl, {
+      validationFailurePaths: error.errors.map((failure) => failure.path).join(','),
+      validationFailureKeywords: error.errors.map((failure) => show(failure.keyword)).join(','),
     })
   }
 }

@@ -1,0 +1,79 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: template-data-validation
+title: Every client asks the server to validate template data, and reports its verdict in one shape
+why: >
+  The clients used to validate template data themselves, each with a different JSON Schema library,
+  and the failures came out in five different shapes: `$.customer.email` (Kotlin, Jakarta),
+  `customer.name` (Node, Python) and `#/customer.name` with an `StringExpected` keyword (.NET) —
+  every one of them under documentation promising a JSON Pointer and a JSON Schema keyword. A
+  consumer who marks a form field from `path`, or branches on `keyword`, therefore could not move
+  between clients, and nothing caught it because each client tested its own shape.
+
+  They now ask the server, which is the only answer that cannot disagree with what generation will
+  do, and the shape is pinned on `TemplateDataValidator`. This scenario is what holds all five to
+  it: same request, same two members read, same strings reported.
+
+  Note what is asserted about the request. `data` must arrive as the server will read it, and the
+  path must carry the catalog — the same template id in two catalogs is two different templates
+  with two different contracts, and a client that dropped `catalogId` would validate against the
+  wrong one and still look fine.
+
+action:
+  name: validate-template-data
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    catalogId: main
+    templateId: invoice
+    data:
+      customer:
+        name: Jane Smith
+        email: not-an-email
+      lineItems:
+        - quantity: 0
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      valid: false
+      errors: []
+      missingFields:
+        # Required, so a finding.
+        - path: /invoiceNumber
+          required: true
+          schema: { type: string }
+        # Optional: the resolved version's template reads it, but leaving it out is not a failure.
+        # A client that reported this one would ask an employee for something nobody requires.
+        - path: /customer/phone
+          required: false
+          schema: { type: string }
+      invalidFields:
+        - path: /customer/email
+          keyword: format
+          message: must be a valid email address
+          schema: { type: string, format: email }
+        - path: /lineItems/0/quantity
+          keyword: minimum
+          message: must be at least 1
+          schema: { type: integer, minimum: 1 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/main/templates/invoice/validate
+      body:
+        data:
+          customer:
+            name: Jane Smith
+            email: not-an-email
+          lineItems:
+            - quantity: 0
+  report:
+    # `invalidFields` first, then the required `missingFields` entry — and never the optional one.
+    validationFailurePaths: /customer/email,/lineItems/0/quantity,/invoiceNumber
+    validationFailureKeywords: format,minimum,required

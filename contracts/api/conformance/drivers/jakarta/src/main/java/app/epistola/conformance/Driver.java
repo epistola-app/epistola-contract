@@ -23,6 +23,8 @@ import app.epistola.client.jakarta.model.PingRequest;
 import app.epistola.client.jakarta.model.TemplateListResponse;
 import app.epistola.client.jakarta.model.TemplateSummaryDto;
 import app.epistola.client.jakarta.model.UpdateConsumerRequest;
+import app.epistola.client.jakarta.validation.schema.TemplateDataValidationException;
+import app.epistola.client.jakarta.validation.schema.TemplateSchemaValidator;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonValue;
@@ -68,6 +70,7 @@ public final class Driver {
                 case "list-templates" -> listTemplates(baseUrl, config);
                 case "collect" -> collect(baseUrl, config);
                 case "problem" -> problem(baseUrl, config);
+                case "validate-template-data" -> validateTemplateData(baseUrl, config);
                 case "routing" -> routing(baseUrl, config);
                 case "generate-document" -> generateDocument(baseUrl, config);
                 case "update-consumer" -> updateConsumer(baseUrl, config);
@@ -129,6 +132,44 @@ public final class Driver {
                             "problemFieldErrors",
                                     e.getErrors().stream()
                                             .map(error -> error.getField() + ":" + error.getMessage())
+                                            .collect(Collectors.joining(",")),
+                            "problemMissingFields",
+                                    e.getMissingFields().stream()
+                                            .map(field -> field.getPath() + ":" + field.getRequired())
+                                            .collect(Collectors.joining(",")),
+                            "problemInvalidFields",
+                                    e.getInvalidFields().stream()
+                                            .map(field -> field.getPath() + ":" + field.getKeyword())
+                                            .collect(Collectors.joining(","))));
+        }
+    }
+
+    /** Reports the failures the client surfaced, which is the shape every client owes its callers. */
+    private static void validateTemplateData(String baseUrl, JsonObject config) {
+        TemplateSchemaValidator validator =
+                new TemplateSchemaValidator(clients(baseUrl, config).api(TemplatesApi.class));
+        try {
+            validator.validate(
+                    config.getString("tenantId"),
+                    config.getString("catalogId"),
+                    config.getString("templateId"),
+                    config.containsKey("data") ? config.getJsonObject("data") : JsonValue.EMPTY_JSON_OBJECT);
+            report(
+                    baseUrl,
+                    Map.of(
+                            "validationFailurePaths", "<accepted>",
+                            "validationFailureKeywords", "<accepted>"));
+        } catch (TemplateDataValidationException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "validationFailurePaths",
+                                    e.getErrors().stream()
+                                            .map(TemplateDataValidationException.ValidationError::getPath)
+                                            .collect(Collectors.joining(",")),
+                            "validationFailureKeywords",
+                                    e.getErrors().stream()
+                                            .map(error -> error.getKeyword() == null ? "<null>" : error.getKeyword())
                                             .collect(Collectors.joining(","))));
         }
     }

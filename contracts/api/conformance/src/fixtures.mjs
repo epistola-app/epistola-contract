@@ -31,6 +31,10 @@ const ACTION_OPERATIONS = {
   ping: { method: 'post', path: '/ping' },
   'list-templates': { method: 'get', path: '/tenants/{tenantId}/catalogs/{catalogId}/templates' },
   problem: { method: 'get', path: '/tenants/{tenantId}/catalogs/{catalogId}/templates' },
+  'validate-template-data': {
+    method: 'post',
+    path: '/tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/validate',
+  },
   'generate-document': { method: 'post', path: '/tenants/{tenantId}/documents/generate' },
   'update-consumer': { method: 'patch', path: '/tenants/{tenantId}/consumers/{consumerId}' },
   'download-document': { method: 'get', path: '/tenants/{tenantId}/documents/{documentId}' },

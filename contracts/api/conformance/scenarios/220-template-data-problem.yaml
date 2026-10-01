@@ -1,0 +1,61 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: template-data-problem
+title: A template-data-invalid problem reaches the consumer with its field pointers intact
+why: >
+  Contract 1.4.0 added two members to the problem registry, `missingFields` and `invalidFields`,
+  each entry a JSON Pointer into the request's `data` plus that field's schema. They are the whole
+  point of the problem type: without them a consumer knows only that the data was refused, which is
+  what the old single-message error already said.
+
+  Nothing read them. Four of the five clients' hand-written problem parsers surfaced `errors` and
+  `validationErrors` and dropped everything else, and the fifth only saw them because it exposes
+  unmodelled members generically. So the contract shipped a field-by-field account that no client
+  could reach — exactly what this suite exists to catch, and what a per-client test suite did not,
+  because each one asserted only what its own parser already did.
+
+  Reading them back through the client is also how a form marks the field that is wrong, so the
+  members' *order* and the `required` flag matter as much as their presence.
+
+action:
+  name: problem
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    catalogId: main
+
+script:
+  - status: 400
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/template-data-invalid
+      title: Template data invalid
+      status: 400
+      detail: The supplied data does not fit the template's data contract
+      instance: /api/tenants/acme-corp/documents/generate
+      errors: []
+      missingFields:
+        - path: /customer/address
+          required: true
+          schema: { type: object }
+        - path: /customer/phone
+          required: false
+          schema: { type: string }
+      invalidFields:
+        - path: /customer/age
+          keyword: type
+          message: string found, integer expected
+          schema: { type: integer }
+
+expect:
+  requestCount: 1
+  report:
+    problemTypeSlug: template-data-invalid
+    problemStatus: 400
+    problemTitle: Template data invalid
+    # Both entries, in order, with `required` preserved — a client that kept only the required ones
+    # would hide the optional fields a template reads, which is what a composer offers to fill.
+    problemMissingFields: /customer/address:true,/customer/phone:false
+    problemInvalidFields: /customer/age:type

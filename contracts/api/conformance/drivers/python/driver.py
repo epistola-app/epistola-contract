@@ -33,6 +33,8 @@ from epistola_client import (
     ProblemDetailException,
     ResultCollector,
     SystemApi,
+    TemplateDataValidationError,
+    TemplateSchemaValidator,
     TemplatesApi,
     UpdateConsumerRequest,
 )
@@ -52,6 +54,7 @@ def main() -> int:
         "list-templates": _list_templates,
         "collect": _collect,
         "problem": _problem,
+        "validate-template-data": _validate_template_data,
         "routing": _routing,
         "generate-document": _generate_document,
         "update-consumer": _update_consumer,
@@ -119,6 +122,29 @@ def _problem(base_url: str, config: dict) -> None:
                 # The generated pydantic model exposes the JSON "field" member as var_field; the
                 # wire name is the same, so this is a naming difference, not a divergence.
                 "problemFieldErrors": ",".join(f"{e.var_field}:{e.message}" for e in exc.errors),
+                "problemMissingFields": ",".join(f"{f.path}:{str(f.required).lower()}" for f in exc.missing_fields),
+                "problemInvalidFields": ",".join(f"{f.path}:{f.keyword}" for f in exc.invalid_fields),
+            },
+        )
+
+
+def _validate_template_data(base_url: str, config: dict) -> None:
+    """Reports the failures the client surfaced, which is the shape every client owes its callers."""
+    validator = TemplateSchemaValidator(TemplatesApi(_client(base_url, config)))
+    try:
+        validator.validate(
+            config["tenantId"], config["catalogId"], config["templateId"], config.get("data", {})
+        )
+        _report(
+            base_url,
+            {"validationFailurePaths": "<accepted>", "validationFailureKeywords": "<accepted>"},
+        )
+    except TemplateDataValidationError as exc:
+        _report(
+            base_url,
+            {
+                "validationFailurePaths": ",".join(f.path for f in exc.errors),
+                "validationFailureKeywords": ",".join(_show(f.keyword) for f in exc.errors),
             },
         )
 

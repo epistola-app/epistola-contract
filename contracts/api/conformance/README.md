@@ -64,6 +64,7 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | `list-templates` | `GET …/templates`, `config.repeat` times, reporting the ids and slugs it parsed from the last response |
 | `collect` | build a `ResultCollector` from `config`, run it for `config.runForMs`, stop it, report what it handled |
 | `problem` | make a request the server answers with a problem, report the parsed slug and members |
+| `validate-template-data` | validate `config.data` for a template through `TemplateSchemaValidator`, reporting the paths and keywords of the failures it surfaced |
 | `generate-document` | `POST …/documents/generate` with a real body, through the generated API |
 | `routing` | poll once for a partition assignment, then report what the routing helpers compute |
 | `update-consumer` | `PATCH …/consumers/{id}` setting exactly one field |

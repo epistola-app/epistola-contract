@@ -12,6 +12,7 @@ using Epistola.Client.Error;
 using Epistola.Client.Http;
 using Epistola.Client.Identity;
 using Epistola.Client.Model;
+using Epistola.Client.Validation.Schema;
 
 namespace Epistola.Conformance;
 
@@ -46,6 +47,7 @@ public static class Driver
                 case "list-templates": ListTemplates(baseUrl, config); break;
                 case "collect": Collect(baseUrl, config); break;
                 case "problem": Problem(baseUrl, config); break;
+                case "validate-template-data": ValidateTemplateData(baseUrl, config); break;
                 case "routing": Routing(baseUrl, config); break;
                 case "generate-document": GenerateDocument(baseUrl, config); break;
                 case "update-consumer": UpdateConsumer(baseUrl, config); break;
@@ -118,6 +120,35 @@ public static class Driver
                 ["problemStatus"] = (int)e.StatusCode,
                 ["problemTitle"] = e.Title ?? "<null>",
                 ["problemFieldErrors"] = string.Join(",", e.Errors.Select(error => $"{error.Field}:{error.Message}")),
+                ["problemMissingFields"] = string.Join(",", e.MissingFields.Select(f => $"{f.Path}:{(f.Required ? "true" : "false")}")),
+                ["problemInvalidFields"] = string.Join(",", e.InvalidFields.Select(f => $"{f.Path}:{f.Keyword}")),
+            });
+        }
+    }
+
+    /// <summary>Reports the failures the client surfaced, which is the shape every client owes its callers.</summary>
+    private static void ValidateTemplateData(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var validator = new TemplateSchemaValidator(new TemplatesApi(http, apiBase));
+        object data = config.TryGetProperty("data", out var supplied)
+            ? JsonSerializer.Deserialize<Dictionary<string, object>>(supplied.GetRawText())!
+            : new Dictionary<string, object>();
+        try
+        {
+            validator.Validate(Str(config, "tenantId"), Str(config, "catalogId"), Str(config, "templateId"), data);
+            Report(baseUrl, new Dictionary<string, object>
+            {
+                ["validationFailurePaths"] = "<accepted>",
+                ["validationFailureKeywords"] = "<accepted>",
+            });
+        }
+        catch (TemplateDataValidationException e)
+        {
+            Report(baseUrl, new Dictionary<string, object>
+            {
+                ["validationFailurePaths"] = string.Join(",", e.Errors.Select(failure => failure.Path)),
+                ["validationFailureKeywords"] = string.Join(",", e.Errors.Select(failure => failure.Keyword ?? "<null>")),
             });
         }
     }
