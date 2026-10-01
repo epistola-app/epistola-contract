@@ -6,6 +6,8 @@ package app.epistola.client.jakarta.error;
 
 import app.epistola.client.jakarta.api.ApiException;
 import app.epistola.client.jakarta.model.DataModelValidationError;
+import app.epistola.client.jakarta.model.InvalidDataField;
+import app.epistola.client.jakarta.model.MissingDataField;
 import app.epistola.client.jakarta.model.ProblemDetail;
 import app.epistola.client.jakarta.model.ValidationError;
 import jakarta.ws.rs.core.Response;
@@ -41,6 +43,8 @@ public class ProblemDetailException extends ApiException {
     private final ProblemDetail problem;
     private final List<ValidationError> errors;
     private final Map<String, List<DataModelValidationError>> validationErrors;
+    private final List<MissingDataField> missingFields;
+    private final List<InvalidDataField> invalidFields;
     private final int statusCode;
     private final String responseBody;
     private final String message;
@@ -51,7 +55,28 @@ public class ProblemDetailException extends ApiException {
             List<ValidationError> errors,
             Map<String, List<DataModelValidationError>> validationErrors,
             String responseBody) {
+        this(response, problem, errors, validationErrors, null, null, responseBody);
+    }
+
+    /**
+     * The same, for a problem that also describes template data field by field
+     * ({@code template-data-invalid}).
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            String responseBody) {
         super(response);
+        this.missingFields = missingFields == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(missingFields);
+        this.invalidFields = invalidFields == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(invalidFields);
         this.problem = problem;
         this.errors = errors == null ? Collections.emptyList() : Collections.unmodifiableList(errors);
         this.validationErrors = validationErrors == null
@@ -142,6 +167,26 @@ public class ProblemDetailException extends ApiException {
     }
 
     /** True when this problem carried per-example data-model validation failures. */
+    /**
+     * Absent fields reported by a {@code template-data-invalid} problem; empty for any other.
+     *
+     * <p>Each path is a JSON Pointer into the request's {@code data}. An entry whose
+     * {@code required} is false is informational rather than a failure.
+     */
+    public List<MissingDataField> getMissingFields() {
+        return missingFields;
+    }
+
+    /** Supplied values the template's data contract rejected; empty for any other problem. */
+    public List<InvalidDataField> getInvalidFields() {
+        return invalidFields;
+    }
+
+    /** True when this problem described template data field by field. */
+    public boolean isTemplateDataProblem() {
+        return !missingFields.isEmpty() || !invalidFields.isEmpty();
+    }
+
     public boolean isDataModelValidationProblem() {
         return !validationErrors.isEmpty();
     }

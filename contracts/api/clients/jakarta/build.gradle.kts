@@ -622,9 +622,6 @@ dependencies {
     // Needed to compile the shared protocol sources, whose package is @NullMarked.
     compileOnly(libs.jspecify)
 
-    // Optional: only needed by TemplateSchemaValidator / ValidatingGenerationApi. Consumers
-    // who want client-side JSON Schema validation add it themselves (see the README).
-    compileOnly(libs.json.schema.validator)
 
     // Tests run against a real MicroProfile Rest Client implementation, so the generated
     // interfaces are exercised over the wire rather than merely compiled.
@@ -643,6 +640,12 @@ dependencies {
     testImplementation(libs.yasson)
     testImplementation(libs.smallrye.config)
     testImplementation(libs.parsson)
+    // Test-scope only, for the reference TemplateDataValidator adapter under
+    // src/test/.../validation/schema/local/. The published client ships no JSON Schema engine: it
+    // validates through the server by default and lets a consumer plug in their own (see
+    // TemplateDataValidator). Keeping one real engine here proves the interface is implementable
+    // and gives consumers something to copy, without asking them to add a dependency to use a
+    // class this artifact ships.
     testImplementation(libs.json.schema.validator)
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.testcontainers)

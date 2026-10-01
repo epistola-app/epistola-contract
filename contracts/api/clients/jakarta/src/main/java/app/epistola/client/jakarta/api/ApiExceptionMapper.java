@@ -43,7 +43,13 @@ public class ApiExceptionMapper implements ResponseExceptionMapper<ApiException>
             return new ApiException(response);
         }
         return new ProblemDetailException(
-                response, parsed.problem(), parsed.errors(), parsed.validationErrors(), body);
+                response,
+                parsed.problem(),
+                parsed.errors(),
+                parsed.validationErrors(),
+                parsed.missingFields(),
+                parsed.invalidFields(),
+                body);
     }
 
     /**

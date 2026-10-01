@@ -145,6 +145,52 @@ class ApiExceptionMapperTest {
         assertTrue(e.getResponseBody().contains("forbidden"));
     }
 
+    @Test
+    void a_template_data_problem_carries_its_field_pointers() {
+        // The members contract 1.4.0 added. Read over a real call rather than through the parser
+        // directly, because the mapper is what a consumer actually meets.
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(400, PROBLEM_JSON,
+                        """
+                        {
+                          "type": "https://epistola.app/errors/template-data-invalid",
+                          "title": "Template data invalid",
+                          "status": 400,
+                          "detail": "The supplied data does not fit the template's data contract",
+                          "errors": [],
+                          "missingFields": [
+                            {"path": "/customer/address", "required": true, "schema": {"type": "object"}},
+                            {"path": "/customer/phone", "required": false, "schema": {"type": "string"}}
+                          ],
+                          "invalidFields": [
+                            {"path": "/customer/age", "keyword": "type",
+                             "message": "string found, integer expected", "schema": {"type": "integer"}}
+                          ]
+                        }
+                        """)));
+
+        assertEquals(KnownProblemSlugs.TEMPLATE_DATA_INVALID, e.getTypeSlug());
+        assertTrue(e.isTemplateDataProblem());
+        assertEquals(2, e.getMissingFields().size());
+        assertEquals("/customer/address", e.getMissingFields().get(0).getPath());
+        assertTrue(e.getMissingFields().get(0).getRequired());
+        assertFalse(e.getMissingFields().get(1).getRequired());
+        assertEquals(1, e.getInvalidFields().size());
+        assertEquals("/customer/age", e.getInvalidFields().get(0).getPath());
+        assertEquals("type", e.getInvalidFields().get(0).getKeyword());
+    }
+
+    @Test
+    void another_problem_reports_no_template_data_fields() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(404, PROBLEM_JSON,
+                        "{\"type\":\"https://epistola.app/errors/not-found\",\"title\":\"Not Found\",\"status\":404}")));
+
+        assertFalse(e.isTemplateDataProblem());
+        assertTrue(e.getMissingFields().isEmpty());
+        assertTrue(e.getInvalidFields().isEmpty());
+    }
+
     private static void callGetTenant(Function<StubServer.RecordedRequest, StubServer.StubResponse> responder) {
         try (StubServer stub = StubServer.start(responder)) {
             EpistolaRestClients.builder()
