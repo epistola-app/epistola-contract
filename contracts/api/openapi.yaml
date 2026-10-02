@@ -210,8 +210,6 @@ tags:
     description: Attribute definitions for variant selection criteria
   - name: Variants
     description: Template variant operations (language, brand variations)
-  - name: Contracts
-    description: Template data-contract version lifecycle and compatibility previews
   - name: Stencils
     description: Reusable template component operations (CRUD, versioning, usage tracking)
   - name: Catalogs
@@ -362,12 +360,6 @@ paths:
     $ref: './paths/templates.yaml#/template-validate'
   /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/mark-ready:
     $ref: './paths/templates.yaml#/template-mark-ready'
-  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/contract/draft:
-    $ref: './paths/contracts.yaml#/contract-draft'
-  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/contract/publish:
-    $ref: './paths/contracts.yaml#/contract-publish'
-  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/contract/versions:
-    $ref: './paths/contracts.yaml#/contract-versions'
 
   # Variants
   /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants:

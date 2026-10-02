@@ -135,7 +135,10 @@ templates-id:
   patch:
     operationId: updateTemplate
     summary: Update a template
-    description: Update an existing document template's properties, model, or data examples.
+    description: |
+      Update an existing document template's properties, data model or data examples in the working
+      copy. The data contract is part of the template: an edit clears the template's ready mark, and
+      a change that breaks callers is reported when the catalog is released, not here.
     tags:
       - Templates
     x-required-permissions: [TEMPLATE_EDIT]

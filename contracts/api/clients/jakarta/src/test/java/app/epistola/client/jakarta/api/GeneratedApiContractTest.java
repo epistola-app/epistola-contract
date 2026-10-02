@@ -45,7 +45,6 @@ class GeneratedApiContractTest {
             CatalogsApi.class,
             CodeListsApi.class,
             ConsumersApi.class,
-            ContractsApi.class,
             EnvironmentsApi.class,
             FontsApi.class,
             GenerationApi.class,

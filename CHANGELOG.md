@@ -11,6 +11,13 @@ libraries.
 
 ### Changed
 
+- **BREAKING: the data contract is part of the template's working copy.** The contract draft,
+  publish and version history operations (`createContractDraft`, `updateContractDraft`,
+  `publishContractDraft`, `listContractVersions`) and the `Contracts` tag are removed, with their
+  schemas. `updateTemplate` edits the data model and examples in the working copy; marking the
+  template ready covers its contract, and a change that breaks callers is reported when the catalog
+  is released.
+
 - **BREAKING: template versions and activations are gone; a variant has a working copy.** The
   `listVersions`, `getVersion`, `updateVersion`, `publishVersion` and `archiveVersion` operations
   and the `Versions` tag are removed, with `VersionDto`, `VersionSummaryDto`, `UpdateDraftRequest`,
