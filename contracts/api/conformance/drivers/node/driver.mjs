@@ -91,7 +91,6 @@ async function listTemplates(baseUrl, config) {
     response = await api.listTemplates({ tenantId: config.tenantId, catalogId: config.catalogId })
   }
   await report(baseUrl, {
-    templateIds: response.items.map((template) => template.id).join(','),
     templateSlugs: response.items.map((template) => show(template.slug)).join(','),
   })
 }

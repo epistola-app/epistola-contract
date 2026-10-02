@@ -1,7 +1,7 @@
 CatalogDto:
   type: object
   required:
-    - id
+    - slug
     - name
     - type
   properties:
@@ -9,18 +9,6 @@ CatalogDto:
       type: string
       description: |
         Catalog slug identifier
-
-        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
-        older 1.x contract omits it and a client must still read its responses: when it is
-        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
-        `id` (epistola-app/epistola-contract#84).
-      example: municipality-demo
-    id:
-      type: string
-      deprecated: true
-      description: |
-        **Deprecated — use `slug`.** The same value, under the name the portable catalog
-        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
       example: municipality-demo
     name:
       type: string
@@ -181,28 +169,8 @@ ReleaseCatalogResponse:
 
 UpgradeCatalogRequest:
   type: object
-  properties:
-    includeNewSlugs:
-      type: array
-      deprecated: true
-      description: |
-        **Deprecated and ignored.** An upgrade reconciles the whole catalog manifest, so resources
-        the publisher added since the installed release are installed whether or not they are
-        listed here — a superset of anything this field could request.
-
-        It existed because a catalog could be installed partially: an upgrade then updated only the
-        resources already present, and this was the opt-in for the rest. Catalogs are now one
-        install unit, so there is no subset to preserve and nothing left to opt into.
-
-        Note it never worked as documented over this API. The example format below is `type/slug`,
-        but the implementation matched bare slugs, so a correctly formatted value selected nothing.
-        The field is retained because this API is GA; it is a candidate for removal in the next
-        major version.
-      items:
-        type: string
-      default: []
-      example:
-        - template/cover-letter
+  description: Reserved for upgrade options; currently empty.
+  properties: {}
 
 UpgradeCatalogResponse:
   type: object

@@ -2,7 +2,7 @@ EnvironmentDto:
   type: object
   description: A deployment stage (e.g., staging, production) that serves one release per catalog
   required:
-    - id
+    - slug
     - tenantId
     - name
     - createdAt
@@ -14,21 +14,6 @@ EnvironmentDto:
       maxLength: 30
       description: |
         Slug identifier of the environment
-
-        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
-        older 1.x contract omits it and a client must still read its responses: when it is
-        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
-        `id` (epistola-app/epistola-contract#84).
-      example: production
-    id:
-      type: string
-      deprecated: true
-      description: |
-        **Deprecated — use `slug`.** The same value, under the name the portable catalog
-        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
       example: production
     tenantId:
       type: string
@@ -48,7 +33,6 @@ EnvironmentDto:
       example: "2026-01-16T10:00:00Z"
   example:
     slug: production
-    id: production
     tenantId: acme-corp
     name: Production
     createdAt: "2026-01-16T10:00:00Z"
@@ -102,12 +86,10 @@ EnvironmentListResponse:
   example:
     items:
       - slug: production
-        id: production
         tenantId: acme-corp
         name: Production
         createdAt: "2026-01-16T10:00:00Z"
       - slug: staging
-        id: staging
         tenantId: acme-corp
         name: Staging
         createdAt: "2026-01-16T10:30:00Z"

@@ -91,6 +91,15 @@ libraries.
   the data and `keyword` a JSON Schema keyword, in every client, enforced by the new
   `template-data-validation` conformance scenario rather than by five separate test suites.
 
+### Removed
+
+- **BREAKING: the deprecated `id` and `key` halves of each resource address.** `slug` is now the
+  only address on `TemplateDto`, `TemplateSummaryDto`, `VariantDto`, `VariantSummaryDto`,
+  `StencilDto`, `StencilSummaryDto`, `ThemeDto`, `EnvironmentDto`, `TenantDto`, `CatalogDto` and
+  `AttributeDto`, and is required (#84). The ignored `includeNewSlugs` on `UpgradeCatalogRequest`
+  and the empty `Assets` tag go too. The `older-server-response` conformance scenario, which proved
+  a 1.x client could read a server from before 1.3.0, is replaced by `template-listing-by-slug`.
+
 ### Fixed
 
 - **`missingFields` and `invalidFields` reach consumers.** Contract 1.4.0 added both to

@@ -155,7 +155,7 @@ class GeneratedApiContractTest {
     @Test
     void the_vendor_media_type_is_actually_sent_and_accepted_on_the_wire() {
         try (StubServer stub = StubServer.start(request ->
-                StubServer.StubResponse.of(201, VENDOR_JSON, "{\"id\":\"acme-corp\",\"name\":\"Acme\"}"))) {
+                StubServer.StubResponse.of(201, VENDOR_JSON, "{\"slug\":\"acme-corp\",\"name\":\"Acme\"}"))) {
 
             TenantsApi tenants = EpistolaRestClients.builder()
                     .baseUri(stub.baseUri())
@@ -164,7 +164,7 @@ class GeneratedApiContractTest {
 
             TenantDto created = tenants.createTenant(new CreateTenantRequest().id("acme-corp").name("Acme"));
 
-            assertEquals("acme-corp", created.getId());
+            assertEquals("acme-corp", created.getSlug());
             StubServer.RecordedRequest request = stub.onlyRequest();
             assertEquals("/api/tenants", request.path());
             assertEquals(VENDOR_JSON, request.header("Content-Type"));

@@ -225,4 +225,5 @@ test suites — which is the argument for the suite existing:
   Python generate a required property as one the response must carry, so each rejected a whole
   template listing from any released Suite; Jakarta and Node.js read it. Their tests only ever saw
   responses shaped by the current spec, which is the one shape an older server never sends. The
-  `older-server-response` scenario plays one.
+  `older-server-response` scenario played one until 2.0.0 removed `id` and required `slug`; its
+  successor, `template-listing-by-slug`, holds every client to reading the slug alone.

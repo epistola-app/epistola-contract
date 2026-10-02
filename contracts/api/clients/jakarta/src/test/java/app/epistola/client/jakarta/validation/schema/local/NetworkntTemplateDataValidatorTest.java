@@ -62,7 +62,7 @@ class NetworkntTemplateDataValidatorTest {
         return FakeApis.of(TemplatesApi.class, Map.of("getTemplate", args -> {
             fetches.incrementAndGet();
             return new TemplateDto()
-                    .id((String) args[2])
+                    .slug((String) args[2])
                     .tenantId((String) args[0])
                     .name((String) args[2])
                     .schema(schema);

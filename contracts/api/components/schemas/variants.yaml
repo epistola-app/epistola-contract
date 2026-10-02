@@ -2,7 +2,7 @@ VariantDto:
   type: object
   description: Full template variant, with the status of its working copy
   required:
-    - id
+    - slug
     - templateId
     - title
     - attributes
@@ -18,21 +18,6 @@ VariantDto:
       maxLength: 50
       description: |
         Slug identifier of the variant
-
-        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
-        older 1.x contract omits it and a client must still read its responses: when it is
-        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
-        `id` (epistola-app/epistola-contract#84).
-      example: english
-    id:
-      type: string
-      deprecated: true
-      description: |
-        **Deprecated — use `slug`.** The same value, under the name the portable catalog
-        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
       example: english
     templateId:
       type: string
@@ -79,7 +64,6 @@ VariantDto:
       example: "2026-01-28T11:30:00Z"
   example:
     slug: english
-    id: english
     templateId: invoice
     title: English Invoice
     description: English language invoice for international customers
@@ -95,7 +79,7 @@ VariantSummaryDto:
   type: object
   description: Summary view of a variant for inclusion in template responses
   required:
-    - id
+    - slug
     - title
     - attributes
     - isDefault
@@ -108,21 +92,6 @@ VariantSummaryDto:
       maxLength: 50
       description: |
         Slug identifier of the variant
-
-        Sent by every server on contract 1.3.0 or later. Not required, because a server on an
-        older 1.x contract omits it and a client must still read its responses: when it is
-        absent, read `id`, which carries the same value. Required from 2.0.0, which removes
-        `id` (epistola-app/epistola-contract#84).
-      example: english
-    id:
-      type: string
-      deprecated: true
-      description: |
-        **Deprecated — use `slug`.** The same value, under the name the portable catalog
-        format already uses. Removed in 2.0.0 (epistola-app/epistola-contract#84).
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
       example: english
     title:
       type: string
@@ -146,7 +115,6 @@ VariantSummaryDto:
       $ref: './common.yaml#/ResourceStatus'
   example:
     slug: english
-    id: english
     title: English Invoice
     attributes:
       locale: en-US
@@ -234,7 +202,6 @@ VariantListResponse:
   example:
     items:
       - slug: english
-        id: english
         templateId: invoice
         title: English Invoice
         description: English language invoice for international customers

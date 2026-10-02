@@ -3,6 +3,7 @@
 # Pagination metadata carried under the `page` property of every list response
 # (Spring PagedModel shape). The request-side page index is the `page` query
 # parameter; the response-side index is `number` here, matching Spring.
+
 PageMeta:
   type: object
   required:

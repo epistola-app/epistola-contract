@@ -232,13 +232,6 @@ tags:
       Catalog-scoped images: metadata, upload, download, and delete. An image is what a
       template places in an image node, referenced by the image's `key`.
       Images from a SUBSCRIBED catalog are flagged `readOnly: true`.
-  - name: Assets
-    description: |
-      **Deprecated — use Images.** Removed in the next major version.
-
-      Catalog-scoped binary asset metadata, upload, download, and delete operations. An asset is
-      either an image or the binary behind a font face; images now have their own resource, and
-      the Fonts API describes font binaries as the faces of a family.
   - name: Consumers
     description: |
       Tenant-scoped consumer application registration and lifecycle management.

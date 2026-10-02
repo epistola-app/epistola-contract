@@ -112,7 +112,6 @@ public final class Driver {
         report(
                 baseUrl,
                 Map.of(
-                        "templateIds", templates.stream().map(TemplateSummaryDto::getId).collect(Collectors.joining(",")),
                         "templateSlugs", templates.stream().map(template -> String.valueOf(template.getSlug())).collect(Collectors.joining(","))));
     }
 

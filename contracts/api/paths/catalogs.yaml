@@ -173,8 +173,6 @@ catalog-upgrade:
       publishes are removed — the last only when nothing outside the catalog still references
       them, otherwise the upgrade is rejected and nothing changes. Use
       `GET .../upgrade-preview` to see all three before applying.
-
-      `includeNewSlugs` on the request body is deprecated and ignored.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_MANAGE]

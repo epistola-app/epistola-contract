@@ -102,7 +102,6 @@ def _list_templates(base_url: str, config: dict) -> None:
     _report(
         base_url,
         {
-            "templateIds": ",".join(template.id for template in response.items),
             "templateSlugs": ",".join(_show(template.slug) for template in response.items),
         },
     )

@@ -95,13 +95,10 @@ public static class Driver
         }
         var templates = response!.Items;
 
-#pragma warning disable CS0618 // Id is deprecated in favour of Slug, and still what an older server sends
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["templateIds"] = string.Join(",", templates.Select(template => template.Id)),
             ["templateSlugs"] = string.Join(",", templates.Select(template => Show(template.Slug))),
         });
-#pragma warning restore CS0618
     }
 
     private static void Problem(string baseUrl, JsonElement config)

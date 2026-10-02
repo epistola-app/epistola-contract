@@ -103,7 +103,6 @@ object Driver {
         report(
             baseUrl,
             mapOf(
-                "templateIds" to templates.joinToString(",") { it.id },
                 "templateSlugs" to templates.joinToString(",") { it.slug.toString() },
             ),
         )

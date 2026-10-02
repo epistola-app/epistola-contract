@@ -51,7 +51,6 @@ class NetworkntTemplateDataValidatorTest {
 
     private fun templateDto(schema: Any? = invoiceSchema) = TemplateDto(
         slug = "invoice",
-        id = "invoice",
         tenantId = "acme",
         name = "Invoice",
         variants = emptyList(),
