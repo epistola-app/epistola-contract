@@ -11,6 +11,17 @@ libraries.
 
 ### Changed
 
+- **BREAKING: stencil versions are gone; a stencil has a working copy that is marked ready.** The
+  stencil version operations (`listStencilVersions`, `createStencilVersion`, `getStencilVersion`,
+  `updateStencilDraft`, `publishStencilVersion`, `archiveStencilVersion`, `getStencilVersionUsage`)
+  and the per-template upgrade operations (`applyStencilUpgrade`, `previewStencilUpgrade`) are
+  removed, with their schemas. `getStencilContent` and `updateStencilContent` read and replace the
+  working copy; `markStencilReady` marks it reviewed, moves every instance the change does not
+  break, and names the instances it holds back; `listStencilUsage` lists the template variants that
+  use the stencil and which are held back. `StencilDto` and `StencilSummaryDto` report a `status`
+  in place of `versions` and `latestPublishedVersion`. The stencil node's representation inside a
+  template model is unchanged here: it belongs to the portable catalog format and changes there.
+
 - **BREAKING: the data contract is part of the template's working copy.** The contract draft,
   publish and version history operations (`createContractDraft`, `updateContractDraft`,
   `publishContractDraft`, `listContractVersions`) and the `Contracts` tag are removed, with their

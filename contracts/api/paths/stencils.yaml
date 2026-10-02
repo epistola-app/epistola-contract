@@ -189,12 +189,12 @@ stencils-id:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
-stencil-upgrade:
+stencil-content:
   parameters:
     - name: tenantId
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique slug identifier of the tenant (e.g., "acme-corp")
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -203,7 +203,7 @@ stencil-upgrade:
     - name: catalogId
       in: path
       required: true
-      description: Slug identifier of the catalog containing the stencil
+      description: Slug identifier of the catalog
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -218,30 +218,50 @@ stencil-upgrade:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-  post:
-    operationId: applyStencilUpgrade
-    summary: Apply a stencil upgrade in a template draft
-    description: |
-      Replace all instances of this stencil inside the selected template
-      variant's draft with `newVersion`. If the variant has no draft, one is
-      created from the latest published version first. Published content is not
-      changed until the draft is published.
+
+  get:
+    operationId: getStencilContent
+    summary: Get the stencil's working copy
+    description: The stencil's content as it is being edited, with its status against the catalog's latest release.
     tags:
       - Stencils
-    x-required-permissions: [TEMPLATE_EDIT]
+    x-required-permissions: [STENCIL_VIEW]
+    responses:
+      '200':
+        description: The working copy
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/stencils.yaml#/StencilContentDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+  put:
+    operationId: updateStencilContent
+    summary: Update the stencil's working copy
+    description: |
+      Replaces the stencil's content and parameters in the working copy. Templates keep rendering the
+      stencil's ready content until this content is marked ready.
+    tags:
+      - Stencils
+    x-required-permissions: [STENCIL_EDIT]
     requestBody:
       required: true
       content:
         application/vnd.epistola.v1+json:
           schema:
-            $ref: '../components/schemas/stencils.yaml#/ApplyStencilUpgradeRequest'
+            $ref: '../components/schemas/stencils.yaml#/UpdateStencilContentRequest'
     responses:
       '200':
-        description: Stencil upgrade applied to the template draft.
+        description: The updated working copy
         content:
           application/vnd.epistola.v1+json:
             schema:
-              $ref: '../components/schemas/stencils.yaml#/ApplyStencilUpgradeResponse'
+              $ref: '../components/schemas/stencils.yaml#/StencilContentDto'
       '400':
         $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
@@ -253,7 +273,7 @@ stencil-upgrade:
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
-stencil-versions:
+stencil-mark-ready:
   parameters:
     - name: tenantId
       in: path
@@ -283,76 +303,32 @@ stencil-versions:
         minLength: 3
         maxLength: 50
 
-  get:
-    operationId: listStencilVersions
-    summary: List versions for a stencil
-    description: Retrieve all versions of a specific stencil (draft, published, archived).
-    tags:
-      - Stencils
-    x-required-permissions: [STENCIL_VIEW]
-    parameters:
-      - name: status
-        in: query
-        description: Filter by lifecycle status
-        schema:
-          type: string
-          enum:
-            - draft
-            - published
-            - archived
-      - $ref: '../components/parameters/pagination.yaml#/Page'
-      - $ref: '../components/parameters/pagination.yaml#/Size'
-      - $ref: '../components/parameters/sorting.yaml#/Sort'
-      - $ref: '../components/parameters/sorting.yaml#/Direction'
-    responses:
-      '200':
-        description: List of stencil versions
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/stencils.yaml#/StencilVersionListResponse'
-      '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
   post:
-    operationId: createStencilVersion
-    summary: Create a new draft version
+    operationId: markStencilReady
+    summary: Mark the stencil ready
     description: |
-      Create a new draft version for the stencil. If content is provided, the draft
-      is initialized with it. Otherwise, the content from the latest published version
-      is copied as a starting point.
+      Records that the stencil's current content is reviewed. Instances the change does not break
+      move to it; instances it breaks are held back and named in the response.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_EDIT]
-    requestBody:
-      required: false
-      content:
-        application/vnd.epistola.v1+json:
-          schema:
-            $ref: '../components/schemas/stencils.yaml#/CreateStencilVersionRequest'
     responses:
-      '201':
-        description: Stencil version created successfully
+      '200':
+        description: The stencil, and the instances held back
         content:
           application/vnd.epistola.v1+json:
             schema:
-              $ref: '../components/schemas/stencils.yaml#/StencilVersionDto'
-      '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+              $ref: '../components/schemas/stencils.yaml#/MarkStencilReadyResponse'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
-stencil-versions-id:
+stencil-usage:
   parameters:
     - name: tenantId
       in: path
@@ -381,316 +357,24 @@ stencil-versions-id:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
-    - name: versionId
-      in: path
-      required: true
-      description: Version number (1-200)
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 200
 
   get:
-    operationId: getStencilVersion
-    summary: Get stencil version by ID
-    description: Retrieve details of a specific stencil version including its content.
-    tags:
-      - Stencils
-    x-required-permissions: [STENCIL_VIEW]
-    responses:
-      '200':
-        description: Stencil version details
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/stencils.yaml#/StencilVersionDto'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
-  patch:
-    operationId: updateStencilDraft
-    summary: Update a draft stencil version
-    description: Update the content of a draft stencil version. Only drafts can be updated.
-    tags:
-      - Stencils
-    x-required-permissions: [STENCIL_EDIT]
-    requestBody:
-      required: true
-      content:
-        application/vnd.epistola.v1+json:
-          schema:
-            $ref: '../components/schemas/stencils.yaml#/UpdateStencilDraftRequest'
-    responses:
-      '200':
-        description: Stencil version updated successfully
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/stencils.yaml#/StencilVersionDto'
-      '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
-stencil-version-publish:
-  parameters:
-    - name: tenantId
-      in: path
-      required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: stencilId
-      in: path
-      required: true
-      description: Slug identifier of the stencil
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: versionId
-      in: path
-      required: true
-      description: Version number (1-200)
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 200
-
-  post:
-    operationId: publishStencilVersion
-    summary: Publish a stencil version
-    description: |
-      Publish a draft stencil version, making it available for insertion into templates.
-      The content is frozen at publish time. Validates that the content does not contain
-      nested stencil references.
-    tags:
-      - Stencils
-    x-required-permissions: [STENCIL_PUBLISH]
-    responses:
-      '200':
-        description: Stencil version published successfully
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/stencils.yaml#/StencilVersionDto'
-      '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
-stencil-version-archive:
-  parameters:
-    - name: tenantId
-      in: path
-      required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: stencilId
-      in: path
-      required: true
-      description: Slug identifier of the stencil
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: versionId
-      in: path
-      required: true
-      description: Version number (1-200)
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 200
-
-  post:
-    operationId: archiveStencilVersion
-    summary: Archive a published stencil version
-    description: |
-      Archive a published stencil version. Archived versions cannot be inserted into
-      new templates but remain embedded in templates that already use them.
-    tags:
-      - Stencils
-    x-required-permissions: [STENCIL_PUBLISH]
-    responses:
-      '200':
-        description: Stencil version archived successfully
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/stencils.yaml#/StencilVersionDto'
-      '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
-stencil-version-usage:
-  parameters:
-    - name: tenantId
-      in: path
-      required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: stencilId
-      in: path
-      required: true
-      description: Slug identifier of the stencil
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: versionId
-      in: path
-      required: true
-      description: Version number (1-200)
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 200
-
-  get:
-    operationId: getStencilVersionUsage
-    summary: List templates using a stencil version
-    description: |
-      Find all templates that contain an embedded copy of this stencil version.
-      Useful for impact analysis before archiving or when planning bulk upgrades.
+    operationId: listStencilUsage
+    summary: List the template variants that use the stencil
+    description: Every template variant in the working copy with an instance of the stencil, and whether that instance is held back.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_VIEW]
     parameters:
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
-      - $ref: '../components/parameters/sorting.yaml#/Sort'
-      - $ref: '../components/parameters/sorting.yaml#/Direction'
     responses:
       '200':
-        description: List of template usages
+        description: The template variants using the stencil
         content:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/StencilUsageListResponse'
-      '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
-stencil-version-upgrade-preview:
-  parameters:
-    - name: tenantId
-      in: path
-      required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: stencilId
-      in: path
-      required: true
-      description: Slug identifier of the stencil
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
-    - name: versionId
-      in: path
-      required: true
-      description: Target version number to upgrade to (1-200)
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 200
-
-  post:
-    operationId: previewStencilUpgrade
-    summary: Preview upgrading templates to a stencil version
-    description: |
-      Generate before/after previews for all templates that use an older version of this
-      stencil. The versionId in the path is the target version to upgrade to. Returns a
-      preview for each affected template version showing the document before and after
-      the stencil content would be replaced.
-    tags:
-      - Stencils
-    x-required-permissions: [STENCIL_VIEW]
-    responses:
-      '200':
-        description: List of upgrade previews
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/stencils.yaml#/UpgradePreviewListResponse'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

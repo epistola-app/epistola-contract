@@ -378,20 +378,12 @@ paths:
     $ref: './paths/stencils.yaml#/stencils'
   /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}:
     $ref: './paths/stencils.yaml#/stencils-id'
-  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/upgrade:
-    $ref: './paths/stencils.yaml#/stencil-upgrade'
-  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions:
-    $ref: './paths/stencils.yaml#/stencil-versions'
-  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}:
-    $ref: './paths/stencils.yaml#/stencil-versions-id'
-  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}/publish:
-    $ref: './paths/stencils.yaml#/stencil-version-publish'
-  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}/archive:
-    $ref: './paths/stencils.yaml#/stencil-version-archive'
-  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}/usage:
-    $ref: './paths/stencils.yaml#/stencil-version-usage'
-  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/versions/{versionId}/upgrade-preview:
-    $ref: './paths/stencils.yaml#/stencil-version-upgrade-preview'
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/content:
+    $ref: './paths/stencils.yaml#/stencil-content'
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/mark-ready:
+    $ref: './paths/stencils.yaml#/stencil-mark-ready'
+  /tenants/{tenantId}/catalogs/{catalogId}/stencils/{stencilId}/usage:
+    $ref: './paths/stencils.yaml#/stencil-usage'
 
   # Catalogs
   /tenants/{tenantId}/catalogs:
@@ -578,30 +570,22 @@ components:
       $ref: './components/schemas/stencils.yaml#/StencilDto'
     StencilSummaryDto:
       $ref: './components/schemas/stencils.yaml#/StencilSummaryDto'
-    StencilVersionDto:
-      $ref: './components/schemas/stencils.yaml#/StencilVersionDto'
-    StencilVersionSummaryDto:
-      $ref: './components/schemas/stencils.yaml#/StencilVersionSummaryDto'
     CreateStencilRequest:
       $ref: './components/schemas/stencils.yaml#/CreateStencilRequest'
     UpdateStencilRequest:
       $ref: './components/schemas/stencils.yaml#/UpdateStencilRequest'
-    CreateStencilVersionRequest:
-      $ref: './components/schemas/stencils.yaml#/CreateStencilVersionRequest'
-    UpdateStencilDraftRequest:
-      $ref: './components/schemas/stencils.yaml#/UpdateStencilDraftRequest'
     StencilUsageDto:
       $ref: './components/schemas/stencils.yaml#/StencilUsageDto'
-    UpgradePreviewDto:
-      $ref: './components/schemas/stencils.yaml#/UpgradePreviewDto'
     StencilListResponse:
       $ref: './components/schemas/stencils.yaml#/StencilListResponse'
-    StencilVersionListResponse:
-      $ref: './components/schemas/stencils.yaml#/StencilVersionListResponse'
     StencilUsageListResponse:
       $ref: './components/schemas/stencils.yaml#/StencilUsageListResponse'
-    UpgradePreviewListResponse:
-      $ref: './components/schemas/stencils.yaml#/UpgradePreviewListResponse'
+    StencilContentDto:
+      $ref: './components/schemas/stencils.yaml#/StencilContentDto'
+    UpdateStencilContentRequest:
+      $ref: './components/schemas/stencils.yaml#/UpdateStencilContentRequest'
+    MarkStencilReadyResponse:
+      $ref: './components/schemas/stencils.yaml#/MarkStencilReadyResponse'
 
     # Template model schemas
     TemplateDocument:
