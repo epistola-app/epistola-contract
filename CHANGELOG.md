@@ -96,9 +96,10 @@ libraries.
 - **BREAKING: the deprecated `id` and `key` halves of each resource address.** `slug` is now the
   only address on `TemplateDto`, `TemplateSummaryDto`, `VariantDto`, `VariantSummaryDto`,
   `StencilDto`, `StencilSummaryDto`, `ThemeDto`, `EnvironmentDto`, `TenantDto`, `CatalogDto` and
-  `AttributeDto`, and is required (#84). The ignored `includeNewSlugs` on `UpgradeCatalogRequest`
-  and the empty `Assets` tag go too. The `older-server-response` conformance scenario, which proved
-  a 1.x client could read a server from before 1.3.0, is replaced by `template-listing-by-slug`.
+  `AttributeDto`, and is required (#84). `upgradeCatalog` takes no request body: its only field, the
+  ignored `includeNewSlugs`, is gone with `UpgradeCatalogRequest`, as is the empty `Assets` tag. The
+  `older-server-response` conformance scenario, which proved a 1.x client could read a server from
+  before 1.3.0, is replaced by `template-listing-by-slug`.
 
 ### Fixed
 

@@ -176,12 +176,6 @@ catalog-upgrade:
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_MANAGE]
-    requestBody:
-      required: false
-      content:
-        application/vnd.epistola.v1+json:
-          schema:
-            $ref: '../components/schemas/catalogs.yaml#/UpgradeCatalogRequest'
     responses:
       '200':
         description: Upgrade result.

@@ -167,11 +167,6 @@ ReleaseCatalogResponse:
       description: True when the release content matches a previous release fingerprint.
       example: false
 
-UpgradeCatalogRequest:
-  type: object
-  description: Reserved for upgrade options; currently empty.
-  properties: {}
-
 UpgradeCatalogResponse:
   type: object
   required:
