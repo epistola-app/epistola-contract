@@ -51,7 +51,7 @@ class GenerationResult:
     routing_key: Optional[str]
     template_id: Optional[str]
     variant_id: Optional[str]
-    version_id: Optional[int]
+    release_version: Optional[str]
     filename: Optional[str]
     content_type: Optional[str]
     size_bytes: Optional[int]
@@ -479,7 +479,7 @@ def _parse_result(node: dict) -> GenerationResult:
         routing_key=node.get("routingKey"),
         template_id=node.get("templateId"),
         variant_id=node.get("variantId"),
-        version_id=node.get("versionId"),
+        release_version=node.get("releaseVersion"),
         filename=node.get("filename"),
         content_type=node.get("contentType"),
         size_bytes=node.get("sizeBytes"),

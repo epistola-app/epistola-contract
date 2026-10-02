@@ -25,16 +25,16 @@ import app.epistola.client.model.ValidateTemplateDataRequest
  * because silently reporting unvalidated data as acceptable is worse than failing.
  *
  * @param templatesApi The generated [TemplatesApi].
- * @param variantId Optional variant to check against. Without any of the three selectors the data
- *   is checked against the template's latest contract; with one, against the contract of the
- *   version that selection resolves to — the version preview and generation would render.
- * @param versionId Optional explicit version number (mutually exclusive with [environmentId]).
- * @param environmentId Optional environment whose active version to check against.
+ * @param variantId Optional variant to check against; without it, the default variant.
+ * @param releaseVersion Optional release of the template's catalog to check against (mutually
+ *   exclusive with [environmentId]). Without either, the catalog's latest release is used — the
+ *   release preview and generation would render for the same selection.
+ * @param environmentId Optional environment whose deployed release to check against.
  */
 class ServerTemplateDataValidator @JvmOverloads constructor(
     private val templatesApi: TemplatesApi,
     private val variantId: String? = null,
-    private val versionId: Int? = null,
+    private val releaseVersion: String? = null,
     private val environmentId: String? = null,
 ) : TemplateDataValidator {
 
@@ -51,7 +51,7 @@ class ServerTemplateDataValidator @JvmOverloads constructor(
             ValidateTemplateDataRequest(
                 data = data,
                 variantId = variantId,
-                versionId = versionId,
+                releaseVersion = releaseVersion,
                 environmentId = environmentId,
             ),
         )

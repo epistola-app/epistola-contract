@@ -3,10 +3,10 @@ ValidateTemplateDataRequest:
   description: |
     Request body for validating template input data against the template's JSON Schema.
 
-    Without `variantId`, `versionId` or `environmentId` the data is checked against the template's
-    latest data contract, as before. With any of them, it is checked against the contract of the
-    published version that selection resolves to — the same version preview and generation would
-    render — and absent optional fields that version's template reads are reported too.
+    The data is checked against the contract of the release that preview and generation would
+    render for the same selection: `releaseVersion` names one, `environmentId` takes the release
+    that environment serves, and without either the catalog's latest release is used. Absent
+    optional fields that release's template reads are reported too.
   required:
     - data
   properties:
@@ -15,20 +15,20 @@ ValidateTemplateDataRequest:
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the variant to check against. If omitted while `versionId` or `environmentId` is set, the default variant is used.
+      description: Slug identifier of the variant to check against. If omitted, the default variant of the template in the resolved release is used.
       example: null
-    versionId:
-      type: [integer, "null"]
-      minimum: 1
-      maximum: 200
-      description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId).
+    releaseVersion:
+      type: [string, "null"]
+      minLength: 1
+      maxLength: 50
+      description: Release of the template's catalog to check against (mutually exclusive with environmentId).
       example: null
     environmentId:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 30
-      description: Slug identifier of the environment whose active version to check against (mutually exclusive with versionId).
+      description: Slug identifier of the environment whose deployed release to check against (mutually exclusive with releaseVersion).
       example: null
     data:
       type: object

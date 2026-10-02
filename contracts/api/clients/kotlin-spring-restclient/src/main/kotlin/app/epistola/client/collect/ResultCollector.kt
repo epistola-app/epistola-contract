@@ -118,7 +118,8 @@ class ResultCollector private constructor(
         val routingKey: String?,
         val templateId: String?,
         val variantId: String?,
-        val versionId: Int?,
+        /** Release of the template's catalog used; null for a result accepted before contract 2.0. */
+        val releaseVersion: String?,
         val filename: String?,
         val contentType: String?,
         val sizeBytes: Long?,
@@ -368,7 +369,7 @@ class ResultCollector private constructor(
         routingKey = node["routingKey"]?.asText(),
         templateId = node["templateId"]?.asText(),
         variantId = node["variantId"]?.asText(),
-        versionId = node["versionId"]?.asInt(),
+        releaseVersion = node["releaseVersion"]?.takeUnless { it.isNull }?.asText(),
         filename = node["filename"]?.asText(),
         contentType = node["contentType"]?.asText(),
         sizeBytes = node["sizeBytes"]?.asLong(),

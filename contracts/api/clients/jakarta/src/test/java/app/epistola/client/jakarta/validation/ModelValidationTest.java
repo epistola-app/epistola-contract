@@ -175,7 +175,7 @@ class ModelValidationTest {
                 .catalogId("default")
                 .templateId("monthly-invoice")
                 .variantId("english")
-                .versionId(2)
+                .releaseVersion("1.4.0")
                 .filename("invoice-2026-001.pdf")
                 .correlationId("order-7890")
                 .data(Map.of(
@@ -188,10 +188,10 @@ class ModelValidationTest {
 
     @Test
     void each_optional_field_of_a_generation_request_is_checked_independently() {
-        ModelValidation.validate(baseGenerationRequest().versionId(null));
+        ModelValidation.validate(baseGenerationRequest().releaseVersion(null));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(baseGenerationRequest().versionId(300)));
+                () -> ModelValidation.validate(baseGenerationRequest().releaseVersion("")));
 
         ModelValidation.validate(baseGenerationRequest().environmentId(null));
         assertThrows(

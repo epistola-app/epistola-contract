@@ -90,10 +90,12 @@ GenerationResult:
       type: ['string', 'null']
       description: Variant used for generation
       example: english
-    versionId:
-      type: ['integer', 'null']
-      description: Version number used for generation
-      example: 3
+    releaseVersion:
+      type: ['string', 'null']
+      description: |
+        Release of the template's catalog used for generation. Null for a result accepted before
+        contract 2.0, which rendered a template version.
+      example: "1.4.0"
     filename:
       type: ['string', 'null']
       description: Filename of the generated document

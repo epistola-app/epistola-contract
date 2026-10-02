@@ -113,22 +113,22 @@ class ServerTemplateDataValidator:
     because silently reporting unvalidated data as acceptable is worse than failing.
 
     :param templates_api: the generated API used to reach ``validateTemplateData``
-    :param variant_id: optional variant to check against
-    :param version_id: optional explicit version number (mutually exclusive with
-        ``environment_id``)
-    :param environment_id: optional environment whose active version to check against
+    :param variant_id: optional variant to check against; without it, the default variant
+    :param release_version: optional release of the template's catalog to check against (mutually
+        exclusive with ``environment_id``); without either, the catalog's latest release is used
+    :param environment_id: optional environment whose deployed release to check against
     """
 
     def __init__(
         self,
         templates_api: TemplatesApi,
         variant_id: Optional[str] = None,
-        version_id: Optional[int] = None,
+        release_version: Optional[str] = None,
         environment_id: Optional[str] = None,
     ) -> None:
         self._templates_api = templates_api
         self._variant_id = variant_id
-        self._version_id = version_id
+        self._release_version = release_version
         self._environment_id = environment_id
 
     @property
@@ -152,7 +152,7 @@ class ServerTemplateDataValidator:
             ValidateTemplateDataRequest(
                 data=data if data is not None else {},
                 variantId=self._variant_id,
-                versionId=self._version_id,
+                releaseVersion=self._release_version,
                 environmentId=self._environment_id,
             ),
         )

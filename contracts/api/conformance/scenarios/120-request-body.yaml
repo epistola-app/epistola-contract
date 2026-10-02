@@ -12,7 +12,7 @@ why: >
 
   The interesting part is what is *not* sent. Five optional fields are left unset, and a client that
   serializes them as explicit nulls says something different from one that omits them: the contract
-  marks variantId, versionId and environmentId mutually exclusive with other fields, so a null that
+  marks variantId, releaseVersion and environmentId mutually exclusive with other fields, so a null that
   looks like a value is a request a strict server can reject. Jackson, JSON-B, System.Text.Json and
   pydantic each decide this for themselves, by configuration none of them shares.
 
@@ -84,4 +84,4 @@ expect:
         # Kotlin client's mapper wrote null for every unset field. Prism rejected the body. The
         # tolerant assertion had waved through a request no validating server accepts, which is why
         # this one is strict.
-        jsonAbsent: [variantId, attributes, versionId, environmentId, filename]
+        jsonAbsent: [variantId, attributes, releaseVersion, environmentId, filename]

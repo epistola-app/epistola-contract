@@ -259,7 +259,7 @@ class ModelValidationTest {
                 "invoiceNumber" to "INV-2026-001",
                 "totals" to mapOf("subtotal" to 222.40, "tax" to 44.48, "total" to 266.88),
             ),
-            versionId = 2,
+            releaseVersion = "1.4.0",
             filename = "invoice-2026-001.pdf",
             correlationId = "order-7890",
         )
@@ -268,23 +268,23 @@ class ModelValidationTest {
 
     @Test
     fun `GenerateDocumentRequest validates each nullable field independently`() {
-        // null versionId: skipped
+        // null releaseVersion: skipped
         GenerateDocumentRequest(
             catalogId = "default",
             templateId = "invoice",
             variantId = "english",
             data = emptyMap<String, Any>(),
-            versionId = null,
+            releaseVersion = null,
         ).validate()
 
-        // invalid versionId: fails
+        // empty releaseVersion: fails
         assertFailsWith<IllegalArgumentException> {
             GenerateDocumentRequest(
                 catalogId = "default",
                 templateId = "invoice",
                 variantId = "english",
                 data = emptyMap<String, Any>(),
-                versionId = 300,
+                releaseVersion = "",
             ).validate()
         }
 
@@ -338,10 +338,10 @@ class ModelValidationTest {
                 templateId = "INVALID",
                 variantId = "english",
                 data = emptyMap<String, Any>(),
-                versionId = 999,
+                releaseVersion = "",
             ).validate()
         }
-        // templateId is validated first — fails on pattern before versionId is checked
+        // templateId is validated first — fails on pattern before releaseVersion is checked
         assertEquals("templateId: must match pattern ^[a-z][a-z0-9]*(-[a-z0-9]+)*\$", ex.message)
     }
 
@@ -357,7 +357,7 @@ class ModelValidationTest {
                 "customer" to mapOf("name" to "Jane Smith"),
                 "items" to listOf(mapOf("sku" to "A1", "qty" to 1)),
             ),
-            versionId = 100,
+            releaseVersion = null,
             environmentId = "staging",
             filename = "batch-doc-001.pdf",
             correlationId = "batch-run-42",
@@ -366,14 +366,14 @@ class ModelValidationTest {
     }
 
     @Test
-    fun `BatchGenerationItem rejects environmentId with invalid slug when versionId is null`() {
+    fun `BatchGenerationItem rejects environmentId with invalid slug when releaseVersion is null`() {
         assertFailsWith<IllegalArgumentException> {
             BatchGenerationItem(
                 catalogId = "default",
                 templateId = "invoice",
                 variantId = "english",
                 data = emptyMap<String, Any>(),
-                versionId = null,
+                releaseVersion = null,
                 environmentId = "Production!", // invalid slug
             ).validate()
         }
@@ -420,7 +420,7 @@ class ModelValidationTest {
             tenantId = "acme-corp",
             templateId = "monthly-invoice",
             variantId = "english",
-            versionId = 3,
+            releaseVersion = "1.4.0",
             filename = "invoice-2026-001.pdf",
             contentType = "application/pdf",
             sizeBytes = 184_320L,
@@ -438,7 +438,7 @@ class ModelValidationTest {
             tenantId = "acme-corp",
             templateId = "invoice",
             variantId = "english",
-            versionId = 1,
+            releaseVersion = "1.0.0",
             filename = "doc.pdf",
             contentType = "application/pdf",
             sizeBytes = 1024L,
@@ -460,9 +460,9 @@ class ModelValidationTest {
             base.copy(variantId = "English!").validate()
         }
 
-        // versionId out of range
+        // releaseVersion over its length limit
         assertFailsWith<IllegalArgumentException> {
-            base.copy(versionId = 0).validate()
+            base.copy(releaseVersion = "1".repeat(51)).validate()
         }
     }
 

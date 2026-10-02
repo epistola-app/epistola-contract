@@ -13,19 +13,19 @@ export interface TemplateDataValidationSource {
       tenantId: string
       catalogId: string
       templateId: string
-      validateTemplateDataRequest: { data: object; variantId?: string | null; versionId?: number | null; environmentId?: string | null }
+      validateTemplateDataRequest: { data: object; variantId?: string | null; releaseVersion?: string | null; environmentId?: string | null }
     },
     initOverrides?: RequestInit | InitOverrideFunction,
   ): Promise<TemplateDataValidationResult>
 }
 
-/** Which version's contract to check against; omit all three to use the template's latest. */
+/** Which release's contract to check against; omit all three to use the catalog's latest release and the default variant. */
 export interface ServerValidationTarget {
-  /** Variant to check against. Used as the default variant when only a version or environment is set. */
+  /** Variant to check against; without it, the default variant of the template in the resolved release. */
   readonly variantId?: string
-  /** Explicit version number (mutually exclusive with `environmentId`). */
-  readonly versionId?: number
-  /** Environment whose active version to check against (mutually exclusive with `versionId`). */
+  /** Release of the template's catalog (mutually exclusive with `environmentId`). */
+  readonly releaseVersion?: string
+  /** Environment whose deployed release to check against (mutually exclusive with `releaseVersion`). */
   readonly environmentId?: string
 }
 
@@ -35,7 +35,7 @@ export interface ServerValidationTarget {
  * This is the default, and it carries no JSON Schema compiler. The server already owns the verdict
  * — it validates every generation request whatever the client did first — so asking it is the only
  * answer that cannot disagree with what generation will do. It also knows things a schema alone
- * does not: which optional fields the resolved version's template actually reads.
+ * does not: which optional fields the resolved release's template actually reads.
  *
  * Validation is a far cheaper call than rendering, so checking as data is entered is reasonable. It
  * is still a network call, which is why {@link preflightsGeneration} is false.
@@ -64,7 +64,7 @@ export class ServerTemplateDataValidator implements TemplateDataValidator {
       validateTemplateDataRequest: {
         data: (data ?? {}) as object,
         variantId: this.target.variantId,
-        versionId: this.target.versionId,
+        releaseVersion: this.target.releaseVersion,
         environmentId: this.target.environmentId,
       },
     })

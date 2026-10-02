@@ -43,19 +43,33 @@ PreviewDocumentRequest:
       items:
         $ref: '#/VariantSelectionAttribute'
       description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
-    versionId:
-      type: [integer, "null"]
-      minimum: 1
-      maximum: 200
-      description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId). If neither versionId nor environmentId is provided, the latest published version is used.
-      example: 1
+    releaseVersion:
+      type: [string, "null"]
+      minLength: 1
+      maxLength: 50
+      description: |
+        Release of the template's catalog to render (mutually exclusive with environmentId).
+        Without releaseVersion or environmentId, the catalog's latest release is rendered, never
+        unreleased changes.
+      example: null
     environmentId:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 30
-      description: Slug identifier of environment to determine version from (mutually exclusive with versionId). If neither versionId nor environmentId is provided, the latest published version is used.
+      description: |
+        Slug identifier of the environment whose deployed release of the template's catalog is
+        rendered (mutually exclusive with releaseVersion). The request is refused when the
+        environment serves no release of that catalog.
       example: null
+    workingCopy:
+      type: boolean
+      default: false
+      description: |
+        Render the template's working copy, including changes not yet released (mutually exclusive
+        with releaseVersion and environmentId). Preview only: generated documents always render a
+        release.
+      example: false
     data:
       type: object
       description: JSON data to populate the template
@@ -161,18 +175,24 @@ GenerateDocumentRequest:
       items:
         $ref: '#/VariantSelectionAttribute'
       description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
-    versionId:
-      type: [integer, "null"]
-      minimum: 1
-      maximum: 200
-      description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId). If neither versionId nor environmentId is provided, the latest published version is used.
-      example: 1
+    releaseVersion:
+      type: [string, "null"]
+      minLength: 1
+      maxLength: 50
+      description: |
+        Release of the template's catalog to render (mutually exclusive with environmentId).
+        Without releaseVersion or environmentId, the catalog's latest release is rendered, never
+        unreleased changes.
+      example: null
     environmentId:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 30
-      description: Slug identifier of environment to determine version from (mutually exclusive with versionId). If neither versionId nor environmentId is provided, the latest published version is used.
+      description: |
+        Slug identifier of the environment whose deployed release of the template's catalog is
+        rendered (mutually exclusive with releaseVersion). The request is refused when the
+        environment serves no release of that catalog.
       example: null
     data:
       type: object
@@ -267,18 +287,24 @@ BatchGenerationItem:
       items:
         $ref: '#/VariantSelectionAttribute'
       description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
-    versionId:
-      type: [integer, "null"]
-      minimum: 1
-      maximum: 200
-      description: Explicit version ID (version number, 1-200, mutually exclusive with environmentId). If neither versionId nor environmentId is provided, the latest published version is used.
-      example: 1
+    releaseVersion:
+      type: [string, "null"]
+      minLength: 1
+      maxLength: 50
+      description: |
+        Release of the template's catalog to render (mutually exclusive with environmentId).
+        Without releaseVersion or environmentId, the catalog's latest release is rendered, never
+        unreleased changes.
+      example: null
     environmentId:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 30
-      description: Slug identifier of environment to determine version from (mutually exclusive with versionId). If neither versionId nor environmentId is provided, the latest published version is used.
+      description: |
+        Slug identifier of the environment whose deployed release of the template's catalog is
+        rendered (mutually exclusive with releaseVersion). The request is refused when the
+        environment serves no release of that catalog.
       example: null
     data:
       type: object
@@ -429,12 +455,13 @@ DocumentGenerationItemDto:
       maxLength: 50
       description: Slug identifier of the variant used for generation
       example: english
-    versionId:
-      type: [integer, "null"]
-      minimum: 1
-      maximum: 200
-      description: Explicit version ID (version number, 1-200, if specified)
-      example: 1
+    releaseVersion:
+      type: [string, "null"]
+      maxLength: 50
+      description: |
+        Release of the template's catalog this item renders, bound when the request was accepted.
+        Null for an item accepted before contract 2.0, which rendered a template version.
+      example: "1.4.0"
     environmentId:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -514,7 +541,7 @@ DocumentGenerationItemDto:
     id: "660e8400-e29b-41d4-a716-446655440001"
     templateId: invoice
     variantId: english
-    versionId: 1
+    releaseVersion: "1.4.0"
     environmentId: null
     data:
       customer:
@@ -660,7 +687,7 @@ GenerationJobDetail:
       - id: "660e8400-e29b-41d4-a716-446655440001"
         templateId: invoice
         variantId: english
-        versionId: 1
+        releaseVersion: "1.4.0"
         environmentId: null
         data:
           customer:
@@ -733,7 +760,7 @@ DocumentDto:
     - tenantId
     - templateId
     - variantId
-    - versionId
+    - releaseVersion
     - filename
     - contentType
     - sizeBytes
@@ -765,12 +792,13 @@ DocumentDto:
       maxLength: 50
       description: Slug identifier of the variant used to generate this document
       example: english
-    versionId:
-      type: integer
-      minimum: 1
-      maximum: 200
-      description: Version used to generate this document (version number, 1-200)
-      example: 1
+    releaseVersion:
+      type: [string, "null"]
+      maxLength: 50
+      description: |
+        Release of the template's catalog this document was generated from. Null for a document
+        generated before contract 2.0, which rendered a template version.
+      example: "1.4.0"
     filename:
       type: string
       description: Filename of the document
@@ -802,7 +830,7 @@ DocumentDto:
     tenantId: acme-corp
     templateId: invoice
     variantId: english
-    versionId: 1
+    releaseVersion: "1.4.0"
     filename: "invoice-2026-001.pdf"
     correlationId: "order-7890"
     contentType: "application/pdf"
@@ -830,7 +858,7 @@ DocumentListResponse:
         tenantId: acme-corp
         templateId: invoice
         variantId: english
-        versionId: 1
+        releaseVersion: "1.4.0"
         filename: "invoice-2026-001.pdf"
         correlationId: "order-7890"
         contentType: "application/pdf"

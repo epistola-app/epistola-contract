@@ -30,7 +30,7 @@ public class ServerTemplateDataValidator implements TemplateDataValidator {
 
     private final TemplatesApi templatesApi;
     private final String variantId;
-    private final Integer versionId;
+    private final String releaseVersion;
     private final String environmentId;
 
     public ServerTemplateDataValidator(TemplatesApi templatesApi) {
@@ -39,16 +39,17 @@ public class ServerTemplateDataValidator implements TemplateDataValidator {
 
     /**
      * @param templatesApi  the generated API used to reach {@code validateTemplateData}
-     * @param variantId     optional variant to check against
-     * @param versionId     optional explicit version number (mutually exclusive with
-     *                      {@code environmentId})
-     * @param environmentId optional environment whose active version to check against
+     * @param variantId      optional variant to check against; without it, the default variant
+     * @param releaseVersion optional release of the template's catalog to check against (mutually
+     *                       exclusive with {@code environmentId}); without either, the latest
+     *                       release, as preview and generation would render
+     * @param environmentId  optional environment whose deployed release to check against
      */
     public ServerTemplateDataValidator(
-            TemplatesApi templatesApi, String variantId, Integer versionId, String environmentId) {
+            TemplatesApi templatesApi, String variantId, String releaseVersion, String environmentId) {
         this.templatesApi = templatesApi;
         this.variantId = variantId;
-        this.versionId = versionId;
+        this.releaseVersion = releaseVersion;
         this.environmentId = environmentId;
     }
 
@@ -59,7 +60,7 @@ public class ServerTemplateDataValidator implements TemplateDataValidator {
         ValidateTemplateDataRequest request = new ValidateTemplateDataRequest();
         request.setData(data);
         request.setVariantId(variantId);
-        request.setVersionId(versionId);
+        request.setReleaseVersion(releaseVersion);
         request.setEnvironmentId(environmentId);
 
         TemplateDataValidationResult result =

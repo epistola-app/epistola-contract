@@ -7,7 +7,7 @@ title: A generation request body satisfies the schema it is generated from
 why: >
   Bodies are where a generator has the most room to disagree with the contract, and the request-body
   scenario can only check the fields it thought to list. Prism checks the schema: required
-  properties, slug patterns on catalogId and templateId, the 1–200 bound on versionId, and the types
+  properties, slug patterns on catalogId and templateId, the length bounds on releaseVersion, and the types
   of everything inside. A client that omitted a required field, or sent a number where the schema
   says string, fails here without anyone having predicted it.
 

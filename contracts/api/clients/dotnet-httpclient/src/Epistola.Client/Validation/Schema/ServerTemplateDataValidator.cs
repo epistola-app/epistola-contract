@@ -34,22 +34,22 @@ public sealed class ServerTemplateDataValidator : ITemplateDataValidator
 {
     private readonly ITemplatesApi _templatesApi;
     private readonly string? _variantId;
-    private readonly int? _versionId;
+    private readonly string? _releaseVersion;
     private readonly string? _environmentId;
 
     /// <param name="templatesApi">The generated API used to reach <c>validateTemplateData</c>.</param>
-    /// <param name="variantId">Optional variant to check against.</param>
-    /// <param name="versionId">Optional explicit version number (mutually exclusive with <paramref name="environmentId"/>).</param>
-    /// <param name="environmentId">Optional environment whose active version to check against.</param>
+    /// <param name="variantId">Optional variant to check against; without it, the default variant.</param>
+    /// <param name="releaseVersion">Optional release of the template's catalog to check against (mutually exclusive with <paramref name="environmentId"/>). Without either, the catalog's latest release is used.</param>
+    /// <param name="environmentId">Optional environment whose deployed release to check against.</param>
     public ServerTemplateDataValidator(
         ITemplatesApi templatesApi,
         string? variantId = null,
-        int? versionId = null,
+        string? releaseVersion = null,
         string? environmentId = null)
     {
         _templatesApi = templatesApi;
         _variantId = variantId;
-        _versionId = versionId;
+        _releaseVersion = releaseVersion;
         _environmentId = environmentId;
     }
 
@@ -65,7 +65,7 @@ public sealed class ServerTemplateDataValidator : ITemplateDataValidator
     {
         var request = new ValidateTemplateDataRequest(
             variantId: _variantId,
-            versionId: _versionId,
+            releaseVersion: _releaseVersion,
             environmentId: _environmentId,
             data: data);
 

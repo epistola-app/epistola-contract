@@ -11,6 +11,14 @@ libraries.
 
 ### Changed
 
+- **BREAKING: generation renders a catalog release, never a template version.** `versionId` is gone
+  from `GenerateDocumentRequest`, `BatchGenerationItem`, `PreviewDocumentRequest` and
+  `ValidateTemplateDataRequest`. A request names the release with `releaseVersion`, or an
+  environment with `environmentId` (which renders the release that environment serves); with
+  neither, the catalog's latest release is rendered, never unreleased changes. Preview gains
+  `workingCopy: true` to render the working copy instead. Jobs, documents and collected results
+  report `releaseVersion` in place of `versionId`; it is null for anything generated before 2.0.
+
 - **The clients no longer bundle a JSON Schema library.** Every client validated template data
   itself, each with a different library and under a different dependency policy — networknt 1.5.9
   `compileOnly` in the two JVM clients, NJsonSchema 11.6.1 as a hard reference in .NET,

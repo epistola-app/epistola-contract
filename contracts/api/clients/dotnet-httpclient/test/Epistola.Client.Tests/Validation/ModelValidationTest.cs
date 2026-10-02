@@ -97,9 +97,9 @@ public class ModelValidationTest
     [Fact]
     public void GenerateDocumentRequestValidatesNullableFieldsIndependently()
     {
-        new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), versionId: null).Validate();
+        new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), releaseVersion: null).Validate();
         Assert.Throws<ArgumentException>(() =>
-            new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), versionId: 300).Validate());
+            new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), releaseVersion: "").Validate());
 
         new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), environmentId: null).Validate();
         Assert.Throws<ArgumentException>(() =>

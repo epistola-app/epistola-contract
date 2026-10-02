@@ -11,6 +11,11 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
+- **BREAKING:** the server-side template data validator takes a `releaseVersion` (a string) in
+  place of `versionId`, matching contract 2.0's generation by release; without it or an
+  environment, the catalog's latest release is checked. The result collector reports
+  `releaseVersion` in place of `versionId`.
+
 - **Template data is validated by the server, not by a bundled library.** `TemplateSchemaValidator`
   and `ValidatingGenerationApi` now call `validateTemplateData` through a pluggable
   `TemplateDataValidator` protocol, whose only shipped implementation is

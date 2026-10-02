@@ -222,9 +222,9 @@ template-validate:
 
       Besides `errors`, the result says which fields are missing (`missingFields`) and which supplied
       values are wrong (`invalidFields`), each with a JSON Pointer into `data` and the field's JSON
-      Schema, so a client can ask for exactly those. Pass `variantId`, `versionId` or
-      `environmentId` to check against the version that would be rendered; the optional fields that
-      version's template reads are then reported as missing too.
+      Schema, so a client can ask for exactly those. The data is checked against the release that
+      would be rendered for the same selection (`releaseVersion`, `environmentId`, or the latest
+      release), and the optional fields that release's template reads are reported as missing too.
     tags:
       - Templates
     x-required-permissions: [TEMPLATE_VIEW]
