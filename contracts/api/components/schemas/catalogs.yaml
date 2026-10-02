@@ -272,3 +272,138 @@ RemovedCatalogResourceDto:
     slug:
       type: string
       example: legacy
+
+CatalogReleaseDto:
+  type: object
+  description: An immutable release of a catalog
+  required:
+    - releaseVersion
+    - fingerprint
+    - releasedAt
+    - contentRetained
+    - dependencies
+    - deployedTo
+  properties:
+    releaseVersion:
+      type: string
+      maxLength: 50
+      example: "1.4.0"
+    fingerprint:
+      type: string
+      pattern: '^[a-f0-9]{64}$'
+      example: 9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+    releasedAt:
+      type: string
+      format: date-time
+      example: "2026-07-23T10:00:00Z"
+    notes:
+      type: [string, "null"]
+      maxLength: 4000
+      example: Compatibility updates for the municipality catalog.
+    contentRetained:
+      type: boolean
+      description: |
+        Whether the release kept its content. Only such a release can be rendered, deployed or
+        exported as released; releases cut before releases retained content cannot.
+      example: true
+    dependencies:
+      type: array
+      description: |
+        The release of every other catalog this release renders with, recorded when it was cut:
+        the catalogs its resources reference directly, and the ones those reach in turn.
+      items:
+        $ref: '#/ReleaseDependencyDto'
+    deployedTo:
+      type: array
+      description: Slug identifiers of the environments that serve this release
+      items:
+        type: string
+      example:
+        - production
+
+ReleaseDependencyDto:
+  type: object
+  required:
+    - catalogId
+    - releaseVersion
+    - direct
+  properties:
+    catalogId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      example: system
+    releaseVersion:
+      type: string
+      maxLength: 50
+      example: "1.3.0"
+    direct:
+      type: boolean
+      description: True when the release's own resources reference the catalog; false when only reached through another dependency
+      example: true
+
+CatalogReleaseListResponse:
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/CatalogReleaseDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
+
+CatalogChangesDto:
+  type: object
+  description: How the catalog's working copy differs from its latest release
+  required:
+    - releasable
+    - changes
+  properties:
+    latestRelease:
+      type: [string, "null"]
+      maxLength: 50
+      description: The latest release; null when the catalog was never released
+      example: "1.4.0"
+    releasable:
+      type: boolean
+      description: True when no resource is `new` or `modified`, no stencil instance is held back, and something changed
+      example: false
+    changes:
+      type: array
+      items:
+        $ref: '#/ResourceChangeDto'
+
+ResourceChangeDto:
+  type: object
+  required:
+    - type
+    - slug
+    - change
+  properties:
+    type:
+      type: string
+      description: The resource type, as the portable catalog format names it
+      example: template
+    slug:
+      type: string
+      example: monthly-invoice
+    change:
+      type: string
+      enum:
+        - new
+        - modified
+        - ready
+        - removed
+      description: |
+        `new`, `modified` and `ready` as in ResourceStatus; `removed` for a resource in the latest
+        release that is no longer in the working copy.
+      example: modified
+    heldBackInstances:
+      type: integer
+      minimum: 0
+      description: For a stencil, how many of its instances are held back
+      example: 0

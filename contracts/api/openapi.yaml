@@ -318,6 +318,12 @@ paths:
     $ref: './paths/environments.yaml#/environments'
   /tenants/{tenantId}/environments/{environmentId}:
     $ref: './paths/environments.yaml#/environments-id'
+  /tenants/{tenantId}/environments/{environmentId}/deployments:
+    $ref: './paths/environments.yaml#/environment-deployments'
+  /tenants/{tenantId}/environments/{environmentId}/deployments/{catalogId}:
+    $ref: './paths/environments.yaml#/environment-deployment-catalog'
+  /tenants/{tenantId}/environments/{environmentId}/deployment-history:
+    $ref: './paths/environments.yaml#/environment-deployment-history'
 
   # Attributes
   /tenants/{tenantId}/catalogs/{catalogId}/attributes:
@@ -390,6 +396,14 @@ paths:
     $ref: './paths/catalogs.yaml#/catalogs'
   /tenants/{tenantId}/catalogs/{catalogId}/release:
     $ref: './paths/catalogs.yaml#/catalog-release'
+  /tenants/{tenantId}/catalogs/{catalogId}/releases:
+    $ref: './paths/catalogs.yaml#/catalog-releases'
+  /tenants/{tenantId}/catalogs/{catalogId}/releases/{releaseVersion}:
+    $ref: './paths/catalogs.yaml#/catalog-releases-id'
+  /tenants/{tenantId}/catalogs/{catalogId}/changes:
+    $ref: './paths/catalogs.yaml#/catalog-changes'
+  /tenants/{tenantId}/catalogs/{catalogId}/mark-ready:
+    $ref: './paths/catalogs.yaml#/catalog-mark-ready'
   /tenants/{tenantId}/catalogs/{catalogId}/upgrade-preview:
     $ref: './paths/catalogs.yaml#/catalog-upgrade-preview'
   /tenants/{tenantId}/catalogs/{catalogId}/upgrade:
@@ -488,6 +502,16 @@ components:
       $ref: './components/schemas/environments.yaml#/UpdateEnvironmentRequest'
     EnvironmentListResponse:
       $ref: './components/schemas/environments.yaml#/EnvironmentListResponse'
+    DeployReleaseRequest:
+      $ref: './components/schemas/environments.yaml#/DeployReleaseRequest'
+    DeploymentDto:
+      $ref: './components/schemas/environments.yaml#/DeploymentDto'
+    DeploymentListResponse:
+      $ref: './components/schemas/environments.yaml#/DeploymentListResponse'
+    DeploymentEventDto:
+      $ref: './components/schemas/environments.yaml#/DeploymentEventDto'
+    DeploymentHistoryResponse:
+      $ref: './components/schemas/environments.yaml#/DeploymentHistoryResponse'
 
     # Image schemas
     ImageDto:
@@ -516,6 +540,16 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CatalogListResponse'
     CatalogUpgradeDiff:
       $ref: './components/schemas/catalogs.yaml#/CatalogUpgradeDiff'
+    CatalogReleaseDto:
+      $ref: './components/schemas/catalogs.yaml#/CatalogReleaseDto'
+    ReleaseDependencyDto:
+      $ref: './components/schemas/catalogs.yaml#/ReleaseDependencyDto'
+    CatalogReleaseListResponse:
+      $ref: './components/schemas/catalogs.yaml#/CatalogReleaseListResponse'
+    CatalogChangesDto:
+      $ref: './components/schemas/catalogs.yaml#/CatalogChangesDto'
+    ResourceChangeDto:
+      $ref: './components/schemas/catalogs.yaml#/ResourceChangeDto'
 
     # Code list schemas
     CodeListDto:

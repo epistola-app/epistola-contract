@@ -145,13 +145,184 @@ environments-id:
   delete:
     operationId: deleteEnvironment
     summary: Delete an environment
-    description: Delete an environment and all its activations.
+    description: Delete an environment. Refused while it serves a release of any catalog; undeploy them first.
     tags:
       - Environments
     x-required-permissions: [TENANT_SETTINGS]
     responses:
       '204':
         description: Environment deleted successfully
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+environment-deployments:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: environmentId
+      in: path
+      required: true
+      description: Slug identifier of the environment
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 30
+
+  get:
+    operationId: listEnvironmentDeployments
+    summary: List what an environment serves
+    description: The release of each catalog the environment serves. Generation naming the environment renders these.
+    tags:
+      - Environments
+    x-required-permissions: [TEMPLATE_VIEW]
+    responses:
+      '200':
+        description: The environment's deployments
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/environments.yaml#/DeploymentListResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+environment-deployment-catalog:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: environmentId
+      in: path
+      required: true
+      description: Slug identifier of the environment
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 30
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the catalog
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+
+  put:
+    operationId: deployRelease
+    summary: Deploy a catalog release to an environment
+    description: |
+      The environment serves this release of the catalog from now on, replacing the one it served:
+      promoting is deploying the release another environment runs, rolling back is deploying an
+      earlier one. Requests already accepted keep the release they were bound to. Only a release that
+      kept its content can be deployed. Deploying the release already served changes nothing.
+    tags:
+      - Environments
+    x-required-permissions: [ENVIRONMENT_DEPLOY]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/environments.yaml#/DeployReleaseRequest'
+    responses:
+      '200':
+        description: The deployment
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/environments.yaml#/DeploymentDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+  delete:
+    operationId: undeployRelease
+    summary: Stop an environment serving a catalog
+    description: Generation naming the environment then fails for the catalog's templates until a release is deployed again.
+    tags:
+      - Environments
+    x-required-permissions: [ENVIRONMENT_DEPLOY]
+    responses:
+      '204':
+        description: The environment no longer serves the catalog
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+environment-deployment-history:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: environmentId
+      in: path
+      required: true
+      description: Slug identifier of the environment
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 30
+
+  get:
+    operationId: listDeploymentHistory
+    summary: List what an environment served over time
+    description: Every deploy and undeploy on the environment, newest first, with the release each replaced.
+    tags:
+      - Environments
+    x-required-permissions: [TEMPLATE_VIEW]
+    parameters:
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
+    responses:
+      '200':
+        description: The environment's deployment history
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/environments.yaml#/DeploymentHistoryResponse'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

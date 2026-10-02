@@ -1,6 +1,6 @@
 EnvironmentDto:
   type: object
-  description: Tenant environment for version activation (e.g., staging, production)
+  description: A deployment stage (e.g., staging, production) that serves one release per catalog
   required:
     - id
     - tenantId
@@ -116,3 +116,100 @@ EnvironmentListResponse:
       size: 20
       totalElements: 2
       totalPages: 1
+
+DeployReleaseRequest:
+  type: object
+  required:
+    - releaseVersion
+  properties:
+    releaseVersion:
+      type: string
+      minLength: 1
+      maxLength: 50
+      description: The release of the catalog to deploy
+      example: "1.4.0"
+
+DeploymentDto:
+  type: object
+  description: The release of one catalog an environment serves
+  required:
+    - catalogId
+    - releaseVersion
+    - deployedAt
+  properties:
+    catalogId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      example: letters
+    releaseVersion:
+      type: string
+      maxLength: 50
+      example: "1.4.0"
+    deployedAt:
+      type: string
+      format: date-time
+      example: "2026-10-02T07:30:00Z"
+
+DeploymentListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/DeploymentDto'
+
+DeploymentEventDto:
+  type: object
+  description: One change to what an environment serves
+  required:
+    - catalogId
+    - action
+    - changedAt
+  properties:
+    catalogId:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      example: letters
+    action:
+      type: string
+      enum:
+        - deployed
+        - undeployed
+      example: deployed
+    releaseVersion:
+      type: [string, "null"]
+      maxLength: 50
+      description: The release served after the change; null when the catalog was undeployed
+      example: "1.4.1"
+    previousReleaseVersion:
+      type: [string, "null"]
+      maxLength: 50
+      description: The release served before the change; null when none was
+      example: "1.4.0"
+    changedAt:
+      type: string
+      format: date-time
+      example: "2026-10-02T07:30:00Z"
+    changedBy:
+      type: [string, "null"]
+      description: Display name of who made the change; null for a system change
+      example: Jane Smith
+
+DeploymentHistoryResponse:
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/DeploymentEventDto'
+    page:
+      $ref: './common.yaml#/PageMeta'

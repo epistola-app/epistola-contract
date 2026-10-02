@@ -9,7 +9,24 @@ libraries.
 
 ## [Unreleased]
 
+### Added
+
+- **Catalog releases, the working copy's changes, and deployments.** `listCatalogReleases` and
+  `getCatalogRelease` read a catalog's releases, each with the releases of other catalogs it renders
+  with (`dependencies`) and the environments that serve it (`deployedTo`). `getCatalogChanges` lists
+  what is new, modified, ready or removed since the latest release and whether a release would be
+  accepted; `markCatalogReady` marks everything changed ready in one action. An environment serves
+  one release per catalog: `listEnvironmentDeployments`, `deployRelease` (deploying another release
+  promotes or rolls back), `undeployRelease`, and `listDeploymentHistory` with every deploy and
+  undeploy and the release it replaced.
+
 ### Changed
+
+- **BREAKING: release and deploy replace publish.** `releaseCatalog` requires `CATALOG_RELEASE` and
+  refuses while any resource is `new` or `modified`. Consumer permissions drop the `versions` scope
+  and the templates `publish` level; marking ready is part of `write`, `catalogs` gains `release`
+  and `environments` gains `deploy` (OAuth scopes `epistola:catalogs:release`,
+  `epistola:environments:deploy`). Deleting an environment that still serves a release is refused.
 
 - **BREAKING: stencil versions are gone; a stencil has a working copy that is marked ready.** The
   stencil version operations (`listStencilVersions`, `createStencilVersion`, `getStencilVersion`,

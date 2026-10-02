@@ -110,10 +110,13 @@ catalog-release:
   post:
     operationId: releaseCatalog
     summary: Release an authored catalog
-    description: Cut a new immutable SemVer release for an AUTHORED catalog.
+    description: |
+      Cut a new immutable SemVer release for an AUTHORED catalog. A release contains the whole
+      working copy, and refuses while any resource is `new` or `modified`: mark them ready first.
+      Every catalog the release's resources reference is recorded with the release it renders.
     tags:
       - Catalogs
-    x-required-permissions: [TEMPLATE_PUBLISH]
+    x-required-permissions: [CATALOG_RELEASE]
     requestBody:
       required: true
       content:
@@ -190,6 +193,191 @@ catalog-upgrade:
               $ref: '../components/schemas/catalogs.yaml#/UpgradeCatalogResponse'
       '400':
         $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+catalog-releases:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the catalog
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+
+  get:
+    operationId: listCatalogReleases
+    summary: List a catalog's releases
+    description: The catalog's releases, newest first. A subscribed catalog lists the releases it installed.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    parameters:
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
+    responses:
+      '200':
+        description: The catalog's releases
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseListResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+catalog-releases-id:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the catalog
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+    - name: releaseVersion
+      in: path
+      required: true
+      description: The release's version label
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 50
+
+  get:
+    operationId: getCatalogRelease
+    summary: Get a catalog release
+    description: One release, with the releases of other catalogs it renders with and the environments that serve it.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    responses:
+      '200':
+        description: The release
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+catalog-changes:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the catalog
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+
+  get:
+    operationId: getCatalogChanges
+    summary: List the working copy's changes since the latest release
+    description: |
+      Every resource of the catalog that is `new`, `modified` or `ready`, and the resources removed
+      since the latest release. `releasable` says whether a release would be accepted now.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    responses:
+      '200':
+        description: The working copy's changes
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogChangesDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+catalog-mark-ready:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: catalogId
+      in: path
+      required: true
+      description: Slug identifier of the catalog
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
+
+  post:
+    operationId: markCatalogReady
+    summary: Mark every changed resource of the catalog ready
+    description: |
+      Marks each `new` or `modified` resource of the catalog ready in one action, and returns the
+      changes that remain. Stencil instances the change breaks are held back, as for a single stencil.
+    tags:
+      - Catalogs
+    x-required-permissions: [TEMPLATE_EDIT, STENCIL_EDIT]
+    responses:
+      '200':
+        description: The catalog's changes after marking ready
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogChangesDto'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

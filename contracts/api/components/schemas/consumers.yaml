@@ -141,26 +141,20 @@ ConsumerPermissions:
 
     For OAuth consumers, requested permissions are derived from JWT scopes
     using the pattern `epistola:{resource}:{level}` (e.g., `epistola:generation:write`,
-    `epistola:templates:publish`).
+    `epistola:catalogs:release`, `epistola:environments:deploy`).
   properties:
     templates:
       type: string
-      enum: [none, read, write, publish]
+      enum: [none, read, write]
       default: none
       description: |
-        read = list/get templates.
-        write = create/update/delete templates + read.
-        publish = publish versions to environments + write.
+        read = list/get templates, their variants' working copies and data contracts.
+        write = create/update/delete templates, edit working copies, mark ready + read.
     variants:
       type: string
       enum: [none, read, write]
       default: none
       description: "read = list/get variants, write = create/update/delete + read"
-    versions:
-      type: string
-      enum: [none, read, write]
-      default: none
-      description: "read = list/get versions, write = create/update drafts + read"
     themes:
       type: string
       enum: [none, read, write]
@@ -168,19 +162,25 @@ ConsumerPermissions:
       description: "read = list/get themes, write = create/update/delete + read"
     environments:
       type: string
-      enum: [none, read, write]
+      enum: [none, read, write, deploy]
       default: none
-      description: "read = list/get environments, write = create/update/delete + read"
+      description: |
+        read = list/get environments, what they serve and their deployment history.
+        write = create/update/delete environments + read.
+        deploy = deploy and undeploy catalog releases + write.
     stencils:
       type: string
       enum: [none, read, write]
       default: none
-      description: "read = list/get stencils, write = create/update/publish + read"
+      description: "read = list/get stencils and their usage, write = create/update, edit working copies, mark ready + read"
     catalogs:
       type: string
-      enum: [none, read, write]
+      enum: [none, read, write, release]
       default: none
-      description: "read = list catalogs, write = import catalogs + read"
+      description: |
+        read = list catalogs, their releases and working-copy changes.
+        write = import catalogs + read.
+        release = cut catalog releases + write.
     generation:
       type: string
       enum: [none, read, write]
