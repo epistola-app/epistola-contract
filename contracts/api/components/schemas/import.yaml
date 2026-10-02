@@ -55,14 +55,13 @@ ImportTemplatesRequest:
             isDefault: true
             attributes:
               language: nl
-        publishTo:
-          - production
 
 ImportTemplateDto:
   type: object
   description: |
     A single template definition for import. Contains the full template structure
-    including metadata, data model, visual layout, variants, and publishing targets.
+    including metadata, data model, visual layout and variants. Importing fills the
+    working copy; releasing the catalog and deploying the release are separate steps.
   required:
     - slug
     - name
@@ -106,18 +105,6 @@ ImportTemplateDto:
         and exactly one must have `isDefault: true`.
       items:
         $ref: '#/ImportVariantDto'
-    publishTo:
-      type: array
-      description: |
-        Environment slugs to publish to after importing. For each environment, the draft
-        is published and activated. Environments must exist in the tenant.
-      items:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 30
-      example:
-        - production
   example:
     slug: subsidiebesluit
     name: Subsidiebesluit
@@ -154,8 +141,6 @@ ImportTemplateDto:
         title: Standaard
         attributes:
           language: nl
-    publishTo:
-      - production
 
 ImportVariantDto:
   type: object
@@ -212,8 +197,6 @@ ImportTemplatesResponse:
       - slug: subsidiebesluit
         status: created
         version: "1.0.0"
-        publishedTo:
-          - production
 
 ImportTemplateResultDto:
   type: object
@@ -245,13 +228,6 @@ ImportTemplateResultDto:
       type: string
       description: Version that was imported
       example: "1.0.0"
-    publishedTo:
-      type: array
-      description: Environments the template was published to
-      items:
-        type: string
-      example:
-        - production
     errorMessage:
       type:
         - string
@@ -261,8 +237,6 @@ ImportTemplateResultDto:
     slug: subsidiebesluit
     status: created
     version: "1.0.0"
-    publishedTo:
-      - production
 
 ImportCatalogResponse:
   type: object

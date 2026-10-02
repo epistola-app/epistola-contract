@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import app.epistola.client.jakarta.model.ActivationDto;
+import app.epistola.client.jakarta.model.FontVariantDto;
 import app.epistola.client.jakarta.model.BatchGenerationItem;
 import app.epistola.client.jakarta.model.CreateEnvironmentRequest;
 import app.epistola.client.jakarta.model.CreateTemplateRequest;
@@ -16,7 +16,8 @@ import app.epistola.client.jakarta.model.CreateTenantRequest;
 import app.epistola.client.jakarta.model.GenerateBatchRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.UpdateTenantRequest;
-import app.epistola.client.jakarta.model.VersionDto;
+import app.epistola.client.jakarta.model.ResourceStatus;
+import app.epistola.client.jakarta.model.VariantContentDto;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -131,40 +132,26 @@ class ModelValidationTest {
     // --- Integer ranges ---
 
     @Test
-    void integer_ranges_are_enforced_alongside_slug_patterns() {
-        OffsetDateTime now = OffsetDateTime.now();
-        ActivationDto valid = new ActivationDto()
-                .environmentId("production")
-                .environmentName("Production")
-                .versionId(42)
-                .activatedAt(now);
+    void integer_ranges_are_enforced() {
+        FontVariantDto valid = new FontVariantDto().weight(400).italic(false);
         assertSame(valid, ModelValidation.validate(valid));
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(new ActivationDto()
-                        .environmentId("PRODUCTION")
-                        .environmentName("Production")
-                        .versionId(1)
-                        .activatedAt(now)));
+                () -> ModelValidation.validate(new FontVariantDto().weight(0).italic(false)));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(new ActivationDto()
-                        .environmentId("production")
-                        .environmentName("Production")
-                        .versionId(0)
-                        .activatedAt(now)));
+                () -> ModelValidation.validate(new FontVariantDto().weight(1001).italic(true)));
     }
 
     @Test
-    void a_version_id_above_the_contract_maximum_is_rejected() {
+    void a_slug_inside_a_working_copy_is_checked() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(new VersionDto()
-                        .id(201)
-                        .variantId("english")
-                        .status(VersionDto.StatusEnum.DRAFT)
-                        .createdAt(OffsetDateTime.now())));
+                () -> ModelValidation.validate(new VariantContentDto()
+                        .variantId("English")
+                        .status(ResourceStatus.MODIFIED)
+                        .lastModified(OffsetDateTime.now())));
     }
 
     // --- Generation requests ---

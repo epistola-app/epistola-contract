@@ -35,7 +35,7 @@ Available interfaces:
 - `SystemApi` — ping/pong
 - `TenantsApi` — tenant CRUD
 - `ConsumersApi` — consumer registration, approval, lifecycle
-- `TemplatesApi`, `VariantsApi`, `VersionsApi` — template management
+- `TemplatesApi`, `VariantsApi` — templates, their variants' working copies and mark ready
 - `ThemesApi`, `EnvironmentsApi`, `StencilsApi`, `CatalogsApi` — supporting resources
 - `GenerationApi` — document generation + result collection
 - `AttributesApi` — variant selection criteria

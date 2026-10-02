@@ -1,14 +1,13 @@
 VariantDto:
   type: object
-  description: Full template variant with version summary
+  description: Full template variant, with the status of its working copy
   required:
     - id
     - templateId
     - title
     - attributes
     - isDefault
-    - hasDraft
-    - publishedVersions
+    - status
     - createdAt
     - lastModified
   properties:
@@ -66,16 +65,8 @@ VariantDto:
       type: boolean
       description: Whether this variant is the default for its template
       example: false
-    hasDraft:
-      type: boolean
-      description: Whether this variant has an unpublished draft
-      example: true
-    publishedVersions:
-      type: array
-      items:
-        type: integer
-      description: List of published version numbers
-      example: [1, 2]
+    status:
+      $ref: './common.yaml#/ResourceStatus'
     createdAt:
       type: string
       format: date-time
@@ -96,8 +87,7 @@ VariantDto:
       locale: en-US
       brand: acme
     isDefault: false
-    hasDraft: true
-    publishedVersions: [1, 2]
+    status: ready
     createdAt: "2026-01-21T10:00:00Z"
     lastModified: "2026-01-28T11:30:00Z"
 
@@ -109,8 +99,7 @@ VariantSummaryDto:
     - title
     - attributes
     - isDefault
-    - hasDraft
-    - publishedVersions
+    - status
   properties:
     slug:
       type: string
@@ -153,16 +142,8 @@ VariantSummaryDto:
       type: boolean
       description: Whether this variant is the default for its template
       example: false
-    hasDraft:
-      type: boolean
-      description: Whether this variant has an unpublished draft
-      example: true
-    publishedVersions:
-      type: array
-      items:
-        type: integer
-      description: List of published version numbers
-      example: [1, 2]
+    status:
+      $ref: './common.yaml#/ResourceStatus'
   example:
     slug: english
     id: english
@@ -171,8 +152,7 @@ VariantSummaryDto:
       locale: en-US
       brand: acme
     isDefault: false
-    hasDraft: true
-    publishedVersions: [1, 2]
+    status: ready
 
 CreateVariantRequest:
   type: object
@@ -262,8 +242,7 @@ VariantListResponse:
           locale: en-US
           brand: acme
         isDefault: true
-        hasDraft: true
-        publishedVersions: [1, 2]
+        status: ready
         createdAt: "2026-01-21T10:00:00Z"
         lastModified: "2026-01-28T11:30:00Z"
     page:
@@ -272,61 +251,44 @@ VariantListResponse:
       totalElements: 1
       totalPages: 1
 
-ActivationDto:
+UpdateVariantContentRequest:
   type: object
-  description: Environment activation for a variant. versionId IS the version number (1-200).
+  description: The variant's new template model, replacing its working copy
   required:
-    - environmentId
-    - environmentName
-    - versionId
-    - activatedAt
+    - templateModel
   properties:
-    environmentId:
+    templateModel:
+      $ref: '../../../catalog/schemas/template-document.schema.json'
+
+VariantContentDto:
+  type: object
+  description: |
+    A variant's working copy: the content being edited, and how it stands against the catalog's
+    latest release.
+  required:
+    - variantId
+    - templateModel
+    - status
+    - lastModified
+  properties:
+    variantId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
-      maxLength: 30
-      description: Slug identifier of the environment
-      example: production
-    environmentName:
-      type: string
-      description: Name of the environment
-      example: Production
-    versionId:
-      type: integer
-      minimum: 1
-      maximum: 200
-      description: ID of the active version (also the version number, 1-200)
-      example: 1
-    activatedAt:
+      maxLength: 50
+      description: Slug identifier of the variant
+      example: english
+    templateModel:
+      $ref: '../../../catalog/schemas/template-document.schema.json'
+    status:
+      $ref: './common.yaml#/ResourceStatus'
+    lastModified:
       type: string
       format: date-time
-      description: Timestamp when this version was activated
-      example: "2026-01-28T12:00:00Z"
-  example:
-    environmentId: production
-    environmentName: Production
-    versionId: 1
-    activatedAt: "2026-01-28T12:00:00Z"
-
-ActivationListResponse:
-  type: object
-  description: List of environment activations for a variant
-  required:
-    - items
-  properties:
-    items:
-      type: array
-      description: List of activations
-      items:
-        $ref: '#/ActivationDto'
-  example:
-    items:
-      - environmentId: production
-        environmentName: Production
-        versionId: 1
-        activatedAt: "2026-01-28T12:00:00Z"
-      - environmentId: staging
-        environmentName: Staging
-        versionId: 2
-        activatedAt: "2026-01-29T09:00:00Z"
+      description: When the working copy was last edited
+      example: "2026-01-28T11:30:00Z"
+    readyAt:
+      type: [string, "null"]
+      format: date-time
+      description: When the current content was marked ready; null unless the status is `ready`
+      example: null

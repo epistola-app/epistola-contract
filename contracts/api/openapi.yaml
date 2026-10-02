@@ -210,8 +210,6 @@ tags:
     description: Attribute definitions for variant selection criteria
   - name: Variants
     description: Template variant operations (language, brand variations)
-  - name: Versions
-    description: Template version lifecycle (draft, publish, archive)
   - name: Contracts
     description: Template data-contract version lifecycle and compatibility previews
   - name: Stencils
@@ -362,6 +360,8 @@ paths:
     $ref: './paths/templates.yaml#/templates-id'
   /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/validate:
     $ref: './paths/templates.yaml#/template-validate'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/mark-ready:
+    $ref: './paths/templates.yaml#/template-mark-ready'
   /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/contract/draft:
     $ref: './paths/contracts.yaml#/contract-draft'
   /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/contract/publish:
@@ -376,28 +376,10 @@ paths:
     $ref: './paths/variants.yaml#/variants-id'
   /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/set-default:
     $ref: './paths/variants.yaml#/variant-set-default'
-  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/draft:
-    $ref: './paths/variants.yaml#/variant-draft'
-  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/draft/publish:
-    $ref: './paths/variants.yaml#/variant-draft-publish'
-  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/draft/discard:
-    $ref: './paths/variants.yaml#/variant-draft-discard'
-  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/activations:
-    $ref: './paths/variants.yaml#/variant-activations'
-  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/activations/{environmentId}:
-    $ref: './paths/variants.yaml#/variant-activation-env'
-  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/active:
-    $ref: './paths/variants.yaml#/variant-active'
-
-  # Versions
-  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/versions:
-    $ref: './paths/versions.yaml#/versions'
-  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/versions/{versionId}:
-    $ref: './paths/versions.yaml#/versions-id'
-  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/publish:
-    $ref: './paths/versions.yaml#/version-publish'
-  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/versions/{versionId}/archive:
-    $ref: './paths/versions.yaml#/version-archive'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/content:
+    $ref: './paths/variants.yaml#/variant-content'
+  /tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/variants/{variantId}/mark-ready:
+    $ref: './paths/variants.yaml#/variant-mark-ready'
 
   # Stencils
   /tenants/{tenantId}/catalogs/{catalogId}/stencils:
@@ -592,10 +574,12 @@ components:
       $ref: './components/schemas/variants.yaml#/UpdateVariantRequest'
     VariantListResponse:
       $ref: './components/schemas/variants.yaml#/VariantListResponse'
-    ActivationDto:
-      $ref: './components/schemas/variants.yaml#/ActivationDto'
-    ActivationListResponse:
-      $ref: './components/schemas/variants.yaml#/ActivationListResponse'
+    VariantContentDto:
+      $ref: './components/schemas/variants.yaml#/VariantContentDto'
+    UpdateVariantContentRequest:
+      $ref: './components/schemas/variants.yaml#/UpdateVariantContentRequest'
+    ResourceStatus:
+      $ref: './components/schemas/common.yaml#/ResourceStatus'
 
     # Stencil schemas
     StencilDto:
@@ -638,18 +622,6 @@ components:
       $ref: '../catalog/schemas/template-shared.schema.json#/$defs/ThemeRef'
     BlockStylePreset:
       $ref: '../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
-
-    # Version schemas
-    VersionDto:
-      $ref: './components/schemas/versions.yaml#/VersionDto'
-    VersionSummaryDto:
-      $ref: './components/schemas/versions.yaml#/VersionSummaryDto'
-    UpdateDraftRequest:
-      $ref: './components/schemas/versions.yaml#/UpdateDraftRequest'
-    PublishVersionRequest:
-      $ref: './components/schemas/versions.yaml#/PublishVersionRequest'
-    VersionListResponse:
-      $ref: './components/schemas/versions.yaml#/VersionListResponse'
 
     # Generation schemas
     PreviewDocumentRequest:

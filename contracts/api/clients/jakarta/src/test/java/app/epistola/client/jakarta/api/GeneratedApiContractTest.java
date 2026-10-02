@@ -55,8 +55,7 @@ class GeneratedApiContractTest {
             TemplatesApi.class,
             TenantsApi.class,
             ThemesApi.class,
-            VariantsApi.class,
-            VersionsApi.class);
+            VariantsApi.class);
 
     @Test
     void every_generated_api_is_a_microprofile_rest_client() {

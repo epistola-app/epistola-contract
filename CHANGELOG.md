@@ -11,6 +11,19 @@ libraries.
 
 ### Changed
 
+- **BREAKING: template versions and activations are gone; a variant has a working copy.** The
+  `listVersions`, `getVersion`, `updateVersion`, `publishVersion` and `archiveVersion` operations
+  and the `Versions` tag are removed, with `VersionDto`, `VersionSummaryDto`, `UpdateDraftRequest`,
+  `PublishVersionRequest` and `VersionListResponse`. So are the per-variant activations
+  (`listVariantActivations`, `removeVariantActivation`, `getActiveVersion`, `ActivationDto`,
+  `ActivationListResponse`) and the variant draft operations (`getVariantDraft`,
+  `upsertVariantDraft`, `createVariantDraft`, `publishVariantDraft`, `discardVariantDraft`). In
+  their place, `getVariantContent` and `updateVariantContent` read and replace a variant's working
+  copy, and `markVariantReady` and `markTemplateReady` mark it reviewed for the next catalog
+  release. `VariantDto` and `VariantSummaryDto` report a `status` (`ResourceStatus`: `new`,
+  `modified`, `ready`, `released`) in place of `hasDraft` and `publishedVersions`. Template import
+  no longer takes `publishTo` or reports `publishedTo`: it fills the working copy.
+
 - **BREAKING: generation renders a catalog release, never a template version.** `versionId` is gone
   from `GenerateDocumentRequest`, `BatchGenerationItem`, `PreviewDocumentRequest` and
   `ValidateTemplateDataRequest`. A request names the release with `releaseVersion`, or an

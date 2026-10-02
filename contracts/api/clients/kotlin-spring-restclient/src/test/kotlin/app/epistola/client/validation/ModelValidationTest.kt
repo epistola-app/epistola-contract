@@ -4,20 +4,21 @@
 
 package app.epistola.client.validation
 
-import app.epistola.client.model.ActivationDto
 import app.epistola.client.model.BatchGenerationItem
 import app.epistola.client.model.CreateEnvironmentRequest
 import app.epistola.client.model.CreateTemplateRequest
 import app.epistola.client.model.CreateTenantRequest
 import app.epistola.client.model.DocumentDto
+import app.epistola.client.model.FontVariantDto
 import app.epistola.client.model.GenerateBatchRequest
 import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.Node
+import app.epistola.client.model.ResourceStatus
 import app.epistola.client.model.Slot
 import app.epistola.client.model.TemplateDocument
 import app.epistola.client.model.ThemeRef
 import app.epistola.client.model.UpdateTenantRequest
-import app.epistola.client.model.VersionDto
+import app.epistola.client.model.VariantContentDto
 import java.time.OffsetDateTime
 import java.util.UUID
 import kotlin.test.Test
@@ -143,56 +144,28 @@ class ModelValidationTest {
         assertEquals("id: length must be between 3 and 30", ex.message)
     }
 
-    // --- Mixed constraint model: ActivationDto has slug pattern + integer range ---
+    // --- Integer range: FontVariantDto.weight is bounded 1-1000 ---
 
     @Test
-    fun `ActivationDto validates both slug pattern and integer range`() {
-        val now = OffsetDateTime.now()
-        val valid = ActivationDto(
-            environmentId = "production",
-            environmentName = "Production",
-            versionId = 42,
-            activatedAt = now,
-        )
+    fun `FontVariantDto accepts a weight inside 1-1000`() {
+        val valid = FontVariantDto(weight = 400, italic = false)
         assertEquals(valid, valid.validate())
     }
 
     @Test
-    fun `ActivationDto rejects invalid environmentId pattern`() {
-        val now = OffsetDateTime.now()
-        assertFailsWith<IllegalArgumentException> {
-            ActivationDto(
-                environmentId = "PRODUCTION",
-                environmentName = "Production",
-                versionId = 1,
-                activatedAt = now,
-            ).validate()
-        }
+    fun `FontVariantDto rejects a weight outside 1-1000`() {
+        assertFailsWith<IllegalArgumentException> { FontVariantDto(weight = 0, italic = false).validate() }
+        assertFailsWith<IllegalArgumentException> { FontVariantDto(weight = 1001, italic = true).validate() }
     }
 
-    @Test
-    fun `ActivationDto rejects versionId outside 1-200`() {
-        val now = OffsetDateTime.now()
-        assertFailsWith<IllegalArgumentException> {
-            ActivationDto(
-                environmentId = "production",
-                environmentName = "Production",
-                versionId = 0,
-                activatedAt = now,
-            ).validate()
-        }
-    }
-
-    // --- VersionDto: integer id + slug variantId ---
+    // --- VariantContentDto: slug variantId + nested TemplateDocument + status enum ---
 
     @Test
-    fun `VersionDto validates integer id and slug variantId together`() {
-        val now = OffsetDateTime.now()
-        val valid = VersionDto(
-            id = 1,
+    fun `VariantContentDto validates its slug and nested template model together`() {
+        val valid = VariantContentDto(
             variantId = "english",
-            status = VersionDto.Status.published,
-            createdAt = now,
+            status = ResourceStatus.ready,
+            lastModified = OffsetDateTime.now(),
             templateModel = TemplateDocument(
                 modelVersion = TemplateDocument.ModelVersion._1,
                 root = "node-root",
@@ -205,31 +178,24 @@ class ModelValidationTest {
                 ),
                 themeRef = ThemeRef(type = ThemeRef.Type.inherit),
             ),
-            publishedAt = now,
         )
         assertEquals(valid, valid.validate())
     }
 
     @Test
-    fun `VersionDto rejects id above 200`() {
+    fun `VariantContentDto rejects an invalid variantId pattern`() {
         assertFailsWith<IllegalArgumentException> {
-            VersionDto(
-                id = 201,
-                variantId = "english",
-                status = VersionDto.Status.draft,
-                createdAt = OffsetDateTime.now(),
-            ).validate()
-        }
-    }
-
-    @Test
-    fun `VersionDto rejects invalid variantId pattern`() {
-        assertFailsWith<IllegalArgumentException> {
-            VersionDto(
-                id = 1,
+            VariantContentDto(
                 variantId = "English",
-                status = VersionDto.Status.draft,
-                createdAt = OffsetDateTime.now(),
+                status = ResourceStatus.modified,
+                lastModified = OffsetDateTime.now(),
+                templateModel = TemplateDocument(
+                    modelVersion = TemplateDocument.ModelVersion._1,
+                    root = "node-root",
+                    nodes = mapOf("node-root" to Node(id = "node-root", type = "container", slots = emptyList())),
+                    slots = emptyMap(),
+                    themeRef = ThemeRef(type = ThemeRef.Type.inherit),
+                ),
             ).validate()
         }
     }
