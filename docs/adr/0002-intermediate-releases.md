@@ -97,11 +97,28 @@ Adopt **option C**.
 - **After a release, the next draft is created automatically** if no draft above it exists: releasing
   `1.4.0` opens `1.4.1`. A team that works on one thing at a time never creates a draft by hand, and
   sees one editable version, as today.
-- **Renumber** a draft by changing its version, as long as it is a draft. Typically the automatic
-  `1.4.1` becomes `1.5.0` or `2.0.0` once the work is known. A renumber may not cross a released
-  version, because that would change what the draft contains: with `1.4.0` and `1.6.0` released, a
-  draft `1.5.0` can become `1.5.3` but not `1.7.0`. The response carries the new address. Links to the
-  old number stop working, which is acceptable for a draft.
+- **Renumber** a draft by changing its version, as long as it is a draft, up or down. Typically the
+  automatic `1.4.1` becomes `1.5.0` or `2.0.0` once the work is known. Renumbering follows the same
+  rules as creating a version from another one, so nothing is lost and the containment rule holds:
+  - **Up past a released version** (`1.5.0` → `1.7.0` with `1.6.0` released): the releases the
+    draft now sits above flow in, exactly as on a release, and may open incoming conflicts.
+  - **Down past a released version** (`2.0.0` → `1.5.0` with `1.6.0` released): the draft keeps its
+    content, so it now contains changes from releases above it. That is allowed, as for "create
+    from", but it means `1.5.0` will ship what `1.6.0` shipped.
+  - **Past another open draft** (`1.5.0` → `2.1.0` with `2.0.0` open): what either draft contains does
+    not change, but the direction changes: `2.0.0` no longer receives this draft's changes on
+    release, and receives them instead when it is released first.
+  - **To a lower kind of version than the changes need** (a patch number while the draft has
+    breaking changes against its base, by the rule ADR 0001 defines for hotfixes).
+
+  None of these is refused. Each is a **warning**: the request is refused with `409` listing them
+  until it is repeated with `acknowledgeWarnings: true`, the same confirmation pattern as deploying
+  over a hotfix (ADR 0001). The UI shows them before the author confirms. A renumber that only
+  moves within the same gap (`1.5.0` → `1.5.3`) has no warnings.
+
+  Refused outright: a number already in use, renumbering a released version, and renumbering a
+  `+hotfix` draft. The response carries the new address; links to the old number stop working,
+  which is acceptable for a draft.
 - **Discard** a draft by deleting it, as long as it is a draft. Changes that already flowed forward
   from it are released content elsewhere and stay.
 - A version number is unique in its catalog, across drafts and released versions.
@@ -139,7 +156,7 @@ Addresses use the version number, the same for drafts and released versions:
 | `listCatalogVersions` | `GET …/versions?status=` | Drafts and released versions, newest first |
 | `createCatalogVersion` | `POST …/versions` `{version, from?}` | Creates a draft from its base, or from version `from` |
 | `getCatalogVersion` | `GET …/versions/{version}` | Status, base, changes, readiness, open conflicts |
-| `renumberCatalogVersion` | `PATCH …/versions/{version}` `{version}` | Drafts only; returns the new `Location` |
+| `renumberCatalogVersion` | `PATCH …/versions/{version}` `{version, acknowledgeWarnings?}` | Drafts only; `409` with warnings until acknowledged; returns the new `Location` |
 | `deleteCatalogVersion` | `DELETE …/versions/{version}` | Drafts only |
 | `releaseCatalogVersion` | `POST …/versions/{version}/release` `{notes, publish?}` | Draft → released; flows forward |
 | `listIncomingChanges` | `GET …/versions/{version}/incoming` | Merged and conflicting changes from lower releases |
@@ -190,8 +207,6 @@ this one:
 
 ## Open questions
 
-- Can a draft be renumbered *upwards past another draft* (`1.5.0` → `2.1.0` with `2.0.0` open)? This
-  changes which draft receives the other's changes on release, but not what either contains now.
 - Should resolving a conflict record who resolved it, for the release notes?
 - Should a released version be withdrawable (still installed, never selected), or is undeploying
   enough?
