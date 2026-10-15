@@ -205,6 +205,15 @@ this one:
   drafts the changes flow into.
 - **Deployments** become a catalog-level page: environments × released versions.
 
+## Later: merging on request
+
+This ADR does not add a manual merge, but leaves room for one. Forward flow on release already needs
+the node-level three-way merge and the incoming-changes API with conflict resolution. A later
+`mergeIntoCatalogVersion` (`POST …/versions/{version}/merge` `{from, resources?}`) can reuse both:
+it brings another version's changes, or those of selected resources, into a draft as incoming
+changes. That would replace "create `1.5.0` from `2.0.0`, then undo what is not finished" with
+"merge the finished templates from `2.0.0` into `1.5.0`".
+
 ## Open questions
 
 - Should resolving a conflict record who resolved it, for the release notes?
