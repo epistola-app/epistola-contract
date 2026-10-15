@@ -1,0 +1,63 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: create-catalog-version
+title: Opening a draft from another version sends both numbers, and reads back a draft with no release data
+why: >
+  A catalog version is addressed by its number, so opening a draft is a POST to the catalog's
+  versions with the number in the body. `from` names the version to start from; this one starts
+  `3.0.0` from the open draft `2.0.0`, the case that lets a team continue unfinished work under a
+  higher number.
+
+  The answer is a draft, and a draft has no release data: `releasedAt`, `fingerprint` and
+  `contentRetained` are null and `dependencies` and `deployedTo` empty. A client that turns null
+  into an empty string or a false makes a draft look like a broken release.
+
+action:
+  name: create-catalog-version
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    version: 3.0.0
+    from: 2.0.0
+
+script:
+  - status: 201
+    contentType: application/vnd.epistola.v1+json
+    headers:
+      Location: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions/3.0.0
+    body:
+      version: 3.0.0
+      status: draft
+      base: 1.4.0
+      createdFrom: 2.0.0
+      createdAt: "2026-10-15T09:00:00Z"
+      openConflicts: 0
+      releasedAt: null
+      notes: null
+      fingerprint: null
+      contentRetained: null
+      dependencies: []
+      deployedTo: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+      body:
+        json:
+          version: 3.0.0
+          from: 2.0.0
+  report:
+    version: 3.0.0
+    status: draft
+    base: 1.4.0
+    createdFrom: 2.0.0
+    releasedAt: 'null'

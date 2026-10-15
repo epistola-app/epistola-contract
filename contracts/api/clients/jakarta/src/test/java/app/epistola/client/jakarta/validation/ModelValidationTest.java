@@ -7,14 +7,17 @@ package app.epistola.client.jakarta.validation;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import app.epistola.client.jakarta.model.FontVariantDto;
 import app.epistola.client.jakarta.model.BatchGenerationItem;
+import app.epistola.client.jakarta.model.CreateCatalogVersionRequest;
 import app.epistola.client.jakarta.model.CreateEnvironmentRequest;
 import app.epistola.client.jakarta.model.CreateTemplateRequest;
 import app.epistola.client.jakarta.model.CreateTenantRequest;
 import app.epistola.client.jakarta.model.GenerateBatchRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
+import app.epistola.client.jakarta.model.RenumberCatalogVersionRequest;
 import app.epistola.client.jakarta.model.UpdateTenantRequest;
 import app.epistola.client.jakarta.model.ResourceStatus;
 import app.epistola.client.jakarta.model.VariantContentDto;
@@ -145,13 +148,47 @@ class ModelValidationTest {
     }
 
     @Test
-    void a_slug_inside_a_working_copy_is_checked() {
+    void a_slug_inside_a_catalog_versions_content_is_checked() {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> ModelValidation.validate(new VariantContentDto()
                         .variantId("English")
                         .status(ResourceStatus.MODIFIED)
                         .lastModified(OffsetDateTime.now())));
+    }
+
+    // --- Catalog version numbers ---
+
+    @Test
+    void a_catalog_version_is_a_plain_semver_number() {
+        for (String version : List.of("0.1.0", "1.4.0", "10.20.30")) {
+            CreateCatalogVersionRequest request = new CreateCatalogVersionRequest().version(version);
+            assertSame(request, ModelValidation.validate(request), "expected '" + version + "' to be valid");
+        }
+
+        for (String version : List.of("1.4", "v1.4.0", "01.4.0", "1.4.0-rc.1", "1.4.0+build", "^1.4.0")) {
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> ModelValidation.validate(new CreateCatalogVersionRequest().version(version)),
+                    "expected '" + version + "' to fail");
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> ModelValidation.validate(new RenumberCatalogVersionRequest().version(version)),
+                    "expected a renumber to '" + version + "' to fail");
+        }
+    }
+
+    @Test
+    void a_draft_may_start_from_any_version_or_from_its_base() {
+        ModelValidation.validate(new CreateCatalogVersionRequest().version("2.0.0"));
+        ModelValidation.validate(new CreateCatalogVersionRequest().version("2.0.0").from("1.4.0"));
+
+        assertTrue(assertThrows(
+                        IllegalArgumentException.class,
+                        () -> ModelValidation.validate(
+                                new CreateCatalogVersionRequest().version("2.0.0").from("latest")))
+                .getMessage()
+                .startsWith("from: must match pattern"));
     }
 
     // --- Generation requests ---

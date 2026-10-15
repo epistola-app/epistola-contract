@@ -1,0 +1,54 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: get-catalog-version
+title: A released version reads back with what it renders with and where it runs
+why: >
+  A released version is the same resource as the draft it was, at the same address, now carrying
+  release data: when it was released, its fingerprint, the releases of other catalogs it renders
+  with, and the environments that serve it.
+
+  The namespace is on a non-default exchange, written with `~` in the path; the dependency in the
+  body writes its namespace in full with `/`. A client must send the first as given and surface the
+  second as written.
+
+action:
+  name: get-catalog-version
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    namespace: exchange.example.org~team-a
+    catalogKey: letters
+    catalogVersion: 1.4.0
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      version: 1.4.0
+      status: released
+      base: 1.3.0
+      createdFrom: null
+      createdAt: "2026-09-01T09:00:00Z"
+      openConflicts: 0
+      releasedAt: "2026-10-01T12:00:00Z"
+      notes: Spelling fixes.
+      fingerprint: 9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+      contentRetained: true
+      dependencies:
+        - { namespace: exchange.epistola.app/epistola, catalogKey: system, releaseVersion: 3.2.0, direct: true }
+      deployedTo: [acceptance, production]
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path:
+        matches: '^/api/tenants/acme-corp/catalogs/exchange\.example\.org(~|%7E|%7e)team-a/letters/versions/1\.4\.0$'
+  report:
+    version: 1.4.0
+    status: released
+    releasedAt: "2026-10-01T12:00:00Z"
+    dependencies: exchange.epistola.app/epistola/system@3.2.0
+    deployedTo: acceptance,production

@@ -1,6 +1,6 @@
 # ADR 0002: Working on several catalog versions at once
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-15
 - **Scope:** API contract (`contracts/api`), contract 2.0
 - **Related:** [ADR 0001](0001-hotfixing-a-released-catalog.md) (hotfixing a release that production runs)
@@ -111,10 +111,10 @@ Adopt **option C**.
   - **To a lower kind of version than the changes need** (a patch number while the draft has
     breaking changes against its base, by the rule ADR 0001 defines for hotfixes).
 
-  None of these is refused. Each is a **warning**: the request is refused with `409` listing them
-  until it is repeated with `acknowledgeWarnings: true`, the same confirmation pattern as deploying
-  over a hotfix (ADR 0001). The UI shows them before the author confirms. A renumber that only
-  moves within the same gap (`1.5.0` → `1.5.3`) has no warnings.
+  None of these is refused. Each is a **warning**, listed by a renumber preview. A renumber with
+  warnings is refused with `409` until it is repeated with `acknowledgeWarnings: true`, the same
+  confirmation pattern as deploying over a hotfix (ADR 0001). The UI shows them before the author
+  confirms. A renumber that only moves within the same gap (`1.5.0` → `1.5.3`) has no warnings.
 
   Refused outright: a number already in use, renumbering a released version, and renumbering a
   `+hotfix` draft. The response carries the new address; links to the old number stop working,
@@ -141,43 +141,53 @@ Adopt **option C**.
 
 ## API
 
-Addresses use the version number, the same for drafts and released versions:
+Addresses use the version number, the same for drafts and released versions. The path parameter is
+`catalogVersion`:
 
 ```
 /v1/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions
-/v1/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{version}
-/v1/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{version}/templates/{templateId}
-/v1/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{version}/stencils/{stencilId}
+/v1/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}
+/v1/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateId}
+/v1/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilId}
 …
 ```
 
 | Operation | Request | Notes |
 | --- | --- | --- |
-| `listCatalogVersions` | `GET …/versions?status=` | Drafts and released versions, newest first |
-| `createCatalogVersion` | `POST …/versions` `{version, from?}` | Creates a draft from its base, or from version `from` |
-| `getCatalogVersion` | `GET …/versions/{version}` | Status, base, changes, readiness, open conflicts |
-| `renumberCatalogVersion` | `PATCH …/versions/{version}` `{version, acknowledgeWarnings?}` | Drafts only; `409` with warnings until acknowledged; returns the new `Location` |
-| `deleteCatalogVersion` | `DELETE …/versions/{version}` | Drafts only |
-| `releaseCatalogVersion` | `POST …/versions/{version}/release` `{notes, publish?}` | Draft → released; flows forward |
-| `listIncomingChanges` | `GET …/versions/{version}/incoming` | Merged and conflicting changes from lower releases |
-| `resolveIncomingChange` | `POST …/versions/{version}/incoming/{changeId}/resolve` `{keep \| take \| content}` | |
+| `listCatalogVersions` | `GET …/versions?status=` | Drafts and released versions, highest first |
+| `createCatalogVersion` | `POST …/versions` `{version, from?}` | Opens a draft from its base, or from version `from` |
+| `getCatalogVersion` | `GET …/versions/{catalogVersion}` | Status, base, source, open conflicts; release data once released |
+| `previewCatalogVersionRenumber` | `GET …/versions/{catalogVersion}/renumber-preview?to=` | The renumber's warnings, without applying it |
+| `renumberCatalogVersion` | `PATCH …/versions/{catalogVersion}` `{version, acknowledgeWarnings?}` | Drafts only; `409` while warnings are not acknowledged; returns the new `Location` |
+| `deleteCatalogVersion` | `DELETE …/versions/{catalogVersion}` | Drafts only |
+| `releaseCatalogVersion` | `POST …/versions/{catalogVersion}/release` `{notes?}` | Draft → released; reports the drafts the changes flowed into, and the draft it opened |
+| `listIncomingChanges` | `GET …/versions/{catalogVersion}/incoming?state=` | Merged, conflicting and resolved changes from lower releases |
+| `resolveIncomingChange` | `POST …/versions/{catalogVersion}/incoming/{changeId}/resolve` `{resolution}` | `keep`, `take` or `edited` |
 
-- **Every resource path of the working copy moves under `…/versions/{version}/`.** Reads work on any
-  version. Writes and ready marks work on drafts only.
-- `…/releases` and `getCatalogRelease` merge into `…/versions`. `releaseCatalog` becomes
-  `releaseCatalogVersion`. `getCatalogChanges` becomes part of `getCatalogVersion`.
-- Dependencies are per version: `…/versions/{version}/dependencies`.
+- **Every resource path of the working copy moves under `…/versions/{catalogVersion}/`,** and so do
+  `getCatalogChanges`, `markCatalogReady` and the dependency operations. Reads work on any version.
+  Writes and ready marks work on drafts only, and are refused with `409` on a released version.
+- `releaseCatalog`, `listCatalogReleases` and `getCatalogRelease` are replaced by the version
+  operations, and `CatalogReleaseDto` by `CatalogVersionDto`. `CatalogDto` lists `draftVersions`.
 - **Unchanged:** deployments, generation and results address released versions by number, and keep
-  the name `releaseVersion` where they mean one.
-- Preview takes a `version` that may name a draft.
+  the name `releaseVersion` where they mean one. `validateTemplateData` stays on the catalog,
+  because it selects a release by version selector and environment, as generation does.
+- Preview renders a draft named by `draftVersion`, in place of the boolean `workingCopy`.
+- `importCatalog` takes the draft of an authored catalog to import into as `catalogVersion`
+  (required when several are open), and numbers a new catalog's first draft with it (default
+  `1.0.0`).
+- Renumber warnings are read from the preview rather than carried by the `409`, so no new problem
+  type is needed. Their `kind` is an open set of strings, not an enum, so a client built today shows
+  a kind added later.
 - A version containing `+` (a hotfix) is sent in a path as `%2B` or literally, as ADR 0001 states.
+  The contract does not accept hotfix numbers yet.
 
 ## Consequences
 
 - **Contract change:** the working-copy operations move and gain a version segment; the release
   operations merge into the version operations. Every client follows, and the conformance suite
-  gains scenarios for create, renumber, release, the `409` on writing a released version, and
-  incoming conflicts.
+  gains scenarios for every version operation, including a renumber warning of a kind the client does
+  not know and an unresolved incoming change.
 - **Catalog module:** the node-level three-way merge per resource type, applied identically by every
   installation. ADR 0001 rejected a merge as too expensive for hotfixes alone. Here it carries
   intermediate releases, and hotfixes of owned catalogs come with it.

@@ -39,6 +39,12 @@ namespace Epistola.Client.Tests.Validation.Schema.Local;
 ///     keyword.
 ///   </description></item>
 ///   <item><description>
+///     <b>The schema is read from one catalog version, so the validator is given it.</b> A template
+///     is addressed by catalog version, and <see cref="ITemplateDataValidator"/> names no version:
+///     the server checks against the release that would be rendered, which a local copy cannot
+///     know. Pass the version whose data contract you mean to hold the data to.
+///   </description></item>
+///   <item><description>
 ///     <b>The schema is fetched, so it is cached.</b> A validator is only "local" after a round
 ///     trip for the template; without a cache this is slower than asking the server outright.
 ///   </description></item>
@@ -54,12 +60,17 @@ namespace Epistola.Client.Tests.Validation.Schema.Local;
 public sealed class NJsonSchemaTemplateDataValidator : ITemplateDataValidator
 {
     private readonly ITemplatesApi _templatesApi;
+    private readonly string _catalogVersion;
     private readonly TimeSpan _ttl;
     private readonly ConcurrentDictionary<string, (JsonSchema? Schema, DateTimeOffset StoredAt)> _cache = new();
 
-    public NJsonSchemaTemplateDataValidator(ITemplatesApi templatesApi, TimeSpan? ttl = null)
+    /// <param name="templatesApi">Where the template, and its schema, is read from.</param>
+    /// <param name="catalogVersion">The catalog version (SemVer) whose template schema the data is held to.</param>
+    /// <param name="ttl">How long a fetched schema is reused.</param>
+    public NJsonSchemaTemplateDataValidator(ITemplatesApi templatesApi, string catalogVersion, TimeSpan? ttl = null)
     {
         _templatesApi = templatesApi;
+        _catalogVersion = catalogVersion;
         _ttl = ttl ?? TimeSpan.FromMinutes(5);
     }
 
@@ -123,7 +134,7 @@ public sealed class NJsonSchemaTemplateDataValidator : ITemplateDataValidator
         {
             return entry.Schema;
         }
-        var template = _templatesApi.GetTemplate(tenantId, @namespace, catalogKey, templateId);
+        var template = _templatesApi.GetTemplate(tenantId, @namespace, catalogKey, _catalogVersion, templateId);
         var schema = template.Schema == null
             ? null
             : JsonSchema.FromJsonAsync(JsonConvert.SerializeObject(template.Schema)).GetAwaiter().GetResult();

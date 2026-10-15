@@ -11,11 +11,22 @@ libraries.
 
 ### Added
 
-- **Catalog releases, the working copy's changes, and deployments.** `listCatalogReleases` and
-  `getCatalogRelease` read a catalog's releases, each with the releases of other catalogs it renders
-  with (`dependencies`) and the environments that serve it (`deployedTo`). `getCatalogChanges` lists
-  what is new, modified, ready or removed since the latest release and whether a release would be
-  accepted; `markCatalogReady` marks everything changed ready in one action. An environment can
+- **Catalog versions: several drafts at once, released in place** (ADR 0002). A catalog consists
+  of versions, each a `draft` or `released`, addressed as
+  `…/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}`. `listCatalogVersions`,
+  `createCatalogVersion` (from the version's base, or `from` any other version),
+  `getCatalogVersion`, `renumberCatalogVersion` (drafts only; warnings from
+  `previewCatalogVersionRenumber` must be acknowledged), `deleteCatalogVersion` (drafts only) and
+  `releaseCatalogVersion`, which keeps the number and address, makes the version immutable, and
+  flows its changes forward into every higher open draft. `listIncomingChanges` and
+  `resolveIncomingChange` show and resolve what flowed into a draft; an open conflict blocks its
+  release. `CatalogDto` lists `draftVersions`.
+
+- **The changes of a catalog version, and deployments.** A released version also carries the
+  releases of other catalogs it renders with (`dependencies`) and the environments that serve it
+  (`deployedTo`). `getCatalogChanges` lists what is new, modified, ready or removed since the
+  version's base and whether releasing it would be accepted (including `openConflicts`);
+  `markCatalogReady` marks everything changed ready in one action. An environment can
   serve several releases of one catalog: `listEnvironmentDeployments`, `deployRelease` and
   `undeployRelease` (both addressed by the release, `…/deployments/{namespace}/{catalogKey}/{releaseVersion}`,
   with no request body), and `listDeploymentHistory` with every deploy and undeploy.
@@ -28,6 +39,16 @@ libraries.
   different releases of one catalog. `CatalogChangesDto` reports `dependenciesChanged`.
 
 ### Changed
+
+- **BREAKING: catalog content is edited and read per catalog version, not in one working copy.**
+  Every path to a catalog's templates, variants, stencils, themes, attributes, code lists, fonts and
+  images, and its `dependencies`, `changes` and `mark-ready`, gains `/versions/{catalogVersion}`
+  after the catalog. Reads work on any version; writes only on a draft, and are refused with 409 on
+  a released version. `validateTemplateData` stays on the catalog, as it selects a release like
+  generation does. `releaseCatalog`, `listCatalogReleases` and `getCatalogRelease` are replaced by
+  the version operations, and `CatalogReleaseDto` by `CatalogVersionDto`. Preview renders a draft by
+  `draftVersion` instead of `workingCopy`. `CatalogChangesDto.latestRelease` is now `base`.
+  `importCatalog` takes the draft to import into as `catalogVersion`, and reports it.
 
 - **BREAKING: a catalog is identified by its namespace and its key.** Every catalog-scoped path is
   `/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/…` instead of `…/catalogs/{catalogId}/…`.

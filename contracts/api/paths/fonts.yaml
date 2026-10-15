@@ -11,6 +11,7 @@ fonts:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
   get:
     operationId: listFonts
     summary: List font families in a catalog
@@ -57,6 +58,7 @@ fonts-slug:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: fontSlug
       in: path
       required: true

@@ -48,6 +48,15 @@ const ACTIONS = {
   'delete-image': deleteImage,
   'list-catalog-dependencies': listCatalogDependencies,
   'update-catalog-dependencies': updateCatalogDependencies,
+  'create-catalog-version': createCatalogVersion,
+  'list-catalog-versions': listCatalogVersions,
+  'get-catalog-version': getCatalogVersion,
+  'renumber-catalog-version': renumberCatalogVersion,
+  'preview-catalog-version-renumber': previewCatalogVersionRenumber,
+  'delete-catalog-version': deleteCatalogVersion,
+  'release-catalog-version': releaseCatalogVersion,
+  'list-incoming-changes': listIncomingChanges,
+  'resolve-incoming-change': resolveIncomingChange,
   'deploy-release': deployRelease,
   'undeploy-release': undeployRelease,
 }
@@ -94,7 +103,12 @@ async function listTemplates(baseUrl, config) {
   const api = new TemplatesApi(client(baseUrl, config))
   let response
   for (let i = 0; i < (config.repeat ?? 1); i++) {
-    response = await api.listTemplates({ tenantId: config.tenantId, namespace: config.namespace, catalogKey: config.catalogKey })
+    response = await api.listTemplates({
+      tenantId: config.tenantId,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      catalogVersion: config.catalogVersion,
+    })
   }
   await report(baseUrl, {
     templateSlugs: response.items.map((template) => show(template.slug)).join(','),
@@ -103,7 +117,12 @@ async function listTemplates(baseUrl, config) {
 
 async function problem(baseUrl, config) {
   try {
-    await new TemplatesApi(client(baseUrl, config)).listTemplates({ tenantId: config.tenantId, namespace: config.namespace, catalogKey: config.catalogKey })
+    await new TemplatesApi(client(baseUrl, config)).listTemplates({
+      tenantId: config.tenantId,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      catalogVersion: config.catalogVersion,
+    })
     await report(baseUrl, { problemTypeSlug: '<no exception was thrown>' })
   } catch (error) {
     if (!(error instanceof ProblemDetailException)) throw error
@@ -211,6 +230,7 @@ async function listImages(baseUrl, config) {
     tenantId: config.tenantId,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
     search: config.search,
   })
   await report(baseUrl, {
@@ -232,6 +252,7 @@ async function uploadImage(baseUrl, config) {
     tenantId: config.tenantId,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
     file,
     name: config.name,
   })
@@ -243,6 +264,7 @@ async function downloadImage(baseUrl, config) {
     tenantId: config.tenantId,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
     imageSlug: config.imageSlug,
   })
   await reportBytes(baseUrl, blob)
@@ -253,6 +275,7 @@ async function deleteImage(baseUrl, config) {
     tenantId: config.tenantId,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
     imageSlug: config.imageSlug,
     force: config.force,
   })
@@ -264,6 +287,7 @@ async function listCatalogDependencies(baseUrl, config) {
     tenantId: config.tenantId,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
   })
   await reportDependencies(baseUrl, response.items)
 }
@@ -277,6 +301,7 @@ async function updateCatalogDependencies(baseUrl, config) {
     tenantId: config.tenantId,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
     updateCatalogDependenciesRequest: { dependencies: config.dependencies },
   })
   await reportDependencies(baseUrl, response.items)
@@ -289,6 +314,144 @@ function reportDependencies(baseUrl, items) {
     versions: items.map((d) => show(d.version)).join(','),
     resolvedVersions: items.map((d) => show(d.resolvedVersion)).join(','),
   })
+}
+
+/** Opens a draft; `from` goes out only when the scenario names one. */
+async function createCatalogVersion(baseUrl, config) {
+  const request = { version: config.version }
+  if (config.from !== undefined) request.from = config.from
+  const version = await new CatalogsApi(client(baseUrl, config)).createCatalogVersion({
+    tenantId: config.tenantId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    createCatalogVersionRequest: request,
+  })
+  await report(baseUrl, {
+    version: show(version.version),
+    status: show(version.status),
+    base: show(version.base),
+    createdFrom: show(version.createdFrom),
+    releasedAt: showInstant(version.releasedAt),
+  })
+}
+
+/** Lists a catalog's versions; the `status` filter goes out only when the scenario sets one. */
+async function listCatalogVersions(baseUrl, config) {
+  const request = { tenantId: config.tenantId, namespace: config.namespace, catalogKey: config.catalogKey }
+  if (config.status !== undefined) request.status = config.status
+  const { items } = await new CatalogsApi(client(baseUrl, config)).listCatalogVersions(request)
+  await report(baseUrl, {
+    versions: items.map((v) => show(v.version)).join(','),
+    statuses: items.map((v) => show(v.status)).join(','),
+    bases: items.map((v) => show(v.base)).join(','),
+    openConflicts: items.map((v) => show(v.openConflicts)).join(','),
+  })
+}
+
+/** Reads one version, with the releases it renders with and the environments that serve it. */
+async function getCatalogVersion(baseUrl, config) {
+  const version = await new CatalogsApi(client(baseUrl, config)).getCatalogVersion({
+    tenantId: config.tenantId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
+  })
+  await report(baseUrl, {
+    version: show(version.version),
+    status: show(version.status),
+    releasedAt: showInstant(version.releasedAt),
+    dependencies: (version.dependencies ?? []).map((d) => `${show(d.namespace)}/${show(d.catalogKey)}@${show(d.releaseVersion)}`).join(','),
+    deployedTo: (version.deployedTo ?? []).map(show).join(','),
+  })
+}
+
+/** Renumbers a draft; `acknowledgeWarnings` goes out only when the scenario sets it, false included. */
+async function renumberCatalogVersion(baseUrl, config) {
+  const request = { version: config.version }
+  if (config.acknowledgeWarnings !== undefined) request.acknowledgeWarnings = config.acknowledgeWarnings
+  const version = await new CatalogsApi(client(baseUrl, config)).renumberCatalogVersion({
+    tenantId: config.tenantId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
+    renumberCatalogVersionRequest: request,
+  })
+  await report(baseUrl, { version: show(version.version), status: show(version.status) })
+}
+
+/** Previews a renumber, surfacing every warning kind, including ones this client does not know. */
+async function previewCatalogVersionRenumber(baseUrl, config) {
+  const preview = await new CatalogsApi(client(baseUrl, config)).previewCatalogVersionRenumber({
+    tenantId: config.tenantId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
+    to: config.to,
+  })
+  await report(baseUrl, {
+    newBase: show(preview.newBase),
+    warningKinds: preview.warnings.map((w) => show(w.kind)).join(','),
+  })
+}
+
+/** Discards a draft; the 204 has no body to parse. */
+async function deleteCatalogVersion(baseUrl, config) {
+  await new CatalogsApi(client(baseUrl, config)).deleteCatalogVersion({
+    tenantId: config.tenantId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
+  })
+}
+
+/** Releases a draft; `notes` goes out only when the scenario sets them. */
+async function releaseCatalogVersion(baseUrl, config) {
+  const request = {}
+  if (config.notes !== undefined) request.notes = config.notes
+  const response = await new CatalogsApi(client(baseUrl, config)).releaseCatalogVersion({
+    tenantId: config.tenantId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
+    releaseCatalogVersionRequest: request,
+  })
+  await report(baseUrl, {
+    version: show(response.version.version),
+    status: show(response.version.status),
+    flowedInto: response.flowedInto.map((f) => `${show(f.version)}:${show(f.merged)}:${show(f.conflicts)}`).join(','),
+    openedDraft: show(response.openedDraft),
+  })
+}
+
+/** Lists the changes that flowed into a draft; the `state` filter goes out only when set. */
+async function listIncomingChanges(baseUrl, config) {
+  const request = {
+    tenantId: config.tenantId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
+  }
+  if (config.state !== undefined) request.state = config.state
+  const { items } = await new CatalogsApi(client(baseUrl, config)).listIncomingChanges(request)
+  await report(baseUrl, {
+    ids: items.map((c) => show(c.id)).join(','),
+    nodes: items.map((c) => show(c.node)).join(','),
+    states: items.map((c) => show(c.state)).join(','),
+    resolutions: items.map((c) => show(c.resolution)).join(','),
+  })
+}
+
+/** Resolves one incoming change by id. */
+async function resolveIncomingChange(baseUrl, config) {
+  const change = await new CatalogsApi(client(baseUrl, config)).resolveIncomingChange({
+    tenantId: config.tenantId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
+    changeId: config.changeId,
+    resolveIncomingChangeRequest: { resolution: config.resolution },
+  })
+  await report(baseUrl, { id: show(change.id), state: show(change.state), resolution: show(change.resolution) })
 }
 
 /** Deploys one release; the path carries everything and there is no body. */
@@ -358,6 +521,14 @@ async function routing(baseUrl, config) {
     routedPartitions: keys.map((k) => show(collector.partitionFor(collector.routingKeyToMe(k)))).join(','),
     mineFlags: keys.map((k) => (collector.isMyPartition(k) ? 'true' : 'false')).join(','),
   })
+}
+
+/**
+ * Renders a timestamp as the instant it was sent: the generated models parse `date-time` into a
+ * Date, whose ISO form always carries milliseconds, so whole seconds drop the `.000` again.
+ */
+function showInstant(value) {
+  return value === undefined || value === null ? 'null' : value.toISOString().replace(/\.000Z$/, 'Z')
 }
 
 /** Renders a missing value the way the other drivers' languages print theirs. */

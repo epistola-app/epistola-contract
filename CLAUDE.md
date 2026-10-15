@@ -166,8 +166,9 @@ The Epistola API manages:
 2. **Templates** - Document templates with JSON Schema for input validation
 3. **Themes** - Reusable style collections
 4. **Environments** - Deployment contexts (staging, production); each serves catalog releases, possibly several per catalog
-5. **Variants** - Language/brand variations of templates, edited in the working copy
-6. **Releases** - Immutable catalog versions; a working copy is marked ready, then released
+5. **Variants** - Language/brand variations of templates, edited in a draft catalog version
+6. **Catalog versions** - A draft (editable, several may be open) or released (immutable, same
+   number and address); releasing flows changes forward into higher drafts (ADR 0002)
 7. **Generation** - Async document generation with batch support, always from a release
 
 ### Template Hierarchy
@@ -175,9 +176,9 @@ The Epistola API manages:
 ```
 Tenant
 ├── Catalog (identified by namespace + key)
-│   ├── Working copy: Template (with data contract) → Variant, Stencil, Theme, …
-│   │                 each new / modified / ready / released
-│   └── Release (immutable, SemVer) ← cut from a fully ready working copy
+│   └── Version (SemVer number, its address): draft ──release──▶ released (immutable)
+│       └── Template (with data contract) → Variant, Stencil, Theme, …
+│           each new / modified / ready / released against the version's base
 └── Environment ─ deploys ─▶ Releases of each Catalog (renders the highest that matches)
 ```
 

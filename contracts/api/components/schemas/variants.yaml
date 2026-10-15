@@ -1,6 +1,6 @@
 VariantDto:
   type: object
-  description: Full template variant, with the status of its working copy
+  description: Full template variant, with its status in the catalog version it was read from
   required:
     - slug
     - templateId
@@ -220,7 +220,7 @@ VariantListResponse:
 
 UpdateVariantContentRequest:
   type: object
-  description: The variant's new template model, replacing its working copy
+  description: The variant's new template model, replacing its content in the draft
   required:
     - templateModel
   properties:
@@ -230,8 +230,7 @@ UpdateVariantContentRequest:
 VariantContentDto:
   type: object
   description: |
-    A variant's working copy: the content being edited, and how it stands against the catalog's
-    latest release.
+    A variant's content in one catalog version, and how it stands against that version's base.
   required:
     - variantId
     - templateModel
@@ -252,7 +251,7 @@ VariantContentDto:
     lastModified:
       type: string
       format: date-time
-      description: When the working copy was last edited
+      description: When the content was last edited
       example: "2026-01-28T11:30:00Z"
     readyAt:
       type: [string, "null"]

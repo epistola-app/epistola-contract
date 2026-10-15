@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: resolve-incoming-change
+title: Resolving a conflict addresses the change by id and sends one resolution
+why: >
+  A conflict blocks releasing its draft until it is resolved, and the resolution decides whose
+  content the draft keeps. The change id goes in the path; the resolution is an enum in the body.
+
+action:
+  name: resolve-incoming-change
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: 2.0.0
+    changeId: chg-1
+    resolution: keep
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body: { id: chg-1, fromVersion: 1.5.0, type: template, slug: invoice, node: dutch/node-greeting, state: resolved, resolution: keep }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions/2.0.0/incoming/chg-1/resolve
+      body:
+        json:
+          resolution: keep
+  report:
+    id: chg-1
+    state: resolved
+    resolution: keep

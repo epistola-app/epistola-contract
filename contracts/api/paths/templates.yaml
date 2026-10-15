@@ -11,6 +11,7 @@ templates:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
 
   get:
     operationId: listTemplates
@@ -73,6 +74,8 @@ templates:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 templates-id:
   parameters:
@@ -87,6 +90,7 @@ templates-id:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: templateId
       in: path
       required: true
@@ -170,6 +174,8 @@ templates-id:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 template-validate:
   parameters:
@@ -245,6 +251,7 @@ template-mark-ready:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: templateId
       in: path
       required: true

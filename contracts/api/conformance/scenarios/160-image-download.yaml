@@ -30,6 +30,7 @@ action:
     tenantId: acme-corp
     namespace: acme.com
     catalogKey: main
+    catalogVersion: 2.0.0
     imageSlug: municipality-mark
 
 script:
@@ -43,7 +44,7 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/acme.com/main/images/municipality-mark/content
+      path: /api/tenants/acme-corp/catalogs/acme.com/main/versions/2.0.0/images/municipality-mark/content
       headers:
         # Each declared image type is acceptable, by name or by wildcard, and so is the problem
         # document the client parses on failure.

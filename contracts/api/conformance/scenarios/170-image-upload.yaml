@@ -33,6 +33,7 @@ action:
     tenantId: acme-corp
     namespace: acme-corp
     catalogKey: main
+    catalogVersion: 2.0.0
     filename: municipality-mark.png
     fileContentType: image/png
     # PNG signature + every byte 0x00-0xFF
@@ -61,7 +62,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/acme-corp/main/images
+      path: /api/tenants/acme-corp/catalogs/acme-corp/main/versions/2.0.0/images
       headers:
         Content-Type:
           matches: '^multipart/form-data;\s*boundary='

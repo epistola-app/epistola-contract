@@ -61,24 +61,25 @@ class NetworkntTemplateDataValidatorTest {
     private TemplatesApi templatesApi(Object schema) {
         return FakeApis.of(TemplatesApi.class, Map.of("getTemplate", args -> {
             fetches.incrementAndGet();
+            assertEquals("1.4.0", args[3], "the schema is read from the configured catalog version");
             return new TemplateDto()
-                    .slug((String) args[3])
+                    .slug((String) args[4])
                     .tenantId((String) args[0])
-                    .name((String) args[3])
+                    .name((String) args[4])
                     .schema(schema);
         }));
     }
 
     @Test
     void valid_data_yields_no_findings() {
-        NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(INVOICE_SCHEMA));
+        NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(INVOICE_SCHEMA), "1.4.0");
 
         assertEquals(List.of(), validator.validate("acme-corp", "acme-corp", "default", "invoice", VALID_DATA));
     }
 
     @Test
     void paths_are_json_pointers_not_the_engines_jsonpath() {
-        NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(INVOICE_SCHEMA));
+        NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(INVOICE_SCHEMA), "1.4.0");
         Map<String, Object> data = Map.of(
                 "customer", Map.of("name", "", "email", "jane@example.com"),
                 "invoiceNumber", "INV-2026-001");
@@ -94,7 +95,7 @@ class NetworkntTemplateDataValidatorTest {
 
     @Test
     void a_pointer_into_an_array_uses_the_index_as_a_segment() {
-        NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(INVOICE_SCHEMA));
+        NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(INVOICE_SCHEMA), "1.4.0");
         Map<String, Object> data = Map.of(
                 "customer", Map.of("name", "Jane Smith", "email", "jane@example.com"),
                 "invoiceNumber", "INV-2026-001",
@@ -108,7 +109,7 @@ class NetworkntTemplateDataValidatorTest {
 
     @Test
     void format_is_not_asserted_which_is_why_the_server_owns_the_verdict() {
-        NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(INVOICE_SCHEMA));
+        NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(INVOICE_SCHEMA), "1.4.0");
         Map<String, Object> data = Map.of(
                 "customer", Map.of("name", "Jane Smith", "email", "not-an-email"),
                 "invoiceNumber", "INV-2026-001");
@@ -121,14 +122,14 @@ class NetworkntTemplateDataValidatorTest {
 
     @Test
     void a_template_without_a_schema_claims_nothing_about_the_data() {
-        NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(null));
+        NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(null), "1.4.0");
 
         assertEquals(List.of(), validator.validate("acme-corp", "acme-corp", "default", "invoice", Map.of("anything", 1)));
     }
 
     @Test
     void the_schema_is_fetched_once_and_reused() {
-        NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(INVOICE_SCHEMA));
+        NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(INVOICE_SCHEMA), "1.4.0");
 
         validator.validate("acme-corp", "acme-corp", "default", "invoice", VALID_DATA);
         validator.validate("acme-corp", "acme-corp", "default", "invoice", VALID_DATA);

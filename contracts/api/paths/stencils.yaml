@@ -11,6 +11,7 @@ stencils:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
 
   get:
     operationId: listStencils
@@ -96,6 +97,7 @@ stencils-id:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: stencilId
       in: path
       required: true
@@ -155,6 +157,8 @@ stencils-id:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
   delete:
     operationId: deleteStencil
@@ -174,6 +178,8 @@ stencils-id:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 stencil-content:
   parameters:
@@ -188,6 +194,7 @@ stencil-content:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: stencilId
       in: path
       required: true
@@ -200,14 +207,14 @@ stencil-content:
 
   get:
     operationId: getStencilContent
-    summary: Get the stencil's working copy
-    description: The stencil's content as it is being edited, with its status against the catalog's latest release.
+    summary: Get the stencil's content
+    description: The stencil's content in this catalog version, with its status against the version's base.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_VIEW]
     responses:
       '200':
-        description: The working copy
+        description: The stencil's content
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -221,9 +228,9 @@ stencil-content:
 
   put:
     operationId: updateStencilContent
-    summary: Update the stencil's working copy
+    summary: Update the stencil's content in a draft
     description: |
-      Replaces the stencil's content and parameters in the working copy. Templates keep rendering the
+      Replaces the stencil's content and parameters in the draft. Templates keep rendering the
       stencil's ready content until this content is marked ready.
     tags:
       - Stencils
@@ -236,7 +243,7 @@ stencil-content:
             $ref: '../components/schemas/stencils.yaml#/UpdateStencilContentRequest'
     responses:
       '200':
-        description: The updated working copy
+        description: The updated content
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -265,6 +272,7 @@ stencil-mark-ready:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: stencilId
       in: path
       required: true
@@ -313,6 +321,7 @@ stencil-usage:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: stencilId
       in: path
       required: true
@@ -326,7 +335,7 @@ stencil-usage:
   get:
     operationId: listStencilUsage
     summary: List the template variants that use the stencil
-    description: Every template variant in the working copy with an instance of the stencil, and whether that instance is held back.
+    description: Every template variant in this catalog version with an instance of the stencil, and whether that instance is held back.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_VIEW]

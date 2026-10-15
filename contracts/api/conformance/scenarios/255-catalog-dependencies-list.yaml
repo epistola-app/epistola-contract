@@ -21,9 +21,10 @@ action:
     tenantId: acme-corp
     namespace: acme-corp
     catalogKey: letters
+    catalogVersion: 2.0.0
 
 expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/dependencies
+      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions/2.0.0/dependencies

@@ -11,6 +11,7 @@ images:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
   get:
     operationId: listImages
     summary: List images in a catalog
@@ -117,6 +118,7 @@ image-content:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: imageSlug
       in: path
       required: true
@@ -179,6 +181,7 @@ image-resource:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: imageSlug
       in: path
       required: true

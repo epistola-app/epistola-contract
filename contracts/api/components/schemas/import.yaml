@@ -61,7 +61,7 @@ ImportTemplateDto:
   description: |
     A single template definition for import. Contains the full template structure
     including metadata, data model, visual layout and variants. Importing fills the
-    working copy; releasing the catalog and deploying the release are separate steps.
+    draft; releasing the draft and deploying the release are separate steps.
   required:
     - slug
     - name
@@ -268,6 +268,13 @@ ImportCatalogResponse:
       type: string
       description: Display name of the imported catalog
       example: Valtimo Demo Catalog
+    catalogVersion:
+      type: [string, "null"]
+      maxLength: 50
+      description: |
+        The catalog version the archive went into: the draft of an AUTHORED catalog, or the release
+        a SUBSCRIBED catalog installed. Null when the import was aborted.
+      example: "1.0.0"
     installed:
       type: integer
       description: Number of resources newly installed

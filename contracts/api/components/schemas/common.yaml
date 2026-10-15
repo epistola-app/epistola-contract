@@ -38,13 +38,14 @@ ResourceStatus:
     - ready
     - released
   description: |
-    How a resource in the working copy stands against its catalog's latest release.
+    How a resource in a catalog version stands against the version's **base**: the highest
+    released version below it.
 
-    - `new`: in no release yet, and not marked ready.
-    - `modified`: changed since the latest release, and not marked ready since.
-    - `ready`: changed since the latest release (or new), and marked ready since its last edit.
-    - `released`: the same as in the latest release.
+    - `new`: not in the base, and not marked ready.
+    - `modified`: changed since the base, and not marked ready since.
+    - `ready`: changed since the base (or new), and marked ready since its last edit.
+    - `released`: the same as in the base. Every resource of a released version has this status.
 
-    A catalog release refuses while any resource is `new` or `modified`; it contains the whole
-    working copy, so marking ready is a review checkpoint, not a filter.
+    Releasing a draft is refused while any resource is `new` or `modified`; a release contains the
+    whole draft, so marking ready is a review checkpoint, not a filter.
   example: ready

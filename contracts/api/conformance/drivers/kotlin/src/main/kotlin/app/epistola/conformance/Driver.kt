@@ -20,6 +20,13 @@ import app.epistola.client.error.installProblemDetailHandler
 import app.epistola.client.identity.ClientIdentity
 import app.epistola.client.model.CatalogDependencyDto
 import app.epistola.client.model.CatalogDependencyRequirement
+import app.epistola.client.model.CatalogVersionStatus
+import app.epistola.client.model.CreateCatalogVersionRequest
+import app.epistola.client.model.IncomingChangeResolution
+import app.epistola.client.model.IncomingChangeState
+import app.epistola.client.model.ReleaseCatalogVersionRequest
+import app.epistola.client.model.RenumberCatalogVersionRequest
+import app.epistola.client.model.ResolveIncomingChangeRequest
 import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.PingRequest
 import app.epistola.client.model.UpdateCatalogDependenciesRequest
@@ -37,6 +44,8 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.security.MessageDigest
 import java.time.Duration
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
@@ -78,6 +87,15 @@ object Driver {
                 "delete-image" -> deleteImage(baseUrl, config)
                 "list-catalog-dependencies" -> listCatalogDependencies(baseUrl, config)
                 "update-catalog-dependencies" -> updateCatalogDependencies(baseUrl, config)
+                "create-catalog-version" -> createCatalogVersion(baseUrl, config)
+                "list-catalog-versions" -> listCatalogVersions(baseUrl, config)
+                "get-catalog-version" -> getCatalogVersion(baseUrl, config)
+                "renumber-catalog-version" -> renumberCatalogVersion(baseUrl, config)
+                "preview-catalog-version-renumber" -> previewCatalogVersionRenumber(baseUrl, config)
+                "delete-catalog-version" -> deleteCatalogVersion(baseUrl, config)
+                "release-catalog-version" -> releaseCatalogVersion(baseUrl, config)
+                "list-incoming-changes" -> listIncomingChanges(baseUrl, config)
+                "resolve-incoming-change" -> resolveIncomingChange(baseUrl, config)
                 "deploy-release" -> deployRelease(baseUrl, config)
                 "undeploy-release" -> undeployRelease(baseUrl, config)
                 else -> error("unknown action $action")
@@ -106,7 +124,7 @@ object Driver {
     private fun listTemplates(baseUrl: String, config: ObjectNode) {
         val api = TemplatesApi(restClient(baseUrl, config))
         val templates = List(config.path("repeat").asInt(1)) {
-            api.listTemplates(config["tenantId"].asText(), config["namespace"].asText(), config["catalogKey"].asText())
+            api.listTemplates(config["tenantId"].asText(), config["namespace"].asText(), config["catalogKey"].asText(), config["catalogVersion"].asText())
         }.last().items
 
         report(
@@ -120,7 +138,12 @@ object Driver {
     private fun problem(baseUrl: String, config: ObjectNode) {
         try {
             TemplatesApi(restClient(baseUrl, config))
-                .listTemplates(config["tenantId"].asText(), config["namespace"].asText(), config["catalogKey"].asText())
+                .listTemplates(
+                    config["tenantId"].asText(),
+                    config["namespace"].asText(),
+                    config["catalogKey"].asText(),
+                    config["catalogVersion"].asText(),
+                )
             report(baseUrl, mapOf("problemTypeSlug" to "<no exception was thrown>"))
         } catch (e: ProblemDetailException) {
             report(
@@ -294,6 +317,7 @@ object Driver {
                 config["tenantId"].asText(),
                 config["namespace"].asText(),
                 config["catalogKey"].asText(),
+                config["catalogVersion"].asText(),
                 search = config["search"].asText(),
             )
             .items
@@ -323,6 +347,7 @@ object Driver {
             config["tenantId"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
             file,
             name = config["name"].asText(),
         )
@@ -335,6 +360,7 @@ object Driver {
             config["tenantId"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
             config["imageSlug"].asText(),
         )
         reportBytes(baseUrl, resource.inputStream.use { it.readBytes() })
@@ -345,6 +371,7 @@ object Driver {
             config["tenantId"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
             config["imageSlug"].asText(),
             force = config["force"].asBoolean(),
         )
@@ -355,6 +382,7 @@ object Driver {
             config["tenantId"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
         ).items
         reportDependencies(baseUrl, dependencies)
     }
@@ -365,6 +393,7 @@ object Driver {
             config["tenantId"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
             UpdateCatalogDependenciesRequest(
                 dependencies = config.path("dependencies").map {
                     CatalogDependencyRequirement(
@@ -387,6 +416,175 @@ object Driver {
             "resolvedVersions" to dependencies.joinToString(",") { it.resolvedVersion ?: "null" },
         ),
     )
+
+    // --- Catalog versions ---
+
+    /** Opens a draft; `from` is sent only when configured, so an absent one stays off the wire. */
+    private fun createCatalogVersion(baseUrl: String, config: ObjectNode) {
+        val version = CatalogsApi(restClient(baseUrl, config)).createCatalogVersion(
+            config["tenantId"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            CreateCatalogVersionRequest(version = config["version"].asText(), from = config.optionalText("from")),
+        )
+        report(
+            baseUrl,
+            mapOf(
+                "version" to version.version,
+                "status" to version.status.value,
+                "base" to (version.base ?: "null"),
+                "createdFrom" to (version.createdFrom ?: "null"),
+                "releasedAt" to timestamp(version.releasedAt),
+            ),
+        )
+    }
+
+    private fun listCatalogVersions(baseUrl: String, config: ObjectNode) {
+        val versions = CatalogsApi(restClient(baseUrl, config)).listCatalogVersions(
+            config["tenantId"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            status = config.optionalText("status")?.let { CatalogVersionStatus.decode(it) },
+        ).items
+        report(
+            baseUrl,
+            mapOf(
+                "versions" to versions.joinToString(",") { it.version },
+                "statuses" to versions.joinToString(",") { it.status.value },
+                "bases" to versions.joinToString(",") { it.base ?: "null" },
+                "openConflicts" to versions.joinToString(",") { it.openConflicts?.toString() ?: "null" },
+            ),
+        )
+    }
+
+    /** Reports the release data, with dependencies' namespaces as written in the body. */
+    private fun getCatalogVersion(baseUrl: String, config: ObjectNode) {
+        val version = CatalogsApi(restClient(baseUrl, config)).getCatalogVersion(
+            config["tenantId"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+        )
+        report(
+            baseUrl,
+            mapOf(
+                "version" to version.version,
+                "status" to version.status.value,
+                "releasedAt" to timestamp(version.releasedAt),
+                "dependencies" to version.dependencies.joinToString(",") {
+                    "${it.namespace}/${it.catalogKey}@${it.releaseVersion}"
+                },
+                "deployedTo" to version.deployedTo.joinToString(","),
+            ),
+        )
+    }
+
+    /**
+     * Renumbers a draft. The acknowledgement is passed explicitly, null when not configured, because
+     * the generated request defaults it to `false` and a default must not reach the wire uninvited.
+     */
+    private fun renumberCatalogVersion(baseUrl: String, config: ObjectNode) {
+        val version = CatalogsApi(restClient(baseUrl, config)).renumberCatalogVersion(
+            config["tenantId"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+            RenumberCatalogVersionRequest(
+                version = config["version"].asText(),
+                acknowledgeWarnings = config.get("acknowledgeWarnings")?.takeUnless { it.isNull }?.asBoolean(),
+            ),
+        )
+        report(baseUrl, mapOf("version" to version.version, "status" to version.status.value))
+    }
+
+    /** Surfaces every warning kind, including ones this client was not built to know. */
+    private fun previewCatalogVersionRenumber(baseUrl: String, config: ObjectNode) {
+        val preview = CatalogsApi(restClient(baseUrl, config)).previewCatalogVersionRenumber(
+            config["tenantId"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+            config["to"].asText(),
+        )
+        report(
+            baseUrl,
+            mapOf(
+                "newBase" to (preview.newBase ?: "null"),
+                "warningKinds" to preview.warnings.joinToString(",") { it.kind },
+            ),
+        )
+    }
+
+    private fun deleteCatalogVersion(baseUrl: String, config: ObjectNode) {
+        CatalogsApi(restClient(baseUrl, config)).deleteCatalogVersion(
+            config["tenantId"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+        )
+    }
+
+    private fun releaseCatalogVersion(baseUrl: String, config: ObjectNode) {
+        val released = CatalogsApi(restClient(baseUrl, config)).releaseCatalogVersion(
+            config["tenantId"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+            ReleaseCatalogVersionRequest(notes = config.optionalText("notes")),
+        )
+        report(
+            baseUrl,
+            mapOf(
+                "version" to released.version.version,
+                "status" to released.version.status.value,
+                "flowedInto" to released.flowedInto.joinToString(",") { "${it.version}:${it.merged}:${it.conflicts}" },
+                "openedDraft" to (released.openedDraft ?: "null"),
+            ),
+        )
+    }
+
+    private fun listIncomingChanges(baseUrl: String, config: ObjectNode) {
+        val changes = CatalogsApi(restClient(baseUrl, config)).listIncomingChanges(
+            config["tenantId"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+            state = config.optionalText("state")?.let { IncomingChangeState.decode(it) },
+        ).items
+        report(
+            baseUrl,
+            mapOf(
+                "ids" to changes.joinToString(",") { it.id },
+                "nodes" to changes.joinToString(",") { it.node ?: "null" },
+                "states" to changes.joinToString(",") { it.state.value },
+                "resolutions" to changes.joinToString(",") { it.resolution?.value ?: "null" },
+            ),
+        )
+    }
+
+    private fun resolveIncomingChange(baseUrl: String, config: ObjectNode) {
+        val change = CatalogsApi(restClient(baseUrl, config)).resolveIncomingChange(
+            config["tenantId"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+            config["changeId"].asText(),
+            ResolveIncomingChangeRequest(
+                resolution = IncomingChangeResolution.decode(config["resolution"].asText()),
+            ),
+        )
+        report(
+            baseUrl,
+            mapOf(
+                "id" to change.id,
+                "state" to change.state.value,
+                "resolution" to (change.resolution?.value ?: "null"),
+            ),
+        )
+    }
+
+    /** An instant as ISO 8601 with seconds, which `OffsetDateTime.toString()` drops when zero. */
+    private fun timestamp(value: OffsetDateTime?): String = value?.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME) ?: "null"
 
     /** Deploys one release; the namespace goes into the path in its path-segment form, as given. */
     private fun deployRelease(baseUrl: String, config: ObjectNode) {

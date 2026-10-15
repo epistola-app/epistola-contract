@@ -19,12 +19,26 @@ import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.identity.ClientIdentity;
 import app.epistola.client.jakarta.model.CatalogDependencyDto;
 import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
+import app.epistola.client.jakarta.model.CatalogVersionDto;
+import app.epistola.client.jakarta.model.CatalogVersionRenumberPreview;
+import app.epistola.client.jakarta.model.CatalogVersionStatus;
+import app.epistola.client.jakarta.model.CreateCatalogVersionRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
+import app.epistola.client.jakarta.model.ForwardFlowDto;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.ImageDto;
+import app.epistola.client.jakarta.model.IncomingChangeDto;
+import app.epistola.client.jakarta.model.IncomingChangeResolution;
+import app.epistola.client.jakarta.model.IncomingChangeState;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
+import app.epistola.client.jakarta.model.ReleaseCatalogVersionRequest;
+import app.epistola.client.jakarta.model.ReleaseCatalogVersionResponse;
+import app.epistola.client.jakarta.model.ReleaseDependencyDto;
+import app.epistola.client.jakarta.model.RenumberCatalogVersionRequest;
+import app.epistola.client.jakarta.model.RenumberWarningDto;
+import app.epistola.client.jakarta.model.ResolveIncomingChangeRequest;
 import app.epistola.client.jakarta.model.TemplateListResponse;
 import app.epistola.client.jakarta.model.TemplateSummaryDto;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
@@ -44,6 +58,7 @@ import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -87,6 +102,15 @@ public final class Driver {
                 case "delete-image" -> deleteImage(baseUrl, config);
                 case "list-catalog-dependencies" -> listCatalogDependencies(baseUrl, config);
                 case "update-catalog-dependencies" -> updateCatalogDependencies(baseUrl, config);
+                case "create-catalog-version" -> createCatalogVersion(baseUrl, config);
+                case "list-catalog-versions" -> listCatalogVersions(baseUrl, config);
+                case "get-catalog-version" -> getCatalogVersion(baseUrl, config);
+                case "renumber-catalog-version" -> renumberCatalogVersion(baseUrl, config);
+                case "preview-catalog-version-renumber" -> previewCatalogVersionRenumber(baseUrl, config);
+                case "delete-catalog-version" -> deleteCatalogVersion(baseUrl, config);
+                case "release-catalog-version" -> releaseCatalogVersion(baseUrl, config);
+                case "list-incoming-changes" -> listIncomingChanges(baseUrl, config);
+                case "resolve-incoming-change" -> resolveIncomingChange(baseUrl, config);
                 case "deploy-release" -> deployRelease(baseUrl, config);
                 case "undeploy-release" -> undeployRelease(baseUrl, config);
                 default -> throw new IllegalArgumentException("unknown action " + instruction.getString("action"));
@@ -115,7 +139,7 @@ public final class Driver {
         TemplatesApi api = clients(baseUrl, config).api(TemplatesApi.class);
         TemplateListResponse response = null;
         for (int i = 0; i < config.getInt("repeat", 1); i++) {
-            response = api.listTemplates(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), null, 0, 20, null, "desc");
+            response = api.listTemplates(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), null, 0, 20, null, "desc");
         }
         List<TemplateSummaryDto> templates = response.getItems();
 
@@ -129,7 +153,7 @@ public final class Driver {
         try {
             clients(baseUrl, config)
                     .api(TemplatesApi.class)
-                    .listTemplates(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), null, 0, 20, null, "desc");
+                    .listTemplates(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), null, 0, 20, null, "desc");
             report(baseUrl, Map.of("problemTypeSlug", "<no exception was thrown>"));
         } catch (ProblemDetailException e) {
             report(
@@ -336,7 +360,7 @@ public final class Driver {
     private static void listImages(String baseUrl, JsonObject config) {
         List<ImageDto> images = clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .listImages(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("search"), null, null)
+                .listImages(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), config.getString("search"), null, null)
                 .getItems();
 
         report(
@@ -361,7 +385,7 @@ public final class Driver {
         try {
             ImageDto image = clients(baseUrl, config)
                     .api(ImagesApi.class)
-                    .uploadImage(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), file, config.getString("name"), null, null);
+                    .uploadImage(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), file, config.getString("name"), null, null);
             report(baseUrl, Map.of("imageSlug", image.getSlug(), "imageName", image.getName()));
         } finally {
             Files.deleteIfExists(file.toPath());
@@ -372,21 +396,24 @@ public final class Driver {
     private static void downloadImage(String baseUrl, JsonObject config) throws Exception {
         File file = clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .downloadImageContent(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("imageSlug"));
+                .downloadImageContent(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), config.getString("imageSlug"));
         reportBytes(baseUrl, Files.readAllBytes(file.toPath()));
     }
 
     private static void deleteImage(String baseUrl, JsonObject config) {
         clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .deleteImage(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("imageSlug"), config.getBoolean("force"));
+                .deleteImage(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), config.getString("imageSlug"), config.getBoolean("force"));
     }
 
     private static void listCatalogDependencies(String baseUrl, JsonObject config) {
         clients(baseUrl, config)
                 .api(CatalogsApi.class)
                 .listCatalogDependencies(
-                        config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"));
+                        config.getString("tenantId"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"));
     }
 
     /** Replaces the declared dependencies and reports every field of the answer, a null as {@code null}. */
@@ -405,6 +432,7 @@ public final class Driver {
                         config.getString("tenantId"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
+                        config.getString("catalogVersion"),
                         new UpdateCatalogDependenciesRequest().dependencies(dependencies))
                 .getItems();
 
@@ -415,6 +443,190 @@ public final class Driver {
                         "catalogKeys", joined(items, CatalogDependencyDto::getCatalogKey),
                         "versions", joined(items, CatalogDependencyDto::getVersion),
                         "resolvedVersions", joined(items, CatalogDependencyDto::getResolvedVersion)));
+    }
+
+    private static void createCatalogVersion(String baseUrl, JsonObject config) {
+        CatalogVersionDto version = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .createCatalogVersion(
+                        config.getString("tenantId"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        new CreateCatalogVersionRequest()
+                                .version(config.getString("version"))
+                                .from(optional(config, "from")));
+        report(
+                baseUrl,
+                Map.of(
+                        "version", String.valueOf(version.getVersion()),
+                        "status", String.valueOf(version.getStatus()),
+                        "base", String.valueOf(version.getBase()),
+                        "createdFrom", String.valueOf(version.getCreatedFrom()),
+                        "releasedAt", instant(version.getReleasedAt())));
+    }
+
+    private static void listCatalogVersions(String baseUrl, JsonObject config) {
+        String status = optional(config, "status");
+        List<CatalogVersionDto> versions = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .listCatalogVersions(
+                        config.getString("tenantId"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        status == null ? null : CatalogVersionStatus.fromValue(status),
+                        null,
+                        null)
+                .getItems();
+        report(
+                baseUrl,
+                Map.of(
+                        "versions", joined(versions, CatalogVersionDto::getVersion),
+                        "statuses", joined(versions, version -> String.valueOf(version.getStatus())),
+                        "bases", joined(versions, CatalogVersionDto::getBase),
+                        "openConflicts", joined(versions, version -> String.valueOf(version.getOpenConflicts()))));
+    }
+
+    private static void getCatalogVersion(String baseUrl, JsonObject config) {
+        CatalogVersionDto version = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .getCatalogVersion(
+                        config.getString("tenantId"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"));
+        List<ReleaseDependencyDto> dependencies =
+                version.getDependencies() == null ? List.of() : version.getDependencies();
+        report(
+                baseUrl,
+                Map.of(
+                        "version", String.valueOf(version.getVersion()),
+                        "status", String.valueOf(version.getStatus()),
+                        "releasedAt", instant(version.getReleasedAt()),
+                        "dependencies",
+                                joined(
+                                        dependencies,
+                                        dependency -> dependency.getNamespace() + "/" + dependency.getCatalogKey() + "@"
+                                                + dependency.getReleaseVersion()),
+                        "deployedTo",
+                                version.getDeployedTo() == null ? "null" : String.join(",", version.getDeployedTo())));
+    }
+
+    private static void renumberCatalogVersion(String baseUrl, JsonObject config) {
+        // The generated model initialises acknowledgeWarnings to its default, false; it is sent only
+        // when the scenario names it.
+        RenumberCatalogVersionRequest request = new RenumberCatalogVersionRequest()
+                .version(config.getString("version"))
+                .acknowledgeWarnings(
+                        config.containsKey("acknowledgeWarnings") && !config.isNull("acknowledgeWarnings")
+                                ? config.getBoolean("acknowledgeWarnings")
+                                : null);
+        CatalogVersionDto version = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .renumberCatalogVersion(
+                        config.getString("tenantId"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"),
+                        request);
+        report(
+                baseUrl,
+                Map.of(
+                        "version", String.valueOf(version.getVersion()),
+                        "status", String.valueOf(version.getStatus())));
+    }
+
+    /** Warning kinds are an open set: one this client has never heard of is reported, not rejected. */
+    private static void previewCatalogVersionRenumber(String baseUrl, JsonObject config) {
+        CatalogVersionRenumberPreview preview = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .previewCatalogVersionRenumber(
+                        config.getString("to"),
+                        config.getString("tenantId"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"));
+        List<RenumberWarningDto> warnings = preview.getWarnings() == null ? List.of() : preview.getWarnings();
+        report(
+                baseUrl,
+                Map.of(
+                        "newBase", String.valueOf(preview.getNewBase()),
+                        "warningKinds", joined(warnings, RenumberWarningDto::getKind)));
+    }
+
+    private static void deleteCatalogVersion(String baseUrl, JsonObject config) {
+        clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .deleteCatalogVersion(
+                        config.getString("tenantId"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"));
+    }
+
+    private static void releaseCatalogVersion(String baseUrl, JsonObject config) {
+        ReleaseCatalogVersionResponse response = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .releaseCatalogVersion(
+                        config.getString("tenantId"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"),
+                        new ReleaseCatalogVersionRequest().notes(optional(config, "notes")));
+        List<ForwardFlowDto> flowedInto = response.getFlowedInto() == null ? List.of() : response.getFlowedInto();
+        report(
+                baseUrl,
+                Map.of(
+                        "version", String.valueOf(response.getVersion().getVersion()),
+                        "status", String.valueOf(response.getVersion().getStatus()),
+                        "flowedInto",
+                                joined(
+                                        flowedInto,
+                                        flow -> flow.getVersion() + ":" + flow.getMerged() + ":" + flow.getConflicts()),
+                        "openedDraft", String.valueOf(response.getOpenedDraft())));
+    }
+
+    private static void listIncomingChanges(String baseUrl, JsonObject config) {
+        String state = optional(config, "state");
+        List<IncomingChangeDto> changes = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .listIncomingChanges(
+                        config.getString("tenantId"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"),
+                        state == null ? null : IncomingChangeState.fromValue(state))
+                .getItems();
+        report(
+                baseUrl,
+                Map.of(
+                        "ids", joined(changes, IncomingChangeDto::getId),
+                        "nodes", joined(changes, IncomingChangeDto::getNode),
+                        "states", joined(changes, change -> String.valueOf(change.getState())),
+                        "resolutions", joined(changes, change -> String.valueOf(change.getResolution()))));
+    }
+
+    private static void resolveIncomingChange(String baseUrl, JsonObject config) {
+        IncomingChangeDto change = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .resolveIncomingChange(
+                        config.getString("tenantId"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"),
+                        config.getString("changeId"),
+                        new ResolveIncomingChangeRequest()
+                                .resolution(IncomingChangeResolution.fromValue(config.getString("resolution"))));
+        report(
+                baseUrl,
+                Map.of(
+                        "id", String.valueOf(change.getId()),
+                        "state", String.valueOf(change.getState()),
+                        "resolution", String.valueOf(change.getResolution())));
+    }
+
+    /** A timestamp as ISO 8601 in UTC with its seconds, or {@code null}; offsets and precision vary by parser. */
+    private static String instant(OffsetDateTime value) {
+        return value == null ? "null" : value.toInstant().toString();
     }
 
     private static void deployRelease(String baseUrl, JsonObject config) {

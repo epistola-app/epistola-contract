@@ -11,6 +11,7 @@ code-lists:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
   get:
     operationId: listCodeLists
     summary: List code lists in a catalog
@@ -86,6 +87,7 @@ code-lists-slug:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: codeListSlug
       in: path
       required: true
@@ -177,6 +179,7 @@ code-list-refresh:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: codeListSlug
       in: path
       required: true
@@ -209,6 +212,8 @@ code-list-refresh:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 code-list-entries:
   parameters:
@@ -220,6 +225,7 @@ code-list-entries:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: codeListSlug
       in: path
       required: true
@@ -268,6 +274,7 @@ code-list-entry-hidden:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: codeListSlug
       in: path
       required: true

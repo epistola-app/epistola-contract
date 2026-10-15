@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: list-incoming-changes
+title: Incoming changes keep their node, and an unresolved one has no resolution
+why: >
+  The incoming list is how an author finds what a lower release brought into their draft, down to
+  the node. A change to a whole resource has no node (null), and only a resolved conflict carries a
+  `resolution`; the member is absent otherwise. A client that requires it, or turns null into an
+  empty string, cannot show the list at all.
+
+  The `state` filter is a query parameter with an enum value.
+
+action:
+  name: list-incoming-changes
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: 2.0.0
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      items:
+        - { id: chg-1, fromVersion: 1.5.0, type: template, slug: invoice, node: dutch/node-greeting, state: conflict }
+        - { id: chg-2, fromVersion: 1.5.0, type: theme, slug: corporate, node: null, state: merged }
+        - { id: chg-3, fromVersion: 1.5.0, type: template, slug: reminder, node: default/node-footer, state: resolved, resolution: take }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions/2.0.0/incoming
+      queryParams:
+        state: { absent: true }
+  report:
+    ids: chg-1,chg-2,chg-3
+    nodes: dutch/node-greeting,null,default/node-footer
+    states: conflict,merged,resolved
+    resolutions: null,null,take

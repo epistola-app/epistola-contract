@@ -64,7 +64,7 @@ public class NJsonSchemaTemplateDataValidatorTest
     private static ITemplatesApi ApiReturningSchema(object? schema)
     {
         var api = Substitute.For<ITemplatesApi>();
-        api.GetTemplate("acme", "acme-corp", "default", "invoice").Returns(new TemplateDto(
+        api.GetTemplate("acme", "acme-corp", "default", "1.4.0", "invoice").Returns(new TemplateDto(
             slug: "invoice", tenantId: "acme", name: "Invoice",
             schema: schema, variants: new List<VariantSummaryDto>()));
         return api;
@@ -73,7 +73,7 @@ public class NJsonSchemaTemplateDataValidatorTest
     [Fact]
     public void ValidDataYieldsNoFindings()
     {
-        var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(InvoiceSchema));
+        var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(InvoiceSchema), "1.4.0");
 
         Assert.Empty(validator.Validate("acme", "acme-corp", "default", "invoice", ValidData));
     }
@@ -81,7 +81,7 @@ public class NJsonSchemaTemplateDataValidatorTest
     [Fact]
     public void PathsAreJsonPointersNotNJsonSchemaFragments()
     {
-        var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(InvoiceSchema));
+        var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(InvoiceSchema), "1.4.0");
         var data = new Dictionary<string, object>(ValidData)
         {
             ["customer"] = new Dictionary<string, object> { ["name"] = "" },
@@ -97,7 +97,7 @@ public class NJsonSchemaTemplateDataValidatorTest
     [Fact]
     public void KeywordsAreJsonSchemaKeywordsNotTheLibrarysErrorKinds()
     {
-        var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(InvoiceSchema));
+        var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(InvoiceSchema), "1.4.0");
         var data = new Dictionary<string, object>(ValidData)
         {
             ["invoiceNumber"] = 42,
@@ -112,7 +112,7 @@ public class NJsonSchemaTemplateDataValidatorTest
     [Fact]
     public void AMissingRequiredFieldUsesTheRequiredKeyword()
     {
-        var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(InvoiceSchema));
+        var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(InvoiceSchema), "1.4.0");
 
         var findings = validator.Validate("acme", "acme-corp", "default", "invoice",
             new Dictionary<string, object> { ["invoiceNumber"] = "INV-2026-001" });
@@ -123,7 +123,7 @@ public class NJsonSchemaTemplateDataValidatorTest
     [Fact]
     public void ATemplateWithoutASchemaClaimsNothingAboutTheData()
     {
-        var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(null));
+        var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(null), "1.4.0");
 
         Assert.Empty(validator.Validate("acme", "acme-corp", "default", "invoice", new Dictionary<string, object> { ["anything"] = 1 }));
     }
@@ -132,20 +132,20 @@ public class NJsonSchemaTemplateDataValidatorTest
     public void TheSchemaIsFetchedOnceAndReused()
     {
         var api = ApiReturningSchema(InvoiceSchema);
-        var validator = new NJsonSchemaTemplateDataValidator(api);
+        var validator = new NJsonSchemaTemplateDataValidator(api, "1.4.0");
 
         validator.Validate("acme", "acme-corp", "default", "invoice", ValidData);
         validator.Validate("acme", "acme-corp", "default", "invoice", ValidData);
 
         // Without the cache a "local" validator costs a round trip per call, which is worse than
         // asking the server to validate outright.
-        api.Received(1).GetTemplate("acme", "acme-corp", "default", "invoice");
+        api.Received(1).GetTemplate("acme", "acme-corp", "default", "1.4.0", "invoice");
     }
 
     [Fact]
     public void ItTakesTheGenerationPreflight()
     {
-        ITemplateDataValidator validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(InvoiceSchema));
+        ITemplateDataValidator validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(InvoiceSchema), "1.4.0");
 
         Assert.True(validator.PreflightsGeneration);
     }
@@ -153,7 +153,7 @@ public class NJsonSchemaTemplateDataValidatorTest
     [Fact]
     public void APointerIntoAnArrayUsesTheIndexAsASegment()
     {
-        var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(InvoiceSchema));
+        var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(InvoiceSchema), "1.4.0");
         var data = new Dictionary<string, object>(ValidData)
         {
             ["lineItems"] = new List<object> { new Dictionary<string, object> { ["quantity"] = 0 } },

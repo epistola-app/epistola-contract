@@ -65,18 +65,18 @@ class NetworkntTemplateDataValidatorTest {
         "lineItems" to listOf(mapOf("quantity" to 3)),
     )
 
-    private fun validator() = NetworkntTemplateDataValidator(templatesApi)
+    private fun validator() = NetworkntTemplateDataValidator(templatesApi, catalogVersion = { _, _, _ -> "1.2.0" })
 
     @Test
     fun `valid data yields no findings`() {
-        every { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "acme-corp", "default", "1.2.0", "invoice") } returns templateDto()
 
         assertEquals(emptyList(), validator().validate("acme", "acme-corp", "default", "invoice", validData))
     }
 
     @Test
     fun `paths are JSON Pointers, not the engine's JSONPath`() {
-        every { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "acme-corp", "default", "1.2.0", "invoice") } returns templateDto()
         val data = validData.toMutableMap().apply {
             put("customer", mapOf("name" to "", "email" to "jane@example.com"))
         }
@@ -91,7 +91,7 @@ class NetworkntTemplateDataValidatorTest {
 
     @Test
     fun `format is not asserted, which is why the server owns the verdict`() {
-        every { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "acme-corp", "default", "1.2.0", "invoice") } returns templateDto()
         val data = validData.toMutableMap().apply {
             put("customer", mapOf("name" to "Jane Smith", "email" to "not-an-email"))
         }
@@ -104,7 +104,7 @@ class NetworkntTemplateDataValidatorTest {
 
     @Test
     fun `a pointer into an array uses the index as a segment`() {
-        every { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "acme-corp", "default", "1.2.0", "invoice") } returns templateDto()
         val data = validData.toMutableMap().apply { put("lineItems", listOf(mapOf("quantity" to 0))) }
 
         val findings = validator().validate("acme", "acme-corp", "default", "invoice", data)
@@ -115,7 +115,7 @@ class NetworkntTemplateDataValidatorTest {
 
     @Test
     fun `a missing required field is reported at its parent with the required keyword`() {
-        every { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "acme-corp", "default", "1.2.0", "invoice") } returns templateDto()
 
         val findings = validator().validate("acme", "acme-corp", "default", "invoice", mapOf("invoiceNumber" to "INV-2026-001"))
 
@@ -125,14 +125,14 @@ class NetworkntTemplateDataValidatorTest {
 
     @Test
     fun `a template without a schema claims nothing about the data`() {
-        every { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") } returns templateDto(schema = null)
+        every { templatesApi.getTemplate("acme", "acme-corp", "default", "1.2.0", "invoice") } returns templateDto(schema = null)
 
         assertEquals(emptyList(), validator().validate("acme", "acme-corp", "default", "invoice", mapOf("anything" to 1)))
     }
 
     @Test
     fun `the schema is fetched once and reused`() {
-        every { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "acme-corp", "default", "1.2.0", "invoice") } returns templateDto()
         val validator = validator()
 
         validator.validate("acme", "acme-corp", "default", "invoice", validData)
@@ -140,6 +140,6 @@ class NetworkntTemplateDataValidatorTest {
 
         // Without the cache a "local" validator costs a round trip per call, which is worse than
         // asking the server to validate outright.
-        verify(exactly = 1) { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") }
+        verify(exactly = 1) { templatesApi.getTemplate("acme", "acme-corp", "default", "1.2.0", "invoice") }
     }
 }

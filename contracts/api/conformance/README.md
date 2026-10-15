@@ -73,13 +73,23 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | `upload-image` | `POST …/images` with the file from `config` (bytes, filename, content type) and a name, reporting the returned key and name |
 | `download-image` | `GET …/images/{imageSlug}/content`, reporting the SHA-256 and length of the bytes |
 | `delete-image` | `DELETE …/images/{imageSlug}` with `force` from `config` |
-| `list-catalog-dependencies` | `GET …/catalogs/{namespace}/{catalogKey}/dependencies` |
-| `update-catalog-dependencies` | `PUT …/catalogs/{namespace}/{catalogKey}/dependencies` with `config.dependencies`, reporting the `namespaces`, `catalogKeys`, `versions` and `resolvedVersions` it parsed, in order |
+| `list-catalog-dependencies` | `GET …/versions/{catalogVersion}/dependencies` |
+| `update-catalog-dependencies` | `PUT …/versions/{catalogVersion}/dependencies` with `config.dependencies`, reporting the `namespaces`, `catalogKeys`, `versions` and `resolvedVersions` it parsed, in order |
+| `create-catalog-version` | `POST …/catalogs/{namespace}/{catalogKey}/versions` with `config.version`, and `config.from` when present, reporting the `version`, `status`, `base`, `createdFrom` and `releasedAt` it parsed |
+| `list-catalog-versions` | `GET …/versions`, with `config.status` as the `status` filter when present, reporting the `versions`, `statuses`, `bases` and `openConflicts` it parsed, in order |
+| `get-catalog-version` | `GET …/versions/{catalogVersion}`, reporting the `version`, `status` and `releasedAt` it parsed, its `dependencies` as `namespace/catalogKey@releaseVersion`, and `deployedTo` |
+| `renumber-catalog-version` | `PATCH …/versions/{catalogVersion}` with `config.version`, and `config.acknowledgeWarnings` when present, reporting the `version` and `status` it parsed |
+| `preview-catalog-version-renumber` | `GET …/versions/{catalogVersion}/renumber-preview?to=…` with `config.to`, reporting the `newBase` and the `warningKinds` it parsed, in order |
+| `delete-catalog-version` | `DELETE …/versions/{catalogVersion}` |
+| `release-catalog-version` | `POST …/versions/{catalogVersion}/release` with `config.notes` when present, reporting the released `version` and `status`, `flowedInto` as `version:merged:conflicts` per draft, and `openedDraft` |
+| `list-incoming-changes` | `GET …/versions/{catalogVersion}/incoming`, with `config.state` as the `state` filter when present, reporting the `ids`, `nodes`, `states` and `resolutions` it parsed, in order |
+| `resolve-incoming-change` | `POST …/versions/{catalogVersion}/incoming/{changeId}/resolve` with `config.resolution`, reporting the `id`, `state` and `resolution` it parsed |
 | `deploy-release` | `PUT …/environments/{environmentId}/deployments/{namespace}/{catalogKey}/{releaseVersion}`, reporting the `namespace`, `catalogKey` and `releaseVersion` it parsed |
 | `undeploy-release` | `DELETE …/environments/{environmentId}/deployments/{namespace}/{catalogKey}/{releaseVersion}` |
 
-Catalog-scoped actions take the catalog as `config.namespace` and `config.catalogKey`, and pass the
-namespace to the client exactly as given: in its path-segment form (`acme-corp`, `acme.com`,
+Catalog-scoped actions take the catalog as `config.namespace` and `config.catalogKey`, and actions
+on a catalog version (templates, images, dependencies, and the version operations) take the version
+as `config.catalogVersion`. They pass the namespace to the client exactly as given: in its path-segment form (`acme-corp`, `acme.com`,
 `exchange.example.org~team-a`) where it goes into a path, in its body form where it goes into a
 body.
 

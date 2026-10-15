@@ -11,6 +11,7 @@ themes:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
 
   get:
     operationId: listThemes
@@ -89,6 +90,7 @@ themes-id:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: themeId
       in: path
       required: true
@@ -167,3 +169,5 @@ themes-id:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'

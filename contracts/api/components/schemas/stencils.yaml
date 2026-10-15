@@ -3,7 +3,7 @@ StencilDto:
   description: |
     Full stencil with all details.
     A stencil is a reusable template component that can be inserted into any template. Its content
-    is edited in the working copy and marked ready; templates render its ready content.
+    is edited in a draft of its catalog and marked ready; templates render its ready content.
   required:
     - slug
     - tenantId
@@ -321,7 +321,7 @@ StencilUsageListResponse:
 UpdateStencilContentRequest:
   type: object
   description: |
-    The stencil's new content, replacing its working copy. An edit clears the ready mark.
+    The stencil's new content, replacing its content in the draft. An edit clears the ready mark.
   properties:
     content:
       $ref: '../../../catalog/schemas/template-document.schema.json'
@@ -349,8 +349,8 @@ UpdateStencilContentRequest:
 StencilContentDto:
   type: object
   description: |
-    A stencil's working copy: the TemplateDocument fragment that is inserted into templates, its
-    parameters, and how it stands against the catalog's latest release.
+    A stencil's content in one catalog version: the TemplateDocument fragment that is inserted into
+    templates, its parameters, and how it stands against that version's base.
   required:
     - stencilId
     - content
@@ -376,7 +376,7 @@ StencilContentDto:
     lastModified:
       type: string
       format: date-time
-      description: When the working copy was last edited
+      description: When the content was last edited
       example: "2026-03-15T14:30:00Z"
     readyAt:
       type: [string, "null"]

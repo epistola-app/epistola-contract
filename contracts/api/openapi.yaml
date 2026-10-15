@@ -8,10 +8,25 @@ info:
     This API uses header-based versioning via the Accept header.
     Use `application/vnd.epistola.v1+json` for API version 1.
 
-    ## Catalogs and releases
-    A catalog is versioned as a whole, never resource by resource. Its resources are edited in a
-    working copy, marked ready, and released together as one immutable SemVer release. Documents
-    are always rendered from a release.
+    ## Catalog versions
+    A catalog is versioned as a whole, never resource by resource. It consists of **versions**,
+    each identified by its SemVer number and addressed as
+    `/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}`, with the catalog's resources
+    below it.
+
+    A version is opened as a **draft**, edited, its changed resources marked ready, and
+    **released**, after which it is immutable: every write to it is refused with 409. Releasing
+    changes a version's status, not its number or address. Several drafts can be open at once, and
+    a draft can be renumbered or discarded while it is one.
+
+    - A draft contains every released version below its number. Its **base** is the highest
+      released version below it, which its changes are measured against.
+    - Releasing a draft **flows its changes forward** into every open draft with a higher number,
+      merged per node. Where a draft changed the same node differently, it gets an incoming
+      conflict, which blocks releasing it until resolved.
+
+    Documents are always rendered from a released version; version selectors never match a draft.
+    Only preview renders a draft, named by its exact number.
 
     ## Catalog namespaces
     A catalog is identified by its **namespace** and its **key** together, never by the key alone:
@@ -334,9 +349,9 @@ paths:
     $ref: './paths/consumers.yaml#/consumer-public-key'
 
   # Themes
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/themes:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/themes:
     $ref: './paths/themes.yaml#/themes'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/themes/{themeId}:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/themes/{themeId}:
     $ref: './paths/themes.yaml#/themes-id'
 
   # Environments
@@ -352,85 +367,91 @@ paths:
     $ref: './paths/environments.yaml#/environment-deployment-history'
 
   # Attributes
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/attributes:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/attributes:
     $ref: './paths/attributes.yaml#/attributes'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/attributes/{attributeKey}:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/attributes/{attributeKey}:
     $ref: './paths/attributes.yaml#/attributes-key'
 
   # Code lists
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/code-lists:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/code-lists:
     $ref: './paths/code-lists.yaml#/code-lists'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/code-lists/{codeListSlug}:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/code-lists/{codeListSlug}:
     $ref: './paths/code-lists.yaml#/code-lists-slug'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/code-lists/{codeListSlug}/refresh:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/code-lists/{codeListSlug}/refresh:
     $ref: './paths/code-lists.yaml#/code-list-refresh'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/code-lists/{codeListSlug}/entries:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/code-lists/{codeListSlug}/entries:
     $ref: './paths/code-lists.yaml#/code-list-entries'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/code-lists/{codeListSlug}/entries/{code}/hidden:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/code-lists/{codeListSlug}/entries/{code}/hidden:
     $ref: './paths/code-lists.yaml#/code-list-entry-hidden'
 
   # Fonts (read-only)
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/fonts:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/fonts:
     $ref: './paths/fonts.yaml#/fonts'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/fonts/{fontSlug}:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/fonts/{fontSlug}:
     $ref: './paths/fonts.yaml#/fonts-slug'
 
   # Images
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/images:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/images:
     $ref: './paths/images.yaml#/images'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/images/{imageSlug}:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/images/{imageSlug}:
     $ref: './paths/images.yaml#/image-resource'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/images/{imageSlug}/content:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/images/{imageSlug}/content:
     $ref: './paths/images.yaml#/image-content'
 
   # Templates
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/templates:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/templates:
     $ref: './paths/templates.yaml#/templates'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/templates/{templateId}:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateId}:
     $ref: './paths/templates.yaml#/templates-id'
   /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/templates/{templateId}/validate:
     $ref: './paths/templates.yaml#/template-validate'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/templates/{templateId}/mark-ready:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateId}/mark-ready:
     $ref: './paths/templates.yaml#/template-mark-ready'
 
   # Variants
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/templates/{templateId}/variants:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateId}/variants:
     $ref: './paths/variants.yaml#/variants'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/templates/{templateId}/variants/{variantId}:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateId}/variants/{variantId}:
     $ref: './paths/variants.yaml#/variants-id'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/templates/{templateId}/variants/{variantId}/set-default:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateId}/variants/{variantId}/set-default:
     $ref: './paths/variants.yaml#/variant-set-default'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/templates/{templateId}/variants/{variantId}/content:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateId}/variants/{variantId}/content:
     $ref: './paths/variants.yaml#/variant-content'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/templates/{templateId}/variants/{variantId}/mark-ready:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateId}/variants/{variantId}/mark-ready:
     $ref: './paths/variants.yaml#/variant-mark-ready'
 
   # Stencils
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/stencils:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils:
     $ref: './paths/stencils.yaml#/stencils'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/stencils/{stencilId}:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilId}:
     $ref: './paths/stencils.yaml#/stencils-id'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/stencils/{stencilId}/content:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilId}/content:
     $ref: './paths/stencils.yaml#/stencil-content'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/stencils/{stencilId}/mark-ready:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilId}/mark-ready:
     $ref: './paths/stencils.yaml#/stencil-mark-ready'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/stencils/{stencilId}/usage:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilId}/usage:
     $ref: './paths/stencils.yaml#/stencil-usage'
 
   # Catalogs
   /tenants/{tenantId}/catalogs:
     $ref: './paths/catalogs.yaml#/catalogs'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/release:
-    $ref: './paths/catalogs.yaml#/catalog-release'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/releases:
-    $ref: './paths/catalogs.yaml#/catalog-releases'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/releases/{releaseVersion}:
-    $ref: './paths/catalogs.yaml#/catalog-releases-id'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/dependencies:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions:
+    $ref: './paths/catalogs.yaml#/catalog-versions'
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}:
+    $ref: './paths/catalogs.yaml#/catalog-version'
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/renumber-preview:
+    $ref: './paths/catalogs.yaml#/catalog-version-renumber-preview'
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/release:
+    $ref: './paths/catalogs.yaml#/catalog-version-release'
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/incoming:
+    $ref: './paths/catalogs.yaml#/catalog-version-incoming'
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/incoming/{changeId}/resolve:
+    $ref: './paths/catalogs.yaml#/catalog-version-incoming-resolve'
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/dependencies:
     $ref: './paths/catalogs.yaml#/catalog-dependencies'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/changes:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/changes:
     $ref: './paths/catalogs.yaml#/catalog-changes'
-  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/mark-ready:
+  /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/mark-ready:
     $ref: './paths/catalogs.yaml#/catalog-mark-ready'
   /tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/upgrade-preview:
     $ref: './paths/catalogs.yaml#/catalog-upgrade-preview'
@@ -566,12 +587,8 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CatalogListResponse'
     CatalogUpgradeDiff:
       $ref: './components/schemas/catalogs.yaml#/CatalogUpgradeDiff'
-    CatalogReleaseDto:
-      $ref: './components/schemas/catalogs.yaml#/CatalogReleaseDto'
     ReleaseDependencyDto:
       $ref: './components/schemas/catalogs.yaml#/ReleaseDependencyDto'
-    CatalogReleaseListResponse:
-      $ref: './components/schemas/catalogs.yaml#/CatalogReleaseListResponse'
     CatalogDependencyRequirement:
       $ref: './components/schemas/catalogs.yaml#/CatalogDependencyRequirement'
     CatalogDependencyDto:
@@ -584,6 +601,36 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CatalogChangesDto'
     ResourceChangeDto:
       $ref: './components/schemas/catalogs.yaml#/ResourceChangeDto'
+    CatalogVersionStatus:
+      $ref: './components/schemas/catalogs.yaml#/CatalogVersionStatus'
+    CatalogVersionDto:
+      $ref: './components/schemas/catalogs.yaml#/CatalogVersionDto'
+    CatalogVersionListResponse:
+      $ref: './components/schemas/catalogs.yaml#/CatalogVersionListResponse'
+    CreateCatalogVersionRequest:
+      $ref: './components/schemas/catalogs.yaml#/CreateCatalogVersionRequest'
+    RenumberCatalogVersionRequest:
+      $ref: './components/schemas/catalogs.yaml#/RenumberCatalogVersionRequest'
+    CatalogVersionRenumberPreview:
+      $ref: './components/schemas/catalogs.yaml#/CatalogVersionRenumberPreview'
+    RenumberWarningDto:
+      $ref: './components/schemas/catalogs.yaml#/RenumberWarningDto'
+    ReleaseCatalogVersionRequest:
+      $ref: './components/schemas/catalogs.yaml#/ReleaseCatalogVersionRequest'
+    ReleaseCatalogVersionResponse:
+      $ref: './components/schemas/catalogs.yaml#/ReleaseCatalogVersionResponse'
+    ForwardFlowDto:
+      $ref: './components/schemas/catalogs.yaml#/ForwardFlowDto'
+    IncomingChangeState:
+      $ref: './components/schemas/catalogs.yaml#/IncomingChangeState'
+    IncomingChangeDto:
+      $ref: './components/schemas/catalogs.yaml#/IncomingChangeDto'
+    IncomingChangeListResponse:
+      $ref: './components/schemas/catalogs.yaml#/IncomingChangeListResponse'
+    IncomingChangeResolution:
+      $ref: './components/schemas/catalogs.yaml#/IncomingChangeResolution'
+    ResolveIncomingChangeRequest:
+      $ref: './components/schemas/catalogs.yaml#/ResolveIncomingChangeRequest'
 
     # Code list schemas
     CodeListDto:

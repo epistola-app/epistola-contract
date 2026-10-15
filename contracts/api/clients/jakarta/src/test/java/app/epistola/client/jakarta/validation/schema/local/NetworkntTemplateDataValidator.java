@@ -66,15 +66,22 @@ public final class NetworkntTemplateDataValidator implements TemplateDataValidat
     private static final SpecVersion.VersionFlag DEFAULT_VERSION = SpecVersion.VersionFlag.V202012;
 
     private final TemplatesApi templatesApi;
+    private final String catalogVersion;
     private final Duration ttl;
     private final Map<String, Entry> cache = new ConcurrentHashMap<>();
 
-    public NetworkntTemplateDataValidator(TemplatesApi templatesApi) {
-        this(templatesApi, Duration.ofMinutes(5));
+    /**
+     * @param catalogVersion the catalog version whose template schemas the data is validated
+     *     against. A template lives in a catalog version, so a local validator has to choose one;
+     *     the server instead validates against the release it would render.
+     */
+    public NetworkntTemplateDataValidator(TemplatesApi templatesApi, String catalogVersion) {
+        this(templatesApi, catalogVersion, Duration.ofMinutes(5));
     }
 
-    public NetworkntTemplateDataValidator(TemplatesApi templatesApi, Duration ttl) {
+    public NetworkntTemplateDataValidator(TemplatesApi templatesApi, String catalogVersion, Duration ttl) {
         this.templatesApi = templatesApi;
+        this.catalogVersion = Objects.requireNonNull(catalogVersion, "catalogVersion");
         this.ttl = ttl;
     }
 
@@ -109,7 +116,7 @@ public final class NetworkntTemplateDataValidator implements TemplateDataValidat
     }
 
     private JsonSchema loadSchema(String tenantId, String namespace, String catalogKey, String templateId) {
-        TemplateDto template = templatesApi.getTemplate(tenantId, namespace, catalogKey, templateId);
+        TemplateDto template = templatesApi.getTemplate(tenantId, namespace, catalogKey, catalogVersion, templateId);
         if (template.getSchema() == null) {
             return null;
         }

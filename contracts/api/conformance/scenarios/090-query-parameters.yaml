@@ -27,6 +27,7 @@ action:
     tenantId: acme-corp
     namespace: acme-corp
     catalogKey: main
+    catalogVersion: 2.0.0
 
 script:
   - status: 200
@@ -39,7 +40,7 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/acme-corp/main/templates
+      path: /api/tenants/acme-corp/catalogs/acme-corp/main/versions/2.0.0/templates
       queryParams:
         # enum: [asc, desc] in the spec. Not ASC, not DESC.
         direction:

@@ -26,6 +26,7 @@ from epistola_client import (
     CatalogsApi,
     ClientIdentity,
     ConsumersApi,
+    CreateCatalogVersionRequest,
     EnvironmentsApi,
     EpistolaClientBuilder,
     GenerateDocumentRequest,
@@ -34,6 +35,9 @@ from epistola_client import (
     JwtSigner,
     PingRequest,
     ProblemDetailException,
+    ReleaseCatalogVersionRequest,
+    RenumberCatalogVersionRequest,
+    ResolveIncomingChangeRequest,
     ResultCollector,
     SystemApi,
     TemplateDataValidationError,
@@ -69,6 +73,15 @@ def main() -> int:
         "delete-image": _delete_image,
         "list-catalog-dependencies": _list_catalog_dependencies,
         "update-catalog-dependencies": _update_catalog_dependencies,
+        "create-catalog-version": _create_catalog_version,
+        "list-catalog-versions": _list_catalog_versions,
+        "get-catalog-version": _get_catalog_version,
+        "renumber-catalog-version": _renumber_catalog_version,
+        "preview-catalog-version-renumber": _preview_catalog_version_renumber,
+        "delete-catalog-version": _delete_catalog_version,
+        "release-catalog-version": _release_catalog_version,
+        "list-incoming-changes": _list_incoming_changes,
+        "resolve-incoming-change": _resolve_incoming_change,
         "deploy-release": _deploy_release,
         "undeploy-release": _undeploy_release,
     }
@@ -106,7 +119,9 @@ def _list_templates(base_url: str, config: dict) -> None:
     """Reports what the client made of the last listing, `id` included while it is still served."""
     api = TemplatesApi(_client(base_url, config))
     for _ in range(config.get("repeat", 1)):
-        response = api.list_templates(config["tenantId"], config["namespace"], config["catalogKey"])
+        response = api.list_templates(
+            config["tenantId"], config["namespace"], config["catalogKey"], config["catalogVersion"]
+        )
     _report(
         base_url,
         {
@@ -118,7 +133,7 @@ def _list_templates(base_url: str, config: dict) -> None:
 def _problem(base_url: str, config: dict) -> None:
     try:
         TemplatesApi(_client(base_url, config)).list_templates(
-            config["tenantId"], config["namespace"], config["catalogKey"]
+            config["tenantId"], config["namespace"], config["catalogKey"], config["catalogVersion"]
         )
         _report(base_url, {"problemTypeSlug": "<no exception was thrown>"})
     except ProblemDetailException as exc:
@@ -131,8 +146,12 @@ def _problem(base_url: str, config: dict) -> None:
                 # The generated pydantic model exposes the JSON "field" member as var_field; the
                 # wire name is the same, so this is a naming difference, not a divergence.
                 "problemFieldErrors": ",".join(f"{e.var_field}:{e.message}" for e in exc.errors),
-                "problemMissingFields": ",".join(f"{f.path}:{str(f.required).lower()}" for f in exc.missing_fields),
-                "problemInvalidFields": ",".join(f"{f.path}:{f.keyword}" for f in exc.invalid_fields),
+                "problemMissingFields": ",".join(
+                    f"{f.path}:{str(f.required).lower()}" for f in exc.missing_fields
+                ),
+                "problemInvalidFields": ",".join(
+                    f"{f.path}:{f.keyword}" for f in exc.invalid_fields
+                ),
             },
         )
 
@@ -259,7 +278,11 @@ def _list_images(base_url: str, config: dict) -> None:
     images = (
         ImagesApi(_client(base_url, config))
         .list_images(
-            config["tenantId"], config["namespace"], config["catalogKey"], search=config["search"]
+            config["tenantId"],
+            config["namespace"],
+            config["catalogKey"],
+            config["catalogVersion"],
+            search=config["search"],
         )
         .items
     )
@@ -282,6 +305,7 @@ def _upload_image(base_url: str, config: dict) -> None:
         config["tenantId"],
         config["namespace"],
         config["catalogKey"],
+        config["catalogVersion"],
         (config["filename"], base64.b64decode(config["fileBase64"])),
         name=config["name"],
     )
@@ -290,7 +314,11 @@ def _upload_image(base_url: str, config: dict) -> None:
 
 def _download_image(base_url: str, config: dict) -> None:
     content = ImagesApi(_client(base_url, config)).download_image_content(
-        config["tenantId"], config["namespace"], config["catalogKey"], config["imageSlug"]
+        config["tenantId"],
+        config["namespace"],
+        config["catalogKey"],
+        config["catalogVersion"],
+        config["imageSlug"],
     )
     _report_bytes(base_url, bytes(content))
 
@@ -300,6 +328,7 @@ def _delete_image(base_url: str, config: dict) -> None:
         config["tenantId"],
         config["namespace"],
         config["catalogKey"],
+        config["catalogVersion"],
         config["imageSlug"],
         force=config["force"],
     )
@@ -307,7 +336,7 @@ def _delete_image(base_url: str, config: dict) -> None:
 
 def _list_catalog_dependencies(base_url: str, config: dict) -> None:
     response = CatalogsApi(_client(base_url, config)).list_catalog_dependencies(
-        config["tenantId"], config["namespace"], config["catalogKey"]
+        config["tenantId"], config["namespace"], config["catalogKey"], config["catalogVersion"]
     )
     _report_dependencies(base_url, response.items)
 
@@ -317,6 +346,7 @@ def _update_catalog_dependencies(base_url: str, config: dict) -> None:
         config["tenantId"],
         config["namespace"],
         config["catalogKey"],
+        config["catalogVersion"],
         UpdateCatalogDependenciesRequest(
             dependencies=[
                 CatalogDependencyRequirement(
@@ -339,6 +369,155 @@ def _report_dependencies(base_url: str, dependencies) -> None:
             "catalogKeys": ",".join(_show(d.catalog_key) for d in dependencies),
             "versions": ",".join(_show(d.version) for d in dependencies),
             "resolvedVersions": ",".join(_show(d.resolved_version) for d in dependencies),
+        },
+    )
+
+
+def _catalog_version_address(config: dict) -> tuple:
+    return (config["tenantId"], config["namespace"], config["catalogKey"], config["catalogVersion"])
+
+
+def _create_catalog_version(base_url: str, config: dict) -> None:
+    """Opens a draft. ``from`` is a Python keyword, so the generated model names the member
+    ``var_from``; it is passed by its alias, and only when the scenario sets it."""
+    optional = {"from": config["from"]} if "from" in config else {}
+    created = CatalogsApi(_client(base_url, config)).create_catalog_version(
+        config["tenantId"],
+        config["namespace"],
+        config["catalogKey"],
+        CreateCatalogVersionRequest(version=config["version"], **optional),
+    )
+    _report(
+        base_url,
+        {
+            "version": _show(created.version),
+            "status": _show(_enum(created.status)),
+            "base": _show(created.base),
+            "createdFrom": _show(created.created_from),
+            "releasedAt": _show_instant(created.released_at),
+        },
+    )
+
+
+def _list_catalog_versions(base_url: str, config: dict) -> None:
+    optional = {"status": config["status"]} if "status" in config else {}
+    versions = (
+        CatalogsApi(_client(base_url, config))
+        .list_catalog_versions(
+            config["tenantId"], config["namespace"], config["catalogKey"], **optional
+        )
+        .items
+    )
+    _report(
+        base_url,
+        {
+            "versions": ",".join(_show(v.version) for v in versions),
+            "statuses": ",".join(_show(_enum(v.status)) for v in versions),
+            "bases": ",".join(_show(v.base) for v in versions),
+            "openConflicts": ",".join(_show(v.open_conflicts) for v in versions),
+        },
+    )
+
+
+def _get_catalog_version(base_url: str, config: dict) -> None:
+    version = CatalogsApi(_client(base_url, config)).get_catalog_version(
+        *_catalog_version_address(config)
+    )
+    _report(
+        base_url,
+        {
+            "version": _show(version.version),
+            "status": _show(_enum(version.status)),
+            "releasedAt": _show_instant(version.released_at),
+            "dependencies": ",".join(
+                f"{_show(d.namespace)}/{_show(d.catalog_key)}@{_show(d.release_version)}"
+                for d in version.dependencies
+            ),
+            "deployedTo": ",".join(version.deployed_to),
+        },
+    )
+
+
+def _renumber_catalog_version(base_url: str, config: dict) -> None:
+    optional = (
+        {"acknowledgeWarnings": config["acknowledgeWarnings"]}
+        if "acknowledgeWarnings" in config
+        else {}
+    )
+    version = CatalogsApi(_client(base_url, config)).renumber_catalog_version(
+        *_catalog_version_address(config),
+        RenumberCatalogVersionRequest(version=config["version"], **optional),
+    )
+    _report(base_url, {"version": _show(version.version), "status": _show(_enum(version.status))})
+
+
+def _preview_catalog_version_renumber(base_url: str, config: dict) -> None:
+    """Warning kinds are an open set: a kind this client has never heard of is reported as is."""
+    preview = CatalogsApi(_client(base_url, config)).preview_catalog_version_renumber(
+        config["to"], *_catalog_version_address(config)
+    )
+    _report(
+        base_url,
+        {
+            "newBase": _show(preview.new_base),
+            "warningKinds": ",".join(w.kind for w in preview.warnings),
+        },
+    )
+
+
+def _delete_catalog_version(base_url: str, config: dict) -> None:
+    CatalogsApi(_client(base_url, config)).delete_catalog_version(*_catalog_version_address(config))
+
+
+def _release_catalog_version(base_url: str, config: dict) -> None:
+    optional = {"notes": config["notes"]} if "notes" in config else {}
+    released = CatalogsApi(_client(base_url, config)).release_catalog_version(
+        *_catalog_version_address(config),
+        ReleaseCatalogVersionRequest(**optional),
+    )
+    _report(
+        base_url,
+        {
+            "version": _show(released.version.version),
+            "status": _show(_enum(released.version.status)),
+            "flowedInto": ",".join(
+                f"{f.version}:{f.merged}:{f.conflicts}" for f in released.flowed_into
+            ),
+            "openedDraft": _show(released.opened_draft),
+        },
+    )
+
+
+def _list_incoming_changes(base_url: str, config: dict) -> None:
+    optional = {"state": config["state"]} if "state" in config else {}
+    changes = (
+        CatalogsApi(_client(base_url, config))
+        .list_incoming_changes(*_catalog_version_address(config), **optional)
+        .items
+    )
+    _report(
+        base_url,
+        {
+            "ids": ",".join(c.id for c in changes),
+            "nodes": ",".join(_show(c.node) for c in changes),
+            "states": ",".join(_show(_enum(c.state)) for c in changes),
+            "resolutions": ",".join(_show(_enum(c.resolution)) for c in changes),
+        },
+    )
+
+
+def _resolve_incoming_change(base_url: str, config: dict) -> None:
+    change = CatalogsApi(_client(base_url, config)).resolve_incoming_change(
+        *_catalog_version_address(config),
+        config["changeId"],
+        ResolveIncomingChangeRequest(resolution=config["resolution"]),
+    )
+    _report(
+        base_url,
+        {
+            "id": change.id,
+            "state": _show(_enum(change.state)),
+            "resolution": _show(_enum(change.resolution)),
         },
     )
 
@@ -418,7 +597,9 @@ def _routing(base_url: str, config: dict) -> None:
             "routedPartitions": ",".join(
                 _show(collector.partition_for(collector.routing_key_to_me(k))) for k in keys
             ),
-            "mineFlags": ",".join("true" if collector.is_my_partition(k) else "false" for k in keys),
+            "mineFlags": ",".join(
+                "true" if collector.is_my_partition(k) else "false" for k in keys
+            ),
         },
     )
 
@@ -427,6 +608,19 @@ def _show(value) -> str:
     """Renders a missing value the way the other drivers' languages print theirs, so the harness
     compares one spelling rather than four."""
     return "null" if value is None else str(value)
+
+
+def _enum(value):
+    """A generated enum's wire value; ``str()`` of one is its class-qualified name."""
+    return getattr(value, "value", value)
+
+
+def _show_instant(value) -> str:
+    """An instant as RFC 3339 with ``Z`` for UTC, the spelling the other drivers print."""
+    if value is None:
+        return "null"
+    text = value.isoformat()
+    return text[: -len("+00:00")] + "Z" if text.endswith("+00:00") else text
 
 
 # --- Client assembly ---

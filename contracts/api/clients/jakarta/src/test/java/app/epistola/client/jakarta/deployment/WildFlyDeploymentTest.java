@@ -135,7 +135,7 @@ class WildFlyDeploymentTest {
                 assertEquals("logo", uploaded.body().trim(), "the deployed client should parse the ImageDto back");
 
                 StubServer.RecordedRequest upload = epistola.requests().get(1);
-                assertEquals("/api/tenants/acme-corp/catalogs/acme-corp/main/images", upload.path());
+                assertEquals("/api/tenants/acme-corp/catalogs/acme-corp/main/versions/1.0.0/images", upload.path());
                 assertTrue(
                         upload.header("Content-Type").startsWith("multipart/form-data"),
                         "an upload must be multipart, was: " + upload.header("Content-Type"));

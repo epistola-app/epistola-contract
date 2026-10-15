@@ -204,22 +204,24 @@ Some Epistola Suite deployments disable API-key authentication entirely; that ar
 
 ## Uploading files
 
-`uploadImage`, `uploadAsset` and `importCatalog` send `multipart/form-data`. Pass a `File` and the
-part gets its filename, and the media type that filename implies:
+`uploadImage` and `importCatalog` send `multipart/form-data`. Pass a `File` and the part gets its
+filename, and the media type that filename implies. An image belongs to a catalog version, so the
+upload names the tenant, the catalog's namespace and key, and the draft version it goes into:
 
 ```java
 @Inject
 @RestClient
 ImagesApi imagesApi;
 
-ImageDto image = imagesApi.uploadImage("acme-corp", "main", new File("logo.png"), "Logo", null, null);
+ImageDto image = imagesApi.uploadImage(
+        "acme-corp", "acme-corp", "main", "1.4.0", new File("logo.png"), "Logo", null, null);
 ```
 
 For content that is not a file on disk, or a media type the filename does not imply, build the parts
 and call the overload that takes them:
 
 ```java
-ImageDto image = imagesApi.uploadImage("acme-corp", "main", MultipartForm.create()
+ImageDto image = imagesApi.uploadImage("acme-corp", "acme-corp", "main", "1.4.0", MultipartForm.create()
         .file("file", "logo.png", "image/png", bytes)
         .field("name", "Logo")
         .build());

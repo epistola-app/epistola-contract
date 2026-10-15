@@ -74,14 +74,15 @@ PreviewDocumentRequest:
         the template's catalog that the environment serves: the highest one, or the highest that
         satisfies `version`. The request is refused when the environment serves no such release.
       example: null
-    workingCopy:
-      type: boolean
-      default: false
+    draftVersion:
+      type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      maxLength: 50
       description: |
-        Render the template's working copy, including changes not yet released (mutually exclusive
-        with version and environmentId). Preview only: generated documents always render a
-        release.
-      example: false
+        Render a draft of the template's catalog, named by its exact version, including changes not
+        yet released (mutually exclusive with version and environmentId). Preview only: generated
+        documents always render a release, and a version selector never matches a draft.
+      example: null
     data:
       type: object
       description: JSON data to populate the template

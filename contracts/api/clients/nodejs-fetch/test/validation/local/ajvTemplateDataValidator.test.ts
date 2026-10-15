@@ -47,21 +47,23 @@ const VALID_DATA = {
 
 class StubTemplatesApi implements TemplateSchemaSource {
   fetches = 0
+  requested: Parameters<TemplateSchemaSource['getTemplate']>[0][] = []
   constructor(private readonly schema: object | undefined) {}
-  async getTemplate(): Promise<{ schema?: object }> {
+  async getTemplate(requestParameters: Parameters<TemplateSchemaSource['getTemplate']>[0]): Promise<{ schema?: object }> {
     this.fetches += 1
+    this.requested.push(requestParameters)
     return this.schema === undefined ? {} : { schema: this.schema }
   }
 }
 
 test('valid data yields no findings', async () => {
-  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA))
+  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA), '1.4.0')
 
   assert.deepEqual(await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', VALID_DATA), [])
 })
 
 test('paths are JSON Pointers', async () => {
-  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA))
+  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA), '1.4.0')
   const data = { ...VALID_DATA, customer: { name: '', email: 'jane@example.com' } }
 
   const findings = await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', data)
@@ -73,7 +75,7 @@ test('paths are JSON Pointers', async () => {
 })
 
 test('a pointer into an array uses the index as a segment', async () => {
-  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA))
+  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA), '1.4.0')
   const data = { ...VALID_DATA, lineItems: [{ quantity: 0 }] }
 
   const findings = await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', data)
@@ -83,7 +85,7 @@ test('a pointer into an array uses the index as a segment', async () => {
 })
 
 test('a missing required field is reported at its own pointer, as the server reports it', async () => {
-  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA))
+  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA), '1.4.0')
 
   const findings = await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', { invoiceNumber: 'INV-2026-001' })
 
@@ -97,7 +99,7 @@ test('a missing required field is reported at its own pointer, as the server rep
 })
 
 test('format is asserted here, which is exactly why a local verdict is its own', async () => {
-  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA))
+  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA), '1.4.0')
   const data = { ...VALID_DATA, customer: { name: 'Jane Smith', email: 'not-an-email' } }
 
   const findings = await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', data)
@@ -112,14 +114,14 @@ test('format is asserted here, which is exactly why a local verdict is its own',
 })
 
 test('a template without a schema claims nothing about the data', async () => {
-  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(undefined))
+  const validator = new AjvTemplateDataValidator(new StubTemplatesApi(undefined), '1.4.0')
 
   assert.deepEqual(await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', { anything: 1 }), [])
 })
 
 test('the schema is fetched once and reused', async () => {
   const templates = new StubTemplatesApi(INVOICE_SCHEMA)
-  const validator = new AjvTemplateDataValidator(templates)
+  const validator = new AjvTemplateDataValidator(templates, '1.4.0')
 
   await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', VALID_DATA)
   await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', VALID_DATA)
@@ -129,6 +131,14 @@ test('the schema is fetched once and reused', async () => {
   assert.equal(templates.fetches, 1)
 })
 
+test('the schema is read from the catalog version the adapter was given', async () => {
+  const templates = new StubTemplatesApi(INVOICE_SCHEMA)
+
+  await new AjvTemplateDataValidator(templates, '1.4.0').validate('acme-corp', 'acme-corp', 'default', 'invoice', VALID_DATA)
+
+  assert.deepEqual(templates.requested, [{ tenantId: 'acme-corp', namespace: 'acme-corp', catalogKey: 'default', catalogVersion: '1.4.0', templateId: 'invoice' }])
+})
+
 test('it takes the generation pre-flight, unlike the server-backed default', async () => {
-  assert.equal(new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA)).preflightsGeneration, true)
+  assert.equal(new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA), '1.4.0').preflightsGeneration, true)
 })

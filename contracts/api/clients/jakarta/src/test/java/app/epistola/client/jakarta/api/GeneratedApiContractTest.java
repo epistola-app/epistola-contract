@@ -12,14 +12,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import app.epistola.client.jakarta.EpistolaRestClients;
 import app.epistola.client.jakarta.StubServer;
 import app.epistola.client.jakarta.model.CatalogDependencyListResponse;
+import app.epistola.client.jakarta.model.CatalogVersionDto;
+import app.epistola.client.jakarta.model.CatalogVersionListResponse;
+import app.epistola.client.jakarta.model.CatalogVersionRenumberPreview;
 import app.epistola.client.jakarta.model.CreateTenantRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
+import app.epistola.client.jakarta.model.IncomingChangeDto;
+import app.epistola.client.jakarta.model.IncomingChangeListResponse;
+import app.epistola.client.jakarta.model.ReleaseCatalogVersionResponse;
 import app.epistola.client.jakarta.model.TenantDto;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.PATCH;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -184,18 +192,100 @@ class GeneratedApiContractTest {
         assertTrue(catalogScoped > 0, "expected catalog-scoped operations");
     }
 
+    /**
+     * A catalog's content lives in its versions (contract 3.0): every operation on a catalog's
+     * templates, variants, stencils, themes, attributes, code lists, fonts, images, dependencies,
+     * changes and readiness takes the version it works on. Only data validation stays at the catalog,
+     * because it validates against what is released.
+     */
+    @Test
+    void catalog_content_is_addressed_through_a_catalog_version() {
+        List<String> catalogLevel = List.of("/versions", "/versions/{catalogVersion}", "/upgrade", "/upgrade-preview");
+        int versionScoped = 0;
+
+        for (Class<?> api : GENERATED_APIS) {
+            String base = api.getAnnotation(Path.class) == null ? "" : api.getAnnotation(Path.class).value();
+            for (Method method : api.getMethods()) {
+                Path path = method.getAnnotation(Path.class);
+                String fullPath = base + (path == null ? "" : path.value());
+                String catalog = "/catalogs/{namespace}/{catalogKey}";
+                int at = fullPath.indexOf(catalog);
+                if (at < 0) {
+                    continue; // not under a catalog, such as a deployment naming a release
+                }
+                String rest = fullPath.substring(at + catalog.length());
+                String where = api.getSimpleName() + "." + method.getName() + " (" + fullPath + ")";
+                if (rest.isEmpty() || catalogLevel.contains(rest) || method.getName().equals("validateTemplateData")) {
+                    continue;
+                }
+                versionScoped++;
+                assertTrue(rest.startsWith("/versions/{catalogVersion}/"), where + " is catalog content outside a version");
+                assertTrue(pathParams(method).contains("catalogVersion"), where + " does not take catalogVersion");
+            }
+        }
+
+        assertTrue(versionScoped > 20, "expected the catalog's content operations to be version-scoped");
+        assertEquals(
+                List.of("tenantId", "namespace", "catalogKey", "templateId"),
+                pathParams(method(TemplatesApi.class, "validateTemplateData")),
+                "validateTemplateData stays at the catalog and takes no version");
+    }
+
+    /** The catalog-level release operations were replaced by releasing a draft version. */
+    @Test
+    void catalog_versions_replace_the_catalog_level_releases() {
+        for (String removed : List.of("releaseCatalog", "listCatalogReleases", "getCatalogRelease")) {
+            assertTrue(
+                    Arrays.stream(CatalogsApi.class.getMethods()).noneMatch(method -> method.getName().equals(removed)),
+                    "CatalogsApi still has the removed " + removed);
+        }
+
+        List<String> catalog = List.of("tenantId", "namespace", "catalogKey");
+        List<String> version = List.of("tenantId", "namespace", "catalogKey", "catalogVersion");
+
+        assertOperation("listCatalogVersions", GET.class, CatalogVersionListResponse.class, catalog);
+        assertOperation("createCatalogVersion", POST.class, CatalogVersionDto.class, catalog);
+        assertOperation("getCatalogVersion", GET.class, CatalogVersionDto.class, version);
+        assertOperation("renumberCatalogVersion", PATCH.class, CatalogVersionDto.class, version);
+        assertOperation("deleteCatalogVersion", DELETE.class, void.class, version);
+        assertOperation("previewCatalogVersionRenumber", GET.class, CatalogVersionRenumberPreview.class, version);
+        assertOperation("releaseCatalogVersion", POST.class, ReleaseCatalogVersionResponse.class, version);
+        assertOperation("listIncomingChanges", GET.class, IncomingChangeListResponse.class, version);
+        assertOperation(
+                "resolveIncomingChange",
+                POST.class,
+                IncomingChangeDto.class,
+                List.of("tenantId", "namespace", "catalogKey", "catalogVersion", "changeId"));
+
+        for (String withBody : List.of(
+                "createCatalogVersion", "renumberCatalogVersion", "releaseCatalogVersion", "resolveIncomingChange")) {
+            assertEquals(
+                    List.of(VENDOR_JSON),
+                    List.of(method(CatalogsApi.class, withBody).getAnnotation(Consumes.class).value()),
+                    withBody + " should send the vendor media type");
+        }
+    }
+
+    private static void assertOperation(
+            String name, Class<? extends java.lang.annotation.Annotation> verb, Class<?> returns, List<String> path) {
+        Method method = method(CatalogsApi.class, name);
+        assertNotNull(method.getAnnotation(verb), name + " should be a " + verb.getSimpleName());
+        assertEquals(returns, method.getReturnType(), name + " returns the wrong type");
+        assertEquals(path, pathParams(method), name + " has the wrong path parameters");
+    }
+
     @Test
     void catalog_dependencies_are_listed_and_replaced() {
         Method list = method(CatalogsApi.class, "listCatalogDependencies");
         assertNotNull(list.getAnnotation(GET.class), "listCatalogDependencies should be a GET");
         assertEquals(CatalogDependencyListResponse.class, list.getReturnType());
-        assertEquals(List.of("tenantId", "namespace", "catalogKey"), pathParams(list));
+        assertEquals(List.of("tenantId", "namespace", "catalogKey", "catalogVersion"), pathParams(list));
 
         Method update = method(CatalogsApi.class, "updateCatalogDependencies");
         assertNotNull(update.getAnnotation(PUT.class), "updateCatalogDependencies should be a PUT");
         assertEquals(CatalogDependencyListResponse.class, update.getReturnType());
-        assertEquals(List.of("tenantId", "namespace", "catalogKey"), pathParams(update));
-        assertEquals(UpdateCatalogDependenciesRequest.class, update.getParameterTypes()[3]);
+        assertEquals(List.of("tenantId", "namespace", "catalogKey", "catalogVersion"), pathParams(update));
+        assertEquals(UpdateCatalogDependenciesRequest.class, update.getParameterTypes()[4]);
         assertEquals(List.of(VENDOR_JSON), List.of(update.getAnnotation(Consumes.class).value()));
     }
 

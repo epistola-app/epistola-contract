@@ -11,6 +11,10 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
+- The reference in-process validator to copy, `NJsonSchemaTemplateDataValidator` under
+  `test/Epistola.Client.Tests/Validation/Schema/Local/`, takes the catalog version whose template
+  schema it holds data to, because a template is now read from a catalog version. The shipped
+  validators are unchanged: `validateTemplateData` is not addressed by version.
 - **BREAKING:** a catalog is addressed by namespace and key. `ITemplateDataValidator.Validate`,
   `TemplateSchemaValidator.Validate` and `ServerTemplateDataValidator.Validate` take
   `(tenantId, namespace, catalogKey, templateId, data)` in place of

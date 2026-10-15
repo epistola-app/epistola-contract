@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: preview-catalog-version-renumber
+title: A renumber preview surfaces every warning, including a kind the client does not know
+why: >
+  The warnings are what the author confirms before a renumber. Their `kind` is an open set that
+  may grow, so it is a plain string in the contract, not an enum: a client that rejects the third
+  warning below, whose kind did not exist when it was built, hides every warning from the author,
+  and a renumber the author would not have confirmed goes through.
+
+  The target number travels as the `to` query parameter.
+
+action:
+  name: preview-catalog-version-renumber
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: 1.5.0
+    to: 2.1.0
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      from: 1.5.0
+      to: 2.1.0
+      newBase: 1.6.0
+      warnings:
+        - kind: releases-flow-in
+          message: Release 1.6.0 flows into this draft; 2 of its changes conflict.
+          versions: [1.6.0]
+        - kind: draft-order-changes
+          message: Draft 2.0.0 will send its changes to this draft instead of receiving them.
+          versions: [2.0.0]
+        - kind: a-kind-from-the-future
+          message: Something this client was not built to know about.
+          versions: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions/1.5.0/renumber-preview
+      queryParams:
+        to: 2.1.0
+  report:
+    newBase: 1.6.0
+    warningKinds: releases-flow-in,draft-order-changes,a-kind-from-the-future

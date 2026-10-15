@@ -40,7 +40,8 @@ var http = new EpistolaHttpClientBuilder()
     .Build();
 
 var templates = new TemplatesApi(http, "https://epistola.example.com/api");
-var template = templates.GetTemplate("my-tenant", "default", "monthly-invoice");
+// Catalog content is addressed by namespace, catalog key and catalog version (SemVer).
+var template = templates.GetTemplate("my-tenant", "acme-corp", "default", "1.4.0", "monthly-invoice");
 ```
 
 The builder always installs two corrections the C# generator gives no way to configure on the model:
@@ -95,7 +96,7 @@ using Epistola.Client.Error;
 
 try
 {
-    templates.GetTemplate("my-tenant", "default", "unknown");
+    templates.GetTemplate("my-tenant", "acme-corp", "default", "1.4.0", "unknown");
 }
 catch (ProblemDetailException e)
 {
@@ -147,6 +148,31 @@ collector.Start();          // blocks, running the adaptive poll loop; Stop() to
 the backoff when a result is expected soon. Partition helpers: `PartitionFor`, `IsMyPartition`,
 `RoutingKeyToMe`.
 
+## Catalog versions
+
+A catalog consists of versions, each a `draft` or `released`, addressed by SemVer number. Every
+catalog-content operation (templates, variants, stencils, themes, images, dependencies, …) takes the
+version after the catalog key; template data validation (`ValidateTemplateData`) does not. The
+versions themselves are managed through `CatalogsApi`:
+
+```csharp
+var catalogs = new CatalogsApi(http, "https://epistola.example.com/api");
+
+// Open a draft, from the highest release or (with `from`) from another version.
+catalogs.CreateCatalogVersion("my-tenant", "acme-corp", "default",
+    new CreateCatalogVersionRequest(varVersion: "1.5.0"));
+
+// Release it; the answer names the higher drafts its changes flowed into, and how many conflict.
+var released = catalogs.ReleaseCatalogVersion("my-tenant", "acme-corp", "default", "1.5.0",
+    new ReleaseCatalogVersionRequest(notes: "Spring update"));
+foreach (var flow in released.FlowedInto)
+    Console.WriteLine($"{flow.VarVersion}: {flow.Merged} merged, {flow.Conflicts} conflicts");
+```
+
+The generator names a `version` member `VarVersion` (constructor argument `varVersion`), and
+`base` `Base` (`varBase`), because both collide with C# names. A renumber warning's `Kind` is a
+plain string: the set of kinds may grow.
+
 ## Uploading files
 
 Multipart operations such as `UploadImage` and `ImportCatalog` take a `FileParameter`. Give it the
@@ -157,7 +183,7 @@ using Epistola.Client.Client;
 
 using var content = File.OpenRead("logo.png");
 var image = new ImagesApi(http, "https://epistola.example.com/api").UploadImage(
-    "acme-corp", "acme-corp", "main", new FileParameter("logo.png", "image/png", content), name: "Logo");
+    "acme-corp", "acme-corp", "main", "2.0.0", new FileParameter("logo.png", "image/png", content), name: "Logo");
 ```
 
 A `FileParameter` built from a bare stream is sent as `no_name_provided`, with type
@@ -196,7 +222,8 @@ To avoid a request per check — pre-flighting a large batch, say — implement
 `ITemplateDataValidator` over the library of your choice and pass it instead of the API:
 
 ```csharp
-var validator = new TemplateSchemaValidator(new MyNJsonSchemaValidator(templatesApi));
+// A template is read from a catalog version, so a local validator is told which one.
+var validator = new TemplateSchemaValidator(new MyNJsonSchemaValidator(templatesApi, "1.4.0"));
 ```
 
 An implementation that answers in-process leaves `PreflightsGeneration` at its default `true`, so

@@ -56,7 +56,7 @@ const client = EpistolaClient.builder('https://epistola.example.com/api')
   .build()
 
 const templates = new TemplatesApi(client)
-const template = await templates.getTemplate({ tenantId: 'acme', namespace: 'acme', catalogKey: 'invoices', templateId: 'invoice' })
+const template = await templates.getTemplate({ tenantId: 'acme', namespace: 'acme', catalogKey: 'invoices', catalogVersion: '1.4.0', templateId: 'invoice' })
 ```
 
 `EpistolaClient.builder(baseUrl, apiKey)` is a shorthand for the same thing. The legacy `X-API-Key`
@@ -104,7 +104,7 @@ carries a name and a type:
 import { readFile } from 'node:fs/promises'
 
 const file = new File([await readFile('logo.png')], 'logo.png', { type: 'image/png' })
-const image = await new ImagesApi(client).uploadImage({ tenantId: 'acme-corp', namespace: 'acme-corp', catalogKey: 'main', file, name: 'Logo' })
+const image = await new ImagesApi(client).uploadImage({ tenantId: 'acme-corp', namespace: 'acme-corp', catalogKey: 'main', catalogVersion: '1.5.0', file, name: 'Logo' })
 ```
 
 A plain `Blob` is always sent with the filename `blob`, and as `application/octet-stream` unless it
@@ -209,14 +209,16 @@ To avoid a request per check — pre-flighting a large batch, say — implement 
 over the compiler of your choice and pass it instead of the API:
 
 ```ts
-const validator = new TemplateSchemaValidator(new MyAjvValidator(templatesApi))
-const generation = new ValidatingGenerationApi(new GenerationApi(client), new MyAjvValidator(templatesApi))
+const validator = new TemplateSchemaValidator(new MyAjvValidator(templatesApi, '1.4.0'))
+const generation = new ValidatingGenerationApi(new GenerationApi(client), new MyAjvValidator(templatesApi, '1.4.0'))
 ```
 
 A validator that answers in-process declares `preflightsGeneration = true` (the default), so
 `ValidatingGenerationApi` checks before submitting and reports every item of a batch at once, each
 path prefixed `items[<index>]`. `TtlSchemaCache` is still exported for caching the fetched schema;
-without it a "local" validator costs a round trip per call anyway.
+without it a "local" validator costs a round trip per call anyway. Templates live in catalog
+versions, so a local validator fetches its schema from a version you name (`1.4.0` above): name the
+release you will render, since the server validates against that release, not against a draft.
 
 Two things an implementation owes its callers, both described on `TemplateDataValidator`: an empty
 array means the data is acceptable, and `path` is a JSON Pointer. Compilers do not agree on that

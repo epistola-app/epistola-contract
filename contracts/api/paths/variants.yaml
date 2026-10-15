@@ -11,6 +11,7 @@ variants:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: templateId
       in: path
       required: true
@@ -77,6 +78,8 @@ variants:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 variants-id:
   parameters:
@@ -91,6 +94,7 @@ variants-id:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: templateId
       in: path
       required: true
@@ -159,6 +163,8 @@ variants-id:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
   delete:
     operationId: deleteVariant
@@ -192,6 +198,7 @@ variant-set-default:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: templateId
       in: path
       required: true
@@ -231,6 +238,8 @@ variant-set-default:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 variant-content:
   parameters:
@@ -245,6 +254,7 @@ variant-content:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: templateId
       in: path
       required: true
@@ -266,7 +276,7 @@ variant-content:
 
   get:
     operationId: getVariantContent
-    summary: Get the variant's working copy
+    summary: Get the variant's content
     description: |
       The variant's content as it is being edited, with its status against the catalog's latest
       release. Editing never changes what is generated: generation renders a release.
@@ -275,7 +285,7 @@ variant-content:
     x-required-permissions: [TEMPLATE_VIEW]
     responses:
       '200':
-        description: The working copy
+        description: The variant's content
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -289,9 +299,9 @@ variant-content:
 
   put:
     operationId: updateVariantContent
-    summary: Update the variant's working copy
+    summary: Update the variant's content in a draft
     description: |
-      Replaces the variant's template model in the working copy. An edit clears the ready mark, so
+      Replaces the variant's template model in the draft. An edit clears the ready mark, so
       the variant has to be marked ready again before the catalog can be released.
     tags:
       - Variants
@@ -304,7 +314,7 @@ variant-content:
             $ref: '../components/schemas/variants.yaml#/UpdateVariantContentRequest'
     responses:
       '200':
-        description: The updated working copy
+        description: The updated content
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -333,6 +343,7 @@ variant-mark-ready:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
     - name: templateId
       in: path
       required: true
@@ -358,13 +369,13 @@ variant-mark-ready:
     description: |
       Records that the variant's current content is reviewed and may be released. A catalog release
       refuses while any resource is modified and not ready. Marking content that is already ready,
-      or unchanged since the latest release, changes nothing.
+      or unchanged since the version's base, changes nothing.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_EDIT]
     responses:
       '200':
-        description: The working copy, now ready
+        description: The variant's content, now ready
         content:
           application/vnd.epistola.v1+json:
             schema:

@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: delete-catalog-version
+title: Discarding a draft addresses it by number, and its empty answer is a success
+why: >
+  Discarding a draft is a DELETE on its address. The answer is a 204 with no body and no content
+  type, which a client must treat as success rather than fail to deserialize.
+
+action:
+  name: delete-catalog-version
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: 3.0.0
+
+script:
+  - status: 204
+
+expect:
+  requestCount: 1
+  requests:
+    - method: DELETE
+      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions/3.0.0

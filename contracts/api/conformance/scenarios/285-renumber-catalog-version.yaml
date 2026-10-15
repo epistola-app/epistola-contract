@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: renumber-catalog-version
+title: Renumbering a draft sends the new number and the acknowledgement, to the old address
+why: >
+  A draft's number is its address, and renumbering changes it. The request goes to the old number
+  and carries the new one; the response is the draft under its new number. A renumber with
+  consequences is refused unless the caller acknowledges them, so a client that drops a false-y
+  flag it was given, or invents one it was not, changes whether the request is accepted.
+
+action:
+  name: renumber-catalog-version
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: 1.4.1
+    version: 1.5.0
+    acknowledgeWarnings: true
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    headers:
+      Location: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions/1.5.0
+    body:
+      version: 1.5.0
+      status: draft
+      base: 1.4.0
+      createdFrom: null
+      openConflicts: 0
+      dependencies: []
+      deployedTo: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PATCH
+      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions/1.4.1
+      body:
+        json:
+          version: 1.5.0
+          acknowledgeWarnings: true
+  report:
+    version: 1.5.0
+    status: draft

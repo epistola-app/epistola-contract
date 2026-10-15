@@ -18,6 +18,7 @@ action:
     tenantId: acme-corp
     namespace: acme-corp
     catalogKey: main
+    catalogVersion: 2.0.0
 
 script:
   - status: 200

@@ -52,8 +52,13 @@ http = (
 )
 
 templates = TemplatesApi(http)
-template = templates.get_template("acme", "invoices", "invoice")
+# tenant, catalog namespace, catalog key, catalog version, template
+template = templates.get_template("acme", "acme", "invoices", "1.4.0", "invoice")
 ```
+
+Everything in a catalog is addressed through one of its versions, a draft or a release, by its
+exact SemVer number. `CatalogsApi` opens, lists, renumbers, releases and deletes those versions
+(`create_catalog_version`, `release_catalog_version`, …).
 
 `.api_key(...)` sends `Authorization: ApiKey <key>`. The legacy `X-API-Key` header remains
 supported for existing integrations, but is deprecated. Some Epistola Suite deployments may disable
@@ -141,13 +146,13 @@ from epistola_client import ImagesApi
 
 with open("logo.png", "rb") as f:
     image = ImagesApi(http).upload_image(
-        "acme-corp", "acme-corp", "main", ("logo.png", f.read()), name="Logo"
+        "acme-corp", "acme-corp", "main", "2.0.0", ("logo.png", f.read()), name="Logo"
     )
 ```
 
-A catalog is addressed by its namespace and its key — here namespace `acme-corp`, key `main`. In a
-path, a namespace on a non-default exchange is written with `~` in place of its `/`
-(`exchange.example.org~team-a`).
+A catalog is addressed by its namespace and its key — here namespace `acme-corp`, key `main` — and
+an image belongs to one of its versions, here the draft `2.0.0`. In a path, a namespace on a
+non-default exchange is written with `~` in place of its `/` (`exchange.example.org~team-a`).
 
 Bare `bytes` are sent with the field name, `file`, as their filename and with type
 `application/octet-stream`. The server then names the image `file`, and rejects it as not an image

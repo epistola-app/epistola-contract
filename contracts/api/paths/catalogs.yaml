@@ -80,57 +80,6 @@ catalog-upgrade-preview:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
-catalog-release:
-  parameters:
-    - name: tenantId
-      in: path
-      required: true
-      description: Unique slug identifier of the tenant
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - $ref: '../components/parameters/catalog.yaml#/Namespace'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-  post:
-    operationId: releaseCatalog
-    summary: Release an authored catalog
-    description: |
-      Cut a new immutable SemVer release for an AUTHORED catalog. A release contains the whole
-      working copy, and refuses while any resource is `new` or `modified`: mark them ready first.
-
-      Each declared dependency is resolved to one release, and so are the dependencies of those
-      releases in turn; the release records them all. It is refused when a resource references a
-      catalog that is not declared, when a dependency resolves to no release, or when two paths
-      through the dependencies need different releases of one catalog.
-    tags:
-      - Catalogs
-    x-required-permissions: [CATALOG_RELEASE]
-    requestBody:
-      required: true
-      content:
-        application/vnd.epistola.v1+json:
-          schema:
-            $ref: '../components/schemas/catalogs.yaml#/ReleaseCatalogRequest'
-    responses:
-      '200':
-        description: Catalog released.
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/catalogs.yaml#/ReleaseCatalogResponse'
-      '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-      '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
-
 catalog-upgrade:
   parameters:
     - name: tenantId
@@ -178,87 +127,6 @@ catalog-upgrade:
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
-catalog-releases:
-  parameters:
-    - name: tenantId
-      in: path
-      required: true
-      description: Unique slug identifier of the tenant
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - $ref: '../components/parameters/catalog.yaml#/Namespace'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-
-  get:
-    operationId: listCatalogReleases
-    summary: List a catalog's releases
-    description: The catalog's releases, newest first. A subscribed catalog lists the releases it installed.
-    tags:
-      - Catalogs
-    x-required-permissions: [CATALOG_VIEW]
-    parameters:
-      - $ref: '../components/parameters/pagination.yaml#/Page'
-      - $ref: '../components/parameters/pagination.yaml#/Size'
-    responses:
-      '200':
-        description: The catalog's releases
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseListResponse'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
-catalog-releases-id:
-  parameters:
-    - name: tenantId
-      in: path
-      required: true
-      description: Unique slug identifier of the tenant
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - $ref: '../components/parameters/catalog.yaml#/Namespace'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - name: releaseVersion
-      in: path
-      required: true
-      description: The release's version label
-      schema:
-        type: string
-        minLength: 1
-        maxLength: 50
-
-  get:
-    operationId: getCatalogRelease
-    summary: Get a catalog release
-    description: One release, with the releases of other catalogs it renders with and the environments that serve it.
-    tags:
-      - Catalogs
-    x-required-permissions: [CATALOG_VIEW]
-    responses:
-      '200':
-        description: The release
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseDto'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
 catalog-changes:
   parameters:
     - name: tenantId
@@ -272,19 +140,21 @@ catalog-changes:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
 
   get:
     operationId: getCatalogChanges
-    summary: List the working copy's changes since the latest release
+    summary: List a catalog version's changes since its base
     description: |
-      Every resource of the catalog that is `new`, `modified` or `ready`, and the resources removed
-      since the latest release. `releasable` says whether a release would be accepted now.
+      Every resource of the version that is `new`, `modified` or `ready`, and the resources removed
+      since its base, the highest released version below it. For a draft, `releasable` says whether
+      releasing it would be accepted now; a released version has no changes and is not releasable.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
     responses:
       '200':
-        description: The working copy's changes
+        description: The version's changes
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -309,19 +179,20 @@ catalog-mark-ready:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
 
   post:
     operationId: markCatalogReady
-    summary: Mark every changed resource of the catalog ready
+    summary: Mark every changed resource of a draft ready
     description: |
-      Marks each `new` or `modified` resource of the catalog ready in one action, and returns the
-      changes that remain. Stencil instances the change breaks are held back, as for a single stencil.
+      Marks each `new` or `modified` resource of the draft ready in one action, and returns the
+      changes that remain. Refused with 409 for a released version. Stencil instances the change breaks are held back, as for a single stencil.
     tags:
       - Catalogs
     x-required-permissions: [TEMPLATE_EDIT, STENCIL_EDIT]
     responses:
       '200':
-        description: The catalog's changes after marking ready
+        description: The draft's changes after marking ready
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -348,13 +219,14 @@ catalog-dependencies:
         maxLength: 63
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
 
   get:
     operationId: listCatalogDependencies
-    summary: List the catalogs a catalog depends on
+    summary: List the catalogs a catalog version depends on
     description: |
-      The dependencies declared in the catalog's working copy, each with the release it resolves to
-      now. A resource can reference another catalog's resources only through a declared dependency.
+      The dependencies declared in the catalog version, each with the release it resolves to now
+      (for a released version: the release it was cut with). A resource can reference another catalog's resources only through a declared dependency.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
@@ -374,13 +246,14 @@ catalog-dependencies:
 
   put:
     operationId: updateCatalogDependencies
-    summary: Replace the catalogs a catalog depends on
+    summary: Replace the catalogs a draft depends on
     description: |
-      Replaces the dependencies declared in an AUTHORED catalog's working copy. The change is
-      released with the catalog's next release. Each catalog is declared at most once, so a release
+      Replaces the dependencies declared in a draft of an AUTHORED catalog. The change is released
+      with the draft, and flows forward into higher drafts like any other change. Each catalog is declared at most once, so a release
       renders with one release of every catalog it depends on.
 
-      Refused with 409 for a SUBSCRIBED catalog, whose dependencies are its publisher's.
+      Refused with 409 for a released version, and for a SUBSCRIBED catalog, whose dependencies are
+      its publisher's.
     tags:
       - Catalogs
     x-required-permissions: [TEMPLATE_EDIT]
@@ -397,6 +270,419 @@ catalog-dependencies:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogDependencyListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+catalog-versions:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+
+  get:
+    operationId: listCatalogVersions
+    summary: List a catalog's versions
+    description: |
+      The catalog's versions, drafts and released, highest version first. A SUBSCRIBED catalog
+      lists the releases it installed, and has no drafts.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    parameters:
+      - name: status
+        in: query
+        required: false
+        description: Only versions with this status. Omitted, every version.
+        schema:
+          $ref: '../components/schemas/catalogs.yaml#/CatalogVersionStatus'
+      - $ref: '../components/parameters/pagination.yaml#/Page'
+      - $ref: '../components/parameters/pagination.yaml#/Size'
+    responses:
+      '200':
+        description: The catalog's versions
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogVersionListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+  post:
+    operationId: createCatalogVersion
+    summary: Open a draft
+    description: |
+      Opens a draft of an AUTHORED catalog with a version number not yet in use.
+
+      - Without `from`, the draft starts as its **base**: the highest released version below its
+        number, or empty when there is none.
+      - With `from`, it starts as a copy of that version, a draft or a released one, below or above
+        the new number. Every released version below the new number that the source does not
+        contain then flows in, as on a release, and may open incoming conflicts. A draft always
+        contains every release below it; it may contain more.
+
+      Refused with 409 when the number is in use, and for a SUBSCRIBED catalog.
+    tags:
+      - Catalogs
+    x-required-permissions: [TEMPLATE_EDIT]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/catalogs.yaml#/CreateCatalogVersionRequest'
+    responses:
+      '201':
+        description: The draft
+        headers:
+          Location:
+            description: The draft's address
+            schema:
+              type: string
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogVersionDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+catalog-version:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+
+  get:
+    operationId: getCatalogVersion
+    summary: Get a catalog version
+    description: |
+      One version of the catalog, a draft or released. A released version also lists the releases
+      of other catalogs it renders with and the environments that serve it.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    responses:
+      '200':
+        description: The version
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogVersionDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+  patch:
+    operationId: renumberCatalogVersion
+    summary: Renumber a draft
+    description: |
+      Gives a draft another version number that is not in use, up or down. Its address changes to
+      the new number, which `Location` carries; the old address stops working.
+
+      A renumber follows the same rules as opening a version from another one: releases the draft
+      now sits above flow in, and the draft keeps what it has. Some renumbers have consequences
+      the author should see first: use `GET .../renumber-preview` to list them. When there are any,
+      the request is refused with 409 unless `acknowledgeWarnings` is true.
+
+      Refused with 409 for a released version.
+    tags:
+      - Catalogs
+    x-required-permissions: [TEMPLATE_EDIT]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/catalogs.yaml#/RenumberCatalogVersionRequest'
+    responses:
+      '200':
+        description: The draft, under its new number
+        headers:
+          Location:
+            description: The draft's new address
+            schema:
+              type: string
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogVersionDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+  delete:
+    operationId: deleteCatalogVersion
+    summary: Discard a draft
+    description: |
+      Discards a draft and everything changed in it. Changes that already flowed forward from it are
+      released content elsewhere and stay. Refused with 409 for a released version.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_RELEASE]
+    responses:
+      '204':
+        description: The draft is discarded
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+catalog-version-renumber-preview:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+
+  get:
+    operationId: previewCatalogVersionRenumber
+    summary: Preview renumbering a draft
+    description: |
+      What renumbering the draft to `to` would do, **without applying it**: the warnings that
+      `PATCH` refuses without `acknowledgeWarnings`. A renumber that crosses no released version
+      and no other draft has none.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    parameters:
+      - name: to
+        in: query
+        required: true
+        description: The version number the draft would get
+        schema:
+          type: string
+          pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+          maxLength: 50
+    responses:
+      '200':
+        description: The renumber's consequences
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogVersionRenumberPreview'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+catalog-version-release:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+
+  post:
+    operationId: releaseCatalogVersion
+    summary: Release a draft
+    description: |
+      Releases a draft of an AUTHORED catalog. The version keeps its number and its address, and
+      becomes immutable. A release contains the whole draft: it is refused while any resource is
+      `new` or `modified`, or an incoming conflict is open.
+
+      Each declared dependency is resolved to one release, and so are the dependencies of those
+      releases in turn; the release records them all. It is refused when a resource references a
+      catalog that is not declared, when a dependency resolves to no release, or when two paths
+      through the dependencies need different releases of one catalog.
+
+      The released changes then **flow forward** into every open draft with a higher number. Changes
+      to different nodes merge; where a draft changed the same node differently, it gets an
+      incoming conflict. When no draft is open above the released version, the next patch is opened
+      as a draft.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_RELEASE]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/catalogs.yaml#/ReleaseCatalogVersionRequest'
+    responses:
+      '200':
+        description: The version is released
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/ReleaseCatalogVersionResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+catalog-version-incoming:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+
+  get:
+    operationId: listIncomingChanges
+    summary: List the changes that flowed into a draft
+    description: |
+      Changes that flowed into the draft from lower releases, since it was opened: the ones merged
+      without conflict and the ones that conflicted, resolved or not.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    parameters:
+      - name: state
+        in: query
+        required: false
+        description: Only changes in this state. Omitted, every state.
+        schema:
+          $ref: '../components/schemas/catalogs.yaml#/IncomingChangeState'
+    responses:
+      '200':
+        description: The incoming changes
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/IncomingChangeListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+catalog-version-incoming-resolve:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - name: changeId
+      in: path
+      required: true
+      description: Identifier of the incoming change
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
+  post:
+    operationId: resolveIncomingChange
+    summary: Resolve an incoming conflict
+    description: |
+      Resolves a conflicting incoming change, by keeping the draft's content, taking the incoming
+      content, or recording that the author edited the resource through its own operations. Taking
+      the incoming content replaces the node in the draft, which clears the resource's ready mark.
+      Refused with 409 when the change is not a conflict, or already resolved.
+    tags:
+      - Catalogs
+    x-required-permissions: [TEMPLATE_EDIT]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/catalogs.yaml#/ResolveIncomingChangeRequest'
+    responses:
+      '200':
+        description: The resolved change
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/IncomingChangeDto'
       '400':
         $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':

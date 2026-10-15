@@ -58,6 +58,15 @@ public static class Driver
                 case "delete-image": DeleteImage(baseUrl, config); break;
                 case "list-catalog-dependencies": ListCatalogDependencies(baseUrl, config); break;
                 case "update-catalog-dependencies": UpdateCatalogDependencies(baseUrl, config); break;
+                case "create-catalog-version": CreateCatalogVersion(baseUrl, config); break;
+                case "list-catalog-versions": ListCatalogVersions(baseUrl, config); break;
+                case "get-catalog-version": GetCatalogVersion(baseUrl, config); break;
+                case "renumber-catalog-version": RenumberCatalogVersion(baseUrl, config); break;
+                case "preview-catalog-version-renumber": PreviewCatalogVersionRenumber(baseUrl, config); break;
+                case "delete-catalog-version": DeleteCatalogVersion(baseUrl, config); break;
+                case "release-catalog-version": ReleaseCatalogVersion(baseUrl, config); break;
+                case "list-incoming-changes": ListIncomingChanges(baseUrl, config); break;
+                case "resolve-incoming-change": ResolveIncomingChange(baseUrl, config); break;
                 case "deploy-release": DeployRelease(baseUrl, config); break;
                 case "undeploy-release": UndeployRelease(baseUrl, config); break;
                 default: throw new ArgumentException($"unknown action {instruction.GetProperty("action")}");
@@ -95,7 +104,7 @@ public static class Driver
         TemplateListResponse? response = null;
         for (var i = 0; i < Int(config, "repeat", 1); i++)
         {
-            response = api.ListTemplates(Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"));
+            response = api.ListTemplates(Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
         }
         var templates = response!.Items;
 
@@ -110,7 +119,7 @@ public static class Driver
         var (http, apiBase) = Client(baseUrl, config);
         try
         {
-            new TemplatesApi(http, apiBase).ListTemplates(Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"));
+            new TemplatesApi(http, apiBase).ListTemplates(Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
             Report(baseUrl, new Dictionary<string, object> { ["problemTypeSlug"] = "<no exception was thrown>" });
         }
         catch (ProblemDetailException e)
@@ -299,7 +308,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var images = new ImagesApi(http, apiBase)
-            .ListImages(Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), search: Str(config, "search"))
+            .ListImages(Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"), search: Str(config, "search"))
             .Items;
 
         Report(baseUrl, new Dictionary<string, object>
@@ -321,7 +330,7 @@ public static class Driver
         using var content = new MemoryStream(Convert.FromBase64String(Str(config, "fileBase64")));
         var image = new ImagesApi(http, apiBase).UploadImage(
             Str(config, "tenantId"),
-            Str(config, "namespace"), Str(config, "catalogKey"),
+            Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
             new FileParameter(Str(config, "filename"), Str(config, "fileContentType"), content),
             name: Str(config, "name"));
 
@@ -332,14 +341,14 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         ReportBytes(baseUrl, new ImagesApi(http, apiBase).DownloadImageContent(
-            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "imageSlug")));
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"), Str(config, "imageSlug")));
     }
 
     private static void DeleteImage(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         new ImagesApi(http, apiBase).DeleteImage(
-            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "imageSlug"),
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"), Str(config, "imageSlug"),
             force: config.GetProperty("force").GetBoolean());
     }
 
@@ -347,7 +356,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         ReportDependencies(baseUrl, new CatalogsApi(http, apiBase).ListCatalogDependencies(
-            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey")));
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion")));
     }
 
     /// <summary>
@@ -365,7 +374,7 @@ public static class Driver
                 varVersion: Str(d, "version")))
             .ToList();
         ReportDependencies(baseUrl, new CatalogsApi(http, apiBase).UpdateCatalogDependencies(
-            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"),
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
             new UpdateCatalogDependenciesRequest(dependencies: dependencies)));
     }
 
@@ -380,6 +389,177 @@ public static class Driver
             ["resolvedVersions"] = string.Join(",", items.Select(d => Show(d.ResolvedVersion))),
         });
     }
+
+    // --- Catalog versions ---
+
+    /// <summary>
+    /// Opens a draft. <c>from</c> is optional and left unset when the scenario does not name it, so
+    /// it stays off the wire rather than going out as null.
+    /// </summary>
+    private static void CreateCatalogVersion(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var version = new CatalogsApi(http, apiBase).CreateCatalogVersion(
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"),
+            new CreateCatalogVersionRequest(varVersion: Str(config, "version"), from: OptStr(config, "from")!));
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["version"] = Show(version.VarVersion),
+            ["status"] = Show(Wire(version.Status)),
+            ["base"] = Show(version.Base),
+            ["createdFrom"] = Show(version.CreatedFrom),
+            ["releasedAt"] = Show(Iso(version.ReleasedAt)),
+        });
+    }
+
+    private static void ListCatalogVersions(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var status = OptStr(config, "status");
+        var items = new CatalogsApi(http, apiBase).ListCatalogVersions(
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"),
+            status: status == null ? null : Parse<CatalogVersionStatus>(status)).Items;
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["versions"] = string.Join(",", items.Select(v => Show(v.VarVersion))),
+            ["statuses"] = string.Join(",", items.Select(v => Show(Wire(v.Status)))),
+            ["bases"] = string.Join(",", items.Select(v => Show(v.Base))),
+            ["openConflicts"] = string.Join(",", items.Select(v => v.OpenConflicts)),
+        });
+    }
+
+    private static void GetCatalogVersion(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var version = new CatalogsApi(http, apiBase).GetCatalogVersion(
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["version"] = Show(version.VarVersion),
+            ["status"] = Show(Wire(version.Status)),
+            ["releasedAt"] = Show(Iso(version.ReleasedAt)),
+            ["dependencies"] = string.Join(",", (version.Dependencies ?? new List<ReleaseDependencyDto>())
+                .Select(d => $"{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.ReleaseVersion)}")),
+            ["deployedTo"] = string.Join(",", version.DeployedTo ?? new List<string>()),
+        });
+    }
+
+    /// <summary>
+    /// Renumbers a draft. <c>acknowledgeWarnings</c> is passed only when the scenario names it; the
+    /// generated model types it as a plain <c>bool</c> defaulting to the contract's <c>false</c>.
+    /// </summary>
+    private static void RenumberCatalogVersion(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var request = config.TryGetProperty("acknowledgeWarnings", out var acknowledge) && acknowledge.ValueKind != JsonValueKind.Null
+            ? new RenumberCatalogVersionRequest(varVersion: Str(config, "version"), acknowledgeWarnings: acknowledge.GetBoolean())
+            : new RenumberCatalogVersionRequest(varVersion: Str(config, "version"));
+        var version = new CatalogsApi(http, apiBase).RenumberCatalogVersion(
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            request);
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["version"] = Show(version.VarVersion),
+            ["status"] = Show(Wire(version.Status)),
+        });
+    }
+
+    /// <summary>
+    /// A warning's <c>kind</c> is an open set, a plain string in the contract, so a kind the client
+    /// was not built with must come through rather than fail the whole preview.
+    /// </summary>
+    private static void PreviewCatalogVersionRenumber(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var preview = new CatalogsApi(http, apiBase).PreviewCatalogVersionRenumber(
+            Str(config, "to"),
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["newBase"] = Show(preview.NewBase),
+            ["warningKinds"] = string.Join(",", preview.Warnings.Select(w => Show(w.Kind))),
+        });
+    }
+
+    private static void DeleteCatalogVersion(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        new CatalogsApi(http, apiBase).DeleteCatalogVersion(
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
+    }
+
+    private static void ReleaseCatalogVersion(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var response = new CatalogsApi(http, apiBase).ReleaseCatalogVersion(
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            new ReleaseCatalogVersionRequest(notes: OptStr(config, "notes")!));
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["version"] = Show(response.VarVersion?.VarVersion),
+            ["status"] = Show(response.VarVersion == null ? null : Wire(response.VarVersion.Status)),
+            ["flowedInto"] = string.Join(",", response.FlowedInto.Select(f => $"{Show(f.VarVersion)}:{f.Merged}:{f.Conflicts}")),
+            ["openedDraft"] = Show(response.OpenedDraft),
+        });
+    }
+
+    /// <summary>
+    /// A change to a whole resource has a null <c>node</c>, and only a resolved one carries a
+    /// <c>resolution</c>; both are reported as <c>null</c> rather than lost.
+    /// </summary>
+    private static void ListIncomingChanges(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var state = OptStr(config, "state");
+        var items = new CatalogsApi(http, apiBase).ListIncomingChanges(
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            state: state == null ? null : Parse<IncomingChangeState>(state)).Items;
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["ids"] = string.Join(",", items.Select(c => Show(c.Id))),
+            ["nodes"] = string.Join(",", items.Select(c => Show(c.Node))),
+            ["states"] = string.Join(",", items.Select(c => Show(Wire(c.State)))),
+            ["resolutions"] = string.Join(",", items.Select(c => Show(c.Resolution == null ? null : Wire(c.Resolution.Value)))),
+        });
+    }
+
+    private static void ResolveIncomingChange(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var change = new CatalogsApi(http, apiBase).ResolveIncomingChange(
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "changeId"),
+            new ResolveIncomingChangeRequest(resolution: Parse<IncomingChangeResolution>(Str(config, "resolution"))));
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["id"] = Show(change.Id),
+            ["state"] = Show(Wire(change.State)),
+            ["resolution"] = Show(change.Resolution == null ? null : Wire(change.Resolution.Value)),
+        });
+    }
+
+    /// <summary>
+    /// An instant in the ISO 8601 form the contract carries (<c>2026-10-01T12:00:00Z</c>), rather
+    /// than the culture's own <c>ToString()</c>; fractional seconds only when there are any.
+    /// </summary>
+    private static string? Iso(DateTimeOffset? value) =>
+        value?.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>A generated enum constant as its wire value, through the generator's own converter.</summary>
+    private static string Wire<T>(T value) where T : struct, Enum =>
+        Newtonsoft.Json.JsonConvert.SerializeObject(value).Trim('"');
+
+    /// <summary>A wire value as the generated enum constant, through the generator's own converter.</summary>
+    private static T Parse<T>(string wire) where T : struct, Enum =>
+        Newtonsoft.Json.JsonConvert.DeserializeObject<T>(Newtonsoft.Json.JsonConvert.SerializeObject(wire));
 
     /// <summary>
     /// Deploys one release. The namespace goes into the path exactly as the scenario gives it, in

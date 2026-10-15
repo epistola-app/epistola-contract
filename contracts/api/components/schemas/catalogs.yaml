@@ -5,6 +5,7 @@ CatalogDto:
     - catalogKey
     - name
     - type
+    - draftVersions
   properties:
     namespace:
       type: string
@@ -37,10 +38,17 @@ CatalogDto:
     releasedVersion:
       type: [string, "null"]
       description: >-
-        The catalog's current version label. For AUTHORED catalogs this is the
-        latest released SemVer (null until first released). For SUBSCRIBED
-        catalogs this is the installed release version.
+        The catalog's highest released version. For AUTHORED catalogs null until
+        first released. For SUBSCRIBED catalogs the highest installed release.
       example: "1.4.0"
+    draftVersions:
+      type: array
+      description: >-
+        The version numbers of the catalog's open drafts, lowest first. Empty for a
+        SUBSCRIBED catalog.
+      items:
+        type: string
+      example: ["1.4.1", "2.0.0"]
     fingerprint:
       type: [string, "null"]
       description: >-
@@ -146,52 +154,6 @@ CatalogUpgradeDiff:
       description: True when `conflicts` is non-empty.
       example: false
 
-ReleaseCatalogRequest:
-  type: object
-  required:
-    - releaseVersion
-  properties:
-    releaseVersion:
-      type: string
-      pattern: '^\d+\.\d+\.\d+$'
-      description: Strictly increasing SemVer release label.
-      example: "1.4.0"
-    notes:
-      type:
-        - string
-        - 'null'
-      maxLength: 4000
-      example: Compatibility updates for the municipality catalog.
-
-ReleaseCatalogResponse:
-  type: object
-  required:
-    - version
-    - fingerprint
-    - releasedAt
-    - unchangedContent
-  properties:
-    version:
-      type: string
-      example: "1.4.0"
-    fingerprint:
-      type: string
-      pattern: '^[a-f0-9]{64}$'
-      example: 9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
-    previousVersion:
-      type:
-        - string
-        - 'null'
-      example: "1.3.0"
-    releasedAt:
-      type: string
-      format: date-time
-      example: "2026-07-23T10:00:00Z"
-    unchangedContent:
-      type: boolean
-      description: True when the release content matches a previous release fingerprint.
-      example: false
-
 UpgradeCatalogResponse:
   type: object
   required:
@@ -261,56 +223,6 @@ RemovedCatalogResourceDto:
       type: string
       example: legacy
 
-CatalogReleaseDto:
-  type: object
-  description: An immutable release of a catalog
-  required:
-    - releaseVersion
-    - fingerprint
-    - releasedAt
-    - contentRetained
-    - dependencies
-    - deployedTo
-  properties:
-    releaseVersion:
-      type: string
-      maxLength: 50
-      example: "1.4.0"
-    fingerprint:
-      type: string
-      pattern: '^[a-f0-9]{64}$'
-      example: 9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
-    releasedAt:
-      type: string
-      format: date-time
-      example: "2026-07-23T10:00:00Z"
-    notes:
-      type: [string, "null"]
-      maxLength: 4000
-      example: Compatibility updates for the municipality catalog.
-    contentRetained:
-      type: boolean
-      description: |
-        Whether the release kept its content. Only such a release can be rendered, deployed or
-        exported as released; releases cut before releases retained content cannot.
-      example: true
-    dependencies:
-      type: array
-      description: |
-        The release of every other catalog this release renders with, resolved from the declared
-        dependencies when it was cut: the catalogs it declares directly, and the ones those depend
-        on in turn. Each catalog appears once. A release whose dependencies would need two releases
-        of one catalog is refused.
-      items:
-        $ref: '#/ReleaseDependencyDto'
-    deployedTo:
-      type: array
-      description: Slug identifiers of the environments that serve this release
-      items:
-        type: string
-      example:
-        - production
-
 ReleaseDependencyDto:
   type: object
   required:
@@ -344,43 +256,36 @@ ReleaseDependencyDto:
       description: True when the release's own resources reference the catalog; false when only reached through another dependency
       example: true
 
-CatalogReleaseListResponse:
-  type: object
-  required:
-    - items
-    - page
-  properties:
-    items:
-      type: array
-      items:
-        $ref: '#/CatalogReleaseDto'
-    page:
-      $ref: './common.yaml#/PageMeta'
-
 CatalogChangesDto:
   type: object
-  description: How the catalog's working copy differs from its latest release
+  description: How a catalog version differs from its base
   required:
     - releasable
     - dependenciesChanged
+    - openConflicts
     - changes
   properties:
-    latestRelease:
+    base:
       type: [string, "null"]
       maxLength: 50
-      description: The latest release; null when the catalog was never released
+      description: The highest released version below this one; null when there is none
       example: "1.4.0"
     releasable:
       type: boolean
       description: |
-        True when no resource is `new` or `modified`, no stencil instance is held back, every
-        catalog a resource references is a declared dependency that resolves to a release, and
-        something changed
+        True when the version is a draft, no resource is `new` or `modified`, no stencil instance is
+        held back, no incoming conflict is open, every catalog a resource references is a declared
+        dependency that resolves to a release, and something changed
       example: false
     dependenciesChanged:
       type: boolean
-      description: True when the declared dependencies differ from the latest release's
+      description: True when the declared dependencies differ from the base's
       example: false
+    openConflicts:
+      type: integer
+      minimum: 0
+      description: How many incoming conflicts are not resolved yet
+      example: 0
     changes:
       type: array
       items:
@@ -408,8 +313,8 @@ ResourceChangeDto:
         - ready
         - removed
       description: |
-        `new`, `modified` and `ready` as in ResourceStatus; `removed` for a resource in the latest
-        release that is no longer in the working copy.
+        `new`, `modified` and `ready` as in ResourceStatus; `removed` for a resource in the base
+        that is no longer in this version.
       example: modified
     heldBackInstances:
       type: integer
@@ -487,7 +392,8 @@ CatalogDependencyDto:
       type: [string, "null"]
       maxLength: 50
       description: |
-        The release the working copy renders with now: the highest installed release of the catalog
+        The release the version renders with: for a released version, the one it was cut with; for
+        a draft, the highest installed release of the catalog
         that satisfies `version`. Null when none does, which blocks a release.
       example: "1.3.0"
 
@@ -503,7 +409,7 @@ CatalogDependencyListResponse:
 
 UpdateCatalogDependenciesRequest:
   type: object
-  description: The complete set of dependencies of the catalog's working copy
+  description: The complete set of dependencies of the draft
   required:
     - dependencies
   properties:
@@ -513,3 +419,344 @@ UpdateCatalogDependenciesRequest:
         Each catalog depended on, at most once. The catalog cannot depend on itself.
       items:
         $ref: '#/CatalogDependencyRequirement'
+
+CatalogVersionStatus:
+  type: string
+  enum:
+    - draft
+    - released
+  description: |
+    - `draft`: editable. Never rendered by generation, deployed, exported or published.
+    - `released`: immutable. Releasing a draft changes its status, not its number or address.
+  example: draft
+
+CatalogVersionDto:
+  type: object
+  description: |
+    One version of a catalog. A version is opened as a draft, edited, and released, after which it
+    is immutable. Several drafts can be open at once; each contains every released version below
+    its number.
+  required:
+    - version
+    - status
+    - dependencies
+    - deployedTo
+  properties:
+    version:
+      type: string
+      maxLength: 50
+      description: The version's SemVer number, unique in its catalog
+      example: "2.0.0"
+    status:
+      $ref: '#/CatalogVersionStatus'
+    base:
+      type: [string, "null"]
+      maxLength: 50
+      description: |
+        The highest released version below this one, which a draft's changes are measured against;
+        null when there is none
+      example: "1.4.0"
+    createdFrom:
+      type: [string, "null"]
+      maxLength: 50
+      description: The version this one was opened from; null when it was opened from its base
+      example: null
+    createdAt:
+      type: [string, "null"]
+      format: date-time
+      description: When the version was opened; null for a release installed from elsewhere
+      example: "2026-10-01T09:00:00Z"
+    openConflicts:
+      type: integer
+      minimum: 0
+      description: For a draft, how many incoming conflicts are not resolved yet; 0 when released
+      example: 0
+    releasedAt:
+      type: [string, "null"]
+      format: date-time
+      description: When the version was released; null for a draft
+      example: null
+    notes:
+      type: [string, "null"]
+      maxLength: 4000
+      description: The release notes; null for a draft
+      example: null
+    fingerprint:
+      type: [string, "null"]
+      pattern: '^[a-f0-9]{64}$'
+      description: Lowercase hex SHA-256 of the released content; null for a draft
+      example: null
+    contentRetained:
+      type: [boolean, "null"]
+      description: |
+        For a released version, whether it kept its content. Only such a release can be rendered,
+        deployed or exported; releases cut before releases retained content cannot. Null for a
+        draft.
+      example: null
+    dependencies:
+      type: array
+      description: |
+        For a released version, the release of every other catalog it renders with, resolved from
+        the declared dependencies when it was released: the catalogs it declares directly, and the
+        ones those depend on in turn. Each catalog appears once. Empty for a draft, whose declared
+        dependencies are listed by `listCatalogDependencies`.
+      items:
+        $ref: '#/ReleaseDependencyDto'
+    deployedTo:
+      type: array
+      description: Slug identifiers of the environments that serve this version; empty for a draft
+      items:
+        type: string
+      example: []
+
+CatalogVersionListResponse:
+  type: object
+  required:
+    - items
+    - page
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/CatalogVersionDto'
+    page:
+      $ref: './common.yaml#/PageMeta'
+
+CreateCatalogVersionRequest:
+  type: object
+  required:
+    - version
+  properties:
+    version:
+      type: string
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      maxLength: 50
+      description: The draft's version number, not yet in use in the catalog
+      example: "2.0.0"
+    from:
+      type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      maxLength: 50
+      description: |
+        The version, a draft or released, to start from. Omitted: the draft's base.
+      example: null
+
+RenumberCatalogVersionRequest:
+  type: object
+  required:
+    - version
+  properties:
+    version:
+      type: string
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      maxLength: 50
+      description: The draft's new version number, not yet in use in the catalog
+      example: "1.5.0"
+    acknowledgeWarnings:
+      type: boolean
+      default: false
+      description: |
+        Renumber even when the renumber has warnings (see `previewCatalogVersionRenumber`). Without
+        it, a renumber with warnings is refused with 409.
+      example: false
+
+CatalogVersionRenumberPreview:
+  type: object
+  required:
+    - from
+    - to
+    - warnings
+  properties:
+    from:
+      type: string
+      maxLength: 50
+      description: The draft's current number
+      example: "1.5.0"
+    to:
+      type: string
+      maxLength: 50
+      description: The number it would get
+      example: "1.7.0"
+    newBase:
+      type: [string, "null"]
+      maxLength: 50
+      description: The draft's base after the renumber; null when there would be none
+      example: "1.6.0"
+    warnings:
+      type: array
+      description: What the renumber would change beyond the number. Empty when nothing.
+      items:
+        $ref: '#/RenumberWarningDto'
+
+RenumberWarningDto:
+  type: object
+  required:
+    - kind
+    - message
+  properties:
+    kind:
+      type: string
+      maxLength: 100
+      description: |
+        What the warning is about. Known kinds, which may grow; a client shows a kind it does not
+        know by its `message`:
+
+        - `releases-flow-in`: the draft moves up past released versions, which flow into it and may
+          open incoming conflicts.
+        - `contains-later-releases`: the draft moves down past released versions, and keeps their
+          changes, so it will release what those releases did.
+        - `draft-order-changes`: the draft moves past another open draft, so which one receives the
+          other's changes on release reverses.
+        - `breaking-changes-in-patch`: the new number is a patch of the base, while the draft has
+          changes that are breaking against it.
+      example: releases-flow-in
+    message:
+      type: string
+      description: The warning, written for the author
+      example: Release 1.6.0 flows into this draft; 2 of its changes conflict.
+    versions:
+      type: array
+      description: The versions the warning is about, released or draft
+      items:
+        type: string
+      example: ["1.6.0"]
+
+ReleaseCatalogVersionRequest:
+  type: object
+  properties:
+    notes:
+      type: [string, "null"]
+      maxLength: 4000
+      example: Compatibility updates for the municipality catalog.
+
+ReleaseCatalogVersionResponse:
+  type: object
+  required:
+    - version
+    - unchangedContent
+    - flowedInto
+  properties:
+    version:
+      $ref: '#/CatalogVersionDto'
+    unchangedContent:
+      type: boolean
+      description: True when the release content matches a previous release fingerprint.
+      example: false
+    flowedInto:
+      type: array
+      description: The open drafts with a higher number that received the released changes
+      items:
+        $ref: '#/ForwardFlowDto'
+    openedDraft:
+      type: [string, "null"]
+      maxLength: 50
+      description: The draft opened because none was open above the released version; null otherwise
+      example: "1.4.1"
+
+ForwardFlowDto:
+  type: object
+  required:
+    - version
+    - merged
+    - conflicts
+  properties:
+    version:
+      type: string
+      maxLength: 50
+      description: The draft that received the changes
+      example: "2.0.0"
+    merged:
+      type: integer
+      minimum: 0
+      description: How many changes merged without conflict
+      example: 4
+    conflicts:
+      type: integer
+      minimum: 0
+      description: How many changes conflicted, and block releasing that draft until resolved
+      example: 1
+
+IncomingChangeState:
+  type: string
+  enum:
+    - merged
+    - conflict
+    - resolved
+  description: |
+    - `merged`: applied to the draft without conflict.
+    - `conflict`: the draft changed the same node differently; it blocks releasing the draft.
+    - `resolved`: was a conflict, and has been resolved.
+  example: conflict
+
+IncomingChangeDto:
+  type: object
+  description: |
+    One change that flowed into a draft from a lower release, at the level of one node of one
+    resource (or the resource as a whole, when it was added or removed).
+  required:
+    - id
+    - fromVersion
+    - type
+    - slug
+    - state
+  properties:
+    id:
+      type: string
+      maxLength: 100
+      description: Identifier of the change within the draft
+      example: chg-7f3a
+    fromVersion:
+      type: string
+      maxLength: 50
+      description: The release the change came from
+      example: "1.5.0"
+    type:
+      type: string
+      description: The resource type, as the portable catalog format names it
+      example: template
+    slug:
+      type: string
+      example: monthly-invoice
+    node:
+      type: [string, "null"]
+      maxLength: 200
+      description: |
+        The node within the resource the change is about, such as a variant and a node id; null
+        when it concerns the whole resource
+      example: dutch/node-greeting
+    state:
+      $ref: '#/IncomingChangeState'
+    resolution:
+      $ref: '#/IncomingChangeResolution'
+
+IncomingChangeListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/IncomingChangeDto'
+
+IncomingChangeResolution:
+  type: string
+  enum:
+    - keep
+    - take
+    - edited
+  description: |
+    - `keep`: keep the draft's content.
+    - `take`: replace it with the incoming content.
+    - `edited`: the author already edited the resource to combine both; keep it as it is.
+
+    On an incoming change, present only once a conflict is resolved.
+  example: take
+
+ResolveIncomingChangeRequest:
+  type: object
+  required:
+    - resolution
+  properties:
+    resolution:
+      $ref: '#/IncomingChangeResolution'

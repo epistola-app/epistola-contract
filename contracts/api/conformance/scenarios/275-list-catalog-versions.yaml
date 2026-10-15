@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: list-catalog-versions
+title: Listing a catalog's versions filters by status and keeps drafts without a base
+why: >
+  Drafts and released versions share one collection, told apart by `status`. The filter is a query
+  parameter with an enum value; a client that sends it in another case, or drops it, lists the
+  wrong versions.
+
+  The first draft of a catalog that was never released has no base. A client that cannot read a
+  null `base` cannot list a new catalog at all.
+
+action:
+  name: list-catalog-versions
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    status: draft
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      items:
+        - { version: 2.0.0, status: draft, base: 1.4.0, createdFrom: null, openConflicts: 1, dependencies: [], deployedTo: [] }
+        - { version: 1.4.1, status: draft, base: 1.4.0, createdFrom: null, openConflicts: 0, dependencies: [], deployedTo: [] }
+        - { version: 0.1.0, status: draft, base: null, createdFrom: null, openConflicts: 0, dependencies: [], deployedTo: [] }
+      page: { number: 0, size: 20, totalElements: 3, totalPages: 1 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions
+      queryParams:
+        status: draft
+        page: { whenPresent: '0' }
+        size: { whenPresent: '20' }
+  report:
+    versions: 2.0.0,1.4.1,0.1.0
+    statuses: draft,draft,draft
+    bases: 1.4.0,1.4.0,null
+    openConflicts: 1,0,0
