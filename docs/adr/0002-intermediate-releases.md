@@ -15,8 +15,8 @@ the working copy holds a large change towards `2.0.0` that is weeks from done, a
 few finished improvements that should ship now as `1.5.0`. Today the team can either wait for
 `2.0.0`, or undo the unfinished work to release.
 
-ADR 0001 covers the urgent case, a fix to what production runs, with an override in production. This
-ADR covers the planned case: an **intermediate release** cut from the authoring installation while
+ADR 0001 covers the urgent case, a fix to what production runs, with a non-breaking
+`+hotfix.N` release cut where it is needed. This ADR covers the planned case: an **intermediate release** cut from the authoring installation while
 other work continues.
 
 ## Options
@@ -87,8 +87,8 @@ This is simple, but it pushes the problem onto the authors.
 - **Dependencies:** `listCatalogDependencies` shows the working and the ready declaration;
   `updateCatalogDependencies` edits the working one, and marking ready snapshots it.
 - **Contract change:** every client follows, and the conformance suite gains scenarios.
-- **Combined with ADR 0001:** urgent fixes go through a production override, planned intermediate
-  releases through ready snapshots. Neither needs a second working copy.
+- **Combined with ADR 0001:** urgent fixes go through a hotfix release, planned intermediate
+  releases through ready snapshots. Neither needs a second working copy of the catalog.
 
 ## Open questions
 
