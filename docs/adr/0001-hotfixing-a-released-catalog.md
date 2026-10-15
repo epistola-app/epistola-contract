@@ -3,7 +3,7 @@
 - **Status:** Proposed
 - **Date:** 2026-10-15
 - **Scope:** API contract (`contracts/api`) and catalog contract (`contracts/catalog`), contract 2.0
-- **Related:** [ADR 0002](0002-intermediate-releases.md) (releasing part of the working copy)
+- **Related:** [ADR 0002](0002-intermediate-releases.md) (working on several catalog versions at once)
 
 ## Context
 
@@ -48,8 +48,10 @@ three-way merge. A merge conflict blocks the next release.
 - It only works for catalogs the team authors. A subscribed catalog has no working copy to branch
   from, and its namespace is not the team's to release in.
 
-**Rejected:** option F solves the same problem with less machinery, and also covers catalogs the team
-does not own.
+**Superseded** by ADR 0002, which adds several drafts per catalog and the forward merge for
+intermediate releases. A hotfix of an owned catalog is then simply a patch draft (`1.0.2`). Option F
+remains for fixing in place, where the release must keep its version, and for catalogs the team does
+not own.
 
 ### B. Stash the working copy
 
@@ -109,9 +111,11 @@ hotfix therefore *is* `1.0.1` for every selector:
 
 - A hotfix is created from a release the installation has installed: one it authored or one it
   subscribes to, including another publisher's.
-- It is edited in a short-lived **hotfix draft** of that release, separate from the catalog's working
-  copy, so the `2.0.0` work in an authoring installation is untouched.
-- It is released as the next free `+hotfix.N` of its base, and the draft is discarded.
+- It is a catalog version in draft state (ADR 0002), numbered `1.0.1+hotfix.N` with the next free
+  `N` when it is created. It sits next to any other drafts, so the `2.0.0` work in an authoring
+  installation is untouched.
+- It contains its base, `1.0.1`, never later releases, and does not flow forward into other drafts.
+- Releasing it is the same state transition as for any draft.
 
 #### A hotfix may not break anything
 
@@ -147,7 +151,7 @@ Anything else needs a real release (`1.0.2`, `1.1.0`, `2.0.0`) through the norma
    requires confirmation that those fixes are dropped. For a catalog the team does not own, this also
    shows whether the publisher has fixed the error yet.
 3. **Offer a way back, but do not require it.** A hotfix can be read as a diff against its base, and
-   imported into the authoring installation, so the team can apply the same fix in its working copy.
+   imported into the authoring installation, so the team can apply the same fix in its open drafts.
    Applying it stays a manual step.
 4. **Reject options A to E.**
 
@@ -162,11 +166,8 @@ Anything else needs a real release (`1.0.2`, `1.1.0`, `2.0.0`) through the norma
   query string. The contract states that `+` is sent as `%2B` or literally and means `+`, and a
   conformance scenario holds every client to it.
 - **API:**
-  - Hotfix lifecycle per installed release:
-    - create a hotfix draft from a release;
-    - edit its resources, with the same shapes as the working copy;
-    - release it as `+hotfix.N`;
-    - discard it.
+  - Hotfix lifecycle: the catalog version operations of ADR 0002, with `createCatalogVersion`
+    accepting `+hotfix` from an installed release, also in a subscribed catalog.
   - `releaseCatalog`-style validation of the hotfix that reports every breaking change it finds.
   - `deployRelease` reports dropped hotfix fixes and needs a confirmation flag to proceed.
   - Export of a single release, and refusal of a conflicting import.
@@ -176,12 +177,11 @@ Anything else needs a real release (`1.0.2`, `1.1.0`, `2.0.0`) through the norma
     already, and becomes one rule that every installation applies identically.
   - The node-level comparison behind the guard.
   - Archive support for hotfix labels.
-- **Not needed:** a second working copy of the catalog, a three-way merge, or a separate override
-  identity.
+- **Not needed:** a separate override identity, or a hotfix-specific editing API.
 
 ## Open questions
 
 - Can a hotfix be cut from any installed release, or only from one an environment serves?
 - Does cutting or deploying a hotfix in production need a review step (four eyes)?
 - When a hotfix is imported into the authoring installation, should it be offered as a diff to apply
-  to the working copy, or only be available to read?
+  to a draft, or only be available to read?
