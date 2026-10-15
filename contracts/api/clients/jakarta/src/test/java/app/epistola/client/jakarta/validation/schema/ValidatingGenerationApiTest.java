@@ -40,16 +40,16 @@ class ValidatingGenerationApiTest {
     private final AtomicInteger submissions = new AtomicInteger();
 
     private final GenerateDocumentRequest request =
-            new GenerateDocumentRequest().catalogId("default").templateId("invoice").data(Map.of());
+            new GenerateDocumentRequest().namespace("acme-corp").catalogKey("default").templateId("invoice").data(Map.of());
 
     private final GenerateBatchRequest batch = new GenerateBatchRequest()
             .items(List.of(
-                    new BatchGenerationItem().catalogId("default").templateId("invoice").data(Map.of()),
-                    new BatchGenerationItem().catalogId("default").templateId("reminder").data(Map.of())));
+                    new BatchGenerationItem().namespace("acme-corp").catalogKey("default").templateId("invoice").data(Map.of()),
+                    new BatchGenerationItem().namespace("acme-corp").catalogKey("default").templateId("reminder").data(Map.of())));
 
     /** A validator that answers in-process, so it takes the pre-flight. */
     private TemplateDataValidator local(String... paths) {
-        return (tenantId, catalogId, templateId, data) -> {
+        return (tenantId, namespace, catalogKey, templateId, data) -> {
             validations.incrementAndGet();
             List<ValidationError> findings = new ArrayList<>();
             for (String path : paths) {
@@ -179,6 +179,59 @@ class ValidatingGenerationApiTest {
 
         assertEquals(1, submissions.get());
         assertTrue(validations.get() >= 2, "every item is checked");
+    }
+
+    /**
+     * A body writes a namespace on a non-default exchange with {@code /}; the validator puts it in a
+     * URL path, where the contract writes it with {@code ~}. Handing the body form through would
+     * percent-encode the slash and address a catalog that does not exist.
+     */
+    @Test
+    void the_preflight_hands_the_validator_the_path_form_of_the_namespace() {
+        List<String> namespaces = new ArrayList<>();
+        TemplateDataValidator recording = (tenantId, namespace, catalogKey, templateId, data) -> {
+            namespaces.add(namespace + "|" + catalogKey);
+            return List.of();
+        };
+        ValidatingGenerationApi api = new ValidatingGenerationApi(generationApi(null), recording);
+
+        api.generateDocument(
+                "acme-corp",
+                new GenerateDocumentRequest()
+                        .namespace("exchange.example.org/team-a")
+                        .catalogKey("letters")
+                        .templateId("invoice")
+                        .data(Map.of()));
+        api.generateDocumentBatch(
+                "acme-corp",
+                new GenerateBatchRequest()
+                        .items(List.of(
+                                new BatchGenerationItem()
+                                        .namespace("exchange.example.org/team-a")
+                                        .catalogKey("letters")
+                                        .templateId("invoice")
+                                        .data(Map.of()),
+                                new BatchGenerationItem()
+                                        .namespace("acme.com")
+                                        .catalogKey("house-style")
+                                        .templateId("invoice")
+                                        .data(Map.of()))));
+
+        assertEquals(
+                List.of(
+                        "exchange.example.org~team-a|letters",
+                        "exchange.example.org~team-a|letters",
+                        "acme.com|house-style"),
+                namespaces);
+    }
+
+    @Test
+    void the_path_form_only_replaces_the_exchange_separator() {
+        assertEquals("exchange.example.org~team-a", ValidatingGenerationApi.pathSegment("exchange.example.org/team-a"));
+        assertEquals("acme-corp", ValidatingGenerationApi.pathSegment("acme-corp"));
+        assertEquals("acme.com", ValidatingGenerationApi.pathSegment("acme.com"));
+        assertEquals("exchange.example.org~team-a", ValidatingGenerationApi.pathSegment("exchange.example.org~team-a"));
+        assertEquals(null, ValidatingGenerationApi.pathSegment(null));
     }
 
     @Test

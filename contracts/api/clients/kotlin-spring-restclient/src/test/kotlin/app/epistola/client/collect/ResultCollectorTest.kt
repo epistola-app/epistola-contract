@@ -80,6 +80,41 @@ class ResultCollectorTest {
     }
 
     @Test
+    fun `parses the release a result rendered, and null for a result from before contract 2_0`() {
+        val results = mutableListOf<ResultCollector.GenerationResult>()
+        val current = objectMapper.writeValueAsString(
+            mapOf(
+                "sequence" to 100,
+                "requestId" to "r1",
+                "status" to "COMPLETED",
+                "namespace" to "exchange.example.org/team-a",
+                "catalogKey" to "letters",
+                "releaseVersion" to "1.4.0",
+            ),
+        )
+        val legacy = objectMapper.writeValueAsString(
+            mapOf(
+                "sequence" to 101,
+                "requestId" to "r2",
+                "status" to "COMPLETED",
+                "namespace" to null,
+                "catalogKey" to null,
+                "releaseVersion" to null,
+            ),
+        )
+        val restClient = mockRestClient(ndjsonResponse(current, legacy, metaLine(hasMore = false, count = 2, lastSequence = 101)))
+
+        buildCollector(restClient) { results.add(it) }.collectOnce()
+
+        assertEquals("exchange.example.org/team-a", results[0].namespace)
+        assertEquals("letters", results[0].catalogKey)
+        assertEquals("1.4.0", results[0].releaseVersion)
+        assertNull(results[1].namespace)
+        assertNull(results[1].catalogKey)
+        assertNull(results[1].releaseVersion)
+    }
+
+    @Test
     fun `handles empty response`() {
         val results = mutableListOf<ResultCollector.GenerationResult>()
         val restClient = mockRestClient(ndjsonResponse(metaLine(hasMore = false, count = 0)))

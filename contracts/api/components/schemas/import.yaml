@@ -242,6 +242,7 @@ ImportCatalogResponse:
   type: object
   description: Result of importing a catalog ZIP archive
   required:
+    - namespace
     - catalogKey
     - catalogName
     - installed
@@ -250,9 +251,18 @@ ImportCatalogResponse:
     - total
     - aborted
   properties:
+    namespace:
+      type: string
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: |
+        Namespace of the catalog. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
+        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
+      example: exchange.epistola.app/acme-corp
     catalogKey:
       type: string
-      description: Slug identifier of the imported catalog
+      description: Key of the imported catalog, unique within its namespace
       example: valtimo-demo
     catalogName:
       type: string

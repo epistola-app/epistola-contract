@@ -52,20 +52,21 @@ class NetworkntTemplateDataValidator(
     private val ttl: Duration = Duration.ofMinutes(5),
 ) : TemplateDataValidator {
 
-    private data class Key(val tenantId: String, val catalogId: String, val templateId: String)
+    private data class Key(val tenantId: String, val namespace: String, val catalogKey: String, val templateId: String)
     private data class Entry(val schema: JsonSchema?, val storedAt: Instant)
 
     private val cache = ConcurrentHashMap<Key, Entry>()
 
     override fun validate(
         tenantId: String,
-        catalogId: String,
+        namespace: String,
+        catalogKey: String,
         templateId: String,
         data: Any,
     ): List<ValidationError> {
         // No schema on the template means nothing is claimed about the data, so nothing is wrong
         // with it. Same answer the server gives.
-        val schema = schemaFor(Key(tenantId, catalogId, templateId)) ?: return emptyList()
+        val schema = schemaFor(Key(tenantId, namespace, catalogKey, templateId)) ?: return emptyList()
 
         return schema.validate(objectMapper.valueToTree<JsonNode>(data)).map { message ->
             ValidationError(
@@ -87,7 +88,7 @@ class NetworkntTemplateDataValidator(
     }
 
     private fun loadSchema(key: Key): JsonSchema? {
-        val template = templatesApi.getTemplate(key.tenantId, key.catalogId, key.templateId)
+        val template = templatesApi.getTemplate(key.tenantId, key.namespace, key.catalogKey, key.templateId)
         val schemaObject = template.schema ?: return null
         val schemaNode: JsonNode = objectMapper.valueToTree(schemaObject)
         val config = SchemaValidatorsConfig.builder().pathType(PathType.JSON_POINTER).build()

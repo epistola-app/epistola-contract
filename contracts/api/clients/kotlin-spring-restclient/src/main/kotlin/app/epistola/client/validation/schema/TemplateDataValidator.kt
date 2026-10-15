@@ -41,14 +41,17 @@ fun interface TemplateDataValidator {
      * there are none.
      *
      * @param tenantId Tenant identifier.
-     * @param catalogId Catalog identifier. The same template id in two catalogs of one tenant is
-     *   two different templates with two different contracts.
+     * @param namespace Namespace of the template's catalog, in its path-segment form (`acme-corp`,
+     *   `acme.com`, or `exchange.example.org~team-a`).
+     * @param catalogKey Key of the template's catalog within [namespace]. The same template id in
+     *   two catalogs of one tenant is two different templates with two different contracts.
      * @param templateId Template identifier.
      * @param data The data object, typically a `Map<String, Any?>`.
      */
     fun validate(
         tenantId: String,
-        catalogId: String,
+        namespace: String,
+        catalogKey: String,
         templateId: String,
         data: Any,
     ): List<TemplateDataValidationException.ValidationError>

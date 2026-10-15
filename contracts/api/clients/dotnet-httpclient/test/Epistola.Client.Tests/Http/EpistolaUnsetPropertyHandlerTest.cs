@@ -55,7 +55,7 @@ public class EpistolaUnsetPropertyHandlerTest
     [Fact]
     public async Task LeavesABodyWithNothingToStripByteIdentical()
     {
-        var body = """{"catalogId":"default","templateId":"invoice"}""";
+        var body = """{"namespace":"acme-corp","catalogKey":"default","templateId":"invoice"}""";
 
         Assert.Equal(body, await Send(body));
     }

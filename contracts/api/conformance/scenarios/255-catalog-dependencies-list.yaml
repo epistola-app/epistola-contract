@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: catalog-dependencies-list
+title: Listing a catalog's dependencies addresses the catalog by namespace and key
+why: >
+  The schema is validated by Prism, which checks the request against the path's namespace pattern
+  and answers with a body generated from the response schema. A client whose model rejects a
+  namespace written in full, or a null `resolvedVersion`, fails here without a scripted fixture
+  having thought of it.
+
+backend: prism
+
+action:
+  name: list-catalog-dependencies
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantId: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/dependencies

@@ -97,17 +97,17 @@ public class ModelValidationTest
     [Fact]
     public void GenerateDocumentRequestValidatesNullableFieldsIndependently()
     {
-        new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), releaseVersion: null).Validate();
+        new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), varVersion: null).Validate();
         Assert.Throws<ArgumentException>(() =>
-            new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), releaseVersion: "").Validate());
+            new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), varVersion: "").Validate());
 
-        new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), environmentId: null).Validate();
+        new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), environmentId: null).Validate();
         Assert.Throws<ArgumentException>(() =>
-            new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), environmentId: "PROD").Validate());
+            new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), environmentId: "PROD").Validate());
 
-        new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), filename: new string('x', 255)).Validate();
+        new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), filename: new string('x', 255)).Validate();
         var ex = Assert.Throws<ArgumentException>(() =>
-            new GenerateDocumentRequest(catalogId: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), filename: new string('x', 256)).Validate());
+            new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), filename: new string('x', 256)).Validate());
         Assert.Contains("filename: length must be at most 255", ex.Message);
     }
 
@@ -122,7 +122,7 @@ public class ModelValidationTest
     public void GenerateBatchRequestWithItemsPasses()
     {
         var items = Enumerable.Range(1, 5).Select(i => new BatchGenerationItem(
-            catalogId: "default", templateId: "invoice", variantId: "english",
+            varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", variantId: "english",
             data: new Dictionary<string, object> { ["n"] = i })).ToList();
         var request = new GenerateBatchRequest(items: items);
         Assert.Same(request, request.Validate());

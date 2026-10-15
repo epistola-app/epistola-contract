@@ -4,8 +4,8 @@ ValidateTemplateDataRequest:
     Request body for validating template input data against the template's JSON Schema.
 
     The data is checked against the contract of the release that preview and generation would
-    render for the same selection: `releaseVersion` names one, `environmentId` takes the release
-    that environment serves, and without either the catalog's latest release is used. Absent
+    render for the same selection: the highest release that satisfies `version`, among the releases
+    `environmentId` serves when it is set, and without either the catalog's highest release. Absent
     optional fields that release's template reads are reported too.
   required:
     - data
@@ -17,18 +17,20 @@ ValidateTemplateDataRequest:
       maxLength: 50
       description: Slug identifier of the variant to check against. If omitted, the default variant of the template in the resolved release is used.
       example: null
-    releaseVersion:
+    version:
       type: [string, "null"]
       minLength: 1
-      maxLength: 50
-      description: Release of the template's catalog to check against (mutually exclusive with environmentId).
+      maxLength: 100
+      description: |
+        Version selector for the release of the template's catalog to check against (see "Version
+        selectors" in the API description). Combines with `environmentId`.
       example: null
     environmentId:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 30
-      description: Slug identifier of the environment whose deployed release to check against (mutually exclusive with releaseVersion).
+      description: Slug identifier of an environment; only the releases it serves are considered.
       example: null
     data:
       type: object

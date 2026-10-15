@@ -1,6 +1,6 @@
 EnvironmentDto:
   type: object
-  description: A deployment stage (e.g., staging, production) that serves one release per catalog
+  description: A deployment stage (e.g., staging, production) that serves catalog releases, possibly several of one catalog
   required:
     - slug
     - tenantId
@@ -99,31 +99,30 @@ EnvironmentListResponse:
       totalElements: 2
       totalPages: 1
 
-DeployReleaseRequest:
-  type: object
-  required:
-    - releaseVersion
-  properties:
-    releaseVersion:
-      type: string
-      minLength: 1
-      maxLength: 50
-      description: The release of the catalog to deploy
-      example: "1.4.0"
-
 DeploymentDto:
   type: object
-  description: The release of one catalog an environment serves
+  description: One catalog release an environment serves
   required:
-    - catalogId
+    - namespace
+    - catalogKey
     - releaseVersion
     - deployedAt
   properties:
-    catalogId:
+    namespace:
+      type: string
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: |
+        Namespace of the catalog. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
+        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
+      example: some-namespace
+    catalogKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
+      description: Key of the catalog, unique within its namespace
       example: letters
     releaseVersion:
       type: string
@@ -148,15 +147,27 @@ DeploymentEventDto:
   type: object
   description: One change to what an environment serves
   required:
-    - catalogId
+    - namespace
+    - catalogKey
+    - releaseVersion
     - action
     - changedAt
   properties:
-    catalogId:
+    namespace:
+      type: string
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: |
+        Namespace of the catalog. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
+        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
+      example: some-namespace
+    catalogKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
+      description: Key of the catalog, unique within its namespace
       example: letters
     action:
       type: string
@@ -165,15 +176,10 @@ DeploymentEventDto:
         - undeployed
       example: deployed
     releaseVersion:
-      type: [string, "null"]
+      type: string
       maxLength: 50
-      description: The release served after the change; null when the catalog was undeployed
+      description: The release deployed or undeployed
       example: "1.4.1"
-    previousReleaseVersion:
-      type: [string, "null"]
-      maxLength: 50
-      description: The release served before the change; null when none was
-      example: "1.4.0"
     changedAt:
       type: string
       format: date-time

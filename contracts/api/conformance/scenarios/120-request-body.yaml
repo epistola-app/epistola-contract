@@ -12,7 +12,7 @@ why: >
 
   The interesting part is what is *not* sent. Five optional fields are left unset, and a client that
   serializes them as explicit nulls says something different from one that omits them: the contract
-  marks variantId, releaseVersion and environmentId mutually exclusive with other fields, so a null that
+  marks variantId mutually exclusive with attributes, and version and environmentId narrow the release rendered with other fields, so a null that
   looks like a value is a request a strict server can reject. Jackson, JSON-B, System.Text.Json and
   pydantic each decide this for themselves, by configuration none of them shares.
 
@@ -20,12 +20,16 @@ why: >
   types it and each client hands its serializer a raw map. Every JSON type is in there, including a
   decimal, because that is where serializers most often disagree with each other.
 
+  The namespace is one on a non-default exchange, so it carries a `/`. In a body that is plain
+  JSON (an escaped `\/` is the same string); only in a URL path does it become `~`.
+
 action:
   name: generate-document
   config:
     nodeId: conformance-node-1
     tenantId: acme-corp
-    catalogId: default
+    namespace: exchange.example.org/team-a
+    catalogKey: default
     templateId: invoice
     correlationId: inv-2026-0042
     routingKey: acme-node-1
@@ -64,7 +68,8 @@ expect:
           matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
       body:
         json:
-          catalogId: default
+          namespace: exchange.example.org/team-a
+          catalogKey: default
           templateId: invoice
           correlationId: inv-2026-0042
           routingKey: acme-node-1
@@ -84,4 +89,4 @@ expect:
         # Kotlin client's mapper wrote null for every unset field. Prism rejected the body. The
         # tolerant assertion had waved through a request no validating server accepts, which is why
         # this one is strict.
-        jsonAbsent: [variantId, attributes, releaseVersion, environmentId, filename]
+        jsonAbsent: [variantId, attributes, version, environmentId, filename]

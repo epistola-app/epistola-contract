@@ -120,7 +120,12 @@ collector = (
     ResultCollector.builder()
     .api_client(http)
     .tenant_id("acme")
-    .handler(lambda result: print(result.request_id, result.status))
+    .handler(lambda result: print(
+        result.request_id,
+        result.status,
+        # The catalog release it was generated from; None for results from before contract 2.0.
+        f"{result.namespace}/{result.catalog_key}@{result.release_version}",
+    ))
     .build()
 )
 collector.start()   # blocks; adaptive polling until collector.stop()
@@ -135,8 +140,14 @@ Multipart operations such as `upload_image` and `import_catalog` take the file a
 from epistola_client import ImagesApi
 
 with open("logo.png", "rb") as f:
-    image = ImagesApi(http).upload_image("acme-corp", "main", ("logo.png", f.read()), name="Logo")
+    image = ImagesApi(http).upload_image(
+        "acme-corp", "acme-corp", "main", ("logo.png", f.read()), name="Logo"
+    )
 ```
+
+A catalog is addressed by its namespace and its key — here namespace `acme-corp`, key `main`. In a
+path, a namespace on a non-default exchange is written with `~` in place of its `/`
+(`exchange.example.org~team-a`).
 
 Bare `bytes` are sent with the field name, `file`, as their filename and with type
 `application/octet-stream`. The server then names the image `file`, and rejects it as not an image

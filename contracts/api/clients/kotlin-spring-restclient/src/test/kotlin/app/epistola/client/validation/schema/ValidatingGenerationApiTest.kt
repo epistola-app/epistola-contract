@@ -35,20 +35,21 @@ class ValidatingGenerationApiTest {
     private val generationApi = mockk<GenerationApi>(relaxed = true)
 
     private val request = GenerateDocumentRequest(
-        catalogId = "default",
+        namespace = "acme-corp",
+        catalogKey = "default",
         templateId = "invoice",
         data = emptyMap<String, Any>(),
     )
 
     private val batch = GenerateBatchRequest(
         items = listOf(
-            BatchGenerationItem(catalogId = "default", templateId = "invoice", data = emptyMap<String, Any>()),
-            BatchGenerationItem(catalogId = "default", templateId = "reminder", data = emptyMap<String, Any>()),
+            BatchGenerationItem(namespace = "acme-corp", catalogKey = "default", templateId = "invoice", data = emptyMap<String, Any>()),
+            BatchGenerationItem(namespace = "acme-corp", catalogKey = "default", templateId = "reminder", data = emptyMap<String, Any>()),
         ),
     )
 
     /** A validator that answers in-process, so it takes the pre-flight. */
-    private fun local(vararg paths: String) = TemplateDataValidator { _, _, _, _ ->
+    private fun local(vararg paths: String) = TemplateDataValidator { _, _, _, _, _ ->
         paths.map { TemplateDataValidationException.ValidationError(it, "is required but was not supplied", "required") }
     }
 
@@ -73,6 +74,29 @@ class ValidatingGenerationApiTest {
     )
 
     @Test
+    fun `the pre-flight hands the validator a body namespace in its path-segment form`() {
+        val namespaces = mutableListOf<String>()
+        val recording = TemplateDataValidator { _, namespace, _, _, _ ->
+            namespaces += namespace
+            emptyList()
+        }
+        val api = ValidatingGenerationApi(generationApi, recording)
+
+        api.generateDocument("acme", request.copy(namespace = "exchange.example.org/team-a"))
+        api.generateDocumentBatch(
+            "acme",
+            GenerateBatchRequest(
+                items = listOf(
+                    BatchGenerationItem(namespace = "exchange.example.org/team-a", catalogKey = "default", templateId = "invoice", data = emptyMap<String, Any>()),
+                    BatchGenerationItem(namespace = "acme.com", catalogKey = "default", templateId = "invoice", data = emptyMap<String, Any>()),
+                ),
+            ),
+        )
+
+        assertEquals(listOf("exchange.example.org~team-a", "exchange.example.org~team-a", "acme.com"), namespaces)
+    }
+
+    @Test
     fun `the default validator submits without a pre-flight request`() {
         val api = ValidatingGenerationApi(generationApi, templatesApi)
 
@@ -81,7 +105,7 @@ class ValidatingGenerationApiTest {
         // The point of ServerTemplateDataValidator.preflightsGeneration being false: the server
         // validates what it is given, so asking it first would be a second round trip for the
         // same verdict.
-        verify(exactly = 0) { templatesApi.validateTemplateData(any(), any(), any(), any()) }
+        verify(exactly = 0) { templatesApi.validateTemplateData(any(), any(), any(), any(), any()) }
         verify(exactly = 1) { generationApi.generateDocument("acme", request) }
     }
 
@@ -164,7 +188,7 @@ class ValidatingGenerationApiTest {
 
     @Test
     fun `a local validator that finds nothing lets the request through`() {
-        val api = ValidatingGenerationApi(generationApi, TemplateDataValidator { _, _, _, _ -> emptyList() })
+        val api = ValidatingGenerationApi(generationApi, TemplateDataValidator { _, _, _, _, _ -> emptyList() })
 
         api.generateDocumentBatch("acme", batch)
 
@@ -173,10 +197,10 @@ class ValidatingGenerationApiTest {
 
     @Test
     fun `a validator reached through the server still pre-flights nothing per batch item`() {
-        every { templatesApi.validateTemplateData(any(), any(), any(), any()) } returns TemplateDataValidationResult(true, null, null, null)
+        every { templatesApi.validateTemplateData(any(), any(), any(), any(), any()) } returns TemplateDataValidationResult(true, null, null, null)
 
         ValidatingGenerationApi(generationApi, templatesApi).generateDocumentBatch("acme", batch)
 
-        verify(exactly = 0) { templatesApi.validateTemplateData(any(), any(), any(), any()) }
+        verify(exactly = 0) { templatesApi.validateTemplateData(any(), any(), any(), any(), any()) }
     }
 }

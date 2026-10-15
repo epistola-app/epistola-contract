@@ -79,8 +79,9 @@ public final class NetworkntTemplateDataValidator implements TemplateDataValidat
     }
 
     @Override
-    public List<ValidationError> validate(String tenantId, String catalogId, String templateId, Object data) {
-        JsonSchema schema = schemaFor(tenantId, catalogId, templateId);
+    public List<ValidationError> validate(
+            String tenantId, String namespace, String catalogKey, String templateId, Object data) {
+        JsonSchema schema = schemaFor(tenantId, namespace, catalogKey, templateId);
         if (schema == null) {
             // No schema on the template means nothing is claimed about the data, so nothing is
             // wrong with it. Same answer the server gives.
@@ -96,19 +97,19 @@ public final class NetworkntTemplateDataValidator implements TemplateDataValidat
         return errors;
     }
 
-    private JsonSchema schemaFor(String tenantId, String catalogId, String templateId) {
-        String key = String.join("\u0000", tenantId, catalogId, templateId);
+    private JsonSchema schemaFor(String tenantId, String namespace, String catalogKey, String templateId) {
+        String key = String.join("\u0000", tenantId, namespace, catalogKey, templateId);
         Entry existing = cache.get(key);
         if (existing != null && Instant.now().isBefore(existing.storedAt.plus(ttl))) {
             return existing.schema;
         }
-        JsonSchema schema = loadSchema(tenantId, catalogId, templateId);
+        JsonSchema schema = loadSchema(tenantId, namespace, catalogKey, templateId);
         cache.put(key, new Entry(schema, Instant.now()));
         return schema;
     }
 
-    private JsonSchema loadSchema(String tenantId, String catalogId, String templateId) {
-        TemplateDto template = templatesApi.getTemplate(tenantId, catalogId, templateId);
+    private JsonSchema loadSchema(String tenantId, String namespace, String catalogKey, String templateId) {
+        TemplateDto template = templatesApi.getTemplate(tenantId, namespace, catalogKey, templateId);
         if (template.getSchema() == null) {
             return null;
         }

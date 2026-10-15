@@ -11,6 +11,19 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
+- **BREAKING:** a catalog is addressed by namespace and key. `TemplateDataValidator.validate`,
+  `ServerTemplateDataValidator.validate` and `TemplateSchemaValidator.validate` take
+  `(tenant_id, namespace, catalog_key, template_id, data)` in place of
+  `(tenant_id, catalog_id, template_id, data)`, and `ValidatingGenerationApi` passes a request's
+  `namespace` and `catalog_key` to the validator. `ServerTemplateDataValidator`'s
+  `release_version=` is now `version=`, a version selector (`1.4.0`, `^1.4.0`) that may be combined
+  with `environment_id=`.
+- `ValidatingGenerationApi`'s pre-flight passes the validator a request's namespace in its
+  path-segment form (`exchange.example.org/team-a` → `exchange.example.org~team-a`), so a
+  namespace on a non-default exchange addresses its catalog rather than a percent-encoded slash.
+- The result collector's `GenerationResult` gained `namespace` and `catalog_key` next to
+  `release_version`, naming the catalog release a document was generated from (`None` for results
+  from before contract 2.0).
 - **BREAKING:** the server-side template data validator takes a `releaseVersion` (a string) in
   place of `versionId`, matching contract 2.0's generation by release; without it or an
   environment, the catalog's latest release is checked. The result collector reports

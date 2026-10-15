@@ -62,10 +62,10 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | --- | --- |
 | `ping` | `POST /ping` with client metadata, through the generated API |
 | `list-templates` | `GET …/templates`, `config.repeat` times, reporting the ids and slugs it parsed from the last response |
-| `collect` | build a `ResultCollector` from `config`, run it for `config.runForMs`, stop it, report what it handled |
+| `collect` | build a `ResultCollector` from `config`, run it for `config.runForMs`, stop it, report what it handled, including each result's catalog and release as `releases` (`namespace/catalogKey@releaseVersion`, a missing value as `null`) |
 | `problem` | make a request the server answers with a problem, report the parsed slug and members |
 | `validate-template-data` | validate `config.data` for a template through `TemplateSchemaValidator`, reporting the paths and keywords of the failures it surfaced |
-| `generate-document` | `POST …/documents/generate` with a real body, through the generated API |
+| `generate-document` | `POST …/documents/generate` with a real body, through the generated API; `config.version` and `config.environmentId` are sent when present |
 | `routing` | poll once for a partition assignment, then report what the routing helpers compute |
 | `update-consumer` | `PATCH …/consumers/{id}` setting exactly one field |
 | `download-document` | `GET …/documents/{id}`, reporting the SHA-256 and length of the bytes |
@@ -73,6 +73,15 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | `upload-image` | `POST …/images` with the file from `config` (bytes, filename, content type) and a name, reporting the returned key and name |
 | `download-image` | `GET …/images/{imageSlug}/content`, reporting the SHA-256 and length of the bytes |
 | `delete-image` | `DELETE …/images/{imageSlug}` with `force` from `config` |
+| `list-catalog-dependencies` | `GET …/catalogs/{namespace}/{catalogKey}/dependencies` |
+| `update-catalog-dependencies` | `PUT …/catalogs/{namespace}/{catalogKey}/dependencies` with `config.dependencies`, reporting the `namespaces`, `catalogKeys`, `versions` and `resolvedVersions` it parsed, in order |
+| `deploy-release` | `PUT …/environments/{environmentId}/deployments/{namespace}/{catalogKey}/{releaseVersion}`, reporting the `namespace`, `catalogKey` and `releaseVersion` it parsed |
+| `undeploy-release` | `DELETE …/environments/{environmentId}/deployments/{namespace}/{catalogKey}/{releaseVersion}` |
+
+Catalog-scoped actions take the catalog as `config.namespace` and `config.catalogKey`, and pass the
+namespace to the client exactly as given: in its path-segment form (`acme-corp`, `acme.com`,
+`exchange.example.org~team-a`) where it goes into a path, in its body form where it goes into a
+body.
 
 A new action also needs an entry in `ACTION_OPERATIONS` in `src/fixtures.mjs`, which names the
 operation whose response schema its fixtures are checked against.

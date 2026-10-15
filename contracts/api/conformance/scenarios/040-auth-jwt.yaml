@@ -20,7 +20,8 @@ action:
     consumerId: conformance-consumer
     tokenLifetimeSeconds: 60
     tenantId: acme-corp
-    catalogId: main
+    namespace: acme-corp
+    catalogKey: main
     # Two calls, because a token reused across requests is only visible by comparing them.
     repeat: 2
 
@@ -35,7 +36,7 @@ expect:
   requestCount: 2
   everyRequest:
     method: GET
-    path: /api/tenants/acme-corp/catalogs/main/templates
+    path: /api/tenants/acme-corp/catalogs/acme-corp/main/templates
   jwt:
     alg: RS256
     issuer: conformance-consumer

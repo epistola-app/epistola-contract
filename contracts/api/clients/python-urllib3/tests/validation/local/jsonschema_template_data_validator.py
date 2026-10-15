@@ -45,7 +45,7 @@ class JsonSchemaTemplateDataValidator:
         self._templates_api = templates_api
         self._ttl = ttl_seconds
         self._lock = threading.Lock()
-        self._cache: Dict[Tuple[str, str, str], Tuple[Optional[Dict[str, Any]], float]] = {}
+        self._cache: Dict[Tuple[str, str, str, str], Tuple[Optional[Dict[str, Any]], float]] = {}
 
     @property
     def preflights_generation(self) -> bool:
@@ -57,11 +57,12 @@ class JsonSchemaTemplateDataValidator:
     def validate(
         self,
         tenant_id: str,
-        catalog_id: str,
+        namespace: str,
+        catalog_key: str,
         template_id: str,
         data: Any,
     ) -> List[ValidationFailure]:
-        schema = self._schema_for(tenant_id, catalog_id, template_id)
+        schema = self._schema_for(tenant_id, namespace, catalog_key, template_id)
         # No schema on the template means nothing is claimed about the data, so nothing is wrong
         # with it. Same answer the server gives.
         if schema is None:
@@ -80,14 +81,16 @@ class JsonSchemaTemplateDataValidator:
             for error in sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path))
         ]
 
-    def _schema_for(self, tenant_id: str, catalog_id: str, template_id: str) -> Optional[Dict[str, Any]]:
-        key = (tenant_id, catalog_id, template_id)
+    def _schema_for(
+        self, tenant_id: str, namespace: str, catalog_key: str, template_id: str
+    ) -> Optional[Dict[str, Any]]:
+        key = (tenant_id, namespace, catalog_key, template_id)
         now = time.monotonic()
         with self._lock:
             entry = self._cache.get(key)
             if entry is not None and now < entry[1] + self._ttl:
                 return entry[0]
-        template = self._templates_api.get_template(tenant_id, catalog_id, template_id)
+        template = self._templates_api.get_template(tenant_id, namespace, catalog_key, template_id)
         schema = template.var_schema
         with self._lock:
             self._cache[key] = (schema, time.monotonic())

@@ -9,7 +9,8 @@ ImageDto:
   required:
     - slug
     - tenantId
-    - catalog
+    - namespace
+    - catalogKey
     - catalogType
     - readOnly
     - name
@@ -34,10 +35,21 @@ ImageDto:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       example: acme-corp
-    catalog:
+    namespace:
+      type: string
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: |
+        Namespace of the catalog. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
+        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
+      example: exchange.epistola.app/acme-corp
+    catalogKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      description: Catalog that owns the image.
+      minLength: 3
+      maxLength: 50
+      description: Key of the catalog this resource lives in, unique within its namespace
       example: default
     catalogType:
       type: string

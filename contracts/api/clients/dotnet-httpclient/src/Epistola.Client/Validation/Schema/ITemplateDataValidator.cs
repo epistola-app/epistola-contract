@@ -57,14 +57,17 @@ public interface ITemplateDataValidator
     /// empty when there are none.
     /// </summary>
     /// <param name="tenantId">Tenant identifier.</param>
-    /// <param name="catalogId">
-    /// Catalog identifier. The same template id in two catalogs of one tenant is two different
-    /// templates with two different contracts.
+    /// <param name="namespace">
+    /// Namespace of the template's catalog, in its path-segment form (<c>acme-corp</c>,
+    /// <c>acme.com</c>, <c>exchange.example.org~team-a</c>). A catalog is identified by namespace
+    /// and key together: the same template id in two catalogs is two different templates with two
+    /// different contracts.
     /// </param>
+    /// <param name="catalogKey">Key of the template's catalog within its namespace.</param>
     /// <param name="templateId">Template identifier.</param>
     /// <param name="data">The data object to check.</param>
     IReadOnlyList<TemplateDataValidationException.ValidationError> Validate(
-        string tenantId, string catalogId, string templateId, object data);
+        string tenantId, string @namespace, string catalogKey, string templateId, object data);
 
     /// <summary>
     /// Whether <see cref="ValidatingGenerationApi"/> should check data with this validator

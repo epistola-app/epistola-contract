@@ -15,12 +15,39 @@ libraries.
   `getCatalogRelease` read a catalog's releases, each with the releases of other catalogs it renders
   with (`dependencies`) and the environments that serve it (`deployedTo`). `getCatalogChanges` lists
   what is new, modified, ready or removed since the latest release and whether a release would be
-  accepted; `markCatalogReady` marks everything changed ready in one action. An environment serves
-  one release per catalog: `listEnvironmentDeployments`, `deployRelease` (deploying another release
-  promotes or rolls back), `undeployRelease`, and `listDeploymentHistory` with every deploy and
-  undeploy and the release it replaced.
+  accepted; `markCatalogReady` marks everything changed ready in one action. An environment can
+  serve several releases of one catalog: `listEnvironmentDeployments`, `deployRelease` and
+  `undeployRelease` (both addressed by the release, `…/deployments/{namespace}/{catalogKey}/{releaseVersion}`,
+  with no request body), and `listDeploymentHistory` with every deploy and undeploy.
+
+- **Catalog dependencies.** A catalog declares each catalog its resources reference, once, with a
+  version selector: `listCatalogDependencies` and `updateCatalogDependencies`. References between
+  catalogs carry no version; they render with the release the declaration resolves to, so a release
+  renders with exactly one release of every catalog it depends on. A release is refused when a
+  resource references an undeclared catalog, a dependency resolves to no release, or two paths need
+  different releases of one catalog. `CatalogChangesDto` reports `dependenciesChanged`.
 
 ### Changed
+
+- **BREAKING: a catalog is identified by its namespace and its key.** Every catalog-scoped path is
+  `/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/…` instead of `…/catalogs/{catalogId}/…`.
+  A namespace is `some-namespace` on the server's configured default exchange (written in full as
+  `exchange.epistola.app/some-namespace`), or a domain such as `acme.com`; in a path a non-default
+  exchange's `/` is written `~`. Requests may omit the default exchange, responses always write a
+  namespace in full. Every DTO that named a catalog (`catalogId`, `catalog`, or a catalog's `slug`)
+  now carries `namespace` and `catalogKey`: the generation, preview and batch requests,
+  `VariantSelectionAttribute`, `CatalogDto`, `ReleaseDependencyDto`, `CatalogUpgradeDiff`,
+  `DeploymentDto`, `DeploymentEventDto`, `AttributeDto` (and its `codeListBinding`), `CodeListDto`,
+  `FontDto`, `ImageDto` and `ImportCatalogResponse`. Generated documents, generation items and
+  collected results add nullable `namespace` and `catalogKey` next to `releaseVersion`.
+  `importCatalog` takes an optional `namespace`.
+
+- **BREAKING: a release is selected by a version selector, together with an environment.** The
+  generation, preview, batch and validation requests take `version` in place of `releaseVersion`:
+  a selector in the npm SemVer range grammar, of which a server may accept only exact versions for
+  now. It combines with `environmentId`, which narrows the choice to the releases that environment
+  serves; the highest release that satisfies the selector is rendered. `DeployReleaseRequest` and
+  `DeploymentEventDto.previousReleaseVersion` are removed.
 
 - **BREAKING: release and deploy replace publish.** `releaseCatalog` requires `CATALOG_RELEASE` and
   refuses while any resource is `new` or `modified`. Consumer permissions drop the `versions` scope

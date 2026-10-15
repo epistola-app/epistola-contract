@@ -1,14 +1,26 @@
 CatalogDto:
   type: object
   required:
-    - slug
+    - namespace
+    - catalogKey
     - name
     - type
   properties:
-    slug:
+    namespace:
       type: string
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
       description: |
-        Catalog slug identifier
+        Namespace of the catalog. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
+        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
+      example: exchange.epistola.app/acme-corp
+    catalogKey:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Key of the catalog, unique within its namespace
       example: municipality-demo
     name:
       type: string
@@ -57,7 +69,8 @@ CatalogUpgradeDiff:
     Source-vs-source preview of upgrading a SUBSCRIBED catalog to its source's
     latest release. Each bucket entry is `"type/slug"` (e.g. `theme/corporate`).
   required:
-    - catalogId
+    - namespace
+    - catalogKey
     - newVersion
     - upgradeAvailable
     - added
@@ -67,10 +80,22 @@ CatalogUpgradeDiff:
     - conflicts
     - blockedByConflicts
   properties:
-    catalogId:
+    namespace:
       type: string
-      description: Catalog slug.
-      example: municipality-demo
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: |
+        Namespace of the catalog. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
+        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
+      example: some-namespace
+    catalogKey:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Key of the catalog, unique within its namespace
+      example: letters
     previousVersion:
       type: [string, "null"]
       description: Currently installed release version (null if unknown).
@@ -272,8 +297,10 @@ CatalogReleaseDto:
     dependencies:
       type: array
       description: |
-        The release of every other catalog this release renders with, recorded when it was cut:
-        the catalogs its resources reference directly, and the ones those reach in turn.
+        The release of every other catalog this release renders with, resolved from the declared
+        dependencies when it was cut: the catalogs it declares directly, and the ones those depend
+        on in turn. Each catalog appears once. A release whose dependencies would need two releases
+        of one catalog is refused.
       items:
         $ref: '#/ReleaseDependencyDto'
     deployedTo:
@@ -287,16 +314,27 @@ CatalogReleaseDto:
 ReleaseDependencyDto:
   type: object
   required:
-    - catalogId
+    - namespace
+    - catalogKey
     - releaseVersion
     - direct
   properties:
-    catalogId:
+    namespace:
+      type: string
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: |
+        Namespace of the catalog. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
+        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
+      example: some-namespace
+    catalogKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      example: system
+      description: Key of the catalog, unique within its namespace
+      example: letters
     releaseVersion:
       type: string
       maxLength: 50
@@ -324,6 +362,7 @@ CatalogChangesDto:
   description: How the catalog's working copy differs from its latest release
   required:
     - releasable
+    - dependenciesChanged
     - changes
   properties:
     latestRelease:
@@ -333,7 +372,14 @@ CatalogChangesDto:
       example: "1.4.0"
     releasable:
       type: boolean
-      description: True when no resource is `new` or `modified`, no stencil instance is held back, and something changed
+      description: |
+        True when no resource is `new` or `modified`, no stencil instance is held back, every
+        catalog a resource references is a declared dependency that resolves to a release, and
+        something changed
+      example: false
+    dependenciesChanged:
+      type: boolean
+      description: True when the declared dependencies differ from the latest release's
       example: false
     changes:
       type: array
@@ -370,3 +416,100 @@ ResourceChangeDto:
       minimum: 0
       description: For a stencil, how many of its instances are held back
       example: 0
+
+CatalogDependencyRequirement:
+  type: object
+  description: |
+    Another catalog this catalog's resources may reference, and which of its releases they render
+    with. A catalog declares each catalog it depends on once: every reference into that catalog
+    resolves through this one declaration, so a release renders with exactly one release of it.
+  required:
+    - namespace
+    - catalogKey
+    - version
+  properties:
+    namespace:
+      type: string
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: |
+        Namespace of the catalog depended on. A response always writes it in full
+        (`exchange.epistola.app/some-namespace`, or a domain such as `acme.com`); a request may omit
+        the default exchange (`some-namespace`).
+      example: exchange.epistola.app/epistola
+    catalogKey:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Key of the catalog depended on, unique within its namespace
+      example: system
+    version:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: |
+        Which releases of the catalog satisfy the dependency, as a version selector: see
+        "Version selectors" in the API description. The highest installed release that satisfies
+        it is used.
+      example: "1.3.0"
+
+CatalogDependencyDto:
+  type: object
+  description: A declared dependency, and the release it resolves to now
+  required:
+    - namespace
+    - catalogKey
+    - version
+  properties:
+    namespace:
+      type: string
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: Namespace of the catalog depended on, written in full
+      example: exchange.epistola.app/epistola
+    catalogKey:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Key of the catalog depended on, unique within its namespace
+      example: system
+    version:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: The version selector as declared
+      example: "1.3.0"
+    resolvedVersion:
+      type: [string, "null"]
+      maxLength: 50
+      description: |
+        The release the working copy renders with now: the highest installed release of the catalog
+        that satisfies `version`. Null when none does, which blocks a release.
+      example: "1.3.0"
+
+CatalogDependencyListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/CatalogDependencyDto'
+
+UpdateCatalogDependenciesRequest:
+  type: object
+  description: The complete set of dependencies of the catalog's working copy
+  required:
+    - dependencies
+  properties:
+    dependencies:
+      type: array
+      description: |
+        Each catalog depended on, at most once. The catalog cannot depend on itself.
+      items:
+        $ref: '#/CatalogDependencyRequirement'

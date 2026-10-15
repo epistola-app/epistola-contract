@@ -69,19 +69,19 @@ class NetworkntTemplateDataValidatorTest {
 
     @Test
     fun `valid data yields no findings`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") } returns templateDto()
 
-        assertEquals(emptyList(), validator().validate("acme", "default", "invoice", validData))
+        assertEquals(emptyList(), validator().validate("acme", "acme-corp", "default", "invoice", validData))
     }
 
     @Test
     fun `paths are JSON Pointers, not the engine's JSONPath`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") } returns templateDto()
         val data = validData.toMutableMap().apply {
             put("customer", mapOf("name" to "", "email" to "jane@example.com"))
         }
 
-        val findings = validator().validate("acme", "default", "invoice", data)
+        val findings = validator().validate("acme", "acme-corp", "default", "invoice", data)
 
         // The regression this guards: networknt's default renders `$.customer.name`.
         assertEquals("/customer/name", findings.single().path)
@@ -91,7 +91,7 @@ class NetworkntTemplateDataValidatorTest {
 
     @Test
     fun `format is not asserted, which is why the server owns the verdict`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") } returns templateDto()
         val data = validData.toMutableMap().apply {
             put("customer", mapOf("name" to "Jane Smith", "email" to "not-an-email"))
         }
@@ -99,15 +99,15 @@ class NetworkntTemplateDataValidatorTest {
         // Not a defect in the adapter: under 2020-12 `format` is an annotation, not an assertion.
         // It is recorded because it is the clearest case of a local engine reaching a different
         // answer than Epistola will, and the reason ServerTemplateDataValidator is the default.
-        assertEquals(emptyList(), validator().validate("acme", "default", "invoice", data))
+        assertEquals(emptyList(), validator().validate("acme", "acme-corp", "default", "invoice", data))
     }
 
     @Test
     fun `a pointer into an array uses the index as a segment`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") } returns templateDto()
         val data = validData.toMutableMap().apply { put("lineItems", listOf(mapOf("quantity" to 0))) }
 
-        val findings = validator().validate("acme", "default", "invoice", data)
+        val findings = validator().validate("acme", "acme-corp", "default", "invoice", data)
 
         assertEquals("/lineItems/0/quantity", findings.single().path)
         assertEquals("minimum", findings.single().keyword)
@@ -115,9 +115,9 @@ class NetworkntTemplateDataValidatorTest {
 
     @Test
     fun `a missing required field is reported at its parent with the required keyword`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") } returns templateDto()
 
-        val findings = validator().validate("acme", "default", "invoice", mapOf("invoiceNumber" to "INV-2026-001"))
+        val findings = validator().validate("acme", "acme-corp", "default", "invoice", mapOf("invoiceNumber" to "INV-2026-001"))
 
         assertEquals("required", findings.single().keyword)
         assertEquals("", findings.single().path)
@@ -125,21 +125,21 @@ class NetworkntTemplateDataValidatorTest {
 
     @Test
     fun `a template without a schema claims nothing about the data`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto(schema = null)
+        every { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") } returns templateDto(schema = null)
 
-        assertEquals(emptyList(), validator().validate("acme", "default", "invoice", mapOf("anything" to 1)))
+        assertEquals(emptyList(), validator().validate("acme", "acme-corp", "default", "invoice", mapOf("anything" to 1)))
     }
 
     @Test
     fun `the schema is fetched once and reused`() {
-        every { templatesApi.getTemplate("acme", "default", "invoice") } returns templateDto()
+        every { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") } returns templateDto()
         val validator = validator()
 
-        validator.validate("acme", "default", "invoice", validData)
-        validator.validate("acme", "default", "invoice", validData)
+        validator.validate("acme", "acme-corp", "default", "invoice", validData)
+        validator.validate("acme", "acme-corp", "default", "invoice", validData)
 
         // Without the cache a "local" validator costs a round trip per call, which is worse than
         // asking the server to validate outright.
-        verify(exactly = 1) { templatesApi.getTemplate("acme", "default", "invoice") }
+        verify(exactly = 1) { templatesApi.getTemplate("acme", "acme-corp", "default", "invoice") }
     }
 }

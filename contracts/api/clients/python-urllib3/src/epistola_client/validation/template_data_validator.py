@@ -75,14 +75,18 @@ class TemplateDataValidator(Protocol):
     def validate(
         self,
         tenant_id: str,
-        catalog_id: str,
+        namespace: str,
+        catalog_key: str,
         template_id: str,
         data: Any,
     ) -> Sequence[ValidationFailure]:
         """Return the findings for ``data``, empty when there are none.
 
-        ``catalog_id`` is part of the identity, not decoration: the same template id in two
-        catalogs of one tenant is two different templates with two different contracts.
+        ``namespace`` and ``catalog_key`` are part of the identity, not decoration: the same
+        template id in two catalogs of one tenant is two different templates with two different
+        contracts. ``namespace`` is in its path-segment form (``exchange.example.org~team-a``):
+        :class:`~epistola_client.validation.schema.ValidatingGenerationApi` converts a generation
+        request's body form (``exchange.example.org/team-a``) before calling.
         """
         ...
 

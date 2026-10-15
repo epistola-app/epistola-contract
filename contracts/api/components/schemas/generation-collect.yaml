@@ -82,6 +82,22 @@ GenerationResult:
       type: ['string', 'null']
       description: Routing key used for partition assignment
       example: order-7890
+    namespace:
+      type: [string, "null"]
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: |
+        Namespace of the template's catalog, written in full (`exchange.epistola.app/some-namespace`,
+        or a domain such as `acme.com`). Null for a result accepted before contract 2.0.
+      example: exchange.epistola.app/acme-corp
+    catalogKey:
+      type: [string, "null"]
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Key of the template's catalog, unique within its namespace. Null for a result accepted before contract 2.0
+      example: letters
     templateId:
       type: string
       description: Template used for generation

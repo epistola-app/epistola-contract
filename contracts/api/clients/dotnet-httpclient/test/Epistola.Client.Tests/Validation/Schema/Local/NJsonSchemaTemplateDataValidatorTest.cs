@@ -64,7 +64,7 @@ public class NJsonSchemaTemplateDataValidatorTest
     private static ITemplatesApi ApiReturningSchema(object? schema)
     {
         var api = Substitute.For<ITemplatesApi>();
-        api.GetTemplate("acme", "default", "invoice").Returns(new TemplateDto(
+        api.GetTemplate("acme", "acme-corp", "default", "invoice").Returns(new TemplateDto(
             slug: "invoice", tenantId: "acme", name: "Invoice",
             schema: schema, variants: new List<VariantSummaryDto>()));
         return api;
@@ -75,7 +75,7 @@ public class NJsonSchemaTemplateDataValidatorTest
     {
         var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(InvoiceSchema));
 
-        Assert.Empty(validator.Validate("acme", "default", "invoice", ValidData));
+        Assert.Empty(validator.Validate("acme", "acme-corp", "default", "invoice", ValidData));
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public class NJsonSchemaTemplateDataValidatorTest
             ["customer"] = new Dictionary<string, object> { ["name"] = "" },
         };
 
-        var findings = validator.Validate("acme", "default", "invoice", data);
+        var findings = validator.Validate("acme", "acme-corp", "default", "invoice", data);
 
         // The regression this guards: NJsonSchema reports `#/customer/name`.
         Assert.Equal(new[] { "/customer/name" }, findings.Select(f => f.Path));
@@ -103,7 +103,7 @@ public class NJsonSchemaTemplateDataValidatorTest
             ["invoiceNumber"] = 42,
         };
 
-        var findings = validator.Validate("acme", "default", "invoice", data);
+        var findings = validator.Validate("acme", "acme-corp", "default", "invoice", data);
 
         // NJsonSchema calls this `StringExpected`; the contract's vocabulary is `type`.
         Assert.Equal(new[] { "type" }, findings.Select(f => f.Keyword));
@@ -114,7 +114,7 @@ public class NJsonSchemaTemplateDataValidatorTest
     {
         var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(InvoiceSchema));
 
-        var findings = validator.Validate("acme", "default", "invoice",
+        var findings = validator.Validate("acme", "acme-corp", "default", "invoice",
             new Dictionary<string, object> { ["invoiceNumber"] = "INV-2026-001" });
 
         Assert.Equal(new[] { "required" }, findings.Select(f => f.Keyword));
@@ -125,7 +125,7 @@ public class NJsonSchemaTemplateDataValidatorTest
     {
         var validator = new NJsonSchemaTemplateDataValidator(ApiReturningSchema(null));
 
-        Assert.Empty(validator.Validate("acme", "default", "invoice", new Dictionary<string, object> { ["anything"] = 1 }));
+        Assert.Empty(validator.Validate("acme", "acme-corp", "default", "invoice", new Dictionary<string, object> { ["anything"] = 1 }));
     }
 
     [Fact]
@@ -134,12 +134,12 @@ public class NJsonSchemaTemplateDataValidatorTest
         var api = ApiReturningSchema(InvoiceSchema);
         var validator = new NJsonSchemaTemplateDataValidator(api);
 
-        validator.Validate("acme", "default", "invoice", ValidData);
-        validator.Validate("acme", "default", "invoice", ValidData);
+        validator.Validate("acme", "acme-corp", "default", "invoice", ValidData);
+        validator.Validate("acme", "acme-corp", "default", "invoice", ValidData);
 
         // Without the cache a "local" validator costs a round trip per call, which is worse than
         // asking the server to validate outright.
-        api.Received(1).GetTemplate("acme", "default", "invoice");
+        api.Received(1).GetTemplate("acme", "acme-corp", "default", "invoice");
     }
 
     [Fact]
@@ -159,7 +159,7 @@ public class NJsonSchemaTemplateDataValidatorTest
             ["lineItems"] = new List<object> { new Dictionary<string, object> { ["quantity"] = 0 } },
         };
 
-        var findings = validator.Validate("acme", "default", "invoice", data);
+        var findings = validator.Validate("acme", "acme-corp", "default", "invoice", data);
 
         // NJsonSchema reports `#/lineItems[0].quantity`.
         Assert.Equal(new[] { "/lineItems/0/quantity" }, findings.Select(f => f.Path));

@@ -18,15 +18,16 @@ why: >
 
   Note what is asserted about the request. `data` must arrive as the server will read it, and the
   path must carry the catalog — the same template id in two catalogs is two different templates
-  with two different contracts, and a client that dropped `catalogId` would validate against the
-  wrong one and still look fine.
+  with two different contracts, and a client that dropped the namespace or the catalog key would
+  validate against the wrong one and still look fine.
 
 action:
   name: validate-template-data
   config:
     nodeId: conformance-node-1
     tenantId: acme-corp
-    catalogId: main
+    namespace: acme-corp
+    catalogKey: main
     templateId: invoice
     data:
       customer:
@@ -65,7 +66,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/main/templates/invoice/validate
+      path: /api/tenants/acme-corp/catalogs/acme-corp/main/templates/invoice/validate
       body:
         data:
           customer:

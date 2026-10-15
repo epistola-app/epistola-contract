@@ -28,7 +28,8 @@ action:
     auth: api-key
     apiKey: epk_conformance_0123456789
     tenantId: acme-corp
-    catalogId: main
+    namespace: acme.com
+    catalogKey: main
     imageSlug: municipality-mark
 
 script:
@@ -42,7 +43,7 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/main/images/municipality-mark/content
+      path: /api/tenants/acme-corp/catalogs/acme.com/main/images/municipality-mark/content
       headers:
         # Each declared image type is acceptable, by name or by wildcard, and so is the problem
         # document the client parses on failure.

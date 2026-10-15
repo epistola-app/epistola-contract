@@ -56,9 +56,14 @@ public sealed class TemplateSchemaValidator
     /// If the validator reaches the server and the call fails — including against a server older
     /// than contract 1.4.0, which does not offer <c>validateTemplateData</c>.
     /// </exception>
-    public void Validate(string tenantId, string catalogId, string templateId, object data)
+    /// <param name="tenantId">Tenant identifier.</param>
+    /// <param name="namespace">Namespace of the template's catalog, in its path-segment form (<c>exchange.example.org~team-a</c>, not <c>exchange.example.org/team-a</c>).</param>
+    /// <param name="catalogKey">Key of the template's catalog within its namespace.</param>
+    /// <param name="templateId">Template identifier.</param>
+    /// <param name="data">The data object to check.</param>
+    public void Validate(string tenantId, string @namespace, string catalogKey, string templateId, object data)
     {
-        var errors = _validator.Validate(tenantId, catalogId, templateId, data);
+        var errors = _validator.Validate(tenantId, @namespace, catalogKey, templateId, data);
         if (errors.Count > 0)
         {
             throw new TemplateDataValidationException(errors);

@@ -159,10 +159,11 @@ class ModelValidationTest {
     @Test
     void a_realistic_generation_request_passes() {
         GenerateDocumentRequest request = new GenerateDocumentRequest()
-                .catalogId("default")
+                .namespace("acme-corp")
+                .catalogKey("default")
                 .templateId("monthly-invoice")
                 .variantId("english")
-                .releaseVersion("1.4.0")
+                .version("^1.4.0")
                 .filename("invoice-2026-001.pdf")
                 .correlationId("order-7890")
                 .data(Map.of(
@@ -175,10 +176,10 @@ class ModelValidationTest {
 
     @Test
     void each_optional_field_of_a_generation_request_is_checked_independently() {
-        ModelValidation.validate(baseGenerationRequest().releaseVersion(null));
+        ModelValidation.validate(baseGenerationRequest().version(null));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(baseGenerationRequest().releaseVersion("")));
+                () -> ModelValidation.validate(baseGenerationRequest().version("")));
 
         ModelValidation.validate(baseGenerationRequest().environmentId(null));
         assertThrows(
@@ -208,13 +209,15 @@ class ModelValidationTest {
     void a_populated_batch_passes() {
         List<BatchGenerationItem> items = List.of(
                 new BatchGenerationItem()
-                        .catalogId("default")
+                        .namespace("acme-corp")
+                        .catalogKey("default")
                         .templateId("invoice")
                         .variantId("english")
                         .data(Map.of("invoiceNumber", "INV-2026-001"))
                         .filename("invoice-001.pdf"),
                 new BatchGenerationItem()
-                        .catalogId("default")
+                        .namespace("acme-corp")
+                        .catalogKey("default")
                         .templateId("invoice")
                         .variantId("english")
                         .data(Map.of("invoiceNumber", "INV-2026-002")));
@@ -244,7 +247,8 @@ class ModelValidationTest {
 
     private static GenerateDocumentRequest baseGenerationRequest() {
         return new GenerateDocumentRequest()
-                .catalogId("default")
+                .namespace("acme-corp")
+                .catalogKey("default")
                 .templateId("invoice")
                 .variantId("english")
                 .data(Map.of());

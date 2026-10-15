@@ -50,9 +50,9 @@ public class TemplateSchemaValidator {
      *     and the call fails — including against a server older than contract 1.4.0, which does not
      *     offer {@code validateTemplateData}
      */
-    public void validate(String tenantId, String catalogId, String templateId, Object data) {
+    public void validate(String tenantId, String namespace, String catalogKey, String templateId, Object data) {
         List<TemplateDataValidationException.ValidationError> errors =
-                validator.validate(tenantId, catalogId, templateId, data);
+                validator.validate(tenantId, namespace, catalogKey, templateId, data);
         if (!errors.isEmpty()) {
             throw new TemplateDataValidationException(errors);
         }

@@ -7,7 +7,7 @@ title: A generation request body satisfies the schema it is generated from
 why: >
   Bodies are where a generator has the most room to disagree with the contract, and the request-body
   scenario can only check the fields it thought to list. Prism checks the schema: required
-  properties, slug patterns on catalogId and templateId, the length bounds on releaseVersion, and the types
+  properties, the namespace and slug patterns on namespace, catalogKey and templateId, and the types
   of everything inside. A client that omitted a required field, or sent a number where the schema
   says string, fails here without anyone having predicted it.
 
@@ -20,7 +20,8 @@ action:
     auth: api-key
     apiKey: epk_conformance_0123456789
     tenantId: acme-corp
-    catalogId: default
+    namespace: acme-corp
+    catalogKey: default
     templateId: invoice
     correlationId: inv-2026-0042
     routingKey: acme-node-1

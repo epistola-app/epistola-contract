@@ -205,7 +205,8 @@ class ModelValidationTest {
     @Test
     fun `GenerateDocumentRequest with realistic nested data passes`() {
         val request = GenerateDocumentRequest(
-            catalogId = "default",
+            namespace = "acme-corp",
+            catalogKey = "default",
             templateId = "monthly-invoice",
             variantId = "english",
             data = mapOf(
@@ -225,7 +226,7 @@ class ModelValidationTest {
                 "invoiceNumber" to "INV-2026-001",
                 "totals" to mapOf("subtotal" to 222.40, "tax" to 44.48, "total" to 266.88),
             ),
-            releaseVersion = "1.4.0",
+            version = "^1.4.0",
             filename = "invoice-2026-001.pdf",
             correlationId = "order-7890",
         )
@@ -234,29 +235,32 @@ class ModelValidationTest {
 
     @Test
     fun `GenerateDocumentRequest validates each nullable field independently`() {
-        // null releaseVersion: skipped
+        // null version: skipped
         GenerateDocumentRequest(
-            catalogId = "default",
+            namespace = "acme-corp",
+            catalogKey = "default",
             templateId = "invoice",
             variantId = "english",
             data = emptyMap<String, Any>(),
-            releaseVersion = null,
+            version = null,
         ).validate()
 
-        // empty releaseVersion: fails
+        // empty version: fails
         assertFailsWith<IllegalArgumentException> {
             GenerateDocumentRequest(
-                catalogId = "default",
+                namespace = "acme-corp",
+                catalogKey = "default",
                 templateId = "invoice",
                 variantId = "english",
                 data = emptyMap<String, Any>(),
-                releaseVersion = "",
+                version = "",
             ).validate()
         }
 
         // null environmentId: skipped
         GenerateDocumentRequest(
-            catalogId = "default",
+            namespace = "acme-corp",
+            catalogKey = "default",
             templateId = "invoice",
             variantId = "english",
             data = emptyMap<String, Any>(),
@@ -266,7 +270,8 @@ class ModelValidationTest {
         // invalid environmentId pattern: fails
         assertFailsWith<IllegalArgumentException> {
             GenerateDocumentRequest(
-                catalogId = "default",
+                namespace = "acme-corp",
+                catalogKey = "default",
                 templateId = "invoice",
                 variantId = "english",
                 data = emptyMap<String, Any>(),
@@ -276,7 +281,8 @@ class ModelValidationTest {
 
         // filename at limit: passes
         GenerateDocumentRequest(
-            catalogId = "default",
+            namespace = "acme-corp",
+            catalogKey = "default",
             templateId = "invoice",
             variantId = "english",
             data = emptyMap<String, Any>(),
@@ -286,7 +292,8 @@ class ModelValidationTest {
         // filename over limit: fails
         val ex = assertFailsWith<IllegalArgumentException> {
             GenerateDocumentRequest(
-                catalogId = "default",
+                namespace = "acme-corp",
+                catalogKey = "default",
                 templateId = "invoice",
                 variantId = "english",
                 data = emptyMap<String, Any>(),
@@ -300,14 +307,15 @@ class ModelValidationTest {
     fun `GenerateDocumentRequest fails on invalid required slug field before reaching nullable fields`() {
         val ex = assertFailsWith<IllegalArgumentException> {
             GenerateDocumentRequest(
-                catalogId = "default",
+                namespace = "acme-corp",
+                catalogKey = "default",
                 templateId = "INVALID",
                 variantId = "english",
                 data = emptyMap<String, Any>(),
-                releaseVersion = "",
+                version = "",
             ).validate()
         }
-        // templateId is validated first — fails on pattern before releaseVersion is checked
+        // templateId is validated first — fails on pattern before version is checked
         assertEquals("templateId: must match pattern ^[a-z][a-z0-9]*(-[a-z0-9]+)*\$", ex.message)
     }
 
@@ -316,14 +324,15 @@ class ModelValidationTest {
     @Test
     fun `BatchGenerationItem with all optional fields populated validates everything`() {
         val item = BatchGenerationItem(
-            catalogId = "default",
+            namespace = "acme-corp",
+            catalogKey = "default",
             templateId = "invoice",
             variantId = "english",
             data = mapOf(
                 "customer" to mapOf("name" to "Jane Smith"),
                 "items" to listOf(mapOf("sku" to "A1", "qty" to 1)),
             ),
-            releaseVersion = null,
+            version = null,
             environmentId = "staging",
             filename = "batch-doc-001.pdf",
             correlationId = "batch-run-42",
@@ -332,14 +341,15 @@ class ModelValidationTest {
     }
 
     @Test
-    fun `BatchGenerationItem rejects environmentId with invalid slug when releaseVersion is null`() {
+    fun `BatchGenerationItem rejects environmentId with invalid slug when version is null`() {
         assertFailsWith<IllegalArgumentException> {
             BatchGenerationItem(
-                catalogId = "default",
+                namespace = "acme-corp",
+                catalogKey = "default",
                 templateId = "invoice",
                 variantId = "english",
                 data = emptyMap<String, Any>(),
-                releaseVersion = null,
+                version = null,
                 environmentId = "Production!", // invalid slug
             ).validate()
         }
@@ -351,7 +361,8 @@ class ModelValidationTest {
     fun `GenerateBatchRequest with multiple items passes`() {
         val items = (1..5).map { i ->
             BatchGenerationItem(
-                catalogId = "default",
+                namespace = "acme-corp",
+                catalogKey = "default",
                 templateId = "invoice",
                 variantId = "english",
                 data = mapOf(

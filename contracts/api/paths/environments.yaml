@@ -145,7 +145,7 @@ environments-id:
   delete:
     operationId: deleteEnvironment
     summary: Delete an environment
-    description: Delete an environment. Refused while it serves a release of any catalog; undeploy them first.
+    description: Delete an environment. Refused while it serves any catalog release; undeploy them first.
     tags:
       - Environments
     x-required-permissions: [TENANT_SETTINGS]
@@ -185,7 +185,10 @@ environment-deployments:
   get:
     operationId: listEnvironmentDeployments
     summary: List what an environment serves
-    description: The release of each catalog the environment serves. Generation naming the environment renders these.
+    description: |
+      Every catalog release the environment serves; one catalog can have several. Generation naming
+      the environment renders the highest of them, or the highest that satisfies the request's
+      `version`.
     tags:
       - Environments
     x-required-permissions: [TEMPLATE_VIEW]
@@ -203,7 +206,7 @@ environment-deployments:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
-environment-deployment-catalog:
+environment-deployment-release:
   parameters:
     - name: tenantId
       in: path
@@ -223,33 +226,30 @@ environment-deployment-catalog:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 30
-    - name: catalogId
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - name: releaseVersion
       in: path
       required: true
-      description: Slug identifier of the catalog
+      description: The release of the catalog
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
+        minLength: 1
         maxLength: 50
 
   put:
     operationId: deployRelease
     summary: Deploy a catalog release to an environment
     description: |
-      The environment serves this release of the catalog from now on, replacing the one it served:
-      promoting is deploying the release another environment runs, rolling back is deploying an
-      earlier one. Requests already accepted keep the release they were bound to. Only a release that
-      kept its content can be deployed. Deploying the release already served changes nothing.
+      The environment serves this release of the catalog from now on, beside any other releases of
+      it that it already serves. Generation naming the environment renders the highest release it
+      serves, or the highest that satisfies the request's `version`; so deploying a higher release
+      moves such requests to it, and undeploying it moves them back. Requests already accepted keep
+      the release they were bound to. Only a release that kept its content can be deployed.
+      Deploying a release the environment already serves changes nothing.
     tags:
       - Environments
     x-required-permissions: [ENVIRONMENT_DEPLOY]
-    requestBody:
-      required: true
-      content:
-        application/vnd.epistola.v1+json:
-          schema:
-            $ref: '../components/schemas/environments.yaml#/DeployReleaseRequest'
     responses:
       '200':
         description: The deployment
@@ -257,8 +257,6 @@ environment-deployment-catalog:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/DeploymentDto'
-      '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -270,14 +268,17 @@ environment-deployment-catalog:
 
   delete:
     operationId: undeployRelease
-    summary: Stop an environment serving a catalog
-    description: Generation naming the environment then fails for the catalog's templates until a release is deployed again.
+    summary: Stop an environment serving a catalog release
+    description: |
+      The environment stops serving this release. Generation naming the environment then renders
+      the highest release of the catalog it still serves, and fails for the catalog's templates when
+      it serves none.
     tags:
       - Environments
     x-required-permissions: [ENVIRONMENT_DEPLOY]
     responses:
       '204':
-        description: The environment no longer serves the catalog
+        description: The environment no longer serves the release
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -309,7 +310,7 @@ environment-deployment-history:
   get:
     operationId: listDeploymentHistory
     summary: List what an environment served over time
-    description: Every deploy and undeploy on the environment, newest first, with the release each replaced.
+    description: Every deploy and undeploy on the environment, newest first.
     tags:
       - Environments
     x-required-permissions: [TEMPLATE_VIEW]

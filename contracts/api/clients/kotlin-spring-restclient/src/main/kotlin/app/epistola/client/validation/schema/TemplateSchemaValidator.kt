@@ -40,7 +40,8 @@ class TemplateSchemaValidator(private val validator: TemplateDataValidator) {
      * Validates [data] against the data contract of the specified template.
      *
      * @param tenantId Tenant identifier.
-     * @param catalogId Catalog identifier.
+     * @param namespace Namespace of the template's catalog.
+     * @param catalogKey Key of the template's catalog within [namespace].
      * @param templateId Template identifier.
      * @param data The data object (typically a `Map<String, Any?>`) to validate.
      * @throws TemplateDataValidationException if the data does not fit the contract.
@@ -48,8 +49,8 @@ class TemplateSchemaValidator(private val validator: TemplateDataValidator) {
      *   the server and the call fails — including against a server older than contract 1.4.0,
      *   which does not offer `validateTemplateData`.
      */
-    fun validate(tenantId: String, catalogId: String, templateId: String, data: Any) {
-        val errors = validator.validate(tenantId, catalogId, templateId, data)
+    fun validate(tenantId: String, namespace: String, catalogKey: String, templateId: String, data: Any) {
+        val errors = validator.validate(tenantId, namespace, catalogKey, templateId, data)
         if (errors.isNotEmpty()) {
             throw TemplateDataValidationException(errors)
         }

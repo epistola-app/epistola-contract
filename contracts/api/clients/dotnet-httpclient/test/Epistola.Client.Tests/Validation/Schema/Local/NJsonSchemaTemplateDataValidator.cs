@@ -70,9 +70,9 @@ public sealed class NJsonSchemaTemplateDataValidator : ITemplateDataValidator
     public bool PreflightsGeneration => true;
 
     public IReadOnlyList<TemplateDataValidationException.ValidationError> Validate(
-        string tenantId, string catalogId, string templateId, object data)
+        string tenantId, string @namespace, string catalogKey, string templateId, object data)
     {
-        var schema = SchemaFor(tenantId, catalogId, templateId);
+        var schema = SchemaFor(tenantId, @namespace, catalogKey, templateId);
         // No schema on the template means nothing is claimed about the data, so nothing is wrong
         // with it. Same answer the server gives.
         if (schema == null)
@@ -116,14 +116,14 @@ public sealed class NJsonSchemaTemplateDataValidator : ITemplateDataValidator
         }
     }
 
-    private JsonSchema? SchemaFor(string tenantId, string catalogId, string templateId)
+    private JsonSchema? SchemaFor(string tenantId, string @namespace, string catalogKey, string templateId)
     {
-        var key = string.Join('\u0000', tenantId, catalogId, templateId);
+        var key = string.Join('\u0000', tenantId, @namespace, catalogKey, templateId);
         if (_cache.TryGetValue(key, out var entry) && DateTimeOffset.UtcNow < entry.StoredAt + _ttl)
         {
             return entry.Schema;
         }
-        var template = _templatesApi.GetTemplate(tenantId, catalogId, templateId);
+        var template = _templatesApi.GetTemplate(tenantId, @namespace, catalogKey, templateId);
         var schema = template.Schema == null
             ? null
             : JsonSchema.FromJsonAsync(JsonConvert.SerializeObject(template.Schema)).GetAwaiter().GetResult();

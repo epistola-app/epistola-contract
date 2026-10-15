@@ -17,7 +17,7 @@ export type { TemplateDataValidator, ValidationFailure } from './templateDataVal
 export type SchemaLoader = () => Promise<object | undefined>
 
 /**
- * Cache for JSON Schemas keyed by (tenantId, catalogId, templateId).
+ * Cache for JSON Schemas keyed by (tenantId, namespace, catalogKey, templateId).
  *
  * The catalog is part of the key, not decoration: the same template id in two catalogs of one
  * tenant is two different templates with two different schemas.
@@ -32,7 +32,7 @@ export interface SchemaCache {
    * Returns a cached schema, or invokes `loader` on a miss and stores the result. An undefined
    * result means the template has no schema defined, and is cached as such.
    */
-  getOrLoad(tenantId: string, catalogId: string, templateId: string, loader: SchemaLoader): Promise<object | undefined>
+  getOrLoad(tenantId: string, namespace: string, catalogKey: string, templateId: string, loader: SchemaLoader): Promise<object | undefined>
 }
 
 /** Default TTL-based cache. Entries expire `ttlMs` after they were stored (default: 5 minutes). */
@@ -45,8 +45,8 @@ export class TtlSchemaCache implements SchemaCache {
     }
   }
 
-  async getOrLoad(tenantId: string, catalogId: string, templateId: string, loader: SchemaLoader): Promise<object | undefined> {
-    const key = cacheKey(tenantId, catalogId, templateId)
+  async getOrLoad(tenantId: string, namespace: string, catalogKey: string, templateId: string, loader: SchemaLoader): Promise<object | undefined> {
+    const key = cacheKey(tenantId, namespace, catalogKey, templateId)
     const entry = this.entries.get(key)
     if (entry !== undefined && performance.now() < entry.storedAt + this.ttlMs) {
       return entry.schema
@@ -57,8 +57,8 @@ export class TtlSchemaCache implements SchemaCache {
   }
 
   /** Evicts a specific entry (useful after template updates). */
-  evict(tenantId: string, catalogId: string, templateId: string): void {
-    this.entries.delete(cacheKey(tenantId, catalogId, templateId))
+  evict(tenantId: string, namespace: string, catalogKey: string, templateId: string): void {
+    this.entries.delete(cacheKey(tenantId, namespace, catalogKey, templateId))
   }
 
   /** Evicts all entries. */
@@ -76,7 +76,7 @@ export class TtlSchemaCache implements SchemaCache {
  *
  * ```ts
  * const validator = new TemplateSchemaValidator(templatesApi)
- * await validator.validate('my-tenant', 'my-catalog', 'my-template', data)
+ * await validator.validate('my-tenant', 'acme-corp', 'my-catalog', 'my-template', data)
  * ```
  *
  * To have the check run in-process instead, pass an implementation built on the compiler of your
@@ -102,8 +102,8 @@ export class TemplateSchemaValidator {
    * Against a server older than contract 1.4.0 the default validator rejects with the API's own
    * error, because `validateTemplateData` does not exist there.
    */
-  async validate(tenantId: string, catalogId: string, templateId: string, data: unknown): Promise<void> {
-    const failures = await this.validator.validate(tenantId, catalogId, templateId, data)
+  async validate(tenantId: string, namespace: string, catalogKey: string, templateId: string, data: unknown): Promise<void> {
+    const failures = await this.validator.validate(tenantId, namespace, catalogKey, templateId, data)
     if (failures.length > 0) {
       throw new TemplateDataValidationException(failures)
     }
@@ -146,7 +146,7 @@ export class ValidatingGenerationApi {
   async generateDocument(requestParameters: GenerateDocumentOperationRequest, initOverrides?: RequestInit | InitOverrideFunction): Promise<GenerationJobResponse> {
     if (this.validator.preflightsGeneration !== false) {
       const request = requestParameters.generateDocumentRequest
-      const failures = await this.validator.validate(requestParameters.tenantId, request.catalogId, request.templateId, request.data)
+      const failures = await this.validator.validate(requestParameters.tenantId, namespacePathSegment(request.namespace), request.catalogKey, request.templateId, request.data)
       if (failures.length > 0) {
         throw new TemplateDataValidationException(failures)
       }
@@ -158,7 +158,7 @@ export class ValidatingGenerationApi {
     if (this.validator.preflightsGeneration !== false) {
       const failures: ValidationFailure[] = []
       for (const [index, item] of requestParameters.generateBatchRequest.items.entries()) {
-        for (const failure of await this.validator.validate(requestParameters.tenantId, item.catalogId, item.templateId, item.data)) {
+        for (const failure of await this.validator.validate(requestParameters.tenantId, namespacePathSegment(item.namespace), item.catalogKey, item.templateId, item.data)) {
           failures.push({ ...failure, path: `items[${index}]${failure.path}` })
         }
       }
@@ -190,6 +190,15 @@ function isValidator(candidate: TemplateDataValidator | TemplateDataValidationSo
   return typeof (candidate as TemplateDataValidator).validate === 'function'
 }
 
-function cacheKey(tenantId: string, catalogId: string, templateId: string): string {
-  return JSON.stringify([tenantId, catalogId, templateId])
+/**
+ * A generation request writes the namespace in its body form (`exchange.example.org/team-a`); a
+ * validator addresses the catalog in a URL path, where the contract writes the `/` as `~`. The short
+ * forms (`acme-corp`, `acme.com`) contain no `/` and pass through unchanged.
+ */
+function namespacePathSegment(namespace: string): string {
+  return namespace.replaceAll('/', '~')
+}
+
+function cacheKey(tenantId: string, namespace: string, catalogKey: string, templateId: string): string {
+  return JSON.stringify([tenantId, namespace, catalogKey, templateId])
 }

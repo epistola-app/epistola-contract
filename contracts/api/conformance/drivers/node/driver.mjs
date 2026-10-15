@@ -16,8 +16,10 @@ import { fileURLToPath } from 'node:url'
 
 const CLIENT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../clients/nodejs-fetch/dist/index.js')
 const {
+  CatalogsApi,
   ClientIdentity,
   ConsumersApi,
+  EnvironmentsApi,
   EpistolaClient,
   GenerationApi,
   ImagesApi,
@@ -44,6 +46,10 @@ const ACTIONS = {
   'upload-image': uploadImage,
   'download-image': downloadImage,
   'delete-image': deleteImage,
+  'list-catalog-dependencies': listCatalogDependencies,
+  'update-catalog-dependencies': updateCatalogDependencies,
+  'deploy-release': deployRelease,
+  'undeploy-release': undeployRelease,
 }
 
 process.exit(await main())
@@ -88,7 +94,7 @@ async function listTemplates(baseUrl, config) {
   const api = new TemplatesApi(client(baseUrl, config))
   let response
   for (let i = 0; i < (config.repeat ?? 1); i++) {
-    response = await api.listTemplates({ tenantId: config.tenantId, catalogId: config.catalogId })
+    response = await api.listTemplates({ tenantId: config.tenantId, namespace: config.namespace, catalogKey: config.catalogKey })
   }
   await report(baseUrl, {
     templateSlugs: response.items.map((template) => show(template.slug)).join(','),
@@ -97,7 +103,7 @@ async function listTemplates(baseUrl, config) {
 
 async function problem(baseUrl, config) {
   try {
-    await new TemplatesApi(client(baseUrl, config)).listTemplates({ tenantId: config.tenantId, catalogId: config.catalogId })
+    await new TemplatesApi(client(baseUrl, config)).listTemplates({ tenantId: config.tenantId, namespace: config.namespace, catalogKey: config.catalogKey })
     await report(baseUrl, { problemTypeSlug: '<no exception was thrown>' })
   } catch (error) {
     if (!(error instanceof ProblemDetailException)) throw error
@@ -115,7 +121,7 @@ async function problem(baseUrl, config) {
 async function validateTemplateData(baseUrl, config) {
   const validator = new TemplateSchemaValidator(new TemplatesApi(client(baseUrl, config)))
   try {
-    await validator.validate(config.tenantId, config.catalogId, config.templateId, config.data ?? {})
+    await validator.validate(config.tenantId, config.namespace, config.catalogKey, config.templateId, config.data ?? {})
     await report(baseUrl, { validationFailurePaths: '<accepted>', validationFailureKeywords: '<accepted>' })
   } catch (error) {
     if (!(error instanceof TemplateDataValidationException)) throw error
@@ -158,6 +164,7 @@ async function collect(baseUrl, config) {
     correlationIds: handled.map((r) => r.correlationId ?? '').join(','),
     handledSequences: handled.map((r) => String(r.sequence)).join(','),
     partitionTotal: assignment ? assignment.total : -1,
+    releases: handled.map((r) => `${show(r.namespace)}/${show(r.catalogKey)}@${show(r.releaseVersion)}`).join(','),
   })
 }
 
@@ -168,15 +175,20 @@ async function collect(baseUrl, config) {
  * inspect.
  */
 async function generateDocument(baseUrl, config) {
+  const request = {
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    templateId: config.templateId,
+    data: config.data,
+    correlationId: config.correlationId,
+    routingKey: config.routingKey,
+  }
+  // Only what the scenario sets: an unset optional must stay off the wire, not go out as null.
+  if (config.version !== undefined) request.version = config.version
+  if (config.environmentId !== undefined) request.environmentId = config.environmentId
   await new GenerationApi(client(baseUrl, config)).generateDocument({
     tenantId: config.tenantId,
-    generateDocumentRequest: {
-      catalogId: config.catalogId,
-      templateId: config.templateId,
-      data: config.data,
-      correlationId: config.correlationId,
-      routingKey: config.routingKey,
-    },
+    generateDocumentRequest: request,
   })
 }
 
@@ -197,7 +209,8 @@ async function downloadDocument(baseUrl, config) {
 async function listImages(baseUrl, config) {
   const { items } = await new ImagesApi(client(baseUrl, config)).listImages({
     tenantId: config.tenantId,
-    catalogId: config.catalogId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
     search: config.search,
   })
   await report(baseUrl, {
@@ -217,7 +230,8 @@ async function uploadImage(baseUrl, config) {
   const file = new File([Buffer.from(config.fileBase64, 'base64')], config.filename, { type: config.fileContentType })
   const image = await new ImagesApi(client(baseUrl, config)).uploadImage({
     tenantId: config.tenantId,
-    catalogId: config.catalogId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
     file,
     name: config.name,
   })
@@ -227,7 +241,8 @@ async function uploadImage(baseUrl, config) {
 async function downloadImage(baseUrl, config) {
   const blob = await new ImagesApi(client(baseUrl, config)).downloadImageContent({
     tenantId: config.tenantId,
-    catalogId: config.catalogId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
     imageSlug: config.imageSlug,
   })
   await reportBytes(baseUrl, blob)
@@ -236,9 +251,70 @@ async function downloadImage(baseUrl, config) {
 async function deleteImage(baseUrl, config) {
   await new ImagesApi(client(baseUrl, config)).deleteImage({
     tenantId: config.tenantId,
-    catalogId: config.catalogId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
     imageSlug: config.imageSlug,
     force: config.force,
+  })
+}
+
+/** Lists a catalog's declared dependencies, reporting them the way the update action does. */
+async function listCatalogDependencies(baseUrl, config) {
+  const response = await new CatalogsApi(client(baseUrl, config)).listCatalogDependencies({
+    tenantId: config.tenantId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+  })
+  await reportDependencies(baseUrl, response.items)
+}
+
+/**
+ * Declares a catalog's dependencies. The response writes every namespace in full and a
+ * `resolvedVersion` that nothing satisfies as null; both are reported exactly as parsed.
+ */
+async function updateCatalogDependencies(baseUrl, config) {
+  const response = await new CatalogsApi(client(baseUrl, config)).updateCatalogDependencies({
+    tenantId: config.tenantId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    updateCatalogDependenciesRequest: { dependencies: config.dependencies },
+  })
+  await reportDependencies(baseUrl, response.items)
+}
+
+function reportDependencies(baseUrl, items) {
+  return report(baseUrl, {
+    namespaces: items.map((d) => show(d.namespace)).join(','),
+    catalogKeys: items.map((d) => show(d.catalogKey)).join(','),
+    versions: items.map((d) => show(d.version)).join(','),
+    resolvedVersions: items.map((d) => show(d.resolvedVersion)).join(','),
+  })
+}
+
+/** Deploys one release; the path carries everything and there is no body. */
+async function deployRelease(baseUrl, config) {
+  const deployment = await new EnvironmentsApi(client(baseUrl, config)).deployRelease({
+    tenantId: config.tenantId,
+    environmentId: config.environmentId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    releaseVersion: config.releaseVersion,
+  })
+  await report(baseUrl, {
+    namespace: show(deployment.namespace),
+    catalogKey: show(deployment.catalogKey),
+    releaseVersion: show(deployment.releaseVersion),
+  })
+}
+
+/** Undeploys one release; the 204 has no body to parse. */
+async function undeployRelease(baseUrl, config) {
+  await new EnvironmentsApi(client(baseUrl, config)).undeployRelease({
+    tenantId: config.tenantId,
+    environmentId: config.environmentId,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    releaseVersion: config.releaseVersion,
   })
 }
 

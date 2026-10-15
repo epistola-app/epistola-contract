@@ -30,7 +30,7 @@ public class ServerTemplateDataValidator implements TemplateDataValidator {
 
     private final TemplatesApi templatesApi;
     private final String variantId;
-    private final String releaseVersion;
+    private final String version;
     private final String environmentId;
 
     public ServerTemplateDataValidator(TemplatesApi templatesApi) {
@@ -40,31 +40,32 @@ public class ServerTemplateDataValidator implements TemplateDataValidator {
     /**
      * @param templatesApi  the generated API used to reach {@code validateTemplateData}
      * @param variantId      optional variant to check against; without it, the default variant
-     * @param releaseVersion optional release of the template's catalog to check against (mutually
-     *                       exclusive with {@code environmentId}); without either, the latest
+     * @param version        optional version selector for the release of the template's catalog to
+     *                       check against ({@code 1.4.0}, {@code ^1.4.0}); without it, the highest
      *                       release, as preview and generation would render
-     * @param environmentId  optional environment whose deployed release to check against
+     * @param environmentId  optional environment whose deployed releases to choose from; combines
+     *                       with {@code version}
      */
     public ServerTemplateDataValidator(
-            TemplatesApi templatesApi, String variantId, String releaseVersion, String environmentId) {
+            TemplatesApi templatesApi, String variantId, String version, String environmentId) {
         this.templatesApi = templatesApi;
         this.variantId = variantId;
-        this.releaseVersion = releaseVersion;
+        this.version = version;
         this.environmentId = environmentId;
     }
 
     @Override
     public List<TemplateDataValidationException.ValidationError> validate(
-            String tenantId, String catalogId, String templateId, Object data) {
+            String tenantId, String namespace, String catalogKey, String templateId, Object data) {
 
         ValidateTemplateDataRequest request = new ValidateTemplateDataRequest();
         request.setData(data);
         request.setVariantId(variantId);
-        request.setReleaseVersion(releaseVersion);
+        request.setVersion(version);
         request.setEnvironmentId(environmentId);
 
         TemplateDataValidationResult result =
-                templatesApi.validateTemplateData(tenantId, catalogId, templateId, request);
+                templatesApi.validateTemplateData(tenantId, namespace, catalogKey, templateId, request);
         if (result == null) {
             return Collections.emptyList();
         }

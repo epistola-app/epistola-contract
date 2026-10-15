@@ -16,7 +16,8 @@ action:
   config:
     nodeId: conformance-node-1
     tenantId: acme-corp
-    catalogId: main
+    namespace: acme-corp
+    catalogKey: main
 
 script:
   - status: 200

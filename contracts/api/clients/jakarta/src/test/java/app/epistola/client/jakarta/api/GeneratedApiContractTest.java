@@ -11,16 +11,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import app.epistola.client.jakarta.EpistolaRestClients;
 import app.epistola.client.jakarta.StubServer;
+import app.epistola.client.jakarta.model.CatalogDependencyListResponse;
 import app.epistola.client.jakarta.model.CreateTenantRequest;
+import app.epistola.client.jakarta.model.DeploymentDto;
 import app.epistola.client.jakarta.model.TenantDto;
+import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.FormParam;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.EntityPart;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 import org.junit.jupiter.api.Test;
@@ -144,6 +153,73 @@ class GeneratedApiContractTest {
                 "expected the contract's two uploads (uploadImage, importCatalog)");
     }
 
+    /**
+     * A catalog is addressed by its namespace and key together (contract 2.0). Every operation
+     * under a catalog takes both as path parameters, and none still takes the removed
+     * {@code catalogId}.
+     */
+    @Test
+    void catalog_scoped_operations_address_a_catalog_by_namespace_and_key() {
+        int catalogScoped = 0;
+
+        for (Class<?> api : GENERATED_APIS) {
+            String base = api.getAnnotation(Path.class) == null ? "" : api.getAnnotation(Path.class).value();
+            for (Method method : api.getMethods()) {
+                List<String> pathParams = pathParams(method);
+                String where = api.getSimpleName() + "." + method.getName();
+                assertTrue(!pathParams.contains("catalogId"), where + " still takes the removed catalogId");
+
+                Path path = method.getAnnotation(Path.class);
+                String fullPath = base + (path == null ? "" : path.value());
+                if (!fullPath.contains("{catalogKey}")) {
+                    continue;
+                }
+                catalogScoped++;
+                assertTrue(
+                        pathParams.contains("namespace") && pathParams.contains("catalogKey"),
+                        where + " is catalog-scoped but does not take both namespace and catalogKey: " + pathParams);
+            }
+        }
+
+        assertTrue(catalogScoped > 0, "expected catalog-scoped operations");
+    }
+
+    @Test
+    void catalog_dependencies_are_listed_and_replaced() {
+        Method list = method(CatalogsApi.class, "listCatalogDependencies");
+        assertNotNull(list.getAnnotation(GET.class), "listCatalogDependencies should be a GET");
+        assertEquals(CatalogDependencyListResponse.class, list.getReturnType());
+        assertEquals(List.of("tenantId", "namespace", "catalogKey"), pathParams(list));
+
+        Method update = method(CatalogsApi.class, "updateCatalogDependencies");
+        assertNotNull(update.getAnnotation(PUT.class), "updateCatalogDependencies should be a PUT");
+        assertEquals(CatalogDependencyListResponse.class, update.getReturnType());
+        assertEquals(List.of("tenantId", "namespace", "catalogKey"), pathParams(update));
+        assertEquals(UpdateCatalogDependenciesRequest.class, update.getParameterTypes()[3]);
+        assertEquals(List.of(VENDOR_JSON), List.of(update.getAnnotation(Consumes.class).value()));
+    }
+
+    /**
+     * Deploying names the release entirely in the path, so the PUT carries no body; a stale
+     * generator output that still expects {@code DeployReleaseRequest} would fail here.
+     */
+    @Test
+    void a_release_is_deployed_and_undeployed_by_its_path_alone() {
+        List<String> releasePath = List.of("tenantId", "environmentId", "namespace", "catalogKey", "releaseVersion");
+
+        Method deploy = method(EnvironmentsApi.class, "deployRelease");
+        assertNotNull(deploy.getAnnotation(PUT.class), "deployRelease should be a PUT");
+        assertEquals(DeploymentDto.class, deploy.getReturnType());
+        assertEquals(releasePath, pathParams(deploy));
+        assertEquals(releasePath.size(), deploy.getParameterCount(), "deployRelease should take no request body");
+
+        Method undeploy = method(EnvironmentsApi.class, "undeployRelease");
+        assertNotNull(undeploy.getAnnotation(DELETE.class), "undeployRelease should be a DELETE");
+        assertEquals(void.class, undeploy.getReturnType());
+        assertEquals(releasePath, pathParams(undeploy));
+        assertEquals(releasePath.size(), undeploy.getParameterCount(), "undeployRelease should take no request body");
+    }
+
     @Test
     void error_responses_are_declared_as_problem_json() {
         Method getTenant = method(TenantsApi.class, "getTenant");
@@ -172,6 +248,14 @@ class GeneratedApiContractTest {
                     request.header("Accept").contains(VENDOR_JSON),
                     "Accept should ask for the versioned media type, was: " + request.header("Accept"));
         }
+    }
+
+    private static List<String> pathParams(Method method) {
+        return Arrays.stream(method.getParameters())
+                .map(parameter -> parameter.getAnnotation(PathParam.class))
+                .filter(annotation -> annotation != null)
+                .map(PathParam::value)
+                .collect(Collectors.toList());
     }
 
     private static Method method(Class<?> api, String name) {

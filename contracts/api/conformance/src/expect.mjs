@@ -86,8 +86,10 @@ function checkRequest(label, matcher, actual, failures) {
   if (matcher.method && matcher.method !== actual.method) {
     failures.push(`${label}: expected method ${matcher.method}, got ${actual.method}`)
   }
-  if (matcher.path && matcher.path !== actual.path) {
+  if (typeof matcher.path === 'string' && matcher.path !== actual.path) {
     failures.push(`${label}: expected path ${matcher.path}, got ${actual.path}`)
+  } else if (matcher.path && typeof matcher.path === 'object') {
+    checkValue(`${label}: path`, matcher.path, actual.path, failures)
   }
   if (matcher.query !== undefined) {
     checkValue(`${label}: query`, matcher.query, actual.query, failures)
@@ -550,7 +552,8 @@ function describe(matcher) {
     return JSON.stringify(matcher)
   }
   if (matcher.method || matcher.path) {
-    return `${matcher.method ?? 'any'} ${matcher.path ?? 'any path'}`
+    const path = typeof matcher.path === 'object' ? JSON.stringify(matcher.path) : matcher.path
+    return `${matcher.method ?? 'any'} ${path ?? 'any path'}`
   }
   return JSON.stringify(matcher)
 }

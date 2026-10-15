@@ -29,19 +29,29 @@ const SPEC_ID = 'https://epistola.local/openapi'
  */
 const ACTION_OPERATIONS = {
   ping: { method: 'post', path: '/ping' },
-  'list-templates': { method: 'get', path: '/tenants/{tenantId}/catalogs/{catalogId}/templates' },
-  problem: { method: 'get', path: '/tenants/{tenantId}/catalogs/{catalogId}/templates' },
+  'list-templates': { method: 'get', path: '/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/templates' },
+  problem: { method: 'get', path: '/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/templates' },
   'validate-template-data': {
     method: 'post',
-    path: '/tenants/{tenantId}/catalogs/{catalogId}/templates/{templateId}/validate',
+    path: '/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/templates/{templateId}/validate',
   },
   'generate-document': { method: 'post', path: '/tenants/{tenantId}/documents/generate' },
   'update-consumer': { method: 'patch', path: '/tenants/{tenantId}/consumers/{consumerId}' },
   'download-document': { method: 'get', path: '/tenants/{tenantId}/documents/{documentId}' },
-  'list-images': { method: 'get', path: '/tenants/{tenantId}/catalogs/{catalogId}/images' },
-  'upload-image': { method: 'post', path: '/tenants/{tenantId}/catalogs/{catalogId}/images' },
-  'download-image': { method: 'get', path: '/tenants/{tenantId}/catalogs/{catalogId}/images/{imageSlug}/content' },
-  'delete-image': { method: 'delete', path: '/tenants/{tenantId}/catalogs/{catalogId}/images/{imageSlug}' },
+  'list-images': { method: 'get', path: '/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/images' },
+  'upload-image': { method: 'post', path: '/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/images' },
+  'download-image': { method: 'get', path: '/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/images/{imageSlug}/content' },
+  'delete-image': { method: 'delete', path: '/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/images/{imageSlug}' },
+  'list-catalog-dependencies': { method: 'get', path: '/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/dependencies' },
+  'update-catalog-dependencies': { method: 'put', path: '/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/dependencies' },
+  'deploy-release': {
+    method: 'put',
+    path: '/tenants/{tenantId}/environments/{environmentId}/deployments/{namespace}/{catalogKey}/{releaseVersion}',
+  },
+  'undeploy-release': {
+    method: 'delete',
+    path: '/tenants/{tenantId}/environments/{environmentId}/deployments/{namespace}/{catalogKey}/{releaseVersion}',
+  },
   collect: { method: 'post', path: '/tenants/{tenantId}/generation/collect' },
   routing: { method: 'post', path: '/tenants/{tenantId}/generation/collect' },
 }

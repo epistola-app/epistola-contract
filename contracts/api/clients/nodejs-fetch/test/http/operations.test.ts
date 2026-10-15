@@ -7,10 +7,17 @@ import { test } from 'node:test'
 import { CONTRACT_OPERATIONS, findOperation, operationPath } from '../../src/index.js'
 
 test('a listing operation asks for the success type and the problem document, in that order', () => {
-  const operation = findOperation('GET', '/tenants/acme-corp/catalogs/main/templates')!
+  const operation = findOperation('GET', '/tenants/acme-corp/catalogs/acme-corp/main/templates')!
   assert.equal(operation.operationId, 'listTemplates')
   assert.equal(operation.accept, 'application/vnd.epistola.v1+json, application/problem+json')
   assert.equal(operation.contentType, undefined)
+})
+
+test('a catalog is addressed by namespace and key, the namespace in its path-segment form', () => {
+  assert.equal(findOperation('GET', '/tenants/acme/catalogs/exchange.example.org~team-a/letters/dependencies')!.operationId, 'listCatalogDependencies')
+  assert.equal(findOperation('PUT', '/tenants/acme/catalogs/acme.com/letters/dependencies')!.operationId, 'updateCatalogDependencies')
+  assert.equal(findOperation('PUT', '/tenants/acme/environments/production/deployments/acme-corp/letters/1.4.0')!.operationId, 'deployRelease')
+  assert.equal(findOperation('DELETE', '/tenants/acme/environments/production/deployments/acme-corp/letters/1.4.0')!.operationId, 'undeployRelease')
 })
 
 test('ping declares no error responses, so only the success type is asked for', () => {

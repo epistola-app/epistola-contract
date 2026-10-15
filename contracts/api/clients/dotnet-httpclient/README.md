@@ -133,6 +133,7 @@ var collector = ResultCollector.Builder()
     {
         switch (result.Status)
         {
+            // Namespace, CatalogKey and ReleaseVersion name the release rendered (null before contract 2.0).
             case "COMPLETED": Download(result.DocumentId, result.CorrelationId); break;
             case "FAILED":    LogFailure(result.CorrelationId, result.Error);    break;
         }
@@ -156,7 +157,7 @@ using Epistola.Client.Client;
 
 using var content = File.OpenRead("logo.png");
 var image = new ImagesApi(http, "https://epistola.example.com/api").UploadImage(
-    "acme-corp", "main", new FileParameter("logo.png", "image/png", content), name: "Logo");
+    "acme-corp", "acme-corp", "main", new FileParameter("logo.png", "image/png", content), name: "Logo");
 ```
 
 A `FileParameter` built from a bare stream is sent as `no_name_provided`, with type
@@ -174,7 +175,9 @@ which optional fields the version being rendered actually reads.
 using Epistola.Client.Validation.Schema;
 
 var validator = new TemplateSchemaValidator(new TemplatesApi(http));
-validator.Validate("my-tenant", "default", "invoice", data);   // throws TemplateDataValidationException
+// A catalog is addressed by namespace and key; the namespace in its path-segment form
+// (`acme-corp`, `acme.com`, `exchange.example.org~team-a`).
+validator.Validate("my-tenant", "acme-corp", "default", "invoice", data);   // throws TemplateDataValidationException
 
 // Or around generation, which turns the server's `template-data-invalid` problem into the same exception:
 var validating = new ValidatingGenerationApi(new GenerationApi(http), new TemplatesApi(http));

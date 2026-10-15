@@ -11,9 +11,10 @@ export interface TemplateDataValidationSource {
   validateTemplateData(
     requestParameters: {
       tenantId: string
-      catalogId: string
+      namespace: string
+      catalogKey: string
       templateId: string
-      validateTemplateDataRequest: { data: object; variantId?: string | null; releaseVersion?: string | null; environmentId?: string | null }
+      validateTemplateDataRequest: { data: object; variantId?: string | null; version?: string | null; environmentId?: string | null }
     },
     initOverrides?: RequestInit | InitOverrideFunction,
   ): Promise<TemplateDataValidationResult>
@@ -23,9 +24,13 @@ export interface TemplateDataValidationSource {
 export interface ServerValidationTarget {
   /** Variant to check against; without it, the default variant of the template in the resolved release. */
   readonly variantId?: string
-  /** Release of the template's catalog (mutually exclusive with `environmentId`). */
-  readonly releaseVersion?: string
-  /** Environment whose deployed release to check against (mutually exclusive with `releaseVersion`). */
+  /**
+   * Version selector for the release of the template's catalog (`1.4.0`, or a range such as
+   * `^1.4.0` where the server supports ranges). Sent as the request's `version`. Combined with
+   * `environmentId`, it narrows to the highest release that environment serves which satisfies it.
+   */
+  readonly version?: string
+  /** Environment whose deployed releases to check against; may be combined with `version`. */
   readonly environmentId?: string
 }
 
@@ -56,15 +61,16 @@ export class ServerTemplateDataValidator implements TemplateDataValidator {
     private readonly target: ServerValidationTarget = {},
   ) {}
 
-  async validate(tenantId: string, catalogId: string, templateId: string, data: unknown): Promise<readonly ValidationFailure[]> {
+  async validate(tenantId: string, namespace: string, catalogKey: string, templateId: string, data: unknown): Promise<readonly ValidationFailure[]> {
     const result = await this.templatesApi.validateTemplateData({
       tenantId,
-      catalogId,
+      namespace,
+      catalogKey,
       templateId,
       validateTemplateDataRequest: {
         data: (data ?? {}) as object,
         variantId: this.target.variantId,
-        releaseVersion: this.target.releaseVersion,
+        version: this.target.version,
         environmentId: this.target.environmentId,
       },
     })

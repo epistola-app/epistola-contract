@@ -348,9 +348,11 @@ val api = GenerationApi(restClient)
 
 // Single document
 val job = api.generateDocument("acme-corp", GenerateDocumentRequest(
-    catalogId = "default",
+    namespace = "acme-corp",           // the catalog: its namespace…
+    catalogKey = "default",            // …and its key within that namespace
     templateId = "invoice",
     data = mapOf("customer" to "Jane Smith", "amount" to 99.99),
+    version = "^1.4.0",                // optional: the highest release satisfying this selector
     correlationId = "order-123",
     routingKey = "order-123",          // controls which node collects the result
 ))
@@ -360,8 +362,8 @@ println("Job submitted: ${job.requestId}")
 val batch = api.generateBatch("acme-corp", GenerateBatchRequest(
     routingKey = "order-456",          // all items route to same node
     items = listOf(
-        BatchGenerationItem(catalogId = "default", templateId = "invoice", data = invoiceData),
-        BatchGenerationItem(catalogId = "default", templateId = "packing-slip", data = packingData),
+        BatchGenerationItem(namespace = "acme-corp", catalogKey = "default", templateId = "invoice", data = invoiceData),
+        BatchGenerationItem(namespace = "acme-corp", catalogKey = "default", templateId = "packing-slip", data = packingData),
     ),
 ))
 ```
@@ -569,7 +571,8 @@ fun main() {
     // Submit generation requests
     val api = GenerationApi(apiClient)
     val job = api.generateDocument("acme-corp", GenerateDocumentRequest(
-        catalogId = "default",
+        namespace = "acme-corp",
+        catalogKey = "default",
         templateId = "invoice",
         data = mapOf("customer" to "Jane Smith"),
         routingKey = collector.routingKeyToMe("order-001") ?: "order-001",

@@ -56,7 +56,7 @@ const client = EpistolaClient.builder('https://epistola.example.com/api')
   .build()
 
 const templates = new TemplatesApi(client)
-const template = await templates.getTemplate({ tenantId: 'acme', catalogId: 'invoices', templateId: 'invoice' })
+const template = await templates.getTemplate({ tenantId: 'acme', namespace: 'acme', catalogKey: 'invoices', templateId: 'invoice' })
 ```
 
 `EpistolaClient.builder(baseUrl, apiKey)` is a shorthand for the same thing. The legacy `X-API-Key`
@@ -104,7 +104,7 @@ carries a name and a type:
 import { readFile } from 'node:fs/promises'
 
 const file = new File([await readFile('logo.png')], 'logo.png', { type: 'image/png' })
-const image = await new ImagesApi(client).uploadImage({ tenantId: 'acme-corp', catalogId: 'main', file, name: 'Logo' })
+const image = await new ImagesApi(client).uploadImage({ tenantId: 'acme-corp', namespace: 'acme-corp', catalogKey: 'main', file, name: 'Logo' })
 ```
 
 A plain `Blob` is always sent with the filename `blob`, and as `application/octet-stream` unless it
@@ -176,13 +176,19 @@ whose result comes back to this node.
 Template data is checked by **Epistola**, through `validateTemplateData`. Nothing is compiled here,
 so there is no schema compiler to install, and the verdict cannot disagree with what generation will
 do — the server validates the same data when a job is submitted, and it also knows which optional
-fields the version being rendered actually reads.
+fields the release being rendered actually reads.
 
 ```ts
-import { TemplateSchemaValidator, ValidatingGenerationApi, validateCreateTenantRequest } from '@epistola.app/epistola-client'
+import { ServerTemplateDataValidator, TemplateSchemaValidator, ValidatingGenerationApi, validateCreateTenantRequest } from '@epistola.app/epistola-client'
 
 const validator = new TemplateSchemaValidator(templatesApi)
-await validator.validate('acme', 'invoices', 'invoice', data)   // throws TemplateDataValidationException
+// tenant, catalog namespace (path-segment form), catalog key, template
+await validator.validate('acme', 'acme', 'invoices', 'invoice', data)   // throws TemplateDataValidationException
+
+// Against a particular release: a version selector, an environment, or both together
+const pinned = new TemplateSchemaValidator(
+  new ServerTemplateDataValidator(templatesApi, { version: '^1.4.0', environmentId: 'production' }),
+)
 
 // Or around generation, which turns the server's `template-data-invalid` problem into the same error:
 const generation = new ValidatingGenerationApi(new GenerationApi(client), templatesApi)

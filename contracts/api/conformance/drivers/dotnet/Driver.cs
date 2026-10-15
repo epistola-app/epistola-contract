@@ -56,6 +56,10 @@ public static class Driver
                 case "upload-image": UploadImage(baseUrl, config); break;
                 case "download-image": DownloadImage(baseUrl, config); break;
                 case "delete-image": DeleteImage(baseUrl, config); break;
+                case "list-catalog-dependencies": ListCatalogDependencies(baseUrl, config); break;
+                case "update-catalog-dependencies": UpdateCatalogDependencies(baseUrl, config); break;
+                case "deploy-release": DeployRelease(baseUrl, config); break;
+                case "undeploy-release": UndeployRelease(baseUrl, config); break;
                 default: throw new ArgumentException($"unknown action {instruction.GetProperty("action")}");
             }
 
@@ -91,7 +95,7 @@ public static class Driver
         TemplateListResponse? response = null;
         for (var i = 0; i < Int(config, "repeat", 1); i++)
         {
-            response = api.ListTemplates(Str(config, "tenantId"), Str(config, "catalogId"));
+            response = api.ListTemplates(Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"));
         }
         var templates = response!.Items;
 
@@ -106,7 +110,7 @@ public static class Driver
         var (http, apiBase) = Client(baseUrl, config);
         try
         {
-            new TemplatesApi(http, apiBase).ListTemplates(Str(config, "tenantId"), Str(config, "catalogId"));
+            new TemplatesApi(http, apiBase).ListTemplates(Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"));
             Report(baseUrl, new Dictionary<string, object> { ["problemTypeSlug"] = "<no exception was thrown>" });
         }
         catch (ProblemDetailException e)
@@ -133,7 +137,7 @@ public static class Driver
             : new Dictionary<string, object>();
         try
         {
-            validator.Validate(Str(config, "tenantId"), Str(config, "catalogId"), Str(config, "templateId"), data);
+            validator.Validate(Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "templateId"), data);
             Report(baseUrl, new Dictionary<string, object>
             {
                 ["validationFailurePaths"] = "<accepted>",
@@ -190,6 +194,8 @@ public static class Driver
                 ["correlationIds"] = string.Join(",", handled.Select(r => r.CorrelationId ?? "")),
                 ["handledSequences"] = string.Join(",", handled.Select(r => r.Sequence)),
                 ["partitionTotal"] = collector.CurrentPartitionAssignment?.Total ?? -1,
+                ["releases"] = string.Join(",", handled.Select(r =>
+                    $"{Show(r.Namespace)}/{Show(r.CatalogKey)}@{Show(r.ReleaseVersion)}")),
             });
         }
     }
@@ -206,14 +212,19 @@ public static class Driver
         new GenerationApi(http, apiBase).GenerateDocument(
             Str(config, "tenantId"),
             new GenerateDocumentRequest(
-                catalogId: Str(config, "catalogId"),
+                varNamespace: Str(config, "namespace"),
+                catalogKey: Str(config, "catalogKey"),
                 templateId: Str(config, "templateId"),
+                // Optional, and left unset when the scenario does not name them: an unset optional
+                // must stay off the wire (scenario 120), not go out as null.
+                varVersion: OptStr(config, "version"),
+                environmentId: OptStr(config, "environmentId"),
                 // Parsed with Newtonsoft, not System.Text.Json: the generated models serialize
                 // through Newtonsoft, which does not know what to do with a JsonElement and emits
                 // an empty object for it.
                 data: Newtonsoft.Json.JsonConvert.DeserializeObject(config.GetProperty("data").GetRawText()),
-                correlationId: Str(config, "correlationId"),
-                routingKey: Str(config, "routingKey")));
+                correlationId: OptStr(config, "correlationId"),
+                routingKey: OptStr(config, "routingKey")));
     }
 
     /// <summary>
@@ -288,7 +299,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var images = new ImagesApi(http, apiBase)
-            .ListImages(Str(config, "tenantId"), Str(config, "catalogId"), search: Str(config, "search"))
+            .ListImages(Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), search: Str(config, "search"))
             .Items;
 
         Report(baseUrl, new Dictionary<string, object>
@@ -310,7 +321,7 @@ public static class Driver
         using var content = new MemoryStream(Convert.FromBase64String(Str(config, "fileBase64")));
         var image = new ImagesApi(http, apiBase).UploadImage(
             Str(config, "tenantId"),
-            Str(config, "catalogId"),
+            Str(config, "namespace"), Str(config, "catalogKey"),
             new FileParameter(Str(config, "filename"), Str(config, "fileContentType"), content),
             name: Str(config, "name"));
 
@@ -321,15 +332,80 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         ReportBytes(baseUrl, new ImagesApi(http, apiBase).DownloadImageContent(
-            Str(config, "tenantId"), Str(config, "catalogId"), Str(config, "imageSlug")));
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "imageSlug")));
     }
 
     private static void DeleteImage(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         new ImagesApi(http, apiBase).DeleteImage(
-            Str(config, "tenantId"), Str(config, "catalogId"), Str(config, "imageSlug"),
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "imageSlug"),
             force: config.GetProperty("force").GetBoolean());
+    }
+
+    private static void ListCatalogDependencies(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        ReportDependencies(baseUrl, new CatalogsApi(http, apiBase).ListCatalogDependencies(
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey")));
+    }
+
+    /// <summary>
+    /// Declares the catalog's dependencies as the scenario lists them, and reports what came back.
+    /// A null <c>resolvedVersion</c> is the state that blocks a release, so it is reported as
+    /// <c>null</c> rather than lost.
+    /// </summary>
+    private static void UpdateCatalogDependencies(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var dependencies = config.GetProperty("dependencies").EnumerateArray()
+            .Select(d => new CatalogDependencyRequirement(
+                varNamespace: Str(d, "namespace"),
+                catalogKey: Str(d, "catalogKey"),
+                varVersion: Str(d, "version")))
+            .ToList();
+        ReportDependencies(baseUrl, new CatalogsApi(http, apiBase).UpdateCatalogDependencies(
+            Str(config, "tenantId"), Str(config, "namespace"), Str(config, "catalogKey"),
+            new UpdateCatalogDependenciesRequest(dependencies: dependencies)));
+    }
+
+    private static void ReportDependencies(string baseUrl, CatalogDependencyListResponse response)
+    {
+        var items = response.Items;
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["namespaces"] = string.Join(",", items.Select(d => Show(d.Namespace))),
+            ["catalogKeys"] = string.Join(",", items.Select(d => Show(d.CatalogKey))),
+            ["versions"] = string.Join(",", items.Select(d => Show(d.VarVersion))),
+            ["resolvedVersions"] = string.Join(",", items.Select(d => Show(d.ResolvedVersion))),
+        });
+    }
+
+    /// <summary>
+    /// Deploys one release. The namespace goes into the path exactly as the scenario gives it, in
+    /// its path-segment form; the request has no body.
+    /// </summary>
+    private static void DeployRelease(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var deployment = new EnvironmentsApi(http, apiBase).DeployRelease(
+            Str(config, "tenantId"), Str(config, "environmentId"),
+            Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "releaseVersion"));
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["namespace"] = Show(deployment.Namespace),
+            ["catalogKey"] = Show(deployment.CatalogKey),
+            ["releaseVersion"] = Show(deployment.ReleaseVersion),
+        });
+    }
+
+    private static void UndeployRelease(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        new EnvironmentsApi(http, apiBase).UndeployRelease(
+            Str(config, "tenantId"), Str(config, "environmentId"),
+            Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "releaseVersion"));
     }
 
     private static void ReportBytes(string baseUrl, FileParameter file)
@@ -413,6 +489,9 @@ public static class Driver
     private static string Str(JsonElement config, string name, string? fallback = null) =>
         config.TryGetProperty(name, out var value) ? value.GetString()! : fallback
             ?? throw new ArgumentException($"scenario config has no {name}");
+
+    private static string? OptStr(JsonElement config, string name) =>
+        config.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? value.GetString() : null;
 
     private static int Int(JsonElement config, string name, int? fallback = null) =>
         config.TryGetProperty(name, out var value) ? value.GetInt32() : fallback

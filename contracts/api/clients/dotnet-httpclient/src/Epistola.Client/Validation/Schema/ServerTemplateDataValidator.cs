@@ -34,22 +34,29 @@ public sealed class ServerTemplateDataValidator : ITemplateDataValidator
 {
     private readonly ITemplatesApi _templatesApi;
     private readonly string? _variantId;
-    private readonly string? _releaseVersion;
+    private readonly string? _version;
     private readonly string? _environmentId;
 
     /// <param name="templatesApi">The generated API used to reach <c>validateTemplateData</c>.</param>
     /// <param name="variantId">Optional variant to check against; without it, the default variant.</param>
-    /// <param name="releaseVersion">Optional release of the template's catalog to check against (mutually exclusive with <paramref name="environmentId"/>). Without either, the catalog's latest release is used.</param>
-    /// <param name="environmentId">Optional environment whose deployed release to check against.</param>
+    /// <param name="version">
+    /// Optional version selector for the release of the template's catalog to check against, such as
+    /// <c>1.4.0</c>. It is passed through unchecked: the server decides which selectors it accepts.
+    /// Without it (and without <paramref name="environmentId"/>), the catalog's latest release is used.
+    /// </param>
+    /// <param name="environmentId">
+    /// Optional environment to check against: the highest release it serves (that satisfies
+    /// <paramref name="version"/>, when both are given).
+    /// </param>
     public ServerTemplateDataValidator(
         ITemplatesApi templatesApi,
         string? variantId = null,
-        string? releaseVersion = null,
+        string? version = null,
         string? environmentId = null)
     {
         _templatesApi = templatesApi;
         _variantId = variantId;
-        _releaseVersion = releaseVersion;
+        _version = version;
         _environmentId = environmentId;
     }
 
@@ -61,15 +68,15 @@ public sealed class ServerTemplateDataValidator : ITemplateDataValidator
 
     /// <inheritdoc />
     public IReadOnlyList<TemplateDataValidationException.ValidationError> Validate(
-        string tenantId, string catalogId, string templateId, object data)
+        string tenantId, string @namespace, string catalogKey, string templateId, object data)
     {
         var request = new ValidateTemplateDataRequest(
             variantId: _variantId,
-            releaseVersion: _releaseVersion,
+            varVersion: _version,
             environmentId: _environmentId,
             data: data);
 
-        var result = _templatesApi.ValidateTemplateData(tenantId, catalogId, templateId, request);
+        var result = _templatesApi.ValidateTemplateData(tenantId, @namespace, catalogKey, templateId, request);
         if (result == null || result.Valid)
         {
             return new List<TemplateDataValidationException.ValidationError>();

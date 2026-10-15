@@ -38,25 +38,25 @@ class TemplateSchemaValidatorTest {
     ) = TemplateDataValidationResult(valid, errors, missingFields, invalidFields)
 
     private fun answering(result: TemplateDataValidationResult) {
-        every { templatesApi.validateTemplateData("acme", "default", "invoice", any()) } returns result
+        every { templatesApi.validateTemplateData("acme", "acme-corp", "default", "invoice", any()) } returns result
     }
 
     @Test
     fun `valid data passes without throwing`() {
         answering(result(valid = true))
 
-        TemplateSchemaValidator(templatesApi).validate("acme", "default", "invoice", mapOf("name" to "Jane"))
+        TemplateSchemaValidator(templatesApi).validate("acme", "acme-corp", "default", "invoice", mapOf("name" to "Jane"))
 
-        verify(exactly = 1) { templatesApi.validateTemplateData("acme", "default", "invoice", any()) }
+        verify(exactly = 1) { templatesApi.validateTemplateData("acme", "acme-corp", "default", "invoice", any()) }
     }
 
     @Test
     fun `the data is sent as the request body`() {
         answering(result(valid = true))
         val body = slot<ValidateTemplateDataRequest>()
-        every { templatesApi.validateTemplateData("acme", "default", "invoice", capture(body)) } returns result(valid = true)
+        every { templatesApi.validateTemplateData("acme", "acme-corp", "default", "invoice", capture(body)) } returns result(valid = true)
 
-        TemplateSchemaValidator(templatesApi).validate("acme", "default", "invoice", mapOf("name" to "Jane"))
+        TemplateSchemaValidator(templatesApi).validate("acme", "acme-corp", "default", "invoice", mapOf("name" to "Jane"))
 
         assertEquals(mapOf("name" to "Jane"), body.captured.data)
     }
@@ -74,7 +74,7 @@ class TemplateSchemaValidatorTest {
         )
 
         val thrown = assertFailsWith<TemplateDataValidationException> {
-            TemplateSchemaValidator(templatesApi).validate("acme", "default", "invoice", emptyMap<String, Any>())
+            TemplateSchemaValidator(templatesApi).validate("acme", "acme-corp", "default", "invoice", emptyMap<String, Any>())
         }
 
         assertEquals(
@@ -98,7 +98,7 @@ class TemplateSchemaValidatorTest {
         )
 
         val thrown = assertFailsWith<TemplateDataValidationException> {
-            TemplateSchemaValidator(templatesApi).validate("acme", "default", "invoice", emptyMap<String, Any>())
+            TemplateSchemaValidator(templatesApi).validate("acme", "acme-corp", "default", "invoice", emptyMap<String, Any>())
         }
 
         assertEquals(listOf("/customer/address"), thrown.errors.map { it.path })
@@ -115,7 +115,7 @@ class TemplateSchemaValidatorTest {
         )
 
         val thrown = assertFailsWith<TemplateDataValidationException> {
-            TemplateSchemaValidator(templatesApi).validate("acme", "default", "invoice", emptyMap<String, Any>())
+            TemplateSchemaValidator(templatesApi).validate("acme", "acme-corp", "default", "invoice", emptyMap<String, Any>())
         }
 
         assertEquals("/invoiceNumber", thrown.errors.single().path)
@@ -136,7 +136,7 @@ class TemplateSchemaValidatorTest {
         )
 
         val thrown = assertFailsWith<TemplateDataValidationException> {
-            TemplateSchemaValidator(templatesApi).validate("acme", "default", "invoice", emptyMap<String, Any>())
+            TemplateSchemaValidator(templatesApi).validate("acme", "acme-corp", "default", "invoice", emptyMap<String, Any>())
         }
 
         assertEquals("/customer/email", thrown.errors.single().path)
@@ -148,38 +148,39 @@ class TemplateSchemaValidatorTest {
         answering(result(valid = false))
 
         assertFailsWith<TemplateDataValidationException> {
-            TemplateSchemaValidator(templatesApi).validate("acme", "default", "invoice", emptyMap<String, Any>())
+            TemplateSchemaValidator(templatesApi).validate("acme", "acme-corp", "default", "invoice", emptyMap<String, Any>())
         }
     }
 
     @Test
     fun `the version selectors are passed through when configured`() {
         val body = slot<ValidateTemplateDataRequest>()
-        every { templatesApi.validateTemplateData("acme", "default", "invoice", capture(body)) } returns result(valid = true)
+        every { templatesApi.validateTemplateData("acme", "acme-corp", "default", "invoice", capture(body)) } returns result(valid = true)
 
-        val validator = ServerTemplateDataValidator(templatesApi, variantId = "nl-nl", environmentId = "production")
-        TemplateSchemaValidator(validator).validate("acme", "default", "invoice", emptyMap<String, Any>())
+        val validator = ServerTemplateDataValidator(templatesApi, variantId = "nl-nl", version = "^1.4.0", environmentId = "production")
+        TemplateSchemaValidator(validator).validate("acme", "acme-corp", "default", "invoice", emptyMap<String, Any>())
 
         assertEquals("nl-nl", body.captured.variantId)
+        assertEquals("^1.4.0", body.captured.version)
         assertEquals("production", body.captured.environmentId)
     }
 
     @Test
     fun `a plugged-in validator replaces the server entirely`() {
         val findings = listOf(TemplateDataValidationException.ValidationError("/name", "is required but was not supplied", "required"))
-        val local = TemplateDataValidator { _, _, _, _ -> findings }
+        val local = TemplateDataValidator { _, _, _, _, _ -> findings }
 
         val thrown = assertFailsWith<TemplateDataValidationException> {
-            TemplateSchemaValidator(local).validate("acme", "default", "invoice", emptyMap<String, Any>())
+            TemplateSchemaValidator(local).validate("acme", "acme-corp", "default", "invoice", emptyMap<String, Any>())
         }
 
         assertEquals(findings, thrown.errors)
-        verify(exactly = 0) { templatesApi.validateTemplateData(any(), any(), any(), any()) }
+        verify(exactly = 0) { templatesApi.validateTemplateData(any(), any(), any(), any(), any()) }
     }
 
     @Test
     fun `the server-backed validator declines generation pre-flight, a local one takes it`() {
         assertFalse(ServerTemplateDataValidator(templatesApi).preflightsGeneration)
-        assertTrue(TemplateDataValidator { _, _, _, _ -> emptyList() }.preflightsGeneration)
+        assertTrue(TemplateDataValidator { _, _, _, _, _ -> emptyList() }.preflightsGeneration)
     }
 }

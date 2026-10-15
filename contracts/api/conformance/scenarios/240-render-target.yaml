@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: render-target
+title: A generation request names its catalog by namespace and key, and narrows the release by version and environment together
+why: >
+  A catalog is identified by its namespace and its key; the key alone can name two different
+  catalogs from two publishers. A client that drops the namespace renders a template from whichever
+  catalog the server happens to resolve.
+
+  The release rendered is chosen by `version` and `environmentId` together: the highest release the
+  environment serves that satisfies the selector. They used to be mutually exclusive, so a client
+  that still enforces that, or drops one when the other is set, renders a different release than
+  the caller asked for.
+
+  `version` is a selector, not a version. The contract keeps it unconstrained so that SemVer ranges
+  can be enabled without a client release; a client that validates it as `MAJOR.MINOR.PATCH` refuses
+  `^1.4.0` before it reaches a server that may accept it.
+
+action:
+  name: generate-document
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    templateId: invoice
+    version: ^1.4.0
+    environmentId: production
+    data:
+      customerName: Acme B.V.
+
+script:
+  - status: 202
+    contentType: application/vnd.epistola.v1+json
+    body:
+      requestId: 88888888-8888-4888-8888-000000000002
+      status: PENDING
+      jobType: SINGLE
+      totalCount: 1
+      createdAt: "2026-02-01T08:00:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/documents/generate
+      body:
+        json:
+          namespace: acme-corp
+          catalogKey: letters
+          templateId: invoice
+          version: ^1.4.0
+          environmentId: production
+          data:
+            customerName: Acme B.V.

@@ -47,13 +47,16 @@ public interface TemplateDataValidator {
      * there are none.
      *
      * @param tenantId   tenant identifier
-     * @param catalogId  catalog identifier; the same template id in two catalogs of one tenant is
-     *                   two different templates with two different contracts
+     * @param namespace  the catalog's namespace, as a request may write it ({@code acme-corp},
+     *                   {@code acme.com}, or {@code exchange.example.org~team-a} in a path)
+     * @param catalogKey the catalog's key within its namespace; the same template id in two
+     *                   catalogs of one tenant is two different templates with two different
+     *                   contracts
      * @param templateId template identifier
      * @param data       the data object to check
      */
     List<TemplateDataValidationException.ValidationError> validate(
-            String tenantId, String catalogId, String templateId, Object data);
+            String tenantId, String namespace, String catalogKey, String templateId, Object data);
 
     /**
      * Whether {@link ValidatingGenerationApi} should check data with this validator <em>before</em>

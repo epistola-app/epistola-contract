@@ -13,17 +13,27 @@ PreviewDocumentRequest:
 
     Specify either variantId (explicit) or attributes (auto-select) but not both.
   required:
-    - catalogId
+    - namespace
+    - catalogKey
     - templateId
     - data
   properties:
-    catalogId:
+    namespace:
+      type: string
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: |
+        Namespace of the catalog containing the template. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
+        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
+      example: exchange.epistola.app/acme-corp
+    catalogKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the catalog containing the template
-      example: default
+      description: Key of the catalog containing the template, unique within its namespace
+      example: letters
     templateId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -43,14 +53,16 @@ PreviewDocumentRequest:
       items:
         $ref: '#/VariantSelectionAttribute'
       description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
-    releaseVersion:
+    version:
       type: [string, "null"]
       minLength: 1
-      maxLength: 50
+      maxLength: 100
       description: |
-        Release of the template's catalog to render (mutually exclusive with environmentId).
-        Without releaseVersion or environmentId, the catalog's latest release is rendered, never
-        unreleased changes.
+        Which release of the template's catalog to render, as a version selector (see "Version
+        selectors" in the API description); the highest release that satisfies it is rendered.
+        With `environmentId`, only the releases that environment serves are considered. Omitted:
+        the highest release (that the environment serves, with `environmentId`). Unreleased
+        changes are never rendered.
       example: null
     environmentId:
       type: [string, "null"]
@@ -58,16 +70,16 @@ PreviewDocumentRequest:
       minLength: 3
       maxLength: 30
       description: |
-        Slug identifier of the environment whose deployed release of the template's catalog is
-        rendered (mutually exclusive with releaseVersion). The request is refused when the
-        environment serves no release of that catalog.
+        Slug identifier of an environment. The release rendered is chosen among the releases of
+        the template's catalog that the environment serves: the highest one, or the highest that
+        satisfies `version`. The request is refused when the environment serves no such release.
       example: null
     workingCopy:
       type: boolean
       default: false
       description: |
         Render the template's working copy, including changes not yet released (mutually exclusive
-        with releaseVersion and environmentId). Preview only: generated documents always render a
+        with version and environmentId). Preview only: generated documents always render a
         release.
       example: false
     data:
@@ -108,22 +120,33 @@ VariantSelectionAttribute:
     Attribute criterion for variant selection.
 
     `key` may take three forms (server resolves in this order):
-      1. Explicit qualifier: provide `catalog` + a bare `key`. Recommended.
-      2. Dotted form: `key = "<catalog>.<slug>"`. The catalog slug grammar
-         excludes `.`, so the split is unambiguous.
+      1. Explicit qualifier: provide `catalogKey` (and `namespace` for a catalog in another
+         namespace than the template's) + a bare `key`. Recommended.
+      2. Dotted form: `key = "<catalogKey>.<slug>"`, for a catalog in the template's namespace.
+         The catalog key grammar excludes `.`, so the split is unambiguous.
       3. Bare slug: tenant-wide lookup (legacy). If the same slug exists in
          multiple catalogs of the tenant, the validator silently picks one.
   required:
     - key
     - value
   properties:
-    catalog:
-      type:
-        - string
-        - 'null'
+    namespace:
+      type: [string, "null"]
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: |
+        Namespace of the catalog qualifier. Omitted: the namespace of the template's catalog. Only
+        meaningful together with `catalogKey`.
+      example: null
+    catalogKey:
+      type: [string, "null"]
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
       description: |
         Optional catalog qualifier. When set, the server resolves the attribute
-        as `(catalog, key)`. When omitted, `key` may be dotted (`"system.locale"`)
+        as `(namespace, catalogKey, key)`. When omitted, `key` may be dotted (`"system.locale"`)
         or a bare slug (legacy).
       example: system
     key:
@@ -145,17 +168,27 @@ GenerateDocumentRequest:
   type: object
   description: Request to generate a single document. Specify either variantId (explicit) or attributes (auto-select) but not both.
   required:
-    - catalogId
+    - namespace
+    - catalogKey
     - templateId
     - data
   properties:
-    catalogId:
+    namespace:
+      type: string
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: |
+        Namespace of the catalog containing the template. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
+        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
+      example: exchange.epistola.app/acme-corp
+    catalogKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the catalog containing the template
-      example: default
+      description: Key of the catalog containing the template, unique within its namespace
+      example: letters
     templateId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -175,14 +208,16 @@ GenerateDocumentRequest:
       items:
         $ref: '#/VariantSelectionAttribute'
       description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
-    releaseVersion:
+    version:
       type: [string, "null"]
       minLength: 1
-      maxLength: 50
+      maxLength: 100
       description: |
-        Release of the template's catalog to render (mutually exclusive with environmentId).
-        Without releaseVersion or environmentId, the catalog's latest release is rendered, never
-        unreleased changes.
+        Which release of the template's catalog to render, as a version selector (see "Version
+        selectors" in the API description); the highest release that satisfies it is rendered.
+        With `environmentId`, only the releases that environment serves are considered. Omitted:
+        the highest release (that the environment serves, with `environmentId`). Unreleased
+        changes are never rendered.
       example: null
     environmentId:
       type: [string, "null"]
@@ -190,9 +225,9 @@ GenerateDocumentRequest:
       minLength: 3
       maxLength: 30
       description: |
-        Slug identifier of the environment whose deployed release of the template's catalog is
-        rendered (mutually exclusive with releaseVersion). The request is refused when the
-        environment serves no release of that catalog.
+        Slug identifier of an environment. The release rendered is chosen among the releases of
+        the template's catalog that the environment serves: the highest one, or the highest that
+        satisfies `version`. The request is refused when the environment serves no such release.
       example: null
     data:
       type: object
@@ -257,17 +292,27 @@ BatchGenerationItem:
   type: object
   description: Single item in a batch generation request. Specify either variantId (explicit) or attributes (auto-select) but not both. Both correlationId and filename must be unique within a batch (null values are excluded from uniqueness checks).
   required:
-    - catalogId
+    - namespace
+    - catalogKey
     - templateId
     - data
   properties:
-    catalogId:
+    namespace:
+      type: string
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: |
+        Namespace of the catalog containing the template. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
+        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
+      example: exchange.epistola.app/acme-corp
+    catalogKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the catalog containing the template
-      example: default
+      description: Key of the catalog containing the template, unique within its namespace
+      example: letters
     templateId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -287,14 +332,16 @@ BatchGenerationItem:
       items:
         $ref: '#/VariantSelectionAttribute'
       description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
-    releaseVersion:
+    version:
       type: [string, "null"]
       minLength: 1
-      maxLength: 50
+      maxLength: 100
       description: |
-        Release of the template's catalog to render (mutually exclusive with environmentId).
-        Without releaseVersion or environmentId, the catalog's latest release is rendered, never
-        unreleased changes.
+        Which release of the template's catalog to render, as a version selector (see "Version
+        selectors" in the API description); the highest release that satisfies it is rendered.
+        With `environmentId`, only the releases that environment serves are considered. Omitted:
+        the highest release (that the environment serves, with `environmentId`). Unreleased
+        changes are never rendered.
       example: null
     environmentId:
       type: [string, "null"]
@@ -302,9 +349,9 @@ BatchGenerationItem:
       minLength: 3
       maxLength: 30
       description: |
-        Slug identifier of the environment whose deployed release of the template's catalog is
-        rendered (mutually exclusive with releaseVersion). The request is refused when the
-        environment serves no release of that catalog.
+        Slug identifier of an environment. The release rendered is chosen among the releases of
+        the template's catalog that the environment serves: the highest one, or the highest that
+        satisfies `version`. The request is refused when the environment serves no such release.
       example: null
     data:
       type: object
@@ -441,6 +488,22 @@ DocumentGenerationItemDto:
       format: uuid
       description: Unique identifier of this item
       example: "660e8400-e29b-41d4-a716-446655440001"
+    namespace:
+      type: [string, "null"]
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: |
+        Namespace of the template's catalog, written in full (`exchange.epistola.app/some-namespace`,
+        or a domain such as `acme.com`). Null for a result accepted before contract 2.0.
+      example: exchange.epistola.app/acme-corp
+    catalogKey:
+      type: [string, "null"]
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Key of the template's catalog, unique within its namespace. Null for a result accepted before contract 2.0
+      example: letters
     templateId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -539,6 +602,8 @@ DocumentGenerationItemDto:
       example: "2026-02-01T08:00:03Z"
   example:
     id: "660e8400-e29b-41d4-a716-446655440001"
+    namespace: exchange.epistola.app/acme-corp
+    catalogKey: letters
     templateId: invoice
     variantId: english
     releaseVersion: "1.4.0"
@@ -685,6 +750,8 @@ GenerationJobDetail:
       progressPercentage: 100.0
     items:
       - id: "660e8400-e29b-41d4-a716-446655440001"
+        namespace: exchange.epistola.app/acme-corp
+        catalogKey: letters
         templateId: invoice
         variantId: english
         releaseVersion: "1.4.0"
@@ -778,6 +845,22 @@ DocumentDto:
       maxLength: 63
       description: Slug identifier of the tenant that owns this document
       example: acme-corp
+    namespace:
+      type: [string, "null"]
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: |
+        Namespace of the template's catalog, written in full (`exchange.epistola.app/some-namespace`,
+        or a domain such as `acme.com`). Null for a result accepted before contract 2.0.
+      example: exchange.epistola.app/acme-corp
+    catalogKey:
+      type: [string, "null"]
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Key of the template's catalog, unique within its namespace. Null for a result accepted before contract 2.0
+      example: letters
     templateId:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -828,6 +911,8 @@ DocumentDto:
   example:
     id: "770e8400-e29b-41d4-a716-446655440002"
     tenantId: acme-corp
+    namespace: exchange.epistola.app/acme-corp
+    catalogKey: letters
     templateId: invoice
     variantId: english
     releaseVersion: "1.4.0"
@@ -856,6 +941,8 @@ DocumentListResponse:
     items:
       - id: "770e8400-e29b-41d4-a716-446655440002"
         tenantId: acme-corp
+        namespace: exchange.epistola.app/acme-corp
+        catalogKey: letters
         templateId: invoice
         variantId: english
         releaseVersion: "1.4.0"

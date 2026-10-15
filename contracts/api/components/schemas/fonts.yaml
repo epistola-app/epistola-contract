@@ -33,7 +33,8 @@ FontDto:
     - slug
     - name
     - kind
-    - catalog
+    - namespace
+    - catalogKey
     - catalogType
     - readOnly
     - variants
@@ -56,10 +57,21 @@ FontDto:
       enum: [sans, serif, mono, condensed, display]
       description: Broad typeface classification, used by the editor picker.
       example: sans
-    catalog:
+    namespace:
+      type: string
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      minLength: 3
+      maxLength: 320
+      description: |
+        Namespace of the catalog. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
+        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
+      example: exchange.epistola.app/epistola
+    catalogKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      description: Slug of the catalog this font family lives in.
+      minLength: 3
+      maxLength: 50
+      description: Key of the catalog this resource lives in, unique within its namespace
       example: system
     catalogType:
       type: string

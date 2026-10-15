@@ -56,6 +56,32 @@ public class ResultCollectorTest
     }
 
     [Fact]
+    public void AResultNamesTheCatalogAndReleaseItRendered()
+    {
+        var ndjson =
+            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"COMPLETED\",\"namespace\":\"exchange.epistola.app/acme-corp\",\"catalogKey\":\"letters\",\"releaseVersion\":\"1.4.0\"}\n" +
+            "{\"sequence\":2,\"requestId\":\"r2\",\"status\":\"COMPLETED\",\"namespace\":null,\"catalogKey\":null,\"releaseVersion\":null}\n" +
+            "{\"_meta\":true,\"hasMore\":false}\n";
+
+        var received = new List<ResultCollector.GenerationResult>();
+        ResultCollector.Builder()
+            .HttpClient(StubClient(ndjson))
+            .TenantId("acme")
+            .RegisterShutdownHook(false)
+            .Handler(received.Add)
+            .Build()
+            .CollectOnce();
+
+        Assert.Equal("exchange.epistola.app/acme-corp", received[0].Namespace);
+        Assert.Equal("letters", received[0].CatalogKey);
+        Assert.Equal("1.4.0", received[0].ReleaseVersion);
+        // A result from before contract 2.0 has none of the three: missing, not empty.
+        Assert.Null(received[1].Namespace);
+        Assert.Null(received[1].CatalogKey);
+        Assert.Null(received[1].ReleaseVersion);
+    }
+
+    [Fact]
     public void PartitionHelpersRequireAssignment()
     {
         var collector = ResultCollector.Builder()

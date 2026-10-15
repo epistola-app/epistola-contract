@@ -78,12 +78,15 @@ export interface TemplateDataValidator {
    * there are none.
    *
    * @param tenantId Tenant identifier.
-   * @param catalogId Catalog identifier. The same template id in two catalogs of one tenant is two
-   *   different templates with two different contracts.
+   * @param namespace Namespace of the template's catalog, in its path-segment form (`acme-corp`,
+   *   `acme.com`, or `exchange.example.org~team-a` — `~` in place of the `/`), because it addresses
+   *   the catalog in a URL path.
+   * @param catalogKey Key of the template's catalog within its namespace. The same template id in
+   *   two catalogs of one tenant is two different templates with two different contracts.
    * @param templateId Template identifier.
    * @param data The data to check.
    */
-  validate(tenantId: string, catalogId: string, templateId: string, data: unknown): Promise<readonly ValidationFailure[]>
+  validate(tenantId: string, namespace: string, catalogKey: string, templateId: string, data: unknown): Promise<readonly ValidationFailure[]>
 
   /**
    * Whether `ValidatingGenerationApi` should check data with this validator *before* submitting a

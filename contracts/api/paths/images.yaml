@@ -9,15 +9,8 @@ images:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog.
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
   get:
     operationId: listImages
     summary: List images in a catalog
@@ -122,15 +115,8 @@ image-content:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog.
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - name: imageSlug
       in: path
       required: true
@@ -191,15 +177,8 @@ image-resource:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog.
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - name: imageSlug
       in: path
       required: true

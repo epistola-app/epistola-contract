@@ -26,32 +26,35 @@ import app.epistola.client.model.ValidateTemplateDataRequest
  *
  * @param templatesApi The generated [TemplatesApi].
  * @param variantId Optional variant to check against; without it, the default variant.
- * @param releaseVersion Optional release of the template's catalog to check against (mutually
- *   exclusive with [environmentId]). Without either, the catalog's latest release is used — the
- *   release preview and generation would render for the same selection.
- * @param environmentId Optional environment whose deployed release to check against.
+ * @param version Optional version selector for the template's catalog release to check against,
+ *   such as `1.4.0` or `^1.4.0`. It may be combined with [environmentId], which then narrows the
+ *   choice to the releases deployed there. Without either, the catalog's latest release is used —
+ *   the release preview and generation would render for the same selection.
+ * @param environmentId Optional environment whose deployed releases to check against.
  */
 class ServerTemplateDataValidator @JvmOverloads constructor(
     private val templatesApi: TemplatesApi,
     private val variantId: String? = null,
-    private val releaseVersion: String? = null,
+    private val version: String? = null,
     private val environmentId: String? = null,
 ) : TemplateDataValidator {
 
     override fun validate(
         tenantId: String,
-        catalogId: String,
+        namespace: String,
+        catalogKey: String,
         templateId: String,
         data: Any,
     ): List<TemplateDataValidationException.ValidationError> {
         val result = templatesApi.validateTemplateData(
             tenantId,
-            catalogId,
+            namespace,
+            catalogKey,
             templateId,
             ValidateTemplateDataRequest(
                 data = data,
                 variantId = variantId,
-                releaseVersion = releaseVersion,
+                version = version,
                 environmentId = environmentId,
             ),
         )

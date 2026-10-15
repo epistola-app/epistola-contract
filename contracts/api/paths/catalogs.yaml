@@ -49,15 +49,8 @@ catalog-upgrade-preview:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the SUBSCRIBED catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
 
   get:
     operationId: previewCatalogUpgrade
@@ -98,22 +91,19 @@ catalog-release:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the AUTHORED catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
   post:
     operationId: releaseCatalog
     summary: Release an authored catalog
     description: |
       Cut a new immutable SemVer release for an AUTHORED catalog. A release contains the whole
       working copy, and refuses while any resource is `new` or `modified`: mark them ready first.
-      Every catalog the release's resources reference is recorded with the release it renders.
+
+      Each declared dependency is resolved to one release, and so are the dependencies of those
+      releases in turn; the release records them all. It is refused when a resource references a
+      catalog that is not declared, when a dependency resolves to no release, or when two paths
+      through the dependencies need different releases of one catalog.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_RELEASE]
@@ -152,21 +142,15 @@ catalog-upgrade:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the SUBSCRIBED catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
   post:
     operationId: upgradeCatalog
     summary: Upgrade a subscribed catalog
     description: |
-      Re-fetch the source catalog and apply an upgrade to an existing SUBSCRIBED
-      catalog.
+      Re-fetch the source catalog and install its latest release in an existing SUBSCRIBED
+      catalog. The releases installed before stay: catalogs whose dependencies resolve to one of
+      them, and environments that serve one, keep rendering it.
 
       The whole manifest is reconciled: resources added since the installed release are
       installed, changed ones are updated in place, and resources the publisher no longer
@@ -205,15 +189,8 @@ catalog-releases:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
 
   get:
     operationId: listCatalogReleases
@@ -250,15 +227,8 @@ catalog-releases-id:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - name: releaseVersion
       in: path
       required: true
@@ -300,15 +270,8 @@ catalog-changes:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
 
   get:
     operationId: getCatalogChanges
@@ -344,15 +307,8 @@ catalog-mark-ready:
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: catalogId
-      in: path
-      required: true
-      description: Slug identifier of the catalog
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
 
   post:
     operationId: markCatalogReady
@@ -370,6 +326,79 @@ catalog-mark-ready:
           application/vnd.epistola.v1+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogChangesDto'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+
+catalog-dependencies:
+  parameters:
+    - name: tenantId
+      in: path
+      required: true
+      description: Unique slug identifier of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+
+  get:
+    operationId: listCatalogDependencies
+    summary: List the catalogs a catalog depends on
+    description: |
+      The dependencies declared in the catalog's working copy, each with the release it resolves to
+      now. A resource can reference another catalog's resources only through a declared dependency.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    responses:
+      '200':
+        description: The declared dependencies
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogDependencyListResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+  put:
+    operationId: updateCatalogDependencies
+    summary: Replace the catalogs a catalog depends on
+    description: |
+      Replaces the dependencies declared in an AUTHORED catalog's working copy. The change is
+      released with the catalog's next release. Each catalog is declared at most once, so a release
+      renders with one release of every catalog it depends on.
+
+      Refused with 409 for a SUBSCRIBED catalog, whose dependencies are its publisher's.
+    tags:
+      - Catalogs
+    x-required-permissions: [TEMPLATE_EDIT]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/catalogs.yaml#/UpdateCatalogDependenciesRequest'
+    responses:
+      '200':
+        description: The declared dependencies after the change
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/catalogs.yaml#/CatalogDependencyListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

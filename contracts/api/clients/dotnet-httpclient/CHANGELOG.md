@@ -11,6 +11,20 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
+- **BREAKING:** a catalog is addressed by namespace and key. `ITemplateDataValidator.Validate`,
+  `TemplateSchemaValidator.Validate` and `ServerTemplateDataValidator.Validate` take
+  `(tenantId, namespace, catalogKey, templateId, data)` in place of
+  `(tenantId, catalogId, templateId, data)`; the namespace is in its path-segment form
+  (`exchange.example.org~team-a`). `ValidatingGenerationApi` converts a request's body-form
+  namespace (`exchange.example.org/team-a`) to that form before handing it to a validator.
+- **BREAKING:** `ServerTemplateDataValidator`'s `releaseVersion` parameter is now `version`, a
+  version selector sent as the request's `version`; it may be combined with `environmentId`.
+- The result collector's `GenerationResult` gained `Namespace` and `CatalogKey` (null for results
+  from before contract 2.0), next to `ReleaseVersion`. `GenerationResult` is a positional record, so
+  code constructing it positionally must add the two arguments.
+- The derived-source generator names a constrained `version` property `VarVersion`, as the
+  OpenAPI generator does, so `Validate()` compiles for models that carry one.
+
 - **BREAKING:** the server-side template data validator takes a `releaseVersion` (a string) in
   place of `versionId`, matching contract 2.0's generation by release; without it or an
   environment, the catalog's latest release is checked. The result collector reports

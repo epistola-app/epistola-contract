@@ -23,10 +23,11 @@ action:
     auth: api-key
     apiKey: epk_conformance_0123456789
     tenantId: acme-corp
-    catalogId: main
+    namespace: acme-corp
+    catalogKey: main
 
 expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/main/templates
+      path: /api/tenants/acme-corp/catalogs/acme-corp/main/templates

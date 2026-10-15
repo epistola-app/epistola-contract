@@ -5,7 +5,9 @@
 package app.epistola.conformance;
 
 import app.epistola.client.jakarta.EpistolaRestClients;
+import app.epistola.client.jakarta.api.CatalogsApi;
 import app.epistola.client.jakarta.api.ConsumersApi;
+import app.epistola.client.jakarta.api.EnvironmentsApi;
 import app.epistola.client.jakarta.api.GenerationApi;
 import app.epistola.client.jakarta.api.ImagesApi;
 import app.epistola.client.jakarta.api.SystemApi;
@@ -15,6 +17,9 @@ import app.epistola.client.jakarta.collect.GenerationCollectApi;
 import app.epistola.client.jakarta.collect.ResultCollector;
 import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.identity.ClientIdentity;
+import app.epistola.client.jakarta.model.CatalogDependencyDto;
+import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
+import app.epistola.client.jakarta.model.DeploymentDto;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.ImageDto;
@@ -22,6 +27,7 @@ import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
 import app.epistola.client.jakarta.model.TemplateListResponse;
 import app.epistola.client.jakarta.model.TemplateSummaryDto;
+import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
 import app.epistola.client.jakarta.model.UpdateConsumerRequest;
 import app.epistola.client.jakarta.validation.schema.TemplateDataValidationException;
 import app.epistola.client.jakarta.validation.schema.TemplateSchemaValidator;
@@ -79,6 +85,10 @@ public final class Driver {
                 case "upload-image" -> uploadImage(baseUrl, config);
                 case "download-image" -> downloadImage(baseUrl, config);
                 case "delete-image" -> deleteImage(baseUrl, config);
+                case "list-catalog-dependencies" -> listCatalogDependencies(baseUrl, config);
+                case "update-catalog-dependencies" -> updateCatalogDependencies(baseUrl, config);
+                case "deploy-release" -> deployRelease(baseUrl, config);
+                case "undeploy-release" -> undeployRelease(baseUrl, config);
                 default -> throw new IllegalArgumentException("unknown action " + instruction.getString("action"));
             }
             done(baseUrl, null);
@@ -105,7 +115,7 @@ public final class Driver {
         TemplatesApi api = clients(baseUrl, config).api(TemplatesApi.class);
         TemplateListResponse response = null;
         for (int i = 0; i < config.getInt("repeat", 1); i++) {
-            response = api.listTemplates(config.getString("tenantId"), config.getString("catalogId"), null, 0, 20, null, "desc");
+            response = api.listTemplates(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), null, 0, 20, null, "desc");
         }
         List<TemplateSummaryDto> templates = response.getItems();
 
@@ -119,7 +129,7 @@ public final class Driver {
         try {
             clients(baseUrl, config)
                     .api(TemplatesApi.class)
-                    .listTemplates(config.getString("tenantId"), config.getString("catalogId"), null, 0, 20, null, "desc");
+                    .listTemplates(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), null, 0, 20, null, "desc");
             report(baseUrl, Map.of("problemTypeSlug", "<no exception was thrown>"));
         } catch (ProblemDetailException e) {
             report(
@@ -150,7 +160,7 @@ public final class Driver {
         try {
             validator.validate(
                     config.getString("tenantId"),
-                    config.getString("catalogId"),
+                    config.getString("namespace"), config.getString("catalogKey"),
                     config.getString("templateId"),
                     config.containsKey("data") ? config.getJsonObject("data") : JsonValue.EMPTY_JSON_OBJECT);
             report(
@@ -219,6 +229,11 @@ public final class Driver {
                                 handled.stream()
                                         .map(result -> String.valueOf(result.getSequence()))
                                         .collect(Collectors.joining(",")),
+                        "releases",
+                                handled.stream()
+                                        .map(result -> result.getNamespace() + "/" + result.getCatalogKey() + "@"
+                                                + result.getReleaseVersion())
+                                        .collect(Collectors.joining(",")),
                         "partitionTotal", assignment == null ? -1 : assignment.getTotal()));
     }
 
@@ -234,11 +249,14 @@ public final class Driver {
                 .generateDocument(
                         config.getString("tenantId"),
                         new GenerateDocumentRequest()
-                                .catalogId(config.getString("catalogId"))
+                                .namespace(config.getString("namespace"))
+                                .catalogKey(config.getString("catalogKey"))
                                 .templateId(config.getString("templateId"))
                                 .data(config.getJsonObject("data"))
-                                .correlationId(config.getString("correlationId"))
-                                .routingKey(config.getString("routingKey")));
+                                .version(optional(config, "version"))
+                                .environmentId(optional(config, "environmentId"))
+                                .correlationId(optional(config, "correlationId"))
+                                .routingKey(optional(config, "routingKey")));
     }
 
     /**
@@ -318,7 +336,7 @@ public final class Driver {
     private static void listImages(String baseUrl, JsonObject config) {
         List<ImageDto> images = clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .listImages(config.getString("tenantId"), config.getString("catalogId"), config.getString("search"), null, null)
+                .listImages(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("search"), null, null)
                 .getItems();
 
         report(
@@ -343,7 +361,7 @@ public final class Driver {
         try {
             ImageDto image = clients(baseUrl, config)
                     .api(ImagesApi.class)
-                    .uploadImage(config.getString("tenantId"), config.getString("catalogId"), file, config.getString("name"), null, null);
+                    .uploadImage(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), file, config.getString("name"), null, null);
             report(baseUrl, Map.of("imageSlug", image.getSlug(), "imageName", image.getName()));
         } finally {
             Files.deleteIfExists(file.toPath());
@@ -354,14 +372,86 @@ public final class Driver {
     private static void downloadImage(String baseUrl, JsonObject config) throws Exception {
         File file = clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .downloadImageContent(config.getString("tenantId"), config.getString("catalogId"), config.getString("imageSlug"));
+                .downloadImageContent(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("imageSlug"));
         reportBytes(baseUrl, Files.readAllBytes(file.toPath()));
     }
 
     private static void deleteImage(String baseUrl, JsonObject config) {
         clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .deleteImage(config.getString("tenantId"), config.getString("catalogId"), config.getString("imageSlug"), config.getBoolean("force"));
+                .deleteImage(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("imageSlug"), config.getBoolean("force"));
+    }
+
+    private static void listCatalogDependencies(String baseUrl, JsonObject config) {
+        clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .listCatalogDependencies(
+                        config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"));
+    }
+
+    /** Replaces the declared dependencies and reports every field of the answer, a null as {@code null}. */
+    private static void updateCatalogDependencies(String baseUrl, JsonObject config) {
+        List<CatalogDependencyRequirement> dependencies = config.getJsonArray("dependencies").stream()
+                .map(JsonValue::asJsonObject)
+                .map(dependency -> new CatalogDependencyRequirement()
+                        .namespace(dependency.getString("namespace"))
+                        .catalogKey(dependency.getString("catalogKey"))
+                        .version(dependency.getString("version")))
+                .collect(Collectors.toList());
+
+        List<CatalogDependencyDto> items = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .updateCatalogDependencies(
+                        config.getString("tenantId"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        new UpdateCatalogDependenciesRequest().dependencies(dependencies))
+                .getItems();
+
+        report(
+                baseUrl,
+                Map.of(
+                        "namespaces", joined(items, CatalogDependencyDto::getNamespace),
+                        "catalogKeys", joined(items, CatalogDependencyDto::getCatalogKey),
+                        "versions", joined(items, CatalogDependencyDto::getVersion),
+                        "resolvedVersions", joined(items, CatalogDependencyDto::getResolvedVersion)));
+    }
+
+    private static void deployRelease(String baseUrl, JsonObject config) {
+        DeploymentDto deployment = clients(baseUrl, config)
+                .api(EnvironmentsApi.class)
+                .deployRelease(
+                        config.getString("tenantId"),
+                        config.getString("environmentId"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("releaseVersion"));
+        report(
+                baseUrl,
+                Map.of(
+                        "namespace", String.valueOf(deployment.getNamespace()),
+                        "catalogKey", String.valueOf(deployment.getCatalogKey()),
+                        "releaseVersion", String.valueOf(deployment.getReleaseVersion())));
+    }
+
+    private static void undeployRelease(String baseUrl, JsonObject config) {
+        clients(baseUrl, config)
+                .api(EnvironmentsApi.class)
+                .undeployRelease(
+                        config.getString("tenantId"),
+                        config.getString("environmentId"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("releaseVersion"));
+    }
+
+    private static <T> String joined(List<T> items, java.util.function.Function<T, String> field) {
+        return items.stream().map(item -> String.valueOf(field.apply(item))).collect(Collectors.joining(","));
+    }
+
+    /** A string the scenario may leave out; absent stays null, so the request leaves it off the wire. */
+    private static String optional(JsonObject config, String key) {
+        return config.containsKey(key) && !config.isNull(key) ? config.getString(key) : null;
     }
 
     private static void reportBytes(String baseUrl, byte[] bytes) throws Exception {

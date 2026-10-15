@@ -31,7 +31,8 @@ action:
     auth: api-key
     apiKey: epk_conformance_0123456789
     tenantId: acme-corp
-    catalogId: main
+    namespace: acme-corp
+    catalogKey: main
     filename: municipality-mark.png
     fileContentType: image/png
     # PNG signature + every byte 0x00-0xFF
@@ -45,7 +46,8 @@ script:
     body:
       slug: municipality-mark
       tenantId: acme-corp
-      catalog: main
+      namespace: exchange.epistola.app/acme-corp
+      catalogKey: main
       catalogType: AUTHORED
       readOnly: false
       name: Municipality mark
@@ -59,7 +61,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/main/images
+      path: /api/tenants/acme-corp/catalogs/acme-corp/main/images
       headers:
         Content-Type:
           matches: '^multipart/form-data;\s*boundary='

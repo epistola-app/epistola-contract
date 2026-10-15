@@ -82,11 +82,19 @@ class ValidatingGenerationApi(
         return translatingProblem { delegate.generateDocumentBatchWithHttpInfo(tenantId, generateBatchRequest) }
     }
 
+    /**
+     * A request body writes a namespace on a non-default exchange with a `/`
+     * (`exchange.example.org/team-a`); a path segment cannot carry one, so the validator — which
+     * addresses the catalog in a URL path — gets the path-segment form with `~` instead. Left as
+     * is, the `/` would be percent-encoded and address a catalog that does not exist.
+     */
+    private fun pathSegment(namespace: String): String = namespace.replace('/', '~')
+
     private fun preflight(tenantId: String, request: GenerateDocumentRequest) {
         if (!validator.preflightsGeneration) {
             return
         }
-        val errors = validator.validate(tenantId, request.catalogId, request.templateId, request.data)
+        val errors = validator.validate(tenantId, pathSegment(request.namespace), request.catalogKey, request.templateId, request.data)
         if (errors.isNotEmpty()) {
             throw TemplateDataValidationException(errors)
         }
@@ -98,7 +106,7 @@ class ValidatingGenerationApi(
         }
         val allErrors = mutableListOf<TemplateDataValidationException.ValidationError>()
         for ((index, item) in request.items.withIndex()) {
-            val errors = validator.validate(tenantId, item.catalogId, item.templateId, item.data)
+            val errors = validator.validate(tenantId, pathSegment(item.namespace), item.catalogKey, item.templateId, item.data)
             allErrors += errors.map { error -> error.copy(path = "items[$index]${error.path}") }
         }
         if (allErrors.isNotEmpty()) {

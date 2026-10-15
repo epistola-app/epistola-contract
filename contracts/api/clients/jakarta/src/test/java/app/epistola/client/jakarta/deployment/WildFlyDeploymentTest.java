@@ -55,7 +55,7 @@ class WildFlyDeploymentTest {
     private static final String PONG =
             "{\"status\":\"UP\",\"timestamp\":\"2026-09-02T10:00:00Z\"}";
 
-    private static final String IMAGE = "{\"key\":\"logo\",\"tenantId\":\"acme-corp\",\"catalog\":\"main\","
+    private static final String IMAGE = "{\"slug\":\"logo\",\"tenantId\":\"acme-corp\",\"namespace\":\"acme-corp\",\"catalogKey\":\"main\","
             + "\"catalogType\":\"AUTHORED\",\"readOnly\":false,\"name\":\"Logo\",\"mediaType\":\"image/png\","
             + "\"sizeBytes\":16,\"createdAt\":\"2026-09-02T10:00:00Z\"}";
 
@@ -135,7 +135,7 @@ class WildFlyDeploymentTest {
                 assertEquals("logo", uploaded.body().trim(), "the deployed client should parse the ImageDto back");
 
                 StubServer.RecordedRequest upload = epistola.requests().get(1);
-                assertEquals("/api/tenants/acme-corp/catalogs/main/images", upload.path());
+                assertEquals("/api/tenants/acme-corp/catalogs/acme-corp/main/images", upload.path());
                 assertTrue(
                         upload.header("Content-Type").startsWith("multipart/form-data"),
                         "an upload must be multipart, was: " + upload.header("Content-Type"));

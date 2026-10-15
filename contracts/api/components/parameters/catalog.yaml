@@ -1,0 +1,39 @@
+# Shared path parameters that address one catalog.
+#
+# A catalog's identity is its namespace plus its key, never the key alone: two publishers can each
+# publish a catalog called `letters`. See "Catalog namespaces" in the API description.
+
+Namespace:
+  name: namespace
+  in: path
+  required: true
+  description: |
+    Namespace of the catalog, in its path-segment form:
+
+    - `some-namespace` (a slug, no dot): a namespace on the default exchange, which the server
+      configures.
+    - `acme.com` (a domain): the domain is the namespace.
+    - `exchange.example.org~some-namespace`: a namespace on an exchange other than the default.
+      `~` stands in for the `/` of the namespace's body form, which a path segment cannot carry.
+
+    A namespace on the default exchange can also be written in full (`<default-host>~some-namespace`);
+    the server treats both forms as the same catalog. To address a catalog a response named,
+    replace the `/` in its `namespace` with `~`.
+  schema:
+    type: string
+    pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(~[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+    minLength: 3
+    maxLength: 320
+  example: some-namespace
+
+CatalogKey:
+  name: catalogKey
+  in: path
+  required: true
+  description: Key of the catalog, unique within its namespace
+  schema:
+    type: string
+    pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+    minLength: 3
+    maxLength: 50
+  example: letters

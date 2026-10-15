@@ -22,8 +22,11 @@ import traceback
 import urllib.request
 
 from epistola_client import (
+    CatalogDependencyRequirement,
+    CatalogsApi,
     ClientIdentity,
     ConsumersApi,
+    EnvironmentsApi,
     EpistolaClientBuilder,
     GenerateDocumentRequest,
     GenerationApi,
@@ -36,6 +39,7 @@ from epistola_client import (
     TemplateDataValidationError,
     TemplateSchemaValidator,
     TemplatesApi,
+    UpdateCatalogDependenciesRequest,
     UpdateConsumerRequest,
 )
 
@@ -63,6 +67,10 @@ def main() -> int:
         "upload-image": _upload_image,
         "download-image": _download_image,
         "delete-image": _delete_image,
+        "list-catalog-dependencies": _list_catalog_dependencies,
+        "update-catalog-dependencies": _update_catalog_dependencies,
+        "deploy-release": _deploy_release,
+        "undeploy-release": _undeploy_release,
     }
 
     try:
@@ -98,7 +106,7 @@ def _list_templates(base_url: str, config: dict) -> None:
     """Reports what the client made of the last listing, `id` included while it is still served."""
     api = TemplatesApi(_client(base_url, config))
     for _ in range(config.get("repeat", 1)):
-        response = api.list_templates(config["tenantId"], config["catalogId"])
+        response = api.list_templates(config["tenantId"], config["namespace"], config["catalogKey"])
     _report(
         base_url,
         {
@@ -109,7 +117,9 @@ def _list_templates(base_url: str, config: dict) -> None:
 
 def _problem(base_url: str, config: dict) -> None:
     try:
-        TemplatesApi(_client(base_url, config)).list_templates(config["tenantId"], config["catalogId"])
+        TemplatesApi(_client(base_url, config)).list_templates(
+            config["tenantId"], config["namespace"], config["catalogKey"]
+        )
         _report(base_url, {"problemTypeSlug": "<no exception was thrown>"})
     except ProblemDetailException as exc:
         _report(
@@ -132,7 +142,11 @@ def _validate_template_data(base_url: str, config: dict) -> None:
     validator = TemplateSchemaValidator(TemplatesApi(_client(base_url, config)))
     try:
         validator.validate(
-            config["tenantId"], config["catalogId"], config["templateId"], config.get("data", {})
+            config["tenantId"],
+            config["namespace"],
+            config["catalogKey"],
+            config["templateId"],
+            config.get("data", {}),
         )
         _report(
             base_url,
@@ -190,6 +204,10 @@ def _collect(base_url: str, config: dict) -> None:
             "correlationIds": ",".join(result.correlation_id or "" for result in handled),
             "handledSequences": ",".join(str(result.sequence) for result in handled),
             "partitionTotal": assignment.total if assignment is not None else -1,
+            "releases": ",".join(
+                f"{_show(r.namespace)}/{_show(r.catalog_key)}@{_show(r.release_version)}"
+                for r in handled
+            ),
         },
     )
 
@@ -199,15 +217,23 @@ def _generate_document(base_url: str, config: dict) -> None:
     left alone, and a free-form ``data`` object carrying every JSON type. What the server receives
     is the generator's serialization, which is the part no client hand-writes and no client's own
     tests inspect.
+
+    Optional members are passed only when the scenario sets them: an unset optional must stay off
+    the wire, not arrive as null.
     """
+    optional = {
+        name: config[name]
+        for name in ("version", "environmentId", "correlationId", "routingKey")
+        if name in config
+    }
     GenerationApi(_client(base_url, config)).generate_document(
         config["tenantId"],
         GenerateDocumentRequest(
-            catalogId=config["catalogId"],
+            namespace=config["namespace"],
+            catalogKey=config["catalogKey"],
             templateId=config["templateId"],
             data=config["data"],
-            correlationId=config["correlationId"],
-            routingKey=config["routingKey"],
+            **optional,
         ),
     )
 
@@ -232,7 +258,9 @@ def _list_images(base_url: str, config: dict) -> None:
     """
     images = (
         ImagesApi(_client(base_url, config))
-        .list_images(config["tenantId"], config["catalogId"], search=config["search"])
+        .list_images(
+            config["tenantId"], config["namespace"], config["catalogKey"], search=config["search"]
+        )
         .items
     )
     _report(
@@ -252,7 +280,8 @@ def _upload_image(base_url: str, config: dict) -> None:
     """
     image = ImagesApi(_client(base_url, config)).upload_image(
         config["tenantId"],
-        config["catalogId"],
+        config["namespace"],
+        config["catalogKey"],
         (config["filename"], base64.b64decode(config["fileBase64"])),
         name=config["name"],
     )
@@ -261,14 +290,85 @@ def _upload_image(base_url: str, config: dict) -> None:
 
 def _download_image(base_url: str, config: dict) -> None:
     content = ImagesApi(_client(base_url, config)).download_image_content(
-        config["tenantId"], config["catalogId"], config["imageSlug"]
+        config["tenantId"], config["namespace"], config["catalogKey"], config["imageSlug"]
     )
     _report_bytes(base_url, bytes(content))
 
 
 def _delete_image(base_url: str, config: dict) -> None:
     ImagesApi(_client(base_url, config)).delete_image(
-        config["tenantId"], config["catalogId"], config["imageSlug"], force=config["force"]
+        config["tenantId"],
+        config["namespace"],
+        config["catalogKey"],
+        config["imageSlug"],
+        force=config["force"],
+    )
+
+
+def _list_catalog_dependencies(base_url: str, config: dict) -> None:
+    response = CatalogsApi(_client(base_url, config)).list_catalog_dependencies(
+        config["tenantId"], config["namespace"], config["catalogKey"]
+    )
+    _report_dependencies(base_url, response.items)
+
+
+def _update_catalog_dependencies(base_url: str, config: dict) -> None:
+    response = CatalogsApi(_client(base_url, config)).update_catalog_dependencies(
+        config["tenantId"],
+        config["namespace"],
+        config["catalogKey"],
+        UpdateCatalogDependenciesRequest(
+            dependencies=[
+                CatalogDependencyRequirement(
+                    namespace=dependency["namespace"],
+                    catalogKey=dependency["catalogKey"],
+                    version=dependency["version"],
+                )
+                for dependency in config["dependencies"]
+            ]
+        ),
+    )
+    _report_dependencies(base_url, response.items)
+
+
+def _report_dependencies(base_url: str, dependencies) -> None:
+    _report(
+        base_url,
+        {
+            "namespaces": ",".join(_show(d.namespace) for d in dependencies),
+            "catalogKeys": ",".join(_show(d.catalog_key) for d in dependencies),
+            "versions": ",".join(_show(d.version) for d in dependencies),
+            "resolvedVersions": ",".join(_show(d.resolved_version) for d in dependencies),
+        },
+    )
+
+
+def _deploy_release(base_url: str, config: dict) -> None:
+    """Deploys one release; the request has no body, the release is the last path segment."""
+    deployment = EnvironmentsApi(_client(base_url, config)).deploy_release(
+        config["tenantId"],
+        config["environmentId"],
+        config["namespace"],
+        config["catalogKey"],
+        config["releaseVersion"],
+    )
+    _report(
+        base_url,
+        {
+            "namespace": _show(deployment.namespace),
+            "catalogKey": _show(deployment.catalog_key),
+            "releaseVersion": _show(deployment.release_version),
+        },
+    )
+
+
+def _undeploy_release(base_url: str, config: dict) -> None:
+    EnvironmentsApi(_client(base_url, config)).undeploy_release(
+        config["tenantId"],
+        config["environmentId"],
+        config["namespace"],
+        config["catalogKey"],
+        config["releaseVersion"],
     )
 
 

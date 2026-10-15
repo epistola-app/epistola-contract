@@ -64,7 +64,12 @@ public class ValidatingGenerationApi {
     public GenerationJobResponse generateDocument(String tenantId, GenerateDocumentRequest request) {
         if (validator.preflightsGeneration()) {
             new TemplateSchemaValidator(validator)
-                    .validate(tenantId, request.getCatalogId(), request.getTemplateId(), request.getData());
+                    .validate(
+                            tenantId,
+                            pathSegment(request.getNamespace()),
+                            request.getCatalogKey(),
+                            request.getTemplateId(),
+                            request.getData());
         }
         return translatingProblem(() -> delegate.generateDocument(tenantId, request));
     }
@@ -85,13 +90,24 @@ public class ValidatingGenerationApi {
             BatchGenerationItem item = items.get(index);
             String prefix = "items[" + index + "]";
             for (TemplateDataValidationException.ValidationError error :
-                    validator.validate(tenantId, item.getCatalogId(), item.getTemplateId(), item.getData())) {
+                    validator.validate(
+                            tenantId, pathSegment(item.getNamespace()), item.getCatalogKey(), item.getTemplateId(), item.getData())) {
                 allErrors.add(error.withPathPrefix(prefix));
             }
         }
         if (!allErrors.isEmpty()) {
             throw new TemplateDataValidationException(allErrors);
         }
+    }
+
+    /**
+     * A request body writes a namespace on a non-default exchange with a {@code /}
+     * ({@code exchange.example.org/team-a}); a URL path cannot carry one, so the contract writes it
+     * there with {@code ~}. A validator puts the namespace into a path, so it gets the path form —
+     * otherwise the slash is percent-encoded and the call addresses a catalog that does not exist.
+     */
+    static String pathSegment(String namespace) {
+        return namespace == null ? null : namespace.replace('/', '~');
     }
 
     /**

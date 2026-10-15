@@ -22,7 +22,14 @@ import pytest
 from epistola_client import EpistolaClientBuilder, ResultCollector
 
 RESULTS = [
-    {"sequence": 501, "requestId": "11111111-1111-4111-8111-000000000501", "status": "COMPLETED"},
+    {
+        "sequence": 501,
+        "requestId": "11111111-1111-4111-8111-000000000501",
+        "status": "COMPLETED",
+        "namespace": "exchange.example.org/team-a",
+        "catalogKey": "invoices",
+        "releaseVersion": "1.4.2",
+    },
     {"sequence": 502, "requestId": "11111111-1111-4111-8111-000000000502", "status": "FAILED"},
     {"sequence": 503, "requestId": "11111111-1111-4111-8111-000000000503", "status": "COMPLETED"},
 ]
@@ -98,3 +105,19 @@ def test_the_batch_is_acknowledged_up_to_the_last_result_handled(server):
     collector.collect_once()
 
     assert collector._last_acknowledged_sequence == 503
+
+
+def test_each_result_names_the_catalog_release_it_was_generated_from(server):
+    handled = []
+
+    _collector(server, handled).collect_once()
+
+    first = handled[0]
+    assert (first.namespace, first.catalog_key, first.release_version) == (
+        "exchange.example.org/team-a",
+        "invoices",
+        "1.4.2",
+    )
+    # A result from before contract 2.0 carries none of the three; that is null, not an error.
+    second = handled[1]
+    assert (second.namespace, second.catalog_key, second.release_version) == (None, None, None)

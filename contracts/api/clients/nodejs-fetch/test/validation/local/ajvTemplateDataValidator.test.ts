@@ -57,14 +57,14 @@ class StubTemplatesApi implements TemplateSchemaSource {
 test('valid data yields no findings', async () => {
   const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA))
 
-  assert.deepEqual(await validator.validate('acme-corp', 'default', 'invoice', VALID_DATA), [])
+  assert.deepEqual(await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', VALID_DATA), [])
 })
 
 test('paths are JSON Pointers', async () => {
   const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA))
   const data = { ...VALID_DATA, customer: { name: '', email: 'jane@example.com' } }
 
-  const findings = await validator.validate('acme-corp', 'default', 'invoice', data)
+  const findings = await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', data)
 
   // The old implementation reported a dotted key here, `customer.name`.
   assert.equal(findings.length, 1)
@@ -76,7 +76,7 @@ test('a pointer into an array uses the index as a segment', async () => {
   const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA))
   const data = { ...VALID_DATA, lineItems: [{ quantity: 0 }] }
 
-  const findings = await validator.validate('acme-corp', 'default', 'invoice', data)
+  const findings = await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', data)
 
   assert.equal(findings[0]?.path, '/lineItems/0/quantity')
   assert.equal(findings[0]?.keyword, 'minimum')
@@ -85,7 +85,7 @@ test('a pointer into an array uses the index as a segment', async () => {
 test('a missing required field is reported at its own pointer, as the server reports it', async () => {
   const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA))
 
-  const findings = await validator.validate('acme-corp', 'default', 'invoice', { invoiceNumber: 'INV-2026-001' })
+  const findings = await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', { invoiceNumber: 'INV-2026-001' })
 
   // Ajv points at the parent and names the absent property separately; joining them is what gives
   // the pointer the interface asks for, and matches `missingFields[].path` from the server.
@@ -100,7 +100,7 @@ test('format is asserted here, which is exactly why a local verdict is its own',
   const validator = new AjvTemplateDataValidator(new StubTemplatesApi(INVOICE_SCHEMA))
   const data = { ...VALID_DATA, customer: { name: 'Jane Smith', email: 'not-an-email' } }
 
-  const findings = await validator.validate('acme-corp', 'default', 'invoice', data)
+  const findings = await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', data)
 
   // Recorded as a divergence, not a guarantee: this adapter registers ajv-formats, so `format`
   // asserts — while the JVM reference adapter, on networknt under 2020-12, treats it as an
@@ -114,15 +114,15 @@ test('format is asserted here, which is exactly why a local verdict is its own',
 test('a template without a schema claims nothing about the data', async () => {
   const validator = new AjvTemplateDataValidator(new StubTemplatesApi(undefined))
 
-  assert.deepEqual(await validator.validate('acme-corp', 'default', 'invoice', { anything: 1 }), [])
+  assert.deepEqual(await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', { anything: 1 }), [])
 })
 
 test('the schema is fetched once and reused', async () => {
   const templates = new StubTemplatesApi(INVOICE_SCHEMA)
   const validator = new AjvTemplateDataValidator(templates)
 
-  await validator.validate('acme-corp', 'default', 'invoice', VALID_DATA)
-  await validator.validate('acme-corp', 'default', 'invoice', VALID_DATA)
+  await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', VALID_DATA)
+  await validator.validate('acme-corp', 'acme-corp', 'default', 'invoice', VALID_DATA)
 
   // Without the cache a "local" validator costs a round trip per call, which is worse than asking
   // the server to validate outright.

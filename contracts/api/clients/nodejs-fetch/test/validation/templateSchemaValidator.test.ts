@@ -35,8 +35,10 @@ class StubTemplatesApi implements TemplateDataValidationSource {
   calls = 0
   sent: unknown[] = []
   constructor(private readonly result: Result) {}
-  async validateTemplateData(requestParameters: { validateTemplateDataRequest: unknown }): Promise<never> {
+  addressed: { namespace: string; catalogKey: string; templateId: string }[] = []
+  async validateTemplateData(requestParameters: { namespace: string; catalogKey: string; templateId: string; validateTemplateDataRequest: unknown }): Promise<never> {
     this.calls += 1
+    this.addressed.push({ namespace: requestParameters.namespace, catalogKey: requestParameters.catalogKey, templateId: requestParameters.templateId })
     this.sent.push(requestParameters.validateTemplateDataRequest)
     return this.result as never
   }
@@ -61,15 +63,15 @@ class StubGenerationApi implements GenerationApiLike {
 
 const singleRequest = {
   tenantId: 'acme-corp',
-  generateDocumentRequest: { catalogId: 'default', templateId: 'invoice', data: {} },
+  generateDocumentRequest: { namespace: 'exchange.example.org/team-a', catalogKey: 'default', templateId: 'invoice', data: {} },
 } as never
 
 const batchRequest = {
   tenantId: 'acme-corp',
   generateBatchRequest: {
     items: [
-      { catalogId: 'default', templateId: 'invoice', data: {} },
-      { catalogId: 'default', templateId: 'reminder', data: {} },
+      { namespace: 'acme-corp', catalogKey: 'default', templateId: 'invoice', data: {} },
+      { namespace: 'acme-corp', catalogKey: 'default', templateId: 'reminder', data: {} },
     ],
   },
 } as never
@@ -104,7 +106,7 @@ function templateDataInvalid(extensions: Record<string, unknown>): ProblemDetail
 test('valid data passes without throwing', async () => {
   const api = new StubTemplatesApi({ valid: true })
 
-  await new TemplateSchemaValidator(api).validate('acme-corp', 'default', 'invoice', { name: 'Jane' })
+  await new TemplateSchemaValidator(api).validate('acme-corp', 'acme-corp', 'default', 'invoice', { name: 'Jane' })
 
   assert.equal(api.calls, 1)
   assert.deepEqual((api.sent[0] as { data: unknown }).data, { name: 'Jane' })
@@ -119,7 +121,7 @@ test('invalidFields become failures keyed by their JSON Pointer', async () => {
     ],
   })
 
-  const thrown = await capture(() => new TemplateSchemaValidator(api).validate('acme-corp', 'default', 'invoice', {}))
+  const thrown = await capture(() => new TemplateSchemaValidator(api).validate('acme-corp', 'acme-corp', 'default', 'invoice', {}))
 
   assert.deepEqual(
     thrown.errors.map((failure) => failure.path),
@@ -140,7 +142,7 @@ test('a missing required field is a failure and a missing optional field is not'
     ],
   })
 
-  const thrown = await capture(() => new TemplateSchemaValidator(api).validate('acme-corp', 'default', 'invoice', {}))
+  const thrown = await capture(() => new TemplateSchemaValidator(api).validate('acme-corp', 'acme-corp', 'default', 'invoice', {}))
 
   assert.deepEqual(
     thrown.errors.map((failure) => failure.path),
@@ -155,7 +157,7 @@ test('errors is used when the server sends no field members', async () => {
     errors: [{ path: '/invoiceNumber', message: 'does not match the required format', keyword: 'pattern' }],
   })
 
-  const thrown = await capture(() => new TemplateSchemaValidator(api).validate('acme-corp', 'default', 'invoice', {}))
+  const thrown = await capture(() => new TemplateSchemaValidator(api).validate('acme-corp', 'acme-corp', 'default', 'invoice', {}))
 
   assert.equal(thrown.errors[0]?.path, '/invoiceNumber')
   assert.equal(thrown.errors[0]?.keyword, 'pattern')
@@ -170,7 +172,7 @@ test('the field members win over errors, which may describe the same failure dif
     invalidFields: [{ path: '/customer/email', keyword: 'format', message: 'must be a valid email address' }],
   })
 
-  const thrown = await capture(() => new TemplateSchemaValidator(api).validate('acme-corp', 'default', 'invoice', {}))
+  const thrown = await capture(() => new TemplateSchemaValidator(api).validate('acme-corp', 'acme-corp', 'default', 'invoice', {}))
 
   assert.equal(thrown.errors.length, 1)
   assert.equal(thrown.errors[0]?.path, '/customer/email')
@@ -179,7 +181,7 @@ test('the field members win over errors, which may describe the same failure dif
 test('an invalid result with nothing to report still throws', async () => {
   // `valid: false` is the verdict, and reporting no reason must not become "fine".
   const thrown = await capture(() =>
-    new TemplateSchemaValidator(new StubTemplatesApi({ valid: false })).validate('acme-corp', 'default', 'invoice', {}),
+    new TemplateSchemaValidator(new StubTemplatesApi({ valid: false })).validate('acme-corp', 'acme-corp', 'default', 'invoice', {}),
   )
 
   assert.equal(thrown.errors.length, 1)
@@ -190,19 +192,44 @@ test('the version selectors are passed through when configured', async () => {
   const api = new StubTemplatesApi({ valid: true })
 
   await new TemplateSchemaValidator(
-    new ServerTemplateDataValidator(api, { variantId: 'nl-nl', environmentId: 'production' }),
-  ).validate('acme-corp', 'default', 'invoice', {})
+    new ServerTemplateDataValidator(api, { variantId: 'nl-nl', version: '^1.4.0', environmentId: 'production' }),
+  ).validate('acme-corp', 'acme-corp', 'default', 'invoice', {})
 
-  const sent = api.sent[0] as { variantId?: string; environmentId?: string }
+  const sent = api.sent[0] as { variantId?: string; version?: string; environmentId?: string }
   assert.equal(sent.variantId, 'nl-nl')
+  // version and environmentId narrow the release together; neither displaces the other.
+  assert.equal(sent.version, '^1.4.0')
   assert.equal(sent.environmentId, 'production')
+})
+
+test('the server validator addresses the catalog by namespace and key', async () => {
+  const api = new StubTemplatesApi({ valid: true })
+
+  await new TemplateSchemaValidator(api).validate('acme-corp', 'exchange.example.org~team-a', 'letters', 'invoice', {})
+
+  assert.deepEqual(api.addressed, [{ namespace: 'exchange.example.org~team-a', catalogKey: 'letters', templateId: 'invoice' }])
+})
+
+test('a pre-flight addresses the catalog with the namespace in its path-segment form', async () => {
+  const seen: string[] = []
+  const recording: TemplateDataValidator = {
+    preflightsGeneration: true,
+    async validate(_tenantId, namespace, catalogKey): Promise<readonly ValidationFailure[]> {
+      seen.push(`${namespace}/${catalogKey}`)
+      return []
+    },
+  }
+
+  await new ValidatingGenerationApi(new StubGenerationApi(), recording).generateDocument(singleRequest)
+
+  assert.deepEqual(seen, ['exchange.example.org~team-a/default'])
 })
 
 test('a plugged-in validator replaces the server entirely', async () => {
   const api = new StubTemplatesApi({ valid: true })
 
   const thrown = await capture(() =>
-    new TemplateSchemaValidator(local('/name')).validate('acme-corp', 'default', 'invoice', {}),
+    new TemplateSchemaValidator(local('/name')).validate('acme-corp', 'acme-corp', 'default', 'invoice', {}),
   )
 
   assert.equal(thrown.errors[0]?.path, '/name')

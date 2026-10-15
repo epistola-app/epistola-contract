@@ -85,9 +85,11 @@ public class InvoiceService {
 
     public UUID submit(String tenantId, Map<String, Object> data) {
         GenerateDocumentRequest request = new GenerateDocumentRequest()
-                .catalogId("default")
+                .namespace("acme-corp")           // the catalog's namespace and key
+                .catalogKey("invoices")
                 .templateId("monthly-invoice")
                 .variantId("english")
+                .version("^1.4.0")                // optional: a version selector for the release
                 .correlationId("order-7890")
                 .data(data);
 
@@ -251,6 +253,8 @@ ResultCollector collector = ResultCollector.builder()
         .registerShutdownHook(false)          // the container owns the lifecycle
         .handler(result -> {
             switch (result.getStatus()) {
+                // result.getNamespace()/getCatalogKey()/getReleaseVersion() name the release
+                // rendered; all three are null for a result accepted before contract 2.0.
                 case COMPLETED -> download(result.getDocumentId(), result.getCorrelationId());
                 case FAILED -> logFailure(result.getCorrelationId(), result.getError());
             }
@@ -300,19 +304,24 @@ of costing a round trip. Each overload returns its argument:
 tenants.createTenant(ModelValidation.validate(new CreateTenantRequest().id("acme-corp").name("Acme")));
 ```
 
-**Template JSON Schema** — `ValidatingGenerationApi` fetches the template's own schema (cached with
-a TTL) and validates the generation data against it before submitting. A batch is validated in full
-and every violation is reported at once, each path prefixed with its item index:
+**Template data** — `TemplateSchemaValidator` checks data against a template's data contract and
+throws a `TemplateDataValidationException` carrying JSON Pointer paths. By default it asks the
+server (`validateTemplateData`); plug in your own `TemplateDataValidator` to check in-process. A
+template is addressed by its catalog's namespace and key:
+
+```java
+new TemplateSchemaValidator(
+        new ServerTemplateDataValidator(templatesApi, "english", "^1.4.0", "production"))
+    .validate("my-tenant", "acme-corp", "invoices", "monthly-invoice", data);
+```
+
+`ValidatingGenerationApi` wraps `GenerationApi` and reports a rejected generation request as the
+same exception. With an in-process validator it checks first, and a batch is reported in full,
+each path prefixed with its item index:
 
 ```java
 ValidatingGenerationApi generation = new ValidatingGenerationApi(generationApi, templatesApi);
 generation.generateDocument("my-tenant", request);   // TemplateDataValidationException on failure
-```
-
-This layer needs an optional dependency, deliberately not shipped:
-
-```kotlin
-implementation("com.networknt:json-schema-validator:1.5.7")
 ```
 
 ## Building

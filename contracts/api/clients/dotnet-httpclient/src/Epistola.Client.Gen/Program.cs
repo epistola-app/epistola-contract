@@ -257,7 +257,17 @@ static int? IntOrNull(IDictionary<object, object> prop, string key)
 }
 
 // PascalCase a spec property name to match the OpenAPI C# generator's member naming.
+//
+// The generator escapes a member whose PascalCased name is one of its own reserved words by
+// prefixing "Var": `version` becomes `VarVersion`. Only the reserved words a schema property can
+// realistically take are listed; a missing one shows up as a compile error in ModelValidation.g.cs.
 static string Pascal(string name)
+{
+    var member = PascalUnescaped(name);
+    return member is "Version" or "Client" or "Configuration" ? "Var" + member : member;
+}
+
+static string PascalUnescaped(string name)
 {
     var parts = name.Split(new[] { '_', '-', ' ' }, StringSplitOptions.RemoveEmptyEntries);
     var sb = new StringBuilder();
