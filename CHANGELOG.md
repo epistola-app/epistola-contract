@@ -40,6 +40,37 @@ libraries.
 
 ### Changed
 
+- **BREAKING: portable catalog wire v8.** A catalog archive identifies its catalog by namespace and
+  key and versions catalogs as a whole; `x-epistola-catalog-contract.wireSchemaVersion` is 8.
+  - `catalog.namespace` is required, always in full (`acme.com`, `exchange.epistola.app/acme-corp`).
+    New manifest member `catalogDependencies` declares each catalog depended on once, with a version
+    selector (`version`, npm range grammar) and the exact `releaseVersion` the release was cut with.
+    Each resource dependency gains a required `namespace`, and every catalog it names must be
+    declared. References inside content (`ThemeRef` override, stencil nodes, `CodeListBindingRef`,
+    `TemplateResource.themeNamespace`, `FontRef`) gain an optional `namespace` in either form. The
+    API embeds the catalog's `TemplateDocument`, so its `ThemeRef` gains the optional `namespace` in
+    every client too (the bundle normalization in `normalize-bundle.mjs` carries it).
+  - Stencils carry no version: `StencilResource.version` is removed from the wire and the Kotlin
+    model, and a stencil node no longer allows `version` or `draftVersion`.
+  - `CatalogV7ToV8Migration` takes the namespace from the caller (`CatalogMigrationOptions`, accepted
+    by `CatalogSchemaMigrator.migrateManifest`, `CatalogArchiveReader.read` and
+    `CatalogValidationPolicy`); without one a v7 archive is refused with
+    `CATALOG_NAMESPACE_MISSING`. It qualifies dependencies with that namespace, declares each
+    referenced catalog with selector `*`, and removes stencil versions, each with a notice.
+  - Fingerprints: V5 (now `currentFingerprint`) also covers the namespace and declared
+    dependencies. v6 and v7 archives keep verifying against their V4 fingerprint; re-exporting
+    replaces it with V5.
+  - New validator codes `CATALOG_NAMESPACE_INVALID`, `CATALOG_DEPENDENCY_CATALOG_UNDECLARED`,
+    `CATALOG_DEPENDENCY_CATALOG_DUPLICATE`, `CATALOG_DEPENDENCY_CATALOG_SELF` and
+    `CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`. `CatalogNamespaces` (Kotlin) and the
+    `CATALOG_NAMESPACE_*` constants (npm) publish the namespace rules.
+  - Kotlin API: `StencilResource.version`, `CatalogResourceReference.version`/`draftVersion`,
+    `TemplateValidationContext.allowDraftStencilReferences` and the `version` parameter of
+    `TemplateValidationContext.forStencil` are removed; `CatalogInfo.namespace`,
+    `CatalogManifest.catalogDependencies` and `namespace` on `DependencyRef` and
+    `CatalogResourceReference` are added (nullable in the model so manifests stored under v7 still
+    bind). `templateModelVersion` stays 1.
+
 - **BREAKING: catalog content is edited and read per catalog version, not in one working copy.**
   Every path to a catalog's templates, variants, stencils, themes, attributes, code lists, fonts and
   images, and its `dependencies`, `changes` and `mark-ready`, gains `/versions/{catalogVersion}`

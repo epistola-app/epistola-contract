@@ -1,0 +1,438 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://epistola.app/schemas/catalog-manifest-v8.schema.json",
+  "title": "CatalogManifest",
+  "description": "Portable Epistola catalog manifest at wire version 8.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 8
+    },
+    "catalog": {
+      "$ref": "#/$defs/CatalogInfo"
+    },
+    "publisher": {
+      "$ref": "#/$defs/PublisherInfo"
+    },
+    "release": {
+      "$ref": "#/$defs/ReleaseInfo"
+    },
+    "compatibility": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/CompatibilityInfo"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "includes": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/IncludeEntry"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ResourceEntry"
+      }
+    },
+    "dependencies": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DependencyRef"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "catalogDependencies": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CatalogDependency"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "catalog",
+    "publisher",
+    "release",
+    "resources"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "CatalogInfo": {
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "$ref": "#/$defs/CatalogNamespace"
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attributes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AttributeAssignment"
+          }
+        },
+        "keywords": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/CatalogKeyword"
+              },
+              "maxItems": 20,
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "presentation": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CatalogPresentation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "license": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CatalogLicense"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "namespace",
+        "slug",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "CatalogNamespace": {
+      "description": "A catalog namespace written in full: a domain (acme.com), or a namespace on an exchange written host/name (exchange.epistola.app/acme-corp). Never the short form, which depends on the installation's default exchange.",
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 320,
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?$"
+    },
+    "CatalogKeyword": {
+      "description": "Lowercase ASCII letters and digits in hyphen-separated parts, at most 30 characters.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 30,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "AttributeAssignment": {
+      "type": "object",
+      "properties": {
+        "catalog": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "catalog",
+        "key",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "CatalogPresentation": {
+      "type": "object",
+      "properties": {
+        "iconAssetSlug": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "imageAssetSlugs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "CatalogLicense": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^\\S(?:.*\\S)?$"
+        },
+        "spdxExpression": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\S(?:.*\\S)?$"
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^https?://\\S+$"
+        },
+        "copyrightText": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\S(?:.*\\S)?$"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "PublisherInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "ReleaseInfo": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "releasedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fingerprint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "CompatibilityInfo": {
+      "type": "object",
+      "properties": {
+        "epistolaVersions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "IncludeEntry": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "ResourceEntry": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updatedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "detailUrl": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "slug",
+        "name",
+        "detailUrl"
+      ],
+      "additionalProperties": false
+    },
+    "DependencyRef": {
+      "description": "Every dependency names a catalog (namespace and key) from wire v8, so this is exactly CatalogDependencyRef. A dependency carries no version; the catalog it names must be declared in catalogDependencies.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/CatalogDependencyRef"
+        }
+      ]
+    },
+    "CatalogDependencyRef": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": [
+            "theme",
+            "stencil",
+            "codeList",
+            "font",
+            "image"
+          ]
+        },
+        "namespace": {
+          "$ref": "#/$defs/CatalogNamespace"
+        },
+        "catalogKey": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "type",
+        "namespace",
+        "catalogKey",
+        "slug"
+      ],
+      "additionalProperties": false
+    },
+    "CatalogDependency": {
+      "description": "A catalog this catalog depends on, declared once. References from this catalog's resources into it carry no version: they render with the release this declaration resolves to.",
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "$ref": "#/$defs/CatalogNamespace"
+        },
+        "catalogKey": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "version": {
+          "description": "The declared version selector, in the npm SemVer range grammar (an exact version, ^, ~, comparators, a hyphen range, a || union, or *).",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "releaseVersion": {
+          "description": "The exact release of the dependency this archive's release was cut with. Null only for a catalog migrated from wire v7 or earlier.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 100
+        }
+      },
+      "required": [
+        "namespace",
+        "catalogKey",
+        "version",
+        "releaseVersion"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

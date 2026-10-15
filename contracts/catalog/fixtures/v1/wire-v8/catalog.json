@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 8,
+  "catalog": {
+    "namespace": "exchange.epistola.app/epistola",
+    "slug": "fixture",
+    "name": "Fixture Catalog",
+    "description": "Portable golden fixture",
+    "attributes": [
+      {
+        "catalog": "system",
+        "key": "locale",
+        "value": "nl-NL"
+      }
+    ],
+    "keywords": ["documents", "government"],
+    "presentation": null,
+    "license": {
+      "name": "Creative Commons Attribution 4.0 International",
+      "spdxExpression": "CC-BY-4.0",
+      "url": "https://creativecommons.org/licenses/by/4.0/",
+      "copyrightText": "Copyright 2026 Example Publisher"
+    }
+  },
+  "publisher": {
+    "name": "Epistola"
+  },
+  "release": {
+    "version": "1.0.0"
+  },
+  "resources": [
+    {
+      "type": "theme",
+      "slug": "default",
+      "name": "Default",
+      "detailUrl": "./resources/theme/default.json"
+    }
+  ],
+  "dependencies": [
+    {
+      "type": "font",
+      "namespace": "exchange.epistola.app/epistola",
+      "catalogKey": "shared",
+      "slug": "inter"
+    }
+  ],
+  "catalogDependencies": [
+    {
+      "namespace": "exchange.epistola.app/epistola",
+      "catalogKey": "shared",
+      "version": "^1.2.0",
+      "releaseVersion": "1.4.0"
+    }
+  ]
+}

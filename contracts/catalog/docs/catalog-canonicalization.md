@@ -5,8 +5,8 @@ pass manifest and resource-detail streams through `CatalogSchemaMigrator` before
 import or persistence. The API reports stable migration findings for unsupported or inconsistent
 wire versions and never exposes a JSON mapper.
 
-The migration baseline is wire version 4 and the current wire version is 7. Each version migrates
-one step at a time to 7. Versions below 4 and above 7 are rejected even when their JSON happens to
+The migration baseline is wire version 4 and the current wire version is 8. Each version migrates
+one step at a time to 8. Versions below 4 and above 8 are rejected even when their JSON happens to
 bind to the current model. The v5-to-v6 migration supplies empty catalog attribute and keyword
 collections when those fields are absent; it does not invent a locale.
 
@@ -20,6 +20,29 @@ v6 (blank, untrimmed, or exact duplicates) remain findings. The published
 `migrations/v6-to-v7/keyword-normalization.json` fixture defines normalization for other
 implementations.
 
+The v7-to-v8 migration gives the catalog an identity and versions it as a whole:
+
+- **Namespace.** A v7 archive names none, and nothing in it says which namespace it belongs to, so
+  the caller supplies it with `CatalogMigrationOptions(namespace)`, written in full. The catalog
+  takes it with a `CATALOG_NAMESPACE_ASSIGNED` notice. Without one the manifest fails with
+  `CATALOG_NAMESPACE_MISSING`, and with a namespace that is not in full form (such as the short
+  `acme-corp`) with `CATALOG_NAMESPACE_INVALID`. The migrator never invents an identity. The option
+  is ignored for an archive at v8, which names its own.
+- **Resource dependencies** take the catalog's namespace (`CATALOG_DEPENDENCY_NAMESPACE_ASSIGNED`):
+  a v7 catalog's content lived in one tenant, so every catalog it referenced sat beside it.
+- **Catalog dependencies.** Each distinct other catalog the resource dependencies name is declared
+  in `catalogDependencies` with that namespace, the unpinned selector `*`, and
+  `releaseVersion: null` (`CATALOG_DEPENDENCY_CATALOG_DECLARED`). v7 never said which version was
+  meant; the author sets the selector rather than the migrator guessing one. A dependency on the
+  catalog itself is not declared.
+- **Stencil versions** are removed: a stencil's own `version`, and every stencil node's `version`
+  and `draftVersion`, in template, variant, and stencil content (`CATALOG_STENCIL_VERSION_REMOVED`).
+  A stencil node's `isDraft`, which v5 already rejected, is left in place and remains a validation
+  finding.
+
+The published `migrations/v7-to-v8/` fixtures pin the manifest and stencil conversions and their
+notices.
+
 `CatalogCanonicalizer` hashes canonical catalog content. It sorts resources and JSON object keys,
 normalizes numeric JSON representation, includes streamed asset digests, dependency identity,
 publisher metadata, compatibility declarations, and includes, and excludes volatile release
@@ -27,18 +50,44 @@ timestamps, release versions, resource URLs, and ZIP metadata. Therefore equival
 identical fingerprints even when their entry order, timestamps, compression, or JSON property order
 differ.
 
-The current canonical form is V4. `CatalogCanonicalizer.currentFingerprint(catalog)` produces V4.
+The current canonical form is V5. `CatalogCanonicalizer.currentFingerprint(catalog)` produces V5.
 The existing `fingerprint(catalog)` method continues to produce V1 for source, binary, and
-behavioral compatibility, and the versioned overload supports explicit selection. Whole-catalog
-validation uses the source wire version. v4/v5 input accepts V1 through V3 and the equivalent
-legacy-v4 projection. v6 input must carry V4, computed either over the migrated content or over the
-keywords its source `catalog.json` listed, because a v6 producer fingerprinted keywords that the v7
-migration may have rewritten. Native v7 input must carry V4 over its own content. New fingerprints
-should always use `currentFingerprint`. V3 retains the semantic v5 resource projection. V4 adds an
-algorithm domain prefix and includes qualified catalog attributes sorted by catalog and key, sorted
-`keywords`, catalog presentation asset references, and catalog-wide license metadata. V4 remains the
-current algorithm for wire v7, whose canonical shape is unchanged. Re-exporting a migrated catalog
-replaces a present legacy fingerprint with V4.
+behavioral compatibility, and the versioned overload supports explicit selection. New fingerprints
+should always use `currentFingerprint`.
+
+- V3 retains the semantic v5 resource projection.
+- V4 adds an algorithm domain prefix and includes qualified catalog attributes sorted by catalog
+  and key, sorted `keywords`, catalog presentation asset references, and catalog-wide license
+  metadata. It was the current algorithm for wires v6 and v7.
+- V5, introduced with wire v8, is V4 under its own domain prefix (`algorithm sha256-v5`) plus the
+  catalog's identity and declared dependencies: `catalog.namespace`, each resource dependency's
+  `namespace` (dependencies sort by type, namespace, catalog key, and slug), and every
+  `catalogDependencies` entry with its `version` selector and `releaseVersion`, sorted by namespace
+  and catalog key. A namespace is identity, and a selector decides which release of a dependency
+  the catalog renders with, so two releases differing only there are different content. Resource
+  entries are V4's; a stencil carries no version at v8, so V5 covers none. Optional content
+  namespaces (`ThemeRef.namespace`, `CodeListBindingRef.namespace`, `FontRef.namespace`,
+  `TemplateResource.themeNamespace`) are omitted from the canonical resource JSON when absent, so
+  resources that do not use them hash exactly as before.
+
+**Why a new algorithm rather than extending V4.** V4 fingerprints are already published and must
+keep verifying. Adding the namespace and catalog dependencies to V4 would change every V4 value; a
+new version keeps V4 reproducible and makes the new coverage explicit.
+
+Whole-catalog validation chooses the rule by the archive's source wire version:
+
+- v4/v5 input accepts V1 through V3 and the equivalent legacy-v4 projection.
+- v6 and v7 input must carry V4 as its producer computed it. The migrations since rewrote content V4
+  covers, so the validator reproduces the source form: it tries the keywords the source
+  `catalog.json` listed (the v7 migration may have normalized them), and it restores the stencil
+  versions the v8 migration removed, a stencil's own `version` and each stencil node's `version` and
+  `draftVersion`, from the raw resource documents in the archive
+  (`CatalogCanonicalizer.matchesSourceV4Fingerprint`). V4 never covered a namespace or a catalog
+  dependency, so what v8 adds needs no undoing. A fingerprint over different content still
+  mismatches.
+- Native v8 input must carry V5 over its own content.
+
+Re-exporting a migrated catalog replaces a present legacy fingerprint with V5.
 
 Authoritative versioned inputs and expected hashes are published below
 `META-INF/epistola-catalog/fixtures/v1` in the Maven artifact and

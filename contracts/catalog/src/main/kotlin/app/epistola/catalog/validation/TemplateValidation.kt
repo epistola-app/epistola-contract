@@ -70,16 +70,18 @@ enum class ResourceResolution {
  * @property type portable resource discriminator such as `stencil` or `theme`.
  * @property slug resource slug within its catalog.
  * @property catalogKey owning catalog; null means the current catalog.
- * @property version exact stencil version, when the reference is versioned.
- * @property draftVersion exact mutable draft version, when authoring targets a
- *   draft. [version] remains the published base when one exists.
+ * @property namespace namespace of the owning catalog, in full or short form; null means the
+ *   current catalog's namespace (wire v8).
+ *
+ * A reference carries no version. Catalogs are versioned as a whole from wire v8, so the resource a
+ * reference reaches is the one in the release its catalog dependency resolves to, or the one in
+ * the same catalog.
  */
 data class CatalogResourceReference(
     val type: String,
     val slug: String,
     val catalogKey: String? = null,
-    val version: Int? = null,
-    val draftVersion: Int? = null,
+    val namespace: String? = null,
 )
 
 /**
@@ -101,6 +103,12 @@ interface TemplateValidationContext {
     val currentCatalogKey: String? get() = null
 
     /**
+     * Namespace of the catalog that owns the document being validated. A null stencil-node
+     * namespace resolves to this namespace when comparing reference identity.
+     */
+    val currentNamespace: String? get() = null
+
+    /**
      * Stencil resource whose content is being validated, when applicable.
      *
      * Seeding validation with the containing stencil makes direct and
@@ -108,12 +116,6 @@ interface TemplateValidationContext {
      * content uses a synthetic root node rather than an outer stencil node.
      */
     val containingStencil: CatalogResourceReference? get() = null
-
-    /**
-     * Whether authoring references may target draft stencil versions.
-     * Portable catalog validation overrides this to false.
-     */
-    val allowDraftStencilReferences: Boolean get() = true
 
     /**
      * Resolves a theme, stencil, or other catalog-scoped reference.
@@ -149,18 +151,19 @@ interface TemplateValidationContext {
          * Creates a standalone stencil context.
          *
          * Supplying [stencilId] seeds self-reference detection. Catalog and
-         * version are optional when validating content that has not yet been
+         * namespace are optional when validating content that has not yet been
          * assigned a portable identity.
          */
         fun forStencil(
             stencilId: String? = null,
             catalogKey: String? = null,
-            version: Int? = null,
+            namespace: String? = null,
         ): TemplateValidationContext = object : TemplateValidationContext {
             override val documentKind: TemplateDocumentKind = TemplateDocumentKind.STENCIL
             override val currentCatalogKey: String? = catalogKey
+            override val currentNamespace: String? = namespace
             override val containingStencil: CatalogResourceReference? = stencilId?.let {
-                CatalogResourceReference("stencil", it, catalogKey, version)
+                CatalogResourceReference("stencil", it, catalogKey, namespace)
             }
         }
     }

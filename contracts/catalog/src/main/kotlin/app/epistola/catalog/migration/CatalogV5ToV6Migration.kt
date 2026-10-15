@@ -11,7 +11,10 @@ internal class CatalogV5ToV6Migration : CatalogSchemaMigration {
     override val fromVersion: Int = 5
     override val toVersion: Int = 6
 
-    override fun migrateManifest(tree: ObjectNode): CatalogMigrationStepResult {
+    override fun migrateManifest(
+        tree: ObjectNode,
+        options: CatalogMigrationOptions,
+    ): CatalogMigrationStepResult {
         tree.put("schemaVersion", toVersion)
         val catalog = tree["catalog"] as? ObjectNode ?: return CatalogMigrationStepResult()
         if (catalog["attributes"] == null || catalog["attributes"].isNull) {

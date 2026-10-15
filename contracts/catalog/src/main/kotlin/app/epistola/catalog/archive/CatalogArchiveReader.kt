@@ -17,6 +17,7 @@ import app.epistola.catalog.archive.ArchiveValidationCodes.ARCHIVE_REQUIRED_FILE
 import app.epistola.catalog.archive.ArchiveValidationCodes.ARCHIVE_SYMLINK_FORBIDDEN
 import app.epistola.catalog.migration.CatalogMigrationCodes
 import app.epistola.catalog.migration.CatalogMigrationContext
+import app.epistola.catalog.migration.CatalogMigrationOptions
 import app.epistola.catalog.migration.CatalogSchemaMigrator
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipFile
@@ -51,12 +52,16 @@ object CatalogArchiveReader {
      *
      * @param input ZIP content to consume sequentially.
      * @param policy safety limits applied before and during extraction.
+     * @param migration what the caller knows that an archive from before the current wire version
+     *   does not say, notably the namespace of a catalog-v7 archive.
      * @throws IllegalArgumentException when [policy] contains invalid limits.
      * @throws IOException for unrecoverable storage or stream failures.
      */
+    @JvmOverloads
     fun read(
         input: InputStream,
         policy: CatalogArchivePolicy = CatalogArchivePolicy(),
+        migration: CatalogMigrationOptions = CatalogMigrationOptions.DEFAULT,
     ): CatalogArchiveReadResult {
         require(policy.maxCompressedBytes > 0)
         require(policy.maxExpandedBytes > 0)
@@ -84,7 +89,7 @@ object CatalogArchiveReader {
                 deleteRecursively(workspace)
                 return CatalogArchiveReadResult(null, findings.sorted())
             }
-            val manifestResult = Files.newInputStream(manifestPath).use(CatalogSchemaMigrator::migrateManifest)
+            val manifestResult = Files.newInputStream(manifestPath).use { CatalogSchemaMigrator.migrateManifest(it, migration) }
             val migrationNotices = manifestResult.notices.toMutableList()
             findings += manifestResult.findings.map {
                 finding(it.code.archiveCode(), it.path, it.message)

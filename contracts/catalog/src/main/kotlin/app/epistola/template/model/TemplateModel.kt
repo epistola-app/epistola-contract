@@ -4,6 +4,7 @@
 
 package app.epistola.template.model
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
@@ -172,8 +173,12 @@ class ThemeRefInherit : ThemeRef() {
  *
  * @property themeId Theme slug identifier.
  * @property catalogKey Catalog containing the theme. Null means same catalog as the owning template.
+ * @property namespace Namespace of the catalog containing the theme. Null means the owning
+ *   template's catalog namespace. Either the full or the short form is allowed.
  */
 data class ThemeRefOverride(
     val themeId: String,
     val catalogKey: String? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val namespace: String? = null,
 ) : ThemeRef()

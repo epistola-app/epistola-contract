@@ -72,6 +72,11 @@ export interface ThemeRefOverride {
   themeId: string
   /** Catalog containing the theme. Omitted means the owning template's catalog. */
   catalogKey?: string
+  /**
+   * Namespace of the catalog containing the theme, in full or short form. Omitted means the owning
+   * template's catalog namespace (wire v8).
+   */
+  namespace?: string
 }
 
 // ---------------------------------------------------------------------------

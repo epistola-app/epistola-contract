@@ -27,6 +27,8 @@ import java.util.TreeSet
  * @property includes optional linked catalog documents retained by the format.
  * @property resources complete resource-detail index.
  * @property dependencies explicit references to resources outside this catalog.
+ * @property catalogDependencies the catalogs this catalog depends on, each declared once with a
+ *   version selector (wire v8). Every catalog named by [dependencies] must be declared here.
  */
 data class CatalogManifest(
     val schemaVersion: Int,
@@ -37,22 +39,48 @@ data class CatalogManifest(
     val includes: List<IncludeEntry>? = null,
     val resources: List<ResourceEntry>,
     val dependencies: List<DependencyRef>? = null,
+    val catalogDependencies: List<CatalogDependency>? = null,
 )
+
+/**
+ * A catalog this catalog depends on, declared once for the whole catalog (wire v8).
+ *
+ * Catalogs are versioned as a whole, so the version lives here and nowhere else: a reference from
+ * this catalog's resources into the dependency names the catalog ([namespace] and [catalogKey]) but
+ * never a version. The catalog renders with the release [version] resolves to.
+ *
+ * @property namespace the dependency's namespace, written in full ([CatalogNamespaces.FULL_PATTERN]).
+ * @property catalogKey the dependency's key within [namespace].
+ * @property version the declared version selector, in the npm SemVer range grammar (`^1.4.0`,
+ *   `>=1.0.0 <2.0.0`, `1.4.0`, `*`, ...), at most [MAX_VERSION_LENGTH] characters.
+ * @property releaseVersion the exact release of the dependency that this archive's release was cut
+ *   with. Null only for a catalog migrated from wire v7 or earlier, which never recorded one.
+ */
+data class CatalogDependency(
+    val namespace: String,
+    val catalogKey: String,
+    val version: String,
+    val releaseVersion: String? = null,
+) {
+    companion object {
+        /** Longest version selector a declaration may carry. */
+        const val MAX_VERSION_LENGTH: Int = 100
+    }
+}
 
 /**
  * A reference to a resource that this catalog depends on.
  * Sealed hierarchy ensures type-safe construction:
  * - Every kind is catalog-scoped and requires catalogKey (assets too, from wire v7)
- * - Assets are tenant-global (just the UUID)
+ * - Every kind names the catalog's namespace from wire v8, written in full
  *
- * Reserved for a future release (catalog versioning Phase 3): the catalog-scoped
- * subtypes (Theme, Stencil, CodeList, Font) will gain an optional
- * `versionRange: String? = null` carrying a SemVer range (e.g. ">=1.2.0 <2.0.0")
- * validated against the dependency catalog's installed/released version at
- * import/upgrade time. Not added yet — declaring it before there is a producer
- * and consumer risks it being mis-set. The free-form manifest snapshot stored
- * by consumers round-trips an unknown field, so adding it later needs no
- * migration.
+ * A reference carries no version: catalogs are versioned as a whole, so the version is declared
+ * once per catalog in [CatalogManifest.catalogDependencies], which must declare every
+ * (namespace, catalogKey) named here.
+ *
+ * `namespace` is nullable in the model only so that manifests stored under wire v7 or earlier, which
+ * name none, still bind. The wire requires it from v8; the migrator's wire check and the validator
+ * enforce that.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(
@@ -63,14 +91,28 @@ data class CatalogManifest(
     JsonSubTypes.Type(value = DependencyRef.Font::class, name = "font"),
 )
 sealed class DependencyRef {
-    /** Resource slug within the dependency's namespace. */
+    /** Resource slug within the dependency catalog. */
     abstract val slug: String
 
+    /** Key of the catalog holding the resource. */
+    abstract val catalogKey: String
+
+    /** Namespace of the catalog holding the resource, written in full (wire v8). */
+    abstract val namespace: String?
+
     /** Theme in another catalog. */
-    data class Theme(val catalogKey: String, override val slug: String) : DependencyRef()
+    data class Theme(
+        override val catalogKey: String,
+        override val slug: String,
+        override val namespace: String? = null,
+    ) : DependencyRef()
 
     /** Stencil in another catalog. */
-    data class Stencil(val catalogKey: String, override val slug: String) : DependencyRef()
+    data class Stencil(
+        override val catalogKey: String,
+        override val slug: String,
+        override val namespace: String? = null,
+    ) : DependencyRef()
 
     /**
      * Image in another catalog.
@@ -80,20 +122,33 @@ sealed class DependencyRef {
      * holds; a readable slug is not, so two catalogs may each hold a `logo` and an unqualified
      * reference to one of them means nothing.
      */
-    data class Image(val catalogKey: String, override val slug: String) : DependencyRef()
+    data class Image(
+        override val catalogKey: String,
+        override val slug: String,
+        override val namespace: String? = null,
+    ) : DependencyRef()
 
     /** Code list in another catalog. */
-    data class CodeList(val catalogKey: String, override val slug: String) : DependencyRef()
+    data class CodeList(
+        override val catalogKey: String,
+        override val slug: String,
+        override val namespace: String? = null,
+    ) : DependencyRef()
 
     /** Font family in another catalog. */
-    data class Font(val catalogKey: String, override val slug: String) : DependencyRef()
+    data class Font(
+        override val catalogKey: String,
+        override val slug: String,
+        override val namespace: String? = null,
+    ) : DependencyRef()
 }
 
 /**
  * Stable catalog identity, human-readable metadata, and authored discovery metadata.
  *
- * The three-argument constructor preserves source compatibility for existing producers. Use
- * [create] or [copyWithMetadata] when setting discovery metadata.
+ * A catalog is identified by [namespace] and [slug] (its key) together. The three-argument
+ * constructor preserves source compatibility for existing producers. Use [create],
+ * [copyWithMetadata] or [withNamespace] when setting discovery metadata or the namespace.
  */
 class CatalogInfo private constructor(
     val slug: String,
@@ -103,6 +158,14 @@ class CatalogInfo private constructor(
     keywords: Set<String>,
     val presentation: CatalogPresentation?,
     val license: CatalogLicense?,
+    /**
+     * The catalog's namespace, written in full ([CatalogNamespaces.FULL_PATTERN]); wire v8.
+     *
+     * Nullable in the model only so that manifests stored under wire v7 or earlier, which name
+     * none, still bind. The wire requires it from v8; the migrator's wire check and the validator
+     * enforce that.
+     */
+    val namespace: String?,
 ) {
     /** Immutable attributes applied to this catalog, preserving authored order. */
     val attributes: List<AttributeAssignment> = Collections.unmodifiableList(attributes.toList())
@@ -117,7 +180,7 @@ class CatalogInfo private constructor(
 
     /** Source-compatible constructor retained from catalog 1.0.1. */
     constructor(slug: String, name: String, description: String? = null) :
-        this(slug, name, description, emptyList(), emptySet(), null, null)
+        this(slug, name, description, emptyList(), emptySet(), null, null, null)
 
     /** Copies the catalog while replacing any discovery metadata. */
     fun copyWithMetadata(
@@ -125,10 +188,14 @@ class CatalogInfo private constructor(
         keywords: Set<String> = this.keywords,
         presentation: CatalogPresentation? = this.presentation,
         license: CatalogLicense? = this.license,
-    ): CatalogInfo = CatalogInfo(slug, name, description, attributes, keywords, presentation, license)
+    ): CatalogInfo = CatalogInfo(slug, name, description, attributes, keywords, presentation, license, namespace)
+
+    /** Copies the catalog with [namespace] in place of its current one. */
+    fun withNamespace(namespace: String?): CatalogInfo = CatalogInfo(slug, name, description, attributes, keywords, presentation, license, namespace)
 
     override fun equals(other: Any?): Boolean = this === other ||
         other is CatalogInfo &&
+        namespace == other.namespace &&
         slug == other.slug &&
         name == other.name &&
         description == other.description &&
@@ -139,6 +206,7 @@ class CatalogInfo private constructor(
 
     override fun hashCode(): Int {
         var result = slug.hashCode()
+        result = 31 * result + (namespace?.hashCode() ?: 0)
         result = 31 * result + name.hashCode()
         result = 31 * result + (description?.hashCode() ?: 0)
         result = 31 * result + attributes.hashCode()
@@ -148,7 +216,7 @@ class CatalogInfo private constructor(
         return result
     }
 
-    override fun toString(): String = "CatalogInfo(slug=$slug, name=$name, description=$description, " +
+    override fun toString(): String = "CatalogInfo(namespace=$namespace, slug=$slug, name=$name, description=$description, " +
         "attributes=$attributes, keywords=$keywords, presentation=$presentation, license=$license)"
 
     companion object {
@@ -163,7 +231,17 @@ class CatalogInfo private constructor(
             @JsonProperty("keywords") keywords: Set<String>? = null,
             @JsonProperty("presentation") presentation: CatalogPresentation? = null,
             @JsonProperty("license") license: CatalogLicense? = null,
-        ): CatalogInfo = CatalogInfo(slug, name, description, attributes.orEmpty(), keywords.orEmpty(), presentation, license)
+            @JsonProperty("namespace") namespace: String? = null,
+        ): CatalogInfo = CatalogInfo(
+            slug,
+            name,
+            description,
+            attributes.orEmpty(),
+            keywords.orEmpty(),
+            presentation,
+            license,
+            namespace,
+        )
 
         private fun immutableSortedSet(values: Set<String>): Set<String> = when {
             values.isEmpty() -> emptySet()

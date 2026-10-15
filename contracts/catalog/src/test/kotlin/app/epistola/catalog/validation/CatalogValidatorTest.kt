@@ -11,6 +11,7 @@ import app.epistola.catalog.canonical.CatalogFingerprintVersion
 import app.epistola.catalog.migration.CatalogWireSchema.CURRENT_VERSION
 import app.epistola.catalog.protocol.AttributeAssignment
 import app.epistola.catalog.protocol.AttributeResource
+import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogLicense
@@ -20,6 +21,7 @@ import app.epistola.catalog.protocol.CodeListBindingRef
 import app.epistola.catalog.protocol.CodeListEntryEntry
 import app.epistola.catalog.protocol.CodeListResource
 import app.epistola.catalog.protocol.DataExampleEntry
+import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.FontResource
 import app.epistola.catalog.protocol.FontVariantEntry
 import app.epistola.catalog.protocol.ImageResource
@@ -46,8 +48,8 @@ class CatalogValidatorTest {
 
     @Test
     fun `golden current catalog is valid`() {
-        val manifest = fixture("wire-v7/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
-        val detail = fixture("wire-v7/resources/theme/default.json").use { mapper.readValue(it, ResourceDetail::class.java) }
+        val manifest = fixture("wire-v8/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
+        val detail = fixture("wire-v8/resources/theme/default.json").use { mapper.readValue(it, ResourceDetail::class.java) }
         val archive = archive(manifest, mapOf("theme/default" to detail))
 
         assertEquals(emptyList(), CatalogValidator.validate(archive).findings)
@@ -96,7 +98,11 @@ class CatalogValidatorTest {
                 manifest(release = ReleaseInfo("1.0.0", fingerprint = fingerprint)),
                 emptyMap(),
             )
-            if (version != CatalogFingerprintVersion.V4) catalog.sourceSchemaVersion = 5
+            when (version) {
+                CatalogFingerprintVersion.V5 -> Unit
+                CatalogFingerprintVersion.V4 -> catalog.sourceSchemaVersion = 7
+                else -> catalog.sourceSchemaVersion = 5
+            }
             val report = CatalogValidator.validate(catalog)
 
             assertTrue(
@@ -107,17 +113,164 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `v6 source catalogs must still carry a v4 fingerprint after migration`() {
+    fun `v6 and v7 source catalogs must still carry a v4 fingerprint after migration`() {
+        val withoutFingerprint = archive(manifest(), emptyMap())
+        listOf(6, 7).forEach { source ->
+            CatalogFingerprintVersion.entries.forEach { version ->
+                val fingerprint = CatalogCanonicalizer.fingerprint(withoutFingerprint, version).value
+                val catalog = archive(manifest(release = ReleaseInfo("1.0.0", fingerprint = fingerprint)), emptyMap())
+                    .also { it.sourceSchemaVersion = source }
+
+                val mismatch = CatalogValidationCodes.RELEASE_FINGERPRINT_MISMATCH in CatalogValidator.validate(catalog).codes()
+
+                assertEquals(version != CatalogFingerprintVersion.V4, mismatch, "v$source $version")
+            }
+        }
+    }
+
+    @Test
+    fun `current catalogs must carry a v5 fingerprint`() {
         val withoutFingerprint = archive(manifest(), emptyMap())
         CatalogFingerprintVersion.entries.forEach { version ->
             val fingerprint = CatalogCanonicalizer.fingerprint(withoutFingerprint, version).value
             val catalog = archive(manifest(release = ReleaseInfo("1.0.0", fingerprint = fingerprint)), emptyMap())
-                .also { it.sourceSchemaVersion = 6 }
 
             val mismatch = CatalogValidationCodes.RELEASE_FINGERPRINT_MISMATCH in CatalogValidator.validate(catalog).codes()
 
-            assertEquals(version != CatalogFingerprintVersion.V4, mismatch, version.toString())
+            assertEquals(version != CatalogFingerprintVersion.V5, mismatch, version.toString())
         }
+    }
+
+    @Test
+    fun `a catalog names its namespace in full`() {
+        fun findings(namespace: String?) = CatalogValidator.validate(
+            archive(
+                CatalogManifest(
+                    CURRENT_VERSION,
+                    CatalogInfo("fixture", "Fixture").withNamespace(namespace),
+                    PublisherInfo("Epistola"),
+                    ReleaseInfo("1.0.0"),
+                    resources = emptyList(),
+                ),
+                emptyMap(),
+            ),
+        ).findings.map { it.code to it.path }
+
+        assertEquals(emptyList(), findings("acme.com"))
+        assertEquals(emptyList(), findings("exchange.epistola.app/acme-corp"))
+        listOf(null, "acme-corp", "Acme.com", "acme.com/").forEach { namespace ->
+            assertEquals(
+                listOf(CatalogValidationCodes.NAMESPACE_INVALID to "catalog.json.catalog.namespace"),
+                findings(namespace),
+                namespace.toString(),
+            )
+        }
+    }
+
+    @Test
+    fun `every catalog a resource dependency names is declared once, and never the catalog itself`() {
+        val shared = CatalogDependency(NAMESPACE, "shared", "^1.2.0", "1.4.0")
+        fun findings(
+            dependencies: List<DependencyRef>,
+            catalogDependencies: List<CatalogDependency>,
+        ) = CatalogValidator.validate(
+            archive(manifest(dependencies = dependencies, catalogDependencies = catalogDependencies), emptyMap()),
+        ).findings.map { it.code to it.path }
+
+        assertEquals(emptyList(), findings(listOf(DependencyRef.Theme("shared", "base", NAMESPACE)), listOf(shared)))
+        // Declared but unused is allowed: a catalog may pin a dependency its content reaches only indirectly.
+        assertEquals(emptyList(), findings(emptyList(), listOf(shared)))
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "catalog.json.dependencies[0]"),
+            findings(listOf(DependencyRef.Theme("shared", "base", "acme.com")), listOf(shared)),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "catalog.json.dependencies[0]"),
+            findings(listOf(DependencyRef.Image("brand", "logo", NAMESPACE)), listOf(shared)),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.NAMESPACE_INVALID to "catalog.json.dependencies[0].namespace"),
+            findings(listOf(DependencyRef.Theme("shared", "base")), listOf(shared)),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_DUPLICATE to "catalog.json.catalogDependencies[1]"),
+            findings(emptyList(), listOf(shared, shared.copy(version = "^2.0.0"))),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_SELF to "catalog.json.catalogDependencies[0]"),
+            findings(emptyList(), listOf(CatalogDependency(NAMESPACE, "fixture", "*", null))),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_SELF to "catalog.json.dependencies[0]"),
+            findings(listOf(DependencyRef.Theme("fixture", "base", NAMESPACE)), emptyList()),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.NAMESPACE_INVALID to "catalog.json.catalogDependencies[0].namespace"),
+            findings(emptyList(), listOf(shared.copy(namespace = "shared-namespace"))),
+        )
+        assertEquals(
+            listOf(
+                CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID to "catalog.json.catalogDependencies[0].releaseVersion",
+                CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID to "catalog.json.catalogDependencies[0].version",
+            ),
+            findings(emptyList(), listOf(shared.copy(version = " ", releaseVersion = "latest"))),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID to "catalog.json.catalogDependencies[0].version"),
+            findings(emptyList(), listOf(shared.copy(version = "1".repeat(CatalogDependency.MAX_VERSION_LENGTH + 1)))),
+        )
+    }
+
+    @Test
+    fun `references inside content may name a namespace in either form and resolve through the resolver`() {
+        val resolved = mutableListOf<CatalogResourceReference>()
+        val policy = CatalogValidationPolicy(
+            dependencyResolver = CatalogDependencyResolver { reference ->
+                resolved += reference
+                ResourceResolution.MISSING
+            },
+        )
+        val attribute = AttributeResource(
+            "locale",
+            "Locale",
+            codeListBinding = CodeListBindingRef(catalogKey = "shared", slug = "countries", namespace = "acme-corp"),
+        )
+        val sameCatalog = AttributeResource(
+            "region",
+            "Region",
+            codeListBinding = CodeListBindingRef(slug = "regions", namespace = NAMESPACE),
+        )
+        val invalid = AttributeResource(
+            "country",
+            "Country",
+            codeListBinding = CodeListBindingRef(slug = "countries", namespace = "Not A Namespace"),
+        )
+        val regions = CodeListResource("regions", "Regions", entries = emptyList())
+        val details = listOf(attribute, sameCatalog, invalid, regions).associate { resource ->
+            "${resource.type}/${resource.slug}" to ResourceDetail(CURRENT_VERSION, resource)
+        }
+        val entries = details.map { (key, detail) ->
+            ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
+        }
+
+        val report = CatalogValidator.validate(archive(manifest(resources = entries), details), policy)
+
+        assertEquals(
+            listOf(
+                CatalogValidationCodes.RESOURCE_REFERENCE_MISSING to "resources/attribute/country.json.resource.codeListBinding",
+                CatalogValidationCodes.NAMESPACE_INVALID to "resources/attribute/country.json.resource.codeListBinding.namespace",
+                CatalogValidationCodes.RESOURCE_REFERENCE_MISSING to "resources/attribute/locale.json.resource.codeListBinding",
+            ),
+            report.findings.map { it.code to it.path },
+        )
+        // The owning catalog's key fills in where a reference names only a namespace.
+        assertEquals(
+            listOf(
+                CatalogResourceReference("codeList", "countries", "fixture", "Not A Namespace"),
+                CatalogResourceReference("codeList", "countries", "shared", "acme-corp"),
+            ),
+            resolved.sortedBy { it.catalogKey },
+        )
     }
 
     @Test
@@ -336,7 +489,7 @@ class CatalogValidatorTest {
             templateModel = invalid,
             variants = listOf(VariantEntry("print", templateModel = invalid)),
         )
-        val stencil = StencilResource("address", "Address", 1, content = invalid)
+        val stencil = StencilResource("address", "Address", content = invalid)
         val details = mapOf(
             "template/invoice" to ResourceDetail(CURRENT_VERSION, template),
             "stencil/address" to ResourceDetail(CURRENT_VERSION, stencil),
@@ -357,7 +510,6 @@ class CatalogValidatorTest {
         val stencil = StencilResource(
             "address",
             "Address",
-            1,
             content = validDocument(),
             parameterSchema = mapOf("type" to "array"),
         )
@@ -374,13 +526,12 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `catalog accepts exact version pinned stencil composition`() {
-        val address = StencilResource("address", "Address", 2, content = validDocument())
+    fun `catalog accepts stencil composition within the catalog`() {
+        val address = StencilResource("address", "Address", content = validDocument())
         val letter = StencilResource(
             "letter",
             "Letter",
-            1,
-            content = documentWithStencil("nested-address", "address", 2),
+            content = documentWithStencil("nested-address", "address"),
         )
 
         val report = validateStencils(letter, address)
@@ -390,16 +541,15 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `catalog rejects a nested stencil version that is not present`() {
-        val address = StencilResource("address", "Address", 2, content = validDocument())
+    fun `catalog rejects a nested stencil that is not present`() {
+        val contact = StencilResource("contact", "Contact", content = validDocument())
         val letter = StencilResource(
             "letter",
             "Letter",
-            1,
-            content = documentWithStencil("nested-address", "address", 1),
+            content = documentWithStencil("nested-address", "address"),
         )
 
-        val report = validateStencils(letter, address)
+        val report = validateStencils(letter, contact)
 
         assertEquals(
             listOf("resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilId"),
@@ -414,8 +564,7 @@ class CatalogValidatorTest {
         val letter = StencilResource(
             "letter",
             "Letter",
-            1,
-            content = documentWithStencil("nested-letter", "letter", 1),
+            content = documentWithStencil("nested-letter", "letter"),
         )
 
         val report = validateStencils(letter)
@@ -431,14 +580,12 @@ class CatalogValidatorTest {
         val letter = StencilResource(
             "letter",
             "Letter",
-            1,
-            content = documentWithStencil("nested-address", "address", 1),
+            content = documentWithStencil("nested-address", "address"),
         )
         val address = StencilResource(
             "address",
             "Address",
-            1,
-            content = documentWithStencil("nested-letter", "letter", 1),
+            content = documentWithStencil("nested-letter", "letter"),
         )
 
         val report = validateStencils(letter, address)
@@ -616,16 +763,21 @@ class CatalogValidatorTest {
         assertEquals(publishedCodes, fixtureCodes)
     }
 
+    /** A current manifest; a [catalog] naming no namespace is given [NAMESPACE]. */
     private fun manifest(
         release: ReleaseInfo = ReleaseInfo("1.0.0"),
         resources: List<ResourceEntry> = emptyList(),
         catalog: CatalogInfo = CatalogInfo("fixture", "Fixture"),
+        dependencies: List<DependencyRef>? = null,
+        catalogDependencies: List<CatalogDependency>? = null,
     ) = CatalogManifest(
         CURRENT_VERSION,
-        catalog,
+        catalog.takeIf { it.namespace != null } ?: catalog.withNamespace(NAMESPACE),
         PublisherInfo("Epistola"),
         release,
         resources = resources,
+        dependencies = dependencies,
+        catalogDependencies = catalogDependencies,
     )
 
     private fun archive(
@@ -651,18 +803,13 @@ class CatalogValidatorTest {
     private fun documentWithStencil(
         nodeId: String,
         slug: String,
-        version: Int,
-        draftVersion: Int? = null,
+        extraProps: Map<String, Any?> = emptyMap(),
     ): TemplateDocument {
         val nested = Node(
             nodeId,
             "stencil",
             slots = listOf("$nodeId-children"),
-            props = buildMap {
-                put("stencilId", slug)
-                put("version", version)
-                draftVersion?.let { put("draftVersion", it) }
-            },
+            props = mapOf("stencilId" to slug) + extraProps,
         )
         return validDocument().copy(
             nodes = validDocument().nodes + (nested.id to nested),
@@ -688,45 +835,40 @@ class CatalogValidatorTest {
     }
 
     private fun compositionCatalogScenario(scenario: String): CatalogValidationReport = when (scenario) {
-        "CATALOG_REFERENCE_MATCHES_EXACT_VERSION" -> validateStencils(
+        "CATALOG_REFERENCE_RESOLVES_IN_CATALOG" -> validateStencils(
             StencilResource(
                 "letter",
                 "Letter",
-                1,
-                content = documentWithStencil("nested-address", "address", 2),
+                content = documentWithStencil("nested-address", "address"),
             ),
-            StencilResource("address", "Address", 2, content = validDocument()),
+            StencilResource("address", "Address", content = validDocument()),
         )
-        "CATALOG_REFERENCE_VERSION_MISMATCH" -> validateStencils(
+        "CATALOG_REFERENCE_MISSING" -> validateStencils(
             StencilResource(
                 "letter",
                 "Letter",
-                1,
-                content = documentWithStencil("nested-address", "address", 1),
+                content = documentWithStencil("nested-address", "address"),
             ),
-            StencilResource("address", "Address", 2, content = validDocument()),
+            StencilResource("contact", "Contact", content = validDocument()),
         )
-        "CATALOG_REFERENCE_TARGETS_DRAFT" -> validateStencils(
+        "CATALOG_REFERENCE_PINS_VERSION" -> validateStencils(
             StencilResource(
                 "letter",
                 "Letter",
-                1,
-                content = documentWithStencil("nested-address", "address", 2, draftVersion = 3),
+                content = documentWithStencil("nested-address", "address", mapOf("version" to 2)),
             ),
-            StencilResource("address", "Address", 2, content = validDocument()),
+            StencilResource("address", "Address", content = validDocument()),
         )
         "CATALOG_TRANSITIVE_RESOURCE_CYCLE" -> validateStencils(
             StencilResource(
                 "letter",
                 "Letter",
-                1,
-                content = documentWithStencil("nested-address", "address", 1),
+                content = documentWithStencil("nested-address", "address"),
             ),
             StencilResource(
                 "address",
                 "Address",
-                1,
-                content = documentWithStencil("nested-letter", "letter", 1),
+                content = documentWithStencil("nested-letter", "letter"),
             ),
         )
         "CATALOG_COMPOSITION_AT_DEPTH_LIMIT" ->
@@ -741,9 +883,8 @@ class CatalogValidatorTest {
         StencilResource(
             slug = "stencil-$index",
             name = "Stencil $index",
-            version = 1,
             content = if (next < depth) {
-                documentWithStencil("nested-stencil-$next", "stencil-$next", 1)
+                documentWithStencil("nested-stencil-$next", "stencil-$next")
             } else {
                 validDocument()
             },
@@ -755,4 +896,8 @@ class CatalogValidatorTest {
     private fun fixture(path: String) = requireNotNull(
         javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/$path"),
     )
+
+    private companion object {
+        const val NAMESPACE = "exchange.epistola.app/epistola"
+    }
 }

@@ -83,6 +83,12 @@ const generatedThemeRef = `    ThemeRef:
               type: string
               minLength: 1
               description: Catalog containing the theme. Omitted means the same catalog as the owning template.
+            namespace:
+              type: string
+              minLength: 3
+              maxLength: 320
+              pattern: ^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$
+              description: Namespace of the catalog containing the theme, in full or short form. Omitted means the owning template's catalog namespace. Added with catalog wire v8.
           required:
             - type
             - themeId
@@ -104,6 +110,12 @@ const generatorCompatibleThemeRef = `    ThemeRef:
           type: string
           minLength: 1
           description: Catalog containing the theme. Omitted means the same catalog as the owning template.
+        namespace:
+          type: string
+          minLength: 3
+          maxLength: 320
+          pattern: ^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$
+          description: Namespace of the catalog containing the theme, in full or short form. Omitted means the owning template's catalog namespace. Added with catalog wire v8.
       additionalProperties: false
       allOf:
         - if:
@@ -119,6 +131,8 @@ const generatorCompatibleThemeRef = `    ThemeRef:
                     - themeId
                 - required:
                     - catalogKey
+                - required:
+                    - namespace
         - if:
             properties:
               type:

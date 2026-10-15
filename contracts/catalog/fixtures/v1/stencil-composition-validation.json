@@ -9,11 +9,11 @@
     },
     {
       "scope": "template",
-      "scenario": "STENCIL_DEFINITION_REFERENCES_DRAFT"
+      "scenario": "STENCIL_DEFINITION_REFERENCES_SAME_SLUG_IN_ANOTHER_NAMESPACE"
     },
     {
       "scope": "catalog",
-      "scenario": "CATALOG_REFERENCE_MATCHES_EXACT_VERSION"
+      "scenario": "CATALOG_REFERENCE_RESOLVES_IN_CATALOG"
     },
     {
       "scope": "catalog",
@@ -53,7 +53,7 @@
     },
     {
       "scope": "catalog",
-      "scenario": "CATALOG_REFERENCE_VERSION_MISMATCH",
+      "scenario": "CATALOG_REFERENCE_MISSING",
       "expectedFindings": [
         {
           "code": "STENCIL_REFERENCE_NOT_FOUND",
@@ -63,11 +63,11 @@
     },
     {
       "scope": "catalog",
-      "scenario": "CATALOG_REFERENCE_TARGETS_DRAFT",
+      "scenario": "CATALOG_REFERENCE_PINS_VERSION",
       "expectedFindings": [
         {
-          "code": "STENCIL_REFERENCE_INVALID",
-          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.draftVersion"
+          "code": "TEMPLATE_NODE_PROPERTY_INVALID",
+          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.version"
         }
       ]
     },

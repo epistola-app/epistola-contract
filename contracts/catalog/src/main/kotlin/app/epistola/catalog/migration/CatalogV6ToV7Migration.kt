@@ -23,7 +23,10 @@ internal class CatalogV6ToV7Migration : CatalogSchemaMigration {
     override val fromVersion: Int = 6
     override val toVersion: Int = 7
 
-    override fun migrateManifest(tree: ObjectNode): CatalogMigrationStepResult {
+    override fun migrateManifest(
+        tree: ObjectNode,
+        options: CatalogMigrationOptions,
+    ): CatalogMigrationStepResult {
         tree.put("schemaVersion", toVersion)
         // Checked before the rename below, which would otherwise hide the very entries it looks
         // for by turning them into images first.

@@ -12,7 +12,14 @@ internal interface CatalogSchemaMigration {
     val fromVersion: Int
     val toVersion: Int
 
-    fun migrateManifest(tree: ObjectNode): CatalogMigrationStepResult
+    /**
+     * Migrates the manifest one version forward. [options] carries what the caller knows that the
+     * archive does not, such as the namespace for a catalog that names none.
+     */
+    fun migrateManifest(
+        tree: ObjectNode,
+        options: CatalogMigrationOptions = CatalogMigrationOptions.DEFAULT,
+    ): CatalogMigrationStepResult
 
     fun migrateResource(
         tree: ObjectNode,
@@ -36,7 +43,10 @@ internal class CatalogV4ToV5Migration : CatalogSchemaMigration {
     override val fromVersion: Int = 4
     override val toVersion: Int = 5
 
-    override fun migrateManifest(tree: ObjectNode): CatalogMigrationStepResult {
+    override fun migrateManifest(
+        tree: ObjectNode,
+        options: CatalogMigrationOptions,
+    ): CatalogMigrationStepResult {
         tree.put("schemaVersion", toVersion)
         return CatalogMigrationStepResult()
     }

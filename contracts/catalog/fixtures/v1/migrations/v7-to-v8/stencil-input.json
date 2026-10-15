@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 7,
+  "resource": {
+    "type": "stencil",
+    "slug": "letter",
+    "name": "Letter",
+    "version": 3,
+    "tags": [],
+    "content": {
+      "modelVersion": 1,
+      "root": "root",
+      "nodes": {
+        "root": {
+          "id": "root",
+          "type": "root",
+          "slots": [
+            "children"
+          ]
+        },
+        "nested": {
+          "id": "nested",
+          "type": "stencil",
+          "slots": [],
+          "props": {
+            "stencilId": "address",
+            "version": 2
+          }
+        },
+        "shared-footer": {
+          "id": "shared-footer",
+          "type": "stencil",
+          "slots": [],
+          "props": {
+            "stencilId": "footer",
+            "catalogKey": "shared",
+            "version": 5
+          }
+        }
+      },
+      "slots": {
+        "children": {
+          "id": "children",
+          "nodeId": "root",
+          "name": "children",
+          "children": [
+            "nested",
+            "shared-footer"
+          ]
+        }
+      },
+      "themeRef": {
+        "type": "inherit"
+      }
+    }
+  }
+}

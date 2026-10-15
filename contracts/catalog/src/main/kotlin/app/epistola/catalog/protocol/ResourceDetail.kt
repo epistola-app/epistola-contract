@@ -7,8 +7,8 @@ package app.epistola.catalog.protocol
 import app.epistola.template.model.BlockStylePreset
 import app.epistola.template.model.PageSettings
 import app.epistola.template.model.TemplateDocument
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
@@ -58,6 +58,9 @@ sealed interface CatalogResource {
  * field. A consumer that does not understand it ignores it. Adding it
  * therefore needs no `schemaVersion` bump (see "Future wire evolution" in
  * `contracts/catalog/docs/catalog-compatibility.md`).
+ *
+ * [themeCatalogKey] and [themeNamespace] qualify [themeId] when the theme lives in another
+ * catalog; null means the template's own catalog and namespace.
  */
 data class TemplateResource(
     override val slug: String,
@@ -69,6 +72,8 @@ data class TemplateResource(
     val dataExamples: List<DataExampleEntry>? = null,
     val templateModel: TemplateDocument,
     val variants: List<VariantEntry>,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val themeNamespace: String? = null,
 ) : CatalogResource {
     override val type: String get() = "template"
 }
@@ -92,39 +97,29 @@ data class ThemeResource(
 }
 
 /**
- * Wire format for a stencil resource. [version] is the published version
- * number of the stencil whose [content] is carried here — preserved across
- * export/import so that templates pinning a specific version still resolve
- * after a round-trip. No default value: a ZIP without `version` is from a
- * pre-`0.6.0` exporter and must be re-exported before it can be imported.
+ * Wire format for a stencil resource.
  *
- * Only published stencil versions are exported; draft and archived versions
- * are filtered out at export time. The wire format therefore carries no
- * status field — every `StencilResource` in a catalog ZIP is published by
- * construction.
+ * A stencil carries no version of its own from wire v8: a catalog is versioned as a whole, so the
+ * stencil a template embeds is the one in the release its catalog dependency resolves to (or the
+ * stencil in the same catalog). Until wire v7 a `version` here recorded the published stencil
+ * version, and stencil nodes pinned it; the v7-to-v8 migration removes both. The property is
+ * ignored when binding, so a manifest a consumer stored under v7 still loads.
  *
- * `version` is annotated `required = true` so that consumers reject pre-0.6.0
- * ZIPs at deserialisation time regardless of their `ObjectMapper` config,
- * rather than silently coercing a missing field to `0`.
+ * `parameterSchema` carries the stencil's typed input parameters as a JSON Schema object
+ * (`{type:"object", properties, required}`). It is optional and additive: a ZIP from a stencil
+ * without declared parameters (or from an exporter predating this field) simply omits it, and a
+ * consumer that does not understand it ignores it. When present it round-trips so that templates
+ * binding to those parameters stay bound after an import.
  *
- * `parameterSchema` carries the stencil version's typed input parameters as a
- * JSON Schema object (`{type:"object", properties, required}`) — the same value
- * stored on `StencilVersion.parameter_schema`. It is optional and additive: a ZIP
- * from a stencil without declared parameters (or from an exporter predating this
- * field) simply omits it, and a consumer that does not understand it ignores it.
- * Adding it therefore needs no `schemaVersion` bump (see
- * `docs/adr/0007-catalog-wire-format-migrations.md`). When present it round-trips
- * so that templates binding to those parameters stay bound after an import.
- *
- * [content] may embed nodes that reference exact published versions of other
- * stencils. These references form a portable composition graph: validation
- * requires their version to resolve, rejects direct and transitive recursion,
- * and limits the complete chain to five stencil levels.
+ * [content] may embed nodes that reference other stencils by `stencilId`, optionally qualified with
+ * `catalogKey` and `namespace`. These references form a portable composition graph: validation
+ * requires them to resolve, rejects direct and transitive recursion, and limits the complete chain
+ * to five stencil levels.
  */
+@JsonIgnoreProperties("version")
 data class StencilResource(
     override val slug: String,
     override val name: String,
-    @JsonProperty(required = true) val version: Int,
     val description: String? = null,
     val tags: List<String> = emptyList(),
     val content: TemplateDocument,
@@ -152,7 +147,9 @@ data class AttributeResource(
  * Points a variant-attribute definition at a code list that constrains its
  * allowed values. `catalogKey = null` means "the same catalog as the
  * attribute" (the typical case for catalogs that author both an attribute
- * and the list it binds to).
+ * and the list it binds to). `namespace = null` means the owning catalog's
+ * namespace (wire v8); either form of [CatalogNamespaces.PATTERN] is allowed,
+ * because content is read relative to a catalog whose namespace is explicit.
  *
  * Mutually exclusive with `AttributeResource.allowedValues` on the
  * consumer side. The wire format doesn't enforce that — it relies on the
@@ -162,6 +159,8 @@ data class AttributeResource(
 data class CodeListBindingRef(
     val catalogKey: String? = null,
     val slug: String,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val namespace: String? = null,
 )
 
 /**
@@ -171,10 +170,13 @@ data class CodeListBindingRef(
  * tenant — most notably the bundled `system` catalog. Mirrors
  * [CodeListBindingRef]; this is the shape stored in `documentStyles`,
  * block-style presets, and inline node styles under the `fontFamily` key.
+ * `namespace = null` means the referencing catalog's namespace (wire v8).
  */
 data class FontRef(
     val catalogKey: String? = null,
     val slug: String,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val namespace: String? = null,
 )
 
 /**

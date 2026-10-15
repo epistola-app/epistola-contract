@@ -29,14 +29,18 @@ value class CatalogFingerprint(val value: String)
 /**
  * Versioned canonicalization algorithms accepted by the contract.
  *
- * V1 through V3 are retained for fingerprints already stored by older producers.
- * V4 is the current algorithm, introduced with catalog v6, and includes authored discovery metadata.
+ * V1 through V4 are retained for fingerprints already stored by older producers. V4, introduced with
+ * catalog v6, includes authored discovery metadata. V5 is the current algorithm, introduced with
+ * catalog v8, and also covers the catalog's identity and declared dependencies: its namespace, the
+ * namespace of every resource dependency, and every catalog dependency with its version selector
+ * and recorded release.
  */
 enum class CatalogFingerprintVersion {
     V1,
     V2,
     V3,
     V4,
+    V5,
 }
 
 /**
@@ -58,8 +62,8 @@ object CatalogCanonicalizer {
      */
     fun fingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V1)
 
-    /** Produces the current V4 fingerprint. */
-    fun currentFingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V4)
+    /** Produces the current V5 fingerprint. */
+    fun currentFingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V5)
 
     /**
      * Produces a catalog fingerprint using an explicitly selected algorithm.
@@ -73,13 +77,14 @@ object CatalogCanonicalizer {
         val entries = when (version) {
             CatalogFingerprintVersion.V1, CatalogFingerprintVersion.V2 -> entries(catalog)
             CatalogFingerprintVersion.V3 -> semanticEntries(catalog)
-            CatalogFingerprintVersion.V4 -> currentEntries(catalog)
+            CatalogFingerprintVersion.V4, CatalogFingerprintVersion.V5 -> currentEntries(catalog)
         }
         val canonical = when (version) {
             CatalogFingerprintVersion.V1 -> canonicalV1(catalog, entries)
             CatalogFingerprintVersion.V2 -> canonicalV2(catalog, entries, includeV6Metadata = false)
             CatalogFingerprintVersion.V3 -> canonicalV2(catalog, entries, includeV6Metadata = false)
             CatalogFingerprintVersion.V4 -> canonicalV4(catalog, entries)
+            CatalogFingerprintVersion.V5 -> canonicalV5(catalog, entries)
         }
         return CatalogFingerprint(sha256(canonical.byteInputStream()))
     }
@@ -107,20 +112,73 @@ object CatalogCanonicalizer {
     ): Boolean = fingerprint(catalog, version).value == expected
 
     /**
-     * Whether [expected] is the V4 fingerprint of [catalog] either as migrated or with the keywords
-     * its source `catalog.json` carried.
+     * Whether [expected] is the V4 fingerprint a catalog-v6 or catalog-v7 producer computed for
+     * [catalog], as migrated or as its source archive carried it.
      *
-     * Migrating catalog-v6 keywords to catalog v7 may rewrite them, so a fingerprint a v6 producer
-     * computed over the original keywords no longer matches the migrated content.
+     * Migration rewrites content V4 covers, so the migrated catalog alone no longer reproduces it:
+     * - catalog v7 may rewrite catalog-v6 keywords, so the keywords in the raw `catalog.json` are
+     *   tried as well;
+     * - catalog v8 removes stencil versions, which V4 covered as part of each resource, so they are
+     *   restored from the raw resource documents.
+     *
+     * V4 never covered a namespace or a catalog dependency, so what catalog v8 adds to the manifest
+     * needs no undoing.
      */
     internal fun matchesSourceV4Fingerprint(
         catalog: CatalogArchive,
         expected: String,
     ): Boolean {
-        if (matchesFingerprint(catalog, expected, CatalogFingerprintVersion.V4)) return true
-        val sourceKeywords = sourceKeywords(catalog) ?: return false
-        val info = catalog.manifest.catalog.copyWithMetadata(keywords = sourceKeywords)
-        return sha256(canonicalV4(catalog, currentEntries(catalog), info).byteInputStream()) == expected
+        val infos = listOfNotNull(
+            catalog.manifest.catalog,
+            sourceKeywords(catalog)?.let { catalog.manifest.catalog.copyWithMetadata(keywords = it) },
+        )
+        val entrySets = listOf(currentEntries(catalog), sourceStencilVersionEntries(catalog))
+        return entrySets.any { entries ->
+            infos.any { info -> sha256(canonicalV4(catalog, entries, info).byteInputStream()) == expected }
+        }
+    }
+
+    /**
+     * Current resource entries with the stencil versions catalog v8 removed put back from the raw
+     * resource documents: a stencil's own `version`, and a stencil reference's `version` and
+     * `draftVersion`. Reproduces the resources a catalog-v7 producer fingerprinted.
+     */
+    private fun sourceStencilVersionEntries(catalog: CatalogArchive): List<Entry> = catalog.resourceDetails.map { (key, detail) ->
+        val model: JsonNode = mapper.valueToTree(detail.resource)
+        val detailPath = "resources/$key.json"
+        if (detailPath in catalog.paths) {
+            val raw = catalog.content.open(detailPath).use { input -> decimalReader.readTree(input).get("resource") }
+            restoreStencilVersions(model, raw, resourceRoot = true)
+        }
+        Entry(
+            key = key,
+            canonicalJson = mapper.writeValueAsString(sortKeys(normalizeStencilProvenance(model, legacyV4 = false))),
+            assetHash = assetHash(catalog, detail),
+        )
+    }
+
+    private fun restoreStencilVersions(
+        model: JsonNode,
+        raw: JsonNode?,
+        resourceRoot: Boolean,
+    ) {
+        when {
+            model is ObjectNode && raw is ObjectNode -> {
+                val isStencil = model["type"]?.takeIf { it.isString }?.asString() == "stencil"
+                if (isStencil && resourceRoot && !model.has("version")) raw["version"]?.let { model.set("version", it) }
+                val props = model["props"] as? ObjectNode
+                val rawProps = raw["props"] as? ObjectNode
+                if (isStencil && props != null && rawProps != null) {
+                    for (name in listOf("version", "draftVersion")) {
+                        if (!props.has(name)) rawProps[name]?.let { props.set(name, it) }
+                    }
+                }
+                model.propertyNames().toList().forEach { name -> restoreStencilVersions(model[name], raw[name], resourceRoot = false) }
+            }
+            model is ArrayNode && raw is ArrayNode -> model.forEachIndexed { index, child ->
+                restoreStencilVersions(child, raw[index], resourceRoot = false)
+            }
+        }
     }
 
     /** Keywords exactly as the archive's raw `catalog.json` lists them, or null when unavailable. */
@@ -148,11 +206,35 @@ object CatalogCanonicalizer {
         includeV6Metadata: Boolean,
         info: CatalogInfo = catalog.manifest.catalog,
         includeResourceCompatibility: Boolean = true,
+        includeV8Identity: Boolean = false,
     ): String = buildString {
         append("manifest ")
-            .append(canonicalManifestJson(catalog, includeV6Metadata, info, includeResourceCompatibility))
+            .append(canonicalManifestJson(catalog, includeV6Metadata, info, includeResourceCompatibility, includeV8Identity))
             .append('\n')
         appendEntries(entries)
+    }
+
+    /**
+     * V5: V4 plus the catalog's identity and declared dependencies, introduced with catalog v8.
+     *
+     * A namespace is identity, and a catalog dependency's version selector decides what the catalog
+     * renders with, so two releases that differ only there are different content. A stencil carries
+     * no version from catalog v8, so V5 covers none; the resource entries are otherwise V4's.
+     */
+    private fun canonicalV5(
+        catalog: CatalogArchive,
+        entries: List<Entry>,
+    ): String = buildString {
+        append("algorithm sha256-v5\n")
+        append(
+            canonicalV2(
+                catalog,
+                entries,
+                includeV6Metadata = true,
+                includeResourceCompatibility = false,
+                includeV8Identity = true,
+            ),
+        )
     }
 
     private fun canonicalV4(
@@ -180,10 +262,13 @@ object CatalogCanonicalizer {
         includeV6Metadata: Boolean,
         info: CatalogInfo,
         includeResourceCompatibility: Boolean,
+        includeV8Identity: Boolean,
     ): String {
         val manifest = catalog.manifest
         val canonical = linkedMapOf<String, Any?>(
-            "catalog" to canonicalCatalogInfo(info, includeV6Metadata),
+            "catalog" to canonicalCatalogInfo(info, includeV6Metadata).also {
+                if (includeV8Identity) it["namespace"] = info.namespace
+            },
             "publisher" to manifest.publisher,
             "compatibility" to manifest.compatibility,
             "includes" to manifest.includes.orEmpty().sortedWith(compareBy({ it.url }, { it.description })),
@@ -197,15 +282,27 @@ object CatalogCanonicalizer {
                         "description" to resource.description,
                     ).also { if (includeResourceCompatibility) it["compatibility"] = null }
                 },
-            "dependencies" to canonicalDependenciesV2(manifest.dependencies),
+            "dependencies" to canonicalDependenciesV2(manifest.dependencies, includeV8Identity),
         )
+        if (includeV8Identity) {
+            canonical["catalogDependencies"] = manifest.catalogDependencies.orEmpty()
+                .sortedWith(compareBy({ it.namespace }, { it.catalogKey }, { it.version }, { it.releaseVersion }))
+                .map { dependency ->
+                    linkedMapOf(
+                        "namespace" to dependency.namespace,
+                        "catalogKey" to dependency.catalogKey,
+                        "version" to dependency.version,
+                        "releaseVersion" to dependency.releaseVersion,
+                    )
+                }
+        }
         return mapper.writeValueAsString(sortKeys(mapper.valueToTree(canonical)))
     }
 
     private fun canonicalCatalogInfo(
         catalog: CatalogInfo,
         includeV6Metadata: Boolean,
-    ): Map<String, Any?> = linkedMapOf<String, Any?>(
+    ): MutableMap<String, Any?> = linkedMapOf<String, Any?>(
         "slug" to catalog.slug,
         "name" to catalog.name,
         "description" to catalog.description,
@@ -237,16 +334,26 @@ object CatalogCanonicalizer {
         }
     }
 
-    private fun canonicalDependenciesV2(dependencies: List<DependencyRef>?): List<Map<String, Any?>> = dependencies.orEmpty()
+    private fun canonicalDependenciesV2(
+        dependencies: List<DependencyRef>?,
+        includeNamespace: Boolean = false,
+    ): List<Map<String, Any?>> = dependencies.orEmpty()
         .map { dependency ->
             val (type, catalogKey) = dependency.identity()
-            linkedMapOf(
+            linkedMapOf<String, Any?>(
                 "type" to type,
                 "catalogKey" to catalogKey.takeIf(String::isNotEmpty),
                 "slug" to dependency.slug,
-            )
+            ).also { if (includeNamespace) it["namespace"] = dependency.namespace }
         }
-        .sortedWith(compareBy({ it["type"].toString() }, { it["catalogKey"].toString() }, { it["slug"].toString() }))
+        .sortedWith(
+            compareBy(
+                { it["type"].toString() },
+                { it["namespace"].toString() },
+                { it["catalogKey"].toString() },
+                { it["slug"].toString() },
+            ),
+        )
 
     private fun canonicalDependenciesV1(dependencies: List<DependencyRef>?): String = dependencies.orEmpty()
         .map { dependency ->

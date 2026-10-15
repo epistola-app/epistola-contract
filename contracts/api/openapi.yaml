@@ -132,7 +132,7 @@ info:
 # Catalog wire and template-model versions this API expects. The server stubs' CatalogContractVersionTest
 # holds them to the catalog build.
 x-epistola-catalog-contract:
-  wireSchemaVersion: 7
+  wireSchemaVersion: 8
   templateModelVersion: 1
 
 servers:

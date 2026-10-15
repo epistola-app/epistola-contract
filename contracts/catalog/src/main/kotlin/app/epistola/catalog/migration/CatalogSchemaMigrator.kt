@@ -7,9 +7,12 @@ package app.epistola.catalog.migration
 import app.epistola.catalog.archive.ArchiveContentProvider
 import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.CatalogNamespaces
 import app.epistola.catalog.protocol.KeywordRule
 import app.epistola.catalog.protocol.ResourceDetail
 import tools.jackson.core.JacksonException
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
@@ -23,8 +26,28 @@ import java.io.InputStream
  * [BASELINE_VERSION] through [CURRENT_VERSION].
  */
 object CatalogWireSchema {
-    const val CURRENT_VERSION: Int = 7
+    const val CURRENT_VERSION: Int = 8
     const val BASELINE_VERSION: Int = 4
+}
+
+/**
+ * What the caller knows about a catalog that its archive does not say.
+ *
+ * @property namespace the namespace to give a catalog migrated from wire v7 or earlier, which names
+ *   none. Written in full ([app.epistola.catalog.protocol.CatalogNamespaces.FULL_PATTERN]); an
+ *   importer typically chooses the tenant's own. Ignored for an archive at wire v8 or later, which
+ *   names its own. Without it, migrating such an archive fails with
+ *   [CatalogMigrationCodes.NAMESPACE_MISSING]: a namespace is identity, and the migrator never
+ *   invents one.
+ */
+data class CatalogMigrationOptions(
+    val namespace: String? = null,
+) {
+    companion object {
+        /** No caller knowledge: archives from before wire v8 cannot be migrated with these. */
+        @JvmField
+        val DEFAULT = CatalogMigrationOptions()
+    }
 }
 
 /** Stable diagnostic explaining why a wire document could not be migrated. */
@@ -107,6 +130,37 @@ object CatalogMigrationCodes {
      */
     const val ASSET_CONTENT_UNRESOLVED = "CATALOG_ASSET_CONTENT_UNRESOLVED"
 
+    /**
+     * A catalog-v7 (or earlier) archive names no namespace, and the caller supplied none in
+     * [CatalogMigrationOptions.namespace]. Not repairable without the caller: a namespace is the
+     * catalog's identity, so the migrator never invents one.
+     */
+    const val NAMESPACE_MISSING = "CATALOG_NAMESPACE_MISSING"
+
+    /**
+     * A namespace is not written in full, whether the archive's own or the one the caller supplied
+     * for a catalog-v7 archive. Also raised when a catalog-v8 manifest or dependency names none.
+     */
+    const val NAMESPACE_INVALID = "CATALOG_NAMESPACE_INVALID"
+
+    /** Notice: a catalog-v7 catalog was given the namespace the caller supplied. */
+    const val NAMESPACE_ASSIGNED = "CATALOG_NAMESPACE_ASSIGNED"
+
+    /** Notice: a catalog-v7 resource dependency was given the catalog's own namespace. */
+    const val DEPENDENCY_NAMESPACE_ASSIGNED = "CATALOG_DEPENDENCY_NAMESPACE_ASSIGNED"
+
+    /**
+     * Notice: a catalog-v7 catalog named by a resource dependency was declared as a catalog
+     * dependency with the unpinned selector `*`, for the author to set.
+     */
+    const val DEPENDENCY_CATALOG_DECLARED = "CATALOG_DEPENDENCY_CATALOG_DECLARED"
+
+    /**
+     * Notice: a catalog-v7 stencil version was removed -- a stencil resource's own `version`, or a
+     * stencil reference's `version` or `draftVersion`. Catalog v8 versions catalogs as a whole.
+     */
+    const val STENCIL_VERSION_REMOVED = "CATALOG_STENCIL_VERSION_REMOVED"
+
     /** Notice: a catalog-v6 keyword was rewritten to its catalog-v7 form. */
     const val KEYWORD_NORMALIZED = "CATALOG_KEYWORD_NORMALIZED"
 
@@ -120,7 +174,7 @@ object CatalogMigrationCodes {
 /**
  * Portable catalog-wide wire-version gate.
  *
- * Catalog v4 is the migration baseline and v7 is the only emitted shape.
+ * Catalog v4 is the migration baseline and v8 is the only emitted shape.
  */
 object CatalogSchemaMigrator {
     private val mapper = jsonMapper { addModule(kotlinModule()) }
@@ -128,16 +182,22 @@ object CatalogSchemaMigrator {
         CatalogV4ToV5Migration(),
         CatalogV5ToV6Migration(),
         CatalogV6ToV7Migration(),
+        CatalogV7ToV8Migration(),
     )
 
     /**
      * Parses and migrates `catalog.json` to the current [CatalogManifest].
      *
-     * [input] is consumed but not closed by this method.
+     * [input] is consumed but not closed by this method. [options] supplies what an archive from
+     * before wire v8 cannot say for itself, notably its namespace.
      *
      * @throws IOException when the stream cannot be read.
      */
-    fun migrateManifest(input: InputStream): CatalogMigrationResult<CatalogManifest> {
+    @JvmOverloads
+    fun migrateManifest(
+        input: InputStream,
+        options: CatalogMigrationOptions = CatalogMigrationOptions.DEFAULT,
+    ): CatalogMigrationResult<CatalogManifest> {
         val tree = parse(input) ?: return failure(CatalogMigrationCodes.SCHEMA_UNKNOWN, "catalog.json", "manifest is not a JSON object")
         val source = schemaVersion(tree) ?: return failure(
             CatalogMigrationCodes.SCHEMA_UNKNOWN,
@@ -145,7 +205,7 @@ object CatalogSchemaMigrator {
             "manifest schemaVersion is missing or is not an integer",
         )
         versionFinding(source, "catalog.json.schemaVersion")?.let { return CatalogMigrationResult(null, source, listOf(it)) }
-        val migration = migrate(source) { step -> step.migrateManifest(tree) }
+        val migration = migrate(source) { step -> step.migrateManifest(tree, options) }
         if (migration.findings.isNotEmpty()) return CatalogMigrationResult(null, source, migration.findings, migration.notices)
         val wireFindings = validateManifestWireValues(tree)
         if (wireFindings.isNotEmpty()) return CatalogMigrationResult(null, source, wireFindings, migration.notices)
@@ -212,7 +272,41 @@ object CatalogSchemaMigrator {
 
     private fun schemaVersion(tree: ObjectNode): Int? = tree["schemaVersion"]?.takeIf { it.isIntegralNumber }?.asInt()
 
-    private fun validateManifestWireValues(tree: ObjectNode): List<CatalogMigrationFinding> {
+    private fun validateManifestWireValues(tree: ObjectNode): List<CatalogMigrationFinding> = namespaceFindings(tree) + keywordFindings(tree)
+
+    /**
+     * Wire v8 requires every top-level namespace in full. The model binds a missing one, so that
+     * manifests stored under earlier versions still load; the wire check is where v8 enforces it.
+     */
+    private fun namespaceFindings(tree: ObjectNode): List<CatalogMigrationFinding> {
+        val findings = mutableListOf<CatalogMigrationFinding>()
+
+        fun check(
+            node: JsonNode?,
+            path: String,
+            what: String,
+        ) {
+            if (node != null && node.isString && CatalogNamespaces.isValidFull(node.asString())) return
+            findings += CatalogMigrationFinding(
+                CatalogMigrationCodes.NAMESPACE_INVALID,
+                path,
+                if (node == null || node.isNull) {
+                    "$what names no namespace"
+                } else {
+                    "$what namespace must be written in full, as a domain optionally followed by /name"
+                },
+            )
+        }
+        (tree["catalog"] as? ObjectNode)?.let { check(it["namespace"], "catalog.json.catalog.namespace", "catalog") }
+        listOf("dependencies", "catalogDependencies").forEach { field ->
+            (tree[field] as? ArrayNode)?.forEachIndexed { index, entry ->
+                if (entry is ObjectNode) check(entry["namespace"], "catalog.json.$field[$index].namespace", "dependency")
+            }
+        }
+        return findings
+    }
+
+    private fun keywordFindings(tree: ObjectNode): List<CatalogMigrationFinding> {
         val keywords = tree["catalog"]?.get("keywords")?.takeIf { it.isArray } ?: return emptyList()
         // Binding would coerce a number to a string, so reject non-strings here.
         val nonStrings = keywords.mapIndexedNotNull { index, node ->

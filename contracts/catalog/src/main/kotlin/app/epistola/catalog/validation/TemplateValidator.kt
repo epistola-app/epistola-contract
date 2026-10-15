@@ -4,6 +4,7 @@
 
 package app.epistola.catalog.validation
 
+import app.epistola.catalog.protocol.CatalogNamespaces
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDINGS_INVALID_SHAPE
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDING_EMPTY
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDING_MISSING_REQUIRED
@@ -312,8 +313,7 @@ object TemplateValidator {
             allowedTopLevel += setOf(
                 "stencilId",
                 "catalogKey",
-                "version",
-                "draftVersion",
+                "namespace",
                 "parameterBindings",
                 "paramsAlias",
                 "parameterSchemaSnapshot",
@@ -354,69 +354,39 @@ object TemplateValidator {
         else -> false
     }
 
-    private fun positiveIntValue(value: Any?): Int? = when (value) {
-        is Number -> value.toInt().takeIf { value.toDouble() == it.toDouble() && it > 0 }
-        is JsonNode -> if (value.isIntegralNumber) value.asInt().takeIf { it > 0 } else null
-        else -> null
-    }
-
     private fun validateReferences(
         document: TemplateDocument,
         context: TemplateValidationContext,
         findings: MutableList<TemplateValidationFinding>,
     ) {
         (document.themeRef as? ThemeRefOverride)?.let { theme ->
-            val reference = CatalogResourceReference("theme", theme.themeId, theme.catalogKey)
+            val reference = CatalogResourceReference("theme", theme.themeId, theme.catalogKey, theme.namespace)
             if (context.resolveResource(reference) == ResourceResolution.MISSING) {
                 findings.error(TEMPLATE_THEME_NOT_FOUND, "themeRef.themeId", "theme '${theme.themeId}' does not exist in the catalog context")
             }
         }
         document.nodes.values.filter { it.type == "stencil" }.sortedBy(Node::id).forEach { node ->
-            val stencilId = node.props?.get("stencilId") as? String
-            val catalogKey = node.props?.get("catalogKey") as? String
-            val version = positiveIntValue(node.props?.get("version"))
-            val draftVersion = positiveIntValue(node.props?.get("draftVersion"))
-            val hasVersion = node.props?.containsKey("version") == true
-            val hasDraftVersion = node.props?.containsKey("draftVersion") == true
+            val stencilId = stringValue(node.props?.get("stencilId"))
+            val catalogKey = stringValue(node.props?.get("catalogKey"))
+            val namespace = node.props?.get("namespace")
             when {
-                node.props?.containsKey("isDraft") == true -> findings.error(
-                    STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props.isDraft",
-                    "stencil reference isDraft is not supported in catalog v5; use draftVersion",
-                )
                 stencilId == null || !slugRegex.matches(stencilId) -> findings.error(
                     STENCIL_REFERENCE_INVALID,
                     "nodes.${node.id}.props.stencilId",
                     "stencil reference requires a valid stencilId",
                 )
-                (hasVersion && version == null) || (hasDraftVersion && draftVersion == null) -> findings.error(
+                namespace != null && stringValue(namespace)?.let(CatalogNamespaces::isValid) != true -> findings.error(
                     STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props",
-                    "stencil reference version and draftVersion must be positive integers when present",
-                )
-                version == null && draftVersion == null -> findings.error(
-                    STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props",
-                    "stencil reference requires a positive version or draftVersion",
-                )
-                draftVersion != null && !context.allowDraftStencilReferences -> findings.error(
-                    STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props.draftVersion",
-                    "portable catalog content cannot reference draft stencil versions",
-                )
-                !context.allowDraftStencilReferences && version == null -> findings.error(
-                    STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props.version",
-                    "portable catalog content must reference a positive published version",
+                    "nodes.${node.id}.props.namespace",
+                    "stencil reference namespace must be a catalog namespace in full or short form",
                 )
                 else -> {
-                    val reference = CatalogResourceReference("stencil", stencilId, catalogKey, version, draftVersion)
+                    val reference = CatalogResourceReference("stencil", stencilId, catalogKey, stringValue(namespace))
                     if (context.resolveResource(reference) == ResourceResolution.MISSING) {
-                        val exactVersion = draftVersion ?: version
                         findings.error(
                             STENCIL_REFERENCE_NOT_FOUND,
                             "nodes.${node.id}.props.stencilId",
-                            "stencil '$stencilId' version $exactVersion does not exist in the catalog context",
+                            "stencil '$stencilId' does not exist in the catalog context",
                         )
                     }
                 }
@@ -481,6 +451,7 @@ object TemplateValidator {
                 val id = node.props?.get("stencilId") as? String
                 val identity = id?.let {
                     StencilIdentity(
+                        namespace = node.props["namespace"] as? String ?: context.currentNamespace,
                         catalogKey = node.props["catalogKey"] as? String ?: context.currentCatalogKey,
                         slug = it,
                     )
@@ -499,13 +470,14 @@ object TemplateValidator {
         }
         val containingStencil = context.containingStencil
         val initialIdentities = containingStencil?.let {
-            setOf(StencilIdentity(it.catalogKey ?: context.currentCatalogKey, it.slug))
+            setOf(StencilIdentity(it.namespace ?: context.currentNamespace, it.catalogKey ?: context.currentCatalogKey, it.slug))
         }.orEmpty()
         val initialDepth = if (kind == TemplateDocumentKind.STENCIL) 1 else 0
         recurse(document.root, initialIdentities, initialDepth)
     }
 
     private data class StencilIdentity(
+        val namespace: String?,
         val catalogKey: String?,
         val slug: String,
     )

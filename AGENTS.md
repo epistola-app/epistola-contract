@@ -41,12 +41,18 @@ needs a new wire version:
 
 - Add new versioned schemas and keep the previous ones.
 - Bump `CatalogWireSchema.CURRENT_VERSION` and add an explicit migration that repairs with notices.
+  What an archive cannot say for itself (the namespace of a v7 archive) comes from the caller through
+  `CatalogMigrationOptions`; without it the migration reports a finding and never invents a value.
+- When a migration rewrites or removes content a fingerprint covers (v7 keywords, v8 stencil
+  versions), the old fingerprint must still verify against the source content
+  (`CatalogCanonicalizer.matchesSourceV4Fingerprint`). New identity or content gets a new
+  fingerprint algorithm (V5 at v8) rather than changing an existing one.
 - Add golden fixtures under `fixtures/v1/migrations/` and `fixtures/v1/wire-vN/`.
 - Bump the conformance fixtures.
 - Bump `x-epistola-catalog-contract.wireSchemaVersion` in `contracts/api/openapi.yaml`, which the
   server stubs' `CatalogContractVersionTest` enforces.
 
-Define rules that consumers also enforce (such as `CatalogKeywords`) once in the catalog module,
+Define rules that consumers also enforce (such as `CatalogKeywords` and `CatalogNamespaces`) once in the catalog module,
 and export them to Kotlin and TypeScript with parity tests against the schema. Enforce them in the
 migrator and validator, never in model constructors: consumers rebind stored manifests.
 

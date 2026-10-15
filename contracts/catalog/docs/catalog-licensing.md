@@ -25,7 +25,7 @@ asset content. Wire v6 does not define resource-level overrides. A publisher mus
 it has the authority to grant; the contract validates structure but does not determine rights or
 SPDX-list membership.
 
-License metadata participates in V4 canonical fingerprints, so changing a declaration changes the
+License metadata participates in V4 and V5 canonical fingerprints, so changing a declaration changes the
 catalog content identity. Older catalogs and v6 catalogs that omit `license` remain valid. Omission
 means that the catalog makes no portable license declaration; it must not be interpreted as public
 domain, unrestricted use, or permission to redistribute.

@@ -77,7 +77,7 @@ class TemplateValidatorJacksonTreeTest {
                 "stencil" to Node(
                     "stencil",
                     "stencil",
-                    props = mapOf("stencilId" to "address", "version" to 1),
+                    props = mapOf("stencilId" to "address"),
                 ),
             ),
             slots = mapOf("children" to Slot("children", "root", "children", listOf("stencil"))),

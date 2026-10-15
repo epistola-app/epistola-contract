@@ -4,6 +4,7 @@
 
 package app.epistola.catalog.archive
 
+import app.epistola.catalog.migration.CatalogMigrationOptions
 import app.epistola.catalog.protocol.FontResource
 import app.epistola.catalog.protocol.ImageResource
 import app.epistola.catalog.protocol.TemplateResource
@@ -28,8 +29,8 @@ import kotlin.test.assertTrue
  */
 class CatalogV6ArchiveCompatibilityTest {
     @Test
-    fun `a v6 archive binds at v7 with its binaries resolvable`() {
-        val result = CatalogArchiveReader.read(ByteArrayInputStream(v6Archive()))
+    fun `a v6 archive binds at the current version with its binaries resolvable`() {
+        val result = CatalogArchiveReader.read(ByteArrayInputStream(v6Archive()), migration = MIGRATION)
         val archive = assertNotNull(result.archive, "findings: ${result.findings}")
 
         archive.use {
@@ -76,7 +77,7 @@ class CatalogV6ArchiveCompatibilityTest {
      */
     @Test
     fun `a v6 variant named too short for v7 still reads, because the bounds are schema-only`() {
-        val result = CatalogArchiveReader.read(ByteArrayInputStream(v6Archive(variantSlug = "nl")))
+        val result = CatalogArchiveReader.read(ByteArrayInputStream(v6Archive(variantSlug = "nl")), migration = MIGRATION)
         val archive = assertNotNull(result.archive, "findings: ${result.findings}")
 
         archive.use {
@@ -151,6 +152,8 @@ class CatalogV6ArchiveCompatibilityTest {
     }
 
     private companion object {
+        /** A v6 archive names no namespace; the reader's caller supplies one, as an importer would. */
+        val MIGRATION = CatalogMigrationOptions("exchange.epistola.app/town-hall")
         val SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"></svg>""".toByteArray()
         val TTF = byteArrayOf(0, 1, 0, 0, 0, 13, 0, -128)
     }

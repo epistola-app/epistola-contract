@@ -21,6 +21,8 @@ const schemaNames = [
   'resource-detail-v6.schema.json',
   'catalog-manifest-v7.schema.json',
   'resource-detail-v7.schema.json',
+  'catalog-manifest-v8.schema.json',
+  'resource-detail-v8.schema.json',
   'catalog-manifest.schema.json',
   'resource-detail.schema.json',
 ];
@@ -38,8 +40,17 @@ const cases = [
   ['catalog-manifest-v7.schema.json', 'fixtures/v1/wire-v7/catalog.json'],
   ['resource-detail-v7.schema.json', 'fixtures/v1/wire-v7/resources/theme/default.json'],
   ['catalog-manifest-v7.schema.json', 'fixtures/v1/migrations/v6-to-v7/manifest-expected.json'],
-  ['catalog-manifest.schema.json', 'fixtures/v1/wire-v7/catalog.json'],
-  ['resource-detail.schema.json', 'fixtures/v1/wire-v7/resources/theme/default.json'],
+  ['catalog-manifest-v7.schema.json', 'fixtures/v1/migrations/v7-to-v8/manifest-input.json'],
+  ['resource-detail-v7.schema.json', 'fixtures/v1/migrations/v7-to-v8/stencil-input.json'],
+  ['catalog-manifest-v8.schema.json', 'fixtures/v1/wire-v8/catalog.json'],
+  ['resource-detail-v8.schema.json', 'fixtures/v1/wire-v8/resources/theme/default.json'],
+  ['catalog-manifest-v8.schema.json', 'fixtures/v1/migrations/v7-to-v8/manifest-expected.json'],
+  ['resource-detail-v8.schema.json', 'fixtures/v1/migrations/v7-to-v8/stencil-expected.json'],
+  ['catalog-manifest.schema.json', 'fixtures/v1/wire-v8/catalog.json'],
+  ['resource-detail.schema.json', 'fixtures/v1/wire-v8/resources/theme/default.json'],
+  ['catalog-manifest.schema.json', 'fixtures/v1/conformance/catalog/valid-minimal/catalog.json'],
+  ['resource-detail.schema.json', 'fixtures/v1/conformance/catalog/valid-minimal/resources/theme/default.json'],
+  ['resource-detail.schema.json', 'fixtures/v1/conformance/catalog/missing-resource-reference/resources/attribute/locale.json'],
 ];
 
 for (const [schemaName, fixtureName] of cases) {
@@ -116,4 +127,65 @@ const normalization = await readJson('fixtures/v1/migrations/v6-to-v7/keyword-no
 for (const { input, expected } of normalization.cases.filter((entry) => entry.expected !== null)) {
   const manifest = await withV7Keywords([expected]);
   assert.equal(validateV7Manifest(manifest), true, `normalization of ${JSON.stringify(input)} is not a valid v7 keyword: ${expected}`);
+}
+
+const validateV8Manifest = ajv.getSchema('https://epistola.app/schemas/catalog-manifest-v8.schema.json');
+const validateV8Detail = ajv.getSchema('https://epistola.app/schemas/resource-detail-v8.schema.json');
+const v8Manifest = async (edit) => {
+  const manifest = await readJson('fixtures/v1/wire-v8/catalog.json');
+  edit(manifest);
+  return manifest;
+};
+
+for (const namespace of ['acme.com', 'exchange.epistola.app/acme-corp', 'a.b', `${'a'.repeat(300)}.com`]) {
+  const manifest = await v8Manifest((m) => { m.catalog.namespace = namespace; });
+  assert.equal(validateV8Manifest(manifest), true, `valid v8 namespace was rejected: ${namespace}: ${ajv.errorsText(validateV8Manifest.errors)}`);
+}
+
+// The short form depends on the installation's default exchange, so an archive never writes it.
+for (const namespace of ['acme-corp', 'Acme.com', 'acme.com/', 'acme.com/Acme', '-acme.com', 'acme..com', `${'a'.repeat(320)}.com`, '']) {
+  const manifest = await v8Manifest((m) => { m.catalog.namespace = namespace; });
+  assert.equal(validateV8Manifest(manifest), false, `invalid v8 catalog namespace was accepted: ${namespace}`);
+  const dependency = await v8Manifest((m) => { m.dependencies[0].namespace = namespace; });
+  assert.equal(validateV8Manifest(dependency), false, `invalid v8 dependency namespace was accepted: ${namespace}`);
+  const declared = await v8Manifest((m) => { m.catalogDependencies[0].namespace = namespace; });
+  assert.equal(validateV8Manifest(declared), false, `invalid v8 catalog dependency namespace was accepted: ${namespace}`);
+}
+
+for (const [description, edit] of [
+  ['catalog without a namespace', (m) => { delete m.catalog.namespace; }],
+  ['dependency without a namespace', (m) => { delete m.dependencies[0].namespace; }],
+  ['catalog dependency without a version', (m) => { delete m.catalogDependencies[0].version; }],
+  ['catalog dependency with an empty version', (m) => { m.catalogDependencies[0].version = ''; }],
+  ['catalog dependency with a 101-character version', (m) => { m.catalogDependencies[0].version = '1'.repeat(101); }],
+  ['catalog dependency without releaseVersion', (m) => { delete m.catalogDependencies[0].releaseVersion; }],
+  ['catalog dependency with an unknown member', (m) => { m.catalogDependencies[0].range = '^1.0.0'; }],
+]) {
+  assert.equal(validateV8Manifest(await v8Manifest(edit)), false, `v8 manifest accepted ${description}`);
+}
+
+for (const [description, edit] of [
+  ['no catalog dependencies', (m) => { delete m.catalogDependencies; m.dependencies = []; }],
+  ['null catalog dependencies', (m) => { m.catalogDependencies = null; m.dependencies = []; }],
+  ['a migrated catalog dependency', (m) => { m.catalogDependencies[0].version = '*'; m.catalogDependencies[0].releaseVersion = null; }],
+  ['a range union selector', (m) => { m.catalogDependencies[0].version = '>=1.0.0 <2.0.0 || ^3.1.0'; }],
+]) {
+  const manifest = await v8Manifest(edit);
+  assert.equal(validateV8Manifest(manifest), true, `v8 manifest rejected ${description}: ${ajv.errorsText(validateV8Manifest.errors)}`);
+}
+
+// Stencils carry no version from v8; content references may name a namespace in either form.
+const v8Stencil = await readJson('fixtures/v1/migrations/v7-to-v8/stencil-expected.json');
+assert.equal(validateV8Detail({ ...v8Stencil, resource: { ...v8Stencil.resource, version: 3 } }), false, 'v8 stencil accepted a version');
+const v7Stencil = await readJson('fixtures/v1/migrations/v7-to-v8/stencil-input.json');
+assert.equal(validateV8Detail({ ...v7Stencil, schemaVersion: 8 }), false, 'v8 accepted a stencil with its v7 version');
+
+const attribute = await readJson('fixtures/v1/conformance/catalog/missing-resource-reference/resources/attribute/locale.json');
+for (const namespace of ['acme-corp', 'acme.com', 'exchange.epistola.app/acme-corp']) {
+  const detail = { ...attribute, resource: { ...attribute.resource, codeListBinding: { slug: 'countries', catalogKey: 'shared', namespace } } };
+  assert.equal(validateV8Detail(detail), true, `valid content namespace was rejected: ${namespace}: ${ajv.errorsText(validateV8Detail.errors)}`);
+}
+for (const namespace of ['Acme', 'acme.com/', 'ab']) {
+  const detail = { ...attribute, resource: { ...attribute.resource, codeListBinding: { slug: 'countries', namespace } } };
+  assert.equal(validateV8Detail(detail), false, `invalid content namespace was accepted: ${namespace}`);
 }

@@ -2581,7 +2581,7 @@
       "examples": [
         {
           "name": "with-placeholder",
-          "description": "A published stencil instance (as it appears inside a template) containing one placeholder named \"body\". The placeholder owns two slots: `default` (set by the stencil author at publish time) and `fill` (the template override; empty here, so the renderer falls back to the default). Replacing or adding to `fill` overrides the default; clearing `fill` reverts to the default.",
+          "description": "A stencil instance (as it appears inside a template) containing one placeholder named \"body\". The placeholder owns two slots: `default` (set by the stencil author at publish time) and `fill` (the template override; empty here, so the renderer falls back to the default). Replacing or adding to `fill` overrides the default; clearing `fill` reverts to the default.",
           "fragment": {
             "rootNodeId": "n-stencil-letter",
             "nodes": {
@@ -2593,8 +2593,7 @@
                 ],
                 "props": {
                   "stencilId": "letter-shell",
-                  "catalogKey": "epistola-demo",
-                  "version": 1
+                  "catalogKey": "epistola-demo"
                 }
               },
               "n-stencil-letter-ph": {
@@ -2672,8 +2671,7 @@
                 ],
                 "props": {
                   "stencilId": "letter-shell",
-                  "catalogKey": "epistola-demo",
-                  "version": 1
+                  "catalogKey": "epistola-demo"
                 }
               },
               "n-stencil-letter-ov-ph": {

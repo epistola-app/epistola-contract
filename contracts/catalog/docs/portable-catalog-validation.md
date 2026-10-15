@@ -36,18 +36,21 @@ val report = TemplateValidator.validate(document, context)
 
 `TemplateValidationContext` resolves catalog-scoped resources, dynamic
 parameter schemas, and effective style presets. For stencil resource content,
-`currentCatalogKey` and `containingStencil` identify the owning resource so
+`currentNamespace`, `currentCatalogKey` and `containingStencil` identify the owning resource so
 the validator can distinguish cross-catalog references from direct or
 transitive self-reference. A lookup can return `UNKNOWN`
 when a consumer is intentionally validating without the full catalog graph;
 only an explicit `MISSING` result produces a missing-reference finding.
 
-Stencil composition is part of the portable specification. Standalone
-template validation understands both authored draft references and references
-to exact published stencil versions; the context resolver receives the
-exact `draftVersion` identity. Whole-catalog validation is the publication boundary and
-therefore rejects draft references. It requires portable references to declare
-omit `draftVersion` and pin an exact published `version`.
+Stencil composition is part of the portable specification. From wire v8 a
+stencil node names its stencil by `stencilId`, optionally qualified by
+`catalogKey` and `namespace` (full or short form; omitted means the owning
+catalog's), and carries no version: catalogs are versioned as a whole, so the
+stencil reached is the one in the release the catalog dependency resolves to,
+or the one in the same catalog. The context resolver receives that identity as a
+`CatalogResourceReference`. A node's `version` or `draftVersion` is reported as
+an undeclared property (`TEMPLATE_NODE_PROPERTY_INVALID`), as is a leftover
+`isDraft`; a malformed `namespace` is `STENCIL_REFERENCE_INVALID`.
 
 Standalone validation counts the containing stencil as nesting level one and
 rejects a repeated ancestor identity or a chain deeper than five. Consumers
@@ -86,6 +89,17 @@ Catalog icon and ordered gallery slugs resolve only against image assets in the 
 missing resources, non-assets, non-image media types, and duplicate gallery entries have separate
 stable finding codes. The icon may also appear in the gallery.
 
+From wire v8 a catalog names its `namespace` in full, and so does every resource dependency and
+`catalogDependencies` entry (`CATALOG_NAMESPACE_INVALID`, also raised by the migrator's wire check).
+`catalogDependencies` declares each catalog at most once (`CATALOG_DEPENDENCY_CATALOG_DUPLICATE`),
+never the catalog itself (`CATALOG_DEPENDENCY_CATALOG_SELF`, which also applies to a resource
+dependency naming the catalog itself), with a nonblank version selector of at most 100 characters
+and, when recorded, a SemVer `releaseVersion` (`CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`).
+Every (namespace, catalog key) a resource dependency names must be declared there
+(`CATALOG_DEPENDENCY_CATALOG_UNDECLARED`); a declaration no resource dependency uses is allowed.
+A namespace inside resource content (a code-list binding, a template's theme, a font reference)
+may take either form and is checked with `CATALOG_NAMESPACE_INVALID` too.
+
 Optional catalog-wide license metadata requires a trimmed, nonblank display name. SPDX expressions
 and copyright text, when supplied, must also be trimmed and nonblank; the contract preserves but
 does not resolve or legally interpret SPDX expressions. License URLs must be absolute HTTP or HTTPS
@@ -94,14 +108,17 @@ URLs. Resource-level license overrides are not part of the wire format.
 Already-decoded catalogs can use `CatalogValidator.validate(catalog, policy)`, and consumers that
 need to validate one resource can use `ResourceValidator`. Cross-catalog resolution is supplied
 through `CatalogDependencyResolver`; returning `UNKNOWN` deliberately suppresses existence
-findings when the complete dependency graph is unavailable. No dependency version-range logic is
-present because `DependencyRef` does not expose a version or range.
+findings when the complete dependency graph is unavailable. A reference into another catalog
+reaches the resolver with the owning catalog's namespace or key filled in where it omitted one,
+and its namespace as written: expanding a short-form namespace depends on the installation's
+default exchange, which the contract does not know. The validator does not evaluate version
+selectors; which release a `catalogDependencies` selector resolves to is consumer policy.
 
 The validator calls `TemplateValidator` for a template's primary model, each variant model, and
 stencil content. It rejects unsupported template `modelVersion` values, validates the parameter
 schema published by every stencil resource, resolves a template resource's declared theme, checks
-same-catalog stencil references against the exact exported version, and rejects direct or
-transitive cycles across stencil resources.
+that same-catalog stencil references resolve to a stencil resource in the catalog, and rejects direct
+or transitive cycles across stencil resources.
 The versioned `conformance/catalog-cases.json` index publishes a small executable conformance
 suite. Every entry identifies a directory containing the actual `catalog.json`, actual resource
 files, and an exact `expected-report.json`. The initial set covers a minimal valid catalog, a

@@ -6,6 +6,7 @@ package app.epistola.catalog.archive
 
 import app.epistola.catalog.canonical.CatalogCanonicalizer
 import app.epistola.catalog.canonical.CatalogFingerprintVersion
+import app.epistola.catalog.migration.CatalogMigrationOptions
 import app.epistola.catalog.migration.CatalogWireSchema.CURRENT_VERSION
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogManifest
@@ -15,6 +16,7 @@ import app.epistola.catalog.protocol.ReleaseInfo
 import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.ResourceEntry
 import app.epistola.catalog.protocol.ThemeResource
+import app.epistola.catalog.validation.CatalogValidationPolicy
 import app.epistola.catalog.validation.CatalogValidator
 import org.apache.commons.compress.archivers.zip.UnixStat
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
@@ -86,12 +88,12 @@ class CatalogArchiveCodecTest {
     }
 
     @Test
-    fun `re-exporting a migrated catalog replaces its legacy fingerprint with v4`() {
+    fun `re-exporting a migrated catalog replaces its legacy fingerprint with the current one`() {
         val legacyZip = zip(
             "catalog.json" to fixtureBytes("wire-v5/catalog.json"),
             "resources/theme/default.json" to fixtureBytes("wire-v5/resources/theme/default.json"),
         )
-        val migrated = assertNotNull(CatalogArchiveReader.read(ByteArrayInputStream(legacyZip)).archive)
+        val migrated = assertNotNull(CatalogArchiveReader.read(ByteArrayInputStream(legacyZip), migration = MIGRATION).archive)
         migrated.use { source ->
             val legacyFingerprint = CatalogCanonicalizer.fingerprint(source, CatalogFingerprintVersion.V3).value
             val withLegacyFingerprint = CatalogArchive(
@@ -110,17 +112,17 @@ class CatalogArchiveCodecTest {
     }
 
     @Test
-    fun `a v6 catalog signed over authored keywords validates and re-exports as v7 with normalized keywords`() {
+    fun `a v6 catalog signed over authored keywords validates and re-exports as current with normalized keywords`() {
         val sourceKeywords = listOf("Financiële Zaken", "Getting Started", "Klantcontactcentrumrapportage 2026", "Letters", "letters")
         val v6Zip = signedV6Zip(sourceKeywords)
 
-        val read = CatalogArchiveReader.read(ByteArrayInputStream(v6Zip))
+        val read = CatalogArchiveReader.read(ByteArrayInputStream(v6Zip), migration = MIGRATION)
         assertEquals(emptyList(), read.findings)
         assertEquals(
             listOf("CATALOG_KEYWORD_NORMALIZED", "CATALOG_KEYWORD_NORMALIZED", "CATALOG_KEYWORD_TRUNCATED", "CATALOG_KEYWORD_NORMALIZED"),
-            read.migrationNotices.map { it.code },
+            read.migrationNotices.map { it.code }.filter { it.startsWith("CATALOG_KEYWORD_") },
         )
-        assertEquals(emptyList(), CatalogValidator.validate(ByteArrayInputStream(v6Zip)).findings)
+        assertEquals(emptyList(), CatalogValidator.validate(ByteArrayInputStream(v6Zip), POLICY).findings)
 
         val reExported = assertNotNull(read.archive).use(::write)
         val reRead = CatalogArchiveReader.read(ByteArrayInputStream(reExported))
@@ -141,9 +143,54 @@ class CatalogArchiveCodecTest {
         val tampered = signedV6Zip(listOf("Letters"), shippedKeywords = listOf("Dutch"))
 
         assertTrue(
-            CatalogValidator.validate(ByteArrayInputStream(tampered)).findings
+            CatalogValidator.validate(ByteArrayInputStream(tampered), POLICY).findings
                 .any { it.code == "CATALOG_RELEASE_FINGERPRINT_MISMATCH" },
         )
+    }
+
+    @Test
+    fun `a v7 catalog signed over its stencil versions validates and re-exports with the current fingerprint`() {
+        val v7Zip = signedV7StencilZip()
+
+        val read = CatalogArchiveReader.read(ByteArrayInputStream(v7Zip), migration = MIGRATION)
+        assertEquals(emptyList(), read.findings)
+        assertEquals(
+            listOf(
+                "resources/stencil/address.json.resource.version",
+                "resources/stencil/letter.json.resource.content.nodes.nested.props.version",
+                "resources/stencil/letter.json.resource.version",
+            ),
+            read.migrationNotices.filter { it.code == "CATALOG_STENCIL_VERSION_REMOVED" }.map { it.path },
+        )
+        assertEquals(emptyList(), CatalogValidator.validate(ByteArrayInputStream(v7Zip), POLICY).findings)
+
+        val reExported = assertNotNull(read.archive).use(::write)
+        val reRead = CatalogArchiveReader.read(ByteArrayInputStream(reExported))
+        assertNotNull(reRead.archive).use { rewritten ->
+            assertEquals(CURRENT_VERSION, rewritten.sourceSchemaVersion)
+            assertEquals(emptyList(), reRead.migrationNotices)
+            assertEquals(NAMESPACE, rewritten.manifest.catalog.namespace)
+            assertEquals(CatalogCanonicalizer.currentFingerprint(rewritten).value, rewritten.manifest.release.fingerprint)
+            assertEquals(emptyList(), CatalogValidator.validate(rewritten).findings)
+        }
+    }
+
+    @Test
+    fun `a v7 fingerprint over a different stencil version still mismatches after migration`() {
+        val tampered = signedV7StencilZip(shippedVersion = 3)
+
+        assertTrue(
+            CatalogValidator.validate(ByteArrayInputStream(tampered), POLICY).findings
+                .any { it.code == "CATALOG_RELEASE_FINGERPRINT_MISMATCH" },
+        )
+    }
+
+    @Test
+    fun `a v7 archive cannot be read without a namespace for it`() {
+        val result = CatalogArchiveReader.read(ByteArrayInputStream(signedV7StencilZip()))
+
+        assertNull(result.archive)
+        assertEquals(listOf("CATALOG_NAMESPACE_MISSING"), result.findings.map { it.code })
     }
 
     @Test
@@ -155,7 +202,7 @@ class CatalogArchiveCodecTest {
             "resources/theme/default.json" to fixtureBytes("wire-v4/resources/theme/default.json"),
         )
 
-        val result = CatalogArchiveReader.read(ByteArrayInputStream(input))
+        val result = CatalogArchiveReader.read(ByteArrayInputStream(input), migration = MIGRATION)
         val archive = assertNotNull(result.archive)
         archive.use {
             assertTrue(result.findings.isEmpty())
@@ -266,7 +313,7 @@ class CatalogArchiveCodecTest {
         val detail = ResourceDetail(CURRENT_VERSION, ThemeResource(slug = "default", name = "Default"))
         val manifest = CatalogManifest(
             schemaVersion = CURRENT_VERSION,
-            catalog = CatalogInfo("example", "Example"),
+            catalog = CatalogInfo("example", "Example").withNamespace(NAMESPACE),
             publisher = PublisherInfo("Example"),
             release = ReleaseInfo("1.0.0"),
             resources = listOf(
@@ -302,7 +349,7 @@ class CatalogArchiveCodecTest {
         )
         val manifest = CatalogManifest(
             schemaVersion = CURRENT_VERSION,
-            catalog = CatalogInfo("example", "Example"),
+            catalog = CatalogInfo("example", "Example").withNamespace(NAMESPACE),
             publisher = PublisherInfo("Example"),
             release = ReleaseInfo("1.0.0"),
             resources = listOf(
@@ -357,11 +404,45 @@ class CatalogArchiveCodecTest {
             content = ArchiveContentProvider { ByteArrayInputStream(detailBytes) },
         )
         val shipped = manifestTree(shippedKeywords).also { tree ->
-            (tree["release"] as ObjectNode).put("fingerprint", CatalogCanonicalizer.currentFingerprint(signed).value)
+            (tree["release"] as ObjectNode).put("fingerprint", CatalogCanonicalizer.fingerprint(signed, CatalogFingerprintVersion.V4).value)
         }
         return zip(
             "catalog.json" to mapper.writeValueAsBytes(shipped),
             "resources/theme/default.json" to detailBytes,
+        )
+    }
+
+    /**
+     * A wire-v7 archive of two stencils, `letter` embedding `address` pinned at [shippedVersion],
+     * carrying the V4 fingerprint a catalog-v7 producer computed for it with the reference pinned
+     * at 2 ([V7_PRODUCER_FINGERPRINT]).
+     */
+    private fun signedV7StencilZip(shippedVersion: Int = 2): ByteArray {
+        fun stencil(slug: String, name: String, version: Int, nestedVersion: Int?): ByteArray {
+            val nested = nestedVersion?.let {
+                ""","nested":{"id":"nested","type":"stencil","slots":[],"props":{"stencilId":"address","version":$it}}"""
+            }.orEmpty()
+            val children = if (nestedVersion != null) "\"nested\"" else ""
+            return """
+                {"schemaVersion":7,"resource":{"type":"stencil","slug":"$slug","name":"$name","version":$version,"tags":[],
+                 "content":{"modelVersion":1,"root":"root",
+                   "nodes":{"root":{"id":"root","type":"root","slots":["children"]}$nested},
+                   "slots":{"children":{"id":"children","nodeId":"root","name":"children","children":[$children]}},
+                   "themeRef":{"type":"inherit"}}}}
+            """.trimIndent().toByteArray()
+        }
+        val manifest = """
+            {"schemaVersion":7,"catalog":{"slug":"letters","name":"Letters","attributes":[],"keywords":[]},
+             "publisher":{"name":"Acme"},"release":{"version":"1.0.0","fingerprint":"$V7_PRODUCER_FINGERPRINT"},
+             "dependencies":[],
+             "resources":[
+               {"type":"stencil","slug":"address","name":"Address","detailUrl":"./resources/stencil/address.json"},
+               {"type":"stencil","slug":"letter","name":"Letter","detailUrl":"./resources/stencil/letter.json"}]}
+        """.trimIndent()
+        return zip(
+            "catalog.json" to manifest.toByteArray(),
+            "resources/stencil/address.json" to stencil("address", "Address", 2, null),
+            "resources/stencil/letter.json" to stencil("letter", "Letter", 1, shippedVersion),
         )
     }
 
@@ -418,4 +499,20 @@ class CatalogArchiveCodecTest {
         ((bytes[offset + 1].toInt() and 0xff) shl 8) or
         ((bytes[offset + 2].toInt() and 0xff) shl 16) or
         ((bytes[offset + 3].toInt() and 0xff) shl 24)
+
+    private companion object {
+        const val NAMESPACE = "exchange.epistola.app/epistola"
+
+        /** An archive from before wire v8 names no namespace; the reader's caller supplies one. */
+        val MIGRATION = CatalogMigrationOptions(NAMESPACE)
+        val POLICY = CatalogValidationPolicy(migration = MIGRATION)
+
+        /**
+         * `CatalogCanonicalizer.currentFingerprint` of [signedV7StencilZip]'s catalog as the
+         * catalog-v7 contract (wire v7, V4 fingerprints) computed it, stencil versions included.
+         * Golden: produced by that release, not by this one, so it holds the v8 migration to
+         * verifying what v7 producers actually published.
+         */
+        const val V7_PRODUCER_FINGERPRINT = "6182962d2e5c94b362fe45efa07af908b48caf8536d93b51c775f8d0df51d626"
+    }
 }

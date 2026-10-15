@@ -1,0 +1,32 @@
+[
+  {
+    "code": "CATALOG_NAMESPACE_ASSIGNED",
+    "path": "catalog.json.catalog.namespace",
+    "message": "catalog was given the namespace 'exchange.epistola.app/acme-corp'"
+  },
+  {
+    "code": "CATALOG_DEPENDENCY_NAMESPACE_ASSIGNED",
+    "path": "catalog.json.dependencies[0].namespace",
+    "message": "dependency was given the catalog's namespace 'exchange.epistola.app/acme-corp'"
+  },
+  {
+    "code": "CATALOG_DEPENDENCY_NAMESPACE_ASSIGNED",
+    "path": "catalog.json.dependencies[1].namespace",
+    "message": "dependency was given the catalog's namespace 'exchange.epistola.app/acme-corp'"
+  },
+  {
+    "code": "CATALOG_DEPENDENCY_NAMESPACE_ASSIGNED",
+    "path": "catalog.json.dependencies[2].namespace",
+    "message": "dependency was given the catalog's namespace 'exchange.epistola.app/acme-corp'"
+  },
+  {
+    "code": "CATALOG_DEPENDENCY_CATALOG_DECLARED",
+    "path": "catalog.json.catalogDependencies[0]",
+    "message": "catalog 'exchange.epistola.app/acme-corp/brand' was declared as a dependency with the unpinned selector '*'; set the version range this catalog requires"
+  },
+  {
+    "code": "CATALOG_DEPENDENCY_CATALOG_DECLARED",
+    "path": "catalog.json.catalogDependencies[1]",
+    "message": "catalog 'exchange.epistola.app/acme-corp/shared' was declared as a dependency with the unpinned selector '*'; set the version range this catalog requires"
+  }
+]

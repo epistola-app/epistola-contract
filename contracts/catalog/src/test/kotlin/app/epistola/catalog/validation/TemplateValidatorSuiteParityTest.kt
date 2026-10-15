@@ -160,7 +160,7 @@ class TemplateValidatorSuiteParityTest {
         assertNoFinding(
             allowed,
             STENCIL_RECURSION,
-            TemplateValidationContext.forStencil("letter", "default", 1),
+            TemplateValidationContext.forStencil("letter", "default"),
         )
     }
 
@@ -341,7 +341,7 @@ class TemplateValidatorSuiteParityTest {
         id = id,
         type = "stencil",
         slots = listOf("$id-slot"),
-        props = mapOf("stencilId" to slug, "version" to 1),
+        props = mapOf("stencilId" to slug),
     )
 
     private fun placeholder(id: String, name: String): Node = Node(
@@ -365,7 +365,7 @@ class TemplateValidatorSuiteParityTest {
         val (props, slotName) = when (wrapperType) {
             "conditional" -> mapOf("condition" to mapOf("raw" to "true", "language" to "jsonata")) to "body"
             "loop" -> mapOf("expression" to mapOf("raw" to "items", "language" to "jsonata"), "itemAlias" to "item") to "body"
-            "stencil" -> mapOf("stencilId" to "letter-shell", "version" to 1) to "children"
+            "stencil" -> mapOf("stencilId" to "letter-shell") to "children"
             else -> null to "children"
         }
         val wrapper = Node("wrapper", wrapperType, listOf("wrapper-slot"), props = props)
@@ -383,7 +383,6 @@ class TemplateValidatorSuiteParityTest {
     ): Node {
         val props = mutableMapOf<String, Any?>(
             "stencilId" to "address",
-            "version" to 1,
             "parameterBindings" to parameterBindings,
         )
         paramsAlias?.let { props["paramsAlias"] = it }

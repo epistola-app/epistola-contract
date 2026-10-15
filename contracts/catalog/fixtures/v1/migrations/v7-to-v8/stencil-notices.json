@@ -1,0 +1,17 @@
+[
+  {
+    "code": "CATALOG_STENCIL_VERSION_REMOVED",
+    "path": "resources/stencil/letter.json.resource.version",
+    "message": "stencil version was removed; catalog v8 versions catalogs as a whole"
+  },
+  {
+    "code": "CATALOG_STENCIL_VERSION_REMOVED",
+    "path": "resources/stencil/letter.json.resource.content.nodes.nested.props.version",
+    "message": "stencil reference version was removed; the stencil resolves through its catalog's dependency"
+  },
+  {
+    "code": "CATALOG_STENCIL_VERSION_REMOVED",
+    "path": "resources/stencil/letter.json.resource.content.nodes.shared-footer.props.version",
+    "message": "stencil reference version was removed; the stencil resolves through its catalog's dependency"
+  }
+]

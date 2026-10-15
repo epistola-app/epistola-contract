@@ -4,6 +4,7 @@
 
 package app.epistola.catalog.protocol
 
+import tools.jackson.databind.JsonNode
 import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
 import kotlin.test.Test
@@ -45,6 +46,38 @@ class CatalogWireParityTest {
 
         assertEquals(manifest, mapper.readValue(mapper.writeValueAsBytes(manifest), CatalogManifest::class.java))
         assertEquals(detail, mapper.readValue(mapper.writeValueAsBytes(detail), ResourceDetail::class.java))
+    }
+
+    @Test
+    fun `v8 manifest and resource detail round trip through the public Kotlin model`() {
+        val manifest = fixture("wire-v8/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
+        val detail = fixture("wire-v8/resources/theme/default.json").use { mapper.readValue(it, ResourceDetail::class.java) }
+
+        assertEquals("exchange.epistola.app/epistola", manifest.catalog.namespace)
+        assertEquals(listOf(CatalogDependency("exchange.epistola.app/epistola", "shared", "^1.2.0", "1.4.0")), manifest.catalogDependencies)
+        assertEquals(manifest, mapper.readValue(mapper.writeValueAsBytes(manifest), CatalogManifest::class.java))
+        assertEquals(detail, mapper.readValue(mapper.writeValueAsBytes(detail), ResourceDetail::class.java))
+    }
+
+    @Test
+    fun `the model binds documents stored under v7, which name no namespace and pin stencil versions`() {
+        val manifest = fixture("migrations/v7-to-v8/manifest-input.json").use { mapper.readValue(it, CatalogManifest::class.java) }
+        val stencil = fixture("migrations/v7-to-v8/stencil-input.json").use { mapper.readValue(it, ResourceDetail::class.java) }
+
+        assertEquals(null, manifest.catalog.namespace)
+        assertEquals(null, manifest.catalogDependencies)
+        assertTrue(manifest.dependencies.orEmpty().all { it.namespace == null })
+        assertEquals("letter", stencil.resource.slug)
+    }
+
+    @Test
+    fun `optional content namespaces are omitted when absent so earlier fingerprints still reproduce`() {
+        val binding = mapper.valueToTree<JsonNode>(CodeListBindingRef(slug = "countries"))
+        val font = mapper.valueToTree<JsonNode>(FontRef(slug = "inter"))
+
+        assertTrue(!binding.has("namespace"), binding.toString())
+        assertTrue(!font.has("namespace"), font.toString())
+        assertEquals("acme.com", mapper.valueToTree<JsonNode>(CodeListBindingRef(slug = "x", namespace = "acme.com"))["namespace"].asString())
     }
 
     @Test
@@ -106,6 +139,8 @@ class CatalogWireParityTest {
             "resource-detail-v6.schema.json",
             "catalog-manifest-v7.schema.json",
             "resource-detail-v7.schema.json",
+            "catalog-manifest-v8.schema.json",
+            "resource-detail-v8.schema.json",
             "resource-detail.schema.json",
         ).forEach { name ->
             assertNotNull(javaClass.getResource("/META-INF/epistola-catalog/schemas/$name"), name)

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 8,
+  "catalog": {
+    "namespace": "exchange.epistola.app/acme-corp",
+    "slug": "letters",
+    "name": "Letters",
+    "description": "Catalog-v7 manifest that names other catalogs",
+    "attributes": [],
+    "keywords": [
+      "letters"
+    ],
+    "presentation": null,
+    "license": null
+  },
+  "publisher": {
+    "name": "Acme"
+  },
+  "release": {
+    "version": "2.1.0"
+  },
+  "resources": [],
+  "dependencies": [
+    {
+      "type": "theme",
+      "namespace": "exchange.epistola.app/acme-corp",
+      "catalogKey": "shared",
+      "slug": "corporate"
+    },
+    {
+      "type": "stencil",
+      "namespace": "exchange.epistola.app/acme-corp",
+      "catalogKey": "shared",
+      "slug": "address-block"
+    },
+    {
+      "type": "image",
+      "namespace": "exchange.epistola.app/acme-corp",
+      "catalogKey": "brand",
+      "slug": "logo"
+    }
+  ],
+  "catalogDependencies": [
+    {
+      "namespace": "exchange.epistola.app/acme-corp",
+      "catalogKey": "brand",
+      "version": "*",
+      "releaseVersion": null
+    },
+    {
+      "namespace": "exchange.epistola.app/acme-corp",
+      "catalogKey": "shared",
+      "version": "*",
+      "releaseVersion": null
+    }
+  ]
+}

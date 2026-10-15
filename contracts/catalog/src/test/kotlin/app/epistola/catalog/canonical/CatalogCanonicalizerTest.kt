@@ -8,11 +8,13 @@ import app.epistola.catalog.archive.ArchiveContentProvider
 import app.epistola.catalog.archive.CatalogArchive
 import app.epistola.catalog.migration.CatalogWireSchema.CURRENT_VERSION
 import app.epistola.catalog.protocol.AttributeAssignment
+import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogLicense
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogPresentation
 import app.epistola.catalog.protocol.CompatibilityInfo
+import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.IncludeEntry
 import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.StencilResource
@@ -158,6 +160,44 @@ class CatalogCanonicalizerTest {
     }
 
     @Test
+    fun `v5 fingerprints cover catalog identity and declared dependencies, which v4 never did`() {
+        val namespace = "exchange.epistola.app/epistola"
+        val original = goldenArchive()
+        val shared = CatalogDependency(namespace, "shared", "^1.2.0", "1.4.0")
+        val brand = CatalogDependency(namespace, "brand", "*", null)
+        val base = original.copyWithManifest(
+            original.manifest.copy(
+                schemaVersion = CURRENT_VERSION,
+                catalog = original.manifest.catalog.withNamespace(namespace),
+                dependencies = listOf(DependencyRef.Theme("shared", "corporate", namespace)),
+                catalogDependencies = listOf(shared, brand),
+            ),
+        )
+        fun changed(edit: (CatalogManifest) -> CatalogManifest) = base.copyWithManifest(edit(base.manifest))
+        val variants = mapOf(
+            "namespace" to changed { it.copy(catalog = it.catalog.withNamespace("acme.com")) },
+            "dependency namespace" to changed { it.copy(dependencies = listOf(DependencyRef.Theme("shared", "corporate", "acme.com"))) },
+            "version selector" to changed { it.copy(catalogDependencies = listOf(shared.copy(version = "^2.0.0"), brand)) },
+            "recorded release" to changed { it.copy(catalogDependencies = listOf(shared.copy(releaseVersion = "1.5.0"), brand)) },
+            "declared catalogs" to changed { it.copy(catalogDependencies = listOf(shared)) },
+        )
+
+        variants.forEach { (what, variant) ->
+            assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(variant), what)
+            assertEquals(
+                CatalogCanonicalizer.fingerprint(base, CatalogFingerprintVersion.V4),
+                CatalogCanonicalizer.fingerprint(variant, CatalogFingerprintVersion.V4),
+                what,
+            )
+        }
+        assertEquals(
+            CatalogCanonicalizer.currentFingerprint(base),
+            CatalogCanonicalizer.currentFingerprint(changed { it.copy(catalogDependencies = listOf(brand, shared)) }),
+        )
+        assertEquals(CatalogCanonicalizer.fingerprint(base, CatalogFingerprintVersion.V5), CatalogCanonicalizer.currentFingerprint(base))
+    }
+
+    @Test
     fun `catalog v4 draft flag syntax is semantically equivalent to catalog v5 provenance`() {
         val legacy = stencilArchive(4, mapOf("stencilId" to "address", "version" to 3, "isDraft" to false))
         val current = stencilArchive(5, mapOf("stencilId" to "address", "version" to 3))
@@ -235,7 +275,7 @@ class CatalogCanonicalizerTest {
         )
         val detail = ResourceDetail(
             schemaVersion,
-            StencilResource("letter", "Letter", 1, content = content),
+            StencilResource("letter", "Letter", content = content),
         )
         val bytes = mapper.writeValueAsBytes(detail)
         return CatalogArchive(
