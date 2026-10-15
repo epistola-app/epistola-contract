@@ -525,7 +525,7 @@ object Driver {
     }
 
     private fun releaseCatalogVersion(baseUrl: String, config: ObjectNode) {
-        val released = CatalogsApi(restClient(baseUrl, config)).releaseCatalogVersion(
+        val response = CatalogsApi(restClient(baseUrl, config)).releaseCatalogVersion(
             config["tenantId"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
@@ -535,10 +535,10 @@ object Driver {
         report(
             baseUrl,
             mapOf(
-                "version" to released.version.version,
-                "status" to released.version.status.value,
-                "flowedInto" to released.flowedInto.joinToString(",") { "${it.version}:${it.merged}:${it.conflicts}" },
-                "openedDraft" to (released.openedDraft ?: "null"),
+                "version" to response.catalogVersion.version,
+                "status" to response.catalogVersion.status.value,
+                "flowedInto" to response.flowedInto.joinToString(",") { "${it.version}:${it.merged}:${it.conflicts}" },
+                "openedDraft" to (response.openedDraft ?: "null"),
             ),
         )
     }

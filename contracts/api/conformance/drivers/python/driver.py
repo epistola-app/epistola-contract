@@ -471,19 +471,19 @@ def _delete_catalog_version(base_url: str, config: dict) -> None:
 
 def _release_catalog_version(base_url: str, config: dict) -> None:
     optional = {"notes": config["notes"]} if "notes" in config else {}
-    released = CatalogsApi(_client(base_url, config)).release_catalog_version(
+    response = CatalogsApi(_client(base_url, config)).release_catalog_version(
         *_catalog_version_address(config),
         ReleaseCatalogVersionRequest(**optional),
     )
     _report(
         base_url,
         {
-            "version": _show(released.version.version),
-            "status": _show(_enum(released.version.status)),
+            "version": _show(response.catalog_version.version),
+            "status": _show(_enum(response.catalog_version.status)),
             "flowedInto": ",".join(
-                f"{f.version}:{f.merged}:{f.conflicts}" for f in released.flowed_into
+                f"{f.version}:{f.merged}:{f.conflicts}" for f in response.flowed_into
             ),
-            "openedDraft": _show(released.opened_draft),
+            "openedDraft": _show(response.opened_draft),
         },
     )
 

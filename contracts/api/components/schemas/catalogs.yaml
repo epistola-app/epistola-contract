@@ -632,11 +632,11 @@ ReleaseCatalogVersionRequest:
 ReleaseCatalogVersionResponse:
   type: object
   required:
-    - version
+    - catalogVersion
     - unchangedContent
     - flowedInto
   properties:
-    version:
+    catalogVersion:
       $ref: '#/CatalogVersionDto'
     unchangedContent:
       type: boolean

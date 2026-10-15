@@ -502,8 +502,8 @@ public static class Driver
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["version"] = Show(response.VarVersion?.VarVersion),
-            ["status"] = Show(response.VarVersion == null ? null : Wire(response.VarVersion.Status)),
+            ["version"] = Show(response.CatalogVersion?.VarVersion),
+            ["status"] = Show(response.CatalogVersion == null ? null : Wire(response.CatalogVersion.Status)),
             ["flowedInto"] = string.Join(",", response.FlowedInto.Select(f => $"{Show(f.VarVersion)}:{f.Merged}:{f.Conflicts}")),
             ["openedDraft"] = Show(response.OpenedDraft),
         });

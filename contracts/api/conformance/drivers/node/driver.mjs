@@ -416,8 +416,8 @@ async function releaseCatalogVersion(baseUrl, config) {
     releaseCatalogVersionRequest: request,
   })
   await report(baseUrl, {
-    version: show(response.version.version),
-    status: show(response.version.status),
+    version: show(response.catalogVersion.version),
+    status: show(response.catalogVersion.status),
     flowedInto: response.flowedInto.map((f) => `${show(f.version)}:${show(f.merged)}:${show(f.conflicts)}`).join(','),
     openedDraft: show(response.openedDraft),
   })

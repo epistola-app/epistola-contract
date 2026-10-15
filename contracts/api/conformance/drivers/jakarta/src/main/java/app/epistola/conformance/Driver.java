@@ -576,8 +576,8 @@ public final class Driver {
         report(
                 baseUrl,
                 Map.of(
-                        "version", String.valueOf(response.getVersion().getVersion()),
-                        "status", String.valueOf(response.getVersion().getStatus()),
+                        "version", String.valueOf(response.getCatalogVersion().getVersion()),
+                        "status", String.valueOf(response.getCatalogVersion().getStatus()),
                         "flowedInto",
                                 joined(
                                         flowedInto,

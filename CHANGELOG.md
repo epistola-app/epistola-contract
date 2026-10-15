@@ -17,7 +17,7 @@ libraries.
   `createCatalogVersion` (from the version's base, or `from` any other version),
   `getCatalogVersion`, `renumberCatalogVersion` (drafts only; warnings from
   `previewCatalogVersionRenumber` must be acknowledged), `deleteCatalogVersion` (drafts only) and
-  `releaseCatalogVersion`, which keeps the number and address, makes the version immutable, and
+  `releaseCatalogVersion`, which keeps the number and address, makes the version immutable (returned as `catalogVersion`), and
   flows its changes forward into every higher open draft. `listIncomingChanges` and
   `resolveIncomingChange` show and resolve what flowed into a draft; an open conflict blocks its
   release. `CatalogDto` lists `draftVersions`.
