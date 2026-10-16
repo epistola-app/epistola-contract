@@ -63,7 +63,7 @@ object CatalogArchiveWriter {
         val manifest = if (catalog.sourceSchemaVersion < CatalogWireSchema.CURRENT_VERSION && catalog.manifest.release.fingerprint != null) {
             catalog.manifest.copy(
                 release = catalog.manifest.release.copy(
-                    fingerprint = CatalogCanonicalizer.currentFingerprint(catalog).value,
+                    fingerprint = CatalogCanonicalizer.currentQualifiedFingerprint(catalog).toString(),
                 ),
             )
         } else {

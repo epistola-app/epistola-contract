@@ -226,6 +226,14 @@ x-problem-types:
       status: 409
       schema: ProblemDetail
       description: The request conflicts with the current state of the resource.
+    - slug: release-dependencies-missing
+      status: 409
+      schema: ReleaseDependenciesMissingProblemDetail
+      description: >-
+        A release cannot be deployed because the environment does not serve
+        the releases of other catalogs it renders with, and the request did not
+        ask to deploy them along (or they could not be); `missingDependencies`
+        lists each one and why.
     - slug: data-model-validation-error
       status: 422
       schema: DataModelValidationProblemDetail
@@ -570,6 +578,10 @@ components:
       $ref: './components/schemas/environments.yaml#/EnvironmentListResponse'
     DeploymentDto:
       $ref: './components/schemas/environments.yaml#/DeploymentDto'
+    MissingReleaseDependency:
+      $ref: './components/schemas/environments.yaml#/MissingReleaseDependency'
+    MissingReleaseDependencyReason:
+      $ref: './components/schemas/environments.yaml#/MissingReleaseDependencyReason'
     DeploymentListResponse:
       $ref: './components/schemas/environments.yaml#/DeploymentListResponse'
     DeploymentEventDto:
@@ -774,6 +786,8 @@ components:
       $ref: './components/responses/errors.yaml#/ValidationError'
     DataModelValidationProblemDetail:
       $ref: './components/responses/errors.yaml#/DataModelValidationProblemDetail'
+    ReleaseDependenciesMissingProblemDetail:
+      $ref: './components/responses/errors.yaml#/ReleaseDependenciesMissingProblemDetail'
     DataModelValidationError:
       $ref: './components/responses/errors.yaml#/DataModelValidationError'
     TemplateDataValidationProblemDetail:

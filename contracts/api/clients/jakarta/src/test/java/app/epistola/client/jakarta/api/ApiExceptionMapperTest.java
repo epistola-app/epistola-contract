@@ -14,7 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import app.epistola.client.jakarta.EpistolaRestClients;
 import app.epistola.client.jakarta.StubServer;
 import app.epistola.client.jakarta.error.KnownProblemSlugs;
+import app.epistola.client.jakarta.error.MissingDependency;
 import app.epistola.client.jakarta.error.ProblemDetailException;
+import java.util.List;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
@@ -189,6 +191,41 @@ class ApiExceptionMapperTest {
         assertFalse(e.isTemplateDataProblem());
         assertTrue(e.getMissingFields().isEmpty());
         assertTrue(e.getInvalidFields().isEmpty());
+    }
+
+    @Test
+    void a_release_dependencies_problem_lists_what_is_missing() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {
+                          "type": "https://epistola.app/errors/release-dependencies-missing",
+                          "title": "Release dependencies missing",
+                          "status": 409,
+                          "missingDependencies": [
+                            {"registry": "exchange.epistola.app", "namespace": "acme-corp",
+                             "catalogKey": "shared", "releaseVersion": "1.2.0", "reason": "NOT_DEPLOYED"}
+                          ]
+                        }
+                        """)));
+
+        assertEquals(KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING, e.getTypeSlug());
+        assertEquals(409, e.getStatusCode());
+        assertTrue(e.isReleaseDependenciesMissingProblem());
+        assertEquals(
+                List.of(new MissingDependency("exchange.epistola.app", "acme-corp", "shared", "1.2.0", "NOT_DEPLOYED")),
+                e.getMissingDependencies());
+        assertFalse(e.isTemplateDataProblem());
+    }
+
+    @Test
+    void another_problem_lists_no_missing_dependencies() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        "{\"type\":\"https://epistola.app/errors/conflict\",\"title\":\"Conflict\",\"status\":409}")));
+
+        assertFalse(e.isReleaseDependenciesMissingProblem());
+        assertTrue(e.getMissingDependencies().isEmpty());
     }
 
     private static void callGetTenant(Function<StubServer.RecordedRequest, StubServer.StubResponse> responder) {

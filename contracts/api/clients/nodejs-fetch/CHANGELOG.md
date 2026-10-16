@@ -9,6 +9,15 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+### Added
+
+- `ProblemDetailException.missingDependencies` lists the releases a `release-dependencies-missing`
+  problem (409, from `deployRelease`) reports the environment lacks, each a `MissingDependency`
+  (`registry`, `namespace`, `catalogKey`, `releaseVersion`, `reason`). `reason` is kept as the
+  string the server sent, so a reason added later is not lost; entries missing a member are
+  dropped, and the list is empty for any other problem. `isReleaseDependenciesMissingProblem` is
+  true when it is not empty.
+
 ### Changed
 
 - **BREAKING:** a catalog is addressed by registry, namespace and key. `TemplateDataValidator.validate`,

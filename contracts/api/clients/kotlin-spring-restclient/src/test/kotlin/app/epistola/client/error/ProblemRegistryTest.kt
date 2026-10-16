@@ -4,6 +4,7 @@
 
 package app.epistola.client.error
 
+import app.epistola.client.model.MissingReleaseDependencyReason
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -30,5 +31,26 @@ class ProblemRegistryTest {
         assertEquals("conflict", KnownProblemSlugs.CONFLICT)
         assertEquals("data-model-validation-error", KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR)
         assertEquals("rate-limited", KnownProblemSlugs.RATE_LIMITED)
+        assertEquals("release-dependencies-missing", KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING)
+    }
+
+    @Test
+    fun `the missingDependencies member name is generated from the contract`() {
+        assertEquals("missingDependencies", ProblemExtensionMembers.MISSING_DEPENDENCIES)
+    }
+
+    @Test
+    fun `the hand-written dependency reasons match the contract's enum`() {
+        // Reasons are strings so an unknown one survives; the named constants must still be the
+        // contract's values, which the generated enum carries.
+        assertEquals(
+            MissingReleaseDependencyReason.entries.map { it.value }.sorted(),
+            listOf(
+                MissingReleaseDependency.Reasons.NOT_DEPLOYED,
+                MissingReleaseDependency.Reasons.NOT_INSTALLED,
+                MissingReleaseDependency.Reasons.UNAVAILABLE,
+                MissingReleaseDependency.Reasons.CONTENT_NOT_RETAINED,
+            ).sorted(),
+        )
     }
 }

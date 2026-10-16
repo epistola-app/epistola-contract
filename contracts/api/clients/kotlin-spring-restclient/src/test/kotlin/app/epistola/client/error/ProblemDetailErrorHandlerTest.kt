@@ -84,6 +84,73 @@ class ProblemDetailErrorHandlerTest {
     }
 
     @Test
+    fun `surfaces the missing dependencies of a release-dependencies-missing problem in order`() {
+        val body = """
+            {"type":"https://epistola.app/errors/release-dependencies-missing",
+             "title":"Release dependencies missing","status":409,
+             "missingDependencies":[
+               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system",
+                "releaseVersion":"3.2.0","reason":"NOT_DEPLOYED"},
+               {"registry":"registry.gemeente-x.nl","namespace":"huisstijl","catalogKey":"branding",
+                "releaseVersion":"1.4.2","reason":"SOME_FUTURE_REASON"}]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, body))
+        }
+        assertEquals(KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING, ex.typeSlug)
+        assertTrue(ex.isReleaseDependenciesMissingProblem)
+        assertEquals(
+            listOf(
+                MissingReleaseDependency("exchange.epistola.app", "epistola", "system", "3.2.0", MissingReleaseDependency.Reasons.NOT_DEPLOYED),
+                // A reason this client does not know yet is kept, not dropped.
+                MissingReleaseDependency("registry.gemeente-x.nl", "huisstijl", "branding", "1.4.2", "SOME_FUTURE_REASON"),
+            ),
+            ex.missingDependencies,
+        )
+    }
+
+    @Test
+    fun `a problem without missingDependencies reports none`() {
+        val body = """{"type":"https://epistola.app/errors/conflict","title":"Conflict","status":409}"""
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, body))
+        }
+        assertTrue(ex.missingDependencies.isEmpty())
+        assertFalse(ex.isReleaseDependenciesMissingProblem)
+    }
+
+    @Test
+    fun `malformed missingDependencies entries are skipped, not guessed at`() {
+        val body = """
+            {"type":"https://epistola.app/errors/release-dependencies-missing",
+             "title":"Release dependencies missing","status":409,
+             "missingDependencies":[
+               "not an object",
+               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system","releaseVersion":"3.2.0"},
+               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system","releaseVersion":3,"reason":"NOT_DEPLOYED"},
+               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system",
+                "releaseVersion":"3.2.0","reason":"NOT_INSTALLED"}]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, body))
+        }
+        assertEquals(listOf("NOT_INSTALLED"), ex.missingDependencies.map { it.reason })
+
+        val notAnArray = """
+            {"type":"https://epistola.app/errors/release-dependencies-missing",
+             "title":"Release dependencies missing","status":409,"missingDependencies":{"registry":"x"}}
+        """.trimIndent()
+        val ex2 = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, notAnArray))
+        }
+        assertTrue(ex2.missingDependencies.isEmpty())
+        assertFalse(ex2.isReleaseDependenciesMissingProblem)
+    }
+
+    @Test
     fun `falls back to a plain exception for non-problem error bodies`() {
         val ex = assertFailsWith<RestClientResponseException> {
             handleErrorResponse(response(HttpStatus.INTERNAL_SERVER_ERROR, "gateway boom", MediaType.TEXT_PLAIN))

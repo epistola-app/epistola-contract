@@ -319,6 +319,7 @@ openApiGenerate {
             "ProblemDetail" to "org.springframework.http.ProblemDetail",
             "ValidationProblemDetail" to "org.springframework.http.ProblemDetail",
             "DataModelValidationProblemDetail" to "org.springframework.http.ProblemDetail",
+            "ReleaseDependenciesMissingProblemDetail" to "org.springframework.http.ProblemDetail",
         ),
     )
 

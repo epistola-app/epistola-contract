@@ -94,7 +94,12 @@ class CatalogValidatorTest {
     fun `legacy source catalogs and current catalogs use their versioned fingerprint rules`() {
         val withoutFingerprint = archive(manifest(), emptyMap())
         CatalogFingerprintVersion.entries.forEach { version ->
-            val fingerprint = CatalogCanonicalizer.fingerprint(withoutFingerprint, version).value
+            // Wire v8 names the algorithm; earlier wire versions carry bare hex.
+            val fingerprint = if (version == CatalogFingerprintVersion.V5) {
+                CatalogCanonicalizer.qualifiedFingerprint(withoutFingerprint, version).toString()
+            } else {
+                CatalogCanonicalizer.fingerprint(withoutFingerprint, version).value
+            }
             val catalog = archive(
                 manifest(release = ReleaseInfo("1.0.0", fingerprint = fingerprint)),
                 emptyMap(),
@@ -130,16 +135,21 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `current catalogs must carry a v5 fingerprint`() {
+    fun `current catalogs must carry a v5 fingerprint that names its algorithm`() {
         val withoutFingerprint = archive(manifest(), emptyMap())
+        fun codes(fingerprint: String) = CatalogValidator.validate(archive(manifest(release = ReleaseInfo("1.0.0", fingerprint = fingerprint)), emptyMap()))
+            .codes()
+            .filter { it == CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID || it == CatalogValidationCodes.RELEASE_FINGERPRINT_MISMATCH }
         CatalogFingerprintVersion.entries.forEach { version ->
-            val fingerprint = CatalogCanonicalizer.fingerprint(withoutFingerprint, version).value
-            val catalog = archive(manifest(release = ReleaseInfo("1.0.0", fingerprint = fingerprint)), emptyMap())
+            val qualified = CatalogCanonicalizer.qualifiedFingerprint(withoutFingerprint, version)
 
-            val mismatch = CatalogValidationCodes.RELEASE_FINGERPRINT_MISMATCH in CatalogValidator.validate(catalog).codes()
-
-            assertEquals(version != CatalogFingerprintVersion.V5, mismatch, version.toString())
+            // An older algorithm covers less, so naming one is invalid even when it matches.
+            val expected = if (version == CatalogFingerprintVersion.V5) emptyList() else listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID)
+            assertEquals(expected, codes(qualified.toString()), version.toString())
+            assertEquals(listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID), codes(qualified.fingerprint.value), "bare $version")
         }
+        assertEquals(listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_MISMATCH), codes("v5:" + "0".repeat(64)))
+        assertEquals(listOf(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID), codes("v9:" + "0".repeat(64)))
     }
 
     @Test
@@ -264,7 +274,9 @@ class CatalogValidatorTest {
         assertEquals(invalid, findings(shared.copy(releaseFingerprint = null)))
         assertEquals(invalid, findings(shared.copy(releaseVersion = null)))
         assertEquals(invalid, findings(shared.copy(releaseFingerprint = FINGERPRINT.uppercase())))
-        assertEquals(invalid, findings(shared.copy(releaseFingerprint = "sha256:$FINGERPRINT")))
+        assertEquals(invalid, findings(shared.copy(releaseFingerprint = "sha256:${FINGERPRINT.removePrefix("v5:")}")))
+        assertEquals(invalid, findings(shared.copy(releaseFingerprint = FINGERPRINT.removePrefix("v5:"))))
+        assertEquals(invalid, findings(shared.copy(releaseFingerprint = FINGERPRINT.replace("v5:", "v9:"))))
     }
 
     @Test
@@ -1005,6 +1017,6 @@ class CatalogValidatorTest {
     private companion object {
         const val REGISTRY = "exchange.epistola.app"
         const val NAMESPACE = "epistola"
-        const val FINGERPRINT = "69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42"
+        const val FINGERPRINT = "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42"
     }
 }

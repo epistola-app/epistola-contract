@@ -303,6 +303,10 @@ try {
             e.validationErrors.forEach { (example, failures) ->
                 failures.forEach { println("$example ${it.path}: ${it.message}") }
             }
+        KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING ->   // from deployRelease
+            e.missingDependencies.forEach {
+                println("${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}: ${it.reason}")
+            }
         else                                          -> throw e   // unknown / framework error
     }
 }
@@ -311,7 +315,10 @@ try {
 `ProblemDetailException` exposes `type`, `typeSlug`, `title`, `problemStatus`, `detail`,
 `errors` (field-level validation errors, empty unless it's a validation problem),
 `validationErrors` (per-example data-model failures, empty unless it's a
-`data-model-validation-error` problem), `isValidationProblem`, `isDataModelValidationProblem`, and
+`data-model-validation-error` problem), `missingDependencies` (the dependency releases a
+`release-dependencies-missing` problem lists, each with its `reason` kept as the string the server
+sent so a future reason is not lost; compare it against `MissingReleaseDependency.Reasons`),
+`isValidationProblem`, `isDataModelValidationProblem`, `isReleaseDependenciesMissingProblem`, and
 `extensions`. See [error-types.md](../../docs/error-types.md) for the full list of problem `type`
 slugs.
 

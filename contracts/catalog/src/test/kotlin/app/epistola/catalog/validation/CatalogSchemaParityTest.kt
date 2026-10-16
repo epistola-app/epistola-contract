@@ -4,6 +4,7 @@
 
 package app.epistola.catalog.validation
 
+import app.epistola.catalog.canonical.QualifiedCatalogFingerprint
 import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogNamespaces
 import tools.jackson.module.kotlin.jsonMapper
@@ -61,6 +62,10 @@ class CatalogSchemaParityTest {
         assertEquals(
             CatalogDependency.RELEASE_FINGERPRINT_PATTERN,
             manifest["\$defs"]["CatalogDependency"]["properties"]["releaseFingerprint"]["pattern"].asString(),
+        )
+        assertEquals(
+            QualifiedCatalogFingerprint.PATTERN,
+            manifest["\$defs"]["ReleaseInfo"]["properties"]["fingerprint"]["pattern"].asString(),
         )
         assertTrue(!detail["\$defs"]["StencilResource"]["properties"].has("version"))
     }

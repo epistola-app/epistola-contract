@@ -75,6 +75,21 @@ ProblemDetails.dataModelValidation(
         "Example 1" to listOf(DataModelValidationError(path = "/name", message = "required property 'name' not found")),
     ),
 )
+
+// 409 release-dependencies-missing: deployRelease without includeDependencies, when the
+// environment does not serve a release the deployed one renders with
+ProblemDetails.releaseDependenciesMissing(
+    missingDependencies = listOf(
+        MissingReleaseDependency(
+            registry = "exchange.epistola.app",
+            namespace = "epistola",
+            catalogKey = "system",
+            releaseVersion = "3.2.0",
+            reason = MissingReleaseDependencyReason.NOT_DEPLOYED,
+        ),
+    ),
+    detail = "letters 1.4.0 renders with releases production does not serve",
+)
 ```
 
 ### Reference `@RestControllerAdvice`

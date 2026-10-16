@@ -43,6 +43,11 @@ assert.equal(
   manifestSchema.$defs.CatalogDependency.properties.releaseFingerprint.pattern,
   'npm and schema release fingerprint patterns must agree',
 );
+assert.equal(
+  catalog.CATALOG_RELEASE_FINGERPRINT_PATTERN,
+  manifestSchema.$defs.ReleaseInfo.properties.fingerprint.pattern,
+  'npm and schema release.fingerprint patterns must agree',
+);
 
 const detailSchema = JSON.parse(
   await readFile(new URL('../schemas/resource-detail-v8.schema.json', import.meta.url), 'utf8'),

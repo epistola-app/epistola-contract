@@ -140,6 +140,11 @@ try {
           for (const f of failures) log.warn(`${example} ${f.path}: ${f.message}`)
         }
         break
+      case KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING:
+        for (const d of e.missingDependencies) {                                 // 409 from deployRelease
+          log.warn(`${d.registry}/${d.namespace}/${d.catalogKey}@${d.releaseVersion}: ${d.reason}`)
+        }
+        break
       default:
         throw e                                                                  // unknown / framework error — fall back to e.statusCode
     }
@@ -151,8 +156,23 @@ try {
 
 `ProblemDetailException` extends the generated `ResponseError`, so existing `instanceof
 ResponseError` sites keep working. It exposes `type`, `typeSlug`, `title`, `problemStatus`,
-`detail`, `instance`, `errors`, `validationErrors`, `extensions` (every member outside the RFC 9457
-base five), `statusCode`, `rawBody`, `isValidationProblem`, and `isDataModelValidationProblem`.
+`detail`, `instance`, `errors`, `validationErrors`, `missingFields`, `invalidFields`,
+`missingDependencies`, `extensions` (every member outside the RFC 9457 base five), `statusCode`,
+`rawBody`, `isValidationProblem`, `isDataModelValidationProblem`, `isTemplateDataProblem`, and
+`isReleaseDependenciesMissingProblem`.
+
+A `release-dependencies-missing` problem (409) means `deployRelease` was refused because the
+environment does not serve the releases of other catalogs the release was cut with.
+`missingDependencies` lists each, with a `reason` kept as the string the server sent (compare it
+against `MissingReleaseDependencyReason`). Pass `includeDependencies: true` to deploy them along:
+
+```ts
+await new EnvironmentsApi(client).deployRelease({
+  tenantId: 'acme', environmentId: 'production',
+  registry: '~', namespace: 'acme', catalogKey: 'invoices', releaseVersion: '1.4.0',
+  includeDependencies: true,
+})
+```
 
 ## Result collection
 

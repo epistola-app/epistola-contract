@@ -9,6 +9,17 @@ records contract changes; this file records changes to the hand-written library 
 
 ## [Unreleased]
 
+### Added
+
+- `ProblemDetailException.MissingDependencies` and `IsReleaseDependenciesMissingProblem` surface the
+  `missingDependencies` member of a `release-dependencies-missing` problem (409 from
+  `DeployRelease`): each dependency release the environment does not serve, as a hand-written
+  `Epistola.Client.Error.MissingDependency` (`Registry`, `Namespace`, `CatalogKey`,
+  `ReleaseVersion`, `Reason`). `Reason` is the string the server sent, so a reason a later contract
+  adds is not lost; `MissingDependency.Reasons` holds the ones named today. A malformed entry is
+  skipped on its own; an absent member is an empty list. The exception's constructor takes it as a
+  new optional `missingDependencies` parameter, so existing call sites compile unchanged.
+
 ### Changed
 
 - **BREAKING:** a catalog is identified by registry, namespace and key.

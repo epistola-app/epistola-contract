@@ -248,9 +248,34 @@ environment-deployment-release:
       moves such requests to it, and undeploying it moves them back. Requests already accepted keep
       the release they were bound to. Only a release that kept its content can be deployed.
       Deploying a release the environment already serves changes nothing.
+
+      A release renders with the releases of other catalogs it was cut with (its `dependencies`,
+      direct and through other dependencies), so the environment must serve those exactly. When it
+      does not serve one:
+
+      - Without `includeDependencies`, the deployment is refused with `release-dependencies-missing`
+        (409), whose `missingDependencies` lists every missing release and why. Nothing is deployed.
+      - With `includeDependencies=true`, the missing releases are deployed along, and a release the
+        tenant does not have yet is installed first: fetched from its registry, through the
+        registry's configured mirrors, and checked against the fingerprint it was recorded with. It
+        is all or nothing: when one cannot be deployed, nothing is, and the problem lists those that
+        could not (`UNAVAILABLE`, `CONTENT_NOT_RETAINED`).
+
+      Epistola Suite may not implement `includeDependencies` or the dependency check yet.
     tags:
       - Environments
     x-required-permissions: [ENVIRONMENT_DEPLOY]
+    parameters:
+      - name: includeDependencies
+        in: query
+        required: false
+        description: |
+          Deploy the dependency releases the environment does not serve along with this release,
+          installing those the tenant does not have. When false or omitted, a missing dependency
+          release refuses the deployment instead.
+        schema:
+          type: boolean
+          default: false
     responses:
       '200':
         description: The deployment
@@ -265,7 +290,7 @@ environment-deployment-release:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/ReleaseDependenciesMissingError'
 
   delete:
     operationId: undeployRelease

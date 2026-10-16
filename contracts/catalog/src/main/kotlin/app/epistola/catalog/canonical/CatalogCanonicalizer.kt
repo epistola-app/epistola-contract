@@ -27,6 +27,42 @@ import java.security.MessageDigest
 value class CatalogFingerprint(val value: String)
 
 /**
+ * A fingerprint that names the algorithm it was computed with: `v5:<lowercase SHA-256 hex>`.
+ *
+ * Wire v8 writes every fingerprint in this form, so a fingerprint copied into another archive, such
+ * as a catalog dependency's `releaseFingerprint`, can still be verified after the current algorithm
+ * moves on. A verifier computes exactly the named algorithm and never tries the others: an older
+ * algorithm covers less (V4 covers no identity or dependencies), so accepting whichever matches
+ * would let a copy pass that differs in what the newer one covers.
+ */
+data class QualifiedCatalogFingerprint(
+    val version: CatalogFingerprintVersion,
+    val fingerprint: CatalogFingerprint,
+) {
+    /** The wire form, `v5:<hex>`. */
+    override fun toString(): String = "${version.label}:${fingerprint.value}"
+
+    companion object {
+        /** The shape of a qualified fingerprint: an algorithm label, a colon and lowercase SHA-256 hex. */
+        const val PATTERN: String = "^v[1-9][0-9]*:[0-9a-f]{64}$"
+
+        private val REGEX = Regex(PATTERN)
+
+        /**
+         * Parses the wire form, or returns null when [value] does not have the shape of [PATTERN] or
+         * names an algorithm this library does not know.
+         */
+        @JvmStatic
+        fun parse(value: String): QualifiedCatalogFingerprint? {
+            if (!REGEX.matches(value)) return null
+            val (label, hex) = value.split(':', limit = 2)
+            val version = CatalogFingerprintVersion.entries.firstOrNull { it.label == label } ?: return null
+            return QualifiedCatalogFingerprint(version, CatalogFingerprint(hex))
+        }
+    }
+}
+
+/**
  * Versioned canonicalization algorithms accepted by the contract.
  *
  * V1 through V4 are retained for fingerprints already stored by older producers. V4, introduced with
@@ -42,6 +78,10 @@ enum class CatalogFingerprintVersion {
     V3,
     V4,
     V5,
+    ;
+
+    /** The label a [QualifiedCatalogFingerprint] names this algorithm by: `v1` to `v5`. */
+    val label: String get() = name.lowercase()
 }
 
 /**
@@ -65,6 +105,35 @@ object CatalogCanonicalizer {
 
     /** Produces the current V5 fingerprint. */
     fun currentFingerprint(catalog: CatalogArchive): CatalogFingerprint = fingerprint(catalog, CatalogFingerprintVersion.V5)
+
+    /** The algorithm [currentFingerprint] computes, and the one wire v8 requires of a release. */
+    @JvmField
+    val CURRENT_FINGERPRINT_VERSION: CatalogFingerprintVersion = CatalogFingerprintVersion.V5
+
+    /** Produces the current V5 fingerprint in the form wire v8 writes, `v5:<hex>`. */
+    fun currentQualifiedFingerprint(catalog: CatalogArchive): QualifiedCatalogFingerprint = qualifiedFingerprint(catalog, CURRENT_FINGERPRINT_VERSION)
+
+    /**
+     * Produces a fingerprint with an explicitly selected algorithm, in the form that names it.
+     *
+     * @throws java.io.IOException when referenced archive content cannot be read.
+     */
+    fun qualifiedFingerprint(
+        catalog: CatalogArchive,
+        version: CatalogFingerprintVersion,
+    ): QualifiedCatalogFingerprint = QualifiedCatalogFingerprint(version, fingerprint(catalog, version))
+
+    /**
+     * Whether [expected], a fingerprint in the form `v5:<hex>`, identifies the catalog under exactly
+     * the algorithm it names. False when [expected] does not parse or names an unknown algorithm.
+     */
+    fun matchesQualifiedFingerprint(
+        catalog: CatalogArchive,
+        expected: String,
+    ): Boolean {
+        val parsed = QualifiedCatalogFingerprint.parse(expected) ?: return false
+        return fingerprint(catalog, parsed.version) == parsed.fingerprint
+    }
 
     /**
      * Produces a catalog fingerprint using an explicitly selected algorithm.

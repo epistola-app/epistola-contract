@@ -34,8 +34,9 @@ versions catalogs as a whole:
   registries below.)
 - `catalogDependencies` declares each catalog the catalog depends on once, with its `registry`,
   `namespace` and `catalogKey`, a version selector (npm range grammar), the exact
-  `releaseVersion` the release was cut with, and that release's canonical (V5) fingerprint,
-  `releaseFingerprint`, so a copy fetched from any registry or mirror can be checked. Both are null
+  `releaseVersion` the release was cut with, and that release's fingerprint,
+  `releaseFingerprint`, copied from its `release.fingerprint` in the form that names the algorithm
+  (`v5:<hex>`), so a copy fetched from any registry or mirror can be checked. Both are null
   only for a catalog migrated from wire v7. Every catalog named by a resource dependency must be
   declared there, and each resource dependency names its catalog's `registry` and `namespace`.
 - References inside resource content (a theme override, a stencil node, a code-list binding, a

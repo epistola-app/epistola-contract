@@ -52,6 +52,7 @@ from epistola_client.collect import (
 from epistola_client.error import (
     BLANK_TYPE,
     TYPE_BASE,
+    MissingDependency,
     ProblemDetailException,
     parse_problem,
     slug_for,
@@ -79,6 +80,7 @@ _epistola_exports = [
     "EpistolaApiClient",
     "EpistolaClientBuilder",
     "ProblemDetailException",
+    "MissingDependency",
     "parse_problem",
     "TYPE_BASE",
     "BLANK_TYPE",

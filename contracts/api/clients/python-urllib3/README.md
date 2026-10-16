@@ -107,14 +107,22 @@ except ProblemDetailException as e:
             for example, failures in e.validation_errors.items():  # 422 data-model failures
                 for f in failures:
                     log.warning("%s %s: %s", example, f.path, f.message)
+        case KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING:
+            for d in e.missing_dependencies:   # 409 from deploy_release
+                log.warning("%s/%s/%s@%s: %s", d.registry, d.namespace,
+                            d.catalog_key, d.release_version, d.reason)
+            # deploy_release(..., include_dependencies=True) deploys the NOT_DEPLOYED ones too
         case _:
             raise                              # unknown / framework error — fall back to status
 ```
 
 `ProblemDetailException` extends the generated `ApiException`, so existing
 `except ApiException` sites keep working. It exposes `type`, `type_slug`, `title`,
-`problem_status`, `detail`, `errors`, `validation_errors`, `is_validation_problem`, and
-`is_data_model_validation_problem`.
+`problem_status`, `detail`, `errors`, `validation_errors`, `missing_fields`, `invalid_fields`,
+`missing_dependencies`, `is_validation_problem`, `is_data_model_validation_problem`,
+`is_template_data_problem`, and `is_release_dependencies_missing_problem`. Each
+`missing_dependencies` entry is a `MissingDependency` whose `reason` is the wire string, so a
+reason a later contract adds is reported rather than lost.
 
 ## Result collection
 

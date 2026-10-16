@@ -45,6 +45,7 @@ public class ProblemDetailException extends ApiException {
     private final Map<String, List<DataModelValidationError>> validationErrors;
     private final List<MissingDataField> missingFields;
     private final List<InvalidDataField> invalidFields;
+    private final List<MissingDependency> missingDependencies;
     private final int statusCode;
     private final String responseBody;
     private final String message;
@@ -70,7 +71,26 @@ public class ProblemDetailException extends ApiException {
             List<MissingDataField> missingFields,
             List<InvalidDataField> invalidFields,
             String responseBody) {
+        this(response, problem, errors, validationErrors, missingFields, invalidFields, null, responseBody);
+    }
+
+    /**
+     * The same, for a problem that may also list missing release dependencies
+     * ({@code release-dependencies-missing}).
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            List<MissingDependency> missingDependencies,
+            String responseBody) {
         super(response);
+        this.missingDependencies = missingDependencies == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(missingDependencies);
         this.missingFields = missingFields == null
                 ? Collections.emptyList()
                 : Collections.unmodifiableList(missingFields);
@@ -166,7 +186,6 @@ public class ProblemDetailException extends ApiException {
         return !errors.isEmpty();
     }
 
-    /** True when this problem carried per-example data-model validation failures. */
     /**
      * Absent fields reported by a {@code template-data-invalid} problem; empty for any other.
      *
@@ -187,8 +206,23 @@ public class ProblemDetailException extends ApiException {
         return !missingFields.isEmpty() || !invalidFields.isEmpty();
     }
 
+    /** True when this problem carried per-example data-model validation failures. */
     public boolean isDataModelValidationProblem() {
         return !validationErrors.isEmpty();
+    }
+
+    /**
+     * The releases of other catalogs a {@code release-dependencies-missing} problem (409, from
+     * {@code deployRelease}) lists, in the order sent: each one the deployed release was cut with
+     * that the environment does not serve, and why. Empty for any other problem.
+     */
+    public List<MissingDependency> getMissingDependencies() {
+        return missingDependencies;
+    }
+
+    /** True when this problem listed missing release dependencies. */
+    public boolean isReleaseDependenciesMissingProblem() {
+        return !missingDependencies.isEmpty();
     }
 
     private static String buildMessage(int statusCode, ProblemDetail problem) {

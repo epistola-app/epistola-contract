@@ -104,6 +104,19 @@ A mirror serves copies and grants nothing. A release is immutable and carries a 
 covers its content and its identity (the V5 canonical fingerprint), so a copy from a mirror is
 checked against the fingerprint the release was published with.
 
+### A fingerprint names its algorithm
+
+Wire v8 writes every fingerprint as the algorithm that computed it, a colon and the hex:
+`v5:58f4…`. Before, a fingerprint was bare hex and the archive's wire version implied the
+algorithm. That breaks for a fingerprint copied into another archive: a dependency's
+`releaseFingerprint` stays when the current algorithm moves on, and a later reader could not tell
+which algorithm to check it with. Trying every algorithm is not a fix either: an older one covers
+less (V4 covers no identity and no dependencies), so a copy differing only there would pass. A
+verifier computes exactly the algorithm the value names, and a release must name the current one.
+
+The API reports the same value. A fingerprint recorded before contract 2.0 may still be bare hex in
+an API response, meaning its algorithm was not recorded.
+
 ### Dependencies name the release and its fingerprint
 
 A catalog declares each catalog it depends on once (wire v8 `catalogDependencies`):
@@ -113,13 +126,13 @@ A catalog declares each catalog it depends on once (wire v8 `catalogDependencies
   "registry": "registry.gemeente-x.nl", "namespace": "huisstijl", "catalogKey": "branding",
   "version": "^1.4.0",
   "releaseVersion": "1.4.2",
-  "releaseFingerprint": "<V5 fingerprint of branding 1.4.2>"
+  "releaseFingerprint": "v5:<fingerprint of branding 1.4.2>"
 }
 ```
 
 - `version`: the selector. `releaseVersion`: the release this release was cut with.
-- `releaseFingerprint`: that release's fingerprint, so an installation can check a copy it fetched
-  through any mirror. Null exactly when `releaseVersion` is, which is only for archives migrated from
+- `releaseFingerprint`: that release's fingerprint, copied from its own `release.fingerprint`, so an
+  installation can check a copy it fetched through any mirror. Null exactly when `releaseVersion` is, which is only for archives migrated from
   v7.
 
 The name says where to fetch; there is no location field.
@@ -145,9 +158,27 @@ Two installed catalogs that need different releases of the same catalog get both
 releases already stay installed side by side, and each catalog renders with the release its own
 declaration resolves to. There is no single winning version and therefore no conflict to resolve.
 
-Upgrading a subscribed catalog follows the same steps for the new release's dependencies. Deploying a
-release needs the dependency releases it resolves to in the same environment; whether a deploy
-brings them along or is refused is left open.
+Upgrading a subscribed catalog follows the same steps for the new release's dependencies.
+
+### Deploying checks dependencies, and brings them along on request
+
+A release renders with the dependency releases it was cut with, so the environment it is deployed
+to must serve exactly those, direct and transitive. Deploying (`deployRelease`) takes a flag,
+`includeDependencies`, default false:
+
+- **Without it**, a deployment whose dependency releases the environment does not serve is refused
+  with `release-dependencies-missing` (409). The problem's `missingDependencies` lists each missing
+  release and why: `NOT_DEPLOYED` (the tenant has it), `NOT_INSTALLED` (the tenant does not), or
+  `CONTENT_NOT_RETAINED` (the tenant has it without content, so it cannot be deployed at all).
+  Nothing is deployed.
+- **With it**, the missing releases are deployed along, and one the tenant does not have is
+  installed first, as described above. It is all or nothing: when one cannot be fetched or does
+  not match its fingerprint (`UNAVAILABLE`), or has no content, nothing is deployed and the
+  problem lists those.
+
+The default refuses because a deployment changes what an environment renders. Deploying a
+dependency release along can change what other catalogs in that environment render, when they
+select the same catalog with a range; the caller opts into that.
 
 ### Migrating existing catalogs
 
@@ -176,7 +207,10 @@ The registry should be the one the municipality will publish from:
   `exchange.localhost`, not `localhost`.
 - **Wire v8** (unreleased, changed in place): `catalog.registry` and `catalog.namespace`; the same two
   members on catalog dependencies, resource dependencies and content references; `releaseFingerprint`
-  on catalog dependencies; the V5 fingerprint covers all of them.
+  on catalog dependencies; the V5 fingerprint covers all of them. Every fingerprint names its
+  algorithm (`v5:<hex>`).
+- Deploying can fail on dependencies it did not fail on before: callers either deploy dependencies
+  first or pass `includeDependencies=true`.
 
 ## Hotfix releases
 
@@ -197,5 +231,5 @@ hotfix, so no other installation could install the dependency. ADR 0001 does not
 
 ## Open questions
 
-- Deploying a release whose dependency releases the environment does not serve: deploy them along,
-  or refuse with 409 and the list?
+- Undeploying a release that another release the environment serves renders with. Refusing it, as
+  deploying refuses, would be symmetrical; this ADR does not decide it yet.

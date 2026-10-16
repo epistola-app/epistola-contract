@@ -140,6 +140,65 @@ DeploymentDto:
       format: date-time
       example: "2026-10-02T07:30:00Z"
 
+MissingReleaseDependency:
+  type: object
+  description: A release of another catalog that a release renders with, which could not be served
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - releaseVersion
+    - reason
+  properties:
+    registry:
+      type: string
+      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+      maxLength: 253
+      description: |
+        Registry of the catalog depended on. Always written in full, the default registry by its
+        name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 63
+      description: Namespace of the catalog depended on, within its registry
+      example: epistola
+    catalogKey:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Key of the catalog depended on, unique within its registry and namespace
+      example: system
+    releaseVersion:
+      type: string
+      maxLength: 50
+      description: The release the deployed release was cut with
+      example: "3.2.0"
+    reason:
+      $ref: '#/MissingReleaseDependencyReason'
+
+MissingReleaseDependencyReason:
+  type: string
+  description: |
+    Why a dependency release is missing:
+
+    - `NOT_DEPLOYED`: the tenant has the release, but the environment does not serve it, and
+      `includeDependencies` was not set.
+    - `NOT_INSTALLED`: the tenant does not have the release, and `includeDependencies` was not set.
+    - `UNAVAILABLE`: `includeDependencies` was set, but the release could not be fetched from its
+      registry or any configured mirror, or the copy did not match its recorded fingerprint.
+    - `CONTENT_NOT_RETAINED`: the tenant has the release without its content, so it cannot be
+      deployed either way.
+  enum:
+    - NOT_DEPLOYED
+    - NOT_INSTALLED
+    - UNAVAILABLE
+    - CONTENT_NOT_RETAINED
+  example: NOT_DEPLOYED
+
 DeploymentListResponse:
   type: object
   required:

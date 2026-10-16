@@ -58,6 +58,12 @@ The existing `fingerprint(catalog)` method continues to produce V1 for source, b
 behavioral compatibility, and the versioned overload supports explicit selection. New fingerprints
 should always use `currentFingerprint`.
 
+Wire v8 writes a fingerprint in the form that names its algorithm, `v5:<hex>`
+(`QualifiedCatalogFingerprint`; `currentQualifiedFingerprint` and `qualifiedFingerprint` produce it,
+`matchesQualifiedFingerprint` checks one with exactly the algorithm it names). The label is part of
+the stored value, not of what is hashed: V5's own domain prefix is unchanged. See
+[the archive format](catalog-archive.md#fingerprints-name-their-algorithm) for why.
+
 - V3 retains the semantic v5 resource projection.
 - V4 adds an algorithm domain prefix and includes qualified catalog attributes sorted by catalog
   and key, sorted `keywords`, catalog presentation asset references, and catalog-wide license
@@ -91,9 +97,10 @@ Whole-catalog validation chooses the rule by the archive's source wire version:
   (`CatalogCanonicalizer.matchesSourceV4Fingerprint`). V4 never covered a registry, a namespace or
   a catalog dependency, so what v8 adds needs no undoing. A fingerprint over different content still
   mismatches.
-- Native v8 input must carry V5 over its own content.
+- Native v8 input must carry `v5:<hex>` over its own content. Naming another algorithm is
+  `CATALOG_RELEASE_FINGERPRINT_INVALID`, even when it matches: an older one covers less.
 
-Re-exporting a migrated catalog replaces a present legacy fingerprint with V5.
+Re-exporting a migrated catalog replaces a present legacy fingerprint with V5, as `v5:<hex>`.
 
 Authoritative versioned inputs and expected hashes are published below
 `META-INF/epistola-catalog/fixtures/v1` in the Maven artifact and

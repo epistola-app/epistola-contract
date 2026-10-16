@@ -34,7 +34,7 @@ const manifest: CatalogManifest = {
   release: { version: '1.0.0' },
   resources: [],
   dependencies: [{ type: 'theme', registry: 'acme.com', namespace: 'acme', catalogKey: 'shared', slug: 'corporate' }],
-  catalogDependencies: [{ registry: 'acme.com', namespace: 'acme', catalogKey: 'shared', version: '^1.2.0', releaseVersion: '1.4.0', releaseFingerprint: '69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42' }],
+  catalogDependencies: [{ registry: 'acme.com', namespace: 'acme', catalogKey: 'shared', version: '^1.2.0', releaseVersion: '1.4.0', releaseFingerprint: 'v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42' }],
 }
 
 // Registry and namespace are separate, required members wherever the manifest names a catalog.

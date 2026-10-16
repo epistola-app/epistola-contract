@@ -56,7 +56,7 @@ class CatalogWireParityTest {
 
         assertEquals("exchange.epistola.app", manifest.catalog.registry)
         assertEquals("epistola", manifest.catalog.namespace)
-        assertEquals(listOf(CatalogDependency("exchange.epistola.app", "epistola", "shared", "^1.2.0", "1.4.0", "69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42")), manifest.catalogDependencies)
+        assertEquals(listOf(CatalogDependency("exchange.epistola.app", "epistola", "shared", "^1.2.0", "1.4.0", "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42")), manifest.catalogDependencies)
         assertEquals(manifest, mapper.readValue(mapper.writeValueAsBytes(manifest), CatalogManifest::class.java))
         assertEquals(detail, mapper.readValue(mapper.writeValueAsBytes(detail), ResourceDetail::class.java))
     }

@@ -97,8 +97,8 @@ resource dependency and `catalogDependencies` entry (`CATALOG_REGISTRY_INVALID`,
 never the catalog itself (`CATALOG_DEPENDENCY_CATALOG_SELF`, which also applies to a resource
 dependency naming the catalog itself), with a nonblank version selector of at most 100 characters
 and, when recorded, a SemVer `releaseVersion` (`CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`).
-A recorded `releaseVersion` comes with the `releaseFingerprint` of that release, a lowercase SHA-256
-hex string, and an unrecorded one with a null fingerprint
+A recorded `releaseVersion` comes with the `releaseFingerprint` of that release, naming a known
+algorithm (`v5:<lowercase SHA-256 hex>`), and an unrecorded one with a null fingerprint
 (`CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`, also raised by the migrator's wire check).
 Every (registry, namespace, catalog key) a resource dependency names must be declared there
 (`CATALOG_DEPENDENCY_CATALOG_UNDECLARED`); a declaration no resource dependency uses is allowed.

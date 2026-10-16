@@ -77,14 +77,14 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | `update-catalog-dependencies` | `PUT …/versions/{catalogVersion}/dependencies` with `config.dependencies`, each entry's `registry` set only when the entry has one, reporting the `registries`, `namespaces`, `catalogKeys`, `versions` and `resolvedVersions` it parsed, in order |
 | `create-catalog-version` | `POST …/catalogs/{registry}/{namespace}/{catalogKey}/versions` with `config.version`, and `config.from` when present, reporting the `version`, `status`, `base`, `createdFrom` and `releasedAt` it parsed |
 | `list-catalog-versions` | `GET …/versions`, with `config.status` as the `status` filter when present, reporting the `versions`, `statuses`, `bases` and `openConflicts` it parsed, in order |
-| `get-catalog-version` | `GET …/versions/{catalogVersion}`, reporting the `version`, `status` and `releasedAt` it parsed, its `dependencies` as `registry/namespace/catalogKey@releaseVersion`, and `deployedTo` |
+| `get-catalog-version` | `GET …/versions/{catalogVersion}`, reporting the `version`, `status`, `releasedAt` and `fingerprint` it parsed, its `dependencies` as `registry/namespace/catalogKey@releaseVersion`, and `deployedTo` |
 | `renumber-catalog-version` | `PATCH …/versions/{catalogVersion}` with `config.version`, and `config.acknowledgeWarnings` when present, reporting the `version` and `status` it parsed |
 | `preview-catalog-version-renumber` | `GET …/versions/{catalogVersion}/renumber-preview?to=…` with `config.to`, reporting the `newBase` and the `warningKinds` it parsed, in order |
 | `delete-catalog-version` | `DELETE …/versions/{catalogVersion}` |
 | `release-catalog-version` | `POST …/versions/{catalogVersion}/release` with `config.notes` when present, reporting the released `version` and `status`, `flowedInto` as `version:merged:conflicts` per draft, and `openedDraft` |
 | `list-incoming-changes` | `GET …/versions/{catalogVersion}/incoming`, with `config.state` as the `state` filter when present, reporting the `ids`, `nodes`, `states` and `resolutions` it parsed, in order |
 | `resolve-incoming-change` | `POST …/versions/{catalogVersion}/incoming/{changeId}/resolve` with `config.resolution`, reporting the `id`, `state` and `resolution` it parsed |
-| `deploy-release` | `PUT …/environments/{environmentId}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}`, reporting the `registry`, `namespace`, `catalogKey` and `releaseVersion` it parsed |
+| `deploy-release` | `PUT …/environments/{environmentId}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}`, with `includeDependencies` from `config` when present and unset otherwise, reporting the `registry`, `namespace`, `catalogKey` and `releaseVersion` it parsed. When the server answers with a problem, report `problemTypeSlug`, `problemStatus` and `problemMissingDependencies` (`registry/namespace/catalogKey@releaseVersion:reason`, comma-joined, in order) instead |
 | `undeploy-release` | `DELETE …/environments/{environmentId}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}` |
 
 Catalog-scoped actions take the catalog as `config.registry`, `config.namespace` and

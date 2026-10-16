@@ -83,6 +83,20 @@ DataModelValidationProblemDetail:
             items:
               $ref: '#/DataModelValidationError'
 
+ReleaseDependenciesMissingProblemDetail:
+  allOf:
+    - $ref: '#/ProblemDetail'
+    - type: object
+      properties:
+        missingDependencies:
+          type: array
+          description: >-
+            Each release of another catalog the deployed release renders with, directly or through
+            another dependency, that the environment does not serve and that was not deployed, in
+            the order the release lists its dependencies.
+          items:
+            $ref: '../schemas/environments.yaml#/MissingReleaseDependency'
+
 DataModelValidationError:
   type: object
   description: A single data-example validation failure against the data model

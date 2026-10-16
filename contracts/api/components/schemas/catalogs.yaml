@@ -58,12 +58,15 @@ CatalogDto:
       example: ["1.4.1", "2.0.0"]
     fingerprint:
       type: [string, "null"]
-      description: >-
-        Lowercase hex SHA-256 of the catalog's canonical content
-        (deterministic, excludes volatile fields). Identifies content
-        independently of the version label. Null when never released / produced
-        before fingerprinting.
-      example: 9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+      pattern: '^(v[1-9][0-9]*:)?[0-9a-f]{64}$'
+      description: |
+        The canonical fingerprint of the latest release's content (deterministic, excludes volatile
+        fields), which identifies content independently of the version label. It names the
+        algorithm that computed it, as the catalog archive does: `v5:` and lowercase SHA-256 hex.
+        A bare hex value is a fingerprint recorded before contract 2.0 whose algorithm was not
+        recorded; it cannot be checked against content. Null when never released or produced before
+        fingerprinting.
+      example: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
 
 CatalogListResponse:
   type: object
@@ -519,8 +522,12 @@ CatalogVersionDto:
       example: null
     fingerprint:
       type: [string, "null"]
-      pattern: '^[a-f0-9]{64}$'
-      description: Lowercase hex SHA-256 of the released content; null for a draft
+      pattern: '^(v[1-9][0-9]*:)?[0-9a-f]{64}$'
+      description: |
+        The canonical fingerprint of the released content, naming the algorithm that computed it
+        (`v5:` and lowercase SHA-256 hex), the same value as `release.fingerprint` in the release's
+        catalog archive. A bare hex value is a fingerprint recorded before contract 2.0 whose
+        algorithm was not recorded. Null for a draft.
       example: null
     contentRetained:
       type: [boolean, "null"]

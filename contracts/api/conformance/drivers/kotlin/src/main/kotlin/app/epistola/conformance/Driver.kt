@@ -485,6 +485,7 @@ object Driver {
                 "version" to version.version,
                 "status" to version.status.value,
                 "releasedAt" to timestamp(version.releasedAt),
+                "fingerprint" to (version.fingerprint ?: "null"),
                 "dependencies" to version.dependencies.joinToString(",") {
                     "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}"
                 },
@@ -606,16 +607,35 @@ object Driver {
     /** An instant as ISO 8601 with seconds, which `OffsetDateTime.toString()` drops when zero. */
     private fun timestamp(value: OffsetDateTime?): String = value?.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME) ?: "null"
 
-    /** Deploys one release; the registry and namespace go into the path as given. */
+    /**
+     * Deploys one release; the registry and namespace go into the path as given, and
+     * `includeDependencies` is passed only when configured, so an unset one sends nothing. A refusal
+     * is reported by its problem, with each missing dependency release and why.
+     */
     private fun deployRelease(baseUrl: String, config: ObjectNode) {
-        val deployment = EnvironmentsApi(restClient(baseUrl, config)).deployRelease(
-            config["tenantId"].asText(),
-            config["environmentId"].asText(),
-            config["registry"].asText(),
-            config["namespace"].asText(),
-            config["catalogKey"].asText(),
-            config["releaseVersion"].asText(),
-        )
+        val deployment = try {
+            EnvironmentsApi(restClient(baseUrl, config)).deployRelease(
+                config["tenantId"].asText(),
+                config["environmentId"].asText(),
+                config["registry"].asText(),
+                config["namespace"].asText(),
+                config["catalogKey"].asText(),
+                config["releaseVersion"].asText(),
+                config.get("includeDependencies")?.takeUnless { it.isNull }?.asBoolean(),
+            )
+        } catch (e: ProblemDetailException) {
+            report(
+                baseUrl,
+                mapOf(
+                    "problemTypeSlug" to (e.typeSlug ?: "<null>"),
+                    "problemStatus" to e.statusCode.value(),
+                    "problemMissingDependencies" to e.missingDependencies.joinToString(",") {
+                        "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}:${it.reason}"
+                    },
+                ),
+            )
+            return
+        }
         report(
             baseUrl,
             mapOf(

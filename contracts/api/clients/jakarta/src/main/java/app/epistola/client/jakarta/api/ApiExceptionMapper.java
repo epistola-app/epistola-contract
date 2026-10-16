@@ -49,6 +49,7 @@ public class ApiExceptionMapper implements ResponseExceptionMapper<ApiException>
                 parsed.validationErrors(),
                 parsed.missingFields(),
                 parsed.invalidFields(),
+                parsed.missingDependencies(),
                 body);
     }
 

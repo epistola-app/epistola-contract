@@ -115,6 +115,24 @@ class ProblemDetailException(
     val isTemplateDataProblem: Boolean get() = missingFields.isNotEmpty() || invalidFields.isNotEmpty()
 
     /**
+     * The releases of other catalogs a `release-dependencies-missing` problem (409, from
+     * `deployRelease`) reports the environment does not serve, in the order the server listed them;
+     * empty for any other problem.
+     *
+     * Each entry's [MissingReleaseDependency.reason] is kept as the string the server sent, so a
+     * reason a later contract adds is surfaced rather than dropped. An entry missing one of its
+     * five members, or carrying one that is not a string, is skipped.
+     */
+    val missingDependencies: List<MissingReleaseDependency>
+        get() {
+            val raw = extensions[ProblemExtensionMembers.MISSING_DEPENDENCIES] as? List<*> ?: return emptyList()
+            return raw.mapNotNull { MissingReleaseDependency.fromMember(it) }
+        }
+
+    /** True when this problem listed dependency releases a deployment is missing. */
+    val isReleaseDependenciesMissingProblem: Boolean get() = missingDependencies.isNotEmpty()
+
+    /**
      * One extension member's array of objects, converted to [T]. An entry of an unexpected shape
      * yields nothing rather than a guess: a malformed problem body should not become a confident
      * claim about a particular field, nor hide the problem it decorates.

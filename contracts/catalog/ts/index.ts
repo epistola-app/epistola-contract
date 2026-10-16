@@ -116,8 +116,11 @@ export const CATALOG_REGISTRY_PATTERN = '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0
 export const MAX_CATALOG_DEPENDENCY_VERSION_LENGTH = 100
 
 /**
- * Pattern a catalog dependency's `releaseFingerprint` must match: the current canonical
- * fingerprint of the release `releaseVersion` names, as lowercase SHA-256 hex (wire v8). It is
- * null exactly when `releaseVersion` is null, which only a catalog migrated from wire v7 has.
+ * Pattern a catalog fingerprint must match in wire v8: the algorithm that computed it, a colon and
+ * lowercase SHA-256 hex (`v5:<hex>`). It applies to `release.fingerprint`, which must name the
+ * current algorithm (`v5`), and to a catalog dependency's `releaseFingerprint`, which is copied
+ * from that release's own `release.fingerprint`. A verifier computes exactly the named algorithm.
+ * `releaseFingerprint` is null exactly when `releaseVersion` is null, which only a catalog migrated
+ * from wire v7 has.
  */
-export const CATALOG_RELEASE_FINGERPRINT_PATTERN = '^[0-9a-f]{64}$'
+export const CATALOG_RELEASE_FINGERPRINT_PATTERN = '^v[1-9][0-9]*:[0-9a-f]{64}$'

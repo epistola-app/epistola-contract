@@ -2,7 +2,15 @@
 //
 // SPDX-License-Identifier: EUPL-1.2
 
-import type { DataModelValidationError, InvalidDataField, MissingDataField, ProblemDetail, ValidationError } from '../generated/api/models/index.js'
+import type {
+  DataModelValidationError,
+  InvalidDataField,
+  MissingDataField,
+  MissingReleaseDependency,
+  MissingReleaseDependencyReason,
+  ProblemDetail,
+  ValidationError,
+} from '../generated/api/models/index.js'
 import { ResponseError } from '../generated/api/runtime.js'
 import { ProblemExtensionMembers } from '../generated/knownProblemSlugs.js'
 import { BLANK_TYPE, slugFor } from './problemTypes.js'
@@ -19,7 +27,8 @@ import { BLANK_TYPE, slugFor } from './problemTypes.js'
  * The machine-readable discriminator is the problem {@link type} URI; switch on {@link typeSlug}.
  * Field-level validation errors (the `ValidationProblemDetail` shape) are surfaced via
  * {@link errors}; per-example data-model validation failures (the `DataModelValidationProblemDetail`
- * shape, `data-model-validation-error`) via {@link validationErrors}. Any *other* member a problem
+ * shape, `data-model-validation-error`) via {@link validationErrors}; the releases a deployment lacks
+ * (`release-dependencies-missing`) via {@link missingDependencies}. Any *other* member a problem
  * body carries — one the contract does not name, such as `catalog-schema-too-old`'s `version` /
  * `baselineVersion` — is in {@link extensions}.
  */
@@ -119,6 +128,42 @@ export class ProblemDetailException extends ResponseError {
   get isTemplateDataProblem(): boolean {
     return this.missingFields.length > 0 || this.invalidFields.length > 0
   }
+
+  /**
+   * The releases a `release-dependencies-missing` problem (409, from `deployRelease`) reports the
+   * environment lacks, in the order the server listed them; empty for any other problem.
+   *
+   * Without `includeDependencies` these are the releases the deployed release was cut with that
+   * the environment does not serve; with it, those that could not be deployed along. Each
+   * {@link MissingDependency.reason} is kept as the string the server sent, so a reason the
+   * contract adds later is not lost. An entry that does not carry all five members as strings is
+   * dropped rather than guessed at.
+   */
+  get missingDependencies(): readonly MissingDependency[] {
+    return objectsAt(this.extensions, ProblemExtensionMembers.MISSING_DEPENDENCIES).filter(isMissingDependency)
+  }
+
+  /** True when this problem listed releases a deployment is missing. */
+  get isReleaseDependenciesMissingProblem(): boolean {
+    return this.missingDependencies.length > 0
+  }
+}
+
+/**
+ * One release a `release-dependencies-missing` problem reports, as listed in its
+ * `missingDependencies` member. The generated `MissingReleaseDependency` with `reason` widened to
+ * a string: compare it against `MissingReleaseDependencyReason`, and expect values beyond it.
+ */
+export interface MissingDependency extends Omit<MissingReleaseDependency, 'reason'> {
+  /** Why the release is missing: one of `MissingReleaseDependencyReason`, or one added later. */
+  readonly reason: MissingReleaseDependencyReason | (string & {})
+}
+
+const MISSING_DEPENDENCY_MEMBERS = ['registry', 'namespace', 'catalogKey', 'releaseVersion', 'reason'] as const
+
+function isMissingDependency(entry: object): entry is MissingDependency {
+  const record = entry as Record<string, unknown>
+  return MISSING_DEPENDENCY_MEMBERS.every((member) => typeof record[member] === 'string')
 }
 
 /**

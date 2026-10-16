@@ -33,6 +33,7 @@ class ProblemRegistryTest {
         assertEquals("conflict", KnownProblemSlugs.CONFLICT);
         assertEquals("data-model-validation-error", KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR);
         assertEquals("rate-limited", KnownProblemSlugs.RATE_LIMITED);
+        assertEquals("release-dependencies-missing", KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING);
     }
 
     @Test

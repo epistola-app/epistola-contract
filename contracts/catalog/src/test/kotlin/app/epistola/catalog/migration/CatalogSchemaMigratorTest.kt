@@ -351,6 +351,11 @@ class CatalogSchemaMigratorTest {
         assertEquals(invalid, findings { it.put("releaseFingerprint", SHARED_FINGERPRINT.uppercase()) })
         assertEquals(invalid, findings { it.put("releaseFingerprint", SHARED_FINGERPRINT.drop(1)) })
         assertEquals(invalid, findings { it.put("releaseFingerprint", 1) })
+        // A fingerprint names its algorithm: bare hex, and an algorithm this library does not know,
+        // cannot be verified.
+        assertEquals(invalid, findings { it.put("releaseFingerprint", SHARED_FINGERPRINT.removePrefix("v5:")) })
+        assertEquals(invalid, findings { it.put("releaseFingerprint", SHARED_FINGERPRINT.replace("v5:", "v9:")) })
+        assertEquals(emptyList(), findings { it.put("releaseFingerprint", SHARED_FINGERPRINT.replace("v5:", "v4:")) })
         // The model binds either alone, so that manifests stored without the fingerprint still load.
         val stored = resource("wire-v8/catalog.json").use(mapper::readTree) as ObjectNode
         (stored["catalogDependencies"][0] as ObjectNode).remove("releaseFingerprint")
@@ -538,7 +543,7 @@ class CatalogSchemaMigratorTest {
     private companion object {
         const val REGISTRY = "exchange.epistola.app"
         const val NAMESPACE = "epistola"
-        const val SHARED_FINGERPRINT = "69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42"
+        const val SHARED_FINGERPRINT = "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42"
         val OPTIONS = CatalogMigrationOptions(NAMESPACE, REGISTRY)
         const val ACME = "acme-corp"
         val OPTIONS_ACME = CatalogMigrationOptions(ACME, REGISTRY)

@@ -38,7 +38,8 @@ ignores it when binding a stored v7 document.
 - Existing V1 through V3 catalog fingerprints remain accepted when reading legacy v4/v5 input.
   v6 and v7 catalogs carry V4; a v6 fingerprint over keywords that the v7 migration rewrote, and a
   v7 fingerprint over stencil versions that the v8 migration removed, still verify. v8 catalogs use
-  V5 through `currentFingerprint`. The existing `fingerprint` API retains its V1 result and the
+  V5, written as `v5:<hex>` (`currentQualifiedFingerprint`); `currentFingerprint` still returns
+  the bare hex. The existing `fingerprint` API retains its V1 result and the
   exact-version overload is additive.
 - The 1.0.1 `CatalogInfo(slug, name, description)` construction shape remains source-compatible.
   New discovery metadata is exposed through `create` and `copyWithMetadata`. Consumers must

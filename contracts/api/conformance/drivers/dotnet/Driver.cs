@@ -447,6 +447,7 @@ public static class Driver
             ["version"] = Show(version.VarVersion),
             ["status"] = Show(Wire(version.Status)),
             ["releasedAt"] = Show(Iso(version.ReleasedAt)),
+            ["fingerprint"] = Show(version.Fingerprint),
             ["dependencies"] = string.Join(",", (version.Dependencies ?? new List<ReleaseDependencyDto>())
                 .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.ReleaseVersion)}")),
             ["deployedTo"] = string.Join(",", version.DeployedTo ?? new List<string>()),
@@ -570,13 +571,31 @@ public static class Driver
     /// <summary>
     /// Deploys one release. The registry goes into the path exactly as the scenario gives it,
     /// <c>~</c> for the server's default registry or a name in full; the request has no body.
+    /// <c>includeDependencies</c> is passed only when the scenario names it, so it stays off the
+    /// query otherwise. A refusal is reported as its problem and the dependency releases it lists.
     /// </summary>
     private static void DeployRelease(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        var deployment = new EnvironmentsApi(http, apiBase).DeployRelease(
-            Str(config, "tenantId"), Str(config, "environmentId"),
-            Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "releaseVersion"));
+        DeploymentDto deployment;
+        try
+        {
+            deployment = new EnvironmentsApi(http, apiBase).DeployRelease(
+                Str(config, "tenantId"), Str(config, "environmentId"),
+                Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "releaseVersion"),
+                includeDependencies: OptBool(config, "includeDependencies"));
+        }
+        catch (ProblemDetailException e)
+        {
+            Report(baseUrl, new Dictionary<string, object>
+            {
+                ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
+                ["problemStatus"] = (int)e.StatusCode,
+                ["problemMissingDependencies"] = string.Join(",", e.MissingDependencies.Select(d =>
+                    $"{d.Registry}/{d.Namespace}/{d.CatalogKey}@{d.ReleaseVersion}:{d.Reason}")),
+            });
+            return;
+        }
 
         Report(baseUrl, new Dictionary<string, object>
         {
@@ -679,6 +698,9 @@ public static class Driver
 
     private static string? OptStr(JsonElement config, string name) =>
         config.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? value.GetString() : null;
+
+    private static bool? OptBool(JsonElement config, string name) =>
+        config.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? value.GetBoolean() : null;
 
     private static int Int(JsonElement config, string name, int? fallback = null) =>
         config.TryGetProperty(name, out var value) ? value.GetInt32() : fallback

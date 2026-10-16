@@ -32,5 +32,6 @@ public class ProblemRegistryTest
         Assert.Equal("conflict", KnownProblemSlugs.CONFLICT);
         Assert.Equal("data-model-validation-error", KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR);
         Assert.Equal("rate-limited", KnownProblemSlugs.RATE_LIMITED);
+        Assert.Equal("release-dependencies-missing", KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING);
     }
 }

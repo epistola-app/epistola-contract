@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import app.epistola.client.jakarta.model.DataModelValidationError;
+import app.epistola.client.jakarta.model.MissingReleaseDependencyReason;
 import app.epistola.client.jakarta.model.ValidationError;
 import jakarta.ws.rs.core.MediaType;
 import java.util.List;
@@ -110,6 +111,94 @@ class ProblemDetailParserTest {
 
         assertNotNull(parsed);
         assertEquals("Too Many Requests", parsed.problem().getTitle());
+    }
+
+    @Test
+    void reads_the_missing_dependencies_of_a_release_dependencies_problem_in_order() {
+        var parsed = ProblemDetailParser.parse(
+                """
+                {
+                  "type": "https://epistola.app/errors/release-dependencies-missing",
+                  "title": "Release dependencies missing",
+                  "status": 409,
+                  "missingDependencies": [
+                    {"registry": "exchange.epistola.app", "namespace": "acme-corp",
+                     "catalogKey": "shared", "releaseVersion": "1.2.0", "reason": "NOT_DEPLOYED"},
+                    {"registry": "acme.com", "namespace": "brand",
+                     "catalogKey": "styles", "releaseVersion": "2.0.0", "reason": "CONTENT_NOT_RETAINED"}
+                  ]
+                }
+                """);
+
+        assertNotNull(parsed);
+        List<MissingDependency> missing = parsed.missingDependencies();
+        assertEquals(2, missing.size());
+        MissingDependency first = missing.get(0);
+        assertEquals("exchange.epistola.app", first.getRegistry());
+        assertEquals("acme-corp", first.getNamespace());
+        assertEquals("shared", first.getCatalogKey());
+        assertEquals("1.2.0", first.getReleaseVersion());
+        assertEquals("NOT_DEPLOYED", first.getReason());
+        assertEquals(MissingReleaseDependencyReason.NOT_DEPLOYED, first.getKnownReason());
+        assertEquals("acme.com/brand/styles@2.0.0:CONTENT_NOT_RETAINED", missing.get(1).toString());
+    }
+
+    @Test
+    void keeps_a_missing_dependency_reason_this_client_does_not_know() {
+        var parsed = ProblemDetailParser.parse(
+                """
+                {
+                  "type": "https://epistola.app/errors/release-dependencies-missing",
+                  "title": "Release dependencies missing",
+                  "status": 409,
+                  "missingDependencies": [
+                    {"registry": "acme.com", "namespace": "brand", "catalogKey": "styles",
+                     "releaseVersion": "2.0.0", "reason": "SOME_FUTURE_REASON"}
+                  ]
+                }
+                """);
+
+        assertNotNull(parsed);
+        assertEquals("SOME_FUTURE_REASON", parsed.missingDependencies().get(0).getReason());
+        assertNull(parsed.missingDependencies().get(0).getKnownReason());
+    }
+
+    @Test
+    void a_problem_without_missing_dependencies_reads_as_an_empty_list() {
+        var parsed = ProblemDetailParser.parse(
+                "{\"type\":\"https://epistola.app/errors/conflict\",\"title\":\"Conflict\",\"status\":409}");
+
+        assertNotNull(parsed);
+        assertTrue(parsed.missingDependencies().isEmpty());
+    }
+
+    @Test
+    void tolerates_malformed_missing_dependencies() {
+        var notAnArray = ProblemDetailParser.parse(
+                """
+                {"title": "Conflict", "status": 409, "missingDependencies": {"registry": "acme.com"}}
+                """);
+        assertNotNull(notAnArray);
+        assertTrue(notAnArray.missingDependencies().isEmpty());
+
+        var badEntries = ProblemDetailParser.parse(
+                """
+                {
+                  "title": "Conflict",
+                  "status": 409,
+                  "missingDependencies": [
+                    "acme.com/brand/styles@2.0.0",
+                    null,
+                    42,
+                    {"registry": "acme.com", "namespace": 7, "catalogKey": "styles", "reason": null}
+                  ]
+                }
+                """);
+        assertNotNull(badEntries);
+        assertEquals(
+                List.of(new MissingDependency("acme.com", null, "styles", null, null)),
+                badEntries.missingDependencies());
+        assertNull(badEntries.missingDependencies().get(0).getKnownReason());
     }
 
     @Test

@@ -55,6 +55,28 @@ ConflictError:
         status: 409
         detail: The request conflicts with the current state of the resource
 
+ReleaseDependenciesMissingError:
+  description: >-
+    The request conflicts with the current state of the resource. When the release renders with
+    releases of other catalogs that the environment does not serve, the problem is
+    `release-dependencies-missing` and `missingDependencies` lists each one and why. Other conflicts
+    use `conflict`.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ReleaseDependenciesMissingProblemDetail'
+      example:
+        type: https://epistola.app/errors/release-dependencies-missing
+        title: Release Dependencies Missing
+        status: 409
+        detail: "letters 1.4.0 renders with releases production does not serve: exchange.epistola.app/epistola/system@3.2.0"
+        missingDependencies:
+          - registry: exchange.epistola.app
+            namespace: epistola
+            catalogKey: system
+            releaseVersion: 3.2.0
+            reason: NOT_DEPLOYED
+
 TemplateDataInvalidError:
   description: >-
     The request failed validation. When the template data breaks the template's data contract, the

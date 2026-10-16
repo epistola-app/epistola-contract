@@ -31,6 +31,16 @@ libraries.
   `undeployRelease` (both addressed by the release, `…/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}`,
   with no request body), and `listDeploymentHistory` with every deploy and undeploy.
 
+- **Deploying checks a release's dependency releases** (ADR 0003). The environment must serve the
+  releases of other catalogs the deployed release renders with. Without the new `deployRelease`
+  query parameter `includeDependencies` (default false) a missing one refuses the deployment with
+  the new problem type `release-dependencies-missing` (409), whose `missingDependencies` member
+  lists each release (`MissingReleaseDependency`) and its `reason` (`NOT_DEPLOYED`,
+  `NOT_INSTALLED`, `UNAVAILABLE`, `CONTENT_NOT_RETAINED`). With `includeDependencies=true` they are
+  deployed along, installed first when the tenant lacks them, all or nothing. Every client's problem
+  parser surfaces `missingDependencies`; the server stubs add
+  `ProblemDetails.releaseDependenciesMissing`. Epistola Suite may not implement this yet.
+
 - **Catalog dependencies.** A catalog declares each catalog its resources reference, once, with a
   version selector: `listCatalogDependencies` and `updateCatalogDependencies`. References between
   catalogs carry no version; they render with the release the declaration resolves to, so a release
@@ -39,6 +49,11 @@ libraries.
   different releases of one catalog. `CatalogChangesDto` reports `dependenciesChanged`.
 
 ### Changed
+
+- **BREAKING: an API fingerprint names its algorithm.** `CatalogDto.fingerprint` and
+  `CatalogVersionDto.fingerprint` are `v5:<hex>`, the value in the release's catalog archive
+  (pattern `^(v[1-9][0-9]*:)?[0-9a-f]{64}$`). A bare hex value is a fingerprint recorded before
+  contract 2.0 whose algorithm was not recorded.
 
 - **BREAKING: portable catalog wire v8.** A catalog archive identifies its catalog by registry,
   namespace and key (ADR 0003) and versions catalogs as a whole;
@@ -65,6 +80,15 @@ libraries.
   - Fingerprints: V5 (now `currentFingerprint`) also covers the registry, namespace and declared
     dependencies, including their release fingerprints. v6 and v7 archives keep verifying against their V4 fingerprint; re-exporting
     replaces it with V5.
+  - Every fingerprint names its algorithm: `release.fingerprint` and `releaseFingerprint` are
+    `v5:<lowercase SHA-256 hex>` (pattern `^v[1-9][0-9]*:[0-9a-f]{64}$`), and a dependency's
+    `releaseFingerprint` is copied from that release's own `release.fingerprint`. A v8 release must
+    name `v5` (`CATALOG_RELEASE_FINGERPRINT_INVALID` otherwise, even when an older algorithm
+    matches, because it covers less), and a verifier checks exactly the algorithm named. New Kotlin
+    API: `QualifiedCatalogFingerprint` (`parse`, `PATTERN`), `CatalogFingerprintVersion.label`,
+    and `CatalogCanonicalizer.currentQualifiedFingerprint`, `qualifiedFingerprint`,
+    `matchesQualifiedFingerprint` and `CURRENT_FINGERPRINT_VERSION`. `currentFingerprint` still
+    returns bare hex.
   - New validator codes `CATALOG_REGISTRY_INVALID`, `CATALOG_NAMESPACE_INVALID`,
     `CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`, `CATALOG_DEPENDENCY_CATALOG_UNDECLARED`,
     `CATALOG_DEPENDENCY_CATALOG_DUPLICATE`, `CATALOG_DEPENDENCY_CATALOG_SELF` and

@@ -9,7 +9,7 @@ import app.epistola.catalog.archive.CatalogArchive
 import app.epistola.catalog.archive.CatalogArchivePolicy
 import app.epistola.catalog.archive.CatalogArchiveReader
 import app.epistola.catalog.canonical.CatalogCanonicalizer
-import app.epistola.catalog.canonical.CatalogFingerprintVersion
+import app.epistola.catalog.canonical.QualifiedCatalogFingerprint
 import app.epistola.catalog.migration.CatalogMigrationOptions
 import app.epistola.catalog.migration.CatalogWireSchema
 import app.epistola.catalog.protocol.AttributeResource
@@ -157,7 +157,8 @@ object CatalogValidationCodes {
 
     /**
      * A catalog dependency's `releaseFingerprint` does not pair with its `releaseVersion`: missing
-     * although a release is recorded, set although none is, or not a lowercase SHA-256 hex string.
+     * although a release is recorded, set although none is, or not in the form that names a known
+     * algorithm (`v5:<lowercase SHA-256 hex>`).
      */
     const val DEPENDENCY_CATALOG_FINGERPRINT_INVALID = "CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID"
     const val RELEASE_VERSION_INVALID = "CATALOG_RELEASE_VERSION_INVALID"
@@ -826,12 +827,25 @@ object CatalogValidator {
             }
         }
         release.fingerprint?.let {
-            if (!SHA256.matches(it)) {
-                findings.error(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID, "catalog.json.release.fingerprint", "fingerprint must be a lowercase SHA-256 hex string")
+            // From wire v8 the fingerprint names its algorithm, and a release is fingerprinted with
+            // the current one: an older algorithm covers less, so accepting it would verify less.
+            // Before wire v8 it is bare hex and the wire version implies the algorithm.
+            val qualified = catalog.sourceSchemaVersion >= V5_FINGERPRINT_SINCE_WIRE_VERSION
+            val invalid = if (qualified) {
+                QualifiedCatalogFingerprint.parse(it)?.version != CatalogCanonicalizer.CURRENT_FINGERPRINT_VERSION
+            } else {
+                !SHA256.matches(it)
+            }
+            if (invalid) {
+                val message = if (qualified) {
+                    "fingerprint must name the current algorithm: ${CatalogCanonicalizer.CURRENT_FINGERPRINT_VERSION.label}:<lowercase SHA-256 hex>"
+                } else {
+                    "fingerprint must be a lowercase SHA-256 hex string"
+                }
+                findings.error(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID, "catalog.json.release.fingerprint", message)
             } else if (policy.verifyFingerprint) {
                 val matches = when {
-                    catalog.sourceSchemaVersion >= V5_FINGERPRINT_SINCE_WIRE_VERSION ->
-                        CatalogCanonicalizer.matchesFingerprint(catalog, it, CatalogFingerprintVersion.V5)
+                    qualified -> CatalogCanonicalizer.matchesQualifiedFingerprint(catalog, it)
                     // Migration may have rewritten keywords, or removed stencil versions, that the
                     // fingerprint was computed over.
                     catalog.sourceSchemaVersion >= V4_FINGERPRINT_SINCE_WIRE_VERSION ->
@@ -1035,7 +1049,7 @@ object CatalogValidator {
                 dependency.releaseVersion != null && dependency.releaseFingerprint == null ->
                     "releaseFingerprint is required when a releaseVersion is recorded"
                 dependency.releaseFingerprint != null && !CatalogDependency.isValidReleaseFingerprint(dependency.releaseFingerprint) ->
-                    "releaseFingerprint must be a lowercase SHA-256 hex string"
+                    "releaseFingerprint must name a known algorithm: v5:<lowercase SHA-256 hex>"
                 else -> null
             }
             fingerprintFinding?.let { findings.error(CatalogValidationCodes.DEPENDENCY_CATALOG_FINGERPRINT_INVALID, "$path.releaseFingerprint", it) }

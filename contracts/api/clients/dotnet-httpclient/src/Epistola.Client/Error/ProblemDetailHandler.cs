@@ -76,14 +76,16 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             body,
             headers: null,
             missingFields: parsed.MissingFields,
-            invalidFields: parsed.InvalidFields);
+            invalidFields: parsed.InvalidFields,
+            missingDependencies: parsed.MissingDependencies);
     }
 
     /// <summary>
     /// Parses a problem+json body into its base <see cref="ProblemDetail"/> plus the field-level
     /// <c>errors</c> array, the per-example <c>validationErrors</c> map, and the
     /// <c>missingFields</c> / <c>invalidFields</c> arrays a <c>template-data-invalid</c> problem
-    /// carries. Returns <c>null</c> on any parse failure. Internal and self-contained so it can be
+    /// carries, and the <c>missingDependencies</c> array of a <c>release-dependencies-missing</c>
+    /// problem. Returns <c>null</c> on any parse failure. Internal and self-contained so it can be
     /// unit-tested without a live server.
     /// </summary>
     internal static ParsedProblem? ParseProblem(string body)
@@ -116,7 +118,8 @@ public sealed class ProblemDetailHandler : DelegatingHandler
                 errors,
                 validationErrors,
                 Members<MissingDataField>(tree, "missingFields"),
-                Members<InvalidDataField>(tree, "invalidFields"));
+                Members<InvalidDataField>(tree, "invalidFields"),
+                Dependencies(tree));
         }
         catch (JsonException)
         {
@@ -145,6 +148,29 @@ public sealed class ProblemDetailHandler : DelegatingHandler
         }
     }
 
+    /// <summary>
+    /// The <c>missingDependencies</c> member, entry by entry: unlike <see cref="Members{T}"/>, a
+    /// malformed entry is skipped on its own, so one bad entry does not hide the releases the others
+    /// name. Absent or not an array yields an empty list.
+    /// </summary>
+    private static List<MissingDependency> Dependencies(JObject tree)
+    {
+        var result = new List<MissingDependency>();
+        if (tree["missingDependencies"] is not JArray array)
+        {
+            return result;
+        }
+        foreach (var entry in array)
+        {
+            var dependency = MissingDependency.FromMember(entry);
+            if (dependency != null)
+            {
+                result.Add(dependency);
+            }
+        }
+        return result;
+    }
+
     /// <summary>A parsed problem body: base <see cref="ProblemDetail"/> plus each extension collection.</summary>
     internal sealed class ParsedProblem
     {
@@ -160,18 +186,23 @@ public sealed class ProblemDetailHandler : DelegatingHandler
         /// <summary>Supplied values that break the contract, from the same problem; empty when absent.</summary>
         public IReadOnlyList<InvalidDataField> InvalidFields { get; }
 
+        /// <summary>Dependency releases from a <c>ReleaseDependenciesMissingProblemDetail</c>; empty when absent.</summary>
+        public IReadOnlyList<MissingDependency> MissingDependencies { get; }
+
         public ParsedProblem(
             ProblemDetail problem,
             IReadOnlyList<ValidationError> errors,
             IReadOnlyDictionary<string, List<DataModelValidationError>> validationErrors,
             IReadOnlyList<MissingDataField> missingFields,
-            IReadOnlyList<InvalidDataField> invalidFields)
+            IReadOnlyList<InvalidDataField> invalidFields,
+            IReadOnlyList<MissingDependency>? missingDependencies = null)
         {
             Problem = problem;
             Errors = errors;
             ValidationErrors = validationErrors;
             MissingFields = missingFields;
             InvalidFields = invalidFields;
+            MissingDependencies = missingDependencies ?? new List<MissingDependency>();
         }
     }
 }

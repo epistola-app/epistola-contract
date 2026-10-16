@@ -5,6 +5,7 @@
 package app.epistola.api.error
 
 import app.epistola.api.model.DataModelValidationError
+import app.epistola.api.model.MissingReleaseDependency
 import app.epistola.api.model.ValidationError
 import app.epistola.protocol.ProblemTypeUris
 import org.springframework.http.HttpStatusCode
@@ -62,6 +63,12 @@ object ProblemDetails {
      */
     const val VALIDATION_ERRORS_PROPERTY: String = ProblemExtensionMembers.VALIDATION_ERRORS
 
+    /**
+     * Extension member listing the dependency releases a deployment is missing. Generated from the
+     * `ReleaseDependenciesMissingProblemDetail` schema, so it stays the name the clients read.
+     */
+    const val MISSING_DEPENDENCIES_PROPERTY: String = ProblemExtensionMembers.MISSING_DEPENDENCIES
+
     // The mapping is shared with the clients, which use it in the other direction.
     private val uris = ProblemTypeUris.of(TYPE_BASE)
 
@@ -109,6 +116,12 @@ object ProblemDetails {
 
         /** 409 — the request conflicts with the current state of the resource. */
         const val CONFLICT: String = KnownProblemSlugs.CONFLICT
+
+        /**
+         * 409 — a release cannot be deployed because the environment does not serve its dependency
+         * releases (use [releaseDependenciesMissing]).
+         */
+        const val RELEASE_DEPENDENCIES_MISSING: String = KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
 
         /** 422 — data examples do not validate against the data model (use [dataModelValidation]). */
         const val DATA_MODEL_VALIDATION_ERROR: String = KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR
@@ -165,6 +178,21 @@ object ProblemDetails {
     ): ProblemDetail {
         val problem = of(status, type, detail, instance)
         problem.setProperty(VALIDATION_ERRORS_PROPERTY, validationErrors)
+        return problem
+    }
+
+    /**
+     * Builds a `release-dependencies-missing` [ProblemDetail] (409): like [of] plus the
+     * [missingDependencies] extension member, each dependency release the environment does not
+     * serve and why (the `ReleaseDependenciesMissingProblemDetail` shape from the contract).
+     */
+    fun releaseDependenciesMissing(
+        missingDependencies: List<MissingReleaseDependency>,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING), detail, instance)
+        problem.setProperty(MISSING_DEPENDENCIES_PROPERTY, missingDependencies)
         return problem
     }
 }

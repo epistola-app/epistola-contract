@@ -23,7 +23,8 @@ namespace Epistola.Client.Error;
 /// <see cref="TypeSlug"/>. Field-level validation errors (the <c>ValidationProblemDetail</c> shape)
 /// are surfaced via <see cref="Errors"/>; per-example data-model validation failures (the
 /// <c>DataModelValidationProblemDetail</c> shape, <c>data-model-validation-error</c>) via
-/// <see cref="ValidationErrors"/> — the generated <c>ProblemDetail</c>,
+/// <see cref="ValidationErrors"/>; the dependency releases a <c>release-dependencies-missing</c>
+/// problem lists via <see cref="MissingDependencies"/> — the generated <c>ProblemDetail</c>,
 /// <c>ValidationProblemDetail</c>, and <c>DataModelValidationProblemDetail</c> models are
 /// independent, so the base fields and each extension are carried separately.
 /// </summary>
@@ -56,6 +57,19 @@ public class ProblemDetailException : ApiException
     /// <summary>Supplied values the template's data contract rejected; empty for any other problem.</summary>
     public IReadOnlyList<InvalidDataField> InvalidFields { get; }
 
+    /// <summary>
+    /// The releases of other catalogs a <c>release-dependencies-missing</c> problem (409, from
+    /// <c>DeployRelease</c>) reports the environment does not serve, in the order the server listed
+    /// them; empty for any other problem.
+    ///
+    /// <para>
+    /// Each entry's <see cref="MissingDependency.Reason"/> is kept as the string the server sent, so a
+    /// reason a later contract adds is surfaced rather than dropped. An entry missing one of its five
+    /// members, or carrying one that is not a string, is skipped.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<MissingDependency> MissingDependencies { get; }
+
     /// <summary>The HTTP status of the error response.</summary>
     public HttpStatusCode StatusCode { get; }
 
@@ -67,7 +81,8 @@ public class ProblemDetailException : ApiException
         string? rawBody,
         Multimap<string, string>? headers,
         IReadOnlyList<MissingDataField>? missingFields = null,
-        IReadOnlyList<InvalidDataField>? invalidFields = null)
+        IReadOnlyList<InvalidDataField>? invalidFields = null,
+        IReadOnlyList<MissingDependency>? missingDependencies = null)
         // ApiException is generated and nullable-oblivious; its errorContent/headers are
         // optional and accept null at runtime, so bridge the nullable values with `!`.
         : base((int)statusCode, BuildMessage(statusCode, problem), rawBody!, headers!)
@@ -77,6 +92,7 @@ public class ProblemDetailException : ApiException
         ValidationErrors = validationErrors;
         MissingFields = missingFields ?? new List<MissingDataField>();
         InvalidFields = invalidFields ?? new List<InvalidDataField>();
+        MissingDependencies = missingDependencies ?? new List<MissingDependency>();
         StatusCode = statusCode;
     }
 
@@ -106,6 +122,9 @@ public class ProblemDetailException : ApiException
 
     /// <summary>True when this problem described template data field by field.</summary>
     public bool IsTemplateDataProblem => MissingFields.Count > 0 || InvalidFields.Count > 0;
+
+    /// <summary>True when this problem listed dependency releases a deployment is missing.</summary>
+    public bool IsReleaseDependenciesMissingProblem => MissingDependencies.Count > 0;
 
     private static string BuildMessage(HttpStatusCode status, ProblemDetail problem)
     {

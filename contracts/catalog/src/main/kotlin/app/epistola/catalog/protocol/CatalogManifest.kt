@@ -4,6 +4,7 @@
 
 package app.epistola.catalog.protocol
 
+import app.epistola.catalog.canonical.QualifiedCatalogFingerprint
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
@@ -56,10 +57,11 @@ data class CatalogManifest(
  *   `>=1.0.0 <2.0.0`, `1.4.0`, `*`, ...), at most [MAX_VERSION_LENGTH] characters.
  * @property releaseVersion the exact release of the dependency that this archive's release was cut
  *   with. Null only for a catalog migrated from wire v7 or earlier, which never recorded one.
- * @property releaseFingerprint the canonical fingerprint of the [releaseVersion] release, in the
- *   current algorithm (`CatalogCanonicalizer.currentFingerprint`), as its lowercase SHA-256 hex
- *   string. It lets an installation check a copy of that release fetched from any registry or
- *   mirror. Null exactly when [releaseVersion] is null. The wire requires the pairing; the
+ * @property releaseFingerprint the fingerprint of the [releaseVersion] release, copied from that
+ *   release's own `release.fingerprint`, in the form that names its algorithm (`v5:<hex>`,
+ *   [QualifiedCatalogFingerprint]). It lets an installation check a copy of that release fetched
+ *   from any registry or mirror, with exactly the algorithm it names, after the current algorithm
+ *   has moved on. Null exactly when [releaseVersion] is null. The wire requires the pairing; the
  *   migrator's wire check and the validator enforce it, not this model, so that manifests stored
  *   without it still bind.
  */
@@ -75,14 +77,15 @@ data class CatalogDependency(
         /** Longest version selector a declaration may carry. */
         const val MAX_VERSION_LENGTH: Int = 100
 
-        /** The shape of a [releaseFingerprint]: a lowercase SHA-256 hex string. */
-        const val RELEASE_FINGERPRINT_PATTERN: String = "^[0-9a-f]{64}$"
+        /** The shape of a [releaseFingerprint]: [QualifiedCatalogFingerprint.PATTERN], `v5:<hex>`. */
+        const val RELEASE_FINGERPRINT_PATTERN: String = QualifiedCatalogFingerprint.PATTERN
 
-        private val RELEASE_FINGERPRINT = Regex(RELEASE_FINGERPRINT_PATTERN)
-
-        /** Whether [fingerprint] has the shape of a [releaseFingerprint]. */
+        /**
+         * Whether [fingerprint] is a valid [releaseFingerprint]: it has the shape of
+         * [RELEASE_FINGERPRINT_PATTERN] and names an algorithm this library knows.
+         */
         @JvmStatic
-        fun isValidReleaseFingerprint(fingerprint: String): Boolean = RELEASE_FINGERPRINT.matches(fingerprint)
+        fun isValidReleaseFingerprint(fingerprint: String): Boolean = QualifiedCatalogFingerprint.parse(fingerprint) != null
     }
 }
 
@@ -329,10 +332,13 @@ data class PublisherInfo(
  * @param version author-controlled SemVer (`MAJOR.MINOR.PATCH`) for AUTHORED
  *   catalogs, or the installed release label for bundled/subscribed ones.
  * @param releasedAt ISO-8601 timestamp the version was cut, if known.
- * @param fingerprint lowercase hex SHA-256 of the catalog's canonical content
+ * @param fingerprint the canonical fingerprint of the catalog's content
  *   (deterministic, order-independent, excludes volatile fields). Lets
  *   consumers detect that content actually changed independently of the
- *   `version` label. Nullable for catalogs produced before fingerprinting.
+ *   `version` label. From wire v8 it names its algorithm, which must be the
+ *   current one (`v5:<hex>`, [QualifiedCatalogFingerprint]); before wire v8 it
+ *   is bare lowercase SHA-256 hex whose algorithm the wire version implies.
+ *   Nullable for catalogs produced before fingerprinting.
  */
 data class ReleaseInfo(
     val version: String,

@@ -15,6 +15,7 @@ import app.epistola.client.jakarta.api.TemplatesApi;
 import app.epistola.client.jakarta.auth.JwtSigner;
 import app.epistola.client.jakarta.collect.GenerationCollectApi;
 import app.epistola.client.jakarta.collect.ResultCollector;
+import app.epistola.client.jakarta.error.MissingDependency;
 import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.identity.ClientIdentity;
 import app.epistola.client.jakarta.model.CatalogDependencyDto;
@@ -511,6 +512,7 @@ public final class Driver {
                         "version", String.valueOf(version.getVersion()),
                         "status", String.valueOf(version.getStatus()),
                         "releasedAt", instant(version.getReleasedAt()),
+                        "fingerprint", version.getFingerprint() == null ? "null" : version.getFingerprint(),
                         "dependencies",
                                 joined(
                                         dependencies,
@@ -645,16 +647,41 @@ public final class Driver {
         return value == null ? "null" : value.toInstant().toString();
     }
 
+    /**
+     * Deploys a release, passing {@code includeDependencies} only when the scenario names it. A
+     * refusal is reported as the problem it carried, with every missing dependency in order.
+     */
     private static void deployRelease(String baseUrl, JsonObject config) {
-        DeploymentDto deployment = clients(baseUrl, config)
-                .api(EnvironmentsApi.class)
-                .deployRelease(
-                        config.getString("tenantId"),
-                        config.getString("environmentId"),
-                        config.getString("registry"),
-                        config.getString("namespace"),
-                        config.getString("catalogKey"),
-                        config.getString("releaseVersion"));
+        Boolean includeDependencies = config.containsKey("includeDependencies") && !config.isNull("includeDependencies")
+                ? config.getBoolean("includeDependencies")
+                : null;
+        DeploymentDto deployment;
+        try {
+            deployment = clients(baseUrl, config)
+                    .api(EnvironmentsApi.class)
+                    .deployRelease(
+                            config.getString("tenantId"),
+                            config.getString("environmentId"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            config.getString("releaseVersion"),
+                            includeDependencies);
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode(),
+                            "problemMissingDependencies",
+                                    joined(
+                                            e.getMissingDependencies(),
+                                            (MissingDependency dependency) -> dependency.getRegistry() + "/"
+                                                    + dependency.getNamespace() + "/" + dependency.getCatalogKey()
+                                                    + "@" + dependency.getReleaseVersion() + ":"
+                                                    + dependency.getReason())));
+            return;
+        }
         report(
                 baseUrl,
                 Map.of(

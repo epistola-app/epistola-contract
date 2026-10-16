@@ -179,7 +179,7 @@ class CatalogCanonicalizerTest {
         val registry = "exchange.epistola.app"
         val namespace = "epistola"
         val original = goldenArchive()
-        val shared = CatalogDependency(registry, namespace, "shared", "^1.2.0", "1.4.0", "69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42")
+        val shared = CatalogDependency(registry, namespace, "shared", "^1.2.0", "1.4.0", "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42")
         val brand = CatalogDependency(registry, namespace, "brand", "*", null)
         val base = original.copyWithManifest(
             original.manifest.copy(

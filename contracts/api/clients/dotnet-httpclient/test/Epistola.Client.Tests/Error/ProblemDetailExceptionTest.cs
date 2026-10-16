@@ -103,4 +103,33 @@ public class ProblemDetailExceptionTest
         Assert.Equal(body, asParent.ErrorContent);
         Assert.Equal(409, asParent.ErrorCode);
     }
+    [Fact]
+    public void ReleaseDependenciesMissingProblemExposesItsDependencies()
+    {
+        var ex = new ProblemDetailException(
+            new ProblemDetail(type: "https://epistola.app/errors/release-dependencies-missing", title: "Release dependencies missing", status: 409),
+            new List<ValidationError>(),
+            new Dictionary<string, List<DataModelValidationError>>(),
+            HttpStatusCode.Conflict,
+            "{}",
+            headers: null,
+            missingDependencies: new List<MissingDependency>
+            {
+                new("exchange.epistola.app", "epistola", "system", "3.2.0", MissingDependency.Reasons.NotDeployed),
+            });
+
+        Assert.True(ex.IsReleaseDependenciesMissingProblem);
+        Assert.False(ex.IsTemplateDataProblem);
+        Assert.Equal(KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING, ex.TypeSlug);
+        Assert.Equal("system", ex.MissingDependencies[0].CatalogKey);
+    }
+
+    [Fact]
+    public void AnyOtherProblemHasNoMissingDependencies()
+    {
+        var ex = Exception(new ProblemDetail(type: "https://epistola.app/errors/conflict", title: "Conflict", status: 409));
+
+        Assert.False(ex.IsReleaseDependenciesMissingProblem);
+        Assert.Empty(ex.MissingDependencies);
+    }
 }

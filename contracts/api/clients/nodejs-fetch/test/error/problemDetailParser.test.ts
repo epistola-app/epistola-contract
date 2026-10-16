@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { KnownProblemSlugs, ProblemDetailException, ResponseError, isProblemJson, parseProblem } from '../../src/index.js'
+import { KnownProblemSlugs, MissingReleaseDependencyReason, ProblemDetailException, ResponseError, isProblemJson, parseProblem } from '../../src/index.js'
 
 function parse(body: unknown, status: number): ProblemDetailException | undefined {
   const text = typeof body === 'string' ? body : JSON.stringify(body)
@@ -56,6 +56,54 @@ test('parses a data-model validation problem with its validationErrors map', () 
   assert.equal(problem.typeSlug, KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR)
   assert.ok(problem.isDataModelValidationProblem)
   assert.equal(problem.validationErrors['example-a'][0].path, '#/customer/name')
+})
+
+test('parses a release-dependencies-missing problem with its missingDependencies list', () => {
+  const problem = parse({
+    type: 'https://epistola.app/errors/release-dependencies-missing',
+    title: 'Release dependencies missing',
+    status: 409,
+    missingDependencies: [
+      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0', reason: 'NOT_DEPLOYED' },
+      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'legal', releaseVersion: '2.0.0', reason: 'NOT_INSTALLED' },
+    ],
+  }, 409)!
+  assert.equal(problem.typeSlug, KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING)
+  assert.ok(problem.isReleaseDependenciesMissingProblem)
+  assert.equal(problem.isValidationProblem, false)
+  assert.deepEqual(problem.missingDependencies, [
+    { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0', reason: MissingReleaseDependencyReason.NotDeployed },
+    { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'legal', releaseVersion: '2.0.0', reason: MissingReleaseDependencyReason.NotInstalled },
+  ])
+})
+
+test('a problem without missingDependencies reports none', () => {
+  const problem = parse({ type: 'https://epistola.app/errors/release-dependencies-missing', title: 'Conflict', status: 409 }, 409)!
+  assert.deepEqual(problem.missingDependencies, [])
+  assert.equal(problem.isReleaseDependenciesMissingProblem, false)
+})
+
+test('malformed missingDependencies entries are dropped and an unknown reason is kept', () => {
+  const problem = parse({
+    type: 'https://epistola.app/errors/release-dependencies-missing',
+    title: 'Conflict',
+    status: 409,
+    missingDependencies: [
+      'not-an-object',
+      null,
+      ['registry.epistola.app'],
+      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0' },
+      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: 3, reason: 'NOT_DEPLOYED' },
+      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0', reason: 'QUARANTINED' },
+    ],
+  }, 409)!
+  assert.deepEqual(problem.missingDependencies, [
+    { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0', reason: 'QUARANTINED' },
+  ])
+  assert.ok(problem.isReleaseDependenciesMissingProblem)
+
+  const notAnArray = parse({ type: 'https://epistola.app/errors/release-dependencies-missing', title: 'Conflict', status: 409, missingDependencies: { registry: 'x' } }, 409)!
+  assert.deepEqual(notAnArray.missingDependencies, [])
 })
 
 test('keeps extension members the contract does not name', () => {

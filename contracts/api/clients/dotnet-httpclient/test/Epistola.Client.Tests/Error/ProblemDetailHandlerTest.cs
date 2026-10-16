@@ -140,4 +140,107 @@ public class ProblemDetailHandlerTest
         Assert.Equal("Template data invalid", parsed!.Problem.Title);
         Assert.Empty(parsed.MissingFields);
     }
+    [Fact]
+    public async Task ThrowsWithTheMissingDependenciesOfAReleaseDependenciesMissingProblem()
+    {
+        const string body = """
+            {
+              "type": "https://epistola.app/errors/release-dependencies-missing",
+              "title": "Release dependencies missing",
+              "status": 409,
+              "detail": "letters 1.4.0 renders with releases production does not serve",
+              "missingDependencies": [
+                {"registry": "exchange.epistola.app", "namespace": "epistola", "catalogKey": "system",
+                 "releaseVersion": "3.2.0", "reason": "NOT_DEPLOYED"},
+                {"registry": "registry.gemeente-x.nl", "namespace": "huisstijl", "catalogKey": "branding",
+                 "releaseVersion": "1.4.2", "reason": "NOT_INSTALLED"}
+              ]
+            }
+            """;
+        var client = ClientReturning(HttpStatusCode.Conflict, "application/problem+json", body);
+
+        var ex = await Assert.ThrowsAsync<ProblemDetailException>(() => client.PutAsync("deploy", null));
+        Assert.Equal(KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING, ex.TypeSlug);
+        Assert.Equal(409, ex.ProblemStatus);
+        Assert.True(ex.IsReleaseDependenciesMissingProblem);
+        Assert.Equal(2, ex.MissingDependencies.Count);
+        var first = ex.MissingDependencies[0];
+        Assert.Equal("exchange.epistola.app", first.Registry);
+        Assert.Equal("epistola", first.Namespace);
+        Assert.Equal("system", first.CatalogKey);
+        Assert.Equal("3.2.0", first.ReleaseVersion);
+        Assert.Equal(MissingDependency.Reasons.NotDeployed, first.Reason);
+        Assert.Equal("registry.gemeente-x.nl/huisstijl/branding@1.4.2:NOT_INSTALLED", ex.MissingDependencies[1].ToString());
+    }
+
+    [Fact]
+    public void ParseProblemReportsNoMissingDependenciesWhenTheMemberIsAbsent()
+    {
+        var parsed = ProblemDetailHandler.ParseProblem(
+            """{"type":"https://epistola.app/errors/release-dependencies-missing","title":"Release dependencies missing","status":409}""");
+
+        Assert.NotNull(parsed);
+        Assert.Empty(parsed!.MissingDependencies);
+    }
+
+    [Fact]
+    public void ParseProblemKeepsAReasonTheContractDoesNotNameYet()
+    {
+        // The generated enum would reject this, losing the entry; the reason must survive as sent.
+        var parsed = ProblemDetailHandler.ParseProblem("""
+            {
+              "type": "https://epistola.app/errors/release-dependencies-missing",
+              "title": "Release dependencies missing",
+              "status": 409,
+              "missingDependencies": [
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": "1.0.0", "reason": "SOME_FUTURE_REASON"}
+              ]
+            }
+            """);
+
+        Assert.NotNull(parsed);
+        Assert.Single(parsed!.MissingDependencies);
+        Assert.Equal("SOME_FUTURE_REASON", parsed.MissingDependencies[0].Reason);
+    }
+
+    [Fact]
+    public void ParseProblemSkipsMalformedMissingDependencyEntriesOneByOne()
+    {
+        // A malformed entry is dropped on its own; it must not hide the well-formed ones, nor the problem.
+        var parsed = ProblemDetailHandler.ParseProblem("""
+            {
+              "type": "https://epistola.app/errors/release-dependencies-missing",
+              "title": "Release dependencies missing",
+              "status": 409,
+              "missingDependencies": [
+                "not an object",
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": "1.0.0"},
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": 1, "reason": "NOT_DEPLOYED"},
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": "2.0.0", "reason": "UNAVAILABLE"}
+              ]
+            }
+            """);
+
+        Assert.NotNull(parsed);
+        Assert.Equal("Release dependencies missing", parsed!.Problem.Title);
+        Assert.Single(parsed.MissingDependencies);
+        Assert.Equal("2.0.0", parsed.MissingDependencies[0].ReleaseVersion);
+        Assert.Equal(MissingDependency.Reasons.Unavailable, parsed.MissingDependencies[0].Reason);
+    }
+
+    [Fact]
+    public void ParseProblemReportsNoMissingDependenciesWhenTheMemberIsNotAnArray()
+    {
+        var parsed = ProblemDetailHandler.ParseProblem("""
+            {
+              "type": "https://epistola.app/errors/release-dependencies-missing",
+              "title": "Release dependencies missing",
+              "status": 409,
+              "missingDependencies": {"registry": "r.example"}
+            }
+            """);
+
+        Assert.NotNull(parsed);
+        Assert.Empty(parsed!.MissingDependencies);
+    }
 }

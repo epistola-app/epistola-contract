@@ -19,12 +19,14 @@ from epistola_client.error import problem_types
 # the generated KnownProblemSlugs — must be updated together.
 EXPECTED_SLUGS = {
     "VALIDATION_ERROR": "validation-error",
+    "TEMPLATE_DATA_INVALID": "template-data-invalid",
     "BAD_REQUEST": "bad-request",
     "UNAUTHORIZED": "unauthorized",
     "API_KEY_AUTH_DISABLED": "api-key-auth-disabled",
     "FORBIDDEN": "forbidden",
     "NOT_FOUND": "not-found",
     "CONFLICT": "conflict",
+    "RELEASE_DEPENDENCIES_MISSING": "release-dependencies-missing",
     "DATA_MODEL_VALIDATION_ERROR": "data-model-validation-error",
     "RATE_LIMITED": "rate-limited",
 }

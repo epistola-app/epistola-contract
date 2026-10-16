@@ -116,6 +116,24 @@ catch (ProblemDetailException e)
 }
 ```
 
+A deployment refused because the environment does not serve the releases it renders with is a
+`release-dependencies-missing` problem. `MissingDependencies` lists each missing release and why,
+with `Reason` kept as the string the server sent (compare against `MissingDependency.Reasons`):
+
+```csharp
+try
+{
+    environments.DeployRelease("my-tenant", "production", "~", "acme-corp", "letters", "1.4.0",
+        includeDependencies: false);
+}
+catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING)
+{
+    foreach (var d in e.MissingDependencies)
+        Console.WriteLine($"{d.Registry}/{d.Namespace}/{d.CatalogKey}@{d.ReleaseVersion}: {d.Reason}");
+    // retry with includeDependencies: true to deploy (and install) them along
+}
+```
+
 `ProblemDetailException` extends the generated `ApiException`, so existing `catch (ApiException)`
 sites keep working. Non-problem errors fall through to the generated `ApiException`.
 

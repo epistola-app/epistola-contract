@@ -188,6 +188,11 @@ try {
         e.getErrors().forEach(err -> log.warn("{}: {}", err.getField(), err.getMessage()));
     } else if (KnownProblemSlugs.API_KEY_AUTH_DISABLED.equals(slug)) {
         log.error("this deployment requires JWT authentication");
+    } else if (KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING.equals(slug)) {
+        // from deployRelease: each release the environment would also have to serve, and why
+        e.getMissingDependencies().forEach(dep -> log.warn("{}/{}/{}@{}: {}",
+                dep.getRegistry(), dep.getNamespace(), dep.getCatalogKey(),
+                dep.getReleaseVersion(), dep.getReason()));
     } else {                                // always keep a fallback: the API can add problem
         log.error("{} {}", e.getProblemStatus(), e.getTitle());   // types without a client release
     }

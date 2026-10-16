@@ -6,7 +6,7 @@
 
 import json
 
-from epistola_client import KnownProblemSlugs
+from epistola_client import KnownProblemSlugs, MissingDependency
 from epistola_client.error.problem_detail_handler import parse_problem
 
 
@@ -144,3 +144,111 @@ def test_malformed_json_returns_none():
 
 def test_non_object_body_returns_none():
     assert parse_problem("[1, 2, 3]", 400) is None
+
+
+def _release_dependencies_missing(missing_dependencies) -> str:
+    body = {
+        "type": "https://epistola.app/errors/release-dependencies-missing",
+        "title": "Release dependencies missing",
+        "status": 409,
+        "detail": "letters 1.4.0 renders with releases production does not serve",
+    }
+    if missing_dependencies is not None:
+        body["missingDependencies"] = missing_dependencies
+    return json.dumps(body)
+
+
+def test_parses_release_dependencies_missing_problem_in_order():
+    body = _release_dependencies_missing(
+        [
+            {
+                "registry": "exchange.epistola.app",
+                "namespace": "epistola",
+                "catalogKey": "system",
+                "releaseVersion": "3.2.0",
+                "reason": "NOT_DEPLOYED",
+            },
+            {
+                "registry": "registry.gemeente-x.nl",
+                "namespace": "huisstijl",
+                "catalogKey": "branding",
+                "releaseVersion": "1.4.2",
+                "reason": "NOT_INSTALLED",
+            },
+        ]
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.type_slug == KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
+    assert exc.is_release_dependencies_missing_problem
+    assert exc.missing_dependencies == [
+        MissingDependency("exchange.epistola.app", "epistola", "system", "3.2.0", "NOT_DEPLOYED"),
+        MissingDependency(
+            "registry.gemeente-x.nl", "huisstijl", "branding", "1.4.2", "NOT_INSTALLED"
+        ),
+    ]
+    assert exc.missing_dependencies[0].catalog_key == "system"
+    assert exc.missing_dependencies[0].release_version == "3.2.0"
+
+
+def test_an_unknown_missing_dependency_reason_is_kept_as_sent():
+    # The reasons are an open set: a reason a later contract adds must reach the caller, not
+    # fail the member the way the generated enum would.
+    body = _release_dependencies_missing(
+        [
+            {
+                "registry": "exchange.epistola.app",
+                "namespace": "epistola",
+                "catalogKey": "system",
+                "releaseVersion": "3.2.0",
+                "reason": "QUARANTINED",
+            }
+        ]
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert [d.reason for d in exc.missing_dependencies] == ["QUARANTINED"]
+
+
+def test_a_release_dependencies_problem_without_the_member_lists_nothing():
+    exc = parse_problem(_release_dependencies_missing(None), 409)
+    assert exc is not None
+    assert exc.type_slug == KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
+    assert exc.missing_dependencies == []
+    assert not exc.is_release_dependencies_missing_problem
+
+
+def test_another_problem_reports_no_missing_dependencies():
+    body = json.dumps(
+        {"type": "https://epistola.app/errors/conflict", "title": "Conflict", "status": 409}
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.missing_dependencies == []
+    assert not exc.is_release_dependencies_missing_problem
+
+
+def test_a_malformed_missing_dependencies_member_yields_nothing_rather_than_a_guess():
+    not_an_array = parse_problem(_release_dependencies_missing("not an array"), 409)
+    assert not_an_array is not None
+    assert not_an_array.type_slug == KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
+    assert not_an_array.missing_dependencies == []
+
+    incomplete_entry = parse_problem(
+        _release_dependencies_missing(
+            [
+                {
+                    "registry": "exchange.epistola.app",
+                    "namespace": "epistola",
+                    "catalogKey": "system",
+                    "releaseVersion": "3.2.0",
+                    "reason": "NOT_DEPLOYED",
+                },
+                {"registry": "exchange.epistola.app", "catalogKey": 42},
+            ]
+        ),
+        409,
+    )
+    assert incomplete_entry is not None
+    assert incomplete_entry.type_slug == KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
+    assert incomplete_entry.missing_dependencies == []

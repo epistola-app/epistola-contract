@@ -14,6 +14,7 @@ import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
+import jakarta.json.JsonString;
 import jakarta.json.JsonValue;
 import jakarta.ws.rs.core.MediaType;
 import java.io.StringReader;
@@ -47,18 +48,21 @@ public final class ProblemDetailParser {
         private final Map<String, List<DataModelValidationError>> validationErrors;
         private final List<MissingDataField> missingFields;
         private final List<InvalidDataField> invalidFields;
+        private final List<MissingDependency> missingDependencies;
 
         ParsedProblem(
                 ProblemDetail problem,
                 List<ValidationError> errors,
                 Map<String, List<DataModelValidationError>> validationErrors,
                 List<MissingDataField> missingFields,
-                List<InvalidDataField> invalidFields) {
+                List<InvalidDataField> invalidFields,
+                List<MissingDependency> missingDependencies) {
             this.problem = problem;
             this.errors = errors;
             this.validationErrors = validationErrors;
             this.missingFields = missingFields;
             this.invalidFields = invalidFields;
+            this.missingDependencies = missingDependencies;
         }
 
         public ProblemDetail problem() {
@@ -90,6 +94,14 @@ public final class ProblemDetailParser {
         /** Supplied values that break the contract, from the same problem; empty when absent. */
         public List<InvalidDataField> invalidFields() {
             return invalidFields;
+        }
+
+        /**
+         * The releases a {@code release-dependencies-missing} problem lists, in the order sent;
+         * empty when absent.
+         */
+        public List<MissingDependency> missingDependencies() {
+            return missingDependencies;
         }
     }
 
@@ -132,7 +144,8 @@ public final class ProblemDetailParser {
                     readErrors(root),
                     readValidationErrors(root),
                     readArray(root, ProblemExtensionMembers.MISSING_FIELDS, MissingDataField[].class),
-                    readArray(root, ProblemExtensionMembers.INVALID_FIELDS, InvalidDataField[].class));
+                    readArray(root, ProblemExtensionMembers.INVALID_FIELDS, InvalidDataField[].class),
+                    readMissingDependencies(root));
         } catch (RuntimeException e) {
             return null;
         }
@@ -153,6 +166,39 @@ public final class ProblemDetailParser {
             return Collections.emptyList();
         }
         return Arrays.asList(EpistolaJson.jsonb().fromJson(value.toString(), type));
+    }
+
+    /**
+     * Read with JSON-P rather than bound to the generated {@code MissingReleaseDependency}, whose
+     * enum {@code reason} would reject a reason added after this client was built. An entry that
+     * is not an object is skipped; a member that is not a string reads as {@code null}.
+     */
+    private static List<MissingDependency> readMissingDependencies(JsonObject root) {
+        JsonValue value = root.get(ProblemExtensionMembers.MISSING_DEPENDENCIES);
+        if (value == null || value.getValueType() != JsonValue.ValueType.ARRAY) {
+            return Collections.emptyList();
+        }
+        List<MissingDependency> dependencies = new ArrayList<>();
+        for (JsonValue entry : value.asJsonArray()) {
+            if (entry.getValueType() != JsonValue.ValueType.OBJECT) {
+                continue;
+            }
+            JsonObject dependency = entry.asJsonObject();
+            dependencies.add(new MissingDependency(
+                    stringMember(dependency, "registry"),
+                    stringMember(dependency, "namespace"),
+                    stringMember(dependency, "catalogKey"),
+                    stringMember(dependency, "releaseVersion"),
+                    stringMember(dependency, "reason")));
+        }
+        return dependencies;
+    }
+
+    private static String stringMember(JsonObject object, String name) {
+        JsonValue value = object.get(name);
+        return value != null && value.getValueType() == JsonValue.ValueType.STRING
+                ? ((JsonString) value).getString()
+                : null;
     }
 
     private static Map<String, List<DataModelValidationError>> readValidationErrors(JsonObject root) {

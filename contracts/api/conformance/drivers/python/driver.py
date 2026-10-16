@@ -439,6 +439,7 @@ def _get_catalog_version(base_url: str, config: dict) -> None:
             "version": _show(version.version),
             "status": _show(_enum(version.status)),
             "releasedAt": _show_instant(version.released_at),
+            "fingerprint": _show(version.fingerprint),
             "dependencies": ",".join(
                 f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}@{_show(d.release_version)}"
                 for d in version.dependencies
@@ -533,15 +534,39 @@ def _resolve_incoming_change(base_url: str, config: dict) -> None:
 
 
 def _deploy_release(base_url: str, config: dict) -> None:
-    """Deploys one release; the request has no body, the release is the last path segment."""
-    deployment = EnvironmentsApi(_client(base_url, config)).deploy_release(
-        config["tenantId"],
-        config["environmentId"],
-        config["registry"],
-        config["namespace"],
-        config["catalogKey"],
-        config["releaseVersion"],
+    """Deploys one release; the request has no body, the release is the last path segment.
+
+    ``includeDependencies`` is passed only when the scenario sets it, so an unset one sends no
+    query parameter. A refusal is reported by the dependency releases it names.
+    """
+    optional = (
+        {"include_dependencies": config["includeDependencies"]}
+        if "includeDependencies" in config
+        else {}
     )
+    try:
+        deployment = EnvironmentsApi(_client(base_url, config)).deploy_release(
+            config["tenantId"],
+            config["environmentId"],
+            config["registry"],
+            config["namespace"],
+            config["catalogKey"],
+            config["releaseVersion"],
+            **optional,
+        )
+    except ProblemDetailException as exc:
+        _report(
+            base_url,
+            {
+                "problemTypeSlug": exc.type_slug or "<null>",
+                "problemStatus": exc.status_code,
+                "problemMissingDependencies": ",".join(
+                    f"{d.registry}/{d.namespace}/{d.catalog_key}@{d.release_version}:{d.reason}"
+                    for d in exc.missing_dependencies
+                ),
+            },
+        )
+        return
     _report(
         base_url,
         {

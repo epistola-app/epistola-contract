@@ -28,7 +28,10 @@ from epistola_client_generated import (
     ValidationError,
 )
 
-from epistola_client.error.problem_detail_exception import ProblemDetailException
+from epistola_client.error.problem_detail_exception import (
+    MissingDependency,
+    ProblemDetailException,
+)
 
 #: The RFC 9457 problem media type.
 PROBLEM_JSON = "application/problem+json"
@@ -45,7 +48,8 @@ def parse_problem(
     Parses the base :class:`ProblemDetail` plus the field-level ``errors`` array
     (``ValidationProblemDetail``), the per-example ``validationErrors`` map
     (``DataModelValidationProblemDetail``), and the ``missingFields`` / ``invalidFields``
-    arrays (``TemplateDataValidationProblemDetail``). The generated models are independent,
+    arrays (``TemplateDataValidationProblemDetail``), and the ``missingDependencies`` array
+    (``ReleaseDependenciesMissingProblemDetail``). The generated models are independent,
     so the base fields and each extension are carried separately.
     """
     try:
@@ -92,7 +96,32 @@ def parse_problem(
         headers=headers,
         missing_fields=_members(tree, "missingFields", MissingDataField),
         invalid_fields=_members(tree, "invalidFields", InvalidDataField),
+        missing_dependencies=_missing_dependencies(tree),
     )
+
+
+def _missing_dependencies(tree: Dict[str, Any]) -> List[MissingDependency]:
+    """The ``missingDependencies`` member, or ``[]`` when absent or malformed.
+
+    Read by hand rather than through the generated model: that model types ``reason`` as a closed
+    enum, so a reason a later contract adds would fail the whole member. Here it stays a string.
+    As with :func:`_members`, an entry missing one of its members makes the member yield nothing.
+    """
+    raw = tree.get("missingDependencies")
+    if not isinstance(raw, list):
+        return []
+    dependencies: List[MissingDependency] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        values = [
+            entry.get(name)
+            for name in ("registry", "namespace", "catalogKey", "releaseVersion", "reason")
+        ]
+        if not all(isinstance(value, str) for value in values):
+            return []
+        dependencies.append(MissingDependency(*values))
+    return dependencies
 
 
 def _members(tree: Dict[str, Any], member: str, model: Any) -> List[Any]:

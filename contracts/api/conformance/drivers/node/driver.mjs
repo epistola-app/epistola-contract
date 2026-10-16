@@ -376,6 +376,7 @@ async function getCatalogVersion(baseUrl, config) {
     version: show(version.version),
     status: show(version.status),
     releasedAt: showInstant(version.releasedAt),
+    fingerprint: show(version.fingerprint),
     dependencies: (version.dependencies ?? []).map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.releaseVersion)}`).join(','),
     deployedTo: (version.deployedTo ?? []).map(show).join(','),
   })
@@ -478,14 +479,30 @@ async function resolveIncomingChange(baseUrl, config) {
 
 /** Deploys one release; the path carries everything and there is no body. */
 async function deployRelease(baseUrl, config) {
-  const deployment = await new EnvironmentsApi(client(baseUrl, config)).deployRelease({
+  const request = {
     tenantId: config.tenantId,
     environmentId: config.environmentId,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     releaseVersion: config.releaseVersion,
-  })
+  }
+  // Sent only when the scenario sets it, false included; otherwise the query parameter stays off.
+  if (config.includeDependencies !== undefined) request.includeDependencies = config.includeDependencies
+  let deployment
+  try {
+    deployment = await new EnvironmentsApi(client(baseUrl, config)).deployRelease(request)
+  } catch (error) {
+    if (!(error instanceof ProblemDetailException)) throw error
+    await report(baseUrl, {
+      problemTypeSlug: error.typeSlug ?? '<null>',
+      problemStatus: error.statusCode,
+      problemMissingDependencies: error.missingDependencies
+        .map((d) => `${d.registry}/${d.namespace}/${d.catalogKey}@${d.releaseVersion}:${d.reason}`)
+        .join(','),
+    })
+    return
+  }
   await report(baseUrl, {
     registry: show(deployment.registry),
     namespace: show(deployment.namespace),

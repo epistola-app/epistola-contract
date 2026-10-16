@@ -5,6 +5,8 @@
 package app.epistola.api.error
 
 import app.epistola.api.model.DataModelValidationError
+import app.epistola.api.model.MissingReleaseDependency
+import app.epistola.api.model.MissingReleaseDependencyReason
 import app.epistola.api.model.ValidationError
 import org.springframework.http.HttpStatus
 import java.net.URI
@@ -57,5 +59,22 @@ class ProblemDetailsTest {
         assertEquals(URI.create("https://epistola.app/errors/data-model-validation-error"), problem.type)
         assertEquals(422, problem.status)
         assertEquals(validationErrors, problem.properties?.get("validationErrors"))
+    }
+
+    @Test
+    fun `releaseDependenciesMissing lists each missing release as a 409`() {
+        val missing = listOf(
+            MissingReleaseDependency(
+                registry = "exchange.epistola.app",
+                namespace = "epistola",
+                catalogKey = "system",
+                releaseVersion = "3.2.0",
+                reason = MissingReleaseDependencyReason.NOT_DEPLOYED,
+            ),
+        )
+        val problem = ProblemDetails.releaseDependenciesMissing(missing, detail = "letters 1.4.0 renders with releases production does not serve")
+        assertEquals(URI.create("https://epistola.app/errors/release-dependencies-missing"), problem.type)
+        assertEquals(409, problem.status)
+        assertEquals(missing, problem.properties?.get("missingDependencies"))
     }
 }

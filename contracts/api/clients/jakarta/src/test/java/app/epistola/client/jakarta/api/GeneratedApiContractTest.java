@@ -24,6 +24,7 @@ import app.epistola.client.jakarta.model.TenantDto;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.PATCH;
@@ -32,6 +33,7 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.EntityPart;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -296,7 +298,8 @@ class GeneratedApiContractTest {
 
     /**
      * Deploying names the release entirely in the path, so the PUT carries no body; a stale
-     * generator output that still expects {@code DeployReleaseRequest} would fail here.
+     * generator output that still expects {@code DeployReleaseRequest} would fail here. Its one
+     * extra argument is the optional {@code includeDependencies} query parameter.
      */
     @Test
     void a_release_is_deployed_and_undeployed_by_its_path_alone() {
@@ -306,7 +309,11 @@ class GeneratedApiContractTest {
         assertNotNull(deploy.getAnnotation(PUT.class), "deployRelease should be a PUT");
         assertEquals(DeploymentDto.class, deploy.getReturnType());
         assertEquals(releasePath, pathParams(deploy));
-        assertEquals(releasePath.size(), deploy.getParameterCount(), "deployRelease should take no request body");
+        assertEquals(releasePath.size() + 1, deploy.getParameterCount(), "deployRelease should take no request body");
+        Parameter includeDependencies = deploy.getParameters()[releasePath.size()];
+        assertEquals(Boolean.class, includeDependencies.getType());
+        assertEquals("includeDependencies", includeDependencies.getAnnotation(QueryParam.class).value());
+        assertEquals("false", includeDependencies.getAnnotation(DefaultValue.class).value());
 
         Method undeploy = method(EnvironmentsApi.class, "undeployRelease");
         assertNotNull(undeploy.getAnnotation(DELETE.class), "undeployRelease should be a DELETE");

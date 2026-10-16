@@ -25,6 +25,7 @@ const EXPECTED_SLUGS: Record<string, string> = {
   CONFLICT: 'conflict',
   DATA_MODEL_VALIDATION_ERROR: 'data-model-validation-error',
   RATE_LIMITED: 'rate-limited',
+  RELEASE_DEPENDENCIES_MISSING: 'release-dependencies-missing',
 }
 
 test('the hand-written type base matches the generated one', () => {
@@ -40,6 +41,9 @@ test('every canonical slug constant has its documented value', () => {
 test('the extension members the client reads by name are the ones the registry declares', () => {
   assert.equal(ProblemExtensionMembers.ERRORS, 'errors')
   assert.equal(ProblemExtensionMembers.VALIDATION_ERRORS, 'validationErrors')
+  assert.equal(ProblemExtensionMembers.MISSING_FIELDS, 'missingFields')
+  assert.equal(ProblemExtensionMembers.INVALID_FIELDS, 'invalidFields')
+  assert.equal(ProblemExtensionMembers.MISSING_DEPENDENCIES, 'missingDependencies')
 })
 
 test('slugFor and typeFor are inverses on the Epistola namespace only', () => {

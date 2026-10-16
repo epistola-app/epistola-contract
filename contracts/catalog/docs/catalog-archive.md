@@ -53,15 +53,29 @@ at v8 names its own and ignores the options. `CatalogValidator.validate(input, p
 `CatalogValidationPolicy(migration = ...)`.
 
 The writer only emits the current wire version. Re-exporting a migrated catalog that carried a
-fingerprint replaces it with the current algorithm's.
+fingerprint replaces it with the current algorithm's, in the form that names it (`v5:<hex>`).
+
+## Fingerprints Name Their Algorithm
+
+From wire v8 a fingerprint is written as the algorithm that computed it, a colon and the lowercase
+SHA-256 hex: `v5:58f4…` (`QualifiedCatalogFingerprint`, pattern `^v[1-9][0-9]*:[0-9a-f]{64}$`). An
+archive's own `release.fingerprint` must name the current algorithm, `v5`. Before wire v8 it is
+bare hex, and the wire version implies the algorithm.
+
+The algorithm is in the value because a fingerprint outlives the archive it was written in: a
+catalog dependency's `releaseFingerprint` is kept when the current algorithm moves on, and has to
+be checked with the algorithm that computed it. A verifier computes exactly the named algorithm
+(`CatalogCanonicalizer.matchesQualifiedFingerprint`) and never tries the others, because an older
+algorithm covers less: V4 covers no identity and no dependencies, so a copy that differs only there
+would match it.
 
 ## Dependency Release Fingerprints
 
 Each `catalogDependencies` entry records the release of the dependency the archive's release was
-cut with, `releaseVersion`, and that release's canonical fingerprint, `releaseFingerprint`: the
-current algorithm's (V5) lowercase SHA-256 hex string, as `CatalogCanonicalizer.currentFingerprint`
-produces it. An installation that fetches the dependency release from any registry or mirror
-checks the copy against it. Both are null for a dependency of an archive migrated from wire v7,
+cut with, `releaseVersion`, and that release's fingerprint, `releaseFingerprint`, copied verbatim
+from that release's own `release.fingerprint` (`v5:<hex>`). An installation that fetches the
+dependency release from any registry or mirror checks the copy against it, with the algorithm it
+names. A `releaseFingerprint` naming an algorithm this library does not know is invalid. Both are null for a dependency of an archive migrated from wire v7,
 which never recorded a release; otherwise both are set. The migrator's wire check and
 `CatalogValidator` report any other pairing, or a malformed fingerprint, as
 `CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`. The Kotlin model binds either alone, so manifests

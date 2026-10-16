@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: deploy-release-dependencies-missing
+title: A refused deployment says which dependency releases are missing, and why
+why: >
+  Deploying a release whose dependency releases the environment does not serve, without
+  `includeDependencies`, is refused with `release-dependencies-missing`. Its `missingDependencies`
+  member is the reason: each release the environment would need, named in full, and why it is
+  missing. Without it a caller knows only that something conflicted, and cannot tell whether to
+  retry with `includeDependencies`, install a catalog first, or give up.
+
+  A client's problem parser must surface the member, every entry in order, with the registry as
+  written and the reason as sent, including one it reached only through another dependency.
+
+action:
+  name: deploy-release
+  config:
+    nodeId: conformance-node-1
+    tenantId: acme-corp
+    environmentId: production
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    releaseVersion: 1.4.0
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/release-dependencies-missing
+      title: Release dependencies missing
+      status: 409
+      detail: letters 1.4.0 renders with releases production does not serve
+      instance: /api/tenants/acme-corp/environments/production/deployments/~/acme-corp/letters/1.4.0
+      missingDependencies:
+        - registry: exchange.epistola.app
+          namespace: epistola
+          catalogKey: system
+          releaseVersion: 3.2.0
+          reason: NOT_DEPLOYED
+        - registry: registry.gemeente-x.nl
+          namespace: huisstijl
+          catalogKey: branding
+          releaseVersion: 1.4.2
+          reason: NOT_INSTALLED
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PUT
+      path: /api/tenants/acme-corp/environments/production/deployments/~/acme-corp/letters/1.4.0
+      query: ""
+  report:
+    problemTypeSlug: release-dependencies-missing
+    problemStatus: 409
+    problemMissingDependencies: exchange.epistola.app/epistola/system@3.2.0:NOT_DEPLOYED,registry.gemeente-x.nl/huisstijl/branding@1.4.2:NOT_INSTALLED

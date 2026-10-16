@@ -105,7 +105,7 @@ class CatalogArchiveCodecTest {
 
             CatalogArchiveReader.read(ByteArrayInputStream(write(withLegacyFingerprint))).archive!!.use { rewritten ->
                 assertEquals(CURRENT_VERSION, rewritten.sourceSchemaVersion)
-                assertEquals(CatalogCanonicalizer.currentFingerprint(rewritten).value, rewritten.manifest.release.fingerprint)
+                assertEquals(CatalogCanonicalizer.currentQualifiedFingerprint(rewritten).toString(), rewritten.manifest.release.fingerprint)
                 assertTrue(CatalogValidator.validate(rewritten).valid)
             }
         }
@@ -133,7 +133,7 @@ class CatalogArchiveCodecTest {
                 listOf("financiele-zaken", "getting-started", "klantcontactcentrumrapportage", "letters"),
                 rewritten.manifest.catalog.keywords.toList(),
             )
-            assertEquals(CatalogCanonicalizer.currentFingerprint(rewritten).value, rewritten.manifest.release.fingerprint)
+            assertEquals(CatalogCanonicalizer.currentQualifiedFingerprint(rewritten).toString(), rewritten.manifest.release.fingerprint)
             assertEquals(emptyList(), CatalogValidator.validate(rewritten).findings)
         }
     }
@@ -171,7 +171,7 @@ class CatalogArchiveCodecTest {
             assertEquals(emptyList(), reRead.migrationNotices)
             assertEquals(REGISTRY, rewritten.manifest.catalog.registry)
             assertEquals(NAMESPACE, rewritten.manifest.catalog.namespace)
-            assertEquals(CatalogCanonicalizer.currentFingerprint(rewritten).value, rewritten.manifest.release.fingerprint)
+            assertEquals(CatalogCanonicalizer.currentQualifiedFingerprint(rewritten).toString(), rewritten.manifest.release.fingerprint)
             assertEquals(emptyList(), CatalogValidator.validate(rewritten).findings)
         }
     }
