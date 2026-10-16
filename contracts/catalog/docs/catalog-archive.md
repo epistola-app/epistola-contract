@@ -32,6 +32,45 @@ Archive-safety and malformed-content failures are returned as stable findings.
 Transient or local I/O failures remain `IOException`s and are not mislabeled as
 invalid catalog content.
 
+## Paths Into the Catalog
+
+Wire v8 states what a path into the catalog looks like (#95). It applies to a manifest resource
+entry's `detailUrl` and to the deprecated `contentUrl` of an image or font face, the only members
+that name a file in the catalog (`includes[].url`, `publisher.url` and `license.url` are absolute
+URLs to elsewhere, and catalog presentation names images by key). Each is a **relative path below
+the manifest's own directory**:
+
+- an optional leading `./`, then one or more segments separated by `/`;
+- a segment is RFC 3986 unreserved characters (`A-Z a-z 0-9 - . _ ~`) and percent-encodings,
+  except an encoded `.`, `/` or `\` (`%2e`, `%2f`, `%5c`, in any case);
+- no scheme (`https:`, `file:`, `C:`), no leading `/` (which also rules out `//host`), no backslash,
+  no empty segment, and no `.` or `..` segment.
+
+`./resources/template/letter.json`, `resources/letter.json` and `bin/<sha256>` are paths into the
+catalog; `https://other.example/x.json`, `/x.json`, `../x.json`, `resources//x.json` and
+`%2e%2e/x.json` are not. The rule is exported once, as `CatalogArchivePaths.PATTERN` in Kotlin and
+`CATALOG_ARCHIVE_PATH_PATTERN` in TypeScript, and both are held to the schema.
+
+A reader resolves the path against the **archive root** for a zip, and against the **manifest's URL**
+for a catalog read from a URL (so `./resources/template/letter.json` next to
+`https://catalogs.example/acme/catalog.json` is
+`https://catalogs.example/acme/resources/template/letter.json`). Either way the result stays inside
+the catalog: a path that passes the rule cannot climb out of the manifest's directory, and it is
+resolved as written, never percent-decoded into something the rule forbids.
+
+The migrator's wire check refuses a v8 document that breaks the rule
+(`CATALOG_MANIFEST_DETAIL_URL_INVALID` for a `detailUrl`, `CATALOG_ASSET_PATH_INVALID` for a
+`contentUrl`), and `CatalogValidator` reports the same codes for a catalog read at v8. Earlier wire
+versions did not constrain these members and stay readable: the validator keeps holding them to
+what it always did (`detailUrl` names the resource's canonical file; a `contentUrl` starts with `./`
+and has no `..` segment).
+
+Whatever an archive declares, at any wire version, `CatalogArchiveReader` never resolves a path
+outside the archive. It finds resource documents by the archive's own `resources/**.json` entries,
+never by following `detailUrl`, and its `ArchiveContentProvider` refuses a path that is absolute,
+drive-qualified, contains a backslash, NUL, empty, `.` or `..` segment, or would resolve outside the
+extraction root. The writer refuses to place a binary at such a path too.
+
 ## Migrating Older Archives
 
 The reader passes `catalog.json` and every resource document through `CatalogSchemaMigrator`, so

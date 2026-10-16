@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: EUPL-1.2
 
 import type {
+  DataExampleEntry,
   ImageResource,
   AttributeAssignment,
   CatalogDependency,
@@ -15,9 +16,21 @@ import type {
   StencilResource,
   TemplateResource,
   ThemeRefOverride,
+  VariantEntry,
 } from '../ts/index.js'
 import type { CatalogNamespace, CatalogRegistry } from '../ts/index.js'
 import { CATALOG_NAMESPACE_PATTERN, CATALOG_REGISTRY_PATTERN, CATALOG_RELEASE_FINGERPRINT_PATTERN } from '../ts/index.js'
+import {
+  CATALOG_ARCHIVE_PATH_PATTERN,
+  CATALOG_DATA_EXAMPLE_KEY_PATTERN,
+  CATALOG_VARIANT_METADATA_NAMESPACE_PATTERN,
+  MAX_CATALOG_DATA_EXAMPLE_KEY_LENGTH,
+  MAX_CATALOG_VARIANT_METADATA_BYTES,
+  MAX_CATALOG_VARIANT_METADATA_NAMESPACE_LENGTH,
+  MAX_CATALOG_VARIANT_METADATA_NAMESPACES,
+  MAX_TEMPLATE_DESCRIPTION_LENGTH,
+  MIN_CATALOG_DATA_EXAMPLE_KEY_LENGTH,
+} from '../ts/index.js'
 
 const manifest: CatalogManifest = {
   schemaVersion: 8,
@@ -92,6 +105,41 @@ const detail: ResourceDetail = { schemaVersion: 8, resource: asset }
 const acceptsTemplate = (resource: TemplateResource): TemplateResource => resource
 const pdfaEnabled: TemplateResource['pdfaEnabled'] = false
 
+// A data example has a key from wire v8; its name stays the display name.
+const example: DataExampleEntry = { key: 'standard-letter', name: 'Standard letter', data: { name: 'Jan' } }
+// @ts-expect-error a wire-v8 data example has a key
+const unkeyedExample: DataExampleEntry = { name: 'Standard letter', data: {} }
+
+// A variant may carry producer-specific metadata by reverse-DNS namespace (#96), each an object.
+const variant: VariantEntry = { key: 'english', metadata: { 'app.epistola.suite': { renderingDefaultsVersion: 6 } } }
+const plainVariant: VariantEntry = { key: 'english' }
+// @ts-expect-error a namespace holds an object
+const scalarMetadata: VariantEntry = { key: 'english', metadata: { 'app.epistola.suite': 6 } }
+
+// A template may describe itself in plain text (#97).
+const description: TemplateResource['description'] = 'A one-page letter.'
+const noDescription: TemplateResource['description'] = null
+
+const v8Rules: Array<string | number> = [
+  CATALOG_ARCHIVE_PATH_PATTERN,
+  CATALOG_DATA_EXAMPLE_KEY_PATTERN,
+  MIN_CATALOG_DATA_EXAMPLE_KEY_LENGTH,
+  MAX_CATALOG_DATA_EXAMPLE_KEY_LENGTH,
+  MAX_TEMPLATE_DESCRIPTION_LENGTH,
+  CATALOG_VARIANT_METADATA_NAMESPACE_PATTERN,
+  MAX_CATALOG_VARIANT_METADATA_NAMESPACE_LENGTH,
+  MAX_CATALOG_VARIANT_METADATA_NAMESPACES,
+  MAX_CATALOG_VARIANT_METADATA_BYTES,
+]
+
+void example
+void unkeyedExample
+void variant
+void plainVariant
+void scalarMetadata
+void description
+void noDescription
+void v8Rules
 void manifest
 void migratedDependency
 void unfingerprintedDependency

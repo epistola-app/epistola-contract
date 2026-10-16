@@ -61,7 +61,7 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | Action | What the driver does |
 | --- | --- |
 | `ping` | `POST /ping` with client metadata, through the generated API |
-| `list-templates` | `GET …/templates`, `config.repeat` times, reporting the keys it parsed from the last response (`templateKeys`) |
+| `list-templates` | `GET …/templates`, `config.repeat` times, reporting the keys it parsed from the last response (`templateKeys`, comma-joined) and their descriptions (`templateDescriptions`, joined with `\|`, a missing one as `null`) |
 | `collect` | build a `ResultCollector` from `config`, run it for `config.runForMs`, stop it, report what it handled, including each result's catalog and release as `releases` (`registry/namespace/catalogKey@releaseVersion`, a missing value as `null`) |
 | `problem` | make a request the server answers with a problem, report the parsed slug and members |
 | `validate-template-data` | validate `config.data` for a template through `TemplateSchemaValidator`, reporting the paths and keywords of the failures it surfaced |

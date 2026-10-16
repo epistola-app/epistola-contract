@@ -1,0 +1,23 @@
+{
+  "valid": false,
+  "findings": [
+    {
+      "code": "CATALOG_TEMPLATE_EXAMPLE_KEY_DUPLICATE",
+      "severity": "ERROR",
+      "path": "resources/template/letter.json.resource.dataExamples[1].key",
+      "message": "data example key 'standard' is duplicated"
+    },
+    {
+      "code": "CATALOG_RESOURCE_DESCRIPTION_MISMATCH",
+      "severity": "ERROR",
+      "path": "resources/template/letter.json.resource.description",
+      "message": "template description differs from manifest"
+    },
+    {
+      "code": "CATALOG_VARIANT_METADATA_TOO_LARGE",
+      "severity": "ERROR",
+      "path": "resources/template/letter.json.resource.variants[0].metadata",
+      "message": "metadata is 8237 bytes serialized; at most 8192 are allowed"
+    }
+  ]
+}

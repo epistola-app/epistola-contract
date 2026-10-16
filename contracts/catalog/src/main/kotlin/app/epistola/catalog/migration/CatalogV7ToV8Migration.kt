@@ -4,6 +4,7 @@
 
 package app.epistola.catalog.migration
 
+import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogNamespaces
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ArrayNode
@@ -30,6 +31,9 @@ import tools.jackson.databind.node.ObjectNode
  *   `stencilId` `stencilKey`, an image node's `assetId` `imageKey`, the presentation's
  *   `iconAssetSlug` and `imageAssetSlugs` `iconImageKey` and `imageKeys`, and an attribute
  *   assignment's `catalog` `catalogKey` ([CatalogKeyRenames] lists every position).
+ *
+ * - **Data example keys.** A data example gains a `key`, its address within its template, derived
+ *   from its name ([CatalogKeys.deriveDataExampleKey]) and unique within the template.
  *
  * Each repair is reported with a [CatalogMigrationNotice], except the key renames: like catalog
  * v7's rename of a variant's `id` to `slug`, the value is unchanged, so there is nothing for an
@@ -162,7 +166,39 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
             )
         }
         stripStencilReferenceVersions(resource, "$path.resource", notices)
+        if (resource["type"]?.takeIf { it.isString }?.asString() == "template") assignExampleKeys(resource, "$path.resource", notices)
         return CatalogMigrationStepResult(notices = notices)
+    }
+
+    /**
+     * Gives every data example without a `key` one derived from its name
+     * ([CatalogKeys.deriveDataExampleKey]), in document order, unique within the template. An
+     * example whose name is not a string is left alone: catalog v7 already required one, so that is
+     * a finding for the validator, not something to repair.
+     */
+    private fun assignExampleKeys(
+        resource: ObjectNode,
+        path: String,
+        notices: MutableList<CatalogMigrationNotice>,
+    ) {
+        val examples = resource["dataExamples"] as? ArrayNode ?: return
+        val taken = examples.mapNotNullTo(mutableSetOf()) { (it as? ObjectNode)?.get("key")?.takeIf { key -> key.isString }?.asString() }
+        examples.forEachIndexed { index, node ->
+            val example = node as? ObjectNode ?: return@forEachIndexed
+            if (example.has("key")) return@forEachIndexed
+            val name = example["name"]?.takeIf { it.isString }?.asString() ?: return@forEachIndexed
+            val key = CatalogKeys.deriveDataExampleKey(name, taken)
+            taken += key
+            val members = example.properties().map { (member, value) -> member to value }
+            example.removeAll()
+            example.put("key", key)
+            members.forEach { (member, value) -> example.set(member, value) }
+            notices += CatalogMigrationNotice(
+                CatalogMigrationCodes.DATA_EXAMPLE_KEY_ASSIGNED,
+                "$path.dataExamples[$index].key",
+                "data example '$name' was given the key '$key'",
+            )
+        }
     }
 
     /** Removes `version` and `draftVersion` from every stencil node, wherever a document embeds it. */

@@ -56,6 +56,16 @@ versions catalogs as a whole:
   assignment's `catalog`. The migration renames them
   silently; a v8 document that uses an old name is refused. The Kotlin model still binds the old
   names so that documents stored under earlier versions keep loading.
+- A template's data examples each have a `key`, their address within the template, next to the
+  display `name`; the v7-to-v8 migration derives one from the name with a notice
+  (`CATALOG_DATA_EXAMPLE_KEY_ASSIGNED`). A template may carry a plain-text `description` (at most
+  2000 characters), the source of its manifest entry's `description`.
+- A template variant may carry `metadata`: producer-specific JSON objects keyed by a reverse-DNS
+  namespace the producer owns (`{"app.epistola.suite": {"renderingDefaultsVersion": 6}}`), which
+  the contract carries without interpreting and every reader keeps.
+- A manifest `detailUrl`, and a binary's deprecated `contentUrl`, is a relative path below the
+  manifest's directory (`./resources/template/letter.json`, `bin/<sha256>`), resolved against the
+  archive root or the manifest's URL; see [Archive format](docs/catalog-archive.md).
 
 A v7 archive names no registry or namespace, so migrating one needs both from the importer: pass
 `CatalogMigrationOptions(namespace, registry)` to `CatalogSchemaMigrator.migrateManifest`,
@@ -68,6 +78,11 @@ normalization) and `MAX_CATALOG_KEYWORD_LENGTH`, `MAX_CATALOG_KEYWORDS`, and
 rules are defined the same way: `CatalogNamespaces` in Kotlin, and `CATALOG_REGISTRY_PATTERN`,
 `MAX_CATALOG_REGISTRY_LENGTH`, `CATALOG_NAMESPACE_PATTERN`, `MIN_CATALOG_NAMESPACE_LENGTH`,
 `MAX_CATALOG_NAMESPACE_LENGTH`, and `MAX_CATALOG_DEPENDENCY_VERSION_LENGTH` in TypeScript.
+Paths into the catalog are `CatalogArchivePaths` and `CATALOG_ARCHIVE_PATH_PATTERN`; variant
+metadata is `CatalogVariantMetadata` and the `…VARIANT_METADATA…` constants; data example keys are
+`CatalogKeys.DATA_EXAMPLE` (with `CatalogKeys.deriveDataExampleKey`) and
+`CATALOG_DATA_EXAMPLE_KEY_PATTERN`; the template description limit is
+`TemplateResource.MAX_DESCRIPTION_LENGTH` and `MAX_TEMPLATE_DESCRIPTION_LENGTH`.
 Producers should use these rather than their own copies.
 
 ## Build

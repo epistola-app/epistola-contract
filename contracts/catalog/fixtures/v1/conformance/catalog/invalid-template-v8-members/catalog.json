@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 8,
+  "catalog": {
+    "registry": "exchange.epistola.app",
+    "namespace": "epistola",
+    "key": "fixture",
+    "name": "Fixture Catalog"
+  },
+  "publisher": {
+    "name": "Epistola"
+  },
+  "release": {
+    "version": "1.0.0"
+  },
+  "resources": [
+    {
+      "type": "template",
+      "key": "letter",
+      "name": "Letter",
+      "description": "A listing summary that is not the template's own.",
+      "detailUrl": "./resources/template/letter.json"
+    }
+  ],
+  "dependencies": [],
+  "catalogDependencies": []
+}

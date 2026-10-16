@@ -124,3 +124,42 @@ export const MAX_CATALOG_DEPENDENCY_VERSION_LENGTH = 100
  * from wire v7 has.
  */
 export const CATALOG_RELEASE_FINGERPRINT_PATTERN = '^v[1-9][0-9]*:[0-9a-f]{64}$'
+
+/**
+ * Pattern every path into the catalog must match in wire v8 (#95): a manifest resource entry's
+ * `detailUrl`, and the deprecated `contentUrl` of an image or font face. A relative path below the
+ * manifest's own directory: an optional leading `./`, then segments of unreserved characters
+ * (letters, digits, `-` `.` `_` `~`) or percent-encodings other than of `.` `/` `\`, separated by
+ * `/`. It rejects a scheme, a leading `/` (and so `//host`), a backslash, an empty segment, and a `.`
+ * or `..` segment. Resolve it against the archive root for a zip, and against the manifest's URL for
+ * a catalog read from a URL.
+ */
+export const CATALOG_ARCHIVE_PATH_PATTERN = '^(?:\\./)?(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+(?:/(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+)*$'
+
+/** Pattern a template data example's key must match (wire v8): the same as a manifest resource key. */
+export const CATALOG_DATA_EXAMPLE_KEY_PATTERN = '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+
+/** Shortest template data example key (wire v8). */
+export const MIN_CATALOG_DATA_EXAMPLE_KEY_LENGTH = 1
+
+/** Longest template data example key (wire v8). */
+export const MAX_CATALOG_DATA_EXAMPLE_KEY_LENGTH = 64
+
+/** Longest template description, in characters (wire v8). */
+export const MAX_TEMPLATE_DESCRIPTION_LENGTH = 2000
+
+/**
+ * Pattern a variant metadata namespace must match (wire v8, #96): a lowercase reverse-DNS name the
+ * producer owns, such as `app.epistola.suite`. Only the owner writes into its namespace; every other
+ * reader keeps it as it is.
+ */
+export const CATALOG_VARIANT_METADATA_NAMESPACE_PATTERN = '^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$'
+
+/** Longest variant metadata namespace (wire v8). */
+export const MAX_CATALOG_VARIANT_METADATA_NAMESPACE_LENGTH = 100
+
+/** Most namespaces one variant's metadata may hold (wire v8). Empty metadata is omitted, not written. */
+export const MAX_CATALOG_VARIANT_METADATA_NAMESPACES = 16
+
+/** Largest serialized metadata of one variant, in UTF-8 bytes of its compact JSON (wire v8). */
+export const MAX_CATALOG_VARIANT_METADATA_BYTES = 8192

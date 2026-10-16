@@ -1,0 +1,22 @@
+[
+  {
+    "code": "CATALOG_DATA_EXAMPLE_KEY_ASSIGNED",
+    "path": "resources/template/letter.json.resource.dataExamples[0].key",
+    "message": "data example 'Standaard brief' was given the key 'standaard-brief'"
+  },
+  {
+    "code": "CATALOG_DATA_EXAMPLE_KEY_ASSIGNED",
+    "path": "resources/template/letter.json.resource.dataExamples[1].key",
+    "message": "data example 'standaard-brief' was given the key 'standaard-brief-2'"
+  },
+  {
+    "code": "CATALOG_DATA_EXAMPLE_KEY_ASSIGNED",
+    "path": "resources/template/letter.json.resource.dataExamples[2].key",
+    "message": "data example 'Ärger & Co.' was given the key 'arger-co'"
+  },
+  {
+    "code": "CATALOG_DATA_EXAMPLE_KEY_ASSIGNED",
+    "path": "resources/template/letter.json.resource.dataExamples[3].key",
+    "message": "data example '!!!' was given the key 'example'"
+  }
+]

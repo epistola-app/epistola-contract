@@ -40,6 +40,12 @@ import java.util.zip.ZipException
  * [CatalogArchive] is exposed. Manifest and resource documents pass through
  * [CatalogSchemaMigrator], so wire-version failures are returned as findings.
  *
+ * No path a document declares is ever resolved outside the archive, at any wire version: resource
+ * documents are found by the archive's own `resources/` entries rather than by following a
+ * manifest `detailUrl`, and the returned [ArchiveContentProvider] refuses any path that is not a
+ * normalized relative path inside the extraction root. Wire v8 additionally constrains the declared
+ * paths themselves ([app.epistola.catalog.protocol.CatalogArchivePaths]).
+ *
  * Temporary files live until the returned archive is closed.
  */
 object CatalogArchiveReader {

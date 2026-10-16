@@ -62,6 +62,45 @@ class CatalogWireParityTest {
     }
 
     @Test
+    fun `a v8 template's description, example keys and variant metadata are written back member for member`() {
+        val source = fixture("wire-v8/resources/template/letter.json").use(mapper::readTree)
+        val detail = mapper.treeToValue(source, ResourceDetail::class.java)
+        val template = detail.resource as TemplateResource
+
+        assertEquals("standard-letter", template.dataExamples.orEmpty().single().key)
+        assertEquals(mapOf("app.epistola.suite" to mapOf("renderingDefaultsVersion" to 6)), template.variants.single().metadata)
+        assertTrue(template.description.orEmpty().startsWith("A one-page letter"))
+        val written = mapper.valueToTree<JsonNode>(detail)["resource"]
+        for (member in listOf("description", "dataExamples")) {
+            assertEquals(source["resource"][member], written[member], member)
+        }
+        assertEquals(source["resource"]["variants"][0]["metadata"], written["variants"][0]["metadata"])
+        assertEquals(detail, mapper.readValue(mapper.writeValueAsBytes(detail), ResourceDetail::class.java))
+    }
+
+    @Test
+    fun `a namespace the reader does not recognise is kept as it is`() {
+        val json = """{"key":"english","metadata":{"com.example.renderer":{"nested":{"list":[1,"two",null,{"x":false}]},"n":1.5},
+            "app.epistola.suite":{"renderingDefaultsVersion":6}}}"""
+        val variant = mapper.readValue(json, VariantEntry::class.java)
+
+        assertEquals(mapper.readTree(json)["metadata"], mapper.valueToTree<JsonNode>(variant)["metadata"])
+    }
+
+    @Test
+    fun `members wire v8 added bind when absent, so documents stored earlier still load, and are then omitted`() {
+        val example = mapper.readValue("""{"name":"Standard letter","data":{}}""", DataExampleEntry::class.java)
+        val variant = mapper.readValue("""{"key":"english"}""", VariantEntry::class.java)
+
+        assertEquals(null, example.key)
+        assertEquals(null, variant.metadata)
+        assertTrue(!mapper.valueToTree<JsonNode>(example).has("key"))
+        assertTrue(!mapper.valueToTree<JsonNode>(variant).has("metadata"))
+        assertTrue(!mapper.valueToTree<JsonNode>(variant.copy(metadata = emptyMap())).has("metadata"), "empty metadata is omitted")
+        assertEquals(listOf("key", "name", "data"), mapper.valueToTree<JsonNode>(example.copy(key = "standard-letter")).propertyNames().toList())
+    }
+
+    @Test
     fun `the model binds documents stored under v7, which name no registry or namespace and pin stencil versions`() {
         val manifest = fixture("migrations/v7-to-v8/manifest-input.json").use { mapper.readValue(it, CatalogManifest::class.java) }
         val stencil = fixture("migrations/v7-to-v8/stencil-input.json").use { mapper.readValue(it, ResourceDetail::class.java) }

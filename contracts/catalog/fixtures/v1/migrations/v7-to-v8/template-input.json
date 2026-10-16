@@ -7,6 +7,30 @@
     "themeId": "corporate",
     "themeCatalogKey": "shared",
     "pdfaEnabled": true,
+    "dataExamples": [
+      {
+        "name": "Standaard brief",
+        "data": {
+          "name": "Jan"
+        }
+      },
+      {
+        "name": "standaard-brief",
+        "data": {
+          "name": "Piet"
+        }
+      },
+      {
+        "name": "Ärger & Co.",
+        "data": {
+          "name": "Klaas"
+        }
+      },
+      {
+        "name": "!!!",
+        "data": {}
+      }
+    ],
     "templateModel": {
       "modelVersion": 1,
       "root": "root",

@@ -6,11 +6,13 @@ package app.epistola.catalog.migration
 
 import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogInfo
+import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.PublisherInfo
 import app.epistola.catalog.protocol.ReleaseInfo
 import app.epistola.catalog.protocol.StencilResource
 import app.epistola.catalog.protocol.TemplateResource
+import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
@@ -390,14 +392,103 @@ class CatalogSchemaMigratorTest {
     }
 
     @Test
-    fun `v7 keys migrate to their v8 names, values unchanged and without notices`() {
+    fun `v7 keys migrate to their v8 names, values unchanged and without notices, and data examples gain keys with notices`() {
         val tree = resource("migrations/v7-to-v8/template-input.json").use(mapper::readTree) as ObjectNode
         val step = CatalogV7ToV8Migration().migrateResource(tree, "resources/template/letter.json", CatalogMigrationContext(7, emptyManifest()))
 
         assertTrue(step.findings.isEmpty(), step.findings.toString())
-        // Like v7's rename of a variant's id to slug: the value is unchanged, so there is nothing to report.
-        assertTrue(step.notices.isEmpty(), step.notices.toString())
+        // Like v7's rename of a variant's id to slug: the value is unchanged, so there is nothing to
+        // report. A derived example key is new content, so each one is.
+        assertTrue(step.notices.all { it.code == CatalogMigrationCodes.DATA_EXAMPLE_KEY_ASSIGNED }, step.notices.toString())
+        assertEquals(resource("migrations/v7-to-v8/template-notices.json").use(mapper::readTree), mapper.valueToTree(step.notices))
         assertEquals(resource("migrations/v7-to-v8/template-expected.json").use(mapper::readTree), tree)
+        // The key leads each example, ahead of the name it was derived from.
+        assertEquals(listOf("key", "name", "data"), tree["resource"]["dataExamples"][0].propertyNames().toList())
+    }
+
+    @Test
+    fun `data example keys are derived as the published fixture defines`() {
+        val fixture = resource("migrations/v7-to-v8/data-example-keys.json").use(mapper::readTree)
+
+        assertEquals(CatalogKeys.DATA_EXAMPLE.maxLength, fixture["maxLength"].asInt())
+        fixture["cases"].forEach { case ->
+            val taken = mutableSetOf<String>()
+            val keys: List<String> = case["names"].toList().map { name -> CatalogKeys.deriveDataExampleKey(name.asString(), taken).also(taken::add) }
+
+            assertEquals(case["keys"].toList().map { it.asString() }, keys, case["names"].toString())
+            keys.forEach { assertTrue(CatalogKeys.matches(CatalogKeys.DATA_EXAMPLE, it), it) }
+        }
+    }
+
+    @Test
+    fun `an example that already has a key keeps it, and a derived key avoids it`() {
+        val tree = mapper.readTree(
+            """{"schemaVersion":7,"resource":{"type":"template","slug":"letter","name":"Letter","variants":[],
+               "templateModel":{"root":"r","nodes":{},"slots":{}},
+               "dataExamples":[{"name":"Standard","data":{}},{"key":"standard","name":"Other","data":{}}]}}""",
+        ) as ObjectNode
+        val step = CatalogV7ToV8Migration().migrateResource(tree, "resources/template/letter.json", CatalogMigrationContext(7, emptyManifest()))
+
+        assertEquals(listOf("standard-2", "standard"), tree["resource"]["dataExamples"].toList().map { it["key"].asString() })
+        assertEquals(listOf("resources/template/letter.json.resource.dataExamples[0].key"), step.notices.map { it.path })
+    }
+
+    @Test
+    fun `a v8 manifest's detailUrl is a relative path below the manifest, and earlier versions are not held to it`() {
+        fun findings(
+            version: Int,
+            detailUrl: String,
+        ): List<Pair<String, String>> {
+            val tree = resource("wire-v8/catalog.json").use(mapper::readTree) as ObjectNode
+            (tree["resources"][0] as ObjectNode).put("detailUrl", detailUrl)
+            if (version < 8) {
+                tree.put("schemaVersion", version)
+                tree.remove("catalogDependencies")
+                CatalogKeyRenames.toLegacy(CatalogKeyRenames.manifestSites(tree))
+                (tree["catalog"] as ObjectNode).remove(listOf("registry", "namespace"))
+                (tree["dependencies"] as ArrayNode).forEach { (it as ObjectNode).remove(listOf("registry", "namespace")) }
+            }
+            return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(mapper.writeValueAsBytes(tree)), OPTIONS)
+                .findings.map { it.code to it.path }
+        }
+        val invalid = listOf(CatalogMigrationCodes.DETAIL_URL_INVALID to "catalog.json.resources[0].detailUrl")
+
+        ACCEPTED_PATHS.forEach { assertEquals(emptyList(), findings(8, it), it) }
+        REJECTED_PATHS.forEach { assertEquals(invalid, findings(8, it), it) }
+        REJECTED_PATHS.forEach { assertEquals(emptyList(), findings(7, it), "v7 stays readable: $it") }
+    }
+
+    @Test
+    fun `a v8 binary's contentUrl is held to the same rule, and earlier versions are not`() {
+        fun findings(
+            version: Int,
+            type: String,
+            contentUrl: String,
+        ): List<Pair<String, String>> {
+            val keyMember = if (version >= 8) "key" else "slug"
+            val hash = "0".repeat(64)
+            val resource = mapper.readTree(
+                when (type) {
+                    "image" -> """{"type":"image","$keyMember":"logo","name":"Logo","mediaType":"image/png","contentHash":"$hash"}"""
+                    else -> """{"type":"font","$keyMember":"inter","name":"Inter","kind":"sans","variants":[{"weight":400,"italic":false,"mediaType":"font/ttf","contentHash":"$hash"}]}"""
+                },
+            ) as ObjectNode
+            val owner = if (type == "image") resource else resource["variants"][0] as ObjectNode
+            owner.put("contentUrl", contentUrl)
+            val json = mapper.createObjectNode().put("schemaVersion", version).set("resource", resource)
+            return CatalogSchemaMigrator.migrateResourceDetail(type, ByteArrayInputStream(mapper.writeValueAsBytes(json)), CatalogMigrationContext(version, emptyManifest()), "resources/$type/x.json")
+                .findings.map { it.code to it.path }
+        }
+
+        ACCEPTED_PATHS.forEach { path ->
+            assertEquals(emptyList(), findings(8, "image", path), path)
+            assertEquals(emptyList(), findings(8, "font", path), path)
+        }
+        REJECTED_PATHS.forEach { path ->
+            assertEquals(listOf(CatalogMigrationCodes.ASSET_PATH_INVALID to "resources/image/x.json.resource.contentUrl"), findings(8, "image", path), path)
+            assertEquals(listOf(CatalogMigrationCodes.ASSET_PATH_INVALID to "resources/font/x.json.resource.variants[0].contentUrl"), findings(8, "font", path), path)
+            assertEquals(emptyList(), findings(7, "image", path), "v7 stays readable: $path")
+        }
     }
 
     @Test
@@ -630,5 +721,48 @@ class CatalogSchemaMigratorTest {
         val OPTIONS = CatalogMigrationOptions(NAMESPACE, REGISTRY)
         const val ACME = "acme-corp"
         val OPTIONS_ACME = CatalogMigrationOptions(ACME, REGISTRY)
+
+        /** Paths into the catalog wire v8 accepts (#95). */
+        val ACCEPTED_PATHS = listOf(
+            "./resources/template/a.json",
+            "resources/a.json",
+            "bin/" + "0".repeat(64),
+            "./a",
+            "a/b/c.json",
+            "resources/~user/.hidden/a_b-c.json",
+            "resources/a%20b.json",
+            "a..b/c",
+            "...",
+        )
+
+        /** Paths into the catalog wire v8 rejects: a scheme, absolute, a backslash, empty, dot or encoded segments. */
+        val REJECTED_PATHS = listOf(
+            "https://other.example/x.json",
+            "file:resources/a.json",
+            "C:resources/a.json",
+            "/abs/x.json",
+            "//host/x.json",
+            "resources\\a.json",
+            "../x.json",
+            "resources/../../x.json",
+            "./../x.json",
+            "././x.json",
+            "resources/./a.json",
+            "resources/..",
+            "resources//a.json",
+            "resources/",
+            "",
+            "./",
+            "%2e%2e/x.json",
+            "%2E%2E/x.json",
+            "resources%2fa.json",
+            "resources%2Fa.json",
+            "resources%5ca.json",
+            "resources%5Ca.json",
+            "resources/a b.json",
+            "resources/a?b.json",
+            "resources/a#b.json",
+            "resources/%zz.json",
+        )
     }
 }

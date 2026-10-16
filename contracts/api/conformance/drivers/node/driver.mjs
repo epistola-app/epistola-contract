@@ -113,6 +113,7 @@ async function listTemplates(baseUrl, config) {
   }
   await report(baseUrl, {
     templateKeys: response.items.map((template) => show(template.key)).join(','),
+    templateDescriptions: response.items.map((template) => show(template.description)).join('|'),
   })
 }
 

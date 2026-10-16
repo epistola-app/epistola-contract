@@ -5,6 +5,7 @@
 package app.epistola.catalog.migration
 
 import app.epistola.catalog.archive.ArchiveContentProvider
+import app.epistola.catalog.protocol.CatalogArchivePaths
 import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogManifest
@@ -198,6 +199,26 @@ object CatalogMigrationCodes {
      */
     const val STENCIL_VERSION_REMOVED = "CATALOG_STENCIL_VERSION_REMOVED"
 
+    /**
+     * Notice: a catalog-v7 data example was given a key derived from its name, unique within its
+     * template. The path names the new `key`, and the message the key chosen.
+     */
+    const val DATA_EXAMPLE_KEY_ASSIGNED = "CATALOG_DATA_EXAMPLE_KEY_ASSIGNED"
+
+    /**
+     * A catalog-v8 manifest's `detailUrl` is not a relative path below the manifest's directory
+     * ([app.epistola.catalog.protocol.CatalogArchivePaths]). Not raised for an earlier wire version,
+     * which did not constrain it.
+     */
+    const val DETAIL_URL_INVALID = "CATALOG_MANIFEST_DETAIL_URL_INVALID"
+
+    /**
+     * A catalog-v8 image's or font face's `contentUrl` is not a relative path below the manifest's
+     * directory ([app.epistola.catalog.protocol.CatalogArchivePaths]). Not raised for an earlier wire
+     * version, which did not constrain it.
+     */
+    const val ASSET_PATH_INVALID = "CATALOG_ASSET_PATH_INVALID"
+
     /** Notice: a catalog-v6 keyword was rewritten to its catalog-v7 form. */
     const val KEYWORD_NORMALIZED = "CATALOG_KEYWORD_NORMALIZED"
 
@@ -244,7 +265,7 @@ object CatalogSchemaMigrator {
         versionFinding(source, "catalog.json.schemaVersion")?.let { return CatalogMigrationResult(null, source, listOf(it)) }
         val migration = migrate(source) { step -> step.migrateManifest(tree, options) }
         if (migration.findings.isNotEmpty()) return CatalogMigrationResult(null, source, migration.findings, migration.notices)
-        val wireFindings = validateManifestWireValues(tree)
+        val wireFindings = validateManifestWireValues(tree, source)
         if (wireFindings.isNotEmpty()) return CatalogMigrationResult(null, source, wireFindings, migration.notices)
         return bind(tree, CatalogManifest::class.java, source, "catalog.json", migration.notices)
     }
@@ -297,7 +318,7 @@ object CatalogSchemaMigrator {
         val migration = migrate(source) { step -> step.migrateResource(tree, path, context) }
         if (migration.findings.isNotEmpty()) return CatalogMigrationResult(null, source, migration.findings, migration.notices)
         val wireFindings = (tree["resource"] as? ObjectNode)
-            ?.let { renamedMemberFindings(CatalogKeyRenames.resourceSites(it, "$path.resource")) }
+            ?.let { renamedMemberFindings(CatalogKeyRenames.resourceSites(it, "$path.resource")) + contentUrlFindings(it, "$path.resource", source) }
             .orEmpty()
         if (wireFindings.isNotEmpty()) return CatalogMigrationResult(null, source, wireFindings, migration.notices)
         return bind(tree, ResourceDetail::class.java, source, path, migration.notices)
@@ -313,10 +334,59 @@ object CatalogSchemaMigrator {
 
     private fun schemaVersion(tree: ObjectNode): Int? = tree["schemaVersion"]?.takeIf { it.isIntegralNumber }?.asInt()
 
-    private fun validateManifestWireValues(tree: ObjectNode): List<CatalogMigrationFinding> = renamedMemberFindings(CatalogKeyRenames.manifestSites(tree)) +
+    private fun validateManifestWireValues(
+        tree: ObjectNode,
+        source: Int,
+    ): List<CatalogMigrationFinding> = renamedMemberFindings(CatalogKeyRenames.manifestSites(tree)) +
         namespaceFindings(tree) +
         releaseFingerprintFindings(tree) +
-        keywordFindings(tree)
+        keywordFindings(tree) +
+        detailUrlFindings(tree, source)
+
+    /**
+     * Wire v8 requires every path into the catalog to be relative and below the manifest's directory
+     * ([CatalogArchivePaths]). An archive written at an earlier version is not held to it, so that it
+     * stays readable; the archive reader never resolves a path outside the archive whatever it says.
+     */
+    private fun detailUrlFindings(
+        tree: ObjectNode,
+        source: Int,
+    ): List<CatalogMigrationFinding> {
+        if (source < ARCHIVE_PATHS_SINCE_WIRE_VERSION) return emptyList()
+        val resources = tree["resources"] as? ArrayNode ?: return emptyList()
+        return resources.mapIndexedNotNull { index, entry ->
+            val detailUrl = (entry as? ObjectNode)?.get("detailUrl")?.takeIf { it.isString }?.asString() ?: return@mapIndexedNotNull null
+            if (CatalogArchivePaths.isValid(detailUrl)) return@mapIndexedNotNull null
+            CatalogMigrationFinding(
+                CatalogMigrationCodes.DETAIL_URL_INVALID,
+                "catalog.json.resources[$index].detailUrl",
+                "detailUrl '$detailUrl' must be a relative path below the manifest's directory",
+            )
+        }
+    }
+
+    /** The `contentUrl` of an image or font face, held to the same rule as a manifest `detailUrl`. */
+    private fun contentUrlFindings(
+        resource: ObjectNode,
+        path: String,
+        source: Int,
+    ): List<CatalogMigrationFinding> {
+        if (source < ARCHIVE_PATHS_SINCE_WIRE_VERSION) return emptyList()
+        val sites = when (resource["type"]?.takeIf { it.isString }?.asString()) {
+            "image" -> listOf(resource to path)
+            "font" -> (resource["variants"] as? ArrayNode)?.mapIndexedNotNull { index, face -> (face as? ObjectNode)?.let { it to "$path.variants[$index]" } }.orEmpty()
+            else -> emptyList()
+        }
+        return sites.mapNotNull { (owner, ownerPath) ->
+            val contentUrl = owner["contentUrl"]?.takeIf { it.isString }?.asString() ?: return@mapNotNull null
+            if (CatalogArchivePaths.isValid(contentUrl)) return@mapNotNull null
+            CatalogMigrationFinding(
+                CatalogMigrationCodes.ASSET_PATH_INVALID,
+                "$ownerPath.contentUrl",
+                "contentUrl '$contentUrl' must be a relative path below the manifest's directory",
+            )
+        }
+    }
 
     /**
      * Wire v8 calls a resource's address its `key` ([CatalogKeyRenames]). The model still binds the
@@ -418,6 +488,9 @@ object CatalogSchemaMigrator {
             )
         }
     }
+
+    /** The wire version from which every path into the catalog is held to [CatalogArchivePaths]. */
+    private const val ARCHIVE_PATHS_SINCE_WIRE_VERSION = 8
 
     private fun versionFinding(
         source: Int,

@@ -31,6 +31,27 @@ libraries.
   `undeployRelease` (both addressed by the release, `…/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}`,
   with no request body), and `listDeploymentHistory` with every deploy and undeploy.
 
+- **A template has a `description`** (#97): optional plain-text notes for its authors, at most
+  2000 characters, not rendered. On `TemplateDto`, `TemplateSummaryDto`, `CreateTemplateRequest`,
+  `UpdateTemplateRequest` (omit to keep, null to clear) and `ImportTemplateDto`, and in wire v8 as
+  `TemplateResource.description`. The manifest entry's `description` must equal it when both are
+  set (`CATALOG_RESOURCE_DESCRIPTION_MISMATCH`). The `list-templates` conformance action reports
+  `templateDescriptions`.
+
+- **Wire v8: producer metadata on each template variant** (#96). `VariantEntry.metadata` maps a
+  reverse-DNS namespace owned by its producer (`app.epistola.suite`) to a JSON object the contract
+  does not interpret: at most 16 namespaces and 8 KiB per variant
+  (`CATALOG_VARIANT_METADATA_INVALID`, `CATALOG_VARIANT_METADATA_TOO_LARGE`). It is preserved
+  verbatim, a consumer keeps namespaces it does not know, and V5 fingerprints cover it. Epistola
+  Suite will carry each variant's rendering-defaults version there; it may not do so yet.
+
+- **Data examples have a `key`.** Wire v8 `dataExamples[]` is `{key, name, data}`, the key unique
+  within its template (`CATALOG_TEMPLATE_EXAMPLE_KEY_INVALID`, `_KEY_DUPLICATE`), matching the API's
+  `DataExampleDto.key`, which now has the same pattern and limits (`^[a-z0-9]+(?:-[a-z0-9]+)*$`,
+  1–64). The v7→v8 migration derives a key from each example's name
+  (`CATALOG_DATA_EXAMPLE_KEY_ASSIGNED`); the published `data-example-keys.json` fixture lists the
+  derivation cases.
+
 - **Deploying checks a release's dependency releases** (ADR 0003). The environment must serve the
   releases of other catalogs the deployed release renders with. Without the new `deployRelease`
   query parameter `includeDependencies` (default false) a missing one refuses the deployment with
@@ -85,6 +106,15 @@ libraries.
     `CATALOG_RESOURCE_SLUG_MISMATCH` / `_SLUG_INVALID` → `CATALOG_RESOURCE_KEY_MISMATCH` /
     `_KEY_INVALID`, and `CATALOG_TEMPLATE_VARIANT_ID_DUPLICATE` →
     `CATALOG_TEMPLATE_VARIANT_KEY_DUPLICATE`.
+
+- **BREAKING: wire v8 paths into the catalog are relative** (#95). `ResourceEntry.detailUrl`,
+  `ImageResource.contentUrl` and a font face's `contentUrl` must be a relative path below the
+  manifest: no scheme, no leading `/`, no backslash, no empty, `.` or `..` segment, and no
+  percent-encoded `.`, `/` or `\`. The migrator's wire check and the validator report
+  `CATALOG_MANIFEST_DETAIL_URL_INVALID` and `CATALOG_ASSET_PATH_INVALID` for v8 input; older wire
+  versions keep their rules. The rule is published as `CatalogArchivePaths` (Kotlin) and
+  `CATALOG_ARCHIVE_PATH_PATTERN` (npm). The archive reader never resolved a path outside the
+  archive, at any version; a test now pins that.
 
 - **BREAKING: an API fingerprint names its algorithm.** `CatalogDto.fingerprint` and
   `CatalogVersionDto.fingerprint` are `v5:<hex>`, the value in the release's catalog archive

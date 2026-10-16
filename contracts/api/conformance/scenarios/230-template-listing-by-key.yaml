@@ -11,6 +11,8 @@ why: >
   read the address from `key` alone. A generated model that still looked for `id` or `slug`, or
   treated `key` as optional and dropped it, would surface nothing here.
 
+  The first template carries the optional plain-text `description` (#97); the second has none.
+
 action:
   name: list-templates
   config:
@@ -29,6 +31,7 @@ script:
         - key: invoice
           tenantKey: acme-corp
           name: Invoice
+          description: "Monthly invoice; the payment block follows the 2026 house style."
           createdAt: '2026-08-20T10:00:00Z'
           lastModified: '2026-08-20T10:00:00Z'
         - key: reminder-letter
@@ -42,3 +45,6 @@ expect:
   requestCount: 1
   report:
     templateKeys: invoice,reminder-letter
+    # A template's description reads back as sent; one the server leaves out reads as null, not
+    # as an empty string.
+    templateDescriptions: "Monthly invoice; the payment block follows the 2026 house style.|null"

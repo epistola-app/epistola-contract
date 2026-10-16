@@ -6,6 +6,7 @@ package app.epistola.catalog.canonical
 
 import app.epistola.catalog.archive.CatalogArchive
 import app.epistola.catalog.migration.CatalogKeyRenames
+import app.epistola.catalog.migration.CatalogV8Additions
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.ImageResource
@@ -77,7 +78,10 @@ data class QualifiedCatalogFingerprint(
  * canonicalize the members catalog v8 renamed ([CatalogKeyRenames]) under their old names (`slug`,
  * `themeId`, `stencilId`, `assetId`, `iconAssetSlug`, `imageAssetSlugs`, an attribute's `catalog`,
  * a font reference's `slug`), so they reproduce exactly the fingerprints producers computed before
- * the rename, whichever wire version the archive is read at.
+ * the rename, whichever wire version the archive is read at. Likewise V5 is the only algorithm that
+ * covers the members wire v8 added to a template -- a data example's `key`, a `description`, a
+ * variant's `metadata` ([CatalogV8Additions]) -- so a key the v7-to-v8 migration derives moves no
+ * legacy fingerprint.
  */
 enum class CatalogFingerprintVersion {
     V1,
@@ -232,7 +236,7 @@ object CatalogCanonicalizer {
         }
         Entry(
             key = key,
-            canonicalJson = mapper.writeValueAsString(sortKeys(normalizeStencilProvenance(CatalogKeyRenames.legacyResource(model), legacyV4 = false))),
+            canonicalJson = mapper.writeValueAsString(sortKeys(normalizeStencilProvenance(legacyResource(model), legacyV4 = false))),
             assetHash = assetHash(catalog, detail),
         )
     }
@@ -516,7 +520,7 @@ object CatalogCanonicalizer {
             }
         } else {
             mapper.valueToTree(detail.resource)
-        }.let(CatalogKeyRenames::legacyResource)
+        }.let(::legacyResource)
         val assetHash = (detail.resource as? ImageResource)?.let { asset ->
             val path = asset.contentPath()
             if (path in catalog.paths) {
@@ -533,7 +537,7 @@ object CatalogCanonicalizer {
     }
 
     private fun semanticEntries(catalog: CatalogArchive): List<Entry> = catalog.resourceDetails.map { (key, detail) ->
-        val resourceNode = normalizeStencilProvenance(CatalogKeyRenames.legacyResource(resourceNode(catalog, key, detail)), legacyV4 = false)
+        val resourceNode = normalizeStencilProvenance(legacyResource(resourceNode(catalog, key, detail)), legacyV4 = false)
         Entry(
             key = key,
             canonicalJson = mapper.writeValueAsString(sortKeys(resourceNode)),
@@ -547,7 +551,7 @@ object CatalogCanonicalizer {
         currentNames: Boolean,
     ): List<Entry> = catalog.resourceDetails.map { (key, detail) ->
         val model: JsonNode = mapper.valueToTree(detail.resource)
-        val resourceNode = normalizeStencilProvenance(if (currentNames) model else CatalogKeyRenames.legacyResource(model), legacyV4 = false)
+        val resourceNode = normalizeStencilProvenance(if (currentNames) model else legacyResource(model), legacyV4 = false)
         Entry(
             key = key,
             canonicalJson = mapper.writeValueAsString(sortKeys(resourceNode)),
@@ -556,7 +560,7 @@ object CatalogCanonicalizer {
     }
 
     private fun legacyV4Entries(catalog: CatalogArchive): List<Entry> = catalog.resourceDetails.map { (key, detail) ->
-        val resourceNode = normalizeStencilProvenance(CatalogKeyRenames.legacyResource(resourceNode(catalog, key, detail)), legacyV4 = true)
+        val resourceNode = normalizeStencilProvenance(legacyResource(resourceNode(catalog, key, detail)), legacyV4 = true)
         Entry(
             key = key,
             canonicalJson = mapper.writeValueAsString(sortKeys(resourceNode)),
@@ -605,6 +609,13 @@ object CatalogCanonicalizer {
         }
         else -> node
     }
+
+    /**
+     * A resource as a catalog-v7 producer serialized it, which is what V1 to V4 cover: the members
+     * catalog v8 renamed under their old names ([CatalogKeyRenames]), and without the members it
+     * added ([CatalogV8Additions]).
+     */
+    private fun legacyResource(resource: JsonNode): JsonNode = CatalogV8Additions.withoutAdditions(CatalogKeyRenames.legacyResource(resource))
 
     private fun CatalogInfo.identityLine(): String = "$key $name ${description.orEmpty()}\n"
 

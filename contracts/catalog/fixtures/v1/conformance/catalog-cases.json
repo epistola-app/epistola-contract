@@ -26,6 +26,15 @@
         "catalog.json",
         "resources/attribute/locale.json"
       ]
+    },
+    {
+      "id": "invalid-template-v8-members",
+      "root": "conformance/catalog/invalid-template-v8-members",
+      "expectedReport": "expected-report.json",
+      "files": [
+        "catalog.json",
+        "resources/template/letter.json"
+      ]
     }
   ]
 }

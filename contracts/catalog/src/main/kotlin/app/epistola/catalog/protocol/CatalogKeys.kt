@@ -4,6 +4,8 @@
 
 package app.epistola.catalog.protocol
 
+import java.text.Normalizer
+
 /**
  * Resource key rules introduced by wire v7, defined once for every producer and consumer.
  *
@@ -62,6 +64,52 @@ object CatalogKeys {
      * resource document, where the exact rule applies, so nothing escapes the tighter check.
      */
     val ANY = Rule(IMAGE_PATTERN, 1, 64)
+
+    /**
+     * A template data example's key (wire v8): its address within its template. The same bounds as
+     * a manifest resource entry's key ([ANY]), so a leading digit is allowed.
+     */
+    val DATA_EXAMPLE = Rule(IMAGE_PATTERN, 1, 64)
+
+    /** The key [deriveDataExampleKey] falls back to when a name has no letter or digit. */
+    const val DATA_EXAMPLE_FALLBACK_KEY: String = "example"
+
+    private val combiningMarks = Regex("\\p{M}+")
+    private val separators = Regex("[^a-z0-9]+")
+
+    /**
+     * Derives a data example key from its display [name], deterministically, avoiding [taken].
+     *
+     * The name is decomposed (Unicode NFD) and stripped of combining marks, lowercased, and every
+     * run of characters outside `a-z0-9` becomes one hyphen; leading and trailing hyphens are
+     * trimmed, and the result is cut to [DATA_EXAMPLE]'s maximum length without leaving a trailing
+     * hyphen. An empty result becomes [DATA_EXAMPLE_FALLBACK_KEY]. A key already in [taken] gets the
+     * first free suffix `-2`, `-3`, …, cutting the base so that the whole stays within the limit.
+     * `Ärger & Co.` becomes `arger-co`, a second `Standaard brief` `standaard-brief-2`.
+     *
+     * The v7-to-v8 migration gives each catalog-v7 example its key this way, in document order.
+     */
+    fun deriveDataExampleKey(
+        name: String,
+        taken: Set<String> = emptySet(),
+    ): String {
+        val max = DATA_EXAMPLE.maxLength
+        val decomposed = combiningMarks.replace(Normalizer.normalize(name, Normalizer.Form.NFD), "")
+        val base = fit(separators.replace(decomposed.lowercase(), "-").trim('-'), max).ifEmpty { DATA_EXAMPLE_FALLBACK_KEY }
+        if (base !in taken) return base
+        var suffix = 2
+        while (true) {
+            val candidate = fit(base, max - "-$suffix".length).ifEmpty { DATA_EXAMPLE_FALLBACK_KEY.take(max - "-$suffix".length) } + "-$suffix"
+            if (candidate !in taken) return candidate
+            suffix++
+        }
+    }
+
+    /** Cuts [value] to [length] characters without leaving a trailing hyphen. */
+    private fun fit(
+        value: String,
+        length: Int,
+    ): String = if (value.length <= length) value else value.take(length).trimEnd('-')
 
     private val compiled = HashMap<String, Regex>()
 

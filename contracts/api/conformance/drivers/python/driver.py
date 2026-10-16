@@ -126,6 +126,7 @@ def _list_templates(base_url: str, config: dict) -> None:
         base_url,
         {
             "templateKeys": ",".join(_show(template.key) for template in response.items),
+            "templateDescriptions": "|".join(_show(template.description) for template in response.items),
         },
     )
 

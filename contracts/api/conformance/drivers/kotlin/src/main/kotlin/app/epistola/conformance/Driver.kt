@@ -131,6 +131,7 @@ object Driver {
             baseUrl,
             mapOf(
                 "templateKeys" to templates.joinToString(",") { it.key.toString() },
+                "templateDescriptions" to templates.joinToString("|") { it.description ?: "null" },
             ),
         )
     }

@@ -22,6 +22,8 @@ wire version. Wire v8 belongs to contract 2.0 and changes the Kotlin model incom
 | Bounded lowercase keywords | Wire v7 accepts catalog keywords only as lowercase ASCII letters and digits in hyphen-separated parts, at most 30 characters, and at most 20 per catalog. A v7 archive with other keywords is invalid. | v6 archives migrate with notices: keywords are normalized, shortened, merged, or removed. Producers normalize with `CatalogKeywords.normalize` before emitting v7. |
 | Canonical rich text | A text component's `content` must be a ProseMirror document object. Historical string and bare-array forms are invalid. | Open and save the content with a current editor, or transform it to `{ "type": "doc", "content": [...] }` before export. |
 | A resource's address is its key | Wire v8 calls a resource's public address its `key` and an `id` only a generated identifier that is not an address. `slug` becomes `key` on the catalog, every resource entry, resource dependency, resource, variant and code-list binding; `themeId` becomes `themeKey` on a template and in a document's `ThemeRef`; a stencil node's `stencilId` becomes `stencilKey`, an image node's `assetId` `imageKey`, a `fontFamily` font reference's `slug` `key`, the presentation's `iconAssetSlug` and `imageAssetSlugs` `iconImageKey` and `imageKeys`, and an attribute assignment's `catalog` `catalogKey`. The finding codes follow: `CATALOG_RESOURCE_KEY_MISMATCH`, `CATALOG_RESOURCE_KEY_INVALID` and `CATALOG_TEMPLATE_VARIANT_KEY_DUPLICATE` replace their `SLUG` and `ID` forms. Values and their rules are unchanged. A v8 document using an old name is refused by the migrator's wire check (`CATALOG_SCHEMA_UNKNOWN`), and the old node props are undeclared (`TEMPLATE_NODE_PROPERTY_INVALID`). The Kotlin properties are renamed alike (`CatalogInfo.key`, `CatalogResource.key`, `ResourceEntry.key`, `DependencyRef.key`, `VariantEntry.key`, `CodeListBindingRef.key`, `TemplateResource.themeKey`, `ThemeRefOverride.themeKey`, `CatalogPresentation.iconImageKey` and `.imageKeys`, `FontRef.key`, `AttributeAssignment.catalogKey`), as are `CatalogResourceReference.key` and `CatalogKeys` (formerly `CatalogSlugs`). | v7 archives migrate silently: the value is unchanged, so like v7's rename of a variant's `id` there is nothing to report. The model still binds the old names (`@JsonAlias`), so manifests and details a consumer stored under earlier versions keep loading with plain Jackson. Producers write the new names. |
+| Data example keys | Wire v8 gives every template data example a required `key`, its address within the template (`^[a-z0-9]+(?:-[a-z0-9]+)*$`, 1 to 64 characters, the same as a manifest resource key), unique there (`CATALOG_TEMPLATE_EXAMPLE_KEY_DUPLICATE`); a missing or malformed one is `CATALOG_TEMPLATE_EXAMPLE_KEY_INVALID`. `name` stays the display name, and stays unique too. `DataExampleEntry.key` is added to the Kotlin model, nullable and omitted when null, so examples stored before v8 still bind. | v7 archives migrate with one `CATALOG_DATA_EXAMPLE_KEY_ASSIGNED` notice per example: the key is derived from the name (`CatalogKeys.deriveDataExampleKey`; NFD without combining marks, lowercased, every other run of characters one hyphen, cut to 64; `example` when nothing is left; `-2`, `-3`, ... when taken). Producers write the key. |
+| Paths into the catalog | Wire v8 constrains a manifest `detailUrl`, and an image's or font face's deprecated `contentUrl`, to a relative path below the manifest's directory (`CatalogArchivePaths`, see `catalog-archive.md`). A v8 archive with another form is refused by the migrator's wire check and reported by `CatalogValidator` (`CATALOG_MANIFEST_DETAIL_URL_INVALID`, `CATALOG_ASSET_PATH_INVALID`). | None for archives written by Epistola, which already write `./resources/<type>/<key>.json` and `bin/<sha256>`. Earlier wire versions are not held to the rule and stay readable. |
 | Unversioned stencils | From wire v8 a stencil carries no `version`, and a stencil node declares a valid `stencilKey`, optionally `catalogKey`, `namespace` and `registry`, and no `version` or `draftVersion` (they are reported as undeclared properties). A stencil resolves through its catalog's dependency, or within the same catalog. | v7 archives migrate with notices. Producers stop writing stencil versions; authoring consumers resolve a draft stencil through the catalog version being edited, not a node property. |
 | Stricter semantic validation | Malformed graphs, unsupported nodes or property shapes, invalid slots, placeholders, parameter schemas or bindings, expressions, theme/style references, data schemas/examples, and unresolved catalog references that were previously accepted may now produce validation errors. | Correct the reported findings before saving, publishing, or importing the content. Ordinary invalidity is returned as stable findings rather than an I/O exception. |
 | Stencil nesting limit | A stencil-instance ancestry chain may contain at most five stencil levels. Direct/transitive recursion and whole-catalog stencil cycles are invalid. | Flatten or split deeper composition and remove recursive references. |
@@ -36,6 +38,9 @@ ignores it when binding a stored v7 document.
 - The model retains Jackson 2 annotation classes because consumers using
   either Jackson 2 or the Suite's Jackson 3 runtime can inspect them. Public
   APIs do not expose an `ObjectMapper`.
+- The members wire v8 adds to a template (a data example's `key`, `description`, a variant's
+  `metadata`) are covered by V5 only. V1 to V4 canonicalize a resource as a v7 producer serialized
+  it, without them, so a key the v7-to-v8 migration derived moves no published fingerprint.
 - Existing V1 through V3 catalog fingerprints remain accepted when reading legacy v4/v5 input.
   V1 to V4 canonicalize the members wire v8 renamed under their old names, so the rename moves no
   legacy fingerprint and only V5 names a resource's address `key`.
@@ -128,6 +133,26 @@ The new members that the wire requires (`CatalogInfo.registry` and `.namespace`,
 `DependencyRef.registry` and `.namespace`) are nullable in the model, as keywords were at v7:
 consumers rebind manifests they stored under v7 with plain Jackson, and those name neither. The
 migrator's wire check and `CatalogValidator` enforce them. `StencilResource` likewise ignores a stored `version` when binding.
+
+Wire v8 also adds two optional members, changed in place before v8 was released:
+
+- `TemplateResource.description` (#97): plain text for the template's authors and readers, at most
+  2000 characters, not rendered. It is the source of the template's manifest entry `description`,
+  which a listing shows without opening the detail: when both are present they must be equal
+  (`CATALOG_RESOURCE_DESCRIPTION_MISMATCH`). An entry may carry one while the detail does not.
+- `VariantEntry.metadata` (#96): producer-specific data the contract carries but does not define.
+  Each member is named by a reverse-DNS namespace the producer owns, and its value is a JSON object.
+  The namespace names the producer, and no other producer writes into it; a consumer that does not
+  recognise a namespace keeps it, through reading, migration and writing. The contract does not
+  interpret the values. Epistola Suite, for example, can record the rendering-defaults version a
+  variant was authored and checked against as
+  `{"app.epistola.suite": {"renderingDefaultsVersion": 6}}`. A variant names one to sixteen
+  namespaces, each at most 100 characters (`CatalogVariantMetadata`), and its metadata is at most
+  8 KiB serialized (`CATALOG_VARIANT_METADATA_TOO_LARGE`, a limit the schema cannot state); other
+  breaches are `CATALOG_VARIANT_METADATA_INVALID`. Empty metadata is omitted, never written as `{}`.
+  The metadata is part of the release content and V5 covers it, so like the rest of a release it is
+  fixed once the release is cut. In Kotlin it binds as `Map<String, Map<String, Any?>>`, the plain
+  maps the model uses for other free-form JSON such as `dataModel`.
 
 Here, backwards compatibility applies to catalog JSON. Common Kotlin construction and property-access
 patterns remain source-compatible where practical, but the Kotlin API is a recompile-on-upgrade

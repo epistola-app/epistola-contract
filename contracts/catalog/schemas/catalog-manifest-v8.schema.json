@@ -347,6 +347,7 @@
           "type": "string"
         },
         "description": {
+          "description": "The resource's own description, copied from its resource detail where the resource has one (a theme, stencil, code list, or from wire v8 a template), so a listing can show it without opening the detail. Null or omitted when the resource has none. For a template that also states one in its detail the two must be equal.",
           "type": [
             "string",
             "null"
@@ -359,7 +360,9 @@
           ]
         },
         "detailUrl": {
-          "type": "string"
+          "description": "Where the resource detail is: a relative path below the manifest's own directory, resolved against the archive root for a zip and against the manifest's URL for a catalog read from a URL. An optional leading ./, then segments of unreserved characters (letters, digits, - . _ ~, or a percent-encoding other than of . / or \\) separated by /. No scheme, no leading /, no backslash, no empty, . or .. segment. Written as ./resources/<type>/<key>.json.",
+          "type": "string",
+          "pattern": "^(?:\\./)?(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+(?:/(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+)*$"
         }
       },
       "required": [

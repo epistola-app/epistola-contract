@@ -107,6 +107,20 @@ font reference) may omit its registry and namespace, each meaning the owning cat
 names is checked with `CATALOG_REGISTRY_INVALID` and `CATALOG_NAMESPACE_INVALID`, and a registry
 without a namespace is `CATALOG_NAMESPACE_INVALID`.
 
+From wire v8 a template's data examples each have a `key`, 1 to 64 characters matching
+`^[a-z0-9]+(?:-[a-z0-9]+)*$` and unique within the template (`CATALOG_TEMPLATE_EXAMPLE_KEY_INVALID`
+when missing or malformed, `CATALOG_TEMPLATE_EXAMPLE_KEY_DUPLICATE`), alongside the unchanged rule
+that names are unique (`CATALOG_TEMPLATE_EXAMPLE_NAME_DUPLICATE`). A template's `description` is at
+most 2000 characters (`CATALOG_TEMPLATE_DESCRIPTION_INVALID`) and, when its manifest entry also has
+one, equal to it (`CATALOG_RESOURCE_DESCRIPTION_MISMATCH`): the template's own is the source the
+entry copies. A variant's `metadata` names one to sixteen reverse-DNS namespaces of at most 100
+characters (`CATALOG_VARIANT_METADATA_INVALID`) and is at most 8 KiB as compact UTF-8 JSON
+(`CATALOG_VARIANT_METADATA_TOO_LARGE`); what a namespace holds is its producer's business and is not
+checked. A `detailUrl` that is not a relative path below the manifest's directory is
+`CATALOG_MANIFEST_DETAIL_URL_INVALID`, and a `contentUrl` `CATALOG_ASSET_PATH_INVALID`, for a catalog
+read at v8 (see `catalog-archive.md`, "Paths Into the Catalog"); a well-formed `detailUrl` that does
+not name the resource's canonical file is `CATALOG_MANIFEST_DETAIL_PATH_INVALID` at any version.
+
 Optional catalog-wide license metadata requires a trimmed, nonblank display name. SPDX expressions
 and copyright text, when supplied, must also be trimmed and nonblank; the contract preserves but
 does not resolve or legally interpret SPDX expressions. License URLs must be absolute HTTP or HTTPS
@@ -127,8 +141,10 @@ that same-catalog stencil references resolve to a stencil resource in the catalo
 or transitive cycles across stencil resources.
 The versioned `conformance/catalog-cases.json` index publishes a small executable conformance
 suite. Every entry identifies a directory containing the actual `catalog.json`, actual resource
-files, and an exact `expected-report.json`. The initial set covers a minimal valid catalog, a
-missing detail document, and a missing catalog-scoped reference. These files are language-neutral:
+files, and an exact `expected-report.json`. The set covers a minimal valid catalog, a
+missing detail document, a missing catalog-scoped reference, and a schema-valid template that
+breaks the wire-v8 rules the schema cannot state (a description that differs from its manifest
+entry, a repeated data example key, and variant metadata over 8 KiB). These files are language-neutral:
 another JVM implementation, a Python validator, or a browser client can load the same inputs and
 compare its complete ordered report with the expected result.
 

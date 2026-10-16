@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 8,
+  "resource": {
+    "type": "template",
+    "key": "letter",
+    "name": "Letter",
+    "description": "A one-page letter in the house style. The footer does not yet wrap long addresses.",
+    "pdfaEnabled": true,
+    "dataModel": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "dataExamples": [
+      {
+        "key": "standard-letter",
+        "name": "Standard letter",
+        "data": {
+          "name": "Jan Jansen"
+        }
+      }
+    ],
+    "templateModel": {
+      "modelVersion": 1,
+      "root": "root",
+      "nodes": {
+        "root": {
+          "id": "root",
+          "type": "root",
+          "slots": [
+            "children"
+          ]
+        }
+      },
+      "slots": {
+        "children": {
+          "id": "children",
+          "nodeId": "root",
+          "name": "children",
+          "children": []
+        }
+      },
+      "themeRef": {
+        "type": "inherit"
+      }
+    },
+    "variants": [
+      {
+        "key": "english",
+        "title": "English",
+        "isDefault": true,
+        "metadata": {
+          "app.epistola.suite": {
+            "renderingDefaultsVersion": 6
+          }
+        }
+      }
+    ]
+  }
+}

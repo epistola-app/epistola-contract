@@ -1,0 +1,108 @@
+{
+  "description": "Keys the v7-to-v8 migration derives for a template's data examples, from their names in document order. NFD with combining marks dropped, lowercased, every run of characters outside a-z0-9 one hyphen, hyphens trimmed, cut to 64 characters without a trailing hyphen; empty becomes 'example'; a key already taken in the template gets the first free suffix -2, -3, ... within 64 characters.",
+  "maxLength": 64,
+  "cases": [
+    {
+      "names": [
+        "Standard letter"
+      ],
+      "keys": [
+        "standard-letter"
+      ]
+    },
+    {
+      "names": [
+        "Standaard brief",
+        "standaard-brief",
+        "Standaard  Brief!"
+      ],
+      "keys": [
+        "standaard-brief",
+        "standaard-brief-2",
+        "standaard-brief-3"
+      ]
+    },
+    {
+      "names": [
+        "Ärger & Co.",
+        "Crème brûlée",
+        "Ångström"
+      ],
+      "keys": [
+        "arger-co",
+        "creme-brulee",
+        "angstrom"
+      ]
+    },
+    {
+      "names": [
+        "!!!",
+        "",
+        "Example",
+        "example"
+      ],
+      "keys": [
+        "example",
+        "example-2",
+        "example-3",
+        "example-4"
+      ]
+    },
+    {
+      "names": [
+        "  --Leading and trailing--  "
+      ],
+      "keys": [
+        "leading-and-trailing"
+      ]
+    },
+    {
+      "names": [
+        "Een heel lange naam voor een voorbeeld dat echt veel te lang is voor een sleutel"
+      ],
+      "keys": [
+        "een-heel-lange-naam-voor-een-voorbeeld-dat-echt-veel-te-lang-is"
+      ]
+    },
+    {
+      "names": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      ],
+      "keys": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-2",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-3"
+      ]
+    },
+    {
+      "names": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-b"
+      ],
+      "keys": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ]
+    },
+    {
+      "names": [
+        "Straße",
+        "Ĳsselmeer",
+        "日本語"
+      ],
+      "keys": [
+        "stra-e",
+        "sselmeer",
+        "example"
+      ]
+    },
+    {
+      "names": [
+        "1e brief"
+      ],
+      "keys": [
+        "1e-brief"
+      ]
+    }
+  ]
+}

@@ -62,6 +62,42 @@ for (const [where, namespace, registry] of [
   assert.equal(catalog.CATALOG_REGISTRY_PATTERN, registry.pattern, `npm and schema ${where} registry patterns must agree`);
 }
 
+// Wire v8 (#95, #96, #97): paths into the catalog, data example keys, variant metadata, template descriptions.
+const manifestPaths = [['manifest detailUrl', manifestSchema.$defs.ResourceEntry.properties.detailUrl]];
+const detailPaths = [
+  ['image contentUrl', detailSchema.$defs.ImageResource.properties.contentUrl],
+  ['font face contentUrl', detailSchema.$defs.FontVariantEntry.properties.contentUrl],
+];
+for (const [where, property] of [...manifestPaths, ...detailPaths]) {
+  assert.equal(catalog.CATALOG_ARCHIVE_PATH_PATTERN, property.pattern, `npm and schema ${where} patterns must agree`);
+}
+const exampleKey = detailSchema.$defs.DataExampleEntry.properties.key;
+assert.equal(catalog.CATALOG_DATA_EXAMPLE_KEY_PATTERN, exampleKey.pattern, 'npm and schema data example key patterns must agree');
+assert.equal(catalog.MIN_CATALOG_DATA_EXAMPLE_KEY_LENGTH, exampleKey.minLength, 'npm and schema data example key minimum lengths must agree');
+assert.equal(catalog.MAX_CATALOG_DATA_EXAMPLE_KEY_LENGTH, exampleKey.maxLength, 'npm and schema data example key maximum lengths must agree');
+assert.equal(
+  catalog.MAX_TEMPLATE_DESCRIPTION_LENGTH,
+  templateSchema.description.maxLength,
+  'npm and schema template description limits must agree',
+);
+const metadataSchema = detailSchema.$defs.VariantEntry.properties.metadata;
+assert.deepEqual(
+  Object.keys(metadataSchema.patternProperties),
+  [catalog.CATALOG_VARIANT_METADATA_NAMESPACE_PATTERN],
+  'npm and schema variant metadata namespace patterns must agree',
+);
+assert.equal(
+  catalog.MAX_CATALOG_VARIANT_METADATA_NAMESPACE_LENGTH,
+  metadataSchema.propertyNames.maxLength,
+  'npm and schema variant metadata namespace lengths must agree',
+);
+assert.equal(
+  catalog.MAX_CATALOG_VARIANT_METADATA_NAMESPACES,
+  metadataSchema.maxProperties,
+  'npm and schema variant metadata namespace counts must agree',
+);
+assert.equal(catalog.MAX_CATALOG_VARIANT_METADATA_BYTES, 8 * 1024, 'variant metadata is limited to 8 KiB serialized');
+
 const registry = await import(`${packageName}/registry`);
 assert.ok(registry.componentRegistry, 'component registry must be exported');
 assert.ok(registry.styleRegistry, 'style registry must be exported');

@@ -28,6 +28,13 @@ TemplateDto:
       type: string
       description: Name of the template
       example: Monthly Invoice
+    description:
+      type: [string, "null"]
+      maxLength: 2000
+      description: |
+        Plain-text notes on the template for its authors: design decisions, known gaps. Not rendered.
+        Null when the template has none.
+      example: Monthly invoice; the payment block follows the 2026 house style.
     schema:
       type: object
       description: JSON Schema defining the input parameters for this template
@@ -389,6 +396,13 @@ TemplateSummaryDto:
       type: string
       description: Name of the template
       example: Monthly Invoice
+    description:
+      type: [string, "null"]
+      maxLength: 2000
+      description: |
+        Plain-text notes on the template for its authors: design decisions, known gaps. Not rendered.
+        Null when the template has none.
+      example: Monthly invoice; the payment block follows the 2026 house style.
     createdAt:
       type: string
       format: date-time
@@ -416,7 +430,12 @@ DataExampleDto:
   properties:
     key:
       type: string
-      description: Unique identifier of the data example
+      pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+      minLength: 1
+      maxLength: 64
+      description: |
+        Key of the data example, unique within its template. The same rule as a resource key in the
+        catalog archive, where the example carries it as `dataExamples[].key`.
       example: standard-invoice
     name:
       type: string
@@ -505,6 +524,11 @@ CreateTemplateRequest:
       maxLength: 255
       description: Name of the template to create
       example: Monthly Invoice
+    description:
+      type: [string, "null"]
+      maxLength: 2000
+      description: Plain-text notes on the template for its authors (design decisions, known gaps). Not rendered.
+      example: Monthly invoice; the payment block follows the 2026 house style.
     schema:
       type: object
       description: JSON Schema defining the input parameters for this template
@@ -594,6 +618,13 @@ UpdateTemplateRequest:
       maxLength: 255
       description: New name for the template
       example: Monthly Invoice (Updated)
+    description:
+      type: [string, "null"]
+      maxLength: 2000
+      description: |
+        Plain-text notes on the template for its authors (design decisions, known gaps). Not rendered.
+        Omit to keep the current description; null clears it.
+      example: Monthly invoice; the payment block follows the 2026 house style.
     schema:
       type: object
       additionalProperties: true

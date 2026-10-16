@@ -395,7 +395,13 @@ data class IncludeEntry(
  * Manifest entry binding a resource identity to its detail document.
  *
  * [detailUrl] is archive-relative and whole-catalog validation requires it to
- * resolve to `resources/{type}/{key}.json`.
+ * resolve to `resources/{type}/{key}.json`. From wire v8 it must be a relative
+ * path below the manifest's directory ([CatalogArchivePaths]).
+ *
+ * [description] is the resource's own description, copied from its detail where
+ * the resource has one, so that a listing can show it without opening the detail.
+ * For a template (wire v8) the detail's [TemplateResource.description] is the
+ * source: when both are present they must be equal.
  *
  * [key] is the resource's public address within the catalog and its type. Until wire v8 the member
  * was called `slug`; binding reads either name, so that manifests stored under earlier versions

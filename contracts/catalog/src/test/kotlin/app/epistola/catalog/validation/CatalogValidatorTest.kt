@@ -17,6 +17,7 @@ import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogLicense
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogPresentation
+import app.epistola.catalog.protocol.CatalogVariantMetadata
 import app.epistola.catalog.protocol.CodeListBindingRef
 import app.epistola.catalog.protocol.CodeListEntryEntry
 import app.epistola.catalog.protocol.CodeListResource
@@ -50,8 +51,10 @@ class CatalogValidatorTest {
     @Test
     fun `golden current catalog is valid`() {
         val manifest = fixture("wire-v8/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
-        val detail = fixture("wire-v8/resources/theme/default.json").use { mapper.readValue(it, ResourceDetail::class.java) }
-        val archive = archive(manifest, mapOf("theme/default" to detail))
+        val details = listOf("theme/default", "template/letter").associateWith { key ->
+            fixture("wire-v8/resources/$key.json").use { mapper.readValue(it, ResourceDetail::class.java) }
+        }
+        val archive = archive(manifest, details)
 
         assertEquals(emptyList(), CatalogValidator.validate(archive).findings)
     }
@@ -868,6 +871,136 @@ class CatalogValidatorTest {
         assertTrue(CatalogValidationCodes.TEMPLATE_DATA_SCHEMA_INVALID !in report.codes(), report.findings.toString())
         assertTrue(CatalogValidationCodes.TEMPLATE_DATA_EXAMPLE_INVALID in report.codes(), report.findings.toString())
     }
+
+    @Test
+    fun `data example keys are required, well-formed and unique within their template`() {
+        fun codes(vararg examples: DataExampleEntry) = validateTemplate(letter(dataExamples = examples.toList())).codes()
+
+        assertTrue(
+            listOf(CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_INVALID, CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_DUPLICATE)
+                .none { it in codes(DataExampleEntry("A", emptyMap(), "a"), DataExampleEntry("B", emptyMap(), "1-b")) },
+        )
+        assertTrue(CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_INVALID in codes(DataExampleEntry("A", emptyMap())), "a key is required")
+        listOf("", "Upper", "a_b", "-a", "a-", "a".repeat(65)).forEach { key ->
+            assertTrue(CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_INVALID in codes(DataExampleEntry("A", emptyMap(), key)), key)
+        }
+        val duplicate = validateTemplate(letter(dataExamples = listOf(DataExampleEntry("A", emptyMap(), "same"), DataExampleEntry("B", emptyMap(), "same"))))
+        assertEquals(
+            listOf(CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_DUPLICATE to "resources/template/letter.json.resource.dataExamples[1].key"),
+            duplicate.findings.map { it.code to it.path },
+        )
+        // The name rule is unchanged and separate.
+        assertTrue(CatalogValidationCodes.TEMPLATE_EXAMPLE_NAME_DUPLICATE in codes(DataExampleEntry("A", emptyMap(), "a"), DataExampleEntry("A", emptyMap(), "b")))
+    }
+
+    @Test
+    fun `a template description is at most 2000 characters and is the source of its manifest entry's`() {
+        val limit = "é".repeat(TemplateResource.MAX_DESCRIPTION_LENGTH)
+
+        assertEquals(emptyList(), validateTemplate(letter(description = limit), entryDescription = limit).findings)
+        assertEquals(emptyList(), validateTemplate(letter(description = "Mine."), entryDescription = null).findings)
+        assertEquals(emptyList(), validateTemplate(letter(description = null), entryDescription = "A listing summary.").findings)
+        assertEquals(
+            listOf(CatalogValidationCodes.TEMPLATE_DESCRIPTION_INVALID to "resources/template/letter.json.resource.description"),
+            validateTemplate(letter(description = limit + "x")).findings.map { it.code to it.path },
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.RESOURCE_DESCRIPTION_MISMATCH to "resources/template/letter.json.resource.description"),
+            validateTemplate(letter(description = "Mine."), entryDescription = "Theirs.").findings.map { it.code to it.path },
+        )
+    }
+
+    @Test
+    fun `variant metadata names one to sixteen reverse-DNS namespaces and stays within 8 KiB`() {
+        fun findings(metadata: Map<String, Map<String, Any?>>) = validateTemplate(letter(metadata = metadata)).findings.map { it.code to it.path }
+        val path = "resources/template/letter.json.resource.variants[0].metadata"
+
+        assertEquals(emptyList(), findings(mapOf("app.epistola.suite" to mapOf("renderingDefaultsVersion" to 6))))
+        assertEquals(emptyList(), findings((1..16).associate { "com.example.n$it" to emptyMap() }))
+        assertEquals(emptyList(), findings(mapOf("a.b" to mapOf("x" to "y".repeat(CatalogVariantMetadata.MAX_SERIALIZED_BYTES - 20)))))
+        assertEquals(listOf(CatalogValidationCodes.VARIANT_METADATA_INVALID to path), findings(emptyMap()))
+        assertEquals(listOf(CatalogValidationCodes.VARIANT_METADATA_INVALID to path), findings((1..17).associate { "com.example.n$it" to emptyMap() }))
+        listOf("suite", "App.epistola.suite", "app..suite", "app.epistola.", "1app.suite", "app.epistola_suite", "app." + "a".repeat(97)).forEach { namespace ->
+            assertEquals(listOf(CatalogValidationCodes.VARIANT_METADATA_INVALID to "$path.$namespace"), findings(mapOf(namespace to emptyMap())), namespace)
+        }
+        assertEquals(
+            listOf(CatalogValidationCodes.VARIANT_METADATA_TOO_LARGE to path),
+            findings(mapOf("a.b" to mapOf("x" to "y".repeat(CatalogVariantMetadata.MAX_SERIALIZED_BYTES)))),
+        )
+    }
+
+    @Test
+    fun `a v8 detailUrl must be a relative path below the manifest, where earlier versions only had to name the canonical file`() {
+        fun findings(
+            detailUrl: String,
+            sourceVersion: Int,
+        ): List<Pair<String, String>> {
+            val detail = ResourceDetail(CURRENT_VERSION, letter())
+            val catalog = archive(manifest(resources = listOf(ResourceEntry("template", "letter", "Letter", detailUrl = detailUrl))), mapOf("template/letter" to detail))
+            catalog.sourceSchemaVersion = sourceVersion
+            return CatalogValidator.validate(catalog).findings.map { it.code to it.path }
+        }
+        val path = "catalog.json.resources[0].detailUrl"
+
+        assertEquals(emptyList(), findings("./resources/template/letter.json", 8))
+        assertEquals(emptyList(), findings("resources/template/letter.json", 8))
+        listOf("https://x.example/resources/template/letter.json", "/resources/template/letter.json", "../resources/template/letter.json", "resources/template/%2e%2e/letter.json").forEach {
+            assertEquals(listOf(CatalogValidationCodes.MANIFEST_DETAIL_URL_INVALID to path), findings(it, 8), it)
+            assertEquals(listOf(CatalogValidationCodes.MANIFEST_DETAIL_PATH_INVALID to path), findings(it, 7), it)
+        }
+        // Well-formed, but not where the resource's detail lives.
+        assertEquals(listOf(CatalogValidationCodes.MANIFEST_DETAIL_PATH_INVALID to path), findings("./resources/template/other.json", 8))
+    }
+
+    @Test
+    fun `a v8 contentUrl must be a relative path below the manifest, where earlier versions had to start with dot slash`() {
+        val hash = "0".repeat(64)
+        fun findings(
+            contentUrl: String,
+            sourceVersion: Int,
+        ): List<String> {
+            val detail = ResourceDetail(CURRENT_VERSION, ImageResource("logo", "Logo", "image/png", contentHash = hash, contentUrl = contentUrl))
+            val catalog = archive(
+                manifest(resources = listOf(ResourceEntry("image", "logo", "Logo", detailUrl = "./resources/image/logo.json"))),
+                mapOf("image/logo" to detail),
+                additionalPaths = setOf("bin/$hash", "assets/logo.png"),
+            )
+            catalog.sourceSchemaVersion = sourceVersion
+            return CatalogValidator.validate(catalog, CatalogValidationPolicy(verifyFingerprint = false)).findings
+                .filter { it.code == CatalogValidationCodes.ASSET_PATH_INVALID }.map { it.path }
+        }
+        val invalid = listOf("resources/image/logo.json.resource.contentUrl")
+
+        assertEquals(emptyList(), findings("bin/$hash", 8))
+        assertEquals(emptyList(), findings("./assets/logo.png", 8))
+        assertEquals(invalid, findings("../assets/logo.png", 8))
+        assertEquals(invalid, findings("assets/%2E%2E/logo.png", 8))
+        assertEquals(invalid, findings("bin/$hash", 7), "before v8 a declared path starts with ./")
+        assertEquals(emptyList(), findings("./assets/logo.png", 6))
+    }
+
+    private fun letter(
+        description: String? = null,
+        dataExamples: List<DataExampleEntry>? = null,
+        metadata: Map<String, Map<String, Any?>>? = null,
+    ) = TemplateResource(
+        "letter",
+        "Letter",
+        dataExamples = dataExamples,
+        templateModel = validDocument(),
+        variants = listOf(VariantEntry("english", metadata = metadata)),
+        description = description,
+    )
+
+    private fun validateTemplate(
+        template: TemplateResource,
+        entryDescription: String? = null,
+    ): CatalogValidationReport = CatalogValidator.validate(
+        archive(
+            manifest(resources = listOf(ResourceEntry("template", template.key, template.name, entryDescription, detailUrl = "./resources/template/${template.key}.json"))),
+            mapOf("template/${template.key}" to ResourceDetail(CURRENT_VERSION, template)),
+        ),
+    )
 
     @Test
     fun `finding code registry covers every stable catalog finding code`() {

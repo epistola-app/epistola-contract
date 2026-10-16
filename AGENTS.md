@@ -61,8 +61,13 @@ needs a new wire version:
 - Bump the conformance fixtures.
 - Bump `x-epistola-catalog-contract.wireSchemaVersion` in `contracts/api/openapi.yaml`, which the
   server stubs' `CatalogContractVersionTest` enforces.
+- When a wire version adds a resource member a legacy fingerprint algorithm must not cover (v8's
+  data example `key`, template `description`, variant `metadata`), list it in
+  `CatalogV8Additions` (or its successor), which V1 to V4 strip, and omit it from the model's JSON
+  when absent so V5 stays put for content that does not use it.
 
-Define rules that consumers also enforce (such as `CatalogKeywords` and `CatalogNamespaces`) once in the catalog module,
+Define rules that consumers also enforce (such as `CatalogKeywords`, `CatalogNamespaces`,
+`CatalogArchivePaths` and `CatalogVariantMetadata`) once in the catalog module,
 and export them to Kotlin and TypeScript with parity tests against the schema. Enforce them in the
 migrator and validator, never in model constructors: consumers rebind stored manifests.
 

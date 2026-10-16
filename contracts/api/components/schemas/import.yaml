@@ -82,6 +82,11 @@ ImportTemplateDto:
       maxLength: 255
       description: Display name of the template
       example: Subsidiebesluit
+    description:
+      type: [string, "null"]
+      maxLength: 2000
+      description: Plain-text notes on the template for its authors (design decisions, known gaps). Not rendered.
+      example: Monthly invoice; the payment block follows the 2026 house style.
     version:
       type: string
       pattern: '^\d+\.\d+\.\d+$'

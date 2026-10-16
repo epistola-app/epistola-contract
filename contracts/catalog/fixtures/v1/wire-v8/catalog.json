@@ -34,6 +34,13 @@
       "key": "default",
       "name": "Default",
       "detailUrl": "./resources/theme/default.json"
+    },
+    {
+      "type": "template",
+      "key": "letter",
+      "name": "Letter",
+      "description": "A one-page letter in the house style. The footer does not yet wrap long addresses.",
+      "detailUrl": "./resources/template/letter.json"
     }
   ],
   "dependencies": [

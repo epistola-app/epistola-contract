@@ -59,6 +59,14 @@
         "name": {
           "type": "string"
         },
+        "description": {
+          "description": "Plain text for the template's authors and readers: what it is for, design decisions, known gaps. Not rendered. When the manifest's resource entry also carries a description, the two must be equal; this is the source.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
         "themeKey": {
           "description": "Key of the template's default theme. Qualified by themeCatalogKey, themeNamespace and themeRegistry when the theme lives in another catalog. Until wire v8 this member was called themeId.",
           "type": [
@@ -317,7 +325,8 @@
         "contentUrl": {
           "type": "string",
           "deprecated": true,
-          "description": "Deprecated. Where the bytes are, when the archive does not put them where the hash says. A catalog written from wire v7 omits this and files every binary at bin/<contentHash>; only an archive migrated from wire v6 or earlier still carries a path, because a migration rewrites documents and cannot move files. Read, never written. Kept in wire v8 because such archives are still in circulation."
+          "description": "Deprecated. Where the bytes are, when the archive does not put them where the hash says. A catalog written from wire v7 omits this and files every binary at bin/<contentHash>; only an archive migrated from wire v6 or earlier still carries a path, because a migration rewrites documents and cannot move files. Read, never written. Kept in wire v8 because such archives are still in circulation. When present it is a relative path below the manifest's directory, by the same rule as a manifest detailUrl.",
+          "pattern": "^(?:\\./)?(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+(?:/(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+)*$"
         },
         "contentHash": {
           "type": "string",
@@ -479,7 +488,8 @@
         "contentUrl": {
           "type": "string",
           "deprecated": true,
-          "description": "Deprecated. Where the bytes are, when the archive does not put them where the hash says. A catalog written from wire v7 omits this and files every binary at bin/<contentHash>; only an archive migrated from wire v6 or earlier still carries a path, because a migration rewrites documents and cannot move files. Read, never written. Kept in wire v8 because such archives are still in circulation."
+          "description": "Deprecated. Where the bytes are, when the archive does not put them where the hash says. A catalog written from wire v7 omits this and files every binary at bin/<contentHash>; only an archive migrated from wire v6 or earlier still carries a path, because a migration rewrites documents and cannot move files. Read, never written. Kept in wire v8 because such archives are still in circulation. When present it is a relative path below the manifest's directory, by the same rule as a manifest detailUrl.",
+          "pattern": "^(?:\\./)?(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+(?:/(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+)*$"
         },
         "contentHash": {
           "type": "string",
@@ -497,7 +507,15 @@
     "DataExampleEntry": {
       "type": "object",
       "properties": {
+        "key": {
+          "description": "The example's key: its address within its template, unique there. A v7 example had none; the v7-to-v8 migration derives one from its name.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "minLength": 1,
+          "maxLength": 64
+        },
         "name": {
+          "description": "The example's display name, unique within its template.",
           "type": "string"
         },
         "data": {
@@ -505,6 +523,7 @@
         }
       },
       "required": [
+        "key",
         "name",
         "data"
       ],
@@ -551,6 +570,21 @@
         },
         "isDefault": {
           "type": "boolean"
+        },
+        "metadata": {
+          "description": "Producer-specific data the contract carries but does not define, by namespace. Each property name is a reverse-DNS namespace the producer owns (app.epistola.suite); only that producer writes into it, and every other reader keeps it as it is. Each value is a JSON object the contract does not interpret. Omitted rather than empty. A release is immutable, so the values are fixed with it. At most 8 KiB serialized per variant, which the validator checks.",
+          "type": "object",
+          "patternProperties": {
+            "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$": {
+              "type": "object"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 100
+          },
+          "additionalProperties": false,
+          "minProperties": 1,
+          "maxProperties": 16
         }
       },
       "required": [

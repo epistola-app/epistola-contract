@@ -61,18 +61,86 @@ class CatalogCanonicalizerTest {
 
     @Test
     fun `golden v8 fingerprint covers declared dependencies with their release fingerprints`() {
-        val manifest = resource("wire-v8/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
-        val detail = resource("wire-v8/resources/theme/default.json").use { mapper.readValue(it, ResourceDetail::class.java) }
-        val archive = CatalogArchive(
-            manifest = manifest,
-            resourceDetails = mapOf("theme/default" to detail),
-            paths = setOf("resources/theme/default.json"),
-            content = ArchiveContentProvider { path -> resource("wire-v8/$path") },
-        )
+        val archive = wireV8Archive()
         val expected = resource("fingerprints.json").use(mapper::readTree)
 
         assertEquals(expected["currentWireV8CatalogFingerprint"].asString(), CatalogCanonicalizer.currentFingerprint(archive).value)
     }
+
+    @Test
+    fun `v5 covers a template's description, data example keys and variant metadata, and the legacy algorithms do not`() {
+        val original = wireV8Archive()
+        val template = original.resourceDetails.getValue("template/letter").resource as TemplateResource
+        val variant = template.variants.single()
+        val changes = listOf(
+            template.copy(description = "Another description."),
+            template.copy(dataExamples = template.dataExamples.orEmpty().map { it.copy(key = "other-key") }),
+            template.copy(variants = listOf(variant.copy(metadata = mapOf("app.epistola.suite" to mapOf("renderingDefaultsVersion" to 7))))),
+            template.copy(variants = listOf(variant.copy(metadata = null))),
+        )
+
+        changes.forEach { changed ->
+            // In memory, so that every algorithm reads the bound model rather than the fixture files.
+            val before = inMemory(original, template)
+            val after = inMemory(original, changed)
+            assertNotEquals(CatalogCanonicalizer.currentFingerprint(before), CatalogCanonicalizer.currentFingerprint(after), changed.toString())
+            listOf(CatalogFingerprintVersion.V1, CatalogFingerprintVersion.V2, CatalogFingerprintVersion.V3, CatalogFingerprintVersion.V4).forEach { version ->
+                assertEquals(CatalogCanonicalizer.fingerprint(before, version), CatalogCanonicalizer.fingerprint(after, version), "$version: $changed")
+            }
+        }
+    }
+
+    @Test
+    fun `variant metadata canonicalizes with sorted keys and Jackson-normalized numbers`() {
+        val original = wireV8Archive()
+        val template = original.resourceDetails.getValue("template/letter").resource as TemplateResource
+        fun withMetadata(json: String) = inMemory(
+            original,
+            template.copy(
+                variants = listOf(
+                    template.variants.single().copy(
+                        metadata = mapper.readValue(json, Map::class.java).let {
+                            @Suppress("UNCHECKED_CAST")
+                            (it as Map<String, Map<String, Any?>>)
+                        },
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            CatalogCanonicalizer.currentFingerprint(withMetadata("""{"b.example":{"y":1,"x":[1,2]},"a.example":{"v":true}}""")),
+            CatalogCanonicalizer.currentFingerprint(withMetadata("""{"a.example":{"v":true},"b.example":{"x":[1,2],"y":1}}""")),
+        )
+        assertNotEquals(
+            CatalogCanonicalizer.currentFingerprint(withMetadata("""{"a.example":{"x":[1,2]}}""")),
+            CatalogCanonicalizer.currentFingerprint(withMetadata("""{"a.example":{"x":[2,1]}}""")),
+        )
+    }
+
+    private fun wireV8Archive(): CatalogArchive {
+        val manifest = resource("wire-v8/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
+        val details = listOf("theme/default", "template/letter").associateWith { key ->
+            resource("wire-v8/resources/$key.json").use { mapper.readValue(it, ResourceDetail::class.java) }
+        }
+        return CatalogArchive(
+            manifest = manifest,
+            resourceDetails = details,
+            paths = details.keys.mapTo(linkedSetOf()) { "resources/$it.json" },
+            content = ArchiveContentProvider { path -> resource("wire-v8/$path") },
+        )
+    }
+
+    /** [catalog] with [template] in place of its template, and no files, so every algorithm reads the model. */
+    private fun inMemory(
+        catalog: CatalogArchive,
+        template: TemplateResource,
+    ) = CatalogArchive(
+        catalog.manifest,
+        catalog.resourceDetails + ("template/letter" to ResourceDetail(CURRENT_VERSION, template)),
+        emptySet(),
+        ArchiveContentProvider { error(it) },
+    )
 
     @Test
     fun `fingerprint ignores release metadata manifest URLs and JSON key order`() {

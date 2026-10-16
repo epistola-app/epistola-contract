@@ -14,6 +14,7 @@ import app.epistola.catalog.migration.CatalogMigrationOptions
 import app.epistola.catalog.migration.CatalogWireSchema
 import app.epistola.catalog.protocol.AttributeResource
 import app.epistola.catalog.protocol.BinaryRef
+import app.epistola.catalog.protocol.CatalogArchivePaths
 import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogKeys
@@ -21,6 +22,7 @@ import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogNamespaces
 import app.epistola.catalog.protocol.CatalogResource
+import app.epistola.catalog.protocol.CatalogVariantMetadata
 import app.epistola.catalog.protocol.CodeListResource
 import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.FontResource
@@ -192,6 +194,40 @@ object CatalogValidationCodes {
     const val CODE_LIST_CODE_DUPLICATE = "CATALOG_CODE_LIST_CODE_DUPLICATE"
     const val ATTRIBUTE_VALUES_CONFLICT = "CATALOG_ATTRIBUTE_VALUES_CONFLICT"
     const val TEMPLATE_EXAMPLE_NAME_DUPLICATE = "CATALOG_TEMPLATE_EXAMPLE_NAME_DUPLICATE"
+
+    /** Two data examples of one template have the same key (wire v8). */
+    const val TEMPLATE_EXAMPLE_KEY_DUPLICATE = "CATALOG_TEMPLATE_EXAMPLE_KEY_DUPLICATE"
+
+    /**
+     * A data example has no key, or one outside [CatalogKeys.DATA_EXAMPLE] (wire v8). A catalog
+     * migrated from wire v7 has one for every example, derived from its name.
+     */
+    const val TEMPLATE_EXAMPLE_KEY_INVALID = "CATALOG_TEMPLATE_EXAMPLE_KEY_INVALID"
+
+    /** A template's description is longer than [TemplateResource.MAX_DESCRIPTION_LENGTH] (wire v8). */
+    const val TEMPLATE_DESCRIPTION_INVALID = "CATALOG_TEMPLATE_DESCRIPTION_INVALID"
+
+    /**
+     * A template's description and its manifest resource entry's description are both present and
+     * differ. The template's own is the source the entry copies (wire v8).
+     */
+    const val RESOURCE_DESCRIPTION_MISMATCH = "CATALOG_RESOURCE_DESCRIPTION_MISMATCH"
+
+    /**
+     * A variant's metadata is empty, names more than [CatalogVariantMetadata.MAX_NAMESPACES]
+     * namespaces, or names one that is not a reverse-DNS namespace ([CatalogVariantMetadata]).
+     */
+    const val VARIANT_METADATA_INVALID = "CATALOG_VARIANT_METADATA_INVALID"
+
+    /** A variant's serialized metadata exceeds [CatalogVariantMetadata.MAX_SERIALIZED_BYTES]. */
+    const val VARIANT_METADATA_TOO_LARGE = "CATALOG_VARIANT_METADATA_TOO_LARGE"
+
+    /**
+     * A manifest resource entry's `detailUrl` is not a relative path below the manifest's directory
+     * ([app.epistola.catalog.protocol.CatalogArchivePaths]); checked for a catalog read at wire v8.
+     * [MANIFEST_DETAIL_PATH_INVALID] covers a well-formed path to the wrong place.
+     */
+    const val MANIFEST_DETAIL_URL_INVALID = "CATALOG_MANIFEST_DETAIL_URL_INVALID"
     const val TEMPLATE_DATA_SCHEMA_INVALID = "CATALOG_TEMPLATE_DATA_SCHEMA_INVALID"
     const val TEMPLATE_DATA_EXAMPLE_INVALID = "CATALOG_TEMPLATE_DATA_EXAMPLE_INVALID"
     const val TEMPLATE_VARIANT_KEY_DUPLICATE = "CATALOG_TEMPLATE_VARIANT_KEY_DUPLICATE"
@@ -225,6 +261,13 @@ data class ResourceValidationContext(
     val content: ArchiveContentProvider? = null,
     val namespace: String? = null,
     val registry: String? = null,
+    /**
+     * The wire version the catalog was read at, before migration. Rules a later version introduced
+     * apply only from that version, so that an archive written earlier stays acceptable: from wire v8
+     * a binary's `contentUrl` must be a relative path below the manifest's directory
+     * ([CatalogArchivePaths]), where earlier versions required a `./` path without `..` segments.
+     */
+    val sourceSchemaVersion: Int = CatalogWireSchema.CURRENT_VERSION,
 )
 
 /**
@@ -307,13 +350,45 @@ object ResourceValidator {
         if (defaults > 1) {
             findings.error(CatalogValidationCodes.TEMPLATE_VARIANT_DEFAULT_INVALID, "$path.variants", "at most one variant may be the default")
         }
+        resource.variants.forEachIndexed { index, variant ->
+            variant.metadata?.let { validateVariantMetadata(it, "$path.variants[$index].metadata", findings) }
+        }
+        resource.description?.let { description ->
+            if (description.codePointCount(0, description.length) > TemplateResource.MAX_DESCRIPTION_LENGTH) {
+                findings.error(
+                    CatalogValidationCodes.TEMPLATE_DESCRIPTION_INVALID,
+                    "$path.description",
+                    "description must be at most ${TemplateResource.MAX_DESCRIPTION_LENGTH} characters",
+                )
+            }
+        }
         val exampleNames = mutableSetOf<String>()
+        val exampleKeys = mutableSetOf<String>()
         resource.dataExamples.orEmpty().forEachIndexed { index, example ->
             if (!exampleNames.add(example.name)) {
                 findings.error(
                     CatalogValidationCodes.TEMPLATE_EXAMPLE_NAME_DUPLICATE,
                     "$path.dataExamples[$index].name",
                     "data example name '${example.name}' is duplicated",
+                )
+            }
+            val key = example.key
+            val rule = CatalogKeys.DATA_EXAMPLE
+            if (key == null || !CatalogKeys.matches(rule, key)) {
+                findings.error(
+                    CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_INVALID,
+                    "$path.dataExamples[$index].key",
+                    if (key == null) {
+                        "data example '${example.name}' has no key"
+                    } else {
+                        "data example key must be ${rule.minLength} to ${rule.maxLength} characters matching ${rule.pattern}"
+                    },
+                )
+            } else if (!exampleKeys.add(key)) {
+                findings.error(
+                    CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_DUPLICATE,
+                    "$path.dataExamples[$index].key",
+                    "data example key '$key' is duplicated",
                 )
             }
         }
@@ -331,6 +406,43 @@ object ResourceValidator {
             }
         }
     }
+
+    /**
+     * Holds a variant's metadata to [CatalogVariantMetadata]: one to sixteen reverse-DNS namespaces,
+     * at most 8 KiB serialized. What a namespace holds is its producer's business, not checked here.
+     */
+    private fun validateVariantMetadata(
+        metadata: Map<String, Map<String, Any?>>,
+        path: String,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        if (metadata.size !in CatalogVariantMetadata.MIN_NAMESPACES..CatalogVariantMetadata.MAX_NAMESPACES) {
+            findings.error(
+                CatalogValidationCodes.VARIANT_METADATA_INVALID,
+                path,
+                "metadata must name ${CatalogVariantMetadata.MIN_NAMESPACES} to ${CatalogVariantMetadata.MAX_NAMESPACES} namespaces; omit it when empty",
+            )
+        }
+        metadata.keys.sorted().forEach { namespace ->
+            if (!CatalogVariantMetadata.isValidNamespace(namespace)) {
+                findings.error(
+                    CatalogValidationCodes.VARIANT_METADATA_INVALID,
+                    "$path.$namespace",
+                    "metadata namespace '$namespace' must be a lowercase reverse-DNS name of at most ${CatalogVariantMetadata.NAMESPACE_MAX_LENGTH} characters",
+                )
+            }
+        }
+        val size = metadataMapper.writeValueAsBytes(metadata).size
+        if (size > CatalogVariantMetadata.MAX_SERIALIZED_BYTES) {
+            findings.error(
+                CatalogValidationCodes.VARIANT_METADATA_TOO_LARGE,
+                path,
+                "metadata is $size bytes serialized; at most ${CatalogVariantMetadata.MAX_SERIALIZED_BYTES} are allowed",
+            )
+        }
+    }
+
+    private val metadataMapper = jsonMapper { addModule(kotlinModule()) }
 
     private fun validateDocument(
         document: TemplateDocument,
@@ -496,8 +608,15 @@ object ResourceValidator {
         // hash implies cannot escape the archive.
         @Suppress("DEPRECATION")
         val contentUrl = binary.contentUrl
-        if (contentUrl != null && (!contentUrl.startsWith("./") || '\\' in contentUrl || ".." in contentUrl.split('/'))) {
-            findings.error(CatalogValidationCodes.ASSET_PATH_INVALID, "$path.contentUrl", "contentUrl must be a safe relative archive path")
+        val safe = when {
+            contentUrl == null -> true
+            // Wire v8 states the rule every path into the catalog follows.
+            context.sourceSchemaVersion >= ARCHIVE_PATHS_SINCE_WIRE_VERSION -> CatalogArchivePaths.isValid(contentUrl)
+            // Earlier versions are held to what they were always held to.
+            else -> contentUrl.startsWith("./") && '\\' !in contentUrl && ".." !in contentUrl.split('/')
+        }
+        if (!safe) {
+            findings.error(CatalogValidationCodes.ASSET_PATH_INVALID, "$path.contentUrl", "contentUrl must be a relative path below the manifest's directory")
             return
         }
         if (contentPath !in context.paths) {
@@ -604,6 +723,9 @@ object ResourceValidator {
     private val MEDIA_TYPE = Regex("^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$")
 }
 
+/** The wire version from which every path into the catalog is held to [CatalogArchivePaths]. */
+private const val ARCHIVE_PATHS_SINCE_WIRE_VERSION = 8
+
 /**
  * Entry point for complete portable catalog validation.
  *
@@ -677,7 +799,13 @@ object CatalogValidator {
             // stays installable; anything written at v7 uses the type's own directory.
             val legacyPath = if (entry.type == "image") "resources/asset/${entry.key}.json" else null
             val declaredPath = entry.detailUrl.removePrefix("./")
-            if (declaredPath != expectedPath && declaredPath != legacyPath) {
+            if (catalog.sourceSchemaVersion >= ARCHIVE_PATHS_SINCE_WIRE_VERSION && !CatalogArchivePaths.isValid(entry.detailUrl)) {
+                findings.error(
+                    CatalogValidationCodes.MANIFEST_DETAIL_URL_INVALID,
+                    "catalog.json.resources[$index].detailUrl",
+                    "detailUrl must be a relative path below the manifest's directory",
+                )
+            } else if (declaredPath != expectedPath && declaredPath != legacyPath) {
                 findings.error(
                     CatalogValidationCodes.MANIFEST_DETAIL_PATH_INVALID,
                     "catalog.json.resources[$index].detailUrl",
@@ -706,6 +834,11 @@ object CatalogValidator {
                 if (detail.resource.name != entry.name) {
                     findings.error(CatalogValidationCodes.RESOURCE_NAME_MISMATCH, "$path.resource.name", "resource name differs from manifest")
                 }
+                // A template's description is the source the manifest entry copies (wire v8).
+                val description = (detail.resource as? TemplateResource)?.description
+                if (description != null && entry.description != null && description != entry.description) {
+                    findings.error(CatalogValidationCodes.RESOURCE_DESCRIPTION_MISMATCH, "$path.resource.description", "template description differs from manifest")
+                }
             }
         }
         val resources = catalog.resourceDetails.mapValues { it.value.resource }
@@ -717,6 +850,7 @@ object CatalogValidator {
             dependencyResolver = policy.dependencyResolver,
             namespace = manifest.catalog.namespace,
             registry = manifest.catalog.registry,
+            sourceSchemaVersion = catalog.sourceSchemaVersion,
         )
         catalog.resourceDetails.toSortedMap().forEach { (key, detail) ->
             findings += ResourceValidator.validate(detail, context, "resources/$key.json").findings

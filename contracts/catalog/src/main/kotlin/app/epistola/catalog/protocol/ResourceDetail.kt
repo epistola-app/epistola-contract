@@ -10,6 +10,7 @@ import app.epistola.template.model.TemplateDocument
 import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.JsonPropertyOrder
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
@@ -68,6 +69,12 @@ sealed interface CatalogResource {
  * binding reads either name. [themeCatalogKey], [themeNamespace] and [themeRegistry] qualify it when
  * the theme lives in another catalog; each null one means the template's own catalog's (wire v8). A
  * [themeRegistry] without a [themeNamespace] is invalid.
+
+ *
+ * [description] (wire v8) is plain text for the template's authors and readers -- what it is for,
+ * design decisions, known gaps -- at most [MAX_DESCRIPTION_LENGTH] characters, and is not rendered.
+ * It is the source of the manifest resource entry's `description`: when both are present they must
+ * be equal. Omitted when null, so a template without one canonicalizes as before.
  */
 data class TemplateResource(
     @JsonAlias("slug")
@@ -85,8 +92,15 @@ data class TemplateResource(
     val themeNamespace: String? = null,
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     val themeRegistry: String? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val description: String? = null,
 ) : CatalogResource {
     override val type: String get() = "template"
+
+    companion object {
+        /** Longest template description, in characters (Unicode code points). */
+        const val MAX_DESCRIPTION_LENGTH: Int = 2000
+    }
 }
 
 /**
@@ -331,10 +345,21 @@ data class FontVariantEntry(
     override val contentUrl: String? = null,
 ) : BinaryRef
 
-/** Named example payload checked against [TemplateResource.dataModel]. */
+/**
+ * Named example payload checked against [TemplateResource.dataModel].
+ *
+ * [key] (wire v8) is the example's address within its template, unique there
+ * ([CatalogKeys.DATA_EXAMPLE]); [name] is its display name, also unique there. A catalog-v7 example
+ * had no key, and the v7-to-v8 migration derives one from its name
+ * ([CatalogKeys.deriveDataExampleKey]). The key is nullable, and omitted when null, so that examples
+ * a consumer stored before wire v8 still bind; the catalog validator reports a missing one.
+ */
+@JsonPropertyOrder("key", "name", "data")
 data class DataExampleEntry(
     val name: String,
     val data: Map<String, Any?>,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val key: String? = null,
 )
 
 /**
@@ -345,6 +370,12 @@ data class DataExampleEntry(
  *
  * [key] is the variant's public address within its template. Until wire v8 the member was called
  * `slug` (and `id` until wire v7); binding reads `slug` too.
+ *
+ * [metadata] (wire v8) is producer-specific data the contract carries but does not define, keyed by
+ * a reverse-DNS namespace the producer owns (`app.epistola.suite`), each value a JSON object
+ * ([CatalogVariantMetadata]). It binds the way the other free-form JSON in the model does
+ * ([TemplateResource.dataModel]): plain maps, lists and scalars, written back member for member, with
+ * numbers normalized as Jackson binds them. Omitted when null or empty, since the wire forbids `{}`.
  */
 data class VariantEntry(
     @JsonAlias("slug")
@@ -353,4 +384,6 @@ data class VariantEntry(
     val attributes: Map<String, String>? = null,
     val templateModel: TemplateDocument? = null,
     val isDefault: Boolean = false,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    val metadata: Map<String, Map<String, Any?>>? = null,
 )

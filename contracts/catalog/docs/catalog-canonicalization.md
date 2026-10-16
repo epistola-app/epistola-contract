@@ -92,6 +92,15 @@ fingerprint, and a v7 archive's V4 fingerprint still verifies after migration. P
 fingerprints (`perResourceFingerprints`, `currentPerResourceFingerprints`) belong to V1 and V3 and
 keep the old names too.
 
+**Members wire v8 added to a template.** A data example's `key`, a template's `description` and a
+variant's `metadata` are release content, and V5 covers them like the rest of the resource: object
+keys sorted, numbers as JSON binding normalizes them, as for any other free-form JSON such as
+`dataModel`. `description` and `metadata` are omitted from the canonical JSON when absent (and
+`metadata` when empty), so a template that uses neither hashes as before; a data example's `key` is
+part of every v8 example. V1 to V4 leave all three out (`CatalogV8Additions`): they canonicalize a
+resource as a v7 producer serialized it, so the key the v7-to-v8 migration derives for each example
+moves no published fingerprint.
+
 **Why a new algorithm rather than extending V4.** V4 fingerprints are already published and must
 keep verifying. Adding the registry, namespace and catalog dependencies to V4 would change every V4 value; a
 new version keeps V4 reproducible and makes the new coverage explicit.
@@ -117,4 +126,5 @@ Authoritative versioned inputs and expected hashes are published below
 `@epistola.app/epistola-catalog/fixtures/v1/*` in the npm artifact. `fingerprints.json` pins every
 algorithm's fingerprint of the wire-v4 golden catalog and, as `currentWireV8CatalogFingerprint`,
 the V5 fingerprint of the wire-v8 golden catalog, whose declared dependency records a release and
-its fingerprint.
+its fingerprint, and whose template carries a description, a keyed data example and variant
+metadata.

@@ -111,6 +111,7 @@ public static class Driver
         Report(baseUrl, new Dictionary<string, object>
         {
             ["templateKeys"] = string.Join(",", templates.Select(template => Show(template.Key))),
+            ["templateDescriptions"] = string.Join("|", templates.Select(template => Show(template.Description))),
         });
     }
 

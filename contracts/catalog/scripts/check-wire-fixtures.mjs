@@ -51,9 +51,13 @@ const cases = [
   ['resource-detail-v8.schema.json', 'fixtures/v1/migrations/v7-to-v8/template-expected.json'],
   ['catalog-manifest.schema.json', 'fixtures/v1/wire-v8/catalog.json'],
   ['resource-detail.schema.json', 'fixtures/v1/wire-v8/resources/theme/default.json'],
+  ['resource-detail-v8.schema.json', 'fixtures/v1/wire-v8/resources/template/letter.json'],
+  ['resource-detail.schema.json', 'fixtures/v1/wire-v8/resources/template/letter.json'],
   ['catalog-manifest.schema.json', 'fixtures/v1/conformance/catalog/valid-minimal/catalog.json'],
   ['resource-detail.schema.json', 'fixtures/v1/conformance/catalog/valid-minimal/resources/theme/default.json'],
   ['resource-detail.schema.json', 'fixtures/v1/conformance/catalog/missing-resource-reference/resources/attribute/locale.json'],
+  ['catalog-manifest.schema.json', 'fixtures/v1/conformance/catalog/invalid-template-v8-members/catalog.json'],
+  ['resource-detail.schema.json', 'fixtures/v1/conformance/catalog/invalid-template-v8-members/resources/template/letter.json'],
 ];
 
 for (const [schemaName, fixtureName] of cases) {
@@ -293,4 +297,108 @@ for (const binding of [
   { registry: 'acme.com' },
 ]) {
   assert.equal(validateV8Detail(withBinding(binding)), false, `invalid content reference was accepted: ${JSON.stringify(binding)}`);
+}
+
+// Wire v8 paths into the catalog are relative and below the manifest's directory (#95).
+const acceptedPaths = [
+  './resources/template/a.json',
+  'resources/a.json',
+  `bin/${'0'.repeat(64)}`,
+  './a',
+  'resources/~user/.hidden/a_b-c.json',
+  'resources/a%20b.json',
+  'a..b/c',
+  '...',
+];
+const rejectedPaths = [
+  'https://other.example/x.json',
+  'file:resources/a.json',
+  'C:resources/a.json',
+  '/abs/x.json',
+  '//host/x.json',
+  'resources\\a.json',
+  '../x.json',
+  'resources/../../x.json',
+  './../x.json',
+  '././x.json',
+  'resources/./a.json',
+  'resources/..',
+  'resources//a.json',
+  'resources/',
+  '',
+  './',
+  '%2e%2e/x.json',
+  '%2E%2E/x.json',
+  'resources%2fa.json',
+  'resources%2Fa.json',
+  'resources%5ca.json',
+  'resources%5Ca.json',
+  'resources/a b.json',
+  'resources/a?b.json',
+  'resources/%zz.json',
+];
+const zeroHash = '0'.repeat(64);
+const withPath = {
+  'manifest detailUrl': (path) => v8Manifest((m) => { m.resources[0].detailUrl = path; }),
+  'image contentUrl': async (path) => ({ schemaVersion: 8, resource: { type: 'image', key: 'logo', name: 'Logo', mediaType: 'image/png', contentHash: zeroHash, contentUrl: path } }),
+  'font face contentUrl': async (path) => ({
+    schemaVersion: 8,
+    resource: { type: 'font', key: 'inter', name: 'Inter', kind: 'sans', variants: [{ weight: 400, italic: false, mediaType: 'font/ttf', contentHash: zeroHash, contentUrl: path }] },
+  }),
+};
+for (const [where, build] of Object.entries(withPath)) {
+  const validate = where === 'manifest detailUrl' ? validateV8Manifest : validateV8Detail;
+  for (const path of acceptedPaths) {
+    assert.equal(validate(await build(path)), true, `v8 ${where} rejected ${JSON.stringify(path)}: ${ajv.errorsText(validate.errors)}`);
+  }
+  for (const path of rejectedPaths) {
+    assert.equal(validate(await build(path)), false, `v8 ${where} accepted ${JSON.stringify(path)}`);
+  }
+}
+// Earlier wire versions did not constrain these paths, and their schemas stay as they were.
+assert.equal(
+  validateV7Detail({ schemaVersion: 7, resource: { type: 'image', slug: 'logo', name: 'Logo', mediaType: 'image/png', contentHash: zeroHash, contentUrl: '../logo.png' } }),
+  true,
+  `v7 schema was tightened: ${ajv.errorsText(validateV7Detail.errors)}`,
+);
+
+// Wire v8 data examples have a key, a template may have a description, and a variant may carry
+// namespaced metadata (#96, #97).
+const v8Letter = await readJson('fixtures/v1/wire-v8/resources/template/letter.json');
+const editLetter = (edit) => {
+  const detail = structuredClone(v8Letter);
+  edit(detail.resource);
+  return detail;
+};
+for (const [description, edit] of [
+  ['an example without a key', (r) => { delete r.dataExamples[0].key; }],
+  ['an uppercase example key', (r) => { r.dataExamples[0].key = 'Standard'; }],
+  ['a 65-character example key', (r) => { r.dataExamples[0].key = 'a'.repeat(65); }],
+  ['a 2001-character description', (r) => { r.description = 'a'.repeat(2001); }],
+  ['empty metadata', (r) => { r.variants[0].metadata = {}; }],
+  ['a namespace that is not reverse-DNS', (r) => { r.variants[0].metadata.suite = {}; }],
+  ['an uppercase namespace', (r) => { r.variants[0].metadata['App.epistola.suite'] = {}; }],
+  ['a 101-character namespace', (r) => { r.variants[0].metadata[`a.${'b'.repeat(99)}`] = {}; }],
+  ['a namespace whose value is not an object', (r) => { r.variants[0].metadata['com.example.x'] = 6; }],
+  ['17 namespaces', (r) => { for (let i = 1; i <= 16; i++) r.variants[0].metadata[`com.example.n${i}`] = {}; }],
+]) {
+  assert.equal(validateV8Detail(editLetter(edit)), false, `v8 template accepted ${description}`);
+}
+for (const [description, edit] of [
+  ['no description', (r) => { delete r.description; }],
+  ['a null description', (r) => { r.description = null; }],
+  ['a 2000-character description', (r) => { r.description = 'a'.repeat(2000); }],
+  ['no metadata', (r) => { delete r.variants[0].metadata; }],
+  ['16 namespaces', (r) => { for (let i = 1; i <= 15; i++) r.variants[0].metadata[`com.example.n${i}`] = {}; }],
+  ['a namespace of any content', (r) => { r.variants[0].metadata['com.example.x'] = { list: [1, 'two', null, { x: false }], n: 1.5 }; }],
+  ['an example key with a leading digit', (r) => { r.dataExamples[0].key = '1e-brief'; }],
+]) {
+  assert.equal(validateV8Detail(editLetter(edit)), true, `v8 template rejected ${description}: ${ajv.errorsText(validateV8Detail.errors)}`);
+}
+// The v7 migration fixture's derived keys are valid v8 keys.
+const exampleKeys = await readJson('fixtures/v1/migrations/v7-to-v8/data-example-keys.json');
+for (const { keys } of exampleKeys.cases) {
+  for (const key of keys) {
+    assert.equal(validateV8Detail(editLetter((r) => { r.dataExamples[0].key = key; })), true, `derived example key is not a valid v8 key: ${key}`);
+  }
 }

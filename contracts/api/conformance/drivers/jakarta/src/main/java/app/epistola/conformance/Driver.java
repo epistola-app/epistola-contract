@@ -147,7 +147,8 @@ public final class Driver {
         report(
                 baseUrl,
                 Map.of(
-                        "templateKeys", templates.stream().map(template -> String.valueOf(template.getKey())).collect(Collectors.joining(","))));
+                        "templateKeys", templates.stream().map(template -> String.valueOf(template.getKey())).collect(Collectors.joining(",")),
+                        "templateDescriptions", templates.stream().map(template -> String.valueOf(template.getDescription())).collect(Collectors.joining("|"))));
     }
 
     private static void problem(String baseUrl, JsonObject config) {
