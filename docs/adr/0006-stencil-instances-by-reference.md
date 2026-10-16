@@ -1,6 +1,6 @@
 # ADR 0006: Stencil instances by reference, with lexical scope
 
-- **Status:** Proposed — parts 1–4 decided (16 October 2026); part 5 (isolation) proposed
+- **Status:** Proposed — parts 1–5 decided (16 October 2026)
 - **Date:** 2026-10-16
 - **Scope:** portable catalog contract (`contracts/catalog`, wire v8: template model, validation,
   rendering semantics) and API contract (`contracts/api`), contract 2.0
@@ -116,15 +116,26 @@ Expressions are scoped **lexically**:
 Only what expressions see follows this rule. A fill still renders where it sits: styles, fonts and
 page state come from its position inside the stencil.
 
-### 5. A stencil sees only its parameters (proposed)
+### 5. A stencil sees only its parameters, unless it declares it reads the template's data
 
-A stencil's own content does **not** see the using template's data or loop variables, only its
-parameters and the system scope (`sys`). Everything a stencil needs comes in through a parameter.
+By default a stencil's own content sees only its parameters and the system scope (`sys`), not the
+using template's data or loop variables. Everything such a stencil needs comes in through a
+parameter, so it works in every template that binds them, whatever that template's data model, and
+part 3 can verify it completely. Without this, a letterhead reading `supplier.name` directly renders
+empty in a template whose data calls it `org.name`, and no check can tell.
 
-This makes a stencil a function: it works in every template that binds its parameters, whatever
-that template's data model, and part 3 can verify that completely. Without it, a letterhead reading
-`supplier.name` directly renders empty in a template whose data calls it `org.name`, and no check
-can tell.
+A stencil can declare **`readsTemplateData: true`** (default `false`; in the editor, "Can read the
+template's data"). Its content then also sees what is in scope where the instance sits — the
+template's data and, inside a template loop, its loop variables — as every stencil did before 2.0.
+
+- The dependency is declared on the stencil, so it is visible where the stencil is edited and used.
+- Releasing checks it: every data path such a stencil reads must exist in the data contract of each
+  template that uses it, or the release is refused, naming the stencil, the path and the template.
+  A loop variable cannot be checked against a data contract and is a warning.
+- It stays lexical when nested: for a stencil inside a stencil, "where the instance sits" is the
+  outer stencil's content, which sees the template's data only if the outer stencil reads it too.
+- Turning it off is a breaking change for templates whose data the stencil read, and part 3 reports
+  it like any other.
 
 ## Migration from 1.x
 
@@ -138,7 +149,7 @@ the same result:
 | Copy of an older version | Reference + fills; renders the latest stencil. What no longer fits (part 3) is reported, not prevented |
 | No stencil reference, or a copy that differs from its version beyond fills | Plain content (the stencil node is replaced by its copied content), reported |
 | Fill reading the stencil's alias (`params.x`) | `params.x` replaced by the instance's binding for `x`, parenthesised, or by its default as a literal |
-| Stencil content reading the template's data or loop variables (part 5) | Each path read becomes a new parameter of the stencil; its expressions read `params.<new>`, and every instance binds the new parameter to the original path |
+| Stencil whose content reads the template's data or loop variables (part 5) | The stencil gets `readsTemplateData: true`; its content is not rewritten. Every other stencil gets `false` |
 
 Where an expression cannot be rewritten safely — it reads the alias as a whole or with a dynamic key,
 reads an optional parameter that has no binding and no default (absent, not null), would capture a
@@ -157,9 +168,11 @@ author rewrites it. Rewriting uses a JSONata parser, never text replacement.
 - **API:** `heldBack` and `heldBackInstances` are removed (`MarkStencilReadyResponse`,
   `StencilUsageDto`, the catalog version's changes); a version's `releasable` no longer mentions held
   back instances but reports instances that do not fit.
+- **Wire v8 and API:** `StencilResource` and the stencil DTOs gain `readsTemplateData` (boolean,
+  default `false`); it is part of the stencil's content, so it is fingerprinted and released with it.
 - **Rendering:** a stencil node records the scope it is entered from; a placeholder renders its fill
-  in that scope and its default in the stencil's. With part 5, entering a stencil also replaces the
-  data scope with the stencil's parameters and `sys`.
+  in that scope and its default in the stencil's. Entering a stencil replaces the data scope with
+  the stencil's parameters and `sys`, unless the stencil reads the template's data.
 - **A stencil change reaches every template in its catalog at once.** A structurally compatible
   change can still change layout (a taller letterhead moves content to the next page). A release
   preview of the templates a stencil change affects is planned; until then the release's list of
@@ -170,5 +183,6 @@ author rewrites it. Rewriting uses a JSONata parser, never text replacement.
 
 ## Open questions
 
-- Part 5: confirm isolation, including that a stencil does not see the template's loop variables.
 - Whether `paramsAlias` stays: with lexical scope it is no longer needed for nesting.
+- How the release check learns which data paths a stencil reads: parsing its expressions (JSONata
+  AST) in the catalog module, shared with the 1.x migration.
