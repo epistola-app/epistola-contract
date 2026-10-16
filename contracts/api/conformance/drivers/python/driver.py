@@ -37,7 +37,6 @@ from epistola_client import (
     ProblemDetailException,
     ReleaseCatalogVersionRequest,
     RenumberCatalogVersionRequest,
-    ResolveIncomingChangeRequest,
     ResultCollector,
     SystemApi,
     TemplateDataValidationError,
@@ -80,8 +79,6 @@ def main() -> int:
         "preview-catalog-version-renumber": _preview_catalog_version_renumber,
         "delete-catalog-version": _delete_catalog_version,
         "release-catalog-version": _release_catalog_version,
-        "list-incoming-changes": _list_incoming_changes,
-        "resolve-incoming-change": _resolve_incoming_change,
         "deploy-release": _deploy_release,
         "undeploy-release": _undeploy_release,
     }
@@ -425,7 +422,7 @@ def _list_catalog_versions(base_url: str, config: dict) -> None:
             "versions": ",".join(_show(v.version) for v in versions),
             "statuses": ",".join(_show(_enum(v.status)) for v in versions),
             "bases": ",".join(_show(v.base) for v in versions),
-            "openConflicts": ",".join(_show(v.open_conflicts) for v in versions),
+            "behindCounts": ",".join(str(len(v.behind)) for v in versions),
         },
     )
 
@@ -446,6 +443,11 @@ def _get_catalog_version(base_url: str, config: dict) -> None:
                 for d in version.dependencies
             ),
             "deployedTo": ",".join(version.deployed_to),
+            "behind": ";".join(
+                f"{_show(b.version)}="
+                + "+".join(f"{_show(c.type)}/{_show(c.key)}:{_show(_enum(c.change))}" for c in b.changes)
+                for b in version.behind
+            ),
         },
     )
 
@@ -471,7 +473,6 @@ def _preview_catalog_version_renumber(base_url: str, config: dict) -> None:
     _report(
         base_url,
         {
-            "newBase": _show(preview.new_base),
             "warningKinds": ",".join(w.kind for w in preview.warnings),
         },
     )
@@ -482,7 +483,9 @@ def _delete_catalog_version(base_url: str, config: dict) -> None:
 
 
 def _release_catalog_version(base_url: str, config: dict) -> None:
-    optional = {"notes": config["notes"]} if "notes" in config else {}
+    optional = {
+        name: config[name] for name in ("notes", "acknowledgedBehind") if name in config
+    }
     response = CatalogsApi(_client(base_url, config)).release_catalog_version(
         *_catalog_version_address(config),
         ReleaseCatalogVersionRequest(**optional),
@@ -492,44 +495,8 @@ def _release_catalog_version(base_url: str, config: dict) -> None:
         {
             "version": _show(response.catalog_version.version),
             "status": _show(_enum(response.catalog_version.status)),
-            "flowedInto": ",".join(
-                f"{f.version}:{f.merged}:{f.conflicts}" for f in response.flowed_into
-            ),
+            "draftsBehind": ",".join(response.drafts_behind),
             "openedDraft": _show(response.opened_draft),
-        },
-    )
-
-
-def _list_incoming_changes(base_url: str, config: dict) -> None:
-    optional = {"state": config["state"]} if "state" in config else {}
-    changes = (
-        CatalogsApi(_client(base_url, config))
-        .list_incoming_changes(*_catalog_version_address(config), **optional)
-        .items
-    )
-    _report(
-        base_url,
-        {
-            "ids": ",".join(c.id for c in changes),
-            "nodes": ",".join(_show(c.node) for c in changes),
-            "states": ",".join(_show(_enum(c.state)) for c in changes),
-            "resolutions": ",".join(_show(_enum(c.resolution)) for c in changes),
-        },
-    )
-
-
-def _resolve_incoming_change(base_url: str, config: dict) -> None:
-    change = CatalogsApi(_client(base_url, config)).resolve_incoming_change(
-        *_catalog_version_address(config),
-        config["changeId"],
-        ResolveIncomingChangeRequest(resolution=config["resolution"]),
-    )
-    _report(
-        base_url,
-        {
-            "id": change.id,
-            "state": _show(_enum(change.state)),
-            "resolution": _show(_enum(change.resolution)),
         },
     )
 

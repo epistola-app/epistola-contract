@@ -6,10 +6,12 @@ id: release-catalog-version
 title: Releasing a draft reports which drafts its changes flowed into, and how many conflict
 why: >
   Releasing changes a draft's status, not its number, so the request goes to the draft's own
-  address and carries only the notes. What the author needs next is in the answer: every higher
-  draft the changes flowed into, with how many merged and how many conflict, because a conflict
-  blocks releasing that draft. A client that drops `flowedInto` hides that the next release is now
-  blocked.
+  address and carries only the notes. Nothing is merged into other drafts, so what the author
+  needs next is in the answer: every higher open draft that is now behind this release
+  (`draftsBehind`), which will not contain its changes unless someone applies them by hand. A
+  client that drops `draftsBehind` hides that a fix may be lost from the next version.
+
+  This draft is not behind anything, so the client sends no `acknowledgedBehind`.
 
   `openedDraft` is null here, because a draft above the release was already open.
 
@@ -33,7 +35,7 @@ script:
         status: released
         base: 1.4.0
         createdFrom: null
-        openConflicts: 0
+        behind: []
         releasedAt: "2026-10-15T10:00:00Z"
         notes: Finished improvements, ahead of 2.0.0.
         fingerprint: v5:0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9
@@ -41,8 +43,7 @@ script:
         dependencies: []
         deployedTo: []
       unchangedContent: false
-      flowedInto:
-        - { version: 2.0.0, merged: 4, conflicts: 1 }
+      draftsBehind: [2.0.0]
       openedDraft: null
 
 expect:
@@ -53,8 +54,9 @@ expect:
       body:
         json:
           notes: Finished improvements, ahead of 2.0.0.
+        jsonAbsent: [acknowledgedBehind]
   report:
     version: 1.5.0
     status: released
-    flowedInto: 2.0.0:4:1
+    draftsBehind: 2.0.0
     openedDraft: 'null'

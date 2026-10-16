@@ -65,8 +65,6 @@ public static class Driver
                 case "preview-catalog-version-renumber": PreviewCatalogVersionRenumber(baseUrl, config); break;
                 case "delete-catalog-version": DeleteCatalogVersion(baseUrl, config); break;
                 case "release-catalog-version": ReleaseCatalogVersion(baseUrl, config); break;
-                case "list-incoming-changes": ListIncomingChanges(baseUrl, config); break;
-                case "resolve-incoming-change": ResolveIncomingChange(baseUrl, config); break;
                 case "deploy-release": DeployRelease(baseUrl, config); break;
                 case "undeploy-release": UndeployRelease(baseUrl, config); break;
                 default: throw new ArgumentException($"unknown action {instruction.GetProperty("action")}");
@@ -433,7 +431,7 @@ public static class Driver
             ["versions"] = string.Join(",", items.Select(v => Show(v.VarVersion))),
             ["statuses"] = string.Join(",", items.Select(v => Show(Wire(v.Status)))),
             ["bases"] = string.Join(",", items.Select(v => Show(v.Base))),
-            ["openConflicts"] = string.Join(",", items.Select(v => v.OpenConflicts)),
+            ["behindCounts"] = string.Join(",", items.Select(v => (v.Behind ?? new List<BehindReleaseDto>()).Count)),
         });
     }
 
@@ -452,6 +450,9 @@ public static class Driver
             ["dependencies"] = string.Join(",", (version.Dependencies ?? new List<ReleaseDependencyDto>())
                 .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.ReleaseVersion)}")),
             ["deployedTo"] = string.Join(",", version.DeployedTo ?? new List<string>()),
+            ["behind"] = string.Join(";", (version.Behind ?? new List<BehindReleaseDto>())
+                .Select(b => $"{Show(b.VarVersion)}=" + string.Join("+", (b.Changes ?? new List<ReleasedChangeDto>())
+                    .Select(c => $"{Show(c.Type)}/{Show(c.Key)}:{Wire(c.Change)}")))),
         });
     }
 
@@ -489,7 +490,6 @@ public static class Driver
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["newBase"] = Show(preview.NewBase),
             ["warningKinds"] = string.Join(",", preview.Warnings.Select(w => Show(w.Kind))),
         });
     }
@@ -506,51 +506,14 @@ public static class Driver
         var (http, apiBase) = Client(baseUrl, config);
         var response = new CatalogsApi(http, apiBase).ReleaseCatalogVersion(
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
-            new ReleaseCatalogVersionRequest(notes: OptStr(config, "notes")!));
+            new ReleaseCatalogVersionRequest(notes: OptStr(config, "notes")!, acknowledgedBehind: OptStrList(config, "acknowledgedBehind")!));
 
         Report(baseUrl, new Dictionary<string, object>
         {
             ["version"] = Show(response.CatalogVersion?.VarVersion),
             ["status"] = Show(response.CatalogVersion == null ? null : Wire(response.CatalogVersion.Status)),
-            ["flowedInto"] = string.Join(",", response.FlowedInto.Select(f => $"{Show(f.VarVersion)}:{f.Merged}:{f.Conflicts}")),
+            ["draftsBehind"] = string.Join(",", response.DraftsBehind ?? new List<string>()),
             ["openedDraft"] = Show(response.OpenedDraft),
-        });
-    }
-
-    /// <summary>
-    /// A change to a whole resource has a null <c>node</c>, and only a resolved one carries a
-    /// <c>resolution</c>; both are reported as <c>null</c> rather than lost.
-    /// </summary>
-    private static void ListIncomingChanges(string baseUrl, JsonElement config)
-    {
-        var (http, apiBase) = Client(baseUrl, config);
-        var state = OptStr(config, "state");
-        var items = new CatalogsApi(http, apiBase).ListIncomingChanges(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
-            state: state == null ? null : Parse<IncomingChangeState>(state)).Items;
-
-        Report(baseUrl, new Dictionary<string, object>
-        {
-            ["ids"] = string.Join(",", items.Select(c => Show(c.Id))),
-            ["nodes"] = string.Join(",", items.Select(c => Show(c.Node))),
-            ["states"] = string.Join(",", items.Select(c => Show(Wire(c.State)))),
-            ["resolutions"] = string.Join(",", items.Select(c => Show(c.Resolution == null ? null : Wire(c.Resolution.Value)))),
-        });
-    }
-
-    private static void ResolveIncomingChange(string baseUrl, JsonElement config)
-    {
-        var (http, apiBase) = Client(baseUrl, config);
-        var change = new CatalogsApi(http, apiBase).ResolveIncomingChange(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
-            Str(config, "changeId"),
-            new ResolveIncomingChangeRequest(resolution: Parse<IncomingChangeResolution>(Str(config, "resolution"))));
-
-        Report(baseUrl, new Dictionary<string, object>
-        {
-            ["id"] = Show(change.Id),
-            ["state"] = Show(Wire(change.State)),
-            ["resolution"] = Show(change.Resolution == null ? null : Wire(change.Resolution.Value)),
         });
     }
 
@@ -699,6 +662,11 @@ public static class Driver
 
     private static string? OptStr(JsonElement config, string name) =>
         config.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? value.GetString() : null;
+
+    private static List<string>? OptStrList(JsonElement config, string name) =>
+        config.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null
+            ? value.EnumerateArray().Select(v => v.GetString()!).ToList()
+            : null;
 
     private static bool? OptBool(JsonElement config, string name) =>
         config.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? value.GetBoolean() : null;

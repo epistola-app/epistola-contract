@@ -32,8 +32,9 @@ test('a catalog version is addressed by its number, and its sub-resources by lit
   assert.equal(findOperation('DELETE', `${base}/3.0.0`)!.operationId, 'deleteCatalogVersion')
   assert.equal(findOperation('GET', `${base}/1.5.0/renumber-preview`)!.operationId, 'previewCatalogVersionRenumber')
   assert.equal(findOperation('POST', `${base}/1.5.0/release`)!.operationId, 'releaseCatalogVersion')
-  assert.equal(findOperation('GET', `${base}/2.0.0/incoming`)!.operationId, 'listIncomingChanges')
-  assert.equal(findOperation('POST', `${base}/2.0.0/incoming/chg-1/resolve`)!.operationId, 'resolveIncomingChange')
+  // Drafts are independent copies: nothing flows into them, so there are no incoming changes.
+  assert.equal(findOperation('GET', `${base}/2.0.0/incoming`), undefined)
+  assert.equal(findOperation('POST', `${base}/2.0.0/incoming/chg-1/resolve`), undefined)
   // Data validation stayed on the catalog: it checks against a release, not a version's content.
   assert.equal(findOperation('POST', '/tenants/acme/catalogs/~/acme-corp/letters/templates/invoice/validate')!.operationId, 'validateTemplateData')
   // The release operations that versions replaced are gone.

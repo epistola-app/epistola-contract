@@ -33,7 +33,7 @@ script:
       base: 1.3.0
       createdFrom: null
       createdAt: "2026-09-01T09:00:00Z"
-      openConflicts: 0
+      behind: []
       releasedAt: "2026-10-01T12:00:00Z"
       notes: Spelling fixes.
       fingerprint: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
@@ -55,3 +55,5 @@ expect:
     fingerprint: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
     dependencies: exchange.epistola.app/epistola/system@3.2.0
     deployedTo: acceptance,production
+    # A released version is never behind.
+    behind: ""

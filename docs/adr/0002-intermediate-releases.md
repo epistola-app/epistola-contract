@@ -1,6 +1,6 @@
 # ADR 0002: Working on several catalog versions at once
 
-- **Status:** Accepted
+- **Status:** Accepted, amended 2026-10-16: drafts do not merge (see "Amendment")
 - **Date:** 2026-10-15
 - **Scope:** API contract (`contracts/api`), contract 2.0
 - **Related:** [ADR 0001](0001-hotfixing-a-released-catalog.md) (hotfixing a release that production runs)
@@ -52,6 +52,28 @@ different state, at the same address.
 Teams sequence their work, or keep unfinished work out of the catalog until it is done. This is
 simple, but it pushes the problem onto the authors.
 
+## Amendment (2026-10-16): drafts are independent copies
+
+The first version of this ADR flowed every release forward into higher drafts with a node-level
+three-way merge, and kept the rule "a draft contains every released version below its number". The
+merge is not part of contract 2.0.0, so neither is that rule. Instead:
+
+- **A draft is an independent copy.** Releasing one never changes another. Nothing is merged.
+- **A draft's base is fixed**: the released version it started from. It does not move when other
+  versions are released or the draft is renumbered.
+- **A draft can be behind.** The released versions numbered between its base and its own number are
+  ones it does not contain, unless an author applied their changes by hand, which the server cannot
+  tell. `CatalogVersionDto.behind` lists them, each with the resources it changed against its own
+  base, and a release lists the higher drafts now behind it (`draftsBehind`).
+- **Releasing a draft that is behind must be acknowledged**: `acknowledgedBehind` names every
+  release it is behind, or the release is refused with `409`. A fix shipped in `1.5.0` can still be
+  left out of `2.0.0`, but never unnoticed.
+- `listIncomingChanges`, `resolveIncomingChange`, incoming conflicts, `flowedInto` and
+  `openConflicts` are removed. Bringing a release's changes into a draft on request, with a merge, is
+  proposed separately in [ADR 0005](0005-merging-catalog-versions.md), outside 2.0.0.
+
+The sections below are updated to this model.
+
 ## Decision (proposed)
 
 Adopt **option C**.
@@ -68,15 +90,11 @@ Adopt **option C**.
 
 ### What a draft contains
 
-- **A draft contains every released version below its number.** Its **base** is the highest released
-  version below it. `2.0.0` opened while `1.4.0` is the latest release starts as `1.4.0`.
-- **Releasing a draft flows its changes forward** into every open draft with a higher number. When
-  `1.5.0` is released, `2.0.0` receives the `1.5.0` changes and its base becomes `1.5.0`.
-- **Flowing forward is a three-way merge per node** (base, released, draft). Changes to different
-  nodes merge without asking. When both sides changed the same node differently, the draft gets an
-  **incoming conflict**. It is resolved by keeping the draft's content, taking the incoming content,
-  or editing it. An unresolved conflict blocks releasing that draft, not editing it.
-- The draft's declared catalog dependencies flow forward the same way.
+- **A draft's base** is the released version it started from. `2.0.0` opened while `1.4.0` is the
+  latest release starts as a copy of `1.4.0`, and `1.4.0` stays its base.
+- **Releasing a draft changes no other draft.** When `1.5.0` is released while `2.0.0` is open,
+  `2.0.0` is **behind** `1.5.0`: it holds the `1.5.0` changes only if an author applied them by hand.
+  The draft lists what it is behind, and releasing it requires acknowledging that list.
 
 ### Creating, renumbering and discarding drafts
 
@@ -84,12 +102,11 @@ Adopt **option C**.
   base.
 - **Create from another version** ("create a new version from this") by also naming a source: any
   released version or open draft, below or above the new number. The draft starts as a copy of the
-  source. Every released version below the new number that the source does not contain then flows
-  in, exactly as on a release, so the rule "a draft contains every release below it" still holds
-  and conflicts appear as incoming changes. Examples:
-  - continue the `2.0.0` work as `3.0.0`: create `3.0.0` from draft `2.0.0`. When `2.0.0` is
-    released, its changes flow into `3.0.0` and merge without conflict, because they are already
-    there;
+  source; its base is the source when that is released, and the source's base when it is a draft.
+  Nothing flows in: released versions between the base and the new number make the draft behind
+  them. Examples:
+  - continue the `2.0.0` work as `3.0.0`: create `3.0.0` from draft `2.0.0`. Later edits to
+    `2.0.0` do not reach `3.0.0`; once `2.0.0` is released, `3.0.0` is behind it;
   - start `1.5.0` from draft `2.0.0` to ship part of it early, then undo what is not finished. A
     draft may contain more than its base; it may never contain less;
   - patch an older line: create `1.0.2` from released `1.0.1` while `2.0.0` is released.
@@ -98,16 +115,13 @@ Adopt **option C**.
   `1.4.0` opens `1.4.1`. A team that works on one thing at a time never creates a draft by hand, and
   sees one editable version, as today.
 - **Renumber** a draft by changing its version, as long as it is a draft, up or down. Typically the
-  automatic `1.4.1` becomes `1.5.0` or `2.0.0` once the work is known. Renumbering follows the same
-  rules as creating a version from another one, so nothing is lost and the containment rule holds:
-  - **Up past a released version** (`1.5.0` → `1.7.0` with `1.6.0` released): the releases the
-    draft now sits above flow in, exactly as on a release, and may open incoming conflicts.
+  automatic `1.4.1` becomes `1.5.0` or `2.0.0` once the work is known. Only the number changes; the
+  content and the base stay:
+  - **Up past a released version** (`1.5.0` → `1.7.0` with `1.6.0` released): the draft becomes
+    behind `1.6.0` (warning `falls-behind`).
   - **Down past a released version** (`2.0.0` → `1.5.0` with `1.6.0` released): the draft keeps its
     content, so it now contains changes from releases above it. That is allowed, as for "create
     from", but it means `1.5.0` will ship what `1.6.0` shipped.
-  - **Past another open draft** (`1.5.0` → `2.1.0` with `2.0.0` open): what either draft contains does
-    not change, but the direction changes: `2.0.0` no longer receives this draft's changes on
-    release, and receives them instead when it is released first.
   - **To a lower kind of version than the changes need** (a patch number while the draft has
     breaking changes against its base, by the rule ADR 0001 defines for hotfixes).
 
@@ -119,25 +133,23 @@ Adopt **option C**.
   Refused outright: a number already in use, renumbering a released version, and renumbering a
   `+hotfix` draft. The response carries the new address; links to the old number stop working,
   which is acceptable for a draft.
-- **Discard** a draft by deleting it, as long as it is a draft. Changes that already flowed forward
-  from it are released content elsewhere and stay.
+- **Discard** a draft by deleting it, as long as it is a draft.
 - A version number is unique in its catalog, across drafts and released versions.
 
 ### Ordering
 
-- A draft can be released when no draft below it is blocked on it. Versions do **not** have to be
-  released in order: `1.5.0` can be released after `2.0.0`, as a maintenance release of the `1.x`
-  line, and flows forward into drafts above it (none, in that example, once `2.0.0` is released).
+- Versions do **not** have to be released in order: `1.5.0` can be released after `2.0.0`, as a
+  maintenance release of the `1.x` line. It changes no other draft.
 - Ready stays what it is today: a per-resource mark inside a draft, and the checklist for releasing
-  it. A draft is releasable when every changed resource is ready and no conflict is open.
+  it. A draft is releasable when every changed resource is ready, and, when it is behind, the
+  release acknowledges the releases it is behind.
 
 ### Hotfixes
 
 - A hotfix of an owned catalog is a draft of the next patch, for example `1.4.1` next to `2.0.0`.
 - A `+hotfix.N` release (ADR 0001) is a draft numbered `1.0.1+hotfix.N` that the installation creates
   from an installed release. Its number is assigned when it is created, the next free `N`, and it
-  cannot be renumbered. It contains its base, `1.0.1`, never later releases, and does not flow
-  forward.
+  cannot be renumbered. It contains its base, `1.0.1`, never later releases.
 
 ## API
 
@@ -156,13 +168,11 @@ Addresses use the version number, the same for drafts and released versions. The
 | --- | --- | --- |
 | `listCatalogVersions` | `GET …/versions?status=` | Drafts and released versions, highest first |
 | `createCatalogVersion` | `POST …/versions` `{version, from?}` | Opens a draft from its base, or from version `from` |
-| `getCatalogVersion` | `GET …/versions/{catalogVersion}` | Status, base, source, open conflicts; release data once released |
+| `getCatalogVersion` | `GET …/versions/{catalogVersion}` | Status, base, source, the releases a draft is behind; release data once released |
 | `previewCatalogVersionRenumber` | `GET …/versions/{catalogVersion}/renumber-preview?to=` | The renumber's warnings, without applying it |
 | `renumberCatalogVersion` | `PATCH …/versions/{catalogVersion}` `{version, acknowledgeWarnings?}` | Drafts only; `409` while warnings are not acknowledged; returns the new `Location` |
 | `deleteCatalogVersion` | `DELETE …/versions/{catalogVersion}` | Drafts only |
-| `releaseCatalogVersion` | `POST …/versions/{catalogVersion}/release` `{notes?}` | Draft → released; reports the drafts the changes flowed into, and the draft it opened |
-| `listIncomingChanges` | `GET …/versions/{catalogVersion}/incoming?state=` | Merged, conflicting and resolved changes from lower releases |
-| `resolveIncomingChange` | `POST …/versions/{catalogVersion}/incoming/{changeId}/resolve` `{resolution}` | `keep`, `take` or `edited` |
+| `releaseCatalogVersion` | `POST …/versions/{catalogVersion}/release` `{notes?, acknowledgedBehind?}` | Draft → released; `409` while the draft is behind a release it does not acknowledge; reports the higher drafts now behind it, and the draft it opened |
 
 - **Every resource path of the working copy moves under `…/versions/{catalogVersion}/`,** and so do
   `getCatalogChanges`, `markCatalogReady` and the dependency operations. Reads work on any version.
@@ -187,10 +197,9 @@ Addresses use the version number, the same for drafts and released versions. The
 - **Contract change:** the working-copy operations move and gain a version segment; the release
   operations merge into the version operations. Every client follows, and the conformance suite
   gains scenarios for every version operation, including a renumber warning of a kind the client does
-  not know and an unresolved incoming change.
-- **Catalog module:** the node-level three-way merge per resource type, applied identically by every
-  installation. ADR 0001 rejected a merge as too expensive for hotfixes alone. Here it carries
-  intermediate releases, and hotfixes of owned catalogs come with it.
+  not know, a draft that is behind, and an acknowledged release.
+- **No merge in 2.0.0.** Porting a change from one version to another is the author's work, made
+  visible by `behind` and by the release acknowledgement. ADR 0005 proposes the merge.
 - **Archives:** unchanged. Only released versions are exported.
 
 ### Suite
@@ -208,24 +217,18 @@ this one:
   `/tenants/acme-corp/catalogs/acme-corp/letters/versions/2.0.0/templates/invoice`. The last choice
   is remembered per user.
 - **A version bar** under the navigation shows the base, the number of changes and ready resources,
-  open incoming conflicts, and the release button. The editor header names the catalog and version.
+  the releases the draft is behind (with what each changed), and the release button. The editor header names the catalog and version.
 - **Creating a draft** reuses the patch / minor / major choice of today's release dialog, to pick its
   number. Every version, draft or released, offers "create a new version from this". Releasing a
-  draft asks only for notes and the optional exchange publication, and lists the
-  drafts the changes flow into.
+  draft asks for notes and the optional exchange publication, asks the author to confirm the
+  releases the draft is behind, and afterwards lists the higher drafts now behind it.
 - **Deployments** become a catalog-level page: environments × released versions.
 
 ## Later: merging on request
 
-This ADR does not add a manual merge, but leaves room for one. Forward flow on release already needs
-the node-level three-way merge and the incoming-changes API with conflict resolution. A later
-`mergeIntoCatalogVersion` (`POST …/versions/{version}/merge` `{from, resources?}`) can reuse both:
-it brings another version's changes, or those of selected resources, into a draft as incoming
-changes. That would replace "create `1.5.0` from `2.0.0`, then undo what is not finished" with
-"merge the finished templates from `2.0.0` into `1.5.0`".
+See [ADR 0005](0005-merging-catalog-versions.md).
 
 ## Open questions
 
-- Should resolving a conflict record who resolved it, for the release notes?
 - Should a released version be withdrawable (still installed, never selected), or is undeploying
   enough?

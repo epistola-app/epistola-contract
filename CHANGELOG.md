@@ -18,14 +18,14 @@ libraries.
   `getCatalogVersion`, `renumberCatalogVersion` (drafts only; warnings from
   `previewCatalogVersionRenumber` must be acknowledged), `deleteCatalogVersion` (drafts only) and
   `releaseCatalogVersion`, which keeps the number and address, makes the version immutable (returned as `catalogVersion`), and
-  flows its changes forward into every higher open draft. `listIncomingChanges` and
-  `resolveIncomingChange` show and resolve what flowed into a draft; an open conflict blocks its
-  release. `CatalogDto` lists `draftVersions`.
+  changes no other draft: drafts are independent copies, and a draft lists the releases it is
+  behind (see "catalog drafts are independent copies" under Changed). `CatalogDto` lists
+  `draftVersions`.
 
 - **The changes of a catalog version, and deployments.** A released version also carries the
   releases of other catalogs it renders with (`dependencies`) and the environments that serve it
   (`deployedTo`). `getCatalogChanges` lists what is new, modified, ready or removed since the
-  version's base and whether releasing it would be accepted (including `openConflicts`);
+  version's base and whether releasing it would be accepted;
   `markCatalogReady` marks everything changed ready in one action. An environment can
   serve several releases of one catalog: `listEnvironmentDeployments`, `deployRelease` and
   `undeployRelease` (both addressed by the release, `…/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}`,
@@ -70,6 +70,33 @@ libraries.
   different releases of one catalog. `CatalogChangesDto` reports `dependenciesChanged`.
 
 ### Changed
+
+- **Template styles (#97), additive to the registries; Epistola Suite may not render them yet.**
+  `minHeight` (a unit, on `container`) and `verticalAlign` (`top` / `middle` / `bottom`, on
+  datatable columns and the two style maps below). New component style maps (`styleMaps` in the
+  component manifest): `cellStyles` on `table`, keyed `<row>-<col>` from 0 and checked against
+  `rows` × `columns`, and `columnStyles` on `columns`, one entry per `columnSizes` entry; both
+  accept `backgroundColor`, `padding*`, `border*` and `verticalAlign`. A style property can be
+  opt-in (`includedInAll: false`), so `applicableStyles: "all"` does not reach it; `container` now
+  lists its styles explicitly. Style keys that are unknown or not applicable
+  (`TEMPLATE_STYLE_UNKNOWN`, `TEMPLATE_STYLE_NOT_APPLICABLE`) are **warnings** now instead of
+  errors, and are also checked in `documentStylesOverride`, theme `documentStyles` and block
+  presets, so a typo is reported without refusing the document. `template-validation.json` gains
+  a `warningCases` section.
+
+- **BREAKING: catalog drafts are independent copies; nothing is merged** (ADR 0002, amended). A
+  release no longer flows into higher drafts. A draft's `base` is fixed: the release it started
+  from. A draft is **behind** the releases numbered between its base and its own number:
+  `CatalogVersionDto.behind` lists them (`BehindReleaseDto`, with each release's `added` /
+  `modified` / `removed` resources, `ReleasedChangeDto`). Releasing a draft that is behind is
+  refused with 409 unless `ReleaseCatalogVersionRequest.acknowledgedBehind` names every one of
+  them, and `ReleaseCatalogVersionResponse.draftsBehind` lists the higher drafts a release leaves
+  behind. Removed: `listIncomingChanges`, `resolveIncomingChange`, `IncomingChange*`,
+  `ResolveIncomingChangeRequest`, `ForwardFlowDto`, `flowedInto`, `openConflicts` and the renumber
+  preview's `newBase`; renumber warnings `releases-flow-in` and `draft-order-changes` give way to
+  `falls-behind`. Conformance: `list-incoming-changes` and `resolve-incoming-change` are gone;
+  new scenarios `get-draft-behind` and `release-catalog-version-behind`. A merge on request is
+  proposed in ADR 0005, outside 2.0.0.
 
 - **BREAKING: a resource's address is its `key`** (#84). The rule: a `key` is a resource's public
   address within its parent; an `id` is a generated identifier that is not an address

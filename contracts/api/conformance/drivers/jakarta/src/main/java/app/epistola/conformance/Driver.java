@@ -18,6 +18,7 @@ import app.epistola.client.jakarta.collect.ResultCollector;
 import app.epistola.client.jakarta.error.MissingDependency;
 import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.identity.ClientIdentity;
+import app.epistola.client.jakarta.model.BehindReleaseDto;
 import app.epistola.client.jakarta.model.CatalogDependencyDto;
 import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
 import app.epistola.client.jakarta.model.CatalogVersionDto;
@@ -25,21 +26,17 @@ import app.epistola.client.jakarta.model.CatalogVersionRenumberPreview;
 import app.epistola.client.jakarta.model.CatalogVersionStatus;
 import app.epistola.client.jakarta.model.CreateCatalogVersionRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
-import app.epistola.client.jakarta.model.ForwardFlowDto;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.ImageDto;
-import app.epistola.client.jakarta.model.IncomingChangeDto;
-import app.epistola.client.jakarta.model.IncomingChangeResolution;
-import app.epistola.client.jakarta.model.IncomingChangeState;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
 import app.epistola.client.jakarta.model.ReleaseCatalogVersionRequest;
 import app.epistola.client.jakarta.model.ReleaseCatalogVersionResponse;
 import app.epistola.client.jakarta.model.ReleaseDependencyDto;
+import app.epistola.client.jakarta.model.ReleasedChangeDto;
 import app.epistola.client.jakarta.model.RenumberCatalogVersionRequest;
 import app.epistola.client.jakarta.model.RenumberWarningDto;
-import app.epistola.client.jakarta.model.ResolveIncomingChangeRequest;
 import app.epistola.client.jakarta.model.TemplateListResponse;
 import app.epistola.client.jakarta.model.TemplateSummaryDto;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
@@ -110,8 +107,6 @@ public final class Driver {
                 case "preview-catalog-version-renumber" -> previewCatalogVersionRenumber(baseUrl, config);
                 case "delete-catalog-version" -> deleteCatalogVersion(baseUrl, config);
                 case "release-catalog-version" -> releaseCatalogVersion(baseUrl, config);
-                case "list-incoming-changes" -> listIncomingChanges(baseUrl, config);
-                case "resolve-incoming-change" -> resolveIncomingChange(baseUrl, config);
                 case "deploy-release" -> deployRelease(baseUrl, config);
                 case "undeploy-release" -> undeployRelease(baseUrl, config);
                 default -> throw new IllegalArgumentException("unknown action " + instruction.getString("action"));
@@ -493,7 +488,7 @@ public final class Driver {
                         "versions", joined(versions, CatalogVersionDto::getVersion),
                         "statuses", joined(versions, version -> String.valueOf(version.getStatus())),
                         "bases", joined(versions, CatalogVersionDto::getBase),
-                        "openConflicts", joined(versions, version -> String.valueOf(version.getOpenConflicts()))));
+                        "behindCounts", joined(versions, version -> String.valueOf(behind(version).size()))));
     }
 
     private static void getCatalogVersion(String baseUrl, JsonObject config) {
@@ -521,7 +516,21 @@ public final class Driver {
                                                 + dependency.getCatalogKey() + "@"
                                                 + dependency.getReleaseVersion()),
                         "deployedTo",
-                                version.getDeployedTo() == null ? "null" : String.join(",", version.getDeployedTo())));
+                                version.getDeployedTo() == null ? "null" : String.join(",", version.getDeployedTo()),
+                        "behind", behind(version).stream().map(Driver::behindRelease).collect(Collectors.joining(";"))));
+    }
+
+    /** One release a draft is behind, as {@code version=type/key:change+type/key:change}. */
+    private static String behindRelease(BehindReleaseDto release) {
+        List<ReleasedChangeDto> changes = release.getChanges() == null ? List.of() : release.getChanges();
+        return release.getVersion() + "="
+                + changes.stream()
+                        .map(change -> change.getType() + "/" + change.getKey() + ":" + change.getChange())
+                        .collect(Collectors.joining("+"));
+    }
+
+    private static List<BehindReleaseDto> behind(CatalogVersionDto version) {
+        return version.getBehind() == null ? List.of() : version.getBehind();
     }
 
     private static void renumberCatalogVersion(String baseUrl, JsonObject config) {
@@ -564,7 +573,6 @@ public final class Driver {
         report(
                 baseUrl,
                 Map.of(
-                        "newBase", String.valueOf(preview.getNewBase()),
                         "warningKinds", joined(warnings, RenumberWarningDto::getKind)));
     }
 
@@ -588,59 +596,22 @@ public final class Driver {
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("catalogVersion"),
-                        new ReleaseCatalogVersionRequest().notes(optional(config, "notes")));
-        List<ForwardFlowDto> flowedInto = response.getFlowedInto() == null ? List.of() : response.getFlowedInto();
+                        new ReleaseCatalogVersionRequest()
+                                .notes(optional(config, "notes"))
+                                // The generated model leaves the list null until set; null stays off the wire.
+                                .acknowledgedBehind(
+                                        config.containsKey("acknowledgedBehind") && !config.isNull("acknowledgedBehind")
+                                                ? config.getJsonArray("acknowledgedBehind")
+                                                        .getValuesAs(jakarta.json.JsonString::getString)
+                                                : null));
+        List<String> draftsBehind = response.getDraftsBehind() == null ? List.of() : response.getDraftsBehind();
         report(
                 baseUrl,
                 Map.of(
                         "version", String.valueOf(response.getCatalogVersion().getVersion()),
                         "status", String.valueOf(response.getCatalogVersion().getStatus()),
-                        "flowedInto",
-                                joined(
-                                        flowedInto,
-                                        flow -> flow.getVersion() + ":" + flow.getMerged() + ":" + flow.getConflicts()),
+                        "draftsBehind", String.join(",", draftsBehind),
                         "openedDraft", String.valueOf(response.getOpenedDraft())));
-    }
-
-    private static void listIncomingChanges(String baseUrl, JsonObject config) {
-        String state = optional(config, "state");
-        List<IncomingChangeDto> changes = clients(baseUrl, config)
-                .api(CatalogsApi.class)
-                .listIncomingChanges(
-                        config.getString("tenantKey"),
-                        config.getString("registry"),
-                        config.getString("namespace"),
-                        config.getString("catalogKey"),
-                        config.getString("catalogVersion"),
-                        state == null ? null : IncomingChangeState.fromValue(state))
-                .getItems();
-        report(
-                baseUrl,
-                Map.of(
-                        "ids", joined(changes, IncomingChangeDto::getId),
-                        "nodes", joined(changes, IncomingChangeDto::getNode),
-                        "states", joined(changes, change -> String.valueOf(change.getState())),
-                        "resolutions", joined(changes, change -> String.valueOf(change.getResolution()))));
-    }
-
-    private static void resolveIncomingChange(String baseUrl, JsonObject config) {
-        IncomingChangeDto change = clients(baseUrl, config)
-                .api(CatalogsApi.class)
-                .resolveIncomingChange(
-                        config.getString("tenantKey"),
-                        config.getString("registry"),
-                        config.getString("namespace"),
-                        config.getString("catalogKey"),
-                        config.getString("catalogVersion"),
-                        config.getString("changeId"),
-                        new ResolveIncomingChangeRequest()
-                                .resolution(IncomingChangeResolution.fromValue(config.getString("resolution"))));
-        report(
-                baseUrl,
-                Map.of(
-                        "id", String.valueOf(change.getId()),
-                        "state", String.valueOf(change.getState()),
-                        "resolution", String.valueOf(change.getResolution())));
     }
 
     /** A timestamp as ISO 8601 in UTC with its seconds, or {@code null}; offsets and precision vary by parser. */

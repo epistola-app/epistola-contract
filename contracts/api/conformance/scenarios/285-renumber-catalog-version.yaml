@@ -32,7 +32,7 @@ script:
       status: draft
       base: 1.4.0
       createdFrom: null
-      openConflicts: 0
+      behind: []
       dependencies: []
       deployedTo: []
 

@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: release-catalog-version-behind
+title: Releasing a draft that is behind names the releases the author acknowledges
+why: >
+  `2.0.0` is behind `1.5.0` and `1.6.0`: it was opened before they were released, and nothing is
+  merged into it. The server refuses to release it unless the request names every release it is
+  behind in `acknowledgedBehind`, the author's confirmation that they applied those changes by hand
+  or left them out on purpose. That is what stops a fix shipped in `1.5.0` from silently
+  disappearing in `2.0.0`.
+
+  The list is an array of version strings in the JSON body. A client that drops it, sends it as a
+  single string, or reorders it into something else gets the release refused.
+
+action:
+  name: release-catalog-version
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: 2.0.0
+    notes: The 2.0 house style.
+    acknowledgedBehind: [1.5.0, 1.6.0]
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      catalogVersion:
+        version: 2.0.0
+        status: released
+        base: 1.4.0
+        createdFrom: null
+        behind: []
+        releasedAt: "2026-10-16T10:00:00Z"
+        notes: The 2.0 house style.
+        fingerprint: v5:1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a
+        contentRetained: true
+        dependencies: []
+        deployedTo: []
+      unchangedContent: false
+      draftsBehind: []
+      openedDraft: 2.0.1
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/2.0.0/release
+      body:
+        json:
+          notes: The 2.0 house style.
+          acknowledgedBehind: [1.5.0, 1.6.0]
+  report:
+    version: 2.0.0
+    status: released
+    draftsBehind: ""
+    openedDraft: 2.0.1

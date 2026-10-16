@@ -38,8 +38,8 @@ ResourceStatus:
     - ready
     - released
   description: |
-    How a resource in a catalog version stands against the version's **base**: the highest
-    released version below it.
+    How a resource in a catalog version stands against the version's **base**: the released version
+    it started from (see `CatalogVersionDto.base`).
 
     - `new`: not in the base, and not marked ready.
     - `modified`: changed since the base, and not marked ready since.

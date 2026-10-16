@@ -29,14 +29,13 @@ script:
     body:
       from: 1.5.0
       to: 2.1.0
-      newBase: 1.6.0
       warnings:
-        - kind: releases-flow-in
-          message: Release 1.6.0 flows into this draft; 2 of its changes conflict.
+        - kind: falls-behind
+          message: This draft does not contain release 1.6.0; it will be behind it.
           versions: [1.6.0]
-        - kind: draft-order-changes
-          message: Draft 2.0.0 will send its changes to this draft instead of receiving them.
-          versions: [2.0.0]
+        - kind: contains-later-releases
+          message: This draft already contains what release 1.5.1 shipped.
+          versions: [1.5.1]
         - kind: a-kind-from-the-future
           message: Something this client was not built to know about.
           versions: []
@@ -49,5 +48,4 @@ expect:
       queryParams:
         to: 2.1.0
   report:
-    newBase: 1.6.0
-    warningKinds: releases-flow-in,draft-order-changes,a-kind-from-the-future
+    warningKinds: falls-behind,contains-later-releases,a-kind-from-the-future

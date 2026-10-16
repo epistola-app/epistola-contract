@@ -286,7 +286,6 @@ CatalogChangesDto:
   required:
     - releasable
     - dependenciesChanged
-    - openConflicts
     - changes
   properties:
     base:
@@ -298,18 +297,13 @@ CatalogChangesDto:
       type: boolean
       description: |
         True when the version is a draft, no resource is `new` or `modified`, no stencil instance is
-        held back, no incoming conflict is open, every catalog a resource references is a declared
+        held back, every catalog a resource references is a declared
         dependency that resolves to a release, and something changed
       example: false
     dependenciesChanged:
       type: boolean
       description: True when the declared dependencies differ from the base's
       example: false
-    openConflicts:
-      type: integer
-      minimum: 0
-      description: How many incoming conflicts are not resolved yet
-      example: 0
     changes:
       type: array
       items:
@@ -473,13 +467,14 @@ CatalogVersionDto:
   type: object
   description: |
     One version of a catalog. A version is opened as a draft, edited, and released, after which it
-    is immutable. Several drafts can be open at once; each contains every released version below
-    its number.
+    is immutable. Several drafts can be open at once; each is an independent copy, and nothing is
+    merged between them.
   required:
     - version
     - status
     - dependencies
     - deployedTo
+    - behind
   properties:
     version:
       type: string
@@ -492,8 +487,10 @@ CatalogVersionDto:
       type: [string, "null"]
       maxLength: 50
       description: |
-        The highest released version below this one, which a draft's changes are measured against;
-        null when there is none
+        The released version this one started from, which its changes are measured against: the
+        version it was opened from (or that version's base, when it was a draft), otherwise the
+        highest released version below its number when it was opened. It does not move when other
+        versions are released or a draft is renumbered. Null when there is none.
       example: "1.4.0"
     createdFrom:
       type: [string, "null"]
@@ -505,11 +502,16 @@ CatalogVersionDto:
       format: date-time
       description: When the version was opened; null for a release installed from elsewhere
       example: "2026-10-01T09:00:00Z"
-    openConflicts:
-      type: integer
-      minimum: 0
-      description: For a draft, how many incoming conflicts are not resolved yet; 0 when released
-      example: 0
+    behind:
+      type: array
+      description: |
+        For a draft, the released versions numbered above its base and below its own number, lowest
+        first. The draft does not contain their changes unless an author applied them by hand, which
+        the server cannot tell; releasing it must acknowledge them (`acknowledgedBehind`). Empty when
+        there are none, and for a released version.
+      items:
+        $ref: '#/BehindReleaseDto'
+      example: []
     releasedAt:
       type: [string, "null"]
       format: date-time
@@ -551,6 +553,50 @@ CatalogVersionDto:
       items:
         type: string
       example: []
+
+BehindReleaseDto:
+  type: object
+  description: A released version a draft is behind, and what that release changed
+  required:
+    - version
+    - changes
+  properties:
+    version:
+      type: string
+      maxLength: 50
+      description: The released version
+      example: "1.5.0"
+    changes:
+      type: array
+      description: |
+        The resources the release changed against its own base, which an author may need to apply
+        to the draft by hand
+      items:
+        $ref: '#/ReleasedChangeDto'
+
+ReleasedChangeDto:
+  type: object
+  description: A resource a release added, modified or removed against its base
+  required:
+    - type
+    - key
+    - change
+  properties:
+    type:
+      type: string
+      description: The resource type, as the portable catalog format names it
+      example: template
+    key:
+      type: string
+      description: The resource's key within its type
+      example: invoice
+    change:
+      type: string
+      enum:
+        - added
+        - modified
+        - removed
+      example: modified
 
 CatalogVersionListResponse:
   type: object
@@ -620,11 +666,6 @@ CatalogVersionRenumberPreview:
       maxLength: 50
       description: The number it would get
       example: "1.7.0"
-    newBase:
-      type: [string, "null"]
-      maxLength: 50
-      description: The draft's base after the renumber; null when there would be none
-      example: "1.6.0"
     warnings:
       type: array
       description: What the renumber would change beyond the number. Empty when nothing.
@@ -644,19 +685,17 @@ RenumberWarningDto:
         What the warning is about. Known kinds, which may grow; a client shows a kind it does not
         know by its `message`:
 
-        - `releases-flow-in`: the draft moves up past released versions, which flow into it and may
-          open incoming conflicts.
+        - `falls-behind`: the draft moves up past released versions it does not contain, so it
+          becomes behind them (see `CatalogVersionDto.behind`).
         - `contains-later-releases`: the draft moves down past released versions, and keeps their
           changes, so it will release what those releases did.
-        - `draft-order-changes`: the draft moves past another open draft, so which one receives the
-          other's changes on release reverses.
         - `breaking-changes-in-patch`: the new number is a patch of the base, while the draft has
           changes that are breaking against it.
-      example: releases-flow-in
+      example: falls-behind
     message:
       type: string
       description: The warning, written for the author
-      example: Release 1.6.0 flows into this draft; 2 of its changes conflict.
+      example: This draft does not contain release 1.6.0; it will be behind it.
     versions:
       type: array
       description: The versions the warning is about, released or draft
@@ -671,13 +710,23 @@ ReleaseCatalogVersionRequest:
       type: [string, "null"]
       maxLength: 4000
       example: Compatibility updates for the municipality catalog.
+    acknowledgedBehind:
+      type: array
+      description: |
+        The released versions the author confirms this draft may be behind: their changes were
+        applied by hand, or left out on purpose. Releasing a draft that is behind is refused with
+        409 unless this names every version in its `behind`; naming others changes nothing.
+      items:
+        type: string
+        maxLength: 50
+      example: ["1.5.0"]
 
 ReleaseCatalogVersionResponse:
   type: object
   required:
     - catalogVersion
     - unchangedContent
-    - flowedInto
+    - draftsBehind
   properties:
     catalogVersion:
       $ref: '#/CatalogVersionDto'
@@ -685,121 +734,17 @@ ReleaseCatalogVersionResponse:
       type: boolean
       description: True when the release content matches a previous release fingerprint.
       example: false
-    flowedInto:
+    draftsBehind:
       type: array
-      description: The open drafts with a higher number that received the released changes
+      description: |
+        The open drafts with a higher number that are now behind this release: its changes do not
+        reach them. Empty when none.
       items:
-        $ref: '#/ForwardFlowDto'
+        type: string
+        maxLength: 50
+      example: ["2.0.0"]
     openedDraft:
       type: [string, "null"]
       maxLength: 50
-      description: The draft opened because none was open above the released version; null otherwise
+      description: The draft opened, as a copy of this release, because none was open above it; null otherwise
       example: "1.4.1"
-
-ForwardFlowDto:
-  type: object
-  required:
-    - version
-    - merged
-    - conflicts
-  properties:
-    version:
-      type: string
-      maxLength: 50
-      description: The draft that received the changes
-      example: "2.0.0"
-    merged:
-      type: integer
-      minimum: 0
-      description: How many changes merged without conflict
-      example: 4
-    conflicts:
-      type: integer
-      minimum: 0
-      description: How many changes conflicted, and block releasing that draft until resolved
-      example: 1
-
-IncomingChangeState:
-  type: string
-  enum:
-    - merged
-    - conflict
-    - resolved
-  description: |
-    - `merged`: applied to the draft without conflict.
-    - `conflict`: the draft changed the same node differently; it blocks releasing the draft.
-    - `resolved`: was a conflict, and has been resolved.
-  example: conflict
-
-IncomingChangeDto:
-  type: object
-  description: |
-    One change that flowed into a draft from a lower release, at the level of one node of one
-    resource (or the resource as a whole, when it was added or removed).
-  required:
-    - id
-    - fromVersion
-    - type
-    - key
-    - state
-  properties:
-    id:
-      type: string
-      maxLength: 100
-      description: Identifier of the change within the draft
-      example: chg-7f3a
-    fromVersion:
-      type: string
-      maxLength: 50
-      description: The release the change came from
-      example: "1.5.0"
-    type:
-      type: string
-      description: The resource type, as the portable catalog format names it
-      example: template
-    key:
-      type: string
-      example: monthly-invoice
-    node:
-      type: [string, "null"]
-      maxLength: 200
-      description: |
-        The node within the resource the change is about, such as a variant and a node id; null
-        when it concerns the whole resource
-      example: dutch/node-greeting
-    state:
-      $ref: '#/IncomingChangeState'
-    resolution:
-      $ref: '#/IncomingChangeResolution'
-
-IncomingChangeListResponse:
-  type: object
-  required:
-    - items
-  properties:
-    items:
-      type: array
-      items:
-        $ref: '#/IncomingChangeDto'
-
-IncomingChangeResolution:
-  type: string
-  enum:
-    - keep
-    - take
-    - edited
-  description: |
-    - `keep`: keep the draft's content.
-    - `take`: replace it with the incoming content.
-    - `edited`: the author already edited the resource to combine both; keep it as it is.
-
-    On an incoming change, present only once a conflict is resolved.
-  example: take
-
-ResolveIncomingChangeRequest:
-  type: object
-  required:
-    - resolution
-  properties:
-    resolution:
-      $ref: '#/IncomingChangeResolution'

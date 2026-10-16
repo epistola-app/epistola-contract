@@ -17,7 +17,7 @@ def _version(fingerprint):
         "version": "1.4.0",
         "status": "released",
         "createdAt": "2026-01-01T00:00:00Z",
-        "openConflicts": 0,
+        "behind": [],
         "fingerprint": fingerprint,
         "dependencies": [],
         "deployedTo": [],

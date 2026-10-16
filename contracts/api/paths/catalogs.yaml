@@ -254,7 +254,7 @@ catalog-dependencies:
     summary: Replace the catalogs a draft depends on
     description: |
       Replaces the dependencies declared in a draft of an AUTHORED catalog. The change is released
-      with the draft, and flows forward into higher drafts like any other change. Each catalog is declared at most once, so a release
+      with the draft, like any other change. Each catalog is declared at most once, so a release
       renders with one release of every catalog it depends on.
 
       Refused with 409 for a released version, and for a SUBSCRIBED catalog, whose dependencies are
@@ -341,12 +341,14 @@ catalog-versions:
     description: |
       Opens a draft of an AUTHORED catalog with a version number not yet in use.
 
-      - Without `from`, the draft starts as its **base**: the highest released version below its
-        number, or empty when there is none.
+      - Without `from`, the draft starts as a copy of its **base**: the highest released version
+        below its number, or empty when there is none.
       - With `from`, it starts as a copy of that version, a draft or a released one, below or above
-        the new number. Every released version below the new number that the source does not
-        contain then flows in, as on a release, and may open incoming conflicts. A draft always
-        contains every release below it; it may contain more.
+        the new number. Its base is `from` when that is released, and `from`'s base when it is a
+        draft.
+
+      Nothing is merged: the draft is an independent copy. When released versions lie between its
+      base and its number, it is **behind** them (see `CatalogVersionDto.behind`).
 
       Refused with 409 when the number is in use, and for a SUBSCRIBED catalog.
     tags:
@@ -427,9 +429,9 @@ catalog-version:
       Gives a draft another version number that is not in use, up or down. Its address changes to
       the new number, which `Location` carries; the old address stops working.
 
-      A renumber follows the same rules as opening a version from another one: releases the draft
-      now sits above flow in, and the draft keeps what it has. Some renumbers have consequences
-      the author should see first: use `GET .../renumber-preview` to list them. When there are any,
+      Only the number changes: the draft keeps its content and its base, and nothing flows in. Moving
+      up past released versions makes the draft behind them. Some renumbers have consequences the
+      author should see first: use `GET .../renumber-preview` to list them. When there are any,
       the request is refused with 409 unless `acknowledgeWarnings` is true.
 
       Refused with 409 for a released version.
@@ -469,8 +471,7 @@ catalog-version:
     operationId: deleteCatalogVersion
     summary: Discard a draft
     description: |
-      Discards a draft and everything changed in it. Changes that already flowed forward from it are
-      released content elsewhere and stay. Refused with 409 for a released version.
+      Discards a draft and everything changed in it. Refused with 409 for a released version.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_RELEASE]
@@ -561,17 +562,22 @@ catalog-version-release:
     description: |
       Releases a draft of an AUTHORED catalog. The version keeps its number and its address, and
       becomes immutable. A release contains the whole draft: it is refused while any resource is
-      `new` or `modified`, or an incoming conflict is open.
+      `new` or `modified`.
+
+      A draft that is **behind** (released versions lie between its base and its number, see
+      `CatalogVersionDto.behind`) does not contain those releases' changes unless an author applied
+      them by hand, which the server cannot tell. Releasing it is refused with 409 unless
+      `acknowledgedBehind` names every one of those versions, so a fix shipped in a lower release
+      is not dropped from a higher one unnoticed.
 
       Each declared dependency is resolved to one release, and so are the dependencies of those
       releases in turn; the release records them all. It is refused when a resource references a
       catalog that is not declared, when a dependency resolves to no release, or when two paths
       through the dependencies need different releases of one catalog.
 
-      The released changes then **flow forward** into every open draft with a higher number. Changes
-      to different nodes merge; where a draft changed the same node differently, it gets an
-      incoming conflict. When no draft is open above the released version, the next patch is opened
-      as a draft.
+      Releasing changes no other draft. Open drafts with a higher number whose base is below this
+      version are now behind it; the response lists them (`draftsBehind`). When no draft is open
+      above the released version, the next patch is opened as a draft, as a copy of this release.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_RELEASE]
@@ -599,108 +605,3 @@ catalog-version-release:
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
-catalog-version-incoming:
-  parameters:
-    - name: tenantKey
-      in: path
-      required: true
-      description: Unique key of the tenant
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - $ref: '../components/parameters/catalog.yaml#/Registry'
-    - $ref: '../components/parameters/catalog.yaml#/Namespace'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
-
-  get:
-    operationId: listIncomingChanges
-    summary: List the changes that flowed into a draft
-    description: |
-      Changes that flowed into the draft from lower releases, since it was opened: the ones merged
-      without conflict and the ones that conflicted, resolved or not.
-    tags:
-      - Catalogs
-    x-required-permissions: [CATALOG_VIEW]
-    parameters:
-      - name: state
-        in: query
-        required: false
-        description: Only changes in this state. Omitted, every state.
-        schema:
-          $ref: '../components/schemas/catalogs.yaml#/IncomingChangeState'
-    responses:
-      '200':
-        description: The incoming changes
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/catalogs.yaml#/IncomingChangeListResponse'
-      '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
-catalog-version-incoming-resolve:
-  parameters:
-    - name: tenantKey
-      in: path
-      required: true
-      description: Unique key of the tenant
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - $ref: '../components/parameters/catalog.yaml#/Registry'
-    - $ref: '../components/parameters/catalog.yaml#/Namespace'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
-    - name: changeId
-      in: path
-      required: true
-      description: Identifier of the incoming change
-      schema:
-        type: string
-        minLength: 1
-        maxLength: 100
-  post:
-    operationId: resolveIncomingChange
-    summary: Resolve an incoming conflict
-    description: |
-      Resolves a conflicting incoming change, by keeping the draft's content, taking the incoming
-      content, or recording that the author edited the resource through its own operations. Taking
-      the incoming content replaces the node in the draft, which clears the resource's ready mark.
-      Refused with 409 when the change is not a conflict, or already resolved.
-    tags:
-      - Catalogs
-    x-required-permissions: [TEMPLATE_EDIT]
-    requestBody:
-      required: true
-      content:
-        application/vnd.epistola.v1+json:
-          schema:
-            $ref: '../components/schemas/catalogs.yaml#/ResolveIncomingChangeRequest'
-    responses:
-      '200':
-        description: The resolved change
-        content:
-          application/vnd.epistola.v1+json:
-            schema:
-              $ref: '../components/schemas/catalogs.yaml#/IncomingChangeDto'
-      '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-      '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'

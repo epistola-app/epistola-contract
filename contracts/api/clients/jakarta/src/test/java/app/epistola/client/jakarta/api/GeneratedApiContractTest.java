@@ -17,8 +17,6 @@ import app.epistola.client.jakarta.model.CatalogVersionListResponse;
 import app.epistola.client.jakarta.model.CatalogVersionRenumberPreview;
 import app.epistola.client.jakarta.model.CreateTenantRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
-import app.epistola.client.jakarta.model.IncomingChangeDto;
-import app.epistola.client.jakarta.model.IncomingChangeListResponse;
 import app.epistola.client.jakarta.model.ReleaseCatalogVersionResponse;
 import app.epistola.client.jakarta.model.TenantDto;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
@@ -285,7 +283,14 @@ class GeneratedApiContractTest {
     /** The catalog-level release operations were replaced by releasing a draft version. */
     @Test
     void catalog_versions_replace_the_catalog_level_releases() {
-        for (String removed : List.of("releaseCatalog", "listCatalogReleases", "getCatalogRelease")) {
+        // Drafts are independent copies: releasing one no longer flows into higher drafts, so the
+        // incoming-change operations went with forward flow.
+        for (String removed : List.of(
+                "releaseCatalog",
+                "listCatalogReleases",
+                "getCatalogRelease",
+                "listIncomingChanges",
+                "resolveIncomingChange")) {
             assertTrue(
                     Arrays.stream(CatalogsApi.class.getMethods()).noneMatch(method -> method.getName().equals(removed)),
                     "CatalogsApi still has the removed " + removed);
@@ -301,15 +306,8 @@ class GeneratedApiContractTest {
         assertOperation("deleteCatalogVersion", DELETE.class, void.class, version);
         assertOperation("previewCatalogVersionRenumber", GET.class, CatalogVersionRenumberPreview.class, version);
         assertOperation("releaseCatalogVersion", POST.class, ReleaseCatalogVersionResponse.class, version);
-        assertOperation("listIncomingChanges", GET.class, IncomingChangeListResponse.class, version);
-        assertOperation(
-                "resolveIncomingChange",
-                POST.class,
-                IncomingChangeDto.class,
-                List.of("tenantKey", "registry", "namespace", "catalogKey", "catalogVersion", "changeId"));
 
-        for (String withBody : List.of(
-                "createCatalogVersion", "renumberCatalogVersion", "releaseCatalogVersion", "resolveIncomingChange")) {
+        for (String withBody : List.of("createCatalogVersion", "renumberCatalogVersion", "releaseCatalogVersion")) {
             assertEquals(
                     List.of(VENDOR_JSON),
                     List.of(method(CatalogsApi.class, withBody).getAnnotation(Consumes.class).value()),

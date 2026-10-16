@@ -8,7 +8,8 @@ why: >
   A catalog version is addressed by its number, so opening a draft is a POST to the catalog's
   versions with the number in the body. `from` names the version to start from; this one starts
   `3.0.0` from the open draft `2.0.0`, the case that lets a team continue unfinished work under a
-  higher number.
+  higher number. Its base is the draft's base, `1.4.0`: a draft opened from another draft starts
+  from the same release.
 
   The answer is a draft, and a draft has no release data: `releasedAt`, `fingerprint` and
   `contentRetained` are null and `dependencies` and `deployedTo` empty. A client that turns null
@@ -36,7 +37,7 @@ script:
       base: 1.4.0
       createdFrom: 2.0.0
       createdAt: "2026-10-15T09:00:00Z"
-      openConflicts: 0
+      behind: []
       releasedAt: null
       notes: null
       fingerprint: null

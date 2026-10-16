@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: get-draft-behind
+title: A draft says which releases it is behind, and what they changed
+why: >
+  Drafts are independent copies; nothing is merged between them. A draft opened from `1.4.0` does
+  not get the changes of `1.5.0` when that is released later, so it is **behind** `1.5.0`. The
+  server cannot tell whether an author applied those changes by hand, so it lists every release the
+  draft is behind with the resources each one changed. That list is what lets an author port a fix
+  before releasing `2.0.0`, and what they must acknowledge when they release it.
+
+  A client must surface every release, in order, with every change and its kind.
+
+action:
+  name: get-catalog-version
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: 2.0.0
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      version: 2.0.0
+      status: draft
+      base: 1.4.0
+      createdFrom: null
+      createdAt: "2026-09-20T09:00:00Z"
+      behind:
+        - version: 1.5.0
+          changes:
+            - { type: template, key: invoice, change: modified }
+            - { type: theme, key: corporate, change: added }
+        - version: 1.6.0
+          changes:
+            - { type: stencil, key: letter-shell, change: removed }
+      releasedAt: null
+      notes: null
+      fingerprint: null
+      contentRetained: null
+      dependencies: []
+      deployedTo: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/2.0.0
+  report:
+    version: 2.0.0
+    status: draft
+    behind: 1.5.0=template/invoice:modified+theme/corporate:added;1.6.0=stencil/letter-shell:removed

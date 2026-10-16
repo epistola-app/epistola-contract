@@ -59,8 +59,6 @@ const ACTION_OPERATIONS = {
   'preview-catalog-version-renumber': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/renumber-preview' },
   'delete-catalog-version': { method: 'delete', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}' },
   'release-catalog-version': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/release' },
-  'list-incoming-changes': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/incoming' },
-  'resolve-incoming-change': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/incoming/{changeId}/resolve' },
   collect: { method: 'post', path: '/tenants/{tenantKey}/generation/collect' },
   routing: { method: 'post', path: '/tenants/{tenantKey}/generation/collect' },
 }

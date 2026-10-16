@@ -55,8 +55,6 @@ const ACTIONS = {
   'preview-catalog-version-renumber': previewCatalogVersionRenumber,
   'delete-catalog-version': deleteCatalogVersion,
   'release-catalog-version': releaseCatalogVersion,
-  'list-incoming-changes': listIncomingChanges,
-  'resolve-incoming-change': resolveIncomingChange,
   'deploy-release': deployRelease,
   'undeploy-release': undeployRelease,
 }
@@ -360,7 +358,7 @@ async function listCatalogVersions(baseUrl, config) {
     versions: items.map((v) => show(v.version)).join(','),
     statuses: items.map((v) => show(v.status)).join(','),
     bases: items.map((v) => show(v.base)).join(','),
-    openConflicts: items.map((v) => show(v.openConflicts)).join(','),
+    behindCounts: items.map((v) => show(v.behind.length)).join(','),
   })
 }
 
@@ -380,6 +378,9 @@ async function getCatalogVersion(baseUrl, config) {
     fingerprint: show(version.fingerprint),
     dependencies: (version.dependencies ?? []).map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.releaseVersion)}`).join(','),
     deployedTo: (version.deployedTo ?? []).map(show).join(','),
+    behind: version.behind
+      .map((r) => `${show(r.version)}=${r.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join('+')}`)
+      .join(';'),
   })
 }
 
@@ -409,7 +410,6 @@ async function previewCatalogVersionRenumber(baseUrl, config) {
     to: config.to,
   })
   await report(baseUrl, {
-    newBase: show(preview.newBase),
     warningKinds: preview.warnings.map((w) => show(w.kind)).join(','),
   })
 }
@@ -425,10 +425,11 @@ async function deleteCatalogVersion(baseUrl, config) {
   })
 }
 
-/** Releases a draft; `notes` goes out only when the scenario sets them. */
+/** Releases a draft; `notes` and `acknowledgedBehind` go out only when the scenario sets them. */
 async function releaseCatalogVersion(baseUrl, config) {
   const request = {}
   if (config.notes !== undefined) request.notes = config.notes
+  if (config.acknowledgedBehind !== undefined) request.acknowledgedBehind = config.acknowledgedBehind
   const response = await new CatalogsApi(client(baseUrl, config)).releaseCatalogVersion({
     tenantKey: config.tenantKey,
     registry: config.registry,
@@ -440,42 +441,9 @@ async function releaseCatalogVersion(baseUrl, config) {
   await report(baseUrl, {
     version: show(response.catalogVersion.version),
     status: show(response.catalogVersion.status),
-    flowedInto: response.flowedInto.map((f) => `${show(f.version)}:${show(f.merged)}:${show(f.conflicts)}`).join(','),
+    draftsBehind: response.draftsBehind.map(show).join(','),
     openedDraft: show(response.openedDraft),
   })
-}
-
-/** Lists the changes that flowed into a draft; the `state` filter goes out only when set. */
-async function listIncomingChanges(baseUrl, config) {
-  const request = {
-    tenantKey: config.tenantKey,
-    registry: config.registry,
-    namespace: config.namespace,
-    catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
-  }
-  if (config.state !== undefined) request.state = config.state
-  const { items } = await new CatalogsApi(client(baseUrl, config)).listIncomingChanges(request)
-  await report(baseUrl, {
-    ids: items.map((c) => show(c.id)).join(','),
-    nodes: items.map((c) => show(c.node)).join(','),
-    states: items.map((c) => show(c.state)).join(','),
-    resolutions: items.map((c) => show(c.resolution)).join(','),
-  })
-}
-
-/** Resolves one incoming change by id. */
-async function resolveIncomingChange(baseUrl, config) {
-  const change = await new CatalogsApi(client(baseUrl, config)).resolveIncomingChange({
-    tenantKey: config.tenantKey,
-    registry: config.registry,
-    namespace: config.namespace,
-    catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
-    changeId: config.changeId,
-    resolveIncomingChangeRequest: { resolution: config.resolution },
-  })
-  await report(baseUrl, { id: show(change.id), state: show(change.state), resolution: show(change.resolution) })
 }
 
 /** Deploys one release; the path carries everything and there is no body. */

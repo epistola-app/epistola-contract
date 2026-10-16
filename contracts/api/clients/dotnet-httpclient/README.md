@@ -178,14 +178,20 @@ versions themselves are managed through `CatalogsApi`:
 var catalogs = new CatalogsApi(http, "https://epistola.example.com/api");
 
 // Open a draft, from the highest release or (with `from`) from another version.
-catalogs.CreateCatalogVersion("my-tenant", "acme-corp", "default",
+catalogs.CreateCatalogVersion("my-tenant", "~", "acme-corp", "default",
     new CreateCatalogVersionRequest(varVersion: "1.5.0"));
 
-// Release it; the answer names the higher drafts its changes flowed into, and how many conflict.
-var released = catalogs.ReleaseCatalogVersion("my-tenant", "acme-corp", "default", "1.5.0",
-    new ReleaseCatalogVersionRequest(notes: "Spring update"));
-foreach (var flow in released.FlowedInto)
-    Console.WriteLine($"{flow.VarVersion}: {flow.Merged} merged, {flow.Conflicts} conflicts");
+// A draft is an independent copy: releases numbered between its base and its own number are listed
+// in `Behind`, and releasing it must acknowledge each of them.
+var draft = catalogs.GetCatalogVersion("my-tenant", "~", "acme-corp", "default", "1.5.0");
+var released = catalogs.ReleaseCatalogVersion("my-tenant", "~", "acme-corp", "default", "1.5.0",
+    new ReleaseCatalogVersionRequest(
+        notes: "Spring update",
+        acknowledgedBehind: draft.Behind.Select(b => b.VarVersion).ToList()));
+
+// Releasing never changes another draft; the answer names the drafts that are now behind it.
+foreach (var behind in released.DraftsBehind)
+    Console.WriteLine($"{behind} does not contain {released.CatalogVersion.VarVersion}");
 ```
 
 The generator names a `version` member `VarVersion` (constructor argument `varVersion`), and

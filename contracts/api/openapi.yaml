@@ -19,11 +19,12 @@ info:
     changes a version's status, not its number or address. Several drafts can be open at once, and
     a draft can be renumbered or discarded while it is one.
 
-    - A draft contains every released version below its number. Its **base** is the highest
-      released version below it, which its changes are measured against.
-    - Releasing a draft **flows its changes forward** into every open draft with a higher number,
-      merged per node. Where a draft changed the same node differently, it gets an incoming
-      conflict, which blocks releasing it until resolved.
+    - A draft's **base** is the released version it started from, which its changes are measured
+      against. It does not move when other versions are released or the draft is renumbered.
+    - Drafts are independent copies: releasing one does not change another, and nothing is merged.
+      A draft is **behind** the releases numbered between its base and its own number; it does not
+      contain their changes unless an author applied them by hand. `getCatalogVersion` lists them,
+      and releasing a draft that is behind must be acknowledged.
 
     Documents are always rendered from a released version; version selectors never match a draft.
     Only preview renders a draft, named by its exact number.
@@ -468,10 +469,6 @@ paths:
     $ref: './paths/catalogs.yaml#/catalog-version-renumber-preview'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/release:
     $ref: './paths/catalogs.yaml#/catalog-version-release'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/incoming:
-    $ref: './paths/catalogs.yaml#/catalog-version-incoming'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/incoming/{changeId}/resolve:
-    $ref: './paths/catalogs.yaml#/catalog-version-incoming-resolve'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/dependencies:
     $ref: './paths/catalogs.yaml#/catalog-dependencies'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/changes:
@@ -634,6 +631,10 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CatalogVersionStatus'
     CatalogVersionDto:
       $ref: './components/schemas/catalogs.yaml#/CatalogVersionDto'
+    BehindReleaseDto:
+      $ref: './components/schemas/catalogs.yaml#/BehindReleaseDto'
+    ReleasedChangeDto:
+      $ref: './components/schemas/catalogs.yaml#/ReleasedChangeDto'
     CatalogVersionListResponse:
       $ref: './components/schemas/catalogs.yaml#/CatalogVersionListResponse'
     CreateCatalogVersionRequest:
@@ -648,18 +649,6 @@ components:
       $ref: './components/schemas/catalogs.yaml#/ReleaseCatalogVersionRequest'
     ReleaseCatalogVersionResponse:
       $ref: './components/schemas/catalogs.yaml#/ReleaseCatalogVersionResponse'
-    ForwardFlowDto:
-      $ref: './components/schemas/catalogs.yaml#/ForwardFlowDto'
-    IncomingChangeState:
-      $ref: './components/schemas/catalogs.yaml#/IncomingChangeState'
-    IncomingChangeDto:
-      $ref: './components/schemas/catalogs.yaml#/IncomingChangeDto'
-    IncomingChangeListResponse:
-      $ref: './components/schemas/catalogs.yaml#/IncomingChangeListResponse'
-    IncomingChangeResolution:
-      $ref: './components/schemas/catalogs.yaml#/IncomingChangeResolution'
-    ResolveIncomingChangeRequest:
-      $ref: './components/schemas/catalogs.yaml#/ResolveIncomingChangeRequest'
 
     # Code list schemas
     CodeListDto:

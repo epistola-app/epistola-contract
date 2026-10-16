@@ -12,6 +12,9 @@ why: >
   The first draft of a catalog that was never released has no base. A client that cannot read a
   null `base` cannot list a new catalog at all.
 
+  `2.0.0` is behind release `1.5.0`: it was opened from `1.4.0`, and nothing is merged into a draft,
+  so it holds 1.5.0's changes only if an author applied them by hand.
+
 action:
   name: list-catalog-versions
   config:
@@ -27,9 +30,9 @@ script:
     contentType: application/vnd.epistola.v1+json
     body:
       items:
-        - { version: 2.0.0, status: draft, base: 1.4.0, createdFrom: null, openConflicts: 1, dependencies: [], deployedTo: [] }
-        - { version: 1.4.1, status: draft, base: 1.4.0, createdFrom: null, openConflicts: 0, dependencies: [], deployedTo: [] }
-        - { version: 0.1.0, status: draft, base: null, createdFrom: null, openConflicts: 0, dependencies: [], deployedTo: [] }
+        - { version: 2.0.0, status: draft, base: 1.4.0, createdFrom: null, behind: [{ version: 1.5.0, changes: [{ type: template, key: invoice, change: modified }] }], dependencies: [], deployedTo: [] }
+        - { version: 1.4.1, status: draft, base: 1.4.0, createdFrom: null, behind: [], dependencies: [], deployedTo: [] }
+        - { version: 0.1.0, status: draft, base: null, createdFrom: null, behind: [], dependencies: [], deployedTo: [] }
       page: { number: 0, size: 20, totalElements: 3, totalPages: 1 }
 
 expect:
@@ -45,4 +48,5 @@ expect:
     versions: 2.0.0,1.4.1,0.1.0
     statuses: draft,draft,draft
     bases: 1.4.0,1.4.0,null
-    openConflicts: 1,0,0
+    # How many releases each draft is behind: 2.0.0 does not contain release 1.5.0.
+    behindCounts: 1,0,0

@@ -22,11 +22,8 @@ import app.epistola.client.model.CatalogDependencyDto
 import app.epistola.client.model.CatalogDependencyRequirement
 import app.epistola.client.model.CatalogVersionStatus
 import app.epistola.client.model.CreateCatalogVersionRequest
-import app.epistola.client.model.IncomingChangeResolution
-import app.epistola.client.model.IncomingChangeState
 import app.epistola.client.model.ReleaseCatalogVersionRequest
 import app.epistola.client.model.RenumberCatalogVersionRequest
-import app.epistola.client.model.ResolveIncomingChangeRequest
 import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.PingRequest
 import app.epistola.client.model.UpdateCatalogDependenciesRequest
@@ -94,8 +91,6 @@ object Driver {
                 "preview-catalog-version-renumber" -> previewCatalogVersionRenumber(baseUrl, config)
                 "delete-catalog-version" -> deleteCatalogVersion(baseUrl, config)
                 "release-catalog-version" -> releaseCatalogVersion(baseUrl, config)
-                "list-incoming-changes" -> listIncomingChanges(baseUrl, config)
-                "resolve-incoming-change" -> resolveIncomingChange(baseUrl, config)
                 "deploy-release" -> deployRelease(baseUrl, config)
                 "undeploy-release" -> undeployRelease(baseUrl, config)
                 else -> error("unknown action $action")
@@ -466,7 +461,7 @@ object Driver {
                 "versions" to versions.joinToString(",") { it.version },
                 "statuses" to versions.joinToString(",") { it.status.value },
                 "bases" to versions.joinToString(",") { it.base ?: "null" },
-                "openConflicts" to versions.joinToString(",") { it.openConflicts?.toString() ?: "null" },
+                "behindCounts" to versions.joinToString(",") { it.behind.size.toString() },
             ),
         )
     }
@@ -491,6 +486,9 @@ object Driver {
                     "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}"
                 },
                 "deployedTo" to version.deployedTo.joinToString(","),
+                "behind" to version.behind.joinToString(";") { release ->
+                    "${release.version}=" + release.changes.joinToString("+") { "${it.type}/${it.key}:${it.change.value}" }
+                },
             ),
         )
     }
@@ -527,7 +525,6 @@ object Driver {
         report(
             baseUrl,
             mapOf(
-                "newBase" to (preview.newBase ?: "null"),
                 "warningKinds" to preview.warnings.joinToString(",") { it.kind },
             ),
         )
@@ -550,57 +547,18 @@ object Driver {
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
-            ReleaseCatalogVersionRequest(notes = config.optionalText("notes")),
+            ReleaseCatalogVersionRequest(
+                notes = config.optionalText("notes"),
+                acknowledgedBehind = config.get("acknowledgedBehind")?.takeUnless { it.isNull }?.map { it.asText() },
+            ),
         )
         report(
             baseUrl,
             mapOf(
                 "version" to response.catalogVersion.version,
                 "status" to response.catalogVersion.status.value,
-                "flowedInto" to response.flowedInto.joinToString(",") { "${it.version}:${it.merged}:${it.conflicts}" },
+                "draftsBehind" to response.draftsBehind.joinToString(","),
                 "openedDraft" to (response.openedDraft ?: "null"),
-            ),
-        )
-    }
-
-    private fun listIncomingChanges(baseUrl: String, config: ObjectNode) {
-        val changes = CatalogsApi(restClient(baseUrl, config)).listIncomingChanges(
-            config["tenantKey"].asText(),
-            config["registry"].asText(),
-            config["namespace"].asText(),
-            config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
-            state = config.optionalText("state")?.let { IncomingChangeState.decode(it) },
-        ).items
-        report(
-            baseUrl,
-            mapOf(
-                "ids" to changes.joinToString(",") { it.id },
-                "nodes" to changes.joinToString(",") { it.node ?: "null" },
-                "states" to changes.joinToString(",") { it.state.value },
-                "resolutions" to changes.joinToString(",") { it.resolution?.value ?: "null" },
-            ),
-        )
-    }
-
-    private fun resolveIncomingChange(baseUrl: String, config: ObjectNode) {
-        val change = CatalogsApi(restClient(baseUrl, config)).resolveIncomingChange(
-            config["tenantKey"].asText(),
-            config["registry"].asText(),
-            config["namespace"].asText(),
-            config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
-            config["changeId"].asText(),
-            ResolveIncomingChangeRequest(
-                resolution = IncomingChangeResolution.decode(config["resolution"].asText()),
-            ),
-        )
-        report(
-            baseUrl,
-            mapOf(
-                "id" to change.id,
-                "state" to change.state.value,
-                "resolution" to (change.resolution?.value ?: "null"),
             ),
         )
     }
