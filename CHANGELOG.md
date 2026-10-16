@@ -80,6 +80,13 @@ libraries.
 
 ### Changed
 
+- **A variant attribute key may name another catalog's attribute.** Wire v8 gave variant
+  attribute keys the resource key rule, which refused the qualified form `<catalogKey>.<key>`
+  (`system.locale`) that names an attribute defined in another catalog, so a template using the
+  system catalog's `locale` could not be validated. The key is now an attribute key, optionally
+  qualified by a catalog key, each part by its own rule (`CatalogKeys.isValidAttributeKey`,
+  `ATTRIBUTE_KEY_PATTERN`, at most 101 characters in the schema). The v7-to-v8 migration pads the
+  attribute part of a qualified key, as it padded that attribute's own key.
 - **Stencil nesting is checked lexically (ADR 0006).** The template validator no longer counts a
   placeholder's fill as inside the stencil that owns the placeholder: the fill is written outside
   it. So a fill may hold an instance of the stencil it fills, and instances written in fills of

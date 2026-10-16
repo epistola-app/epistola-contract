@@ -51,7 +51,6 @@ class CatalogV8WireSchemaTest {
                 "CodeListBindingRef.key" to detail["CodeListBindingRef"]["properties"]["key"],
                 "DataExampleEntry.key" to detail["DataExampleEntry"]["properties"]["key"],
                 "VariantEntry.key" to detail["VariantEntry"]["properties"]["key"],
-                "VariantEntry.attributes" to detail["VariantEntry"]["properties"]["attributes"]["oneOf"][0]["propertyNames"],
                 "ResourceEntry.key" to manifest["ResourceEntry"]["properties"]["key"],
                 "CatalogDependencyRef.key" to manifest["CatalogDependencyRef"]["properties"]["key"],
                 "AttributeAssignment.key" to manifest["AttributeAssignment"]["properties"]["key"],
@@ -62,6 +61,11 @@ class CatalogV8WireSchemaTest {
         keyPositions.forEach { (where, key) ->
             assertEquals(CatalogKeys.RESOURCE, CatalogKeys.Rule(key["pattern"].asString(), key["minLength"].asInt(), key["maxLength"].asInt()), where)
         }
+        // A variant names another catalog's attribute as <catalogKey>.<key>.
+        val attributeKey = detail["VariantEntry"]["properties"]["attributes"]["oneOf"][0]["propertyNames"]
+        assertEquals(CatalogKeys.ATTRIBUTE_KEY_PATTERN, attributeKey["pattern"].asString())
+        assertEquals(CatalogKeys.MIN_LENGTH, attributeKey["minLength"].asInt())
+        assertEquals(CatalogKeys.ATTRIBUTE_KEY_MAX_LENGTH, attributeKey["maxLength"].asInt())
         val catalogKey = manifest["CatalogInfo"]["properties"]["key"]
         assertEquals(CatalogKeys.CATALOG, CatalogKeys.Rule(catalogKey["pattern"].asString(), catalogKey["minLength"].asInt(), catalogKey["maxLength"].asInt()))
         assertTrue("key" in detail["DataExampleEntry"]["required"].toList().map { it.asString() })

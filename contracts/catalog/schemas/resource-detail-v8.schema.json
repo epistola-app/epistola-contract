@@ -558,15 +558,15 @@
         "attributes": {
           "oneOf": [
             {
-              "description": "The variant's attribute values, keyed by attribute key: the same rule as every resource key.",
+              "description": "The variant's attribute values, keyed by attribute key: the same rule as every resource key, qualified as <catalogKey>.<key> when the attribute is another catalog's (system.locale). Each part keeps its own bounds (3 to 50 characters).",
               "type": "object",
               "additionalProperties": {
                 "type": "string"
               },
               "propertyNames": {
-                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\\.)?[a-z0-9]+(-[a-z0-9]+)*$",
                 "minLength": 3,
-                "maxLength": 50
+                "maxLength": 101
               }
             },
             {

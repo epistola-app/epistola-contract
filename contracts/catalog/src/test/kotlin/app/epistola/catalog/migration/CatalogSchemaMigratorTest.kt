@@ -484,6 +484,21 @@ class CatalogSchemaMigratorTest {
     }
 
     @Test
+    fun `a qualified variant attribute key migrates its attribute part, as that attribute's own key did`() {
+        val tree = mapper.readTree(
+            """{"schemaVersion":7,"resource":{"type":"template","slug":"letter","name":"Letter","templateModel":{"root":"r","nodes":{},"slots":{}},""" +
+                """"variants":[{"slug":"dutch","attributes":{"system.la":"nl","system.locale":"nl-NL"}}]}}""",
+        ) as ObjectNode
+
+        val step = CatalogV7ToV8Migration().migrateResource(tree, "resources/template/letter.json", CatalogMigrationContext(7, emptyManifest()))
+
+        assertEquals(emptyList<CatalogMigrationFinding>(), step.findings)
+        assertEquals(listOf("system.la0", "system.locale"), tree["resource"]["variants"][0]["attributes"].propertyNames().toList())
+        assertEquals("system.la0", CatalogKeys.migrateAttributeKey("system.la"))
+        assertEquals("a00", CatalogKeys.migrateAttributeKey("a"))
+    }
+
+    @Test
     fun `the key rewrite is a pure function of the key`() {
         assertEquals("a00", CatalogKeys.migrate("a"))
         assertEquals("nl0", CatalogKeys.migrate("nl"))

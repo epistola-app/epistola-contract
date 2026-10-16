@@ -606,6 +606,31 @@ class CatalogValidatorTest {
         )
     }
 
+    /** Another catalog's attribute is named `<catalogKey>.<key>`, each part by its own rule. */
+    @Test
+    fun `a variant attribute key may name another catalog's attribute`() {
+        val report = validateTemplate(
+            letter().copy(
+                variants = listOf(
+                    app.epistola.catalog.protocol.VariantEntry(
+                        "nl",
+                        attributes = mapOf("system.locale" to "nl-NL", "locale" to "nl", "system.la" to "nl", "9sys.locale" to "nl", "a.b.locale" to "nl"),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                "resources/template/letter.json.resource.variants[0].attributes.9sys.locale",
+                "resources/template/letter.json.resource.variants[0].attributes.a.b.locale",
+                "resources/template/letter.json.resource.variants[0].attributes.system.la",
+                "resources/template/letter.json.resource.variants[0].key",
+            ),
+            report.findings.filter { it.code == CatalogValidationCodes.RESOURCE_KEY_INVALID }.map { it.path }.sorted(),
+        )
+    }
+
     @Test
     fun `manifest and detail findings aggregate deterministically`() {
         val detail = ResourceDetail(3, ImageResource("Bad Slug", "Different", "bad", width = 0, contentUrl = "../asset", contentHash = "0000000000000000000000000000000000000000000000000000000000000000"))

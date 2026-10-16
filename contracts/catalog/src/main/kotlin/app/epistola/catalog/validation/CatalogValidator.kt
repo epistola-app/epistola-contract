@@ -340,7 +340,14 @@ object ResourceValidator {
         resource.variants.forEachIndexed { index, variant ->
             validateKey(variant.key, "$path.variants[$index].key", findings)
             variant.attributes?.keys?.sorted()?.forEach { attribute ->
-                validateKey(attribute, "$path.variants[$index].attributes.$attribute", findings, "variant attribute key")
+                if (!CatalogKeys.isValidAttributeKey(attribute)) {
+                    findings.error(
+                        CatalogValidationCodes.RESOURCE_KEY_INVALID,
+                        "$path.variants[$index].attributes.$attribute",
+                        "variant attribute key must be an attribute key, or <catalogKey>.<key> for another catalog's attribute, " +
+                            "each part ${CatalogKeys.MIN_LENGTH} to ${CatalogKeys.MAX_LENGTH} characters",
+                    )
+                }
             }
             if (!variantKeys.add(variant.key)) {
                 findings.error(CatalogValidationCodes.TEMPLATE_VARIANT_KEY_DUPLICATE, "$path.variants[$index].key", "variant key '${variant.key}' is duplicated")

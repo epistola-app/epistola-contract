@@ -56,8 +56,9 @@ internal object CatalogKeyRewrites {
     ) {
         if (map !is ObjectNode) return
         val names = map.propertyNames().toList()
-        if (names.none { CatalogKeys.migrate(it) != it }) return
-        val scope = Scope("the attributes at $path", "attribute key").declare(names)
+        if (names.none { CatalogKeys.migrateAttributeKey(it) != it }) return
+        // A qualified key (`system.la`) migrates its attribute part, as the attribute's own key did.
+        val scope = Scope("the attributes at $path", "attribute key", CatalogKeys::rewriteAttributeKey, CatalogKeys::migrateAttributeKey).declare(names)
         val rewritten = names.map { name -> scope.claim(name, "$path.$name", findings) to map[name] }
         if (findings.isNotEmpty()) return
         map.removeAll()
@@ -72,6 +73,8 @@ internal object CatalogKeyRewrites {
     class Scope(
         private val description: String,
         private val what: String,
+        private val rewriteOf: (String) -> CatalogKeys.Rewrite? = CatalogKeys::rewrite,
+        private val migrate: (String) -> String = CatalogKeys::migrate,
     ) {
         private val sourceKeys = mutableSetOf<String>()
         private val claimed = mutableMapOf<String, String>()
@@ -90,8 +93,8 @@ internal object CatalogKeyRewrites {
             findings: MutableList<CatalogMigrationFinding>,
             notices: MutableList<CatalogMigrationNotice>? = null,
         ): String {
-            val rewrite = CatalogKeys.rewrite(key) ?: return key.also { claimed.putIfAbsent(it, it) }
-            val rewritten = CatalogKeys.migrate(key)
+            val rewrite = rewriteOf(key) ?: return key.also { claimed.putIfAbsent(it, it) }
+            val rewritten = migrate(key)
             val other = claimed[rewritten] ?: rewritten.takeIf { it in sourceKeys }
             if (other != null) {
                 findings += CatalogMigrationFinding(

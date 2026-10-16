@@ -138,6 +138,42 @@ object CatalogKeys {
     /** Whether [value] is a valid resource key ([RESOURCE]), of whatever type. */
     fun isValid(value: String): Boolean = matches(RESOURCE, value)
 
+    /** Separates the catalog from the attribute in a qualified variant attribute key. */
+    const val ATTRIBUTE_QUALIFIER_SEPARATOR: Char = '.'
+
+    /**
+     * The shape of a variant's attribute key: an attribute's key, qualified as
+     * `<catalogKey>.<key>` when the attribute is another catalog's (`system.locale`). Each part
+     * also keeps its length bounds, which [isValidAttributeKey] checks.
+     */
+    const val ATTRIBUTE_KEY_PATTERN: String = "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\\.)?[a-z0-9]+(-[a-z0-9]+)*$"
+
+    /** Longest qualified variant attribute key: a catalog key, the separator and a key. */
+    const val ATTRIBUTE_KEY_MAX_LENGTH: Int = 50 + 1 + MAX_LENGTH
+
+    /**
+     * Whether [value] is a valid variant attribute key: a resource key ([isValid]), or a catalog key
+     * ([CATALOG]) and a resource key joined by [ATTRIBUTE_QUALIFIER_SEPARATOR].
+     */
+    fun isValidAttributeKey(value: String): Boolean {
+        val (catalog, attribute) = attributeKeyParts(value)
+        return (catalog == null || matches(CATALOG, catalog)) && isValid(attribute)
+    }
+
+    /** [rewrite] of the attribute part of a variant attribute key; the catalog part is never rewritten. */
+    fun rewriteAttributeKey(key: String): Rewrite? = rewrite(attributeKeyParts(key).second)
+
+    /** [migrate] of the attribute part of a variant attribute key, keeping its catalog qualifier. */
+    fun migrateAttributeKey(key: String): String {
+        val (catalog, attribute) = attributeKeyParts(key)
+        return if (catalog == null) migrate(attribute) else "$catalog$ATTRIBUTE_QUALIFIER_SEPARATOR${migrate(attribute)}"
+    }
+
+    private fun attributeKeyParts(key: String): Pair<String?, String> {
+        val separator = key.indexOf(ATTRIBUTE_QUALIFIER_SEPARATOR)
+        return if (separator < 0) null to key else key.substring(0, separator) to key.substring(separator + 1)
+    }
+
     /** Whether [value] satisfies [rule]. */
     fun matches(rule: Rule, value: String): Boolean = value.length in rule.minLength..rule.maxLength &&
         compiled.getOrPut(rule.pattern) { Regex(rule.pattern) }.matches(value)
