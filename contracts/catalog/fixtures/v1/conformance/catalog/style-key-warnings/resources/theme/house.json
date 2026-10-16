@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 8,
+  "resource": {
+    "type": "theme",
+    "key": "house",
+    "name": "House",
+    "description": null,
+    "documentStyles": {
+      "fontSize": "10pt",
+      "font-size": "10pt"
+    },
+    "pageSettings": null,
+    "blockStylePresets": {
+      "label": {
+        "label": "Label",
+        "styles": {
+          "fontWeight": "700",
+          "minHeight": "72pt"
+        },
+        "applicableTo": ["text"]
+      }
+    },
+    "spacingUnit": null
+  }
+}

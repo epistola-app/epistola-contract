@@ -102,6 +102,27 @@ const registry = await import(`${packageName}/registry`);
 assert.ok(registry.componentRegistry, 'component registry must be exported');
 assert.ok(registry.styleRegistry, 'style registry must be exported');
 
+// #97: `"all"` leaves out the opt-in properties, which apply only where they are listed by key.
+assert.deepEqual([...registry.optInStyleKeys], ['minHeight', 'verticalAlign'], 'opt-in style keys follow includedInAll');
+const componentByType = new Map(registry.componentRegistry.components.map((component) => [component.type, component]));
+const applicable = (type, key) => registry.isStyleApplicable(key, componentByType.get(type).applicableStyles);
+assert.equal(applicable('text', 'minHeight'), false, '"all" must not include minHeight');
+assert.equal(applicable('text', 'verticalAlign'), false, '"all" must not include verticalAlign');
+assert.equal(applicable('text', 'paddingTop'), true, '"all" still includes the general styles');
+assert.equal(applicable('container', 'minHeight'), true, 'the container accepts minHeight');
+assert.equal(applicable('container', 'borderRadius'), true, 'the container keeps what "all" gave it');
+assert.equal(applicable('datatable-column', 'verticalAlign'), true, 'a datatable column accepts verticalAlign');
+const cellStyles = componentByType.get('table').styleMaps.find((styleMap) => styleMap.key === 'cellStyles');
+const columnStyles = componentByType.get('columns').styleMaps.find((styleMap) => styleMap.key === 'columnStyles');
+assert.equal(cellStyles.shape, 'keyed');
+assert.ok(new RegExp(cellStyles.keyPattern).test('10-2') && !new RegExp(cellStyles.keyPattern).test('a-2'), 'cell keys are <row>-<col>');
+assert.equal(columnStyles.shape, 'indexed');
+for (const styleMap of [cellStyles, columnStyles]) {
+  assert.equal(registry.isStyleApplicable('borderBottom', styleMap.applicableStyles), true, `${styleMap.key} accepts the border keys`);
+  assert.equal(registry.isStyleApplicable('verticalAlign', styleMap.applicableStyles), true, `${styleMap.key} accepts verticalAlign`);
+  assert.equal(registry.isStyleApplicable('fontSize', styleMap.applicableStyles), false, `${styleMap.key} does not accept fontSize`);
+}
+
 await assert.rejects(
   import(`${packageName}/generated/theme`),
   (error) => error?.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED',

@@ -35,6 +35,16 @@
         "catalog.json",
         "resources/template/letter.json"
       ]
+    },
+    {
+      "id": "style-key-warnings",
+      "root": "conformance/catalog/style-key-warnings",
+      "expectedReport": "expected-report.json",
+      "files": [
+        "catalog.json",
+        "resources/template/letter.json",
+        "resources/theme/house.json"
+      ]
     }
   ]
 }

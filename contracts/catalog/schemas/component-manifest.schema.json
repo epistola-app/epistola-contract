@@ -60,6 +60,11 @@
           "$ref": "#/$defs/ApplicableStyles",
           "description": "Which style properties are allowed on this node type."
         },
+        "styleMaps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/StyleMap" },
+          "description": "Props that hold style maps for parts of the node that are not nodes themselves, such as a table's cells or the columns of a columns node. Each is a declared prop of the component. Omitted means none."
+        },
         "inspector": {
           "type": "array",
           "items": { "$ref": "#/$defs/InspectorField" },
@@ -194,6 +199,43 @@
           "additionalProperties": false
         }
       ]
+    },
+    "StyleMap": {
+      "type": "object",
+      "description": "A prop holding styles for parts of a node, keyed by part (shape 'keyed', an object) or by position (shape 'indexed', an array).",
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Property key in node.props, such as 'cellStyles'."
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable label."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the map styles and how its keys or positions are counted."
+        },
+        "shape": {
+          "type": "string",
+          "enum": ["keyed", "indexed"],
+          "description": "'keyed': an object from part key to a style object. 'indexed': an array of style objects, one per part in order; use {} for a part without styles."
+        },
+        "keyPattern": {
+          "type": "string",
+          "description": "For shape 'keyed': the pattern every part key matches in full."
+        },
+        "applicableStyles": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Style keys each entry accepts, with the same family-prefix matching as a component's applicableStyles ('padding' covers 'paddingTop'). Unlike a component's, never 'all'."
+        }
+      },
+      "required": ["key", "label", "description", "shape", "applicableStyles"],
+      "additionalProperties": false
     },
     "ApplicableStyles": {
       "oneOf": [

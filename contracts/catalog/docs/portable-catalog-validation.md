@@ -62,6 +62,44 @@ All findings contain a stable string code, `ERROR` or `WARNING` severity,
 document-relative path, and human-readable message. Reports are deduplicated
 and sorted by path, code, then message.
 
+## Styles
+
+A style key that has no effect is a `WARNING`, never an error (#97), so a typo such as
+`font-weight` is reported without making the document invalid. Two codes cover it, wherever styles
+appear:
+
+- `TEMPLATE_STYLE_UNKNOWN`: the style registry does not define the key.
+- `TEMPLATE_STYLE_NOT_APPLICABLE`: the registry defines it, but the place it is set does not accept
+  it.
+
+| Where | Path | Accepted keys |
+| --- | --- | --- |
+| A node's `styles` | `nodes.<id>.styles.<key>` | The component's `applicableStyles` |
+| A component's style map: a table's `cellStyles`, a columns node's `columnStyles` | `nodes.<id>.props.cellStyles.<row>-<col>.<key>`, `nodes.<id>.props.columnStyles[<i>].<key>` | The style map's `applicableStyles` |
+| `documentStylesOverride` | `documentStylesOverride.<key>` | Any registry key (only unknown keys are reported) |
+| A theme's `documentStyles` | `documentStyles.<key>` | Any registry key (only unknown keys are reported) |
+| A theme's block style preset | `blockStylePresets.<name>.styles.<key>` | Keys at least one component in the preset's `applicableTo` accepts, or any component when that is empty |
+
+Until #97 the first row was an error under the same two codes; nothing else checked style keys, and
+renderers ignored the keys. Theme styles are checked by
+`TemplateValidator.validateThemeStyles(documentStyles, blockStylePresets)`, which
+`CatalogValidator` runs for every theme resource. `TemplateValidationCodes.WARNINGS` lists the codes
+that are only ever warnings. A report's `valid` counts errors only, for templates and whole
+catalogs alike.
+
+The shape of a style map is an error, `TEMPLATE_NODE_PROPERTY_INVALID`:
+
+- `cellStyles` that is not an object, a key that does not match `^\d+-\d+$`, or an entry that is
+  not an object.
+- A cell outside the table. Keys are `<row>-<col>`, 0-based, counted over the table's `rows` and
+  `columns` props. A table without numeric `rows` and `columns` is not range-checked.
+- `columnStyles` that is not an array, or an entry that is not an object (use `{}` for a column
+  without styles).
+- More entries than columns. Columns are counted by the length of `columnSizes`. The array may be
+  shorter.
+
+Style values are not checked, for these properties as for the others.
+
 ## Page headers and footers
 
 A template may contain any number of `pageheader` and `pagefooter` nodes,

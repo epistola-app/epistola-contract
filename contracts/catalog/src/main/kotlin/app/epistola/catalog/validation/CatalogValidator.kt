@@ -502,6 +502,7 @@ object ResourceValidator {
         resource.blockStylePresets.orEmpty().forEach { (name, value) ->
             validateFontRefs(value.styles, context, "$path.blockStylePresets.$name.styles", findings)
         }
+        appendTemplateFindings(TemplateValidator.validateThemeStyles(resource.documentStyles, resource.blockStylePresets), findings, path)
         if (resource.spacingUnit != null && (!resource.spacingUnit.isFinite() || resource.spacingUnit <= 0)) {
             findings.error(CatalogValidationCodes.TEMPLATE_DATA_SCHEMA_INVALID, "$path.spacingUnit", "spacingUnit must be a positive finite number")
         }

@@ -29,13 +29,27 @@ internal data class PropertyRule(
     val options: Set<String>,
 )
 
+/**
+ * A prop holding styles for parts of a node that are not nodes themselves (`styleMaps` in the
+ * component registry): a table's cells, the columns of a columns node.
+ */
+internal data class StyleMapRule(
+    val key: String,
+    /** `keyed` (an object from part key to styles) or `indexed` (an array, one entry per part). */
+    val shape: String,
+    val keyPattern: Regex?,
+    val applicableStyles: Set<String>,
+)
+
 internal data class ComponentRule(
     val type: String,
     val slots: List<SlotRule>,
     val allowedChildrenMode: String,
     val allowedChildren: Set<String>,
+    /** Null means `"all"`: every style property the registry includes in all. */
     val applicableStyles: Set<String>?,
     val properties: List<PropertyRule>,
+    val styleMaps: List<StyleMapRule> = emptyList(),
 )
 
 internal object CatalogRegistries {
@@ -57,15 +71,36 @@ internal object CatalogRegistries {
                 allowedChildren = component["allowedChildren"]?.get("types").orEmpty().map { it.asString() }.toSet(),
                 applicableStyles = applicableStyles(component),
                 properties = propertyRules(component),
+                styleMaps = component["styleMaps"].orEmpty().map { styleMap ->
+                    StyleMapRule(
+                        key = styleMap["key"].asString(),
+                        shape = styleMap["shape"].asString(),
+                        keyPattern = styleMap["keyPattern"]?.asString()?.let(::Regex),
+                        applicableStyles = styleMap["applicableStyles"].orEmpty().mapTo(linkedSetOf()) { it.asString() },
+                    )
+                },
             )
         }
     }
 
-    val styleKeys: Set<String> by lazy {
+    private val styleProperties: List<JsonNode> by lazy {
         read("style-registry.json")["groups"]
             .orEmpty()
-            .flatMap { group -> group["properties"].orEmpty().map { it["key"].asString() } }
-            .toSet()
+            .flatMap { group -> group["properties"].orEmpty() }
+    }
+
+    val styleKeys: Set<String> by lazy {
+        styleProperties.mapTo(linkedSetOf()) { it["key"].asString() }
+    }
+
+    /**
+     * Style keys a component's `applicableStyles: "all"` leaves out (`includedInAll: false`). They
+     * apply only where a component or a style map lists them by key.
+     */
+    val optInStyleKeys: Set<String> by lazy {
+        styleProperties
+            .filter { it["includedInAll"]?.asBoolean() == false }
+            .mapTo(linkedSetOf()) { it["key"].asString() }
     }
 
     private fun applicableStyles(component: JsonNode): Set<String>? {

@@ -199,7 +199,18 @@ object TemplateValidationCodes {
     const val TEMPLATE_SLOT_INVALID = "TEMPLATE_SLOT_INVALID"
     const val TEMPLATE_CHILD_TYPE_NOT_ALLOWED = "TEMPLATE_CHILD_TYPE_NOT_ALLOWED"
     const val TEMPLATE_NODE_PROPERTY_INVALID = "TEMPLATE_NODE_PROPERTY_INVALID"
+
+    /**
+     * A style key the style registry does not define, so it has no effect. A
+     * [ValidationSeverity.WARNING] (an error until #97), wherever styles appear.
+     */
     const val TEMPLATE_STYLE_UNKNOWN = "TEMPLATE_STYLE_UNKNOWN"
+
+    /**
+     * A style key the registry defines but the place it is set does not accept: the component's
+     * `applicableStyles`, a style map's `applicableStyles`, or the components a theme preset
+     * applies to. It has no effect. A [ValidationSeverity.WARNING] (an error until #97).
+     */
     const val TEMPLATE_STYLE_NOT_APPLICABLE = "TEMPLATE_STYLE_NOT_APPLICABLE"
     const val TEMPLATE_STYLE_PRESET_UNKNOWN = "TEMPLATE_STYLE_PRESET_UNKNOWN"
     const val TEMPLATE_THEME_NOT_FOUND = "TEMPLATE_THEME_NOT_FOUND"
@@ -240,6 +251,14 @@ object TemplateValidationCodes {
 
     @Deprecated("Page headers may sit anywhere in the flow; no longer emitted.")
     const val PAGEHEADER_NOT_AT_ROOT = "PAGEHEADER_NOT_AT_ROOT"
+
+    /**
+     * Codes reported with [ValidationSeverity.WARNING] only. They never make a report invalid.
+     */
+    val WARNINGS: Set<String> = setOf(
+        TEMPLATE_STYLE_UNKNOWN,
+        TEMPLATE_STYLE_NOT_APPLICABLE,
+    )
 
     /** Complete published code set, used to enforce fixture coverage. */
     val ALL: Set<String> = setOf(

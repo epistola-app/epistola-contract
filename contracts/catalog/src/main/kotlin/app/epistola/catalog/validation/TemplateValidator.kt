@@ -31,6 +31,7 @@ import app.epistola.catalog.validation.TemplateValidationCodes.TEMPLATE_STYLE_NO
 import app.epistola.catalog.validation.TemplateValidationCodes.TEMPLATE_STYLE_PRESET_UNKNOWN
 import app.epistola.catalog.validation.TemplateValidationCodes.TEMPLATE_STYLE_UNKNOWN
 import app.epistola.catalog.validation.TemplateValidationCodes.TEMPLATE_THEME_NOT_FOUND
+import app.epistola.template.model.BlockStylePreset
 import app.epistola.template.model.Node
 import app.epistola.template.model.TemplateDocument
 import app.epistola.template.model.ThemeRefOverride
@@ -45,6 +46,13 @@ import tools.jackson.databind.JsonNode
  * placeholders, page header and footer placement, stencil references, parameter bindings, theme
  * references, recursion, and nesting depth. Consumer-owned resource lookups
  * enter only through [TemplateValidationContext].
+ *
+ * A style key that has no effect is a [ValidationSeverity.WARNING], never an error, wherever a
+ * style map appears: node `styles`, `documentStylesOverride`, the style maps a component declares
+ * (`cellStyles`, `columnStyles`), and a theme's styles ([validateThemeStyles]). The key is either
+ * not in the style registry ([TemplateValidationCodes.TEMPLATE_STYLE_UNKNOWN]) or not accepted
+ * where it is set ([TemplateValidationCodes.TEMPLATE_STYLE_NOT_APPLICABLE]). Renderers ignore such
+ * keys, so the document stays valid.
  *
  * Ordinary invalid content never throws. Findings are de-duplicated and sorted
  * by path, code, and message so JVM consumers and golden fixtures observe the
@@ -82,6 +90,11 @@ object TemplateValidator {
         }
         val safeGraph = validateGraph(document, findings)
         validateRegistryRules(document, findings)
+        document.documentStylesOverride?.let { styles ->
+            // Document styles cascade or apply at the document level, so only an unknown key is
+            // reported; there is no component to be applicable to.
+            findings.checkStyleKeys(styles.keys, "documentStylesOverride", target = null, applicable = null)
+        }
         validateBindings(document, context, findings)
         validateReferences(document, context, findings)
         if (safeGraph) {
@@ -265,25 +278,198 @@ object TemplateValidator {
                 }
             }
             validateProperties(node, component, findings)
-            node.styles.orEmpty().toSortedMap().forEach { (key, _) ->
-                if (key !in CatalogRegistries.styleKeys) {
-                    findings.error(TEMPLATE_STYLE_UNKNOWN, "nodes.${node.id}.styles.$key", "style '$key' is not defined by the catalog style registry")
-                } else if (!isStyleApplicable(key, component.applicableStyles)) {
-                    findings.error(TEMPLATE_STYLE_NOT_APPLICABLE, "nodes.${node.id}.styles.$key", "style '$key' is not applicable to component '${node.type}'")
+            validateStyleMaps(node, component, findings)
+            node.styles?.let { styles ->
+                findings.checkStyleKeys(styles.keys, "nodes.${node.id}.styles", "component '${node.type}'") { key ->
+                    isStyleApplicable(key, component.applicableStyles)
                 }
             }
         }
     }
 
     /**
+     * Validates the style maps of a theme: its `documentStyles` and the `styles` of each block
+     * style preset. Every finding is a [ValidationSeverity.WARNING], so the report is always valid.
+     *
+     * A document style key is reported only when the style registry does not define it. A preset
+     * style key is also reported when no component the preset applies to accepts it: the
+     * components in its `applicableTo`, or every component when that is empty.
+     *
+     * Paths are relative to the theme: `documentStyles.<key>` and
+     * `blockStylePresets.<name>.styles.<key>`.
+     */
+    fun validateThemeStyles(
+        documentStyles: Map<String, Any?>?,
+        blockStylePresets: Map<String, BlockStylePreset>?,
+    ): TemplateValidationReport {
+        val findings = mutableListOf<TemplateValidationFinding>()
+        documentStyles?.let { findings.checkStyleKeys(it.keys, "documentStyles", target = null, applicable = null) }
+        blockStylePresets.orEmpty().toSortedMap().forEach { (name, preset) ->
+            val named = preset.applicableTo.orEmpty()
+            val candidates = if (named.isEmpty()) {
+                CatalogRegistries.components.values.toList()
+            } else {
+                named.mapNotNull(CatalogRegistries.components::get)
+            }
+            val target = if (named.isEmpty()) {
+                "any component"
+            } else {
+                "any component preset '$name' applies to (${named.joinToString()})"
+            }
+            findings.checkStyleKeys(
+                preset.styles.keys,
+                "blockStylePresets.$name.styles",
+                target,
+                applicable = if (candidates.isEmpty()) null else { key -> candidates.any { isStyleApplicable(key, it.applicableStyles) } },
+            )
+        }
+        return TemplateValidationReport(
+            findings.distinct().sortedWith(compareBy({ it.path }, { it.code }, { it.message })),
+        )
+    }
+
+    /**
      * Component style allowlists use family prefixes, matching the editor:
      * `padding` includes `paddingTop`, and `border` includes `borderRadius`.
-     * Unknown prefixed keys are still rejected by the style registry check above.
+     * `"all"` (null) includes every registry property except those marked
+     * `includedInAll: false`, which apply only where they are listed by key.
+     * Unknown keys are reported by the style registry check before this one.
      */
     private fun isStyleApplicable(
         key: String,
         applicableStyles: Set<String>?,
-    ): Boolean = applicableStyles == null || applicableStyles.any(key::startsWith)
+    ): Boolean = if (applicableStyles == null) {
+        key !in CatalogRegistries.optInStyleKeys
+    } else {
+        applicableStyles.any(key::startsWith)
+    }
+
+    /**
+     * Reports each style key that has no effect, as a warning: one the style registry does not
+     * define, or one [applicable] rejects. A null [applicable] checks only the registry.
+     */
+    private fun MutableList<TemplateValidationFinding>.checkStyleKeys(
+        keys: Collection<String>,
+        path: String,
+        target: String?,
+        applicable: ((String) -> Boolean)?,
+    ) {
+        keys.sorted().forEach { key ->
+            if (key !in CatalogRegistries.styleKeys) {
+                warning(TEMPLATE_STYLE_UNKNOWN, "$path.$key", "style '$key' is not defined by the catalog style registry")
+            } else if (applicable != null && !applicable(key)) {
+                warning(TEMPLATE_STYLE_NOT_APPLICABLE, "$path.$key", "style '$key' is not applicable to $target")
+            }
+        }
+    }
+
+    /**
+     * Validates the style maps a component declares (`styleMaps` in the component registry).
+     *
+     * The shape is an error: a keyed map that is not an object, an indexed map that is not an
+     * array, a part key that does not match the map's `keyPattern`, an entry that is not an
+     * object, and a part the node does not have (a cell outside the table's `rows` × `columns`, a
+     * column beyond the `columnSizes` count). The style keys inside an entry are warnings, like
+     * node styles, checked against the map's own `applicableStyles`.
+     */
+    private fun validateStyleMaps(
+        node: Node,
+        component: ComponentRule,
+        findings: MutableList<TemplateValidationFinding>,
+    ) {
+        val props = node.props ?: return
+        component.styleMaps.forEach { rule ->
+            val value = props[rule.key] ?: return@forEach
+            val path = "nodes.${node.id}.props.${rule.key}"
+            val parts: List<Pair<String, Any?>> = when (rule.shape) {
+                "keyed" -> objectEntries(value)?.sortedBy { it.first } ?: run {
+                    findings.error(TEMPLATE_NODE_PROPERTY_INVALID, path, "property '${rule.key}' must be an object of styles keyed by part")
+                    return@forEach
+                }
+                else -> arrayItems(value)?.mapIndexed { index, item -> index.toString() to item } ?: run {
+                    findings.error(TEMPLATE_NODE_PROPERTY_INVALID, path, "property '${rule.key}' must be an array of styles, one per part")
+                    return@forEach
+                }
+            }
+            parts.forEach { (part, styles) ->
+                val partPath = if (rule.shape == "keyed") "$path.$part" else "$path[$part]"
+                val partName = styleMapPartName(node, rule, part)
+                if (rule.keyPattern != null && !rule.keyPattern.matches(part)) {
+                    findings.error(TEMPLATE_NODE_PROPERTY_INVALID, partPath, "property '${rule.key}' key '$part' does not match ${rule.keyPattern.pattern}")
+                    return@forEach
+                }
+                styleMapPartMissing(node, rule, part)?.let { reason ->
+                    findings.error(TEMPLATE_NODE_PROPERTY_INVALID, partPath, "$partName does not exist: $reason")
+                }
+                val entry = objectEntries(styles)
+                if (entry == null) {
+                    findings.error(TEMPLATE_NODE_PROPERTY_INVALID, partPath, "styles for $partName must be an object")
+                    return@forEach
+                }
+                findings.checkStyleKeys(entry.map { it.first }, partPath, partName) { key ->
+                    rule.applicableStyles.any(key::startsWith)
+                }
+            }
+        }
+    }
+
+    private fun styleMapPartName(
+        node: Node,
+        rule: StyleMapRule,
+        part: String,
+    ): String = when (node.type) {
+        "table" -> "cell '$part' of table '${node.id}'"
+        "columns" -> "column $part of columns '${node.id}'"
+        else -> "'$part' in ${rule.key} of ${node.type} '${node.id}'"
+    }
+
+    /**
+     * Why the node has no part [part], or null when it has one or its size is not declared. A
+     * table counts its cells by its `rows` and `columns` props (0-based `<row>-<col>`); a columns
+     * node counts its columns by the length of `columnSizes`.
+     */
+    private fun styleMapPartMissing(
+        node: Node,
+        rule: StyleMapRule,
+        part: String,
+    ): String? {
+        val props = node.props ?: return null
+        return when (node.type to rule.key) {
+            "table" to "cellStyles" -> {
+                val rows = intValue(props["rows"]) ?: return null
+                val columns = intValue(props["columns"]) ?: return null
+                val (row, column) = part.split('-').map(String::toIntOrNull)
+                if (row == null || column == null || row >= rows || column >= columns) {
+                    "the table has $rows rows and $columns columns, counted from 0"
+                } else {
+                    null
+                }
+            }
+            "columns" to "columnStyles" -> {
+                val count = arrayItems(props["columnSizes"] ?: return null)?.size ?: return null
+                if (part.toInt() >= count) "columnSizes declares $count columns, counted from 0" else null
+            }
+            else -> null
+        }
+    }
+
+    private fun objectEntries(value: Any?): List<Pair<String, Any?>>? = when {
+        value is Map<*, *> -> value.entries.map { (key, item) -> key.toString() to item }
+        value is JsonNode && value.isObject -> value.properties().map { (key, item) -> key to item }
+        else -> null
+    }
+
+    private fun arrayItems(value: Any?): List<Any?>? = when {
+        value is List<*> -> value
+        value is JsonNode && value.isArray -> value.toList()
+        else -> null
+    }
+
+    private fun intValue(value: Any?): Int? = when {
+        value is Number -> value.toInt()
+        value is JsonNode && value.isNumber -> value.asInt()
+        else -> null
+    }
 
     private fun expectedDynamicSlots(
         node: Node,
@@ -309,6 +495,7 @@ object TemplateValidator {
     ) {
         val props = node.props ?: return
         val allowedTopLevel = component.properties.map { it.path.substringBefore('.') }.toMutableSet()
+        allowedTopLevel += component.styleMaps.map(StyleMapRule::key)
         if (component.type == "stencil") {
             allowedTopLevel += setOf(
                 "stencilKey",
@@ -610,5 +797,13 @@ object TemplateValidator {
         message: String,
     ) {
         add(TemplateValidationFinding(code, ValidationSeverity.ERROR, path, message))
+    }
+
+    private fun MutableList<TemplateValidationFinding>.warning(
+        code: String,
+        path: String,
+        message: String,
+    ) {
+        add(TemplateValidationFinding(code, ValidationSeverity.WARNING, path, message))
     }
 }

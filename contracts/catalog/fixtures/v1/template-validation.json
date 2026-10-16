@@ -1,6 +1,6 @@
 {
   "fixtureVersion": 1,
-  "description": "One focused invalid scenario per stable portable template-validation finding code.",
+  "description": "One focused scenario per stable portable template-validation finding code. An invalid case produces its code as an error and makes the report invalid; a warning case produces its code as a warning and leaves the report valid.",
   "limits": {
     "maxStencilNestingDepth": 5
   },
@@ -11,8 +11,6 @@
     {"code": "TEMPLATE_SLOT_INVALID", "scenario": "INVALID_SLOT"},
     {"code": "TEMPLATE_CHILD_TYPE_NOT_ALLOWED", "scenario": "CHILD_NOT_ALLOWED"},
     {"code": "TEMPLATE_NODE_PROPERTY_INVALID", "scenario": "INVALID_PROPERTY"},
-    {"code": "TEMPLATE_STYLE_UNKNOWN", "scenario": "UNKNOWN_STYLE"},
-    {"code": "TEMPLATE_STYLE_NOT_APPLICABLE", "scenario": "STYLE_NOT_APPLICABLE"},
     {"code": "TEMPLATE_STYLE_PRESET_UNKNOWN", "scenario": "UNKNOWN_STYLE_PRESET"},
     {"code": "TEMPLATE_THEME_NOT_FOUND", "scenario": "THEME_NOT_FOUND"},
     {"code": "TEMPLATE_EXPRESSION_INVALID", "scenario": "INVALID_EXPRESSION"},
@@ -38,5 +36,9 @@
     {"code": "PARAMETER_TYPE_UNSUPPORTED", "scenario": "UNSUPPORTED_PARAMETER_TYPE"},
     {"code": "PARAMETER_DEFAULT_TYPE_MISMATCH", "scenario": "PARAMETER_DEFAULT_MISMATCH"},
     {"code": "PAGEBAND_NESTED", "scenario": "PAGEBAND_NESTED"}
+  ],
+  "warningCases": [
+    {"code": "TEMPLATE_STYLE_UNKNOWN", "scenario": "UNKNOWN_STYLE"},
+    {"code": "TEMPLATE_STYLE_NOT_APPLICABLE", "scenario": "STYLE_NOT_APPLICABLE"}
   ]
 }

@@ -1,0 +1,35 @@
+{
+  "valid": true,
+  "findings": [
+    {
+      "code": "TEMPLATE_STYLE_UNKNOWN",
+      "severity": "WARNING",
+      "path": "resources/template/letter.json.resource.templateModel.documentStylesOverride.colour",
+      "message": "style 'colour' is not defined by the catalog style registry"
+    },
+    {
+      "code": "TEMPLATE_STYLE_NOT_APPLICABLE",
+      "severity": "WARNING",
+      "path": "resources/template/letter.json.resource.templateModel.nodes.grid.props.cellStyles.0-0.fontSize",
+      "message": "style 'fontSize' is not applicable to cell '0-0' of table 'grid'"
+    },
+    {
+      "code": "TEMPLATE_STYLE_NOT_APPLICABLE",
+      "severity": "WARNING",
+      "path": "resources/template/letter.json.resource.templateModel.nodes.intro.styles.verticalAlign",
+      "message": "style 'verticalAlign' is not applicable to component 'text'"
+    },
+    {
+      "code": "TEMPLATE_STYLE_NOT_APPLICABLE",
+      "severity": "WARNING",
+      "path": "resources/theme/house.json.resource.blockStylePresets.label.styles.minHeight",
+      "message": "style 'minHeight' is not applicable to any component preset 'label' applies to (text)"
+    },
+    {
+      "code": "TEMPLATE_STYLE_UNKNOWN",
+      "severity": "WARNING",
+      "path": "resources/theme/house.json.resource.documentStyles.font-size",
+      "message": "style 'font-size' is not defined by the catalog style registry"
+    }
+  ]
+}

@@ -24,6 +24,7 @@ export type {
   ComponentRegistry,
   ComponentManifest,
   SlotTemplate,
+  StyleMap,
   InspectorField,
   InspectorOption,
   ComponentExample,
