@@ -116,6 +116,21 @@ Expressions are scoped **lexically**:
 Only what expressions see follows this rule. A fill still renders where it sits: styles, fonts and
 page state come from its position inside the stencil.
 
+**A placeholder can pass the stencil's parameters to its fill.** The stencil author declares it on
+the placeholder, `passParameters: true` (default `false`), optionally with a default name,
+`parametersAs`. The fill then sees, besides its lexical scope, the stencil's parameters under a name
+resolved in this order:
+
+1. `parametersAs` on the fill, set where the stencil is used (the fill-carrying placeholder node of
+   part 1) — the author who sees a name conflict resolves it;
+2. `parametersAs` on the stencil's placeholder;
+3. `params`.
+
+The values are the stencil's parameters as evaluated at the instance, once. Releasing checks that
+every `<name>.x` such a fill reads is a parameter of the stencil, so a renamed parameter is an error
+naming the fill; the name must not be reserved (`sys`, `item`, `index`), and hiding something
+already in scope there (an outer stencil's `params`, a template data field) is a warning.
+
 ### 5. A stencil sees only its parameters, unless it declares it reads the template's data
 
 By default a stencil's own content sees only its parameters and the system scope (`sys`), not the
@@ -148,21 +163,19 @@ the same result:
 | Copy of the latest version of its stencil, unchanged except for fills | Reference + fills (part 1) |
 | Copy of an older version | Reference + fills; renders the latest stencil. What no longer fits (part 3) is reported, not prevented |
 | No stencil reference, or a copy that differs from its version beyond fills | Plain content (the stencil node is replaced by its copied content), reported |
-| Fill reading the stencil's alias (`params.x`) | `params.x` replaced by the instance's binding for `x`, parenthesised, or by its default as a literal |
+| Fill reading the stencil's alias (`params`, or its `paramsAlias`) | The stencil's placeholder gets `passParameters: true`, with `parametersAs` set to that alias when it is not `params`; the fill is not rewritten and sees what it saw before 2.0 |
 | Stencil whose content reads the template's data or loop variables (part 5) | The stencil gets `readsTemplateData: true`; its content is not rewritten. Every other stencil gets `false` |
 
-Where an expression cannot be rewritten safely — it reads the alias as a whole or with a dynamic key,
-reads an optional parameter that has no binding and no default (absent, not null), would capture a
-loop variable, or does not parse — the instance is marked `legacyFillScope: true` (for fills) and
-keeps the pre-2.0 scope; such instances are reported, and a release warns about each until the
-author rewrites it. Rewriting uses a JSONata parser, never text replacement.
+Nothing is rewritten: a placeholder that passes parameters and a stencil that reads the template's
+data reproduce what 1.x showed. Detecting which placeholders and stencils need them parses the
+expressions (JSONata), never searches text.
 
 ## Consequences
 
 - **Wire v8 (unreleased, changed in place):** the `stencil` node gains the stored form of part 1; a
   `placeholder` in a template appears only as a fill carrier inside a `stencil` node's `children`
-  slot (no `default` slot). `legacyFillScope` is a recognised prop. The v7 → v8 migration implements
-  the table above.
+  slot (no `default` slot), and may carry `parametersAs`. A placeholder in a stencil may carry
+  `passParameters` and `parametersAs`. The v7 → v8 migration implements the table above.
 - **Validation:** the catalog module checks part 3 against the stencils of the same catalog version
   and of pinned dependency releases, and part 4's nesting rules, identically in every installation.
 - **API:** `heldBack` and `heldBackInstances` are removed (`MarkStencilReadyResponse`,
@@ -171,15 +184,16 @@ author rewrites it. Rewriting uses a JSONata parser, never text replacement.
 - **Wire v8 and API:** `StencilResource` and the stencil DTOs gain `readsTemplateData` (boolean,
   default `false`); it is part of the stencil's content, so it is fingerprinted and released with it.
 - **Rendering:** a stencil node records the scope it is entered from; a placeholder renders its fill
-  in that scope and its default in the stencil's. Entering a stencil replaces the data scope with
-  the stencil's parameters and `sys`, unless the stencil reads the template's data.
+  in that scope (plus the stencil's parameters when it passes them) and its default in the
+  stencil's. Entering a stencil replaces the data scope with the stencil's parameters and `sys`,
+  unless the stencil reads the template's data.
 - **A stencil change reaches every template in its catalog at once.** A structurally compatible
   change can still change layout (a taller letterhead moves content to the next page). A release
   preview of the templates a stencil change affects is planned; until then the release's list of
   changes names them.
-- **Not possible any more:** a stencil handing values it computes (such as the current item of its
-  own loop) to a fill. If that is needed, it returns as an explicit, declared exposure on the
-  placeholder, additively.
+- **Not possible yet:** a placeholder passing values other than the stencil's parameters (such as
+  the current item of a loop inside the stencil) to its fill. It can be added to `passParameters`'
+  model later, additively.
 
 ## Open questions
 
