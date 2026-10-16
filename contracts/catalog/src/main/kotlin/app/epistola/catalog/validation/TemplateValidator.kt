@@ -640,11 +640,15 @@ object TemplateValidator {
             }
         }
 
-        fun recurse(
-            nodeId: String,
-            stencilIds: Set<StencilIdentity>,
-            stencilDepth: Int,
-        ) {
+        /**
+         * The stencils a place is lexically inside (ADR 0006): [outer] is the scope outside the
+         * innermost of them, where a fill of that stencil's placeholders is written.
+         */
+        class Scope(val stencilIds: Set<StencilIdentity>, val stencilDepth: Int, val outer: Scope?)
+
+        fun recurse(nodeId: String, scope: Scope) {
+            val stencilIds = scope.stencilIds
+            val stencilDepth = scope.stencilDepth
             val node = document.nodes[nodeId] ?: return
             val nextDepth = if (node.type == "stencil") stencilDepth + 1 else stencilDepth
             if (nextDepth > TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH) {
@@ -671,10 +675,15 @@ object TemplateValidator {
             } else {
                 stencilIds
             }
+            val inner = if (node.type == "stencil") Scope(nextIds, nextDepth, scope) else scope
             node.slots
                 .mapNotNull(document.slots::get)
-                .flatMap { it.children }
-                .forEach { recurse(it, nextIds, nextDepth) }
+                .forEach { slot ->
+                    // A placeholder's fill is written outside the stencil that owns the placeholder:
+                    // that stencil is not its ancestor and does not count towards its depth.
+                    val slotScope = if (node.type == "placeholder" && slot.name == "fill") scope.outer ?: scope else inner
+                    slot.children.forEach { recurse(it, slotScope) }
+                }
         }
         val containingStencil = context.containingStencil
         val initialIdentities = containingStencil?.let {
@@ -688,7 +697,7 @@ object TemplateValidator {
             )
         }.orEmpty()
         val initialDepth = if (kind == TemplateDocumentKind.STENCIL) 1 else 0
-        recurse(document.root, initialIdentities, initialDepth)
+        recurse(document.root, Scope(initialIdentities, initialDepth, outer = null))
     }
 
     private data class StencilIdentity(

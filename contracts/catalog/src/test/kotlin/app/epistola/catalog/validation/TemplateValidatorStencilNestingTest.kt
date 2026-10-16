@@ -51,14 +51,44 @@ class TemplateValidatorStencilNestingTest {
     }
 
     @Test
-    fun `stencil depth is counted through placeholder fills`() {
+    fun `stencil depth is not counted through placeholder fills, which are written outside the stencil`() {
         val report = TemplateValidator.validate(
             nestedStencilsThroughFills(TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH + 1),
         )
 
+        assertEquals(emptyList(), report.findings.filter { it.code == STENCIL_NESTING_DEPTH_EXCEEDED })
+    }
+
+    @Test
+    fun `a fill may hold the stencil it fills, which is not recursion`() {
+        val report = TemplateValidator.validate(boxInBoxFill())
+
+        assertEquals(emptyList(), report.findings.filter { it.code == STENCIL_RECURSION })
+    }
+
+    @Test
+    fun `inside a stencil's own content, a fill holding the owner is still recursion`() {
+        val report = TemplateValidator.validate(boxInBoxFill(outerKey = "frame"), TemplateValidationContext.forStencil("box", "default"))
+
         assertEquals(
-            listOf("nodes.stencil-5.props.stencilKey"),
-            report.findings.filter { it.code == STENCIL_NESTING_DEPTH_EXCEEDED }.map { it.path },
+            listOf("nodes.inner.props.stencilKey"),
+            report.findings.filter { it.code == STENCIL_RECURSION }.map { it.path },
+        )
+    }
+
+    /** `outerKey(fill: box)` — an instance of `box` written in the fill of an instance of [outerKey]. */
+    private fun boxInBoxFill(outerKey: String = "box"): TemplateDocument {
+        val outer = stencil("outer", outerKey, listOf("outer-children"))
+        val placeholder = Node(id = "inside", type = "placeholder", slots = listOf("inside-fill"), props = mapOf("name" to "inside"))
+        val inner = stencil("inner", "box", listOf("inner-children"))
+        return template(
+            nodes = listOf(outer, placeholder, inner),
+            slots = listOf(
+                Slot("outer-children", outer.id, "children", listOf(placeholder.id)),
+                Slot("inside-fill", placeholder.id, "fill", listOf(inner.id)),
+                Slot("inner-children", inner.id, "children"),
+            ),
+            rootChildren = listOf(outer.id),
         )
     }
 

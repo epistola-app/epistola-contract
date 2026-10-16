@@ -80,6 +80,12 @@ libraries.
 
 ### Changed
 
+- **Stencil nesting is checked lexically (ADR 0006).** The template validator no longer counts a
+  placeholder's fill as inside the stencil that owns the placeholder: the fill is written outside
+  it. So a fill may hold an instance of the stencil it fills, and instances written in fills of
+  fills do not add up to the nesting limit. Inside a stencil's own content the stencil stays the
+  ancestor of every fill, so a stencil that holds itself in a fill is still refused.
+
 - **Template styles (#97), additive to the registries; Epistola Suite may not render them yet.**
   `minHeight` (a unit, on `container`) and `verticalAlign` (`top` / `middle` / `bottom`, on
   datatable columns and the two style maps below). New component style maps (`styleMaps` in the
