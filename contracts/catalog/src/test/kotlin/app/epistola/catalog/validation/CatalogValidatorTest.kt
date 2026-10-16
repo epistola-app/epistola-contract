@@ -549,36 +549,61 @@ class CatalogValidatorTest {
     }
 
     /**
-     * The bound is per type, and it is the publication gate that has to catch it.
+     * One rule for every type (wire v8), and it is the publication gate that has to catch it.
      *
-     * A 51-character theme slug is storable nowhere -- `THEME_KEY` is `VARCHAR(50)` -- so without
+     * A 51-character key is storable nowhere -- consumers store keys in `VARCHAR(50)` -- so without
      * this the publisher is told the catalog is fine and every consumer's install dies on a
-     * database error instead.
+     * database error instead. A key shorter than 3 is refused the same way, for every type.
      */
     @Test
-    fun `a slug longer than its type allows is refused`() {
-        val slug = "a".repeat(51)
-        val detail = ResourceDetail(CURRENT_VERSION, app.epistola.catalog.protocol.ThemeResource(slug, "Theme"))
-        val manifest = manifest(resources = listOf(ResourceEntry("theme", slug, "Theme", detailUrl = "./resources/theme/$slug.json")))
-
-        val report = CatalogValidator.validate(archive(manifest, mapOf("theme/$slug" to detail)))
-
-        assertTrue(CatalogValidationCodes.RESOURCE_KEY_INVALID in report.codes())
+    fun `a key outside the one resource key rule is refused, whatever the type`() {
+        for (key in listOf("a".repeat(51), "ab", "a", "Upper", "a--b")) {
+            for (resource in listOf<app.epistola.catalog.protocol.CatalogResource>(
+                app.epistola.catalog.protocol.ThemeResource(key, "Theme"),
+                ImageResource(key, "Logo", "image/svg+xml", contentHash = "0".repeat(64)),
+            )) {
+                val manifest = manifest(resources = listOf(ResourceEntry(resource.type, key, "R", detailUrl = "./resources/${resource.type}/$key.json")))
+                val report = CatalogValidator.validate(archive(manifest, mapOf("${resource.type}/$key" to ResourceDetail(CURRENT_VERSION, resource))))
+                assertTrue(
+                    report.findings.any { it.code == CatalogValidationCodes.RESOURCE_KEY_INVALID && it.path == "resources/${resource.type}/$key.json.resource.key" },
+                    "$key: ${report.findings}",
+                )
+            }
+        }
     }
 
-    /** An image is the one type admitting a leading digit, because its slug may be a UUID string. */
+    /** Every type admits a leading digit (wire v8), because an image's key may be a UUID string. */
     @Test
-    fun `an image slug may start with a digit where other types may not`() {
-        val slug = "01966a00-0000-7000-8000-000000000001"
-        val detail = ResourceDetail(
-            CURRENT_VERSION,
-            ImageResource(slug, "Logo", "image/svg+xml", contentHash = "0".repeat(64)),
+    fun `a key may start with a digit, whatever the type`() {
+        val key = "01966a00-0000-7000-8000-000000000001"
+        for (resource in listOf<app.epistola.catalog.protocol.CatalogResource>(
+            app.epistola.catalog.protocol.ThemeResource(key, "Theme"),
+            ImageResource(key, "Logo", "image/svg+xml", contentHash = "0".repeat(64)),
+        )) {
+            val manifest = manifest(resources = listOf(ResourceEntry(resource.type, key, "R", detailUrl = "./resources/${resource.type}/$key.json")))
+            val report = CatalogValidator.validate(archive(manifest, mapOf("${resource.type}/$key" to ResourceDetail(CURRENT_VERSION, resource))))
+            assertTrue(CatalogValidationCodes.RESOURCE_KEY_INVALID !in report.codes(), "findings: ${report.findings}")
+        }
+    }
+
+    /** The positions that name a resource key follow the same rule as the key itself. */
+    @Test
+    fun `variant keys, variant attribute keys and the theme a template names follow the resource key rule`() {
+        val report = validateTemplate(
+            letter().copy(
+                themeKey = "ab",
+                variants = listOf(app.epistola.catalog.protocol.VariantEntry("nl", attributes = mapOf("la" to "nl", "locale" to "nl"))),
+            ),
         )
-        val manifest = manifest(resources = listOf(ResourceEntry("image", slug, "Logo", detailUrl = "./resources/image/$slug.json")))
 
-        val report = CatalogValidator.validate(archive(manifest, mapOf("image/$slug" to detail)))
-
-        assertTrue(CatalogValidationCodes.RESOURCE_KEY_INVALID !in report.codes(), "findings: ${report.findings}")
+        assertEquals(
+            listOf(
+                "resources/template/letter.json.resource.themeKey",
+                "resources/template/letter.json.resource.variants[0].attributes.la",
+                "resources/template/letter.json.resource.variants[0].key",
+            ),
+            report.findings.filter { it.code == CatalogValidationCodes.RESOURCE_KEY_INVALID }.map { it.path }.sorted(),
+        )
     }
 
     @Test
@@ -878,10 +903,10 @@ class CatalogValidatorTest {
 
         assertTrue(
             listOf(CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_INVALID, CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_DUPLICATE)
-                .none { it in codes(DataExampleEntry("A", emptyMap(), "a"), DataExampleEntry("B", emptyMap(), "1-b")) },
+                .none { it in codes(DataExampleEntry("A", emptyMap(), "abc"), DataExampleEntry("B", emptyMap(), "1-b")) },
         )
         assertTrue(CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_INVALID in codes(DataExampleEntry("A", emptyMap())), "a key is required")
-        listOf("", "Upper", "a_b", "-a", "a-", "a".repeat(65)).forEach { key ->
+        listOf("", "a", "ab", "Upper", "a_b", "-ab", "ab-", "a".repeat(51)).forEach { key ->
             assertTrue(CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_INVALID in codes(DataExampleEntry("A", emptyMap(), key)), key)
         }
         val duplicate = validateTemplate(letter(dataExamples = listOf(DataExampleEntry("A", emptyMap(), "same"), DataExampleEntry("B", emptyMap(), "same"))))

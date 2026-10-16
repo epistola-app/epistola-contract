@@ -7,69 +7,90 @@ package app.epistola.catalog.protocol
 import java.text.Normalizer
 
 /**
- * Resource key rules introduced by wire v7, defined once for every producer and consumer.
+ * The key rule, defined once for every producer and consumer.
  *
  * A key is a resource's public address within its catalog (until wire v8 the member was called
- * `slug`, and this object `CatalogSlugs`). Until v7 the wire constrained it not at
- * all, while every consumer that stores one does: a catalog naming a theme with 30 characters was
- * publishable and then refused on install, with no diagnosis anywhere in between.
+ * `slug`, and this object `CatalogSlugs`). From wire v8 every resource key follows ONE rule
+ * ([RESOURCE]): the keys of templates, variants, stencils, themes, attributes, code lists, fonts,
+ * images and data examples, and every position that names one -- a reference in content, a resource
+ * dependency, a code-list binding, a `fontFamily` key, the presentation's `iconImageKey` and
+ * `imageKeys`, an attribute assignment's or a variant's attribute key. Lowercase ASCII letters and
+ * digits in hyphen-separated parts, 3 to 50 characters. A leading digit is allowed for every type,
+ * because an image's key may be a generated UUID string.
  *
- * The limits mirror the storage they have to survive rather than inventing new ones, which is why
- * they differ per type and why [IMAGE] is the odd one. An image's key may be a generated
- * UUID string, so it must admit a leading digit; every other type requires a leading letter. A
- * maximum may be relaxed later without breaking anyone — a wider column accepts every value a
- * narrower one held — but it may never be tightened once catalogs exist that use the extra room.
+ * Wire v7 bounded keys per type (1 to 64 characters, a leading letter except for images). The
+ * v7-to-v8 migration brings a key that conforms otherwise within the bounds by [migrate]: a key
+ * shorter than 3 is padded on the right with `0`, a key longer than 50 is cut. The rewrite is a pure
+ * function of the key, so references -- into this catalog or another -- follow it without knowing
+ * what they point at, and catalogs migrated independently still agree. A key with characters outside
+ * the pattern is not repaired: it stays a finding.
  *
- * Unlike [CatalogKeywords], a key cannot be repaired when it does not conform: other resources
- * reference it by name, so rewriting one would break those references. The migrator reports a
- * finding instead. Resource models deliberately do not enforce these rules; consumers rebind
- * manifests stored under earlier wire versions. The migrator's wire check and the catalog validator
- * enforce them.
+ * The catalog's own key ([CATALOG]) is not a resource key and keeps its rule: 3 to 50 characters,
+ * starting with a letter.
+ *
+ * Resource models deliberately do not enforce these rules; consumers rebind manifests stored under
+ * earlier wire versions. The migrator and the catalog validator enforce them.
  */
 object CatalogKeys {
-    /** Every type except an image: a leading letter, then lowercase alphanumeric hyphen-separated parts. */
-    const val PATTERN: String = "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    /** Every resource key: lowercase alphanumeric hyphen-separated parts, a leading digit allowed. */
+    const val PATTERN: String = "^[a-z0-9]+(-[a-z0-9]+)*$"
 
-    /** An image additionally admits a leading digit, because its key may be a generated UUID string. */
-    const val IMAGE_PATTERN: String = "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    /** Shortest resource key. */
+    const val MIN_LENGTH: Int = 3
 
-    /** Bounds for one resource type's key. */
+    /** Longest resource key. */
+    const val MAX_LENGTH: Int = 50
+
+    /** The character [migrate] pads a short key with. */
+    const val PAD_CHARACTER: Char = '0'
+
+    /** The catalog's own key: a leading letter, then lowercase alphanumeric hyphen-separated parts. */
+    const val CATALOG_PATTERN: String = "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+
+    /** Bounds for a key. */
     data class Rule(val pattern: String, val minLength: Int, val maxLength: Int)
 
-    val TEMPLATE = Rule(PATTERN, 3, 50)
-    val THEME = Rule(PATTERN, 3, 50)
-    val STENCIL = Rule(PATTERN, 3, 50)
-    val ATTRIBUTE = Rule(PATTERN, 3, 50)
-    val CODE_LIST = Rule(PATTERN, 3, 64)
-    val FONT = Rule(PATTERN, 2, 64)
-    val IMAGE = Rule(IMAGE_PATTERN, 1, 50)
+    /** The one rule for every resource key, and every position that names one. */
+    @JvmField
+    val RESOURCE = Rule(PATTERN, MIN_LENGTH, MAX_LENGTH)
 
-    /** The catalog's own key. */
-    val CATALOG = Rule(PATTERN, 3, 50)
+    /** The catalog's own key; not a resource key. */
+    @JvmField
+    val CATALOG = Rule(CATALOG_PATTERN, 3, 50)
 
-    /** Rules by the wire `type` token. */
-    val byType: Map<String, Rule> = mapOf(
-        "template" to TEMPLATE,
-        "theme" to THEME,
-        "stencil" to STENCIL,
-        "attribute" to ATTRIBUTE,
-        "codeList" to CODE_LIST,
-        "font" to FONT,
-        "image" to IMAGE,
-    )
+    /** How [migrate] changed a key. */
+    enum class Rewrite {
+        /** Shorter than [MIN_LENGTH], padded on the right with [PAD_CHARACTER]. */
+        PADDED,
+
+        /** Longer than [MAX_LENGTH], cut to it without a trailing hyphen. */
+        TRUNCATED,
+    }
 
     /**
-     * The loosest bound any type allows, for positions where the type is not known from the schema
-     * alone -- a manifest resource entry or a dependency reference. Both also appear as a typed
-     * resource document, where the exact rule applies, so nothing escapes the tighter check.
+     * How the v7-to-v8 migration rewrites [key], or null when it leaves it as it is: because it
+     * already fits the bounds, or because it does not match [PATTERN] (that is a finding, not a
+     * repair). A key longer than [MAX_LENGTH] is cut to it and loses trailing hyphens; a key shorter
+     * than [MIN_LENGTH] (or a cut key left that short) is padded on the right with [PAD_CHARACTER].
+     * `a` becomes `a00`, `nl` `nl0`.
      */
-    val ANY = Rule(IMAGE_PATTERN, 1, 64)
+    fun rewrite(key: String): Rewrite? = when {
+        !patternRegex.matches(key) -> null
+        key.length > MAX_LENGTH -> Rewrite.TRUNCATED
+        key.length < MIN_LENGTH -> Rewrite.PADDED
+        else -> null
+    }
 
-    /**
-     * A template data example's key (wire v8): its address within its template. The same bounds as
-     * a manifest resource entry's key ([ANY]), so a leading digit is allowed.
-     */
-    val DATA_EXAMPLE = Rule(IMAGE_PATTERN, 1, 64)
+    /** [key] as the v7-to-v8 migration rewrites it ([rewrite]); unchanged when it needs none. */
+    fun migrate(key: String): String = when (rewrite(key)) {
+        null -> key
+        Rewrite.TRUNCATED -> pad(fit(key, MAX_LENGTH))
+        Rewrite.PADDED -> pad(key)
+    }
+
+    private fun pad(value: String): String = value.padEnd(MIN_LENGTH, PAD_CHARACTER)
+
+    private val patternRegex = Regex(PATTERN)
 
     /** The key [deriveDataExampleKey] falls back to when a name has no letter or digit. */
     const val DATA_EXAMPLE_FALLBACK_KEY: String = "example"
@@ -82,10 +103,11 @@ object CatalogKeys {
      *
      * The name is decomposed (Unicode NFD) and stripped of combining marks, lowercased, and every
      * run of characters outside `a-z0-9` becomes one hyphen; leading and trailing hyphens are
-     * trimmed, and the result is cut to [DATA_EXAMPLE]'s maximum length without leaving a trailing
-     * hyphen. An empty result becomes [DATA_EXAMPLE_FALLBACK_KEY]. A key already in [taken] gets the
+     * trimmed, and the result is cut to [MAX_LENGTH] without leaving a trailing hyphen. An empty
+     * result becomes [DATA_EXAMPLE_FALLBACK_KEY]; a result shorter than [MIN_LENGTH] is padded on the
+     * right with [PAD_CHARACTER], as [migrate] pads a short key. A key already in [taken] gets the
      * first free suffix `-2`, `-3`, …, cutting the base so that the whole stays within the limit.
-     * `Ärger & Co.` becomes `arger-co`, a second `Standaard brief` `standaard-brief-2`.
+     * `Ärger & Co.` becomes `arger-co`, a second `Standaard brief` `standaard-brief-2`, `A` `a00`.
      *
      * The v7-to-v8 migration gives each catalog-v7 example its key this way, in document order.
      */
@@ -93,9 +115,9 @@ object CatalogKeys {
         name: String,
         taken: Set<String> = emptySet(),
     ): String {
-        val max = DATA_EXAMPLE.maxLength
+        val max = MAX_LENGTH
         val decomposed = combiningMarks.replace(Normalizer.normalize(name, Normalizer.Form.NFD), "")
-        val base = fit(separators.replace(decomposed.lowercase(), "-").trim('-'), max).ifEmpty { DATA_EXAMPLE_FALLBACK_KEY }
+        val base = pad(fit(separators.replace(decomposed.lowercase(), "-").trim('-'), max).ifEmpty { DATA_EXAMPLE_FALLBACK_KEY })
         if (base !in taken) return base
         var suffix = 2
         while (true) {
@@ -113,11 +135,8 @@ object CatalogKeys {
 
     private val compiled = HashMap<String, Regex>()
 
-    /** Whether [value] is a valid key for the wire [type]. */
-    fun isValid(type: String, value: String): Boolean {
-        val rule = byType[type] ?: ANY
-        return matches(rule, value)
-    }
+    /** Whether [value] is a valid resource key ([RESOURCE]), of whatever type. */
+    fun isValid(value: String): Boolean = matches(RESOURCE, value)
 
     /** Whether [value] satisfies [rule]. */
     fun matches(rule: Rule, value: String): Boolean = value.length in rule.minLength..rule.maxLength &&

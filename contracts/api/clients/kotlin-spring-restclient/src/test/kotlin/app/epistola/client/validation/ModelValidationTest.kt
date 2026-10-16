@@ -316,7 +316,7 @@ class ModelValidationTest {
             ).validate()
         }
         // templateKey is validated first — fails on pattern before version is checked
-        assertEquals("templateKey: must match pattern ^[a-z][a-z0-9]*(-[a-z0-9]+)*\$", ex.message)
+        assertEquals("templateKey: must match pattern ^[a-z0-9]+(-[a-z0-9]+)*\$", ex.message)
     }
 
     @Test

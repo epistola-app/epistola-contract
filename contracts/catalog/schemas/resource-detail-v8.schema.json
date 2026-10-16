@@ -52,7 +52,7 @@
         "key": {
           "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
           "type": "string",
-          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
           "minLength": 3,
           "maxLength": 50
         },
@@ -72,7 +72,10 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
         },
         "themeCatalogKey": {
           "type": [
@@ -149,7 +152,7 @@
         "key": {
           "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
           "type": "string",
-          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
           "minLength": 3,
           "maxLength": 50
         },
@@ -214,7 +217,7 @@
         "key": {
           "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
           "type": "string",
-          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
           "minLength": 3,
           "maxLength": 50
         },
@@ -260,7 +263,7 @@
         "key": {
           "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
           "type": "string",
-          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
           "minLength": 3,
           "maxLength": 50
         },
@@ -300,8 +303,8 @@
         "key": {
           "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
           "type": "string",
-          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
-          "minLength": 1,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
           "maxLength": 50
         },
         "name": {
@@ -351,9 +354,9 @@
         "key": {
           "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
           "type": "string",
-          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
           "minLength": 3,
-          "maxLength": 64
+          "maxLength": 50
         },
         "name": {
           "type": "string"
@@ -388,9 +391,9 @@
         "key": {
           "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
           "type": "string",
-          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
-          "minLength": 2,
-          "maxLength": 64
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
         },
         "name": {
           "type": "string"
@@ -425,7 +428,10 @@
         },
         "key": {
           "description": "Key of the code list within the catalog named by catalogKey, namespace and registry. Until wire v8 this member was called slug.",
-          "type": "string"
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
         },
         "namespace": {
           "description": "Namespace of the catalog holding the code list. Omitted means the attribute's own catalog namespace.",
@@ -510,9 +516,9 @@
         "key": {
           "description": "The example's key: its address within its template, unique there. A v7 example had none; the v7-to-v8 migration derives one from its name.",
           "type": "string",
-          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
-          "minLength": 1,
-          "maxLength": 64
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
         },
         "name": {
           "description": "The example's display name, unique within its template.",
@@ -535,7 +541,7 @@
         "key": {
           "description": "The variant's key: its public address within its template. Until wire v8 this member was called slug.",
           "type": "string",
-          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
           "minLength": 3,
           "maxLength": 50
         },
@@ -548,9 +554,15 @@
         "attributes": {
           "oneOf": [
             {
+              "description": "The variant's attribute values, keyed by attribute key: the same rule as every resource key.",
               "type": "object",
               "additionalProperties": {
                 "type": "string"
+              },
+              "propertyNames": {
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                "minLength": 3,
+                "maxLength": 50
               }
             },
             {

@@ -66,24 +66,25 @@ class CatalogV6ArchiveCompatibilityTest {
     }
 
     /**
-     * A v6 name that wire v7's schema no longer admits still reads, and this says so.
+     * A v6 name that wire v8's key rule no longer admits is padded on the way to v8, and says so.
      *
-     * v7 bounds every slug per type -- a variant is 3 to 50 characters -- but those bounds live in
-     * the published JSON schema, and neither the reader nor `ResourceValidator` applies them:
-     * the validator checks one loose regex for every type, and `CatalogKeys` has no consumers.
-     * So an existing v6 archive keeps installing, and a consumer that validates against the
-     * published schema is the one that refuses it. Pinning this means a later decision to enforce
-     * the bounds has to decide deliberately what it does to archives already published.
+     * Wire v8 bounds every key to 3 to 50 characters ([app.epistola.catalog.protocol.CatalogKeys]),
+     * and the v7-to-v8 migration pads a shorter one on the right with `0` rather than refusing an
+     * archive that was published under the looser rule.
      */
     @Test
-    fun `a v6 variant named too short for v7 still reads, because the bounds are schema-only`() {
+    fun `a v6 variant named too short for v8 is padded on the way, with a notice`() {
         val result = CatalogArchiveReader.read(ByteArrayInputStream(v6Archive(variantSlug = "nl")), migration = MIGRATION)
         val archive = assertNotNull(result.archive, "findings: ${result.findings}")
 
         archive.use {
             assertTrue(result.findings.isEmpty(), "unexpected findings: ${result.findings}")
             val template = archive.resourceDetails.values.map { it.resource }.filterIsInstance<TemplateResource>().single()
-            assertEquals(listOf("nl"), template.variants.map { it.key })
+            assertEquals(listOf("nl0"), template.variants.map { it.key })
+            assertEquals(
+                listOf("CATALOG_RESOURCE_KEY_PADDED"),
+                result.migrationNotices.filter { it.path.endsWith(".variants[0].key") }.map { it.code },
+            )
         }
     }
 

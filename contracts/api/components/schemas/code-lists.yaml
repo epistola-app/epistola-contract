@@ -27,8 +27,8 @@ CodeListDto:
   properties:
     key:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 1
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 3
       maxLength: 50
       description: Key (unique within `tenant + catalog`).
       example: bcp-47
@@ -222,8 +222,8 @@ CreateCodeListRequest:
   properties:
     key:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 1
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 3
       maxLength: 50
       example: priorities
     displayName:

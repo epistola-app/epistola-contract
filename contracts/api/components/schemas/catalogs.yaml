@@ -212,6 +212,9 @@ CatalogInstallResultDto:
       example: template
     key:
       type: string
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
       example: cover-letter
     status:
       type: string
@@ -238,6 +241,9 @@ RemovedCatalogResourceDto:
       example: theme
     key:
       type: string
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
       example: legacy
 
 ReleaseDependencyDto:
@@ -322,6 +328,9 @@ ResourceChangeDto:
       example: template
     key:
       type: string
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
       example: monthly-invoice
     change:
       type: string
@@ -588,6 +597,9 @@ ReleasedChangeDto:
       example: template
     key:
       type: string
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
       description: The resource's key within its type
       example: invoice
     change:

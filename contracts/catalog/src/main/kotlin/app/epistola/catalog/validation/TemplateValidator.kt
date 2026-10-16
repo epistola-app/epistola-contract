@@ -4,6 +4,7 @@
 
 package app.epistola.catalog.validation
 
+import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogNamespaces
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDINGS_INVALID_SHAPE
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDING_EMPTY
@@ -559,7 +560,7 @@ object TemplateValidator {
             val namespace = node.props?.get("namespace")
             val registry = node.props?.get("registry")
             when {
-                stencilKey == null || !slugRegex.matches(stencilKey) -> findings.error(
+                stencilKey == null || !CatalogKeys.isValid(stencilKey) -> findings.error(
                     STENCIL_REFERENCE_INVALID,
                     "nodes.${node.id}.props.stencilKey",
                     "stencil reference requires a valid stencilKey",

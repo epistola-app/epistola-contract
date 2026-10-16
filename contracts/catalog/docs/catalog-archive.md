@@ -32,6 +32,22 @@ Archive-safety and malformed-content failures are returned as stable findings.
 Transient or local I/O failures remain `IOException`s and are not mislabeled as
 invalid catalog content.
 
+## Keys and File Names
+
+A resource detail is filed at `resources/<type>/<key>.json`, and every resource key follows one rule
+from wire v8: `^[a-z0-9]+(-[a-z0-9]+)*$`, 3 to 50 characters. The v7-to-v8 migration pads a shorter
+catalog-v7 key on the right with `0` (`nl` becomes `nl0`) and cuts a longer one to 50 characters
+without a trailing hyphen, and rewrites every reference to it the same way, in the manifest, in
+resource details and in template content, references into other catalogs included. The rewrite
+depends on the key alone, so two catalogs migrated independently still agree about each other's
+keys; a rewrite that would collide with another key of its scope is refused, never resolved with a
+different key (`catalog-compatibility.md` has the codes).
+
+A migration rewrites documents but cannot move files, so a migrated catalog's `detailUrl` still names
+the file under its source key. `CatalogArchiveReader` keys each detail by its manifest entry's
+(rewritten) key, the validator accepts the source file name for a catalog read before wire v8, and
+`CatalogArchiveWriter` files every detail under its key and points the entry's `detailUrl` at it.
+
 ## Paths Into the Catalog
 
 Wire v8 states what a path into the catalog looks like (#95). It applies to a manifest resource

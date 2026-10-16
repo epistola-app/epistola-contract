@@ -137,14 +137,27 @@ export const CATALOG_RELEASE_FINGERPRINT_PATTERN = '^v[1-9][0-9]*:[0-9a-f]{64}$'
  */
 export const CATALOG_ARCHIVE_PATH_PATTERN = '^(?:\\./)?(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+(?:/(?!\\.{1,2}(?:/|$))(?:[A-Za-z0-9._~-]|%(?!2[EeFf]|5[Cc])[0-9A-Fa-f]{2})+)*$'
 
-/** Pattern a template data example's key must match (wire v8): the same as a manifest resource key. */
-export const CATALOG_DATA_EXAMPLE_KEY_PATTERN = '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+/**
+ * Pattern every resource key must match in wire v8: lowercase ASCII letters and digits in
+ * hyphen-separated parts, a leading digit allowed. One rule for the keys of templates, variants,
+ * stencils, themes, attributes, code lists, fonts, images and data examples, and for every position
+ * that names one: references in content (`themeKey`, `stencilKey`, `imageKey`, a `fontFamily` key),
+ * resource dependencies, code-list bindings, attribute assignments, a variant's attribute keys, and
+ * the presentation's `iconImageKey` and `imageKeys`. The catalog's own key is not a resource key.
+ */
+export const CATALOG_RESOURCE_KEY_PATTERN = '^[a-z0-9]+(-[a-z0-9]+)*$'
 
-/** Shortest template data example key (wire v8). */
-export const MIN_CATALOG_DATA_EXAMPLE_KEY_LENGTH = 1
+/**
+ * Shortest resource key (wire v8). The v7-to-v8 migration pads a shorter catalog-v7 key on the right
+ * with `0` (`a` becomes `a00`), and every reference to it alike.
+ */
+export const MIN_CATALOG_RESOURCE_KEY_LENGTH = 3
 
-/** Longest template data example key (wire v8). */
-export const MAX_CATALOG_DATA_EXAMPLE_KEY_LENGTH = 64
+/**
+ * Longest resource key (wire v8). The v7-to-v8 migration cuts a longer catalog-v7 key to this length
+ * without a trailing hyphen, and every reference to it alike.
+ */
+export const MAX_CATALOG_RESOURCE_KEY_LENGTH = 50
 
 /** Longest template description, in characters (wire v8). */
 export const MAX_TEMPLATE_DESCRIPTION_LENGTH = 2000

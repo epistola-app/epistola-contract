@@ -99,7 +99,7 @@ templates-id:
       description: Key of the template
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
 
@@ -199,7 +199,7 @@ template-validate:
       description: Key of the template
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
 
@@ -262,7 +262,7 @@ template-mark-ready:
       description: Key of the template
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
 

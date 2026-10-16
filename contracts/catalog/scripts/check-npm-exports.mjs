@@ -71,10 +71,32 @@ const detailPaths = [
 for (const [where, property] of [...manifestPaths, ...detailPaths]) {
   assert.equal(catalog.CATALOG_ARCHIVE_PATH_PATTERN, property.pattern, `npm and schema ${where} patterns must agree`);
 }
-const exampleKey = detailSchema.$defs.DataExampleEntry.properties.key;
-assert.equal(catalog.CATALOG_DATA_EXAMPLE_KEY_PATTERN, exampleKey.pattern, 'npm and schema data example key patterns must agree');
-assert.equal(catalog.MIN_CATALOG_DATA_EXAMPLE_KEY_LENGTH, exampleKey.minLength, 'npm and schema data example key minimum lengths must agree');
-assert.equal(catalog.MAX_CATALOG_DATA_EXAMPLE_KEY_LENGTH, exampleKey.maxLength, 'npm and schema data example key maximum lengths must agree');
+// One rule for every resource key, wherever wire v8 names one.
+const sharedSchema = JSON.parse(
+  await readFile(new URL('../schemas/template-shared.schema.json', import.meta.url), 'utf8'),
+);
+const detailDefs = detailSchema.$defs;
+const manifestDefs = manifestSchema.$defs;
+const resourceKeys = [
+  ...['TemplateResource', 'ThemeResource', 'StencilResource', 'AttributeResource', 'ImageResource', 'CodeListResource', 'FontResource']
+    .map((type) => [`${type} key`, detailDefs[type].properties.key]),
+  ['template themeKey', detailDefs.TemplateResource.properties.themeKey],
+  ['code list binding key', detailDefs.CodeListBindingRef.properties.key],
+  ['data example key', detailDefs.DataExampleEntry.properties.key],
+  ['variant key', detailDefs.VariantEntry.properties.key],
+  ['variant attribute key', detailDefs.VariantEntry.properties.attributes.oneOf[0].propertyNames],
+  ['manifest resource entry key', manifestDefs.ResourceEntry.properties.key],
+  ['dependency key', manifestDefs.CatalogDependencyRef.properties.key],
+  ['attribute assignment key', manifestDefs.AttributeAssignment.properties.key],
+  ['presentation iconImageKey', manifestDefs.CatalogPresentation.properties.iconImageKey],
+  ['presentation imageKeys', manifestDefs.CatalogPresentation.properties.imageKeys.items],
+  ['theme reference themeKey', sharedSchema.$defs.ThemeRef.oneOf[1].properties.themeKey],
+];
+for (const [where, key] of resourceKeys) {
+  assert.equal(catalog.CATALOG_RESOURCE_KEY_PATTERN, key.pattern, `npm and schema ${where} patterns must agree`);
+  assert.equal(catalog.MIN_CATALOG_RESOURCE_KEY_LENGTH, key.minLength, `npm and schema ${where} minimum lengths must agree`);
+  assert.equal(catalog.MAX_CATALOG_RESOURCE_KEY_LENGTH, key.maxLength, `npm and schema ${where} maximum lengths must agree`);
+}
 assert.equal(
   catalog.MAX_TEMPLATE_DESCRIPTION_LENGTH,
   templateSchema.description.maxLength,

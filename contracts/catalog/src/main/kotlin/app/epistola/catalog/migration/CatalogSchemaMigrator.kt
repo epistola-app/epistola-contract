@@ -206,6 +206,33 @@ object CatalogMigrationCodes {
     const val DATA_EXAMPLE_KEY_ASSIGNED = "CATALOG_DATA_EXAMPLE_KEY_ASSIGNED"
 
     /**
+     * Notice: a catalog-v7 key shorter than 3 characters was padded on the right with `0` to 3
+     * ([app.epistola.catalog.protocol.CatalogKeys.migrate]): `a` became `a00`, `nl` `nl0`. One per key
+     * the catalog defines (a resource's, a variant's, a data example's), at the key's path; the
+     * references to it are rewritten the same way without a notice of their own.
+     */
+    const val RESOURCE_KEY_PADDED = "CATALOG_RESOURCE_KEY_PADDED"
+
+    /**
+     * Notice: a catalog-v7 key longer than 50 characters was cut to 50, without a trailing hyphen
+     * ([app.epistola.catalog.protocol.CatalogKeys.migrate]). One per key the catalog defines, like
+     * [RESOURCE_KEY_PADDED]; the references to it are rewritten the same way.
+     */
+    const val RESOURCE_KEY_TRUNCATED = "CATALOG_RESOURCE_KEY_TRUNCATED"
+
+    /**
+     * A catalog-v7 key would be padded to a key that another key of the same scope already has, or
+     * is padded to as well: another resource of the same type in the catalog, another variant or data
+     * example of the same template, another attribute of the same variant. Not repaired: choosing a
+     * different key would make the rewrite depend on the catalog, and references from other catalogs,
+     * which are rewritten without seeing it, would then point elsewhere. The archive is refused.
+     */
+    const val RESOURCE_KEY_PADDING_COLLISION = "CATALOG_RESOURCE_KEY_PADDING_COLLISION"
+
+    /** Like [RESOURCE_KEY_PADDING_COLLISION], for a key cut to 50 characters. */
+    const val RESOURCE_KEY_TRUNCATION_COLLISION = "CATALOG_RESOURCE_KEY_TRUNCATION_COLLISION"
+
+    /**
      * A catalog-v8 manifest's `detailUrl` is not a relative path below the manifest's directory
      * ([app.epistola.catalog.protocol.CatalogArchivePaths]). Not raised for an earlier wire version,
      * which did not constrain it.

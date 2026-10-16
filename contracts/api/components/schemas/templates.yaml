@@ -11,7 +11,7 @@ TemplateDto:
   properties:
     key:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: |
@@ -379,7 +379,7 @@ TemplateSummaryDto:
   properties:
     key:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: |
@@ -430,9 +430,9 @@ DataExampleDto:
   properties:
     key:
       type: string
-      pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
-      minLength: 1
-      maxLength: 64
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
       description: |
         Key of the data example, unique within its template. The same rule as a resource key in the
         catalog archive, where the example carries it as `dataExamples[].key`.
@@ -513,7 +513,7 @@ CreateTemplateRequest:
   properties:
     key:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Client-chosen key for the template

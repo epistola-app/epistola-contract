@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 7,
+  "catalog": {
+    "slug": "letters",
+    "name": "Letters",
+    "description": "Catalog-v7 manifest with keys outside the wire-v8 bounds",
+    "attributes": [
+      {
+        "catalog": "letters",
+        "key": "la",
+        "value": "nl"
+      }
+    ],
+    "keywords": [
+      "letters"
+    ],
+    "presentation": {
+      "iconAssetSlug": "1",
+      "imageAssetSlugs": [
+        "1",
+        "logo"
+      ]
+    },
+    "license": null
+  },
+  "publisher": {
+    "name": "Acme"
+  },
+  "release": {
+    "version": "2.1.0"
+  },
+  "resources": [
+    {
+      "type": "template",
+      "slug": "ab",
+      "name": "Letter",
+      "detailUrl": "./resources/template/ab.json"
+    },
+    {
+      "type": "theme",
+      "slug": "x",
+      "name": "House style",
+      "detailUrl": "./resources/theme/x.json"
+    },
+    {
+      "type": "image",
+      "slug": "1",
+      "name": "Icon",
+      "detailUrl": "./resources/image/1.json"
+    },
+    {
+      "type": "image",
+      "slug": "logo",
+      "name": "Logo",
+      "detailUrl": "./resources/image/logo.json"
+    },
+    {
+      "type": "attribute",
+      "slug": "la",
+      "name": "Language",
+      "detailUrl": "./resources/attribute/la.json"
+    },
+    {
+      "type": "codeList",
+      "slug": "customer-segments-for-the-quarterly-retention-report-q1",
+      "name": "Segments",
+      "detailUrl": "./resources/codeList/customer-segments-for-the-quarterly-retention-report-q1.json"
+    },
+    {
+      "type": "font",
+      "slug": "f",
+      "name": "Body",
+      "detailUrl": "./resources/font/f.json"
+    },
+    {
+      "type": "stencil",
+      "slug": "ab",
+      "name": "Same short key, other type",
+      "detailUrl": "./resources/stencil/ab.json"
+    }
+  ],
+  "dependencies": [
+    {
+      "type": "theme",
+      "catalogKey": "shared",
+      "slug": "cs"
+    },
+    {
+      "type": "stencil",
+      "catalogKey": "shared",
+      "slug": "address-block"
+    }
+  ]
+}

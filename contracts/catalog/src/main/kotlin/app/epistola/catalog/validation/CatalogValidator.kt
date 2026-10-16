@@ -123,6 +123,12 @@ object CatalogValidationCodes {
     const val RESOURCE_TYPE_MISMATCH = "CATALOG_RESOURCE_TYPE_MISMATCH"
     const val RESOURCE_KEY_MISMATCH = "CATALOG_RESOURCE_KEY_MISMATCH"
     const val RESOURCE_NAME_MISMATCH = "CATALOG_RESOURCE_NAME_MISMATCH"
+
+    /**
+     * A key outside the one resource key rule ([CatalogKeys.RESOURCE]): a resource's or a variant's
+     * key, a variant's attribute key, a resource dependency's key, or the key a reference in a
+     * resource names (a template's theme, a font, a code-list binding).
+     */
     const val RESOURCE_KEY_INVALID = "CATALOG_RESOURCE_KEY_INVALID"
     const val RESOURCE_REFERENCE_MISSING = "CATALOG_RESOURCE_REFERENCE_MISSING"
     const val DEPENDENCY_REFERENCE_MISSING = "CATALOG_DEPENDENCY_REFERENCE_MISSING"
@@ -199,7 +205,7 @@ object CatalogValidationCodes {
     const val TEMPLATE_EXAMPLE_KEY_DUPLICATE = "CATALOG_TEMPLATE_EXAMPLE_KEY_DUPLICATE"
 
     /**
-     * A data example has no key, or one outside [CatalogKeys.DATA_EXAMPLE] (wire v8). A catalog
+     * A data example has no key, or one outside [CatalogKeys.RESOURCE] (wire v8). A catalog
      * migrated from wire v7 has one for every example, derived from its name.
      */
     const val TEMPLATE_EXAMPLE_KEY_INVALID = "CATALOG_TEMPLATE_EXAMPLE_KEY_INVALID"
@@ -291,18 +297,9 @@ object ResourceValidator {
     ): CatalogValidationReport {
         val findings = mutableListOf<CatalogValidationFinding>()
         val resource = detail.resource
-        // Per type, not one loose rule for all of them: the bounds mirror the columns a consumer
-        // stores a key in, so a name that passes here is one every consumer can actually hold.
-        // Checking the loose rule instead let a catalog publish a 30-character theme key that
-        // then failed on install with a database error, with no diagnosis in between.
-        val rule = CatalogKeys.byType[resource.type] ?: CatalogKeys.ANY
-        if (!CatalogKeys.matches(rule, resource.key)) {
-            findings.error(
-                CatalogValidationCodes.RESOURCE_KEY_INVALID,
-                "$path.resource.key",
-                "key must be ${rule.minLength} to ${rule.maxLength} characters matching ${rule.pattern}",
-            )
-        }
+        // One rule for every type (wire v8): the bounds fit the columns every consumer stores a
+        // key in, so a key that passes here is one every consumer can actually hold.
+        validateKey(resource.key, "$path.resource.key", findings)
         when (resource) {
             is TemplateResource -> validateTemplate(resource, context, "$path.resource", findings)
             is StencilResource -> {
@@ -341,6 +338,10 @@ object ResourceValidator {
         validateDocument(resource.templateModel, context, "$path.templateModel", null, findings)
         val variantKeys = mutableSetOf<String>()
         resource.variants.forEachIndexed { index, variant ->
+            validateKey(variant.key, "$path.variants[$index].key", findings)
+            variant.attributes?.keys?.sorted()?.forEach { attribute ->
+                validateKey(attribute, "$path.variants[$index].attributes.$attribute", findings, "variant attribute key")
+            }
             if (!variantKeys.add(variant.key)) {
                 findings.error(CatalogValidationCodes.TEMPLATE_VARIANT_KEY_DUPLICATE, "$path.variants[$index].key", "variant key '${variant.key}' is duplicated")
             }
@@ -373,7 +374,7 @@ object ResourceValidator {
                 )
             }
             val key = example.key
-            val rule = CatalogKeys.DATA_EXAMPLE
+            val rule = CatalogKeys.RESOURCE
             if (key == null || !CatalogKeys.matches(rule, key)) {
                 findings.error(
                     CatalogValidationCodes.TEMPLATE_EXAMPLE_KEY_INVALID,
@@ -666,6 +667,14 @@ object ResourceValidator {
         path: String,
         findings: MutableList<CatalogValidationFinding>,
     ) {
+        if (!CatalogKeys.isValid(reference.key)) {
+            findings.error(
+                CatalogValidationCodes.RESOURCE_KEY_INVALID,
+                path,
+                "${reference.type} reference key must be ${CatalogKeys.MIN_LENGTH} to ${CatalogKeys.MAX_LENGTH} characters matching ${CatalogKeys.PATTERN}",
+            )
+            return
+        }
         val resolution = resolveReference(reference, context)
         if (resolution == ResourceResolution.MISSING) {
             findings.error(CatalogValidationCodes.RESOURCE_REFERENCE_MISSING, path, "${reference.type} resource '${reference.key}' cannot be resolved")
@@ -800,20 +809,23 @@ object CatalogValidator {
             // stays installable; anything written at v7 uses the type's own directory.
             val legacyPath = if (entry.type == "image") "resources/asset/${entry.key}.json" else null
             val declaredPath = entry.detailUrl.removePrefix("./")
+            // Likewise a key the v7-to-v8 migration padded or cut (CatalogKeys.migrate): the file
+            // keeps the name the source key gave it.
+            val migratedPath = declaredPath.takeIf { catalog.sourceSchemaVersion < ARCHIVE_PATHS_SINCE_WIRE_VERSION && isMigratedDetailPath(it, entry) }
             if (catalog.sourceSchemaVersion >= ARCHIVE_PATHS_SINCE_WIRE_VERSION && !CatalogArchivePaths.isValid(entry.detailUrl)) {
                 findings.error(
                     CatalogValidationCodes.MANIFEST_DETAIL_URL_INVALID,
                     "catalog.json.resources[$index].detailUrl",
                     "detailUrl must be a relative path below the manifest's directory",
                 )
-            } else if (declaredPath != expectedPath && declaredPath != legacyPath) {
+            } else if (declaredPath != expectedPath && declaredPath != legacyPath && declaredPath != migratedPath) {
                 findings.error(
                     CatalogValidationCodes.MANIFEST_DETAIL_PATH_INVALID,
                     "catalog.json.resources[$index].detailUrl",
                     "detailUrl must be './$expectedPath' or '$expectedPath'",
                 )
             }
-            if ((expectedPath !in catalog.paths && legacyPath !in catalog.paths) || key !in catalog.resourceDetails) {
+            if ((expectedPath !in catalog.paths && legacyPath !in catalog.paths && migratedPath !in catalog.paths) || key !in catalog.resourceDetails) {
                 findings.error(CatalogValidationCodes.MANIFEST_DETAIL_MISSING, expectedPath, "manifest resource '$key' has no detail document")
             }
         }
@@ -858,6 +870,22 @@ object CatalogValidator {
         }
         validateStencilComposition(resources, manifest.catalog.key, manifest.catalog.namespace, manifest.catalog.registry, findings)
         return CatalogValidationReport(findings.distinct().sorted())
+    }
+
+    /**
+     * Whether [declaredPath] is where a catalog written before wire v8 filed [entry] under the key
+     * the v7-to-v8 migration rewrote ([CatalogKeys.migrate]): the type's directory (or `asset/` for an
+     * image from catalog v6), named by the source key.
+     */
+    private fun isMigratedDetailPath(
+        declaredPath: String,
+        entry: ResourceEntry,
+    ): Boolean {
+        if (!declaredPath.endsWith(".json")) return false
+        val directory = declaredPath.substringBeforeLast('/', "")
+        val sourceKey = declaredPath.substringAfterLast('/').removeSuffix(".json")
+        val directories = setOfNotNull("resources/${entry.type}", "resources/asset".takeIf { entry.type == "image" })
+        return directory in directories && sourceKey != entry.key && CatalogKeys.migrate(sourceKey) == entry.key
     }
 
     private fun validateStencilComposition(
@@ -1018,11 +1046,11 @@ object CatalogValidator {
                     "attribute catalogKey must contain lowercase letters, digits, and hyphens",
                 )
             }
-            if (!ATTRIBUTE_IDENTITY.matches(attribute.key)) {
+            if (!CatalogKeys.isValid(attribute.key)) {
                 findings.error(
                     CatalogValidationCodes.CATALOG_ATTRIBUTE_IDENTITY_INVALID,
                     "$path.key",
-                    "attribute key must contain lowercase letters, digits, and hyphens",
+                    "attribute key must be ${CatalogKeys.MIN_LENGTH} to ${CatalogKeys.MAX_LENGTH} characters matching ${CatalogKeys.PATTERN}",
                 )
             }
             if (!seenAttributes.add(attribute.catalogKey to attribute.key)) {
@@ -1248,6 +1276,13 @@ object CatalogValidator {
             if (!seen.add(key)) {
                 findings.error(CatalogValidationCodes.DEPENDENCY_DUPLICATE, path, "dependency '$key' is duplicated")
             }
+            if (!CatalogKeys.isValid(dependency.key)) {
+                findings.error(
+                    CatalogValidationCodes.RESOURCE_KEY_INVALID,
+                    "$path.key",
+                    "dependency key must be ${CatalogKeys.MIN_LENGTH} to ${CatalogKeys.MAX_LENGTH} characters matching ${CatalogKeys.PATTERN}",
+                )
+            }
             validateTopLevelIdentity(dependency.registry, dependency.namespace, path, "dependency", findings)
             val catalog = CatalogIdentity(dependency.registry, dependency.namespace, dependency.catalogKey)
             when {
@@ -1349,6 +1384,22 @@ private object PortableJsonSchema {
 
     private const val LENIENT_DATE_TIME_PATTERN =
         "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})?$"
+}
+
+/** Reports [key] at [path] unless it satisfies the one resource key rule ([CatalogKeys.RESOURCE]). */
+private fun validateKey(
+    key: String,
+    path: String,
+    findings: MutableList<CatalogValidationFinding>,
+    what: String = "key",
+) {
+    if (!CatalogKeys.isValid(key)) {
+        findings.error(
+            CatalogValidationCodes.RESOURCE_KEY_INVALID,
+            path,
+            "$what must be ${CatalogKeys.MIN_LENGTH} to ${CatalogKeys.MAX_LENGTH} characters matching ${CatalogKeys.PATTERN}",
+        )
+    }
 }
 
 private fun MutableList<CatalogValidationFinding>.error(

@@ -78,7 +78,10 @@ const generatedThemeRef = `    ThemeRef:
               const: override
             themeKey:
               type: string
-              minLength: 1
+              pattern: ^[a-z0-9]+(-[a-z0-9]+)*$
+              minLength: 3
+              maxLength: 50
+              description: 'Key of the theme resource: the same rule as every resource key (catalog wire v8).'
             catalogKey:
               type: string
               minLength: 1
@@ -113,7 +116,10 @@ const generatorCompatibleThemeRef = `    ThemeRef:
             - override
         themeKey:
           type: string
-          minLength: 1
+          pattern: ^[a-z0-9]+(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: 'Key of the theme resource: the same rule as every resource key (catalog wire v8).'
         catalogKey:
           type: string
           minLength: 1

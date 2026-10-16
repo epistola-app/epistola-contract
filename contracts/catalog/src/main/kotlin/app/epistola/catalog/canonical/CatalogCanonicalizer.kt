@@ -8,6 +8,8 @@ import app.epistola.catalog.archive.CatalogArchive
 import app.epistola.catalog.migration.CatalogKeyRenames
 import app.epistola.catalog.migration.CatalogV8Additions
 import app.epistola.catalog.protocol.CatalogInfo
+import app.epistola.catalog.protocol.CatalogKeys
+import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.ImageResource
 import app.epistola.catalog.protocol.ResourceDetail
@@ -154,6 +156,12 @@ object CatalogCanonicalizer {
     fun fingerprint(
         catalog: CatalogArchive,
         version: CatalogFingerprintVersion,
+    ): CatalogFingerprint = computeFingerprint(if (version == CatalogFingerprintVersion.V5) catalog else sourceKeyed(catalog), version)
+
+    /** [version] over [catalog] as given: a legacy algorithm expects the source keys ([sourceKeyed]). */
+    private fun computeFingerprint(
+        catalog: CatalogArchive,
+        version: CatalogFingerprintVersion,
     ): CatalogFingerprint {
         val entries = when (version) {
             CatalogFingerprintVersion.V1, CatalogFingerprintVersion.V2 -> entries(catalog)
@@ -179,10 +187,13 @@ object CatalogCanonicalizer {
         catalog: CatalogArchive,
         expected: String,
     ): Boolean {
-        val exact = CatalogFingerprintVersion.entries.mapTo(mutableSetOf()) { fingerprint(catalog, it).value }
-        val projected = legacyV4Entries(catalog)
-        exact += sha256(canonicalV1(catalog, projected).byteInputStream())
-        exact += sha256(canonicalV2(catalog, projected, includeV6Metadata = false).byteInputStream())
+        val source = sourceKeyed(catalog)
+        val exact = CatalogFingerprintVersion.entries.mapTo(mutableSetOf()) {
+            computeFingerprint(if (it == CatalogFingerprintVersion.V5) catalog else source, it).value
+        }
+        val projected = legacyV4Entries(source)
+        exact += sha256(canonicalV1(source, projected).byteInputStream())
+        exact += sha256(canonicalV2(source, projected, includeV6Metadata = false).byteInputStream())
         return expected in exact
     }
 
@@ -203,15 +214,19 @@ object CatalogCanonicalizer {
      * - catalog v8 removes stencil versions, which V4 covered as part of each resource, so they are
      *   restored from the raw resource documents.
      *
+     * - catalog v8 pads or cuts keys outside its bounds, and every reference to them, so the source
+     *   keys are restored from the raw documents ([sourceKeyed]).
+     *
      * V4 never covered a registry, a namespace or a catalog dependency, so what catalog v8 adds to the
      * manifest needs no undoing. The members catalog v8 renamed need none either: V4 canonicalizes
      * them under their old names whatever the archive calls them. A reference inside content that
      * names a registry or namespace is catalog-v8 content, so no migrated archive carries one.
      */
     internal fun matchesSourceV4Fingerprint(
-        catalog: CatalogArchive,
+        migrated: CatalogArchive,
         expected: String,
     ): Boolean {
+        val catalog = sourceKeyed(migrated)
         val infos = listOfNotNull(
             catalog.manifest.catalog,
             sourceKeywords(catalog)?.let { catalog.manifest.catalog.copyWithMetadata(keywords = it) },
@@ -221,6 +236,77 @@ object CatalogCanonicalizer {
             infos.any { info -> sha256(canonicalV4(catalog, entries, info).byteInputStream()) == expected }
         }
     }
+
+    /**
+     * [catalog] under the keys its source archive used, for the legacy algorithms (V1 to V4).
+     *
+     * The v7-to-v8 migration pads a key shorter than 3 characters and cuts one longer than 50
+     * ([CatalogKeys.migrate]), and rewrites every reference to it alike. The fingerprints a producer
+     * computed before wire v8 covered the source keys, and the rewrite cannot be undone from the
+     * migrated key alone (`ab0` may have been `ab` or `ab0`), so each key is restored from the raw
+     * `catalog.json` and resource documents the archive still holds: a value is restored where the
+     * migrated document has exactly the rewrite of the raw one's (the property names of a variant's
+     * attributes likewise). Returns [catalog] itself when it was read at wire v8 or later, or does not
+     * hold its raw documents, and so was never rewritten.
+     */
+    private fun sourceKeyed(catalog: CatalogArchive): CatalogArchive {
+        if (catalog.sourceSchemaVersion >= KEY_BOUNDS_SINCE_WIRE_VERSION || "catalog.json" !in catalog.paths) return catalog
+        val rawManifest = catalog.content.open("catalog.json").use { input -> decimalReader.readTree(input) } as? ObjectNode ?: return catalog
+        CatalogKeyRenames.toCurrent(CatalogKeyRenames.manifestSites(rawManifest))
+        val manifestTree: JsonNode = mapper.valueToTree(catalog.manifest)
+        val manifest = restoreKeys(manifestTree, rawManifest)
+            .takeIf { it != manifestTree }
+            ?.let { mapper.treeToValue(it, CatalogManifest::class.java) }
+            ?: catalog.manifest
+        var changed = manifest !== catalog.manifest
+        val detailPaths = catalog.manifest.resources.associate { "${it.type}/${it.key}" to it.detailUrl.removePrefix("./") }
+        val details = catalog.resourceDetails.entries.associate { (key, detail) ->
+            val rawPath = detailPaths[key]?.takeIf { it in catalog.paths } ?: "resources/$key.json".takeIf { it in catalog.paths }
+            val rawResource = rawPath?.let { path ->
+                catalog.content.open(path).use { input -> decimalReader.readTree(input) }.get("resource") as? ObjectNode
+            } ?: return@associate key to detail
+            CatalogKeyRenames.toCurrent(CatalogKeyRenames.resourceSites(rawResource, "resource"))
+            val resourceTree: JsonNode = mapper.valueToTree(detail.resource)
+            val restoredTree = restoreKeys(resourceTree, rawResource)
+            if (restoredTree == resourceTree) return@associate key to detail
+            changed = true
+            val restored = mapper.treeToValue(
+                mapper.createObjectNode().put("schemaVersion", detail.schemaVersion).set("resource", restoredTree),
+                ResourceDetail::class.java,
+            )
+            "${restored.resource.type}/${restored.resource.key}" to restored
+        }
+        if (!changed) return catalog
+        return CatalogArchive(manifest, details, catalog.paths, catalog.content).also { it.sourceSchemaVersion = catalog.sourceSchemaVersion }
+    }
+
+    /**
+     * A copy of [model] with every string that is exactly [CatalogKeys.migrate] of a different raw
+     * string at the same position put back to the raw one, and every property name likewise.
+     */
+    private fun restoreKeys(
+        model: JsonNode,
+        raw: JsonNode?,
+    ): JsonNode = when {
+        model is ObjectNode && raw is ObjectNode -> mapper.createObjectNode().also { restored ->
+            model.propertyNames().forEach { name ->
+                val rawName = if (raw.has(name)) {
+                    name
+                } else {
+                    raw.propertyNames().firstOrNull { it != name && !model.has(it) && CatalogKeys.migrate(it) == name } ?: name
+                }
+                restored.set(rawName, restoreKeys(model[name], raw[rawName]))
+            }
+        }
+        model is ArrayNode && raw is ArrayNode -> mapper.createArrayNode().also { restored ->
+            model.forEachIndexed { index, child -> restored.add(restoreKeys(child, raw[index])) }
+        }
+        model.isString && raw != null && raw.isString && model.asString() != raw.asString() && CatalogKeys.migrate(raw.asString()) == model.asString() -> raw
+        else -> model
+    }
+
+    /** The wire version from which keys are bounded, so that a catalog read at it was never rewritten. */
+    private const val KEY_BOUNDS_SINCE_WIRE_VERSION = 8
 
     /**
      * Current resource entries with the stencil versions catalog v8 removed put back from the raw

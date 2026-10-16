@@ -60,7 +60,7 @@ object CatalogArchiveWriter {
         require(catalog.resourceDetails.values.all { it.schemaVersion == CatalogWireSchema.CURRENT_VERSION }) {
             "catalog resource details must all use schemaVersion ${CatalogWireSchema.CURRENT_VERSION}"
         }
-        val manifest = if (catalog.sourceSchemaVersion < CatalogWireSchema.CURRENT_VERSION && catalog.manifest.release.fingerprint != null) {
+        val fingerprinted = if (catalog.sourceSchemaVersion < CatalogWireSchema.CURRENT_VERSION && catalog.manifest.release.fingerprint != null) {
             catalog.manifest.copy(
                 release = catalog.manifest.release.copy(
                     fingerprint = CatalogCanonicalizer.currentQualifiedFingerprint(catalog).toString(),
@@ -69,6 +69,19 @@ object CatalogArchiveWriter {
         } else {
             catalog.manifest
         }
+        // A detail is written where its key files it. A migrated catalog may still declare where
+        // its source filed it -- under a key the v7-to-v8 migration padded or cut -- so the entry is
+        // pointed at the file this writer actually writes.
+        val manifest = fingerprinted.copy(
+            resources = fingerprinted.resources.map { entry ->
+                val written = "resources/${entry.type}/${entry.key}.json"
+                if ("${entry.type}/${entry.key}" in catalog.resourceDetails && entry.detailUrl.removePrefix("./") != written) {
+                    entry.copy(detailUrl = "./$written")
+                } else {
+                    entry
+                }
+            },
+        )
         val jsonEntries = buildMap {
             put("catalog.json", mapper.writeValueAsBytes(manifest))
             catalog.resourceDetails.toSortedMap().forEach { (key, detail) ->

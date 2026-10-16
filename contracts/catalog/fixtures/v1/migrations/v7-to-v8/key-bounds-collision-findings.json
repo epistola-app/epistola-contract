@@ -1,0 +1,17 @@
+[
+  {
+    "code": "CATALOG_RESOURCE_KEY_PADDING_COLLISION",
+    "path": "catalog.json.resources[0].key",
+    "message": "template key 'ab' would become 'ab0', which collides with 'ab0' in the catalog's template resources; rename one of them and export again"
+  },
+  {
+    "code": "CATALOG_RESOURCE_KEY_TRUNCATION_COLLISION",
+    "path": "catalog.json.resources[2].key",
+    "message": "codeList key 'customer-segments-for-the-quarterly-retention-report-q1' would become 'customer-segments-for-the-quarterly-retention-repo', which collides with 'customer-segments-for-the-quarterly-retention-repo' in the catalog's codeList resources; rename one of them and export again"
+  },
+  {
+    "code": "CATALOG_RESOURCE_KEY_TRUNCATION_COLLISION",
+    "path": "catalog.json.resources[5].key",
+    "message": "font key 'customer-segments-for-the-quarterly-retention-repo-y' would become 'customer-segments-for-the-quarterly-retention-repo', which collides with 'customer-segments-for-the-quarterly-retention-repo-x' in the catalog's font resources; rename one of them and export again"
+  }
+]

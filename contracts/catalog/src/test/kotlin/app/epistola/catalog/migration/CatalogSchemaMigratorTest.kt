@@ -407,16 +407,109 @@ class CatalogSchemaMigratorTest {
     }
 
     @Test
+    fun `v7 golden manifest pads short keys and cuts long ones, and every reference with them`() {
+        val input = resource("migrations/v7-to-v8/key-bounds-manifest-input.json").use(mapper::readTree) as ObjectNode
+        val step = CatalogV7ToV8Migration().migrateManifest(input, OPTIONS_ACME)
+        val result = CatalogSchemaMigrator.migrateManifest(resource("migrations/v7-to-v8/key-bounds-manifest-input.json"), OPTIONS_ACME)
+
+        assertTrue(step.findings.isEmpty(), step.findings.toString())
+        assertEquals(resource("migrations/v7-to-v8/key-bounds-manifest-expected.json").use(mapper::readTree), input)
+        assertEquals(
+            resource("migrations/v7-to-v8/key-bounds-manifest-notices.json").use(mapper::readTree),
+            mapper.valueToTree(step.notices.filter { it.code.startsWith("CATALOG_RESOURCE_KEY_") }),
+        )
+        assertTrue(result.valid, result.findings.toString())
+        assertEquals(step.notices, result.notices)
+        val manifest = assertNotNull(result.value)
+        assertTrue(manifest.resources.all { CatalogKeys.isValid(it.key) }, manifest.resources.toString())
+        assertTrue(manifest.dependencies.orEmpty().all { CatalogKeys.isValid(it.key) }, manifest.dependencies.toString())
+    }
+
+    @Test
+    fun `v7 golden template pads its keys and every key it names, with one notice per key it defines`() {
+        val manifest = assertNotNull(CatalogSchemaMigrator.migrateManifest(resource("migrations/v7-to-v8/key-bounds-manifest-input.json"), OPTIONS_ACME).value)
+        val path = "resources/template/ab.json"
+        val tree = resource("migrations/v7-to-v8/key-bounds-template-input.json").use(mapper::readTree) as ObjectNode
+        val step = CatalogV7ToV8Migration().migrateResource(tree, path, CatalogMigrationContext(7, manifest))
+        val result = CatalogSchemaMigrator.migrateResourceDetail(
+            "template",
+            resource("migrations/v7-to-v8/key-bounds-template-input.json"),
+            CatalogMigrationContext(7, manifest),
+            path,
+        )
+
+        assertTrue(step.findings.isEmpty(), step.findings.toString())
+        assertEquals(resource("migrations/v7-to-v8/key-bounds-template-expected.json").use(mapper::readTree), tree)
+        assertEquals(resource("migrations/v7-to-v8/key-bounds-template-notices.json").use(mapper::readTree), mapper.valueToTree(step.notices))
+        assertTrue(result.valid, result.findings.toString())
+        assertEquals(step.notices, result.notices)
+        val template = assertNotNull(result.value).resource as TemplateResource
+        assertEquals("ab0", template.key)
+        assertEquals(listOf("nl0", "english"), template.variants.map { it.key })
+        assertEquals(listOf("a00", "standard"), template.dataExamples.orEmpty().map { it.key })
+    }
+
+    @Test
+    fun `a padded or cut key that collides is a finding, and the migration never chooses another key`() {
+        val input = resource("migrations/v7-to-v8/key-bounds-collision-input.json").use(mapper::readTree) as ObjectNode
+        val step = CatalogV7ToV8Migration().migrateManifest(input, OPTIONS_ACME)
+        val result = CatalogSchemaMigrator.migrateManifest(resource("migrations/v7-to-v8/key-bounds-collision-input.json"), OPTIONS_ACME)
+
+        assertEquals(resource("migrations/v7-to-v8/key-bounds-collision-findings.json").use(mapper::readTree), mapper.valueToTree(step.findings))
+        assertNull(result.value)
+        assertEquals(step.findings, result.findings)
+    }
+
+    @Test
+    fun `variants and data examples collide within their template, and variant attribute keys within their variant`() {
+        fun findings(resource: String): List<Pair<String, String>> {
+            val tree = mapper.readTree("""{"schemaVersion":7,"resource":$resource}""") as ObjectNode
+            return CatalogV7ToV8Migration().migrateResource(tree, "resources/template/letter.json", CatalogMigrationContext(7, emptyManifest()))
+                .findings.map { it.code to it.path }
+        }
+        val template = """{"type":"template","slug":"letter","name":"Letter","templateModel":{"root":"r","nodes":{},"slots":{}}"""
+
+        assertEquals(
+            listOf(CatalogMigrationCodes.RESOURCE_KEY_PADDING_COLLISION to "resources/template/letter.json.resource.variants[0].key"),
+            findings("""$template,"variants":[{"slug":"nl"},{"slug":"nl0"}]}"""),
+        )
+        assertEquals(
+            listOf(CatalogMigrationCodes.RESOURCE_KEY_PADDING_COLLISION to "resources/template/letter.json.resource.variants[0].attributes.la"),
+            findings("""$template,"variants":[{"slug":"dutch","attributes":{"la":"nl","la0":"nl"}}]}"""),
+        )
+        assertEquals(
+            listOf(CatalogMigrationCodes.RESOURCE_KEY_PADDING_COLLISION to "resources/template/letter.json.resource.dataExamples[1].key"),
+            findings("""$template,"variants":[],"dataExamples":[{"key":"ab0","name":"A","data":{}},{"key":"ab","name":"B","data":{}}]}"""),
+        )
+    }
+
+    @Test
+    fun `the key rewrite is a pure function of the key`() {
+        assertEquals("a00", CatalogKeys.migrate("a"))
+        assertEquals("nl0", CatalogKeys.migrate("nl"))
+        assertEquals("abc", CatalogKeys.migrate("abc"))
+        assertEquals("a".repeat(50), CatalogKeys.migrate("a".repeat(64)))
+        assertEquals("a".repeat(49), CatalogKeys.migrate("a".repeat(49) + "-b"))
+        // Not repaired: a key with characters outside the pattern stays a finding.
+        assertEquals("A", CatalogKeys.migrate("A"))
+        assertEquals("a_b", CatalogKeys.migrate("a_b"))
+        assertEquals(CatalogKeys.Rewrite.PADDED, CatalogKeys.rewrite("nl"))
+        assertEquals(CatalogKeys.Rewrite.TRUNCATED, CatalogKeys.rewrite("a".repeat(51)))
+        assertNull(CatalogKeys.rewrite("a".repeat(50)))
+    }
+
+    @Test
     fun `data example keys are derived as the published fixture defines`() {
         val fixture = resource("migrations/v7-to-v8/data-example-keys.json").use(mapper::readTree)
 
-        assertEquals(CatalogKeys.DATA_EXAMPLE.maxLength, fixture["maxLength"].asInt())
+        assertEquals(CatalogKeys.MAX_LENGTH, fixture["maxLength"].asInt())
+        assertEquals(CatalogKeys.MIN_LENGTH, fixture["minLength"].asInt())
         fixture["cases"].forEach { case ->
             val taken = mutableSetOf<String>()
             val keys: List<String> = case["names"].toList().map { name -> CatalogKeys.deriveDataExampleKey(name.asString(), taken).also(taken::add) }
 
             assertEquals(case["keys"].toList().map { it.asString() }, keys, case["names"].toString())
-            keys.forEach { assertTrue(CatalogKeys.matches(CatalogKeys.DATA_EXAMPLE, it), it) }
+            keys.forEach { assertTrue(CatalogKeys.isValid(it), it) }
         }
     }
 

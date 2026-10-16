@@ -1,6 +1,7 @@
 {
-  "description": "Keys the v7-to-v8 migration derives for a template's data examples, from their names in document order. NFD with combining marks dropped, lowercased, every run of characters outside a-z0-9 one hyphen, hyphens trimmed, cut to 64 characters without a trailing hyphen; empty becomes 'example'; a key already taken in the template gets the first free suffix -2, -3, ... within 64 characters.",
-  "maxLength": 64,
+  "description": "Keys the v7-to-v8 migration derives for a template's data examples, from their names in document order. NFD with combining marks dropped, lowercased, every run of characters outside a-z0-9 one hyphen, hyphens trimmed, cut to 50 characters without a trailing hyphen; empty becomes 'example'; shorter than 3 characters is padded on the right with '0' (the resource key rule); a key already taken in the template gets the first free suffix -2, -3, ... within 50 characters.",
+  "maxLength": 50,
+  "minLength": 3,
   "cases": [
     {
       "names": [
@@ -61,7 +62,7 @@
         "Een heel lange naam voor een voorbeeld dat echt veel te lang is voor een sleutel"
       ],
       "keys": [
-        "een-heel-lange-naam-voor-een-voorbeeld-dat-echt-veel-te-lang-is"
+        "een-heel-lange-naam-voor-een-voorbeeld-dat-echt-ve"
       ]
     },
     {
@@ -71,17 +72,17 @@
         "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
       ],
       "keys": [
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-2",
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-3"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-2",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-3"
       ]
     },
     {
       "names": [
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-b"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bc"
       ],
       "keys": [
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       ]
     },
     {
@@ -102,6 +103,20 @@
       ],
       "keys": [
         "1e-brief"
+      ]
+    },
+    {
+      "names": [
+        "A",
+        "a",
+        "ab",
+        "É"
+      ],
+      "keys": [
+        "a00",
+        "a00-2",
+        "ab0",
+        "e00"
       ]
     }
   ]

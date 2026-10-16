@@ -71,7 +71,7 @@ ImportTemplateDto:
   properties:
     key:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the template
@@ -155,7 +155,7 @@ ImportVariantDto:
   properties:
     key:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the variant, unique within its template
@@ -213,6 +213,9 @@ ImportTemplateResultDto:
   properties:
     key:
       type: string
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
       description: Key of the template that was imported
       example: subsidiebesluit
     status:

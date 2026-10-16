@@ -94,8 +94,8 @@ attributes-key:
       description: The attribute key (e.g., "language", "brand")
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 1
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+        minLength: 3
         maxLength: 50
   get:
     operationId: getAttribute

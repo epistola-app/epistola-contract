@@ -138,8 +138,10 @@ object CatalogArchiveReader {
                         // sits. The two agree for anything written at the current wire version.
                         // They part company for a catalog-v6 archive holding images: its files are
                         // under `resources/asset/`, and a migration renames the type but cannot
-                        // move the file.
-                        val key = path.removePrefix("resources/").removeSuffix(".json").substringAfterLast('/')
+                        // move the file. Nor can the v7-to-v8 migration, which pads or cuts a key
+                        // outside the wire-v8 bounds (CatalogKeys.migrate): the manifest entry that
+                        // declares this file carries the rewritten key.
+                        val key = entriesByPath[path]?.key ?: path.removePrefix("resources/").removeSuffix(".json").substringAfterLast('/')
                         details["$declaredType/$key"] = detail
                     }
                 }

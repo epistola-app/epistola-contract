@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 8,
+  "catalog": {
+    "key": "letters",
+    "name": "Letters",
+    "description": "Catalog-v7 manifest with keys outside the wire-v8 bounds",
+    "attributes": [
+      {
+        "catalogKey": "letters",
+        "key": "la0",
+        "value": "nl"
+      }
+    ],
+    "keywords": [
+      "letters"
+    ],
+    "presentation": {
+      "iconImageKey": "100",
+      "imageKeys": [
+        "100",
+        "logo"
+      ]
+    },
+    "license": null,
+    "registry": "exchange.epistola.app",
+    "namespace": "acme-corp"
+  },
+  "publisher": {
+    "name": "Acme"
+  },
+  "release": {
+    "version": "2.1.0"
+  },
+  "resources": [
+    {
+      "type": "template",
+      "key": "ab0",
+      "name": "Letter",
+      "detailUrl": "./resources/template/ab.json"
+    },
+    {
+      "type": "theme",
+      "key": "x00",
+      "name": "House style",
+      "detailUrl": "./resources/theme/x.json"
+    },
+    {
+      "type": "image",
+      "key": "100",
+      "name": "Icon",
+      "detailUrl": "./resources/image/1.json"
+    },
+    {
+      "type": "image",
+      "key": "logo",
+      "name": "Logo",
+      "detailUrl": "./resources/image/logo.json"
+    },
+    {
+      "type": "attribute",
+      "key": "la0",
+      "name": "Language",
+      "detailUrl": "./resources/attribute/la.json"
+    },
+    {
+      "type": "codeList",
+      "key": "customer-segments-for-the-quarterly-retention-repo",
+      "name": "Segments",
+      "detailUrl": "./resources/codeList/customer-segments-for-the-quarterly-retention-report-q1.json"
+    },
+    {
+      "type": "font",
+      "key": "f00",
+      "name": "Body",
+      "detailUrl": "./resources/font/f.json"
+    },
+    {
+      "type": "stencil",
+      "key": "ab0",
+      "name": "Same short key, other type",
+      "detailUrl": "./resources/stencil/ab.json"
+    }
+  ],
+  "dependencies": [
+    {
+      "type": "theme",
+      "catalogKey": "shared",
+      "key": "cs0",
+      "registry": "exchange.epistola.app",
+      "namespace": "acme-corp"
+    },
+    {
+      "type": "stencil",
+      "catalogKey": "shared",
+      "key": "address-block",
+      "registry": "exchange.epistola.app",
+      "namespace": "acme-corp"
+    }
+  ],
+  "catalogDependencies": [
+    {
+      "registry": "exchange.epistola.app",
+      "namespace": "acme-corp",
+      "catalogKey": "shared",
+      "version": "*",
+      "releaseVersion": null,
+      "releaseFingerprint": null
+    }
+  ]
+}

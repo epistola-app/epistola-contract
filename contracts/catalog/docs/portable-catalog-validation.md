@@ -118,7 +118,7 @@ data schemas and examples, release metadata, and the canonical fingerprint. I/O 
 exceptions; ordinary invalid content is returned as deterministic findings.
 
 For catalog discovery metadata (wire v6 and later), catalog attributes use an explicit `catalogKey`
-(`catalog` until wire v8), `key`, and `value`. Catalog key and key follow the normal lowercase slug syntax, and a catalog may
+(`catalog` until wire v8), `key`, and `value`. The catalog key follows the catalog key syntax and the key the resource key rule below, and a catalog may
 assign each qualified attribute at most once. Attribute values remain generic: Suite and Exchange
 validate them against the referenced attribute definition. From wire v7, keywords are lowercase
 ASCII letters and digits in hyphen-separated parts, at most 30 characters, unique, and at most 20
@@ -145,8 +145,17 @@ font reference) may omit its registry and namespace, each meaning the owning cat
 names is checked with `CATALOG_REGISTRY_INVALID` and `CATALOG_NAMESPACE_INVALID`, and a registry
 without a namespace is `CATALOG_NAMESPACE_INVALID`.
 
-From wire v8 a template's data examples each have a `key`, 1 to 64 characters matching
-`^[a-z0-9]+(?:-[a-z0-9]+)*$` and unique within the template (`CATALOG_TEMPLATE_EXAMPLE_KEY_INVALID`
+From wire v8 every resource key follows one rule, `^[a-z0-9]+(-[a-z0-9]+)*$` with 3 to 50
+characters (`CatalogKeys.RESOURCE`): a resource's key, a variant's key and attribute keys, a resource
+dependency's key, and the key a template's theme, a font reference or a code-list binding names are
+`CATALOG_RESOURCE_KEY_INVALID` outside it, an attribute assignment's key
+`CATALOG_ATTRIBUTE_IDENTITY_INVALID`, and a stencil node's `stencilKey` `STENCIL_REFERENCE_INVALID`.
+The catalog's own key keeps its rule (a leading letter, 3 to 50). A catalog migrated from wire v7 has
+had keys outside the bounds padded or cut, with the references to them (see
+`catalog-compatibility.md`); its detail files keep their source names, which the validator accepts
+for a catalog read before v8.
+
+From wire v8 a template's data examples each have a `key`, by the same rule and unique within the template (`CATALOG_TEMPLATE_EXAMPLE_KEY_INVALID`
 when missing or malformed, `CATALOG_TEMPLATE_EXAMPLE_KEY_DUPLICATE`), alongside the unchanged rule
 that names are unique (`CATALOG_TEMPLATE_EXAMPLE_NAME_DUPLICATE`). A template's `description` is at
 most 2000 characters (`CATALOG_TEMPLATE_DESCRIPTION_INVALID`) and, when its manifest entry also has

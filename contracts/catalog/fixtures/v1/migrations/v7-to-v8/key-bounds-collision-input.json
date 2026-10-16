@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 7,
+  "catalog": {
+    "slug": "letters",
+    "name": "Letters",
+    "description": "Catalog-v7 manifest whose padded and cut keys collide",
+    "attributes": [],
+    "keywords": [],
+    "presentation": null,
+    "license": null
+  },
+  "publisher": {
+    "name": "Acme"
+  },
+  "release": {
+    "version": "2.1.0"
+  },
+  "resources": [
+    {
+      "type": "template",
+      "slug": "ab",
+      "name": "Short",
+      "detailUrl": "./resources/template/ab.json"
+    },
+    {
+      "type": "template",
+      "slug": "ab0",
+      "name": "Already padded",
+      "detailUrl": "./resources/template/ab0.json"
+    },
+    {
+      "type": "codeList",
+      "slug": "customer-segments-for-the-quarterly-retention-report-q1",
+      "name": "Long",
+      "detailUrl": "./resources/codeList/customer-segments-for-the-quarterly-retention-report-q1.json"
+    },
+    {
+      "type": "codeList",
+      "slug": "customer-segments-for-the-quarterly-retention-repo",
+      "name": "Already cut",
+      "detailUrl": "./resources/codeList/customer-segments-for-the-quarterly-retention-repo.json"
+    },
+    {
+      "type": "font",
+      "slug": "customer-segments-for-the-quarterly-retention-repo-x",
+      "name": "Cut once",
+      "detailUrl": "./resources/font/customer-segments-for-the-quarterly-retention-repo-x.json"
+    },
+    {
+      "type": "font",
+      "slug": "customer-segments-for-the-quarterly-retention-repo-y",
+      "name": "Cut twice",
+      "detailUrl": "./resources/font/customer-segments-for-the-quarterly-retention-repo-y.json"
+    }
+  ],
+  "dependencies": []
+}

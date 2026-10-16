@@ -14,7 +14,7 @@ StencilDto:
   properties:
     key:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: |
@@ -82,7 +82,7 @@ StencilSummaryDto:
   properties:
     key:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: |
@@ -146,7 +146,7 @@ CreateStencilRequest:
   properties:
     key:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Client-chosen key for the stencil
@@ -232,7 +232,7 @@ StencilUsageDto:
   properties:
     templateKey:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the template using this stencil
@@ -243,7 +243,7 @@ StencilUsageDto:
       example: Monthly Invoice
     variantKey:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the variant
@@ -359,7 +359,7 @@ StencilContentDto:
   properties:
     stencilKey:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the stencil

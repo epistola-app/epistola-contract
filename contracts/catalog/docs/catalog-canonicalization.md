@@ -116,6 +116,12 @@ Whole-catalog validation chooses the rule by the archive's source wire version:
   (`CatalogCanonicalizer.matchesSourceV4Fingerprint`). V4 never covered a registry, a namespace or
   a catalog dependency, so what v8 adds needs no undoing. A fingerprint over different content still
   mismatches.
+- For any input read before v8, V1 to V4 are computed over the source keys. The v8 migration pads
+  keys shorter than 3 characters and cuts keys longer than 50, with every reference to them, and the
+  migrated key alone does not say what it was (`ab0` may have been `ab` or `ab0`), so the
+  canonicalizer restores each from the raw `catalog.json` and resource documents in the archive:
+  wherever the migrated value is exactly the rewrite of a different raw value at the same position.
+  V5 covers the keys as migrated.
 - Native v8 input must carry `v5:<hex>` over its own content. Naming another algorithm is
   `CATALOG_RELEASE_FINGERPRINT_INVALID`, even when it matches: an older one covers less.
 

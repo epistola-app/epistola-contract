@@ -1,0 +1,17 @@
+[
+  {
+    "code": "CATALOG_RESOURCE_KEY_PADDED",
+    "path": "resources/template/ab.json.resource.variants[0].key",
+    "message": "variant key 'nl' became 'nl0'"
+  },
+  {
+    "code": "CATALOG_DATA_EXAMPLE_KEY_ASSIGNED",
+    "path": "resources/template/ab.json.resource.dataExamples[0].key",
+    "message": "data example 'A' was given the key 'a00'"
+  },
+  {
+    "code": "CATALOG_DATA_EXAMPLE_KEY_ASSIGNED",
+    "path": "resources/template/ab.json.resource.dataExamples[1].key",
+    "message": "data example 'Standard' was given the key 'standard'"
+  }
+]

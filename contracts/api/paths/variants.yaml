@@ -19,7 +19,7 @@ variants:
       description: Key of the template
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
 
@@ -103,7 +103,7 @@ variants-id:
       description: Key of the template
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
     - name: variantKey
@@ -112,7 +112,7 @@ variants-id:
       description: Key of the variant
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
 
@@ -208,7 +208,7 @@ variant-set-default:
       description: Key of the template
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
     - name: variantKey
@@ -217,7 +217,7 @@ variant-set-default:
       description: Key of the variant
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
 
@@ -265,7 +265,7 @@ variant-content:
       description: Key of the template
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
     - name: variantKey
@@ -274,7 +274,7 @@ variant-content:
       description: Key of the variant
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
 
@@ -355,7 +355,7 @@ variant-mark-ready:
       description: Key of the template
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
     - name: variantKey
@@ -364,7 +364,7 @@ variant-mark-ready:
       description: Key of the variant
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 50
 

@@ -84,6 +84,19 @@ libraries.
   presets, so a typo is reported without refusing the document. `template-validation.json` gains
   a `warningCases` section.
 
+- **BREAKING: one key rule for every catalog resource.** The key of a template, variant, stencil,
+  theme, attribute, code list, font, image or data example, and every reference to one, is
+  `^[a-z0-9]+(-[a-z0-9]+)*$`, 3–50 characters, a leading digit allowed (migrated images keep their
+  UUID keys), in the API and in wire v8 alike. Before, the API had a rule per type (themes at most
+  20 characters, fonts from 2, code lists and attributes from 1, images and archive keys up to 64)
+  and wire v7 allowed 1–64, so a valid archive could hold resources the API could not address.
+  The catalog's own key keeps 3–50, letter first; tenant and environment keys are unchanged. The
+  v7→v8 migration pads a 1- or 2-character key with `0` (`nl` → `nl0`,
+  `CATALOG_RESOURCE_KEY_PADDED`) and truncates one over 50 characters
+  (`CATALOG_RESOURCE_KEY_TRUNCATED`), and rewrites every reference to it the same way, so
+  catalogs migrated separately still agree; a renamed key that collides with an existing one is
+  refused, never disambiguated. Epistola Suite must apply the same rule to the keys it stores.
+
 - **BREAKING: catalog drafts are independent copies; nothing is merged** (ADR 0002, amended). A
   release no longer flows into higher drafts. A draft's `base` is fixed: the release it started
   from. A draft is **behind** the releases numbered between its base and its own number:

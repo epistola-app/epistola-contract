@@ -42,10 +42,28 @@ class CatalogV8WireSchemaTest {
         assertEquals(CatalogArchivePaths.PATTERN, detail["ImageResource"]["properties"]["contentUrl"]["pattern"].asString())
         assertEquals(CatalogArchivePaths.PATTERN, detail["FontVariantEntry"]["properties"]["contentUrl"]["pattern"].asString())
 
-        val key = detail["DataExampleEntry"]["properties"]["key"]
-        val entryKey = manifest["ResourceEntry"]["properties"]["key"]
-        assertEquals(CatalogKeys.DATA_EXAMPLE, CatalogKeys.Rule(key["pattern"].asString(), key["minLength"].asInt(), key["maxLength"].asInt()))
-        assertEquals(CatalogKeys.DATA_EXAMPLE, CatalogKeys.Rule(entryKey["pattern"].asString(), entryKey["minLength"].asInt(), entryKey["maxLength"].asInt()))
+        // One rule for every resource key, wherever wire v8 names one.
+        val shared = tree("schemas/template-shared.schema.json")["\$defs"]
+        val keyPositions = listOf("TemplateResource", "ThemeResource", "StencilResource", "AttributeResource", "ImageResource", "CodeListResource", "FontResource")
+            .map { "$it.key" to detail[it]["properties"]["key"] } +
+            listOf(
+                "TemplateResource.themeKey" to detail["TemplateResource"]["properties"]["themeKey"],
+                "CodeListBindingRef.key" to detail["CodeListBindingRef"]["properties"]["key"],
+                "DataExampleEntry.key" to detail["DataExampleEntry"]["properties"]["key"],
+                "VariantEntry.key" to detail["VariantEntry"]["properties"]["key"],
+                "VariantEntry.attributes" to detail["VariantEntry"]["properties"]["attributes"]["oneOf"][0]["propertyNames"],
+                "ResourceEntry.key" to manifest["ResourceEntry"]["properties"]["key"],
+                "CatalogDependencyRef.key" to manifest["CatalogDependencyRef"]["properties"]["key"],
+                "AttributeAssignment.key" to manifest["AttributeAssignment"]["properties"]["key"],
+                "CatalogPresentation.iconImageKey" to manifest["CatalogPresentation"]["properties"]["iconImageKey"],
+                "CatalogPresentation.imageKeys" to manifest["CatalogPresentation"]["properties"]["imageKeys"]["items"],
+                "ThemeRef.themeKey" to shared["ThemeRef"]["oneOf"][1]["properties"]["themeKey"],
+            )
+        keyPositions.forEach { (where, key) ->
+            assertEquals(CatalogKeys.RESOURCE, CatalogKeys.Rule(key["pattern"].asString(), key["minLength"].asInt(), key["maxLength"].asInt()), where)
+        }
+        val catalogKey = manifest["CatalogInfo"]["properties"]["key"]
+        assertEquals(CatalogKeys.CATALOG, CatalogKeys.Rule(catalogKey["pattern"].asString(), catalogKey["minLength"].asInt(), catalogKey["maxLength"].asInt()))
         assertTrue("key" in detail["DataExampleEntry"]["required"].toList().map { it.asString() })
 
         val metadata = detail["VariantEntry"]["properties"]["metadata"]

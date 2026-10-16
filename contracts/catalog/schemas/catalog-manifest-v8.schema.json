@@ -186,8 +186,11 @@
           "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
         },
         "key": {
+          "description": "Key of the attribute resource within the catalog named by catalogKey; the same rule as every resource key.",
           "type": "string",
-          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
         },
         "value": {
           "type": "string"
@@ -208,13 +211,19 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
         },
         "imageKeys": {
           "description": "Keys of the image resources in this catalog shown in its gallery, in order. Until wire v8 this member was called imageAssetSlugs.",
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "minLength": 3,
+            "maxLength": 50
           },
           "uniqueItems": true
         }
@@ -339,9 +348,9 @@
         "key": {
           "description": "The resource's key: its public address within the catalog and its type. Until wire v8 this member was called slug.",
           "type": "string",
-          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
-          "minLength": 1,
-          "maxLength": 64
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
         },
         "name": {
           "type": "string"
@@ -408,9 +417,9 @@
         "key": {
           "description": "Key of the resource within the catalog named by registry, namespace and catalogKey. Until wire v8 this member was called slug.",
           "type": "string",
-          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
-          "minLength": 1,
-          "maxLength": 64
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
         }
       },
       "required": [

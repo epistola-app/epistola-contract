@@ -10,7 +10,7 @@
   "CATALOG_RESOURCE_KEY_MISMATCH": "detail and manifest key differ",
   "CATALOG_RESOURCE_NAME_MISMATCH": "detail and manifest name differ",
   "CATALOG_RESOURCE_DESCRIPTION_MISMATCH": "template description and manifest entry description are both present and differ (wire v8)",
-  "CATALOG_RESOURCE_KEY_INVALID": "resource key is not kebab-case",
+  "CATALOG_RESOURCE_KEY_INVALID": "a resource key, or a key a resource names, is outside the resource key rule",
   "CATALOG_RESOURCE_REFERENCE_MISSING": "same-catalog resource reference is absent",
   "CATALOG_DEPENDENCY_REFERENCE_MISSING": "declared external dependency cannot be resolved",
   "CATALOG_DEPENDENCY_DUPLICATE": "dependency identity is repeated",

@@ -43,7 +43,7 @@ PreviewDocumentRequest:
       example: letters
     templateKey:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the template to use for preview
@@ -215,7 +215,7 @@ GenerateDocumentRequest:
       example: letters
     templateKey:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the template to use for generation
@@ -346,7 +346,7 @@ BatchGenerationItem:
       example: letters
     templateKey:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the template to use for generation
@@ -545,14 +545,14 @@ DocumentGenerationItemDto:
       example: letters
     templateKey:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the template used for generation
       example: invoice
     variantKey:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the variant used for generation
@@ -912,14 +912,14 @@ DocumentDto:
       example: letters
     templateKey:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the template used to generate this document
       example: invoice
     variantKey:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the variant used to generate this document

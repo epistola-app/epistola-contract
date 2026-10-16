@@ -13,7 +13,7 @@ VariantDto:
   properties:
     key:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: |
@@ -21,7 +21,7 @@ VariantDto:
       example: english
     templateKey:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the template this variant belongs to
@@ -87,7 +87,7 @@ VariantSummaryDto:
   properties:
     key:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: |
@@ -131,7 +131,7 @@ CreateVariantRequest:
   properties:
     key:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Client-chosen key for the variant
@@ -239,7 +239,7 @@ VariantContentDto:
   properties:
     variantKey:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the variant

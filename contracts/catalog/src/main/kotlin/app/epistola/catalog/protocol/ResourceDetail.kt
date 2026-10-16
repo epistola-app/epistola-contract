@@ -349,7 +349,7 @@ data class FontVariantEntry(
  * Named example payload checked against [TemplateResource.dataModel].
  *
  * [key] (wire v8) is the example's address within its template, unique there
- * ([CatalogKeys.DATA_EXAMPLE]); [name] is its display name, also unique there. A catalog-v7 example
+ * ([CatalogKeys.RESOURCE]); [name] is its display name, also unique there. A catalog-v7 example
  * had no key, and the v7-to-v8 migration derives one from its name
  * ([CatalogKeys.deriveDataExampleKey]). The key is nullable, and omitted when null, so that examples
  * a consumer stored before wire v8 still bind; the catalog validator reports a missing one.

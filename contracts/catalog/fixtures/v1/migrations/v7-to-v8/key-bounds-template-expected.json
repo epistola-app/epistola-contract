@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 8,
+  "resource": {
+    "type": "template",
+    "key": "ab0",
+    "name": "Letter",
+    "themeKey": "x00",
+    "pdfaEnabled": true,
+    "dataExamples": [
+      {
+        "key": "a00",
+        "name": "A",
+        "data": {}
+      },
+      {
+        "key": "standard",
+        "name": "Standard",
+        "data": {}
+      }
+    ],
+    "templateModel": {
+      "modelVersion": 1,
+      "root": "root",
+      "nodes": {
+        "root": {
+          "id": "root",
+          "type": "root",
+          "slots": [
+            "children"
+          ],
+          "styles": {
+            "fontFamily": {
+              "key": "f00"
+            }
+          }
+        },
+        "address": {
+          "id": "address",
+          "type": "stencil",
+          "slots": [
+            "address-children"
+          ],
+          "props": {
+            "stencilKey": "ab0"
+          }
+        },
+        "shared": {
+          "id": "shared",
+          "type": "stencil",
+          "slots": [],
+          "props": {
+            "stencilKey": "ad0",
+            "catalogKey": "shared"
+          }
+        },
+        "icon": {
+          "id": "icon",
+          "type": "image",
+          "slots": [],
+          "props": {
+            "imageKey": "100",
+            "alt": "Icon"
+          }
+        }
+      },
+      "slots": {
+        "children": {
+          "id": "children",
+          "nodeId": "root",
+          "name": "children",
+          "children": [
+            "address",
+            "shared",
+            "icon"
+          ]
+        },
+        "address-children": {
+          "id": "address-children",
+          "nodeId": "address",
+          "name": "children",
+          "children": []
+        }
+      },
+      "themeRef": {
+        "type": "override",
+        "themeKey": "cs0",
+        "catalogKey": "shared"
+      }
+    },
+    "variants": [
+      {
+        "key": "nl0",
+        "title": "Dutch",
+        "attributes": {
+          "la0": "nl"
+        },
+        "isDefault": true
+      },
+      {
+        "key": "english",
+        "title": "English",
+        "attributes": {
+          "la0": "en"
+        }
+      }
+    ]
+  }
+}

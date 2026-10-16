@@ -44,9 +44,9 @@ FontDto:
   properties:
     key:
       type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 2
-      maxLength: 64
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
       description: Key (unique within `tenant + catalog`).
       example: inter
     name:

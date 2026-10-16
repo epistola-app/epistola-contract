@@ -56,6 +56,18 @@ versions catalogs as a whole:
   assignment's `catalog`. The migration renames them
   silently; a v8 document that uses an old name is refused. The Kotlin model still binds the old
   names so that documents stored under earlier versions keep loading.
+- Every resource key follows one rule, `^[a-z0-9]+(-[a-z0-9]+)*$` with 3 to 50 characters (a
+  leading digit allowed for every type): the keys of templates, variants, stencils, themes,
+  attributes, code lists, fonts, images and data examples, and every position that names one
+  (content references, resource dependencies, code-list bindings, attribute assignments, a
+  variant's attribute keys, the presentation's image keys). The catalog's own key keeps its rule
+  (a leading letter, 3 to 50). The v7-to-v8 migration pads a shorter v7 key on the right with `0`
+  (`nl` becomes `nl0`) and cuts a longer one to 50 characters, rewriting every reference to it the
+  same way, with one notice per key (`CATALOG_RESOURCE_KEY_PADDED`,
+  `CATALOG_RESOURCE_KEY_TRUNCATED`). The rewrite depends on the key alone, so catalogs migrated
+  independently, and references between them, still agree; a rewritten key that collides with
+  another of its scope is refused (`CATALOG_RESOURCE_KEY_PADDING_COLLISION`,
+  `CATALOG_RESOURCE_KEY_TRUNCATION_COLLISION`) rather than given a different key.
 - A template's data examples each have a `key`, their address within the template, next to the
   display `name`; the v7-to-v8 migration derives one from the name with a notice
   (`CATALOG_DATA_EXAMPLE_KEY_ASSIGNED`). A template may carry a plain-text `description` (at most
@@ -79,9 +91,11 @@ rules are defined the same way: `CatalogNamespaces` in Kotlin, and `CATALOG_REGI
 `MAX_CATALOG_REGISTRY_LENGTH`, `CATALOG_NAMESPACE_PATTERN`, `MIN_CATALOG_NAMESPACE_LENGTH`,
 `MAX_CATALOG_NAMESPACE_LENGTH`, and `MAX_CATALOG_DEPENDENCY_VERSION_LENGTH` in TypeScript.
 Paths into the catalog are `CatalogArchivePaths` and `CATALOG_ARCHIVE_PATH_PATTERN`; variant
-metadata is `CatalogVariantMetadata` and the `…VARIANT_METADATA…` constants; data example keys are
-`CatalogKeys.DATA_EXAMPLE` (with `CatalogKeys.deriveDataExampleKey`) and
-`CATALOG_DATA_EXAMPLE_KEY_PATTERN`; the template description limit is
+metadata is `CatalogVariantMetadata` and the `…VARIANT_METADATA…` constants; resource keys, data
+example keys among them, are `CatalogKeys` (`PATTERN`, `MIN_LENGTH`, `MAX_LENGTH`, `RESOURCE`,
+`isValid`, the migration's `migrate`, and `deriveDataExampleKey`) and
+`CATALOG_RESOURCE_KEY_PATTERN`, `MIN_CATALOG_RESOURCE_KEY_LENGTH` and
+`MAX_CATALOG_RESOURCE_KEY_LENGTH`; the template description limit is
 `TemplateResource.MAX_DESCRIPTION_LENGTH` and `MAX_TEMPLATE_DESCRIPTION_LENGTH`.
 Producers should use these rather than their own copies.
 

@@ -96,8 +96,8 @@ code-lists-key:
       description: Key of the code list.
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 1
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+        minLength: 3
         maxLength: 50
   get:
     operationId: getCodeList
@@ -188,7 +188,9 @@ code-list-refresh:
       required: true
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
   post:
     operationId: refreshCodeList
     summary: Refresh a URL-sourced code list from its source
@@ -235,7 +237,9 @@ code-list-entries:
       required: true
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 50
     - name: includeHidden
       in: query
       required: false
@@ -285,8 +289,8 @@ code-list-entry-hidden:
       required: true
       schema:
         type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 1
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+        minLength: 3
         maxLength: 50
     - name: code
       in: path
