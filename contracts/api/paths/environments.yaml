@@ -1,9 +1,9 @@
 environments:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -71,19 +71,19 @@ environments:
 
 environments-id:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: environmentId
+    - name: environmentKey
       in: path
       required: true
-      description: Slug identifier of the environment (e.g., "production", "staging")
+      description: Key of the environment (e.g., "production", "staging")
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -163,19 +163,19 @@ environments-id:
 
 environment-deployments:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: environmentId
+    - name: environmentKey
       in: path
       required: true
-      description: Slug identifier of the environment
+      description: Key of the environment
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -208,19 +208,19 @@ environment-deployments:
 
 environment-deployment-release:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: environmentId
+    - name: environmentKey
       in: path
       required: true
-      description: Slug identifier of the environment
+      description: Key of the environment
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -314,19 +314,19 @@ environment-deployment-release:
 
 environment-deployment-history:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
         minLength: 3
         maxLength: 63
-    - name: environmentId
+    - name: environmentKey
       in: path
       required: true
-      description: Slug identifier of the environment
+      description: Key of the environment
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'

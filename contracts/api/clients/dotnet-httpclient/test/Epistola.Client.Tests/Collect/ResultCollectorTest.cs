@@ -36,7 +36,7 @@ public class ResultCollectorTest
         var received = new List<ResultCollector.GenerationResult>();
         var collector = ResultCollector.Builder()
             .HttpClient(StubClient(ndjson))
-            .TenantId("acme")
+            .TenantKey("acme")
             .RegisterShutdownHook(false)
             .Handler(received.Add)
             .Build();
@@ -66,7 +66,7 @@ public class ResultCollectorTest
         var received = new List<ResultCollector.GenerationResult>();
         ResultCollector.Builder()
             .HttpClient(StubClient(ndjson))
-            .TenantId("acme")
+            .TenantKey("acme")
             .RegisterShutdownHook(false)
             .Handler(received.Add)
             .Build()
@@ -84,11 +84,35 @@ public class ResultCollectorTest
     }
 
     [Fact]
+    public void AResultNamesItsTemplateAndVariantByKey()
+    {
+        // Contract 2.0 names the template and variant by their keys; the old *Id names are not read.
+        var ndjson =
+            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"COMPLETED\",\"templateKey\":\"invoice\",\"variantKey\":\"nl-nl\"}\n" +
+            "{\"sequence\":2,\"requestId\":\"r2\",\"status\":\"COMPLETED\",\"templateId\":\"invoice\",\"variantId\":\"nl-nl\"}\n" +
+            "{\"_meta\":true,\"hasMore\":false}\n";
+
+        var received = new List<ResultCollector.GenerationResult>();
+        ResultCollector.Builder()
+            .HttpClient(StubClient(ndjson))
+            .TenantKey("acme")
+            .RegisterShutdownHook(false)
+            .Handler(received.Add)
+            .Build()
+            .CollectOnce();
+
+        Assert.Equal("invoice", received[0].TemplateKey);
+        Assert.Equal("nl-nl", received[0].VariantKey);
+        Assert.Null(received[1].TemplateKey);
+        Assert.Null(received[1].VariantKey);
+    }
+
+    [Fact]
     public void PartitionHelpersRequireAssignment()
     {
         var collector = ResultCollector.Builder()
             .HttpClient(StubClient(""))
-            .TenantId("acme")
+            .TenantKey("acme")
             .RegisterShutdownHook(false)
             .Handler(_ => { })
             .Build();
@@ -104,7 +128,7 @@ public class ResultCollectorTest
         var ndjson = "{\"_meta\":true,\"hasMore\":false,\"partitions\":{\"total\":8,\"mine\":[0,1,2,3,4,5,6,7],\"hash\":\"murmur3\"}}\n";
         var collector = ResultCollector.Builder()
             .HttpClient(StubClient(ndjson))
-            .TenantId("acme")
+            .TenantKey("acme")
             .RegisterShutdownHook(false)
             .Handler(_ => { })
             .Build();
@@ -128,7 +152,7 @@ public class ResultCollectorTest
         var ndjson = "{\"_meta\":true,\"hasMore\":false,\"partitions\":{\"total\":8,\"mine\":[0,3],\"hash\":\"murmur3\"}}\n";
         var collector = ResultCollector.Builder()
             .HttpClient(StubClient(ndjson))
-            .TenantId("acme")
+            .TenantKey("acme")
             .RegisterShutdownHook(false)
             .Handler(_ => { })
             .Build();
@@ -174,7 +198,7 @@ public class ResultCollectorTest
 
         var collector = ResultCollector.Builder()
             .HttpClient(new HttpClient(handler) { BaseAddress = new Uri("https://epistola.test/api") })
-            .TenantId("acme")
+            .TenantKey("acme")
             .RegisterShutdownHook(false)
             .MinInterval(TimeSpan.FromMilliseconds(200))
             .MaxInterval(TimeSpan.FromSeconds(5))

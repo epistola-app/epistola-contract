@@ -43,7 +43,7 @@ GenerationResult:
     - sequence
     - requestId
     - status
-    - templateId
+    - templateKey
     - completedAt
   properties:
     sequence:
@@ -106,11 +106,11 @@ GenerationResult:
       maxLength: 50
       description: Key of the template's catalog, unique within its registry and namespace. Null for a result accepted before contract 2.0
       example: letters
-    templateId:
+    templateKey:
       type: string
       description: Template used for generation
       example: invoice
-    variantId:
+    variantKey:
       type: ['string', 'null']
       description: Variant used for generation
       example: english

@@ -61,27 +61,27 @@ public class ValidatingGenerationApi {
     }
 
     /** Checks the request data where the validator asks for it, then submits. */
-    public GenerationJobResponse generateDocument(String tenantId, GenerateDocumentRequest request) {
+    public GenerationJobResponse generateDocument(String tenantKey, GenerateDocumentRequest request) {
         if (validator.preflightsGeneration()) {
             new TemplateSchemaValidator(validator)
                     .validate(
-                            tenantId,
+                            tenantKey,
                             pathSegment(request.getRegistry()),
                             request.getNamespace(),
                             request.getCatalogKey(),
-                            request.getTemplateId(),
+                            request.getTemplateKey(),
                             request.getData());
         }
-        return translatingProblem(() -> delegate.generateDocument(tenantId, request));
+        return translatingProblem(() -> delegate.generateDocument(tenantKey, request));
     }
 
     /** The same for a batch, reporting every item's failures together when it pre-flights. */
-    public GenerationJobResponse generateDocumentBatch(String tenantId, GenerateBatchRequest request) {
-        preflightBatch(tenantId, request);
-        return translatingProblem(() -> delegate.generateDocumentBatch(tenantId, request));
+    public GenerationJobResponse generateDocumentBatch(String tenantKey, GenerateBatchRequest request) {
+        preflightBatch(tenantKey, request);
+        return translatingProblem(() -> delegate.generateDocumentBatch(tenantKey, request));
     }
 
-    private void preflightBatch(String tenantId, GenerateBatchRequest request) {
+    private void preflightBatch(String tenantKey, GenerateBatchRequest request) {
         if (!validator.preflightsGeneration()) {
             return;
         }
@@ -92,11 +92,11 @@ public class ValidatingGenerationApi {
             String prefix = "items[" + index + "]";
             for (TemplateDataValidationException.ValidationError error :
                     validator.validate(
-                            tenantId,
+                            tenantKey,
                             pathSegment(item.getRegistry()),
                             item.getNamespace(),
                             item.getCatalogKey(),
-                            item.getTemplateId(),
+                            item.getTemplateKey(),
                             item.getData())) {
                 allErrors.add(error.withPathPrefix(prefix));
             }

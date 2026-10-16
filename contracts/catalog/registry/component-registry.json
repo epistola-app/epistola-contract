@@ -2499,7 +2499,7 @@
         "marginBottom": "1.5sp"
       },
       "defaultProps": {
-        "assetId": null,
+        "imageKey": null,
         "catalogKey": null,
         "alt": "",
         "decorative": false,
@@ -2510,7 +2510,7 @@
       "examples": [
         {
           "name": "placeholder",
-          "description": "An empty image node with no assigned asset. The assetId is null, so the renderer shows a placeholder. Set assetId to a valid asset reference and width/height to render the actual image.",
+          "description": "An empty image node with no assigned image. The imageKey is null, so the renderer shows a placeholder. Set imageKey to the key of an image resource and width/height to render the actual image.",
           "fragment": {
             "rootNodeId": "n-image-placeholder",
             "nodes": {
@@ -2519,7 +2519,7 @@
                 "type": "image",
                 "slots": [],
                 "props": {
-                  "assetId": null,
+                  "imageKey": null,
                   "alt": "",
                   "width": "",
                   "height": "",
@@ -2532,7 +2532,7 @@
         },
         {
           "name": "with-asset",
-          "description": "An image node referencing a real asset (the Epistola logo from the demo catalog: slug 01966a00-0000-7000-8000-000000000001). The catalogKey records which catalog the asset lives in, so the reference works across catalogs. Width and height are set in points — the renderer fetches the asset binary when producing the PDF.",
+          "description": "An image node referencing a real image (the Epistola logo from the demo catalog: key 01966a00-0000-7000-8000-000000000001). The imageKey is the image resource's key within its catalog, and the catalogKey records which catalog the image lives in, so the reference works across catalogs. Width and height are set in points — the renderer fetches the image binary when producing the PDF.",
           "fragment": {
             "rootNodeId": "n-image-logo",
             "nodes": {
@@ -2541,7 +2541,7 @@
                 "type": "image",
                 "slots": [],
                 "props": {
-                  "assetId": "01966a00-0000-7000-8000-000000000001",
+                  "imageKey": "01966a00-0000-7000-8000-000000000001",
                   "catalogKey": "epistola-demo",
                   "alt": "Epistola Logo",
                   "width": "80pt",
@@ -2575,7 +2575,7 @@
       "applicableStyles": "all",
       "inspector": [],
       "defaultProps": {
-        "stencilId": null,
+        "stencilKey": null,
         "catalogKey": null
       },
       "examples": [
@@ -2592,7 +2592,7 @@
                   "s-stencil-letter-children"
                 ],
                 "props": {
-                  "stencilId": "letter-shell",
+                  "stencilKey": "letter-shell",
                   "catalogKey": "epistola-demo"
                 }
               },
@@ -2670,7 +2670,7 @@
                   "s-stencil-letter-ov-children"
                 ],
                 "props": {
-                  "stencilId": "letter-shell",
+                  "stencilKey": "letter-shell",
                   "catalogKey": "epistola-demo"
                 }
               },

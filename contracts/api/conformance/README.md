@@ -61,18 +61,18 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | Action | What the driver does |
 | --- | --- |
 | `ping` | `POST /ping` with client metadata, through the generated API |
-| `list-templates` | `GET …/templates`, `config.repeat` times, reporting the ids and slugs it parsed from the last response |
+| `list-templates` | `GET …/templates`, `config.repeat` times, reporting the keys it parsed from the last response (`templateKeys`) |
 | `collect` | build a `ResultCollector` from `config`, run it for `config.runForMs`, stop it, report what it handled, including each result's catalog and release as `releases` (`registry/namespace/catalogKey@releaseVersion`, a missing value as `null`) |
 | `problem` | make a request the server answers with a problem, report the parsed slug and members |
 | `validate-template-data` | validate `config.data` for a template through `TemplateSchemaValidator`, reporting the paths and keywords of the failures it surfaced |
-| `generate-document` | `POST …/documents/generate` with a real body, through the generated API; `config.registry`, `config.version` and `config.environmentId` are sent when present, and left unset otherwise |
+| `generate-document` | `POST …/documents/generate` with a real body, through the generated API; `config.registry`, `config.version` and `config.environmentKey` are sent when present, and left unset otherwise |
 | `routing` | poll once for a partition assignment, then report what the routing helpers compute |
 | `update-consumer` | `PATCH …/consumers/{id}` setting exactly one field |
 | `download-document` | `GET …/documents/{id}`, reporting the SHA-256 and length of the bytes |
 | `list-images` | `GET …/images?search=…`, reporting the keys, widths, heights and media types it parsed |
 | `upload-image` | `POST …/images` with the file from `config` (bytes, filename, content type) and a name, reporting the returned key and name |
-| `download-image` | `GET …/images/{imageSlug}/content`, reporting the SHA-256 and length of the bytes |
-| `delete-image` | `DELETE …/images/{imageSlug}` with `force` from `config` |
+| `download-image` | `GET …/images/{imageKey}/content`, reporting the SHA-256 and length of the bytes |
+| `delete-image` | `DELETE …/images/{imageKey}` with `force` from `config` |
 | `list-catalog-dependencies` | `GET …/versions/{catalogVersion}/dependencies` |
 | `update-catalog-dependencies` | `PUT …/versions/{catalogVersion}/dependencies` with `config.dependencies`, each entry's `registry` set only when the entry has one, reporting the `registries`, `namespaces`, `catalogKeys`, `versions` and `resolvedVersions` it parsed, in order |
 | `create-catalog-version` | `POST …/catalogs/{registry}/{namespace}/{catalogKey}/versions` with `config.version`, and `config.from` when present, reporting the `version`, `status`, `base`, `createdFrom` and `releasedAt` it parsed |
@@ -84,8 +84,8 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | `release-catalog-version` | `POST …/versions/{catalogVersion}/release` with `config.notes` when present, reporting the released `version` and `status`, `flowedInto` as `version:merged:conflicts` per draft, and `openedDraft` |
 | `list-incoming-changes` | `GET …/versions/{catalogVersion}/incoming`, with `config.state` as the `state` filter when present, reporting the `ids`, `nodes`, `states` and `resolutions` it parsed, in order |
 | `resolve-incoming-change` | `POST …/versions/{catalogVersion}/incoming/{changeId}/resolve` with `config.resolution`, reporting the `id`, `state` and `resolution` it parsed |
-| `deploy-release` | `PUT …/environments/{environmentId}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}`, with `includeDependencies` from `config` when present and unset otherwise, reporting the `registry`, `namespace`, `catalogKey` and `releaseVersion` it parsed. When the server answers with a problem, report `problemTypeSlug`, `problemStatus` and `problemMissingDependencies` (`registry/namespace/catalogKey@releaseVersion:reason`, comma-joined, in order) instead |
-| `undeploy-release` | `DELETE …/environments/{environmentId}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}` |
+| `deploy-release` | `PUT …/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}`, with `includeDependencies` from `config` when present and unset otherwise, reporting the `registry`, `namespace`, `catalogKey` and `releaseVersion` it parsed. When the server answers with a problem, report `problemTypeSlug`, `problemStatus` and `problemMissingDependencies` (`registry/namespace/catalogKey@releaseVersion:reason`, comma-joined, in order) instead |
+| `undeploy-release` | `DELETE …/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}` |
 
 Catalog-scoped actions take the catalog as `config.registry`, `config.namespace` and
 `config.catalogKey`, and actions on a catalog version (templates, images, dependencies, and the
@@ -140,7 +140,7 @@ why: >
 
 action:
   name: collect
-  config: { tenantId: acme-corp, minIntervalMs: 150, runForMs: 1200, ... }
+  config: { tenantKey: acme-corp, minIntervalMs: 150, runForMs: 1200, ... }
 
 script:              # responses, in order; the last entry repeats
   - status: 200
@@ -252,4 +252,5 @@ test suites — which is the argument for the suite existing:
   template listing from any released Suite; Jakarta and Node.js read it. Their tests only ever saw
   responses shaped by the current spec, which is the one shape an older server never sends. The
   `older-server-response` scenario played one until 2.0.0 removed `id` and required `slug`; its
-  successor, `template-listing-by-slug`, holds every client to reading the slug alone.
+  successor, `template-listing-by-key`, holds every client to reading the address from `key`
+  alone, the name 2.0.0 gives it (#84).

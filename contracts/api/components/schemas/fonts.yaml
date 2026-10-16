@@ -30,7 +30,7 @@ FontDto:
     no create/update/delete via this API. (Write access may be revisited
     later.)
   required:
-    - slug
+    - key
     - name
     - kind
     - registry
@@ -42,12 +42,12 @@ FontDto:
     - createdAt
     - lastModified
   properties:
-    slug:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 2
       maxLength: 64
-      description: Slug identifier (unique within `tenant + catalog`).
+      description: Key (unique within `tenant + catalog`).
       example: inter
     name:
       type: string

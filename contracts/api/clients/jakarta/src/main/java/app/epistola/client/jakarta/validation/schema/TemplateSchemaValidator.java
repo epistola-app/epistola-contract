@@ -51,9 +51,9 @@ public class TemplateSchemaValidator {
      *     offer {@code validateTemplateData}
      */
     public void validate(
-            String tenantId, String registry, String namespace, String catalogKey, String templateId, Object data) {
+            String tenantKey, String registry, String namespace, String catalogKey, String templateKey, Object data) {
         List<TemplateDataValidationException.ValidationError> errors =
-                validator.validate(tenantId, registry, namespace, catalogKey, templateId, data);
+                validator.validate(tenantKey, registry, namespace, catalogKey, templateKey, data);
         if (!errors.isEmpty()) {
             throw new TemplateDataValidationException(errors);
         }

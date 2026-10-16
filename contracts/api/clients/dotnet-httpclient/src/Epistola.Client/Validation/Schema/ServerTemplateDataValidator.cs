@@ -33,31 +33,31 @@ namespace Epistola.Client.Validation.Schema;
 public sealed class ServerTemplateDataValidator : ITemplateDataValidator
 {
     private readonly ITemplatesApi _templatesApi;
-    private readonly string? _variantId;
+    private readonly string? _variantKey;
     private readonly string? _version;
-    private readonly string? _environmentId;
+    private readonly string? _environmentKey;
 
     /// <param name="templatesApi">The generated API used to reach <c>validateTemplateData</c>.</param>
-    /// <param name="variantId">Optional variant to check against; without it, the default variant.</param>
+    /// <param name="variantKey">Optional variant to check against; without it, the default variant.</param>
     /// <param name="version">
     /// Optional version selector for the release of the template's catalog to check against, such as
     /// <c>1.4.0</c>. It is passed through unchecked: the server decides which selectors it accepts.
-    /// Without it (and without <paramref name="environmentId"/>), the catalog's latest release is used.
+    /// Without it (and without <paramref name="environmentKey"/>), the catalog's latest release is used.
     /// </param>
-    /// <param name="environmentId">
+    /// <param name="environmentKey">
     /// Optional environment to check against: the highest release it serves (that satisfies
     /// <paramref name="version"/>, when both are given).
     /// </param>
     public ServerTemplateDataValidator(
         ITemplatesApi templatesApi,
-        string? variantId = null,
+        string? variantKey = null,
         string? version = null,
-        string? environmentId = null)
+        string? environmentKey = null)
     {
         _templatesApi = templatesApi;
-        _variantId = variantId;
+        _variantKey = variantKey;
         _version = version;
-        _environmentId = environmentId;
+        _environmentKey = environmentKey;
     }
 
     /// <summary>
@@ -68,15 +68,15 @@ public sealed class ServerTemplateDataValidator : ITemplateDataValidator
 
     /// <inheritdoc />
     public IReadOnlyList<TemplateDataValidationException.ValidationError> Validate(
-        string tenantId, string registry, string @namespace, string catalogKey, string templateId, object data)
+        string tenantKey, string registry, string @namespace, string catalogKey, string templateKey, object data)
     {
         var request = new ValidateTemplateDataRequest(
-            variantId: _variantId,
+            variantKey: _variantKey,
             varVersion: _version,
-            environmentId: _environmentId,
+            environmentKey: _environmentKey,
             data: data);
 
-        var result = _templatesApi.ValidateTemplateData(tenantId, registry, @namespace, catalogKey, templateId, request);
+        var result = _templatesApi.ValidateTemplateData(tenantKey, registry, @namespace, catalogKey, templateKey, request);
         if (result == null || result.Valid)
         {
             return new List<TemplateDataValidationException.ValidationError>();

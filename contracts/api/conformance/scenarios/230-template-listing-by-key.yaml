@@ -2,20 +2,20 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: template-listing-by-slug
-title: A template listing is read by slug, the only address a 2.0 server sends
+id: template-listing-by-key
+title: A template listing is read by key, the only address a 2.0 server sends
 why: >
   Contract 1.3.0 added `slug` beside the `id` it duplicated, optional so that a 1.x client could
-  still read a server from before 1.3.0. Contract 2.0.0 removes `id` and requires `slug`
-  (epistola-app/epistola-contract#84), so every client must read the address from `slug` alone. A
-  generated model that still looked for `id`, or treated `slug` as optional and dropped it, would
-  surface nothing here.
+  still read a server from before 1.3.0. Contract 2.0.0 names a resource's address `key`, removes
+  both `id` and `slug`, and requires `key` (epistola-app/epistola-contract#84), so every client must
+  read the address from `key` alone. A generated model that still looked for `id` or `slug`, or
+  treated `key` as optional and dropped it, would surface nothing here.
 
 action:
   name: list-templates
   config:
     nodeId: conformance-node-1
-    tenantId: acme-corp
+    tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: main
@@ -26,13 +26,13 @@ script:
     contentType: application/vnd.epistola.v1+json
     body:
       items:
-        - slug: invoice
-          tenantId: acme-corp
+        - key: invoice
+          tenantKey: acme-corp
           name: Invoice
           createdAt: '2026-08-20T10:00:00Z'
           lastModified: '2026-08-20T10:00:00Z'
-        - slug: reminder-letter
-          tenantId: acme-corp
+        - key: reminder-letter
+          tenantKey: acme-corp
           name: Reminder letter
           createdAt: '2026-08-20T10:00:00Z'
           lastModified: '2026-08-21T09:30:00Z'
@@ -41,4 +41,4 @@ script:
 expect:
   requestCount: 1
   report:
-    templateSlugs: invoice,reminder-letter
+    templateKeys: invoice,reminder-letter

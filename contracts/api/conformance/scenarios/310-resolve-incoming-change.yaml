@@ -12,7 +12,7 @@ action:
   name: resolve-incoming-change
   config:
     nodeId: conformance-node-1
-    tenantId: acme-corp
+    tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
@@ -23,7 +23,7 @@ action:
 script:
   - status: 200
     contentType: application/vnd.epistola.v1+json
-    body: { id: chg-1, fromVersion: 1.5.0, type: template, slug: invoice, node: dutch/node-greeting, state: resolved, resolution: keep }
+    body: { id: chg-1, fromVersion: 1.5.0, type: template, key: invoice, node: dutch/node-greeting, state: resolved, resolution: keep }
 
 expect:
   requestCount: 1

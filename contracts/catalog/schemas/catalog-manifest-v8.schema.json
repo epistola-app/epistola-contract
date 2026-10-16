@@ -91,7 +91,8 @@
         "namespace": {
           "$ref": "#/$defs/CatalogNamespace"
         },
-        "slug": {
+        "key": {
+          "description": "The catalog's key: its public address within its namespace. Until wire v8 this member was called slug.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 3,
@@ -151,7 +152,7 @@
       "required": [
         "registry",
         "namespace",
-        "slug",
+        "key",
         "name"
       ],
       "additionalProperties": false
@@ -179,7 +180,8 @@
     "AttributeAssignment": {
       "type": "object",
       "properties": {
-        "catalog": {
+        "catalogKey": {
+          "description": "Key of the catalog defining the attribute. Until wire v8 this member was called catalog.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
         },
@@ -192,7 +194,7 @@
         }
       },
       "required": [
-        "catalog",
+        "catalogKey",
         "key",
         "value"
       ],
@@ -201,13 +203,15 @@
     "CatalogPresentation": {
       "type": "object",
       "properties": {
-        "iconAssetSlug": {
+        "iconImageKey": {
+          "description": "Key of the image resource in this catalog that serves as the catalog's icon. Until wire v8 this member was called iconAssetSlug.",
           "type": [
             "string",
             "null"
           ]
         },
-        "imageAssetSlugs": {
+        "imageKeys": {
+          "description": "Keys of the image resources in this catalog shown in its gallery, in order. Until wire v8 this member was called imageAssetSlugs.",
           "type": "array",
           "items": {
             "type": "string"
@@ -332,7 +336,8 @@
         "type": {
           "type": "string"
         },
-        "slug": {
+        "key": {
+          "description": "The resource's key: its public address within the catalog and its type. Until wire v8 this member was called slug.",
           "type": "string",
           "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
           "minLength": 1,
@@ -359,7 +364,7 @@
       },
       "required": [
         "type",
-        "slug",
+        "key",
         "name",
         "detailUrl"
       ],
@@ -397,7 +402,8 @@
           "minLength": 3,
           "maxLength": 50
         },
-        "slug": {
+        "key": {
+          "description": "Key of the resource within the catalog named by registry, namespace and catalogKey. Until wire v8 this member was called slug.",
           "type": "string",
           "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
           "minLength": 1,
@@ -409,7 +415,7 @@
         "registry",
         "namespace",
         "catalogKey",
-        "slug"
+        "key"
       ],
       "additionalProperties": false
     },

@@ -49,8 +49,8 @@ class GenerationResult:
     document_id: Optional[str]
     correlation_id: Optional[str]
     routing_key: Optional[str]
-    template_id: Optional[str]
-    variant_id: Optional[str]
+    template_key: Optional[str]
+    variant_key: Optional[str]
     #: The catalog's registry, named in full (never ``~``); ``None`` for results from before
     #: contract 2.0.
     registry: Optional[str]
@@ -165,7 +165,7 @@ class ResultCollector:
     def __init__(
         self,
         api_client,
-        tenant_id: str,
+        tenant_key: str,
         batch_size: int,
         min_interval: float,
         max_interval: float,
@@ -177,7 +177,7 @@ class ResultCollector:
         register_shutdown_hook: bool,
     ) -> None:
         self._api_client = api_client
-        self._tenant_id = tenant_id
+        self._tenant_key = tenant_key
         self._batch_size = batch_size
         self._min_interval = min_interval
         self._max_interval = max_interval
@@ -353,7 +353,7 @@ class ResultCollector:
         headers["Accept-Encoding"] = _supported_encodings()
 
         url = self._api_client.configuration.host.rstrip("/") + (
-            f"/tenants/{self._tenant_id}/generation/collect"
+            f"/tenants/{self._tenant_key}/generation/collect"
         )
 
         response = self._api_client.rest_client.pool_manager.request(
@@ -484,8 +484,8 @@ def _parse_result(node: dict) -> GenerationResult:
         document_id=node.get("documentId"),
         correlation_id=node.get("correlationId"),
         routing_key=node.get("routingKey"),
-        template_id=node.get("templateId"),
-        variant_id=node.get("variantId"),
+        template_key=node.get("templateKey"),
+        variant_key=node.get("variantKey"),
         registry=node.get("registry"),
         namespace=node.get("namespace"),
         catalog_key=node.get("catalogKey"),
@@ -503,7 +503,7 @@ class ResultCollectorBuilder:
 
     def __init__(self) -> None:
         self._api_client = None
-        self._tenant_id: Optional[str] = None
+        self._tenant_key: Optional[str] = None
         self._batch_size = 100
         self._min_interval = 1.0
         self._max_interval = 30.0
@@ -519,9 +519,9 @@ class ResultCollectorBuilder:
         self._api_client = api_client
         return self
 
-    def tenant_id(self, tenant_id: str) -> "ResultCollectorBuilder":
+    def tenant_key(self, tenant_key: str) -> "ResultCollectorBuilder":
         """The tenant whose results to collect."""
-        self._tenant_id = tenant_id
+        self._tenant_key = tenant_key
         return self
 
     def batch_size(self, size: int) -> "ResultCollectorBuilder":
@@ -580,13 +580,13 @@ class ResultCollectorBuilder:
         """Build the :class:`ResultCollector`."""
         if self._api_client is None:
             raise ValueError("api_client is required")
-        if self._tenant_id is None:
-            raise ValueError("tenant_id is required")
+        if self._tenant_key is None:
+            raise ValueError("tenant_key is required")
         if self._handler is None:
             raise ValueError("handler is required")
         return ResultCollector(
             self._api_client,
-            self._tenant_id,
+            self._tenant_key,
             self._batch_size,
             self._min_interval,
             self._max_interval,

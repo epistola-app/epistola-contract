@@ -3,12 +3,12 @@
   "catalog": {
     "registry": "exchange.epistola.app",
     "namespace": "epistola",
-    "slug": "fixture",
+    "key": "fixture",
     "name": "Fixture Catalog",
     "description": "Portable golden fixture",
     "attributes": [
       {
-        "catalog": "system",
+        "catalogKey": "system",
         "key": "locale",
         "value": "nl-NL"
       }
@@ -31,7 +31,7 @@
   "resources": [
     {
       "type": "theme",
-      "slug": "default",
+      "key": "default",
       "name": "Default",
       "detailUrl": "./resources/theme/default.json"
     }
@@ -42,7 +42,7 @@
       "registry": "exchange.epistola.app",
       "namespace": "epistola",
       "catalogKey": "shared",
-      "slug": "inter"
+      "key": "inter"
     }
   ],
   "catalogDependencies": [

@@ -8,7 +8,7 @@
 
 ## 1. Problem Statement
 
-Epistola currently provides no mechanism for API consumers to learn about changes in the system beyond what they explicitly poll for. The only near-real-time pattern today is job status polling (`GET /tenants/{tenantId}/documents/jobs/{requestId}`), which is scoped to a single generation request.
+Epistola currently provides no mechanism for API consumers to learn about changes in the system beyond what they explicitly poll for. The only near-real-time pattern today is job status polling (`GET /tenants/{tenantKey}/documents/jobs/{requestId}`), which is scoped to a single generation request.
 
 This leaves several important use-cases unserved:
 
@@ -43,23 +43,23 @@ Events correspond to state changes in the domain model. Every mutating API opera
 
 | Event Type | Trigger |
 |---|---|
-| `template.created` | `POST /tenants/{tenantId}/templates` |
-| `template.updated` | `PATCH /tenants/{tenantId}/templates/{templateId}` |
-| `template.deleted` | `DELETE /tenants/{tenantId}/templates/{templateId}` |
-| `variant.created` | `POST /tenants/{tenantId}/templates/{templateId}/variants` |
-| `variant.updated` | `PATCH /tenants/{tenantId}/templates/{templateId}/variants/{variantId}` |
-| `variant.deleted` | `DELETE /tenants/{tenantId}/templates/{templateId}/variants/{variantId}` |
+| `template.created` | `POST /tenants/{tenantKey}/templates` |
+| `template.updated` | `PATCH /tenants/{tenantKey}/templates/{templateKey}` |
+| `template.deleted` | `DELETE /tenants/{tenantKey}/templates/{templateKey}` |
+| `variant.created` | `POST /tenants/{tenantKey}/templates/{templateKey}/variants` |
+| `variant.updated` | `PATCH /tenants/{tenantKey}/templates/{templateKey}/variants/{variantKey}` |
+| `variant.deleted` | `DELETE /tenants/{tenantKey}/templates/{templateKey}/variants/{variantKey}` |
 | `version.draft_updated` | `PATCH .../versions/{versionId}` |
 | `version.published` | `POST .../versions/{versionId}/publish` |
 | `version.archived` | `POST .../versions/{versionId}/archive` |
-| `activation.changed` | `PUT .../variants/{variantId}/activations/{environmentId}` |
-| `activation.removed` | `DELETE .../variants/{variantId}/activations/{environmentId}` |
-| `theme.created` | `POST /tenants/{tenantId}/themes` |
-| `theme.updated` | `PATCH /tenants/{tenantId}/themes/{themeId}` |
-| `theme.deleted` | `DELETE /tenants/{tenantId}/themes/{themeId}` |
-| `environment.created` | `POST /tenants/{tenantId}/environments` |
-| `environment.updated` | `PATCH /tenants/{tenantId}/environments/{environmentId}` |
-| `environment.deleted` | `DELETE /tenants/{tenantId}/environments/{environmentId}` |
+| `activation.changed` | `PUT .../variants/{variantKey}/activations/{environmentKey}` |
+| `activation.removed` | `DELETE .../variants/{variantKey}/activations/{environmentKey}` |
+| `theme.created` | `POST /tenants/{tenantKey}/themes` |
+| `theme.updated` | `PATCH /tenants/{tenantKey}/themes/{themeKey}` |
+| `theme.deleted` | `DELETE /tenants/{tenantKey}/themes/{themeKey}` |
+| `environment.created` | `POST /tenants/{tenantKey}/environments` |
+| `environment.updated` | `PATCH /tenants/{tenantKey}/environments/{environmentKey}` |
+| `environment.deleted` | `DELETE /tenants/{tenantKey}/environments/{environmentKey}` |
 | `generation.completed` | Job transitions to `COMPLETED` |
 | `generation.failed` | Job transitions to `FAILED` |
 
@@ -71,7 +71,7 @@ EventEnvelope:
   required:
     - id
     - type
-    - tenantId
+    - tenantKey
     - timestamp
     - sequenceNumber
     - resourceRef
@@ -83,7 +83,7 @@ EventEnvelope:
     type:
       type: string
       description: Dot-separated event type (e.g., "version.published")
-    tenantId:
+    tenantKey:
       type: string
       description: Tenant scope of this event
     timestamp:
@@ -120,8 +120,8 @@ EventEnvelope:
           type: object
           description: >
             Ancestor identifiers for hierarchical resources.
-            For example, a version event includes templateId
-            and variantId so consumers can filter without
+            For example, a version event includes templateKey
+            and variantKey so consumers can filter without
             fetching the resource.
           additionalProperties:
             type: string
@@ -149,15 +149,15 @@ EventEnvelope:
 {
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "type": "version.published",
-  "tenantId": "acme-corp",
+  "tenantKey": "acme-corp",
   "timestamp": "2026-02-12T14:30:00Z",
   "sequenceNumber": 4207,
   "resourceRef": {
     "resourceType": "version",
     "resourceId": "3",
     "parentRefs": {
-      "templateId": "invoice",
-      "variantId": "english"
+      "templateKey": "invoice",
+      "variantKey": "english"
     }
   },
   "actor": {
@@ -185,8 +185,8 @@ All options support server-side filtering to reduce payload size. Filters are ap
 | Filter | Type | Example |
 |---|---|---|
 | `resourceType` | string (repeatable) | `resourceType=version&resourceType=activation` |
-| `templateId` | string | `templateId=invoice` |
-| `environmentId` | string | `environmentId=production` |
+| `templateKey` | string | `templateKey=invoice` |
+| `environmentKey` | string | `environmentKey=production` |
 | `eventType` | string (repeatable) | `eventType=version.published` |
 
 Filters are combined with AND logic (all must match). Repeatable filters use OR within the same key.
@@ -208,11 +208,11 @@ The client immediately reconnects after receiving a response.
 #### API Shape
 
 ```
-GET /tenants/{tenantId}/events
+GET /tenants/{tenantKey}/events
   ?after={sequenceNumber}      # cursor: last seen sequence number
   &timeout=30                  # max seconds to hold connection (1-60, default 30)
   &resourceType=version        # filter (repeatable)
-  &templateId=invoice          # filter
+  &templateKey=invoice          # filter
   &limit=100                   # max events per batch (1-1000, default 100)
 
 Accept: application/vnd.epistola.v1+json
@@ -279,10 +279,10 @@ The client opens a persistent HTTP connection. The server pushes events as they 
 #### API Shape
 
 ```
-GET /tenants/{tenantId}/events/stream
+GET /tenants/{tenantKey}/events/stream
   ?after={sequenceNumber}      # resume from cursor
   &resourceType=version        # filter (repeatable)
-  &templateId=invoice          # filter
+  &templateKey=invoice          # filter
 
 Accept: text/event-stream
 
@@ -353,7 +353,7 @@ Consumers register a callback URL with the Epistola API. When events occur, the 
 **Registration:**
 
 ```
-POST /tenants/{tenantId}/event-subscriptions
+POST /tenants/{tenantKey}/event-subscriptions
 Content-Type: application/vnd.epistola.v1+json
 
 {
@@ -398,11 +398,11 @@ X-Epistola-Delivery-Id: dlv-12345
 **Management:**
 
 ```
-GET    /tenants/{tenantId}/event-subscriptions           # List subscriptions
-GET    /tenants/{tenantId}/event-subscriptions/{subId}    # Get subscription
-PATCH  /tenants/{tenantId}/event-subscriptions/{subId}    # Update subscription
-DELETE /tenants/{tenantId}/event-subscriptions/{subId}    # Delete subscription
-POST   /tenants/{tenantId}/event-subscriptions/{subId}/test  # Send test event
+GET    /tenants/{tenantKey}/event-subscriptions           # List subscriptions
+GET    /tenants/{tenantKey}/event-subscriptions/{subId}    # Get subscription
+PATCH  /tenants/{tenantKey}/event-subscriptions/{subId}    # Update subscription
+DELETE /tenants/{tenantKey}/event-subscriptions/{subId}    # Delete subscription
+POST   /tenants/{tenantKey}/event-subscriptions/{subId}/test  # Send test event
 ```
 
 #### Scalability
@@ -456,10 +456,10 @@ This is the simplest option — no long-held connections, no push, just a regula
 #### API Shape
 
 ```
-GET /tenants/{tenantId}/events
+GET /tenants/{tenantKey}/events
   ?after={sequenceNumber}      # cursor: last seen sequence number (0 = from beginning)
   &resourceType=version        # filter (repeatable)
-  &templateId=invoice          # filter
+  &templateKey=invoice          # filter
   &limit=100                   # max events per batch (1-1000, default 100)
 
 Accept: application/vnd.epistola.v1+json
@@ -536,7 +536,7 @@ The gRPC channel is explicitly best-effort. If the stream disconnects, the consu
 **REST endpoint (identical to Option D):**
 
 ```
-GET /tenants/{tenantId}/events
+GET /tenants/{tenantKey}/events
   ?after={sequenceNumber}
   &resourceType=version
   &limit=100
@@ -769,7 +769,7 @@ The two patterns coexist in the API. The event feed's cursor-based response uses
 Events should be retained for a configurable window (recommended default: 7 days). Consumers that have not polled within the retention window will receive a `410 Gone` response with the earliest available sequence number, allowing them to reset their cursor and catch up from the oldest available event.
 
 ```
-GET /tenants/{tenantId}/events?after=100
+GET /tenants/{tenantKey}/events?after=100
 
 410 Gone
 {
@@ -796,7 +796,7 @@ If Option E is adopted, the project would maintain two interface definition lang
 | Concern | IDL | Scope |
 |---|---|---|
 | Domain models (DTOs, requests, responses) | OpenAPI | All event payloads, resource schemas, error responses |
-| Event delivery (event log endpoint) | OpenAPI | `GET /tenants/{tenantId}/events` — full event data |
+| Event delivery (event log endpoint) | OpenAPI | `GET /tenants/{tenantKey}/events` — full event data |
 | Notification signaling | Protobuf | `EventNotificationService` — tenant ID, sequence number, affected types only |
 
 The protobuf contract contains **no domain models**. It defines only the signaling messages (`Subscribe`, `EventNotification`, `Heartbeat`, etc.) which carry identifiers and metadata, never event payloads. This means:

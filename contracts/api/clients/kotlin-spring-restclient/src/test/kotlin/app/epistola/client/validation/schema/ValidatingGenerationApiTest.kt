@@ -37,14 +37,14 @@ class ValidatingGenerationApiTest {
     private val request = GenerateDocumentRequest(
         namespace = "acme-corp",
         catalogKey = "default",
-        templateId = "invoice",
+        templateKey = "invoice",
         data = emptyMap<String, Any>(),
     )
 
     private val batch = GenerateBatchRequest(
         items = listOf(
-            BatchGenerationItem(namespace = "acme-corp", catalogKey = "default", templateId = "invoice", data = emptyMap<String, Any>()),
-            BatchGenerationItem(namespace = "acme-corp", catalogKey = "default", templateId = "reminder", data = emptyMap<String, Any>()),
+            BatchGenerationItem(namespace = "acme-corp", catalogKey = "default", templateKey = "invoice", data = emptyMap<String, Any>()),
+            BatchGenerationItem(namespace = "acme-corp", catalogKey = "default", templateKey = "reminder", data = emptyMap<String, Any>()),
         ),
     )
 
@@ -88,8 +88,8 @@ class ValidatingGenerationApiTest {
             "acme",
             GenerateBatchRequest(
                 items = listOf(
-                    BatchGenerationItem(registry = "exchange.example.org", namespace = "team-a", catalogKey = "default", templateId = "invoice", data = emptyMap<String, Any>()),
-                    BatchGenerationItem(namespace = "acme-corp", catalogKey = "default", templateId = "invoice", data = emptyMap<String, Any>()),
+                    BatchGenerationItem(registry = "exchange.example.org", namespace = "team-a", catalogKey = "default", templateKey = "invoice", data = emptyMap<String, Any>()),
+                    BatchGenerationItem(namespace = "acme-corp", catalogKey = "default", templateKey = "invoice", data = emptyMap<String, Any>()),
                 ),
             ),
         )

@@ -63,8 +63,8 @@ class NetworkntTemplateDataValidatorTest {
             fetches.incrementAndGet();
             assertEquals("1.4.0", args[4], "the schema is read from the configured catalog version");
             return new TemplateDto()
-                    .slug((String) args[5])
-                    .tenantId((String) args[0])
+                    .key((String) args[5])
+                    .tenantKey((String) args[0])
                     .name((String) args[5])
                     .schema(schema);
         }));

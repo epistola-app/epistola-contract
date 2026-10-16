@@ -10,6 +10,7 @@ import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.PublisherInfo
 import app.epistola.catalog.protocol.ReleaseInfo
 import app.epistola.catalog.protocol.StencilResource
+import app.epistola.catalog.protocol.TemplateResource
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
@@ -18,6 +19,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class CatalogSchemaMigratorTest {
@@ -30,7 +32,7 @@ class CatalogSchemaMigratorTest {
         assertTrue(result.valid)
         assertEquals(4, result.sourceVersion)
         assertEquals(CatalogWireSchema.CURRENT_VERSION, assertNotNull(result.value).schemaVersion)
-        assertEquals("fixture", result.value.catalog.slug)
+        assertEquals("fixture", result.value.catalog.key)
         assertEquals(emptyList(), result.value.catalog.attributes)
         assertEquals(emptySet(), result.value.catalog.keywords)
         assertEquals(null, result.value.catalog.license)
@@ -43,7 +45,7 @@ class CatalogSchemaMigratorTest {
         assertTrue(result.valid)
         assertEquals(CatalogWireSchema.CURRENT_VERSION, result.sourceVersion)
         assertTrue(result.notices.isEmpty())
-        assertEquals("fixture", assertNotNull(result.value).catalog.slug)
+        assertEquals("fixture", assertNotNull(result.value).catalog.key)
         assertEquals(REGISTRY, result.value.catalog.registry)
         assertEquals(NAMESPACE, result.value.catalog.namespace)
         assertEquals(
@@ -388,6 +390,84 @@ class CatalogSchemaMigratorTest {
     }
 
     @Test
+    fun `v7 keys migrate to their v8 names, values unchanged and without notices`() {
+        val tree = resource("migrations/v7-to-v8/template-input.json").use(mapper::readTree) as ObjectNode
+        val step = CatalogV7ToV8Migration().migrateResource(tree, "resources/template/letter.json", CatalogMigrationContext(7, emptyManifest()))
+
+        assertTrue(step.findings.isEmpty(), step.findings.toString())
+        // Like v7's rename of a variant's id to slug: the value is unchanged, so there is nothing to report.
+        assertTrue(step.notices.isEmpty(), step.notices.toString())
+        assertEquals(resource("migrations/v7-to-v8/template-expected.json").use(mapper::readTree), tree)
+    }
+
+    @Test
+    fun `a v8 manifest that still uses an old name is not wire v8`() {
+        val json = """
+            {"schemaVersion":8,"catalog":{"registry":"$REGISTRY","namespace":"$NAMESPACE","slug":"x","name":"X",
+              "presentation":{"iconAssetSlug":"logo","imageAssetSlugs":[]}},
+             "publisher":{"name":"X"},"release":{"version":"1.0.0"},
+             "resources":[{"type":"theme","slug":"base","name":"Base","detailUrl":"./resources/theme/base.json"}],
+             "dependencies":[{"type":"theme","registry":"$REGISTRY","namespace":"$NAMESPACE","catalogKey":"shared","slug":"corporate"}],
+             "catalogDependencies":[{"registry":"$REGISTRY","namespace":"$NAMESPACE","catalogKey":"shared","version":"*",
+              "releaseVersion":null,"releaseFingerprint":null}]}
+        """.trimIndent()
+
+        val result = CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(json.toByteArray()))
+
+        assertNull(result.value)
+        assertEquals(
+            listOf(
+                "catalog.json.catalog.slug",
+                "catalog.json.catalog.presentation.iconAssetSlug",
+                "catalog.json.catalog.presentation.imageAssetSlugs",
+                "catalog.json.resources[0].slug",
+                "catalog.json.dependencies[0].slug",
+            ),
+            result.findings.map { it.path },
+        )
+        assertTrue(result.findings.all { it.code == CatalogMigrationCodes.SCHEMA_UNKNOWN }, result.findings.toString())
+        assertEquals("'slug' is not a catalog-v8 member; wire v8 calls it 'key'", result.findings.first().message)
+    }
+
+    @Test
+    fun `a v8 resource detail that still uses an old name is not wire v8`() {
+        val v7 = resource("migrations/v7-to-v8/template-input.json").readAllBytes().decodeToString()
+        val v8 = v7.replace("\"schemaVersion\": 7", "\"schemaVersion\": 8")
+        val path = "resources/template/letter.json"
+
+        val result = CatalogSchemaMigrator.migrateResourceDetail("template", ByteArrayInputStream(v8.toByteArray()), CatalogMigrationContext(8, emptyManifest()), path)
+
+        assertNull(result.value)
+        assertEquals(
+            listOf(
+                "$path.resource.slug",
+                "$path.resource.themeId",
+                "$path.resource.templateModel.themeRef.themeId",
+                "$path.resource.templateModel.nodes.address.props.stencilId",
+                "$path.resource.templateModel.nodes.logo.props.assetId",
+                "$path.resource.variants[0].slug",
+                "$path.resource.variants[0].templateModel.themeRef.themeId",
+            ),
+            result.findings.map { it.path },
+        )
+        assertTrue(result.findings.all { it.code == CatalogMigrationCodes.SCHEMA_UNKNOWN }, result.findings.toString())
+    }
+
+    @Test
+    fun `a v8 resource detail with the new names binds`() {
+        val path = "resources/template/letter.json"
+        val result = CatalogSchemaMigrator.migrateResourceDetail(
+            "template",
+            resource("migrations/v7-to-v8/template-expected.json"),
+            CatalogMigrationContext(8, emptyManifest()),
+            path,
+        )
+
+        assertTrue(result.valid, result.findings.toString())
+        assertEquals("corporate", (assertNotNull(result.value).resource as TemplateResource).themeKey)
+    }
+
+    @Test
     fun `a v7 stencil reference isDraft is left for the validator to report`() {
         val tree = mapper.readTree(
             """{"schemaVersion":7,"resource":{"type":"template","slug":"letter","name":"Letter","variants":[],
@@ -508,7 +588,7 @@ class CatalogSchemaMigratorTest {
 
     private fun minimalManifest(version: Int): CatalogMigrationResult<CatalogManifest> {
         val json = """
-            {"schemaVersion":$version,"catalog":{"registry":"$REGISTRY","namespace":"$NAMESPACE","slug":"x","name":"X"},"publisher":{"name":"X"},
+            {"schemaVersion":$version,"catalog":{"registry":"$REGISTRY","namespace":"$NAMESPACE","${keyMember(version)}":"x","name":"X"},"publisher":{"name":"X"},
             "release":{"version":"1.0.0"},"resources":[]}
         """.trimIndent()
         return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(json.toByteArray()), OPTIONS)
@@ -520,7 +600,7 @@ class CatalogSchemaMigratorTest {
     ): CatalogMigrationResult<CatalogManifest> {
         val encoded = keywords.joinToString(",") { mapper.writeValueAsString(it) }
         val json = """
-            {"schemaVersion":$version,"catalog":{${namespaceMember(version)}"slug":"x","name":"X","keywords":[$encoded]},
+            {"schemaVersion":$version,"catalog":{${namespaceMember(version)}"${keyMember(version)}":"x","name":"X","keywords":[$encoded]},
             "publisher":{"name":"X"},"release":{"version":"1.0.0"},"resources":[]}
         """.trimIndent()
         return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(json.toByteArray()), OPTIONS)
@@ -528,6 +608,9 @@ class CatalogSchemaMigratorTest {
 
     /** A catalog names its registry and namespace from wire v8; before that the migrator is told them. */
     private fun namespaceMember(version: Int) = if (version >= 8) "\"registry\":\"$REGISTRY\",\"namespace\":\"$NAMESPACE\"," else ""
+
+    /** A catalog's address is its `key` from wire v8, its `slug` before. */
+    private fun keyMember(version: Int) = if (version >= 8) "key" else "slug"
 
     private fun resource(path: String) = requireNotNull(javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/$path"))
 

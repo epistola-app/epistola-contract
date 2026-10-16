@@ -53,9 +53,9 @@ class _StubTemplatesApi:
         self._schema = schema
         self.fetches = 0
 
-    def get_template(self, tenant_id, registry, namespace, catalog_key, catalog_version, template_id):
+    def get_template(self, tenant_key, registry, namespace, catalog_key, catalog_version, template_key):
         self.fetches += 1
-        self.addressed = (tenant_id, registry, namespace, catalog_key, catalog_version, template_id)
+        self.addressed = (tenant_key, registry, namespace, catalog_key, catalog_version, template_key)
         return SimpleNamespace(var_schema=self._schema)
 
 

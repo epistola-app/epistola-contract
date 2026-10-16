@@ -5,32 +5,33 @@
 package app.epistola.catalog.protocol
 
 /**
- * Resource slug rules introduced by wire v7, defined once for every producer and consumer.
+ * Resource key rules introduced by wire v7, defined once for every producer and consumer.
  *
- * A slug is a resource's public address within its catalog. Until v7 the wire constrained it not at
+ * A key is a resource's public address within its catalog (until wire v8 the member was called
+ * `slug`, and this object `CatalogSlugs`). Until v7 the wire constrained it not at
  * all, while every consumer that stores one does: a catalog naming a theme with 30 characters was
  * publishable and then refused on install, with no diagnosis anywhere in between.
  *
  * The limits mirror the storage they have to survive rather than inventing new ones, which is why
- * they differ per type and why [IMAGE] is the odd one. An image's slug may be a generated
+ * they differ per type and why [IMAGE] is the odd one. An image's key may be a generated
  * UUID string, so it must admit a leading digit; every other type requires a leading letter. A
  * maximum may be relaxed later without breaking anyone — a wider column accepts every value a
  * narrower one held — but it may never be tightened once catalogs exist that use the extra room.
  *
- * Unlike [CatalogKeywords], a slug cannot be repaired when it does not conform: other resources
+ * Unlike [CatalogKeywords], a key cannot be repaired when it does not conform: other resources
  * reference it by name, so rewriting one would break those references. The migrator reports a
  * finding instead. Resource models deliberately do not enforce these rules; consumers rebind
  * manifests stored under earlier wire versions. The migrator's wire check and the catalog validator
  * enforce them.
  */
-object CatalogSlugs {
+object CatalogKeys {
     /** Every type except an image: a leading letter, then lowercase alphanumeric hyphen-separated parts. */
     const val PATTERN: String = "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
 
-    /** An image additionally admits a leading digit, because its slug may be a generated UUID string. */
+    /** An image additionally admits a leading digit, because its key may be a generated UUID string. */
     const val IMAGE_PATTERN: String = "^[a-z0-9]+(?:-[a-z0-9]+)*$"
 
-    /** Bounds for one resource type's slug. */
+    /** Bounds for one resource type's key. */
     data class Rule(val pattern: String, val minLength: Int, val maxLength: Int)
 
     val TEMPLATE = Rule(PATTERN, 3, 50)
@@ -41,7 +42,7 @@ object CatalogSlugs {
     val FONT = Rule(PATTERN, 2, 64)
     val IMAGE = Rule(IMAGE_PATTERN, 1, 50)
 
-    /** The catalog's own slug. */
+    /** The catalog's own key. */
     val CATALOG = Rule(PATTERN, 3, 50)
 
     /** Rules by the wire `type` token. */
@@ -64,7 +65,7 @@ object CatalogSlugs {
 
     private val compiled = HashMap<String, Regex>()
 
-    /** Whether [value] is a valid slug for the wire [type]. */
+    /** Whether [value] is a valid key for the wire [type]. */
     fun isValid(type: String, value: String): Boolean {
         val rule = byType[type] ?: ANY
         return matches(rule, value)

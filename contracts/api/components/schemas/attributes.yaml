@@ -11,8 +11,8 @@ AttributeDto:
     Attributes from a SUBSCRIBED catalog (e.g. the bundled `system` catalog)
     are flagged `readOnly: true`. Writes to them via this API return 409.
   required:
-    - slug
-    - tenantId
+    - key
+    - tenantKey
     - registry
     - namespace
     - catalogKey
@@ -23,20 +23,20 @@ AttributeDto:
     - createdAt
     - lastModified
   properties:
-    slug:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 1
       maxLength: 50
       description: |
-        Slug identifier of the attribute (unique within `tenant + catalog`).
+        Key of the attribute (unique within `tenant + catalog`).
       example: locale
-    tenantId:
+    tenantKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
-      description: Slug identifier of the tenant this attribute belongs to.
+      description: Key of the tenant this attribute belongs to.
       example: acme-corp
     registry:
       type: string
@@ -92,7 +92,7 @@ AttributeDto:
         - registry
         - namespace
         - catalogKey
-        - slug
+        - key
       properties:
         registry:
           type: string
@@ -114,9 +114,9 @@ AttributeDto:
           maxLength: 50
           description: Key of the catalog the bound code list belongs to.
           example: system
-        slug:
+        key:
           type: string
-          description: Code list slug within that catalog.
+          description: Code list key within that catalog.
           example: bcp-47
     catalogType:
       type: string
@@ -142,8 +142,8 @@ AttributeDto:
       format: date-time
       example: "2026-05-11T12:00:00Z"
   example:
-    slug: locale
-    tenantId: acme-corp
+    key: locale
+    tenantKey: acme-corp
     registry: exchange.epistola.app
     namespace: epistola
     catalogKey: system
@@ -154,7 +154,7 @@ AttributeDto:
       registry: exchange.epistola.app
       namespace: epistola
       catalogKey: system
-      slug: bcp-47
+      key: bcp-47
     catalogType: SUBSCRIBED
     readOnly: true
     createdAt: "2026-01-16T10:00:00Z"
@@ -200,7 +200,7 @@ CreateAttributeRequest:
         - 'null'
       required:
         - catalogKey
-        - slug
+        - key
       properties:
         registry:
           type: [string, "null"]
@@ -226,7 +226,7 @@ CreateAttributeRequest:
           minLength: 3
           maxLength: 50
           example: system
-        slug:
+        key:
           type: string
           example: iso-639-1
 
@@ -254,7 +254,7 @@ UpdateAttributeRequest:
         - 'null'
       required:
         - catalogKey
-        - slug
+        - key
       properties:
         registry:
           type: [string, "null"]
@@ -279,7 +279,7 @@ UpdateAttributeRequest:
           pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
           minLength: 3
           maxLength: 50
-        slug:
+        key:
           type: string
 
 AttributeListResponse:
@@ -298,20 +298,20 @@ AttributeListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - slug: locale
-        tenantId: acme-corp
+      - key: locale
+        tenantKey: acme-corp
         registry: exchange.epistola.app
         namespace: epistola
         catalogKey: system
         displayName: Locale
         allowedValues: []
-        codeListBinding: { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, slug: bcp-47 }
+        codeListBinding: { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, key: bcp-47 }
         catalogType: SUBSCRIBED
         readOnly: true
         createdAt: "2026-01-16T10:00:00Z"
         lastModified: "2026-05-11T12:00:00Z"
-      - slug: priority
-        tenantId: acme-corp
+      - key: priority
+        tenantKey: acme-corp
         registry: exchange.epistola.app
         namespace: acme-corp
         catalogKey: default

@@ -38,7 +38,7 @@
             { "type": "null" }
           ]
         },
-        "templateModel": { "$ref": "template-document.schema.json" },
+        "templateModel": { "$ref": "template-document-v7.schema.json" },
         "variants": { "type": "array", "items": { "$ref": "#/$defs/VariantEntry" } }
       },
       "required": ["type", "slug", "name", "templateModel", "variants"],
@@ -81,7 +81,7 @@
         "version": { "type": "integer" },
         "description": { "type": ["string", "null"] },
         "tags": { "type": "array", "items": { "type": "string" } },
-        "content": { "$ref": "template-document.schema.json" },
+        "content": { "$ref": "template-document-v7.schema.json" },
         "parameterSchema": { "type": ["object", "null"] }
       },
       "required": ["type", "slug", "name", "version", "content"],
@@ -190,7 +190,7 @@
           ]
         },
         "templateModel": {
-          "oneOf": [{ "$ref": "template-document.schema.json" }, { "type": "null" }]
+          "oneOf": [{ "$ref": "template-document-v7.schema.json" }, { "type": "null" }]
         },
         "isDefault": { "type": "boolean" }
       },

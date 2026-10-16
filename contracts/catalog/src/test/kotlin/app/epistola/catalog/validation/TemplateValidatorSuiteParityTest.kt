@@ -153,7 +153,7 @@ class TemplateValidatorSuiteParityTest {
         val allowedReport = TemplateValidator.validate(allowed)
         assertTrue(allowedReport.valid, "Nested, non-recursive stencils must remain valid: ${allowedReport.findings}")
 
-        val nestedSame = nestedDifferent.copy(props = nestedDifferent.props.orEmpty() + ("stencilId" to "address"))
+        val nestedSame = nestedDifferent.copy(props = nestedDifferent.props.orEmpty() + ("stencilKey" to "address"))
         val recursive = allowed.copy(nodes = allowed.nodes + (nestedSame.id to nestedSame))
         assertFinding(recursive, STENCIL_RECURSION)
 
@@ -341,7 +341,7 @@ class TemplateValidatorSuiteParityTest {
         id = id,
         type = "stencil",
         slots = listOf("$id-slot"),
-        props = mapOf("stencilId" to slug),
+        props = mapOf("stencilKey" to slug),
     )
 
     private fun placeholder(id: String, name: String): Node = Node(
@@ -365,7 +365,7 @@ class TemplateValidatorSuiteParityTest {
         val (props, slotName) = when (wrapperType) {
             "conditional" -> mapOf("condition" to mapOf("raw" to "true", "language" to "jsonata")) to "body"
             "loop" -> mapOf("expression" to mapOf("raw" to "items", "language" to "jsonata"), "itemAlias" to "item") to "body"
-            "stencil" -> mapOf("stencilId" to "letter-shell") to "children"
+            "stencil" -> mapOf("stencilKey" to "letter-shell") to "children"
             else -> null to "children"
         }
         val wrapper = Node("wrapper", wrapperType, listOf("wrapper-slot"), props = props)
@@ -382,7 +382,7 @@ class TemplateValidatorSuiteParityTest {
         paramsAlias: Any? = null,
     ): Node {
         val props = mutableMapOf<String, Any?>(
-            "stencilId" to "address",
+            "stencilKey" to "address",
             "parameterBindings" to parameterBindings,
         )
         paramsAlias?.let { props["paramsAlias"] = it }

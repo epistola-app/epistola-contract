@@ -115,24 +115,24 @@ class ServerTemplateDataValidator:
     because silently reporting unvalidated data as acceptable is worse than failing.
 
     :param templates_api: the generated API used to reach ``validateTemplateData``
-    :param variant_id: optional variant to check against; without it, the default variant
+    :param variant_key: optional variant to check against; without it, the default variant
     :param version: optional version selector for the template's catalog release to check against
         (an exact version such as ``1.4.0`` or a range such as ``^1.4.0``); it may be combined with
-        ``environment_id``. Without either, the catalog's latest release is used
-    :param environment_id: optional environment whose deployed releases to check against
+        ``environment_key``. Without either, the catalog's latest release is used
+    :param environment_key: optional environment whose deployed releases to check against
     """
 
     def __init__(
         self,
         templates_api: TemplatesApi,
-        variant_id: Optional[str] = None,
+        variant_key: Optional[str] = None,
         version: Optional[str] = None,
-        environment_id: Optional[str] = None,
+        environment_key: Optional[str] = None,
     ) -> None:
         self._templates_api = templates_api
-        self._variant_id = variant_id
+        self._variant_key = variant_key
         self._version = version
-        self._environment_id = environment_id
+        self._environment_key = environment_key
 
     @property
     def preflights_generation(self) -> bool:
@@ -143,24 +143,24 @@ class ServerTemplateDataValidator:
 
     def validate(
         self,
-        tenant_id: str,
+        tenant_key: str,
         registry: str,
         namespace: str,
         catalog_key: str,
-        template_id: str,
+        template_key: str,
         data: Any,
     ) -> List[ValidationFailure]:
         result = self._templates_api.validate_template_data(
-            tenant_id,
+            tenant_key,
             registry,
             namespace,
             catalog_key,
-            template_id,
+            template_key,
             ValidateTemplateDataRequest(
                 data=data if data is not None else {},
-                variantId=self._variant_id,
+                variantKey=self._variant_key,
                 version=self._version,
-                environmentId=self._environment_id,
+                environmentKey=self._environment_key,
             ),
         )
         if result is None or result.valid:
@@ -185,11 +185,11 @@ class TemplateSchemaValidator:
 
     def validate(
         self,
-        tenant_id: str,
+        tenant_key: str,
         registry: str,
         namespace: str,
         catalog_key: str,
-        template_id: str,
+        template_key: str,
         data: Any,
     ) -> None:
         """Validate ``data`` against the template's data contract.
@@ -199,7 +199,7 @@ class TemplateSchemaValidator:
         because ``validateTemplateData`` does not exist there.
         """
         failures = list(
-            self._validator.validate(tenant_id, registry, namespace, catalog_key, template_id, data)
+            self._validator.validate(tenant_key, registry, namespace, catalog_key, template_key, data)
         )
         if failures:
             raise TemplateDataValidationError(failures)
@@ -235,32 +235,32 @@ class ValidatingGenerationApi:
             else ServerTemplateDataValidator(validator_or_api)  # type: ignore[arg-type]
         )
 
-    def generate_document(self, tenant_id: str, request: GenerateDocumentRequest) -> GenerationJobResponse:
+    def generate_document(self, tenant_key: str, request: GenerateDocumentRequest) -> GenerationJobResponse:
         if self._validator.preflights_generation:
             failures = list(
                 self._validator.validate(
-                    tenant_id,
+                    tenant_key,
                     to_path_registry(request.registry),
                     request.namespace,
                     request.catalog_key,
-                    request.template_id,
+                    request.template_key,
                     request.data,
                 )
             )
             if failures:
                 raise TemplateDataValidationError(failures)
-        return self._translating_problem(lambda: self._delegate.generate_document(tenant_id, request))
+        return self._translating_problem(lambda: self._delegate.generate_document(tenant_key, request))
 
-    def generate_document_batch(self, tenant_id: str, request: GenerateBatchRequest) -> GenerationJobResponse:
+    def generate_document_batch(self, tenant_key: str, request: GenerateBatchRequest) -> GenerationJobResponse:
         if self._validator.preflights_generation:
             all_failures: List[ValidationFailure] = []
             for index, item in enumerate(request.items):
                 for failure in self._validator.validate(
-                    tenant_id,
+                    tenant_key,
                     to_path_registry(item.registry),
                     item.namespace,
                     item.catalog_key,
-                    item.template_id,
+                    item.template_key,
                     item.data,
                 ):
                     all_failures.append(
@@ -273,7 +273,7 @@ class ValidatingGenerationApi:
             if all_failures:
                 raise TemplateDataValidationError(all_failures)
         return self._translating_problem(
-            lambda: self._delegate.generate_document_batch(tenant_id, request)
+            lambda: self._delegate.generate_document_batch(tenant_key, request)
         )
 
     @staticmethod

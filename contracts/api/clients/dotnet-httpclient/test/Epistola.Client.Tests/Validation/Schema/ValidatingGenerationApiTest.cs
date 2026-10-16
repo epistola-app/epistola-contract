@@ -23,12 +23,12 @@ namespace Epistola.Client.Tests.Validation.Schema;
 public class ValidatingGenerationApiTest
 {
     private static readonly GenerateDocumentRequest Request =
-        new(varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", data: new Dictionary<string, object>());
+        new(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", data: new Dictionary<string, object>());
 
     private static readonly GenerateBatchRequest Batch = new(items: new List<BatchGenerationItem>
     {
-        new(varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", data: new Dictionary<string, object>()),
-        new(varNamespace: "acme-corp", catalogKey: "default", templateId: "reminder", data: new Dictionary<string, object>()),
+        new(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", data: new Dictionary<string, object>()),
+        new(varNamespace: "acme-corp", catalogKey: "default", templateKey: "reminder", data: new Dictionary<string, object>()),
     });
 
     private static ITemplatesApi RefusingTemplatesApi()
@@ -173,7 +173,7 @@ public class ValidatingGenerationApiTest
         var generation = Substitute.For<IGenerationApi>();
         var local = new TemplateSchemaValidatorTest.StubValidator(new List<TemplateDataValidationException.ValidationError>());
         var request = new GenerateDocumentRequest(
-            varNamespace: "team-a", catalogKey: "letters", templateId: "invoice",
+            varNamespace: "team-a", catalogKey: "letters", templateKey: "invoice",
             data: new Dictionary<string, object>());
 
         new ValidatingGenerationApi(generation, local).GenerateDocument("acme", request);
@@ -189,8 +189,8 @@ public class ValidatingGenerationApiTest
         var local = new TemplateSchemaValidatorTest.StubValidator(new List<TemplateDataValidationException.ValidationError>());
         var batch = new GenerateBatchRequest(items: new List<BatchGenerationItem>
         {
-            new(registry: "exchange.example.org", varNamespace: "team-a", catalogKey: "letters", templateId: "invoice", data: new Dictionary<string, object>()),
-            new(varNamespace: "team-b", catalogKey: "letters", templateId: "reminder", data: new Dictionary<string, object>()),
+            new(registry: "exchange.example.org", varNamespace: "team-a", catalogKey: "letters", templateKey: "invoice", data: new Dictionary<string, object>()),
+            new(varNamespace: "team-b", catalogKey: "letters", templateKey: "reminder", data: new Dictionary<string, object>()),
         });
 
         new ValidatingGenerationApi(generation, local).GenerateDocumentBatch("acme", batch);

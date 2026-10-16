@@ -34,7 +34,7 @@ fun interface ArchiveContentProvider {
  * no-op close action.
  *
  * @property manifest catalog-level metadata and the declared resource index.
- * @property resourceDetails resource documents keyed by `type/slug`, without
+ * @property resourceDetails resource documents keyed by `type/key`, without
  *   the `resources/` prefix or `.json` suffix.
  * @property paths every normalized file path present in the archive.
  * @property content repeatable streaming access to files listed in [paths].

@@ -1,9 +1,9 @@
 fonts:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant.
+      description: Unique key of the tenant.
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -47,9 +47,9 @@ fonts:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
-fonts-slug:
+fonts-key:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       schema:
@@ -61,10 +61,10 @@ fonts-slug:
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
-    - name: fontSlug
+    - name: fontKey
       in: path
       required: true
-      description: Slug of the font family.
+      description: Key of the font family.
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'

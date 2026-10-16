@@ -37,7 +37,7 @@ public class ResultCollectorLoopTest
 
         var collector = ResultCollector.Builder()
             .HttpClient(StubClient(ndjson))
-            .TenantId("acme")
+            .TenantKey("acme")
             .RegisterShutdownHook(false)
             .MinInterval(TimeSpan.FromMilliseconds(20))
             .MaxInterval(TimeSpan.FromMilliseconds(50))
@@ -66,7 +66,7 @@ public class ResultCollectorLoopTest
     {
         var collector = ResultCollector.Builder()
             .HttpClient(StubClient("{\"_meta\":true,\"hasMore\":false}\n"))
-            .TenantId("acme")
+            .TenantKey("acme")
             .RegisterShutdownHook(false)
             .MinInterval(TimeSpan.FromMilliseconds(20))
             .Handler(_ => { })

@@ -1,9 +1,9 @@
 themes:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -80,10 +80,10 @@ themes:
 
 themes-id:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -93,10 +93,10 @@ themes-id:
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
-    - name: themeId
+    - name: themeKey
       in: path
       required: true
-      description: Slug identifier of the theme
+      description: Key of the theme
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'

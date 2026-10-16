@@ -1,9 +1,9 @@
 code-lists:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant.
+      description: Unique key of the tenant.
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -48,7 +48,7 @@ code-lists:
     summary: Create a new code list
     description: |
       Create a new code list. SUBSCRIBED catalogs are read-only; writes return
-      409. Duplicate slug within the same tenant + catalog returns 409.
+      409. Duplicate key within the same tenant + catalog returns 409.
     tags:
       - CodeLists
     x-required-permissions: [REFERENCE_EDIT]
@@ -76,9 +76,9 @@ code-lists:
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
-code-lists-slug:
+code-lists-key:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       schema:
@@ -90,10 +90,10 @@ code-lists-slug:
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
-    - name: codeListSlug
+    - name: codeListKey
       in: path
       required: true
-      description: Slug of the code list.
+      description: Key of the code list.
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -173,7 +173,7 @@ code-lists-slug:
 
 code-list-refresh:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       schema:
@@ -183,7 +183,7 @@ code-list-refresh:
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
-    - name: codeListSlug
+    - name: codeListKey
       in: path
       required: true
       schema:
@@ -220,7 +220,7 @@ code-list-refresh:
 
 code-list-entries:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       schema:
@@ -230,7 +230,7 @@ code-list-entries:
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
-    - name: codeListSlug
+    - name: codeListKey
       in: path
       required: true
       schema:
@@ -268,7 +268,7 @@ code-list-entries:
 
 code-list-entry-hidden:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       schema:
@@ -280,7 +280,7 @@ code-list-entry-hidden:
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
-    - name: codeListSlug
+    - name: codeListKey
       in: path
       required: true
       schema:

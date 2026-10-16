@@ -136,7 +136,7 @@ test('the schema is read from the catalog version the adapter was given', async 
 
   await new AjvTemplateDataValidator(templates, '1.4.0').validate('acme-corp', '~', 'acme-corp', 'default', 'invoice', VALID_DATA)
 
-  assert.deepEqual(templates.requested, [{ tenantId: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'default', catalogVersion: '1.4.0', templateId: 'invoice' }])
+  assert.deepEqual(templates.requested, [{ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'default', catalogVersion: '1.4.0', templateKey: 'invoice' }])
 })
 
 test('it takes the generation pre-flight, unlike the server-backed default', async () => {

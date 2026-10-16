@@ -61,7 +61,7 @@ curl https://api.example.com/api/tenants/acme-corp/templates \
 1. Admin creates an OAuth client in the IdP (client_id + client_secret)
 2. Application obtains a JWT token from the IdP
 3. First request to Epistola auto-registers the consumer as `pending`
-4. Tenant manager approves the consumer (`POST /tenants/{tenantId}/consumers/{id}/approve`), setting permissions and optional expiry
+4. Tenant manager approves the consumer (`POST /tenants/{tenantKey}/consumers/{id}/approve`), setting permissions and optional expiry
 5. Application can now access resources within that tenant
 
 ### Method 3: Self-Signed JWT (Experimental)

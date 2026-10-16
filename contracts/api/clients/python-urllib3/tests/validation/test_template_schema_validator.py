@@ -30,10 +30,10 @@ class _StubTemplatesApi:
         self.calls = 0
         self.sent = []
 
-    def validate_template_data(self, tenant_id, registry, namespace, catalog_key, template_id, request):
+    def validate_template_data(self, tenant_key, registry, namespace, catalog_key, template_key, request):
         self.calls += 1
         self.sent.append(request)
-        self.addressed = (tenant_id, registry, namespace, catalog_key, template_id)
+        self.addressed = (tenant_key, registry, namespace, catalog_key, template_key)
         return self._result
 
 
@@ -42,13 +42,13 @@ class _StubGenerationApi:
         self._failure = failure
         self.submissions = 0
 
-    def generate_document(self, tenant_id, request):
+    def generate_document(self, tenant_key, request):
         self.submissions += 1
         if self._failure is not None:
             raise self._failure
         return SimpleNamespace(request_id="job-1")
 
-    def generate_document_batch(self, tenant_id, request):
+    def generate_document_batch(self, tenant_key, request):
         self.submissions += 1
         if self._failure is not None:
             raise self._failure
@@ -65,7 +65,7 @@ class _LocalValidator:
 
     preflights_generation = True
 
-    def validate(self, tenant_id, registry, namespace, catalog_key, template_id, data):
+    def validate(self, tenant_key, registry, namespace, catalog_key, template_key, data):
         from epistola_client import ValidationFailure
 
         self.calls += 1
@@ -82,9 +82,9 @@ def _result(valid, errors=None, missing_fields=None, invalid_fields=None):
     )
 
 
-def _item(template_id):
+def _item(template_key):
     return SimpleNamespace(
-        registry=None, namespace="acme-corp", catalog_key="default", template_id=template_id, data={}
+        registry=None, namespace="acme-corp", catalog_key="default", template_key=template_key, data={}
     )
 
 
@@ -205,23 +205,23 @@ def test_the_version_selectors_are_passed_through_when_configured():
     api = _StubTemplatesApi(_result(valid=True))
 
     TemplateSchemaValidator(
-        ServerTemplateDataValidator(api, variant_id="nl-nl", environment_id="production")
+        ServerTemplateDataValidator(api, variant_key="nl-nl", environment_key="production")
     ).validate("acme-corp", "~", "acme-corp", "default", "invoice", {})
 
-    assert api.sent[0].variant_id == "nl-nl"
-    assert api.sent[0].environment_id == "production"
+    assert api.sent[0].variant_key == "nl-nl"
+    assert api.sent[0].environment_key == "production"
 
 
 def test_the_catalog_is_addressed_by_registry_namespace_and_key_and_the_version_selector_is_sent():
     api = _StubTemplatesApi(_result(valid=True))
 
-    ServerTemplateDataValidator(api, version="^1.4.0", environment_id="production").validate(
+    ServerTemplateDataValidator(api, version="^1.4.0", environment_key="production").validate(
         "acme-corp", "exchange.example.org", "team-a", "default", "invoice", {}
     )
 
     assert api.addressed == ("acme-corp", "exchange.example.org", "team-a", "default", "invoice")
     assert api.sent[0].version == "^1.4.0"
-    assert api.sent[0].environment_id == "production"
+    assert api.sent[0].environment_key == "production"
 
 
 def test_a_plugged_in_validator_replaces_the_server_entirely():
@@ -321,7 +321,7 @@ def test_the_preflight_addresses_the_default_registry_as_tilde_when_the_body_omi
     # A body may leave `registry` out, meaning the server's default registry. The validator puts it
     # in a URL path, which has to say something there: `~`, never a guessed registry name.
     local = _LocalValidator()
-    item = dict(registry=None, namespace="team-a", catalog_key="default", template_id="invoice", data={})
+    item = dict(registry=None, namespace="team-a", catalog_key="default", template_key="invoice", data={})
     api = ValidatingGenerationApi(_StubGenerationApi(), local)
 
     api.generate_document("acme-corp", SimpleNamespace(**item))
@@ -333,7 +333,7 @@ def test_the_preflight_addresses_the_default_registry_as_tilde_when_the_body_omi
 def test_the_preflight_passes_a_registry_the_body_names_in_full():
     local = _LocalValidator()
     item = dict(
-        registry="exchange.example.org", namespace="team-a", catalog_key="default", template_id="invoice", data={}
+        registry="exchange.example.org", namespace="team-a", catalog_key="default", template_key="invoice", data={}
     )
     api = ValidatingGenerationApi(_StubGenerationApi(), local)
 

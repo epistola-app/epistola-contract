@@ -138,11 +138,11 @@ public class TemplateSchemaValidatorTest
     {
         var api = ApiAnswering(Result(valid: true));
 
-        new TemplateSchemaValidator(new ServerTemplateDataValidator(api, variantId: "nl-nl", version: "^1.4.0", environmentId: "production"))
+        new TemplateSchemaValidator(new ServerTemplateDataValidator(api, variantKey: "nl-nl", version: "^1.4.0", environmentKey: "production"))
             .Validate("acme", "~", "acme-corp", "default", "person", new Dictionary<string, object>());
 
         api.Received(1).ValidateTemplateData("acme", "~", "acme-corp", "default", "person",
-            Arg.Is<ValidateTemplateDataRequest>(r => r.VariantId == "nl-nl" && r.VarVersion == "^1.4.0" && r.EnvironmentId == "production"));
+            Arg.Is<ValidateTemplateDataRequest>(r => r.VariantKey == "nl-nl" && r.VarVersion == "^1.4.0" && r.EnvironmentKey == "production"));
     }
 
     [Fact]
@@ -189,7 +189,7 @@ public class TemplateSchemaValidatorTest
         public List<string> Catalogs { get; } = new();
 
         public IReadOnlyList<TemplateDataValidationException.ValidationError> Validate(
-            string tenantId, string registry, string @namespace, string catalogKey, string templateId, object data)
+            string tenantKey, string registry, string @namespace, string catalogKey, string templateKey, object data)
         {
             Calls++;
             Catalogs.Add($"{registry}|{@namespace}|{catalogKey}");

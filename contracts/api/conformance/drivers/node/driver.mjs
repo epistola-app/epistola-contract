@@ -104,7 +104,7 @@ async function listTemplates(baseUrl, config) {
   let response
   for (let i = 0; i < (config.repeat ?? 1); i++) {
     response = await api.listTemplates({
-      tenantId: config.tenantId,
+      tenantKey: config.tenantKey,
       registry: config.registry,
       namespace: config.namespace,
       catalogKey: config.catalogKey,
@@ -112,14 +112,14 @@ async function listTemplates(baseUrl, config) {
     })
   }
   await report(baseUrl, {
-    templateSlugs: response.items.map((template) => show(template.slug)).join(','),
+    templateKeys: response.items.map((template) => show(template.key)).join(','),
   })
 }
 
 async function problem(baseUrl, config) {
   try {
     await new TemplatesApi(client(baseUrl, config)).listTemplates({
-      tenantId: config.tenantId,
+      tenantKey: config.tenantKey,
       registry: config.registry,
       namespace: config.namespace,
       catalogKey: config.catalogKey,
@@ -142,7 +142,7 @@ async function problem(baseUrl, config) {
 async function validateTemplateData(baseUrl, config) {
   const validator = new TemplateSchemaValidator(new TemplatesApi(client(baseUrl, config)))
   try {
-    await validator.validate(config.tenantId, config.registry, config.namespace, config.catalogKey, config.templateId, config.data ?? {})
+    await validator.validate(config.tenantKey, config.registry, config.namespace, config.catalogKey, config.templateKey, config.data ?? {})
     await report(baseUrl, { validationFailurePaths: '<accepted>', validationFailureKeywords: '<accepted>' })
   } catch (error) {
     if (!(error instanceof TemplateDataValidationException)) throw error
@@ -157,7 +157,7 @@ async function collect(baseUrl, config) {
   const handled = []
   const collector = ResultCollector.builder()
     .client(client(baseUrl, config))
-    .tenantId(config.tenantId)
+    .tenantKey(config.tenantKey)
     .batchSize(config.batchSize)
     .minIntervalMs(config.minIntervalMs)
     .maxIntervalMs(config.maxIntervalMs)
@@ -199,7 +199,7 @@ async function generateDocument(baseUrl, config) {
   const request = {
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    templateId: config.templateId,
+    templateKey: config.templateKey,
     data: config.data,
     correlationId: config.correlationId,
     routingKey: config.routingKey,
@@ -208,9 +208,9 @@ async function generateDocument(baseUrl, config) {
   // unset registry means the server's default, which only the server knows.
   if (config.registry !== undefined) request.registry = config.registry
   if (config.version !== undefined) request.version = config.version
-  if (config.environmentId !== undefined) request.environmentId = config.environmentId
+  if (config.environmentKey !== undefined) request.environmentKey = config.environmentKey
   await new GenerationApi(client(baseUrl, config)).generateDocument({
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     generateDocumentRequest: request,
   })
 }
@@ -221,7 +221,7 @@ async function generateDocument(baseUrl, config) {
  * deliberately not valid UTF-8 so a stack that decodes it as text fails on the digest.
  */
 async function downloadDocument(baseUrl, config) {
-  const blob = await new GenerationApi(client(baseUrl, config)).downloadDocument({ tenantId: config.tenantId, documentId: config.documentId })
+  const blob = await new GenerationApi(client(baseUrl, config)).downloadDocument({ tenantKey: config.tenantKey, documentId: config.documentId })
   await reportBytes(baseUrl, blob)
 }
 
@@ -231,7 +231,7 @@ async function downloadDocument(baseUrl, config) {
  */
 async function listImages(baseUrl, config) {
   const { items } = await new ImagesApi(client(baseUrl, config)).listImages({
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
@@ -239,7 +239,7 @@ async function listImages(baseUrl, config) {
     search: config.search,
   })
   await report(baseUrl, {
-    imageSlugs: items.map((image) => image.slug).join(','),
+    imageKeys: items.map((image) => image.key).join(','),
     widths: items.map((image) => show(image.width)).join(','),
     heights: items.map((image) => show(image.height)).join(','),
     mediaTypes: items.map((image) => image.mediaType).join(','),
@@ -254,7 +254,7 @@ async function listImages(baseUrl, config) {
 async function uploadImage(baseUrl, config) {
   const file = new File([Buffer.from(config.fileBase64, 'base64')], config.filename, { type: config.fileContentType })
   const image = await new ImagesApi(client(baseUrl, config)).uploadImage({
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
@@ -262,29 +262,29 @@ async function uploadImage(baseUrl, config) {
     file,
     name: config.name,
   })
-  await report(baseUrl, { imageSlug: image.slug, imageName: image.name })
+  await report(baseUrl, { imageKey: image.key, imageName: image.name })
 }
 
 async function downloadImage(baseUrl, config) {
   const blob = await new ImagesApi(client(baseUrl, config)).downloadImageContent({
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
-    imageSlug: config.imageSlug,
+    imageKey: config.imageKey,
   })
   await reportBytes(baseUrl, blob)
 }
 
 async function deleteImage(baseUrl, config) {
   await new ImagesApi(client(baseUrl, config)).deleteImage({
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
-    imageSlug: config.imageSlug,
+    imageKey: config.imageKey,
     force: config.force,
   })
 }
@@ -292,7 +292,7 @@ async function deleteImage(baseUrl, config) {
 /** Lists a catalog's declared dependencies, reporting them the way the update action does. */
 async function listCatalogDependencies(baseUrl, config) {
   const response = await new CatalogsApi(client(baseUrl, config)).listCatalogDependencies({
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
@@ -308,7 +308,7 @@ async function listCatalogDependencies(baseUrl, config) {
  */
 async function updateCatalogDependencies(baseUrl, config) {
   const response = await new CatalogsApi(client(baseUrl, config)).updateCatalogDependencies({
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
@@ -335,7 +335,7 @@ async function createCatalogVersion(baseUrl, config) {
   const request = { version: config.version }
   if (config.from !== undefined) request.from = config.from
   const version = await new CatalogsApi(client(baseUrl, config)).createCatalogVersion({
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
@@ -352,7 +352,7 @@ async function createCatalogVersion(baseUrl, config) {
 
 /** Lists a catalog's versions; the `status` filter goes out only when the scenario sets one. */
 async function listCatalogVersions(baseUrl, config) {
-  const request = { tenantId: config.tenantId, registry: config.registry, namespace: config.namespace, catalogKey: config.catalogKey }
+  const request = { tenantKey: config.tenantKey, registry: config.registry, namespace: config.namespace, catalogKey: config.catalogKey }
   if (config.status !== undefined) request.status = config.status
   const { items } = await new CatalogsApi(client(baseUrl, config)).listCatalogVersions(request)
   await report(baseUrl, {
@@ -366,7 +366,7 @@ async function listCatalogVersions(baseUrl, config) {
 /** Reads one version, with the releases it renders with and the environments that serve it. */
 async function getCatalogVersion(baseUrl, config) {
   const version = await new CatalogsApi(client(baseUrl, config)).getCatalogVersion({
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
@@ -387,7 +387,7 @@ async function renumberCatalogVersion(baseUrl, config) {
   const request = { version: config.version }
   if (config.acknowledgeWarnings !== undefined) request.acknowledgeWarnings = config.acknowledgeWarnings
   const version = await new CatalogsApi(client(baseUrl, config)).renumberCatalogVersion({
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
@@ -400,7 +400,7 @@ async function renumberCatalogVersion(baseUrl, config) {
 /** Previews a renumber, surfacing every warning kind, including ones this client does not know. */
 async function previewCatalogVersionRenumber(baseUrl, config) {
   const preview = await new CatalogsApi(client(baseUrl, config)).previewCatalogVersionRenumber({
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
@@ -416,7 +416,7 @@ async function previewCatalogVersionRenumber(baseUrl, config) {
 /** Discards a draft; the 204 has no body to parse. */
 async function deleteCatalogVersion(baseUrl, config) {
   await new CatalogsApi(client(baseUrl, config)).deleteCatalogVersion({
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
@@ -429,7 +429,7 @@ async function releaseCatalogVersion(baseUrl, config) {
   const request = {}
   if (config.notes !== undefined) request.notes = config.notes
   const response = await new CatalogsApi(client(baseUrl, config)).releaseCatalogVersion({
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
@@ -447,7 +447,7 @@ async function releaseCatalogVersion(baseUrl, config) {
 /** Lists the changes that flowed into a draft; the `state` filter goes out only when set. */
 async function listIncomingChanges(baseUrl, config) {
   const request = {
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
@@ -466,7 +466,7 @@ async function listIncomingChanges(baseUrl, config) {
 /** Resolves one incoming change by id. */
 async function resolveIncomingChange(baseUrl, config) {
   const change = await new CatalogsApi(client(baseUrl, config)).resolveIncomingChange({
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
@@ -480,8 +480,8 @@ async function resolveIncomingChange(baseUrl, config) {
 /** Deploys one release; the path carries everything and there is no body. */
 async function deployRelease(baseUrl, config) {
   const request = {
-    tenantId: config.tenantId,
-    environmentId: config.environmentId,
+    tenantKey: config.tenantKey,
+    environmentKey: config.environmentKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
@@ -514,8 +514,8 @@ async function deployRelease(baseUrl, config) {
 /** Undeploys one release; the 204 has no body to parse. */
 async function undeployRelease(baseUrl, config) {
   await new EnvironmentsApi(client(baseUrl, config)).undeployRelease({
-    tenantId: config.tenantId,
-    environmentId: config.environmentId,
+    tenantKey: config.tenantKey,
+    environmentKey: config.environmentKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
@@ -534,7 +534,7 @@ async function reportBytes(baseUrl, blob) {
  */
 async function updateConsumer(baseUrl, config) {
   await new ConsumersApi(client(baseUrl, config)).updateConsumer({
-    tenantId: config.tenantId,
+    tenantKey: config.tenantKey,
     consumerId: config.consumerId,
     updateConsumerRequest: { name: config.name },
   })
@@ -548,7 +548,7 @@ async function updateConsumer(baseUrl, config) {
 async function routing(baseUrl, config) {
   const collector = ResultCollector.builder()
     .client(client(baseUrl, config))
-    .tenantId(config.tenantId)
+    .tenantKey(config.tenantKey)
     .handler(() => undefined)
     .build()
 

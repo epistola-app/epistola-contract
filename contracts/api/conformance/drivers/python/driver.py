@@ -120,12 +120,12 @@ def _list_templates(base_url: str, config: dict) -> None:
     api = TemplatesApi(_client(base_url, config))
     for _ in range(config.get("repeat", 1)):
         response = api.list_templates(
-            config["tenantId"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"]
+            config["tenantKey"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"]
         )
     _report(
         base_url,
         {
-            "templateSlugs": ",".join(_show(template.slug) for template in response.items),
+            "templateKeys": ",".join(_show(template.key) for template in response.items),
         },
     )
 
@@ -133,7 +133,7 @@ def _list_templates(base_url: str, config: dict) -> None:
 def _problem(base_url: str, config: dict) -> None:
     try:
         TemplatesApi(_client(base_url, config)).list_templates(
-            config["tenantId"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"]
+            config["tenantKey"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"]
         )
         _report(base_url, {"problemTypeSlug": "<no exception was thrown>"})
     except ProblemDetailException as exc:
@@ -161,11 +161,11 @@ def _validate_template_data(base_url: str, config: dict) -> None:
     validator = TemplateSchemaValidator(TemplatesApi(_client(base_url, config)))
     try:
         validator.validate(
-            config["tenantId"],
+            config["tenantKey"],
             config["registry"],
             config["namespace"],
             config["catalogKey"],
-            config["templateId"],
+            config["templateKey"],
             config.get("data", {}),
         )
         _report(
@@ -194,7 +194,7 @@ def _collect(base_url: str, config: dict) -> None:
     collector = (
         ResultCollector.builder()
         .api_client(_client(base_url, config))
-        .tenant_id(config["tenantId"])
+        .tenant_key(config["tenantKey"])
         .batch_size(config["batchSize"])
         # The Python builder takes seconds, not milliseconds — the scenario speaks one unit and
         # each driver converts to whatever its client's API uses.
@@ -243,15 +243,15 @@ def _generate_document(base_url: str, config: dict) -> None:
     """
     optional = {
         name: config[name]
-        for name in ("registry", "version", "environmentId", "correlationId", "routingKey")
+        for name in ("registry", "version", "environmentKey", "correlationId", "routingKey")
         if name in config
     }
     GenerationApi(_client(base_url, config)).generate_document(
-        config["tenantId"],
+        config["tenantKey"],
         GenerateDocumentRequest(
             namespace=config["namespace"],
             catalogKey=config["catalogKey"],
-            templateId=config["templateId"],
+            templateKey=config["templateKey"],
             data=config["data"],
             **optional,
         ),
@@ -267,7 +267,7 @@ def _download_document(base_url: str, config: dict) -> None:
     not valid UTF-8.
     """
     content = GenerationApi(_client(base_url, config)).download_document(
-        config["tenantId"], config["documentId"]
+        config["tenantKey"], config["documentId"]
     )
     _report_bytes(base_url, bytes(content))
 
@@ -279,7 +279,7 @@ def _list_images(base_url: str, config: dict) -> None:
     images = (
         ImagesApi(_client(base_url, config))
         .list_images(
-            config["tenantId"],
+            config["tenantKey"],
             config["registry"],
             config["namespace"],
             config["catalogKey"],
@@ -291,7 +291,7 @@ def _list_images(base_url: str, config: dict) -> None:
     _report(
         base_url,
         {
-            "imageSlugs": ",".join(image.slug for image in images),
+            "imageKeys": ",".join(image.key for image in images),
             "widths": ",".join(_show(image.width) for image in images),
             "heights": ",".join(_show(image.height) for image in images),
             "mediaTypes": ",".join(image.media_type for image in images),
@@ -304,7 +304,7 @@ def _upload_image(base_url: str, config: dict) -> None:
     client derives the part's content type from that filename.
     """
     image = ImagesApi(_client(base_url, config)).upload_image(
-        config["tenantId"],
+        config["tenantKey"],
         config["registry"],
         config["namespace"],
         config["catalogKey"],
@@ -312,43 +312,43 @@ def _upload_image(base_url: str, config: dict) -> None:
         (config["filename"], base64.b64decode(config["fileBase64"])),
         name=config["name"],
     )
-    _report(base_url, {"imageSlug": image.slug, "imageName": image.name})
+    _report(base_url, {"imageKey": image.key, "imageName": image.name})
 
 
 def _download_image(base_url: str, config: dict) -> None:
     content = ImagesApi(_client(base_url, config)).download_image_content(
-        config["tenantId"],
+        config["tenantKey"],
         config["registry"],
         config["namespace"],
         config["catalogKey"],
         config["catalogVersion"],
-        config["imageSlug"],
+        config["imageKey"],
     )
     _report_bytes(base_url, bytes(content))
 
 
 def _delete_image(base_url: str, config: dict) -> None:
     ImagesApi(_client(base_url, config)).delete_image(
-        config["tenantId"],
+        config["tenantKey"],
         config["registry"],
         config["namespace"],
         config["catalogKey"],
         config["catalogVersion"],
-        config["imageSlug"],
+        config["imageKey"],
         force=config["force"],
     )
 
 
 def _list_catalog_dependencies(base_url: str, config: dict) -> None:
     response = CatalogsApi(_client(base_url, config)).list_catalog_dependencies(
-        config["tenantId"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"]
+        config["tenantKey"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"]
     )
     _report_dependencies(base_url, response.items)
 
 
 def _update_catalog_dependencies(base_url: str, config: dict) -> None:
     response = CatalogsApi(_client(base_url, config)).update_catalog_dependencies(
-        config["tenantId"],
+        config["tenantKey"],
         config["registry"],
         config["namespace"],
         config["catalogKey"],
@@ -383,7 +383,7 @@ def _report_dependencies(base_url: str, dependencies) -> None:
 
 
 def _catalog_version_address(config: dict) -> tuple:
-    return (config["tenantId"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"])
+    return (config["tenantKey"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"])
 
 
 def _create_catalog_version(base_url: str, config: dict) -> None:
@@ -391,7 +391,7 @@ def _create_catalog_version(base_url: str, config: dict) -> None:
     ``var_from``; it is passed by its alias, and only when the scenario sets it."""
     optional = {"from": config["from"]} if "from" in config else {}
     created = CatalogsApi(_client(base_url, config)).create_catalog_version(
-        config["tenantId"],
+        config["tenantKey"],
         config["registry"],
         config["namespace"],
         config["catalogKey"],
@@ -414,7 +414,7 @@ def _list_catalog_versions(base_url: str, config: dict) -> None:
     versions = (
         CatalogsApi(_client(base_url, config))
         .list_catalog_versions(
-            config["tenantId"], config["registry"], config["namespace"], config["catalogKey"], **optional
+            config["tenantKey"], config["registry"], config["namespace"], config["catalogKey"], **optional
         )
         .items
     )
@@ -546,8 +546,8 @@ def _deploy_release(base_url: str, config: dict) -> None:
     )
     try:
         deployment = EnvironmentsApi(_client(base_url, config)).deploy_release(
-            config["tenantId"],
-            config["environmentId"],
+            config["tenantKey"],
+            config["environmentKey"],
             config["registry"],
             config["namespace"],
             config["catalogKey"],
@@ -580,8 +580,8 @@ def _deploy_release(base_url: str, config: dict) -> None:
 
 def _undeploy_release(base_url: str, config: dict) -> None:
     EnvironmentsApi(_client(base_url, config)).undeploy_release(
-        config["tenantId"],
-        config["environmentId"],
+        config["tenantKey"],
+        config["environmentKey"],
         config["registry"],
         config["namespace"],
         config["catalogKey"],
@@ -601,7 +601,7 @@ def _update_consumer(base_url: str, config: dict) -> None:
     consumer" into "rename it and erase its description, contact and expiry".
     """
     ConsumersApi(_client(base_url, config)).update_consumer(
-        config["tenantId"],
+        config["tenantKey"],
         config["consumerId"],
         UpdateConsumerRequest(name=config["name"]),
     )
@@ -616,7 +616,7 @@ def _routing(base_url: str, config: dict) -> None:
     collector = (
         ResultCollector.builder()
         .api_client(_client(base_url, config))
-        .tenant_id(config["tenantId"])
+        .tenant_key(config["tenantKey"])
         .register_shutdown_hook(False)
         .handler(lambda result: None)
         .build()

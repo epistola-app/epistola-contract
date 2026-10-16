@@ -22,7 +22,7 @@ action:
     nodeId: conformance-node-1
     auth: api-key
     apiKey: epk_conformance_0123456789
-    tenantId: acme-corp
+    tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: main

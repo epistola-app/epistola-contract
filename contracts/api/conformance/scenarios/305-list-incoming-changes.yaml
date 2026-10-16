@@ -16,7 +16,7 @@ action:
   name: list-incoming-changes
   config:
     nodeId: conformance-node-1
-    tenantId: acme-corp
+    tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
@@ -27,9 +27,9 @@ script:
     contentType: application/vnd.epistola.v1+json
     body:
       items:
-        - { id: chg-1, fromVersion: 1.5.0, type: template, slug: invoice, node: dutch/node-greeting, state: conflict }
-        - { id: chg-2, fromVersion: 1.5.0, type: theme, slug: corporate, node: null, state: merged }
-        - { id: chg-3, fromVersion: 1.5.0, type: template, slug: reminder, node: default/node-footer, state: resolved, resolution: take }
+        - { id: chg-1, fromVersion: 1.5.0, type: template, key: invoice, node: dutch/node-greeting, state: conflict }
+        - { id: chg-2, fromVersion: 1.5.0, type: theme, key: corporate, node: null, state: merged }
+        - { id: chg-3, fromVersion: 1.5.0, type: template, key: reminder, node: default/node-footer, state: resolved, resolution: take }
 
 expect:
   requestCount: 1

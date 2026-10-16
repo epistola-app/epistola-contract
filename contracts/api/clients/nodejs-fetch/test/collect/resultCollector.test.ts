@@ -17,9 +17,9 @@ import { sleep, startServer, waitFor, type RecordedRequest, type TestServer } fr
 
 const NDJSON = 'application/vnd.epistola.v1+ndjson'
 const RESULTS = [
-  { sequence: 501, requestId: '11111111-1111-4111-8111-000000000501', templateId: 'invoice', status: 'COMPLETED', correlationId: 'inv-1', completedAt: '2026-02-01T08:05:00Z' },
-  { sequence: 502, requestId: '11111111-1111-4111-8111-000000000502', templateId: 'invoice', status: 'FAILED', error: 'render failed', completedAt: '2026-02-01T08:05:00Z' },
-  { sequence: 503, requestId: '11111111-1111-4111-8111-000000000503', templateId: 'invoice', status: 'COMPLETED', completedAt: '2026-02-01T08:05:00Z' },
+  { sequence: 501, requestId: '11111111-1111-4111-8111-000000000501', templateKey: 'invoice', status: 'COMPLETED', correlationId: 'inv-1', completedAt: '2026-02-01T08:05:00Z' },
+  { sequence: 502, requestId: '11111111-1111-4111-8111-000000000502', templateKey: 'invoice', status: 'FAILED', error: 'render failed', completedAt: '2026-02-01T08:05:00Z' },
+  { sequence: 503, requestId: '11111111-1111-4111-8111-000000000503', templateKey: 'invoice', status: 'COMPLETED', completedAt: '2026-02-01T08:05:00Z' },
 ]
 const META = { _meta: true, hasMore: true, count: 3, lastSequence: 503, partitions: { total: 8, mine: [0, 3], hash: 'murmur3' } }
 const EMPTY_META = { _meta: true, hasMore: false, count: 0, lastSequence: 503, partitions: { total: 8, mine: [0, 3], hash: 'murmur3' } }
@@ -37,7 +37,7 @@ function respond(res: ServerResponse, lines: unknown[], gzip = false): void {
 function collector(server: TestServer, handled: GenerationResult[], configure: (b: ReturnType<typeof ResultCollector.builder>) => void = () => undefined): ResultCollector {
   const builder = ResultCollector.builder()
     .client(EpistolaClient.builder(`${server.url}/api`, 'epk_test').build())
-    .tenantId('acme-corp')
+    .tenantKey('acme-corp')
     .batchSize(5)
     .handler((result) => {
       handled.push(result)
@@ -247,12 +247,12 @@ test('routing helpers are safe before an assignment is known', async () => {
 
 test('the builder guards its inputs', () => {
   const client = EpistolaClient.builder('https://x.example/api').build()
-  assert.throws(() => ResultCollector.builder().tenantId('t').handler(() => undefined).build(), /client is required/)
-  assert.throws(() => ResultCollector.builder().client(client).handler(() => undefined).build(), /tenantId is required/)
-  assert.throws(() => ResultCollector.builder().client(client).tenantId('t').build(), /handler is required/)
+  assert.throws(() => ResultCollector.builder().tenantKey('t').handler(() => undefined).build(), /client is required/)
+  assert.throws(() => ResultCollector.builder().client(client).handler(() => undefined).build(), /tenantKey is required/)
+  assert.throws(() => ResultCollector.builder().client(client).tenantKey('t').build(), /handler is required/)
   assert.throws(() => ResultCollector.builder().batchSize(0), RangeError)
   assert.throws(() => ResultCollector.builder().batchSize(10_001), RangeError)
   assert.throws(() => ResultCollector.builder().backoffMultiplier(1), RangeError)
   assert.throws(() => ResultCollector.builder().minIntervalMs(0), RangeError)
-  assert.throws(() => ResultCollector.builder().client(client).tenantId('t').handler(() => undefined).minIntervalMs(500).maxIntervalMs(100).build(), RangeError)
+  assert.throws(() => ResultCollector.builder().client(client).tenantKey('t').handler(() => undefined).minIntervalMs(500).maxIntervalMs(100).build(), RangeError)
 })

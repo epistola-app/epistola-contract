@@ -1,9 +1,9 @@
 stencils:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -87,10 +87,10 @@ stencils:
 
 stencils-id:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -100,10 +100,10 @@ stencils-id:
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
-    - name: stencilId
+    - name: stencilKey
       in: path
       required: true
-      description: Slug identifier of the stencil
+      description: Key of the stencil
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -185,10 +185,10 @@ stencils-id:
 
 stencil-content:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -198,10 +198,10 @@ stencil-content:
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
-    - name: stencilId
+    - name: stencilKey
       in: path
       required: true
-      description: Slug identifier of the stencil
+      description: Key of the stencil
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -264,10 +264,10 @@ stencil-content:
 
 stencil-mark-ready:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -277,10 +277,10 @@ stencil-mark-ready:
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
-    - name: stencilId
+    - name: stencilKey
       in: path
       required: true
-      description: Slug identifier of the stencil
+      description: Key of the stencil
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -314,10 +314,10 @@ stencil-mark-ready:
 
 stencil-usage:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -327,10 +327,10 @@ stencil-usage:
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
-    - name: stencilId
+    - name: stencilKey
       in: path
       required: true
-      description: Slug identifier of the stencil
+      description: Key of the stencil
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'

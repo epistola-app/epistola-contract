@@ -22,7 +22,7 @@ action:
     nodeId: conformance-node-1
     auth: api-key
     apiKey: epk_conformance_0123456789
-    tenantId: acme-corp
+    tenantKey: acme-corp
     documentId: 99999999-9999-4999-8999-000000000001
 
 script:

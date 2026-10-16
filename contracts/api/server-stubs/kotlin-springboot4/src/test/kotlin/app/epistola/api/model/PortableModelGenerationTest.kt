@@ -33,7 +33,7 @@ class PortableModelGenerationTest {
         val pageSettings = PageSettings(backgroundColor = "#ffffff")
         val preset = BlockStylePreset(label = "Body", styles = mapOf("fontSize" to 12))
         val request = CreateThemeRequest(
-            id = "default",
+            key = "default",
             name = "Default",
             documentStyles = mapOf("fontFamily" to "Inter"),
             pageSettings = pageSettings,

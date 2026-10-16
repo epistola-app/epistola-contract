@@ -52,19 +52,19 @@ public interface TemplateDataValidator {
      * Returns the findings for {@code data} against the given template's data contract, empty when
      * there are none.
      *
-     * @param tenantId   tenant identifier
-     * @param registry   the catalog's registry as a path writes it: {@link #DEFAULT_REGISTRY}
-     *                   ({@code ~}) for the server's default registry, or a name in full
-     *                   ({@code acme.com})
-     * @param namespace  the catalog's namespace within its registry ({@code acme-corp})
-     * @param catalogKey the catalog's key within its namespace; the same template id in two
-     *                   catalogs of one tenant is two different templates with two different
-     *                   contracts
-     * @param templateId template identifier
-     * @param data       the data object to check
+     * @param tenantKey   the tenant's key
+     * @param registry    the catalog's registry as a path writes it: {@link #DEFAULT_REGISTRY}
+     *                    ({@code ~}) for the server's default registry, or a name in full
+     *                    ({@code acme.com})
+     * @param namespace   the catalog's namespace within its registry ({@code acme-corp})
+     * @param catalogKey  the catalog's key within its namespace; the same template key in two
+     *                    catalogs of one tenant is two different templates with two different
+     *                    contracts
+     * @param templateKey the template's key within its catalog
+     * @param data        the data object to check
      */
     List<TemplateDataValidationException.ValidationError> validate(
-            String tenantId, String registry, String namespace, String catalogKey, String templateId, Object data);
+            String tenantKey, String registry, String namespace, String catalogKey, String templateKey, Object data);
 
     /**
      * Whether {@link ValidatingGenerationApi} should check data with this validator <em>before</em>

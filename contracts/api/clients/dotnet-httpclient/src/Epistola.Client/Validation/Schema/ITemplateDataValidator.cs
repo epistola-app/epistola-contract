@@ -62,7 +62,7 @@ public interface ITemplateDataValidator
     /// Returns the findings for <paramref name="data"/> against the given template's data contract,
     /// empty when there are none.
     /// </summary>
-    /// <param name="tenantId">Tenant identifier.</param>
+    /// <param name="tenantKey">The tenant's key.</param>
     /// <param name="registry">
     /// Registry of the template's catalog as a path writes it: <see cref="DefaultRegistry"/>
     /// (<c>~</c>) for the server's default registry, or the registry in full (<c>acme.com</c>,
@@ -74,10 +74,10 @@ public interface ITemplateDataValidator
     /// two different templates with two different contracts.
     /// </param>
     /// <param name="catalogKey">Key of the template's catalog within its registry and namespace.</param>
-    /// <param name="templateId">Template identifier.</param>
+    /// <param name="templateKey">The template's key within the catalog.</param>
     /// <param name="data">The data object to check.</param>
     IReadOnlyList<TemplateDataValidationException.ValidationError> Validate(
-        string tenantId, string registry, string @namespace, string catalogKey, string templateId, object data);
+        string tenantKey, string registry, string @namespace, string catalogKey, string templateKey, object data);
 
     /// <summary>
     /// Whether <see cref="ValidatingGenerationApi"/> should check data with this validator

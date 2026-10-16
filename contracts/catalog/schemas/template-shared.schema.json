@@ -84,7 +84,7 @@
           "type": "object",
           "properties": {
             "type": { "const": "override" },
-            "themeId": { "type": "string", "minLength": 1 },
+            "themeKey": { "type": "string", "minLength": 1 },
             "catalogKey": {
               "type": "string",
               "minLength": 1,
@@ -104,7 +104,7 @@
               "description": "Registry of the catalog containing the theme. Omitted means the owning template's catalog registry, never an installation default. Requires namespace. Added with catalog wire v8."
             }
           },
-          "required": ["type", "themeId"],
+          "required": ["type", "themeKey"],
           "dependentRequired": { "registry": ["namespace"] },
           "additionalProperties": false
         }

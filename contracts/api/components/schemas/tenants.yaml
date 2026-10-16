@@ -2,17 +2,17 @@ TenantDto:
   type: object
   description: Represents a tenant in the system
   required:
-    - slug
+    - key
     - name
     - createdAt
   properties:
-    slug:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
       description: |
-        Unique slug identifier of the tenant (e.g., "acme-corp")
+        Unique key of the tenant (e.g., "acme-corp")
       example: acme-corp
     name:
       type: string
@@ -24,7 +24,7 @@ TenantDto:
       description: Timestamp when the tenant was created
       example: "2026-01-15T09:00:00Z"
   example:
-    slug: acme-corp
+    key: acme-corp
     name: Acme Corporation
     createdAt: "2026-01-15T09:00:00Z"
 
@@ -32,16 +32,16 @@ CreateTenantRequest:
   type: object
   description: Request body for creating a new tenant
   required:
-    - id
+    - key
     - name
   properties:
-    id:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
       description: |
-        Client-provided unique slug identifier for the tenant.
+        Client-chosen unique key for the tenant.
         Must be 3-63 characters, start with a letter, contain only lowercase letters,
         numbers, and non-consecutive hyphens, and not end with a hyphen.
         Reserved words (admin, api, www, system, internal, null, undefined) are not allowed.
@@ -80,7 +80,7 @@ TenantListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - slug: acme-corp
+      - key: acme-corp
         name: Acme Corporation
         createdAt: "2026-01-15T09:00:00Z"
     page:

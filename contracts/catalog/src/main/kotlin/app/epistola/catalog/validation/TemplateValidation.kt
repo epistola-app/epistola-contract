@@ -68,7 +68,7 @@ enum class ResourceResolution {
  * Product-neutral identity of a resource referenced by template content.
  *
  * @property type portable resource discriminator such as `stencil` or `theme`.
- * @property slug resource slug within its catalog.
+ * @property key resource key within its catalog: its public address there.
  * @property catalogKey owning catalog; null means the current catalog.
  * @property namespace namespace of the owning catalog; null means the current catalog's namespace
  *   (wire v8).
@@ -81,7 +81,7 @@ enum class ResourceResolution {
  */
 data class CatalogResourceReference(
     val type: String,
-    val slug: String,
+    val key: String,
     val catalogKey: String? = null,
     val namespace: String? = null,
     val registry: String? = null,
@@ -159,12 +159,12 @@ interface TemplateValidationContext {
         /**
          * Creates a standalone stencil context.
          *
-         * Supplying [stencilId] seeds self-reference detection. Catalog,
+         * Supplying [stencilKey] seeds self-reference detection. Catalog,
          * namespace and registry are optional when validating content that has
          * not yet been assigned a portable identity.
          */
         fun forStencil(
-            stencilId: String? = null,
+            stencilKey: String? = null,
             catalogKey: String? = null,
             namespace: String? = null,
             registry: String? = null,
@@ -173,7 +173,7 @@ interface TemplateValidationContext {
             override val currentCatalogKey: String? = catalogKey
             override val currentNamespace: String? = namespace
             override val currentRegistry: String? = registry
-            override val containingStencil: CatalogResourceReference? = stencilId?.let {
+            override val containingStencil: CatalogResourceReference? = stencilKey?.let {
                 CatalogResourceReference("stencil", it, catalogKey, namespace, registry)
             }
         }

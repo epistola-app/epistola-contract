@@ -12,7 +12,7 @@ why: >
   The catalog is in the default registry, so the caller leaves `registry` out, and the client must
   not invent one: omitted or null both mean the default registry, which only the server knows.
 
-  The release rendered is chosen by `version` and `environmentId` together: the highest release the
+  The release rendered is chosen by `version` and `environmentKey` together: the highest release the
   environment serves that satisfies the selector. They used to be mutually exclusive, so a client
   that still enforces that, or drops one when the other is set, renders a different release than
   the caller asked for.
@@ -25,12 +25,12 @@ action:
   name: generate-document
   config:
     nodeId: conformance-node-1
-    tenantId: acme-corp
+    tenantKey: acme-corp
     namespace: acme-corp
     catalogKey: letters
-    templateId: invoice
+    templateKey: invoice
     version: ^1.4.0
-    environmentId: production
+    environmentKey: production
     data:
       customerName: Acme B.V.
 
@@ -53,9 +53,9 @@ expect:
         json:
           namespace: acme-corp
           catalogKey: letters
-          templateId: invoice
+          templateKey: invoice
           version: ^1.4.0
-          environmentId: production
+          environmentKey: production
           data:
             customerName: Acme B.V.
         jsonNullOrAbsent: [registry]

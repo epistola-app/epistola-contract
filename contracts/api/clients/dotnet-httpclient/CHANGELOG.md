@@ -22,6 +22,15 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
+- **BREAKING:** a resource's address is its `key` (epistola-app/epistola-contract#84), so the
+  hand-written API follows the generated one: `ResultCollector.Builder().TenantId(…)` is
+  `TenantKey(…)`; the result collector's `GenerationResult.TemplateId` / `VariantId` are
+  `TemplateKey` / `VariantKey`, read from the stream's `templateKey` / `variantKey`;
+  `ServerTemplateDataValidator`'s `variantId` / `environmentId` parameters are `variantKey` /
+  `environmentKey`; and the `Validate` methods of `ITemplateDataValidator`,
+  `TemplateSchemaValidator` and `ServerTemplateDataValidator` take `(tenantKey, registry,
+  namespace, catalogKey, templateKey, data)`. `ValidatingGenerationApi`'s parameter is `tenantKey`.
+  No deprecated aliases are kept.
 - **BREAKING:** a catalog is identified by registry, namespace and key.
   `ITemplateDataValidator.Validate`, `TemplateSchemaValidator.Validate` and
   `ServerTemplateDataValidator.Validate` take `(tenantId, registry, namespace, catalogKey,

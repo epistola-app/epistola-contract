@@ -83,7 +83,7 @@ public class ProblemDetailExceptionTest
             errors: new List<ValidationError>
             {
                 new(field: "name", message: "must not be blank"),
-                new(field: "slug", message: "invalid format", rejectedValue: "A B"),
+                new(field: "key", message: "invalid format", rejectedValue: "A B"),
             });
 
         Assert.True(ex.IsValidationProblem);

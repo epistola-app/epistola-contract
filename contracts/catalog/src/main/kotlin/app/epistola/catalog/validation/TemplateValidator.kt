@@ -311,7 +311,7 @@ object TemplateValidator {
         val allowedTopLevel = component.properties.map { it.path.substringBefore('.') }.toMutableSet()
         if (component.type == "stencil") {
             allowedTopLevel += setOf(
-                "stencilId",
+                "stencilKey",
                 "catalogKey",
                 "namespace",
                 "registry",
@@ -361,21 +361,21 @@ object TemplateValidator {
         findings: MutableList<TemplateValidationFinding>,
     ) {
         (document.themeRef as? ThemeRefOverride)?.let { theme ->
-            val reference = CatalogResourceReference("theme", theme.themeId, theme.catalogKey, theme.namespace, theme.registry)
+            val reference = CatalogResourceReference("theme", theme.themeKey, theme.catalogKey, theme.namespace, theme.registry)
             if (context.resolveResource(reference) == ResourceResolution.MISSING) {
-                findings.error(TEMPLATE_THEME_NOT_FOUND, "themeRef.themeId", "theme '${theme.themeId}' does not exist in the catalog context")
+                findings.error(TEMPLATE_THEME_NOT_FOUND, "themeRef.themeKey", "theme '${theme.themeKey}' does not exist in the catalog context")
             }
         }
         document.nodes.values.filter { it.type == "stencil" }.sortedBy(Node::id).forEach { node ->
-            val stencilId = stringValue(node.props?.get("stencilId"))
+            val stencilKey = stringValue(node.props?.get("stencilKey"))
             val catalogKey = stringValue(node.props?.get("catalogKey"))
             val namespace = node.props?.get("namespace")
             val registry = node.props?.get("registry")
             when {
-                stencilId == null || !slugRegex.matches(stencilId) -> findings.error(
+                stencilKey == null || !slugRegex.matches(stencilKey) -> findings.error(
                     STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props.stencilId",
-                    "stencil reference requires a valid stencilId",
+                    "nodes.${node.id}.props.stencilKey",
+                    "stencil reference requires a valid stencilKey",
                 )
                 namespace != null && stringValue(namespace)?.let(CatalogNamespaces::isValid) != true -> findings.error(
                     STENCIL_REFERENCE_INVALID,
@@ -393,12 +393,12 @@ object TemplateValidator {
                     "stencil reference names a registry but no namespace",
                 )
                 else -> {
-                    val reference = CatalogResourceReference("stencil", stencilId, catalogKey, stringValue(namespace), stringValue(registry))
+                    val reference = CatalogResourceReference("stencil", stencilKey, catalogKey, stringValue(namespace), stringValue(registry))
                     if (context.resolveResource(reference) == ResourceResolution.MISSING) {
                         findings.error(
                             STENCIL_REFERENCE_NOT_FOUND,
-                            "nodes.${node.id}.props.stencilId",
-                            "stencil '$stencilId' does not exist in the catalog context",
+                            "nodes.${node.id}.props.stencilKey",
+                            "stencil '$stencilKey' does not exist in the catalog context",
                         )
                     }
                 }
@@ -455,22 +455,22 @@ object TemplateValidator {
             if (nextDepth > TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH) {
                 findings.error(
                     STENCIL_NESTING_DEPTH_EXCEEDED,
-                    "nodes.${node.id}.props.stencilId",
+                    "nodes.${node.id}.props.stencilKey",
                     "stencil nesting depth $nextDepth exceeds maximum ${TemplateValidationLimits.MAX_STENCIL_NESTING_DEPTH}",
                 )
             }
             val nextIds = if (node.type == "stencil") {
-                val id = node.props?.get("stencilId") as? String
+                val id = node.props?.get("stencilKey") as? String
                 val identity = id?.let {
                     StencilIdentity(
                         registry = node.props["registry"] as? String ?: context.currentRegistry,
                         namespace = node.props["namespace"] as? String ?: context.currentNamespace,
                         catalogKey = node.props["catalogKey"] as? String ?: context.currentCatalogKey,
-                        slug = it,
+                        key = it,
                     )
                 }
                 if (identity != null && identity in stencilIds) {
-                    findings.error(STENCIL_RECURSION, "nodes.${node.id}.props.stencilId", "stencil '$id' would contain itself transitively")
+                    findings.error(STENCIL_RECURSION, "nodes.${node.id}.props.stencilKey", "stencil '$id' would contain itself transitively")
                 }
                 if (identity == null) stencilIds else stencilIds + identity
             } else {
@@ -488,7 +488,7 @@ object TemplateValidator {
                     it.registry ?: context.currentRegistry,
                     it.namespace ?: context.currentNamespace,
                     it.catalogKey ?: context.currentCatalogKey,
-                    it.slug,
+                    it.key,
                 ),
             )
         }.orEmpty()
@@ -500,7 +500,7 @@ object TemplateValidator {
         val registry: String?,
         val namespace: String?,
         val catalogKey: String?,
-        val slug: String,
+        val key: String,
     )
 
     /**

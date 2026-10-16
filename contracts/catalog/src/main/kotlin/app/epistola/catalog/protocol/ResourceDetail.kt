@@ -7,6 +7,7 @@ package app.epistola.catalog.protocol
 import app.epistola.template.model.BlockStylePreset
 import app.epistola.template.model.PageSettings
 import app.epistola.template.model.TemplateDocument
+import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonSubTypes
@@ -37,11 +38,15 @@ data class ResourceDetail(
  * Base type for all portable catalog resources.
  *
  * Jackson discriminates concrete payloads using the existing `type` property.
- * Every resource has a catalog-local [slug] and human-readable [name].
+ * Every resource has a catalog-local [key] and human-readable [name].
+ *
+ * [key] is the resource's public address within its catalog. Until wire v8 the member was called
+ * `slug`; every resource binds either name, so that details stored under earlier versions still
+ * bind.
  */
 sealed interface CatalogResource {
     val type: String
-    val slug: String
+    val key: String
     val name: String
 }
 
@@ -59,14 +64,17 @@ sealed interface CatalogResource {
  * therefore needs no `schemaVersion` bump (see "Future wire evolution" in
  * `contracts/catalog/docs/catalog-compatibility.md`).
  *
- * [themeCatalogKey], [themeNamespace] and [themeRegistry] qualify [themeId] when the theme lives in
- * another catalog; each null one means the template's own catalog's (wire v8). A [themeRegistry]
- * without a [themeNamespace] is invalid.
+ * [themeKey] names the template's default theme; until wire v8 the member was called `themeId`, and
+ * binding reads either name. [themeCatalogKey], [themeNamespace] and [themeRegistry] qualify it when
+ * the theme lives in another catalog; each null one means the template's own catalog's (wire v8). A
+ * [themeRegistry] without a [themeNamespace] is invalid.
  */
 data class TemplateResource(
-    override val slug: String,
+    @JsonAlias("slug")
+    override val key: String,
     override val name: String,
-    val themeId: String? = null,
+    @JsonAlias("themeId")
+    val themeKey: String? = null,
     val themeCatalogKey: String? = null,
     val pdfaEnabled: Boolean = true,
     val dataModel: Map<String, Any?>? = null,
@@ -88,7 +96,8 @@ data class TemplateResource(
  * this artifact.
  */
 data class ThemeResource(
-    override val slug: String,
+    @JsonAlias("slug")
+    override val key: String,
     override val name: String,
     val description: String? = null,
     val documentStyles: Map<String, Any?>? = null,
@@ -114,14 +123,15 @@ data class ThemeResource(
  * consumer that does not understand it ignores it. When present it round-trips so that templates
  * binding to those parameters stay bound after an import.
  *
- * [content] may embed nodes that reference other stencils by `stencilId`, optionally qualified with
- * `catalogKey` and `namespace`. These references form a portable composition graph: validation
+ * [content] may embed nodes that reference other stencils by `stencilKey` (`stencilId` until wire
+ * v8), optionally qualified with `catalogKey`, `namespace` and `registry`. These references form a portable composition graph: validation
  * requires them to resolve, rejects direct and transitive recursion, and limits the complete chain
  * to five stencil levels.
  */
 @JsonIgnoreProperties("version")
 data class StencilResource(
-    override val slug: String,
+    @JsonAlias("slug")
+    override val key: String,
     override val name: String,
     val description: String? = null,
     val tags: List<String> = emptyList(),
@@ -138,7 +148,8 @@ data class StencilResource(
  * [CodeListResource] through [codeListBinding]; using both is invalid.
  */
 data class AttributeResource(
-    override val slug: String,
+    @JsonAlias("slug")
+    override val key: String,
     override val name: String,
     val allowedValues: List<String> = emptyList(),
     val codeListBinding: CodeListBindingRef? = null,
@@ -155,6 +166,9 @@ data class AttributeResource(
  * installation default: content means the same thing wherever it is
  * installed. A `registry` without a `namespace` is invalid.
  *
+ * [key] names the code list; until wire v8 the member was called `slug`, and binding reads either
+ * name.
+ *
  * Mutually exclusive with `AttributeResource.allowedValues` on the
  * consumer side. The wire format doesn't enforce that — it relies on the
  * importer (`CreateAttributeDefinition`) to reject mixed input, where the
@@ -162,7 +176,8 @@ data class AttributeResource(
  */
 data class CodeListBindingRef(
     val catalogKey: String? = null,
-    val slug: String,
+    @JsonAlias("slug")
+    val key: String,
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     val namespace: String? = null,
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
@@ -178,11 +193,13 @@ data class CodeListBindingRef(
  * block-style presets, and inline node styles under the `fontFamily` key.
  * `namespace = null` and `registry = null` mean the referencing catalog's
  * namespace and registry (wire v8); a `registry` without a `namespace` is
- * invalid.
+ * invalid. [key] names the font family; until wire v8 the member was called
+ * `slug`, and binding reads either name.
  */
 data class FontRef(
     val catalogKey: String? = null,
-    val slug: String,
+    @JsonAlias("slug")
+    val key: String,
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     val namespace: String? = null,
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
@@ -197,7 +214,8 @@ data class FontRef(
  * catalog's become `URL`-sourced via the refresh path).
  */
 data class CodeListResource(
-    override val slug: String,
+    @JsonAlias("slug")
+    override val key: String,
     override val name: String,
     val description: String? = null,
     val entries: List<CodeListEntryEntry>,
@@ -259,7 +277,8 @@ interface BinaryRef {
 }
 
 data class ImageResource(
-    override val slug: String,
+    @JsonAlias("slug")
+    override val key: String,
     override val name: String,
     val mediaType: String,
     val width: Int? = null,
@@ -280,7 +299,8 @@ data class ImageResource(
  * ever describes catalog-authored fonts.
  */
 data class FontResource(
-    override val slug: String,
+    @JsonAlias("slug")
+    override val key: String,
     override val name: String,
     val kind: String,
     val variants: List<FontVariantEntry>,
@@ -322,9 +342,13 @@ data class DataExampleEntry(
  *
  * A null [templateModel] inherits the template's base model. At most one
  * variant may set [isDefault].
+ *
+ * [key] is the variant's public address within its template. Until wire v8 the member was called
+ * `slug` (and `id` until wire v7); binding reads `slug` too.
  */
 data class VariantEntry(
-    val slug: String,
+    @JsonAlias("slug")
+    val key: String,
     val title: String? = null,
     val attributes: Map<String, String>? = null,
     val templateModel: TemplateDocument? = null,

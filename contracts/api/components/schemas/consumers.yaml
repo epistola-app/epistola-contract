@@ -11,14 +11,14 @@ ConsumerDto:
     in multiple tenants with separate approvals.
 
     Two registration paths are supported:
-    - **Self-signed JWT**: Application calls `POST /tenants/{tenantId}/consumers/register`
+    - **Self-signed JWT**: Application calls `POST /tenants/{tenantKey}/consumers/register`
       with a public key and requested permissions. Created as `pending` until
       a tenant manager approves.
     - **OAuth**: First authenticated request to a tenant auto-registers the consumer
       as `pending`. Requested permissions are derived from JWT scopes.
   required:
     - id
-    - tenantId
+    - tenantKey
     - name
     - status
     - authMethod
@@ -38,7 +38,7 @@ ConsumerDto:
         and used as the `iss` claim. For OAuth consumers, this is derived
         from the JWT `client_id` claim.
       example: invoice-service
-    tenantId:
+    tenantKey:
       type: string
       description: Tenant this consumer is registered in
       example: acme-corp

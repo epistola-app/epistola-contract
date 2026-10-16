@@ -30,7 +30,7 @@ action:
     nodeId: conformance-node-1
     auth: api-key
     apiKey: epk_conformance_0123456789
-    tenantId: acme-corp
+    tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: main
@@ -46,8 +46,8 @@ script:
   - status: 201
     contentType: application/vnd.epistola.v1+json
     body:
-      slug: municipality-mark
-      tenantId: acme-corp
+      key: municipality-mark
+      tenantKey: acme-corp
       registry: exchange.epistola.app
       namespace: acme-corp
       catalogKey: main
@@ -83,5 +83,5 @@ expect:
             whenPresent:
               value: 'false'
   report:
-    imageSlug: municipality-mark
+    imageKey: municipality-mark
     imageName: Municipality mark

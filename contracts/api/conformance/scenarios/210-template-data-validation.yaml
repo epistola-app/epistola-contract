@@ -25,11 +25,11 @@ action:
   name: validate-template-data
   config:
     nodeId: conformance-node-1
-    tenantId: acme-corp
+    tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: main
-    templateId: invoice
+    templateKey: invoice
     data:
       customer:
         name: Jane Smith

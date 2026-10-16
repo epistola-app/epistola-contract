@@ -1,9 +1,9 @@
 images:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant.
+      description: Unique key of the tenant.
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -108,10 +108,10 @@ images:
 
 image-content:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant.
+      description: Unique key of the tenant.
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -121,7 +121,7 @@ image-content:
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
-    - name: imageSlug
+    - name: imageKey
       in: path
       required: true
       description: The image's `key`.
@@ -172,10 +172,10 @@ image-content:
 
 image-resource:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant.
+      description: Unique key of the tenant.
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -185,7 +185,7 @@ image-resource:
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
     - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
-    - name: imageSlug
+    - name: imageKey
       in: path
       required: true
       description: The image's `key`.

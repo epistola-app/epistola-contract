@@ -2,25 +2,25 @@ EnvironmentDto:
   type: object
   description: A deployment stage (e.g., staging, production) that serves catalog releases, possibly several of one catalog
   required:
-    - slug
-    - tenantId
+    - key
+    - tenantKey
     - name
     - createdAt
   properties:
-    slug:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 30
       description: |
-        Slug identifier of the environment
+        Key of the environment
       example: production
-    tenantId:
+    tenantKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
-      description: Slug identifier of the tenant this environment belongs to
+      description: Key of the tenant this environment belongs to
       example: acme-corp
     name:
       type: string
@@ -32,8 +32,8 @@ EnvironmentDto:
       description: Timestamp when the environment was created
       example: "2026-01-16T10:00:00Z"
   example:
-    slug: production
-    tenantId: acme-corp
+    key: production
+    tenantKey: acme-corp
     name: Production
     createdAt: "2026-01-16T10:00:00Z"
 
@@ -41,15 +41,15 @@ CreateEnvironmentRequest:
   type: object
   description: Request body for creating a new environment
   required:
-    - id
+    - key
     - name
   properties:
-    id:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 30
-      description: Slug identifier for the environment (e.g., production, staging, development)
+      description: Key of the environment (e.g., production, staging, development)
       example: production
     name:
       type: string
@@ -85,12 +85,12 @@ EnvironmentListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - slug: production
-        tenantId: acme-corp
+      - key: production
+        tenantKey: acme-corp
         name: Production
         createdAt: "2026-01-16T10:00:00Z"
-      - slug: staging
-        tenantId: acme-corp
+      - key: staging
+        tenantKey: acme-corp
         name: Staging
         createdAt: "2026-01-16T10:30:00Z"
     page:

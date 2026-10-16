@@ -2,27 +2,27 @@ TemplateDto:
   type: object
   description: Full document template with all details including variant summaries
   required:
-    - slug
-    - tenantId
+    - key
+    - tenantKey
     - name
     - variants
     - createdAt
     - lastModified
   properties:
-    slug:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: |
-        Slug identifier of the template (e.g., "monthly-invoice")
+        Key of the template (e.g., "monthly-invoice")
       example: invoice
-    tenantId:
+    tenantKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
-      description: Slug identifier of the tenant this template belongs to
+      description: Key of the tenant this template belongs to
       example: acme-corp
     name:
       type: string
@@ -186,8 +186,8 @@ TemplateDto:
       description: Timestamp when the template was last modified
       example: "2026-01-22T16:45:00Z"
   example:
-    slug: invoice
-    tenantId: acme-corp
+    key: invoice
+    tenantKey: acme-corp
     name: Monthly Invoice
     schema:
       type: object
@@ -307,7 +307,7 @@ TemplateDto:
             bankDetails:
               type: object
     dataExamples:
-      - id: standard-invoice
+      - key: standard-invoice
         name: Standard Invoice
         data:
           customer:
@@ -337,7 +337,7 @@ TemplateDto:
               taxRate: 0
           notes: "Payment due within 30 days. Please reference invoice number on transfer."
           currency: EUR
-      - id: minimal-invoice
+      - key: minimal-invoice
         name: Minimal Invoice (required fields only)
         data:
           customer:
@@ -350,7 +350,7 @@ TemplateDto:
               quantity: 1
               unitPrice: 500.00
     variants:
-      - slug: english
+      - key: english
         title: English Invoice
         attributes:
           locale: en-US
@@ -364,26 +364,26 @@ TemplateSummaryDto:
   type: object
   description: Summary view of a template for list displays
   required:
-    - slug
-    - tenantId
+    - key
+    - tenantKey
     - name
     - createdAt
     - lastModified
   properties:
-    slug:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: |
-        Slug identifier of the template (e.g., "monthly-invoice")
+        Key of the template (e.g., "monthly-invoice")
       example: invoice
-    tenantId:
+    tenantKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
-      description: Slug identifier of the tenant this template belongs to
+      description: Key of the tenant this template belongs to
       example: acme-corp
     name:
       type: string
@@ -400,8 +400,8 @@ TemplateSummaryDto:
       description: Timestamp when the template was last modified
       example: "2026-01-22T16:45:00Z"
   example:
-    slug: invoice
-    tenantId: acme-corp
+    key: invoice
+    tenantKey: acme-corp
     name: Monthly Invoice
     createdAt: "2026-01-20T09:00:00Z"
     lastModified: "2026-01-22T16:45:00Z"
@@ -410,11 +410,11 @@ DataExampleDto:
   type: object
   description: Named example data set for template testing
   required:
-    - id
+    - key
     - name
     - data
   properties:
-    id:
+    key:
       type: string
       description: Unique identifier of the data example
       example: standard-invoice
@@ -454,7 +454,7 @@ DataExampleDto:
         notes: "Payment due within 30 days. Please reference invoice number on transfer."
         currency: EUR
   example:
-    id: standard-invoice
+    key: standard-invoice
     name: Standard Invoice
     data:
       customer:
@@ -489,15 +489,15 @@ CreateTemplateRequest:
   type: object
   description: Request body for creating a new template
   required:
-    - id
+    - key
     - name
   properties:
-    id:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Client-provided slug identifier for the template
+      description: Client-chosen key for the template
       example: invoice
     name:
       type: string
@@ -753,8 +753,8 @@ TemplateListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - slug: invoice
-        tenantId: acme-corp
+      - key: invoice
+        tenantKey: acme-corp
         name: Monthly Invoice
         createdAt: "2026-01-20T09:00:00Z"
         lastModified: "2026-01-22T16:45:00Z"

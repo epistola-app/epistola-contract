@@ -18,7 +18,7 @@ class EpistolaJsonTest {
         // attributes is typed `array` in the contract with no null in the union, so writing it as
         // null is a request no server validating against the spec accepts.
         val json = EpistolaJson.objectMapper.writeValueAsString(
-            GenerateDocumentRequest(namespace = "acme-corp", catalogKey = "default", templateId = "invoice", data = mapOf("x" to 1)),
+            GenerateDocumentRequest(namespace = "acme-corp", catalogKey = "default", templateKey = "invoice", data = mapOf("x" to 1)),
         )
 
         assertFalse(json.contains("attributes"), json)

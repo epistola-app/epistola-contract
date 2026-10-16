@@ -40,21 +40,21 @@ fun interface TemplateDataValidator {
      * Returns the findings for [data] against the data contract of the given template, empty when
      * there are none.
      *
-     * @param tenantId Tenant identifier.
+     * @param tenantKey Key of the tenant.
      * @param registry Registry of the template's catalog, as its path segment: `~` for the server's
      *   default registry, or the registry in full (`acme.com`, `exchange.example.org`).
      * @param namespace Namespace of the template's catalog within [registry] (`acme-corp`).
      * @param catalogKey Key of the template's catalog within [namespace]. The same template id in
      *   two catalogs of one tenant is two different templates with two different contracts.
-     * @param templateId Template identifier.
+     * @param templateKey Key of the template within the catalog.
      * @param data The data object, typically a `Map<String, Any?>`.
      */
     fun validate(
-        tenantId: String,
+        tenantKey: String,
         registry: String,
         namespace: String,
         catalogKey: String,
-        templateId: String,
+        templateKey: String,
         data: Any,
     ): List<TemplateDataValidationException.ValidationError>
 

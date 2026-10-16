@@ -12,7 +12,7 @@ action:
   name: delete-catalog-version
   config:
     nodeId: conformance-node-1
-    tenantId: acme-corp
+    tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: letters

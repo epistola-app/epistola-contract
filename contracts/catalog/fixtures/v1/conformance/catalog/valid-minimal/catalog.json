@@ -3,7 +3,7 @@
   "catalog": {
     "registry": "exchange.epistola.app",
     "namespace": "epistola",
-    "slug": "fixture",
+    "key": "fixture",
     "name": "Fixture Catalog",
     "description": "Minimal valid conformance catalog"
   },
@@ -16,7 +16,7 @@
   "resources": [
     {
       "type": "theme",
-      "slug": "default",
+      "key": "default",
       "name": "Default",
       "detailUrl": "./resources/theme/default.json"
     }

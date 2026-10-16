@@ -12,8 +12,8 @@ import jakarta.servlet.http.HttpServletRequest
  *
  * Example usage in a Spring controller or filter:
  * ```
- * @GetMapping("/tenants/{tenantId}")
- * fun getTenant(@PathVariable tenantId: String, request: HttpServletRequest): TenantDto {
+ * @GetMapping("/tenants/{tenantKey}")
+ * fun getTenant(@PathVariable tenantKey: String, request: HttpServletRequest): TenantDto {
  *     val client = ClientInfo.from(request)
  *     log.info("Request from ${client.nodeId}, contract ${client.contractVersion}")
  *     // ...

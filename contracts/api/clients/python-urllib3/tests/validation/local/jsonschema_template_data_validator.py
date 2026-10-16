@@ -62,14 +62,14 @@ class JsonSchemaTemplateDataValidator:
 
     def validate(
         self,
-        tenant_id: str,
+        tenant_key: str,
         registry: str,
         namespace: str,
         catalog_key: str,
-        template_id: str,
+        template_key: str,
         data: Any,
     ) -> List[ValidationFailure]:
-        schema = self._schema_for(tenant_id, registry, namespace, catalog_key, template_id)
+        schema = self._schema_for(tenant_key, registry, namespace, catalog_key, template_key)
         # No schema on the template means nothing is claimed about the data, so nothing is wrong
         # with it. Same answer the server gives.
         if schema is None:
@@ -89,16 +89,16 @@ class JsonSchemaTemplateDataValidator:
         ]
 
     def _schema_for(
-        self, tenant_id: str, registry: str, namespace: str, catalog_key: str, template_id: str
+        self, tenant_key: str, registry: str, namespace: str, catalog_key: str, template_key: str
     ) -> Optional[Dict[str, Any]]:
-        key = (tenant_id, registry, namespace, catalog_key, template_id)
+        key = (tenant_key, registry, namespace, catalog_key, template_key)
         now = time.monotonic()
         with self._lock:
             entry = self._cache.get(key)
             if entry is not None and now < entry[1] + self._ttl:
                 return entry[0]
         template = self._templates_api.get_template(
-            tenant_id, registry, namespace, catalog_key, self._catalog_version, template_id
+            tenant_key, registry, namespace, catalog_key, self._catalog_version, template_key
         )
         schema = template.var_schema
         with self._lock:

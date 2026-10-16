@@ -55,7 +55,7 @@ class WildFlyDeploymentTest {
     private static final String PONG =
             "{\"status\":\"UP\",\"timestamp\":\"2026-09-02T10:00:00Z\"}";
 
-    private static final String IMAGE = "{\"slug\":\"logo\",\"tenantId\":\"acme-corp\",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"main\","
+    private static final String IMAGE = "{\"key\":\"logo\",\"tenantKey\":\"acme-corp\",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"main\","
             + "\"catalogType\":\"AUTHORED\",\"readOnly\":false,\"name\":\"Logo\",\"mediaType\":\"image/png\","
             + "\"sizeBytes\":16,\"createdAt\":\"2026-09-02T10:00:00Z\"}";
 

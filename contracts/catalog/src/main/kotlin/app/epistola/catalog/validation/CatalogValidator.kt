@@ -16,11 +16,11 @@ import app.epistola.catalog.protocol.AttributeResource
 import app.epistola.catalog.protocol.BinaryRef
 import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogInfo
+import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogNamespaces
 import app.epistola.catalog.protocol.CatalogResource
-import app.epistola.catalog.protocol.CatalogSlugs
 import app.epistola.catalog.protocol.CodeListResource
 import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.FontResource
@@ -119,9 +119,9 @@ object CatalogValidationCodes {
     const val MANIFEST_DETAIL_UNDECLARED = "CATALOG_MANIFEST_DETAIL_UNDECLARED"
     const val RESOURCE_SCHEMA_MISMATCH = "CATALOG_RESOURCE_SCHEMA_MISMATCH"
     const val RESOURCE_TYPE_MISMATCH = "CATALOG_RESOURCE_TYPE_MISMATCH"
-    const val RESOURCE_SLUG_MISMATCH = "CATALOG_RESOURCE_SLUG_MISMATCH"
+    const val RESOURCE_KEY_MISMATCH = "CATALOG_RESOURCE_KEY_MISMATCH"
     const val RESOURCE_NAME_MISMATCH = "CATALOG_RESOURCE_NAME_MISMATCH"
-    const val RESOURCE_SLUG_INVALID = "CATALOG_RESOURCE_SLUG_INVALID"
+    const val RESOURCE_KEY_INVALID = "CATALOG_RESOURCE_KEY_INVALID"
     const val RESOURCE_REFERENCE_MISSING = "CATALOG_RESOURCE_REFERENCE_MISSING"
     const val DEPENDENCY_REFERENCE_MISSING = "CATALOG_DEPENDENCY_REFERENCE_MISSING"
     const val DEPENDENCY_DUPLICATE = "CATALOG_DEPENDENCY_DUPLICATE"
@@ -194,7 +194,7 @@ object CatalogValidationCodes {
     const val TEMPLATE_EXAMPLE_NAME_DUPLICATE = "CATALOG_TEMPLATE_EXAMPLE_NAME_DUPLICATE"
     const val TEMPLATE_DATA_SCHEMA_INVALID = "CATALOG_TEMPLATE_DATA_SCHEMA_INVALID"
     const val TEMPLATE_DATA_EXAMPLE_INVALID = "CATALOG_TEMPLATE_DATA_EXAMPLE_INVALID"
-    const val TEMPLATE_VARIANT_ID_DUPLICATE = "CATALOG_TEMPLATE_VARIANT_ID_DUPLICATE"
+    const val TEMPLATE_VARIANT_KEY_DUPLICATE = "CATALOG_TEMPLATE_VARIANT_KEY_DUPLICATE"
     const val TEMPLATE_VARIANT_DEFAULT_INVALID = "CATALOG_TEMPLATE_VARIANT_DEFAULT_INVALID"
 }
 
@@ -202,7 +202,7 @@ object CatalogValidationCodes {
  * In-memory catalog graph supplied to [ResourceValidator].
  *
  * @property catalogKey identity used for same-catalog references.
- * @property resources resources keyed by `type/slug`.
+ * @property resources resources keyed by `type/key`.
  * @property namespace the catalog's namespace; a reference naming none, or this one, with no or this
  *   [catalogKey] and [registry], is a same-catalog reference. Null when the namespace is not known.
  * @property registry the catalog's registry; a reference that omits its registry means this one.
@@ -249,15 +249,15 @@ object ResourceValidator {
         val findings = mutableListOf<CatalogValidationFinding>()
         val resource = detail.resource
         // Per type, not one loose rule for all of them: the bounds mirror the columns a consumer
-        // stores a slug in, so a name that passes here is one every consumer can actually hold.
-        // Checking the loose rule instead let a catalog publish a 30-character theme slug that
+        // stores a key in, so a name that passes here is one every consumer can actually hold.
+        // Checking the loose rule instead let a catalog publish a 30-character theme key that
         // then failed on install with a database error, with no diagnosis in between.
-        val rule = CatalogSlugs.byType[resource.type] ?: CatalogSlugs.ANY
-        if (!CatalogSlugs.matches(rule, resource.slug)) {
+        val rule = CatalogKeys.byType[resource.type] ?: CatalogKeys.ANY
+        if (!CatalogKeys.matches(rule, resource.key)) {
             findings.error(
-                CatalogValidationCodes.RESOURCE_SLUG_INVALID,
-                "$path.resource.slug",
-                "slug must be ${rule.minLength} to ${rule.maxLength} characters matching ${rule.pattern}",
+                CatalogValidationCodes.RESOURCE_KEY_INVALID,
+                "$path.resource.key",
+                "key must be ${rule.minLength} to ${rule.maxLength} characters matching ${rule.pattern}",
             )
         }
         when (resource) {
@@ -286,20 +286,20 @@ object ResourceValidator {
         path: String,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        resource.themeId?.let { themeId ->
+        resource.themeKey?.let { themeKey ->
             validateReference(
-                CatalogResourceReference("theme", themeId, resource.themeCatalogKey, resource.themeNamespace, resource.themeRegistry),
+                CatalogResourceReference("theme", themeKey, resource.themeCatalogKey, resource.themeNamespace, resource.themeRegistry),
                 context,
-                "$path.themeId",
+                "$path.themeKey",
                 findings,
             )
         }
         validateContentIdentity(resource.themeRegistry, "$path.themeRegistry", resource.themeNamespace, "$path.themeNamespace", findings)
         validateDocument(resource.templateModel, context, "$path.templateModel", null, findings)
-        val variantSlugs = mutableSetOf<String>()
+        val variantKeys = mutableSetOf<String>()
         resource.variants.forEachIndexed { index, variant ->
-            if (!variantSlugs.add(variant.slug)) {
-                findings.error(CatalogValidationCodes.TEMPLATE_VARIANT_ID_DUPLICATE, "$path.variants[$index].slug", "variant slug '${variant.slug}' is duplicated")
+            if (!variantKeys.add(variant.key)) {
+                findings.error(CatalogValidationCodes.TEMPLATE_VARIANT_KEY_DUPLICATE, "$path.variants[$index].key", "variant key '${variant.key}' is duplicated")
             }
             variant.templateModel?.let { validateDocument(it, context, "$path.variants[$index].templateModel", null, findings) }
         }
@@ -351,7 +351,7 @@ object ResourceValidator {
                 override val currentNamespace: String? = context.namespace
                 override val currentRegistry: String? = context.registry
                 override val containingStencil: CatalogResourceReference? = containingStencil?.let {
-                    CatalogResourceReference("stencil", it.slug, context.catalogKey, context.namespace, context.registry)
+                    CatalogResourceReference("stencil", it.key, context.catalogKey, context.namespace, context.registry)
                 }
 
                 override fun resolveResource(reference: CatalogResourceReference): ResourceResolution = resolveReference(reference, context)
@@ -402,12 +402,12 @@ object ResourceValidator {
         findings: MutableList<CatalogValidationFinding>,
     ) {
         val font = styles?.get("fontFamily") as? Map<*, *> ?: return
-        val slug = font["slug"] as? String ?: return
+        val key = font["key"] as? String ?: return
         val catalogKey = font["catalogKey"] as? String
         val namespace = font["namespace"] as? String
         val registry = font["registry"] as? String
         validateContentIdentity(registry, "$path.fontFamily.registry", namespace, "$path.fontFamily.namespace", findings)
-        validateReference(CatalogResourceReference("font", slug, catalogKey, namespace, registry), context, "$path.fontFamily", findings)
+        validateReference(CatalogResourceReference("font", key, catalogKey, namespace, registry), context, "$path.fontFamily", findings)
     }
 
     private fun validateAttribute(
@@ -426,7 +426,7 @@ object ResourceValidator {
         resource.codeListBinding?.let {
             validateContentIdentity(it.registry, "$path.codeListBinding.registry", it.namespace, "$path.codeListBinding.namespace", findings)
             validateReference(
-                CatalogResourceReference("codeList", it.slug, it.catalogKey, it.namespace, it.registry),
+                CatalogResourceReference("codeList", it.key, it.catalogKey, it.namespace, it.registry),
                 context,
                 "$path.codeListBinding",
                 findings,
@@ -548,7 +548,7 @@ object ResourceValidator {
     ) {
         val resolution = resolveReference(reference, context)
         if (resolution == ResourceResolution.MISSING) {
-            findings.error(CatalogValidationCodes.RESOURCE_REFERENCE_MISSING, path, "${reference.type} resource '${reference.slug}' cannot be resolved")
+            findings.error(CatalogValidationCodes.RESOURCE_REFERENCE_MISSING, path, "${reference.type} resource '${reference.key}' cannot be resolved")
         }
     }
 
@@ -597,7 +597,7 @@ object ResourceValidator {
                 ),
             )
         }
-        context.resources["${reference.type}/${reference.slug}"] ?: return ResourceResolution.MISSING
+        context.resources["${reference.type}/${reference.key}"] ?: return ResourceResolution.MISSING
         return ResourceResolution.PRESENT
     }
 
@@ -666,7 +666,7 @@ object CatalogValidator {
         val manifestKeys = mutableSetOf<String>()
         val entriesByKey = linkedMapOf<String, ResourceEntry>()
         manifest.resources.forEachIndexed { index, entry ->
-            val key = "${entry.type}/${entry.slug}"
+            val key = "${entry.type}/${entry.key}"
             if (!manifestKeys.add(key)) {
                 findings.error(CatalogValidationCodes.MANIFEST_RESOURCE_DUPLICATE, "catalog.json.resources[$index]", "resource '$key' is duplicated")
             }
@@ -675,7 +675,7 @@ object CatalogValidator {
             // An image migrated from catalog v6 keeps its file under `resources/asset/`: the
             // migration renames the type and cannot move the file. Accepted so such an archive
             // stays installable; anything written at v7 uses the type's own directory.
-            val legacyPath = if (entry.type == "image") "resources/asset/${entry.slug}.json" else null
+            val legacyPath = if (entry.type == "image") "resources/asset/${entry.key}.json" else null
             val declaredPath = entry.detailUrl.removePrefix("./")
             if (declaredPath != expectedPath && declaredPath != legacyPath) {
                 findings.error(
@@ -700,8 +700,8 @@ object CatalogValidator {
                 if (detail.resource.type != entry.type) {
                     findings.error(CatalogValidationCodes.RESOURCE_TYPE_MISMATCH, "$path.resource.type", "resource type differs from manifest")
                 }
-                if (detail.resource.slug != entry.slug) {
-                    findings.error(CatalogValidationCodes.RESOURCE_SLUG_MISMATCH, "$path.resource.slug", "resource slug differs from manifest")
+                if (detail.resource.key != entry.key) {
+                    findings.error(CatalogValidationCodes.RESOURCE_KEY_MISMATCH, "$path.resource.key", "resource key differs from manifest")
                 }
                 if (detail.resource.name != entry.name) {
                     findings.error(CatalogValidationCodes.RESOURCE_NAME_MISMATCH, "$path.resource.name", "resource name differs from manifest")
@@ -711,7 +711,7 @@ object CatalogValidator {
         val resources = catalog.resourceDetails.mapValues { it.value.resource }
         validateCatalogInfo(manifest.catalog, resources, findings)
         val context = ResourceValidationContext(
-            catalogKey = manifest.catalog.slug,
+            catalogKey = manifest.catalog.key,
             resources = resources,
             paths = catalog.paths,
             dependencyResolver = policy.dependencyResolver,
@@ -721,7 +721,7 @@ object CatalogValidator {
         catalog.resourceDetails.toSortedMap().forEach { (key, detail) ->
             findings += ResourceValidator.validate(detail, context, "resources/$key.json").findings
         }
-        validateStencilComposition(resources, manifest.catalog.slug, manifest.catalog.namespace, manifest.catalog.registry, findings)
+        validateStencilComposition(resources, manifest.catalog.key, manifest.catalog.namespace, manifest.catalog.registry, findings)
         return CatalogValidationReport(findings.distinct().sorted())
     }
 
@@ -734,7 +734,7 @@ object CatalogValidator {
     ) {
         val stencils = resources.values
             .filterIsInstance<StencilResource>()
-            .associateBy { StencilResourceIdentity(it.slug) }
+            .associateBy { StencilResourceIdentity(it.key) }
         val edges = stencils.mapValues { (_, stencil) ->
             val parentByNode = stencil.content.slots.values
                 .flatMap { slot -> slot.children.map { child -> child to slot.nodeId } }
@@ -755,7 +755,7 @@ object CatalogValidator {
                 .filter { it.type == "stencil" && !hasStencilAncestor(it) }
                 .sortedBy(Node::id)
                 .mapNotNull { node ->
-                    val slug = node.props?.get("stencilId") as? String ?: return@mapNotNull null
+                    val stencilKey = node.props?.get("stencilKey") as? String ?: return@mapNotNull null
                     val referenceCatalog = node.props["catalogKey"] as? String ?: catalogKey
                     val referenceNamespace = node.props["namespace"] as? String ?: namespace
                     val referenceRegistry = node.props["registry"] as? String ?: registry
@@ -763,8 +763,8 @@ object CatalogValidator {
                         return@mapNotNull null
                     }
                     StencilCompositionEdge(
-                        target = StencilResourceIdentity(slug),
-                        path = "resources/stencil/${stencil.slug}.json.resource.content.nodes.${node.id}.props.stencilId",
+                        target = StencilResourceIdentity(stencilKey),
+                        path = "resources/stencil/${stencil.key}.json.resource.content.nodes.${node.id}.props.stencilKey",
                     )
                 }
         }
@@ -781,7 +781,7 @@ object CatalogValidator {
                     findings.error(
                         TemplateValidationCodes.STENCIL_RECURSION,
                         edge.path,
-                        "stencil '${target.slug}' would contain itself transitively",
+                        "stencil '${target.key}' would contain itself transitively",
                     )
                     return@forEach
                 }
@@ -804,7 +804,7 @@ object CatalogValidator {
             }
         }
 
-        stencils.keys.sortedBy { it.slug }.forEach { stencil ->
+        stencils.keys.sortedBy { it.key }.forEach { stencil ->
             if ((greatestDepth[stencil] ?: 0) < 1) {
                 greatestDepth[stencil] = 1
                 visit(stencil, setOf(stencil), 1)
@@ -876,11 +876,11 @@ object CatalogValidator {
         val seenAttributes = mutableSetOf<Pair<String, String>>()
         catalog.attributes.forEachIndexed { index, attribute ->
             val path = "catalog.json.catalog.attributes[$index]"
-            if (!ATTRIBUTE_IDENTITY.matches(attribute.catalog)) {
+            if (!ATTRIBUTE_IDENTITY.matches(attribute.catalogKey)) {
                 findings.error(
                     CatalogValidationCodes.CATALOG_ATTRIBUTE_IDENTITY_INVALID,
-                    "$path.catalog",
-                    "attribute catalog must contain lowercase letters, digits, and hyphens",
+                    "$path.catalogKey",
+                    "attribute catalogKey must contain lowercase letters, digits, and hyphens",
                 )
             }
             if (!ATTRIBUTE_IDENTITY.matches(attribute.key)) {
@@ -890,11 +890,11 @@ object CatalogValidator {
                     "attribute key must contain lowercase letters, digits, and hyphens",
                 )
             }
-            if (!seenAttributes.add(attribute.catalog to attribute.key)) {
+            if (!seenAttributes.add(attribute.catalogKey to attribute.key)) {
                 findings.error(
                     CatalogValidationCodes.CATALOG_ATTRIBUTE_DUPLICATE,
                     path,
-                    "attribute '${attribute.catalog}.${attribute.key}' is duplicated",
+                    "attribute '${attribute.catalogKey}.${attribute.key}' is duplicated",
                 )
             }
         }
@@ -953,12 +953,12 @@ object CatalogValidator {
             }
         }
         val presentation = catalog.presentation ?: return
-        presentation.iconAssetSlug?.let { slug ->
-            validatePresentationAsset(slug, "catalog.json.catalog.presentation.iconAssetSlug", resources, findings)
+        presentation.iconImageKey?.let { key ->
+            validatePresentationAsset(key, "catalog.json.catalog.presentation.iconImageKey", resources, findings)
         }
         val seen = mutableSetOf<String>()
-        presentation.imageAssetSlugs.forEachIndexed { index, slug ->
-            val path = "catalog.json.catalog.presentation.imageAssetSlugs[$index]"
+        presentation.imageKeys.forEachIndexed { index, slug ->
+            val path = "catalog.json.catalog.presentation.imageKeys[$index]"
             if (!seen.add(slug)) {
                 findings.error(
                     CatalogValidationCodes.PRESENTATION_IMAGE_DUPLICATE,
@@ -978,7 +978,7 @@ object CatalogValidator {
     ) {
         val asset = resources["image/$slug"] as? ImageResource
         if (asset == null) {
-            val code = if (resources.values.any { it.slug == slug }) {
+            val code = if (resources.values.any { it.key == slug }) {
                 CatalogValidationCodes.PRESENTATION_RESOURCE_NOT_ASSET
             } else {
                 CatalogValidationCodes.PRESENTATION_ASSET_MISSING
@@ -1007,18 +1007,18 @@ object CatalogValidator {
         manifest: CatalogManifest,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        val own = CatalogIdentity(manifest.catalog.registry, manifest.catalog.namespace, manifest.catalog.slug)
+        val own = CatalogIdentity(manifest.catalog.registry, manifest.catalog.namespace, manifest.catalog.key)
         validateTopLevelIdentity(manifest.catalog.registry, manifest.catalog.namespace, "catalog.json.catalog", "catalog", findings)
         val seen = mutableSetOf<CatalogIdentity>()
         manifest.catalogDependencies.orEmpty().forEachIndexed { index, dependency ->
             val path = "catalog.json.catalogDependencies[$index]"
             val identity = CatalogIdentity(dependency.registry, dependency.namespace, dependency.catalogKey)
             validateTopLevelIdentity(dependency.registry, dependency.namespace, path, "catalog dependency", findings)
-            if (!CatalogSlugs.matches(CatalogSlugs.CATALOG, dependency.catalogKey)) {
+            if (!CatalogKeys.matches(CatalogKeys.CATALOG, dependency.catalogKey)) {
                 findings.error(
-                    CatalogValidationCodes.RESOURCE_SLUG_INVALID,
+                    CatalogValidationCodes.RESOURCE_KEY_INVALID,
                     "$path.catalogKey",
-                    "catalogKey must be ${CatalogSlugs.CATALOG.minLength} to ${CatalogSlugs.CATALOG.maxLength} characters matching ${CatalogSlugs.CATALOG.pattern}",
+                    "catalogKey must be ${CatalogKeys.CATALOG.minLength} to ${CatalogKeys.CATALOG.maxLength} characters matching ${CatalogKeys.CATALOG.pattern}",
                 )
             }
             if (identity == own) {
@@ -1096,7 +1096,7 @@ object CatalogValidator {
         policy: CatalogValidationPolicy,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        val own = CatalogIdentity(manifest.catalog.registry, manifest.catalog.namespace, manifest.catalog.slug)
+        val own = CatalogIdentity(manifest.catalog.registry, manifest.catalog.namespace, manifest.catalog.key)
         val declared = manifest.catalogDependencies.orEmpty().mapTo(mutableSetOf()) { CatalogIdentity(it.registry, it.namespace, it.catalogKey) }
         val seen = mutableSetOf<String>()
         manifest.dependencies.orEmpty().forEachIndexed { index, dependency ->
@@ -1108,8 +1108,8 @@ object CatalogValidator {
                 is DependencyRef.Font -> "font"
                 is DependencyRef.Image -> "image"
             }
-            val reference = CatalogResourceReference(type, dependency.slug, dependency.catalogKey, dependency.namespace, dependency.registry)
-            val key = "${reference.type}|${reference.registry.orEmpty()}|${reference.namespace.orEmpty()}|${reference.catalogKey.orEmpty()}|${reference.slug}"
+            val reference = CatalogResourceReference(type, dependency.key, dependency.catalogKey, dependency.namespace, dependency.registry)
+            val key = "${reference.type}|${reference.registry.orEmpty()}|${reference.namespace.orEmpty()}|${reference.catalogKey.orEmpty()}|${reference.key}"
             if (!seen.add(key)) {
                 findings.error(CatalogValidationCodes.DEPENDENCY_DUPLICATE, path, "dependency '$key' is duplicated")
             }
@@ -1151,7 +1151,7 @@ object CatalogValidator {
     private val ATTRIBUTE_IDENTITY = Regex("^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 
     private data class StencilResourceIdentity(
-        val slug: String,
+        val key: String,
     )
 
     private data class StencilCompositionEdge(

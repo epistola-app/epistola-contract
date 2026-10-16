@@ -133,7 +133,7 @@ class TemplateValidatorFixtureTest {
         id,
         "stencil",
         slots = listOf("$id-children"),
-        props = mapOf("stencilId" to slug),
+        props = mapOf("stencilKey" to slug),
     )
 
     private fun stencilDefinition(vararg placeholders: Node): TemplateDocument {
@@ -194,7 +194,7 @@ class TemplateValidatorFixtureTest {
         alias: String? = null,
     ): TemplateDocument {
         val props = mutableMapOf<String, Any?>(
-            "stencilId" to "invoice",
+            "stencilKey" to "invoice",
             "parameterBindings" to bindings,
             "parameterSchemaSnapshot" to schema,
         )

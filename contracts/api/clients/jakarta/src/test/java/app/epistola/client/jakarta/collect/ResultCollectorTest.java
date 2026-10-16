@@ -166,7 +166,7 @@ class ResultCollectorTest {
                 StubServer.start(request -> StubServer.StubResponse.of(200, NDJSON, meta(false)))) {
             ResultCollector.builder()
                     .collectApi(collectApi(stub))
-                    .tenantId("acme-corp")
+                    .tenantKey("acme-corp")
                     .batchSize(250)
                     .handler(r -> {})
                     .registerShutdownHook(false)
@@ -301,7 +301,7 @@ class ResultCollectorTest {
                 StubServer.StubResponse.of(200, NDJSON, bodies.poll()))) {
             ResultCollector collector = ResultCollector.builder()
                     .collectApi(collectApi(stub))
-                    .tenantId("acme-corp")
+                    .tenantKey("acme-corp")
                     .handler(r -> {})
                     .registerShutdownHook(false)
                     .metricsListener(new ResultCollector.MetricsListener() {
@@ -334,7 +334,7 @@ class ResultCollectorTest {
                 StubServer.StubResponse.of(500, "text/plain", "boom"))) {
             ResultCollector collector = ResultCollector.builder()
                     .collectApi(collectApi(stub))
-                    .tenantId("acme-corp")
+                    .tenantKey("acme-corp")
                     .handler(r -> {})
                     .registerShutdownHook(false)
                     .metricsListener(new ResultCollector.MetricsListener() {
@@ -365,7 +365,7 @@ class ResultCollectorTest {
         })) {
             ResultCollector collector = ResultCollector.builder()
                     .collectApi(collectApi(stub))
-                    .tenantId("acme-corp")
+                    .tenantKey("acme-corp")
                     .handler(r -> {})
                     .registerShutdownHook(false)
                     // A 30s backoff after the first empty poll: stop() has to cut it short, or
@@ -403,7 +403,7 @@ class ResultCollectorTest {
         })) {
             ResultCollector collector = ResultCollector.builder()
                     .collectApi(collectApi(stub))
-                    .tenantId("acme-corp")
+                    .tenantKey("acme-corp")
                     .handler(r -> {})
                     .registerShutdownHook(false)
                     .minInterval(Duration.ofMillis(200))
@@ -430,7 +430,7 @@ class ResultCollectorTest {
         assertThrows(IllegalStateException.class, () -> ResultCollector.builder().build());
         assertThrows(
                 IllegalStateException.class,
-                () -> ResultCollector.builder().tenantId("acme-corp").handler(r -> {}).build());
+                () -> ResultCollector.builder().tenantKey("acme-corp").handler(r -> {}).build());
         assertThrows(IllegalArgumentException.class, () -> ResultCollector.builder().batchSize(0));
         assertThrows(IllegalArgumentException.class, () -> ResultCollector.builder().batchSize(10001));
         assertThrows(IllegalArgumentException.class, () -> ResultCollector.builder().backoffMultiplier(1.0));
@@ -440,7 +440,7 @@ class ResultCollectorTest {
     private static ResultCollector collector(StubServer stub, java.util.function.Consumer<GenerationResult> handler) {
         return ResultCollector.builder()
                 .collectApi(collectApi(stub))
-                .tenantId("acme-corp")
+                .tenantKey("acme-corp")
                 .handler(handler)
                 .registerShutdownHook(false)
                 .build();

@@ -296,6 +296,10 @@ object CatalogSchemaMigrator {
         versionFinding(source, "$path.schemaVersion")?.let { return CatalogMigrationResult(null, source, listOf(it)) }
         val migration = migrate(source) { step -> step.migrateResource(tree, path, context) }
         if (migration.findings.isNotEmpty()) return CatalogMigrationResult(null, source, migration.findings, migration.notices)
+        val wireFindings = (tree["resource"] as? ObjectNode)
+            ?.let { renamedMemberFindings(CatalogKeyRenames.resourceSites(it, "$path.resource")) }
+            .orEmpty()
+        if (wireFindings.isNotEmpty()) return CatalogMigrationResult(null, source, wireFindings, migration.notices)
         return bind(tree, ResourceDetail::class.java, source, path, migration.notices)
     }
 
@@ -309,7 +313,24 @@ object CatalogSchemaMigrator {
 
     private fun schemaVersion(tree: ObjectNode): Int? = tree["schemaVersion"]?.takeIf { it.isIntegralNumber }?.asInt()
 
-    private fun validateManifestWireValues(tree: ObjectNode): List<CatalogMigrationFinding> = namespaceFindings(tree) + releaseFingerprintFindings(tree) + keywordFindings(tree)
+    private fun validateManifestWireValues(tree: ObjectNode): List<CatalogMigrationFinding> = renamedMemberFindings(CatalogKeyRenames.manifestSites(tree)) +
+        namespaceFindings(tree) +
+        releaseFingerprintFindings(tree) +
+        keywordFindings(tree)
+
+    /**
+     * Wire v8 calls a resource's address its `key` ([CatalogKeyRenames]). The model still binds the
+     * old names, so that documents a consumer stored under earlier versions still load; the wire
+     * check is where v8 rejects them. A migrated document never reaches here with one, because the
+     * migration renames every one of them; a document written at v8 with an old name is not wire v8.
+     */
+    private fun renamedMemberFindings(sites: List<CatalogKeyRenames.Site>): List<CatalogMigrationFinding> = CatalogKeyRenames.remainingOldMembers(sites).map { (path, site) ->
+        CatalogMigrationFinding(
+            CatalogMigrationCodes.SCHEMA_UNKNOWN,
+            path,
+            "'${site.oldName}' is not a catalog-v8 member; wire v8 calls it '${site.newName}'",
+        )
+    }
 
     /**
      * Wire v8 records a catalog dependency's release fingerprint exactly when it records the

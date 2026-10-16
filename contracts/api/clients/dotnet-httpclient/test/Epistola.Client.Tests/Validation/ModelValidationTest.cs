@@ -21,10 +21,10 @@ public class ModelValidationTest
     [InlineData("abc")]
     [InlineData("a1b")]
     [InlineData("test-env")]
-    [InlineData("my-long-slug-123")]
-    public void SlugPatternAcceptsValidSlugs(string slug)
+    [InlineData("my-long-key-123")]
+    public void KeyPatternAccepts(string key)
     {
-        var request = new CreateTenantRequest(id: slug, name: "Test");
+        var request = new CreateTenantRequest(key: key, name: "Test");
         Assert.Same(request, request.Validate());
     }
 
@@ -36,40 +36,40 @@ public class ModelValidationTest
     [InlineData("ab--c")]
     [InlineData("ab c")]
     [InlineData("ab.c")]
-    public void SlugPatternRejectsInvalidSlugs(string slug)
+    public void KeyPatternRejects(string key)
     {
-        Assert.Throws<ArgumentException>(() => new CreateTenantRequest(id: slug, name: "Test").Validate());
+        Assert.Throws<ArgumentException>(() => new CreateTenantRequest(key: key, name: "Test").Validate());
     }
 
     [Fact]
-    public void IdAtExactMinimumLengthPasses()
+    public void KeyAtExactMinimumLengthPasses()
     {
-        var request = new CreateTenantRequest(id: "abc", name: "Tenant");
+        var request = new CreateTenantRequest(key: "abc", name: "Tenant");
         Assert.Same(request, request.Validate());
     }
 
     [Fact]
-    public void IdOneBelowMinimumLengthFails()
+    public void KeyOneBelowMinimumLengthFails()
     {
-        var ex = Assert.Throws<ArgumentException>(() => new CreateTenantRequest(id: "ab", name: "Tenant").Validate());
-        Assert.Contains("id: length must be between 3 and 63", ex.Message);
+        var ex = Assert.Throws<ArgumentException>(() => new CreateTenantRequest(key: "ab", name: "Tenant").Validate());
+        Assert.Contains("key: length must be between 3 and 63", ex.Message);
     }
 
     [Fact]
-    public void IdAtExactMaximumLengthPasses()
+    public void KeyAtExactMaximumLengthPasses()
     {
-        var id = "a" + new string('b', 62);
-        var request = new CreateTenantRequest(id: id, name: "Tenant");
+        var key = "a" + new string('b', 62);
+        var request = new CreateTenantRequest(key: key, name: "Tenant");
         Assert.Same(request, request.Validate());
     }
 
     [Fact]
     public void NameBoundaryValues()
     {
-        new CreateTenantRequest(id: "abc", name: "x").Validate();
-        new CreateTenantRequest(id: "abc", name: new string('x', 255)).Validate();
-        Assert.Throws<ArgumentException>(() => new CreateTenantRequest(id: "abc", name: "").Validate());
-        Assert.Throws<ArgumentException>(() => new CreateTenantRequest(id: "abc", name: new string('x', 256)).Validate());
+        new CreateTenantRequest(key: "abc", name: "x").Validate();
+        new CreateTenantRequest(key: "abc", name: new string('x', 255)).Validate();
+        Assert.Throws<ArgumentException>(() => new CreateTenantRequest(key: "abc", name: "").Validate());
+        Assert.Throws<ArgumentException>(() => new CreateTenantRequest(key: "abc", name: new string('x', 256)).Validate());
     }
 
     [Fact]
@@ -86,28 +86,28 @@ public class ModelValidationTest
     }
 
     [Fact]
-    public void CreateEnvironmentRequestEnforcesIdMaxLengthOf30()
+    public void CreateEnvironmentRequestEnforcesKeyMaxLengthOf30()
     {
-        var valid = new CreateEnvironmentRequest(id: "a" + new string('b', 29), name: "Env");
+        var valid = new CreateEnvironmentRequest(key: "a" + new string('b', 29), name: "Env");
         Assert.Same(valid, valid.Validate());
-        var ex = Assert.Throws<ArgumentException>(() => new CreateEnvironmentRequest(id: new string('a', 31), name: "Env").Validate());
-        Assert.Contains("id: length must be between 3 and 30", ex.Message);
+        var ex = Assert.Throws<ArgumentException>(() => new CreateEnvironmentRequest(key: new string('a', 31), name: "Env").Validate());
+        Assert.Contains("key: length must be between 3 and 30", ex.Message);
     }
 
     [Fact]
     public void GenerateDocumentRequestValidatesNullableFieldsIndependently()
     {
-        new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), varVersion: null).Validate();
+        new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), varVersion: null).Validate();
         Assert.Throws<ArgumentException>(() =>
-            new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), varVersion: "").Validate());
+            new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), varVersion: "").Validate());
 
-        new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), environmentId: null).Validate();
+        new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), environmentKey: null).Validate();
         Assert.Throws<ArgumentException>(() =>
-            new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), environmentId: "PROD").Validate());
+            new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), environmentKey: "PROD").Validate());
 
-        new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), filename: new string('x', 255)).Validate();
+        new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), filename: new string('x', 255)).Validate();
         var ex = Assert.Throws<ArgumentException>(() =>
-            new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", variantId: "english", data: new Dictionary<string, object>(), filename: new string('x', 256)).Validate());
+            new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), filename: new string('x', 256)).Validate());
         Assert.Contains("filename: length must be at most 255", ex.Message);
     }
 
@@ -122,7 +122,7 @@ public class ModelValidationTest
     public void GenerateBatchRequestWithItemsPasses()
     {
         var items = Enumerable.Range(1, 5).Select(i => new BatchGenerationItem(
-            varNamespace: "acme-corp", catalogKey: "default", templateId: "invoice", variantId: "english",
+            varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english",
             data: new Dictionary<string, object> { ["n"] = i })).ToList();
         var request = new GenerateBatchRequest(items: items);
         Assert.Same(request, request.Validate());
@@ -131,7 +131,7 @@ public class ModelValidationTest
     [Fact]
     public void ValidateReturnsSameInstanceForFluentChaining()
     {
-        var request = new CreateTenantRequest(id: "acme-corp", name: "Acme Corporation");
+        var request = new CreateTenantRequest(key: "acme-corp", name: "Acme Corporation");
         Assert.Same(request, request.Validate());
     }
 }

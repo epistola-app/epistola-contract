@@ -36,7 +36,7 @@ def test_parses_validation_problem_with_errors_array():
             "status": 400,
             "errors": [
                 {"field": "name", "message": "must not be blank"},
-                {"field": "slug", "message": "invalid", "rejectedValue": "BAD"},
+                {"field": "key", "message": "invalid", "rejectedValue": "BAD"},
             ],
         }
     )
@@ -44,7 +44,7 @@ def test_parses_validation_problem_with_errors_array():
     assert exc is not None
     assert exc.type_slug == KnownProblemSlugs.VALIDATION_ERROR
     assert exc.is_validation_problem
-    assert [e.var_field for e in exc.errors] == ["name", "slug"]
+    assert [e.var_field for e in exc.errors] == ["name", "key"]
     assert exc.errors[1].rejected_value == "BAD"
 
 

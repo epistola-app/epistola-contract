@@ -71,7 +71,7 @@ the stored value, not of what is hashed: V5's own domain prefix is unchanged. Se
 - V5, introduced with wire v8, is V4 under its own domain prefix (`algorithm sha256-v5`) plus the
   catalog's identity and declared dependencies: `catalog.registry` and `catalog.namespace`, each
   resource dependency's `registry` and `namespace` (dependencies sort by type, registry, namespace,
-  catalog key, and slug), and every `catalogDependencies` entry with its `registry`, `namespace`,
+  catalog key, and key), and every `catalogDependencies` entry with its `registry`, `namespace`,
   `version` selector, `releaseVersion` and `releaseFingerprint`, sorted by registry, namespace and
   catalog key. Registry and namespace are separate members, never one joined string. They are
   identity, and a selector decides which release of a dependency the catalog renders with, so two
@@ -81,6 +81,16 @@ the stored value, not of what is hashed: V5's own domain prefix is unchanged. Se
   `CodeListBindingRef.registry`/`.namespace`, `FontRef.registry`/`.namespace`,
   `TemplateResource.themeRegistry`/`.themeNamespace`) are omitted from the canonical resource JSON
   when absent, so resources that do not use them hash exactly as before.
+
+**Names.** Wire v8 calls a resource's address its `key` (`slug` until v7; likewise `themeKey`,
+`stencilKey`, `imageKey`, `iconImageKey` and `imageKeys` for `themeId`, `stencilId`, `assetId`,
+`iconAssetSlug` and `imageAssetSlugs`; a font reference's `slug` becomes `key`, and an attribute
+assignment's `catalog` `catalogKey`). V5 canonicalizes the new names. V1 to V4 canonicalize those members under their
+old names whatever the archive calls them, both in the manifest projection and in each resource's
+canonical JSON (`CatalogKeyRenames` lists the positions), so the rename moves no published V1 to V4
+fingerprint, and a v7 archive's V4 fingerprint still verifies after migration. Per-resource
+fingerprints (`perResourceFingerprints`, `currentPerResourceFingerprints`) belong to V1 and V3 and
+keep the old names too.
 
 **Why a new algorithm rather than extending V4.** V4 fingerprints are already published and must
 keep verifying. Adding the registry, namespace and catalog dependencies to V4 would change every V4 value; a

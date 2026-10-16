@@ -133,8 +133,8 @@ object CatalogArchiveReader {
                         // They part company for a catalog-v6 archive holding images: its files are
                         // under `resources/asset/`, and a migration renames the type but cannot
                         // move the file.
-                        val slug = path.removePrefix("resources/").removeSuffix(".json").substringAfterLast('/')
-                        details["$declaredType/$slug"] = detail
+                        val key = path.removePrefix("resources/").removeSuffix(".json").substringAfterLast('/')
+                        details["$declaredType/$key"] = detail
                     }
                 }
             val archive = CatalogArchive(

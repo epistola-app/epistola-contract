@@ -2,8 +2,8 @@ VariantDto:
   type: object
   description: Full template variant, with its status in the catalog version it was read from
   required:
-    - slug
-    - templateId
+    - key
+    - templateKey
     - title
     - attributes
     - isDefault
@@ -11,20 +11,20 @@ VariantDto:
     - createdAt
     - lastModified
   properties:
-    slug:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: |
-        Slug identifier of the variant
+        Key of the variant
       example: english
-    templateId:
+    templateKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the template this variant belongs to
+      description: Key of the template this variant belongs to
       example: invoice
     title:
       type: string
@@ -63,8 +63,8 @@ VariantDto:
       description: Timestamp when the variant was last modified
       example: "2026-01-28T11:30:00Z"
   example:
-    slug: english
-    templateId: invoice
+    key: english
+    templateKey: invoice
     title: English Invoice
     description: English language invoice for international customers
     attributes:
@@ -79,19 +79,19 @@ VariantSummaryDto:
   type: object
   description: Summary view of a variant for inclusion in template responses
   required:
-    - slug
+    - key
     - title
     - attributes
     - isDefault
     - status
   properties:
-    slug:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: |
-        Slug identifier of the variant
+        Key of the variant
       example: english
     title:
       type: string
@@ -114,7 +114,7 @@ VariantSummaryDto:
     status:
       $ref: './common.yaml#/ResourceStatus'
   example:
-    slug: english
+    key: english
     title: English Invoice
     attributes:
       locale: en-US
@@ -126,15 +126,15 @@ CreateVariantRequest:
   type: object
   description: Request body for creating a new variant
   required:
-    - id
+    - key
     - title
   properties:
-    id:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Client-provided slug identifier for the variant
+      description: Client-chosen key for the variant
       example: english
     title:
       type: string
@@ -201,8 +201,8 @@ VariantListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - slug: english
-        templateId: invoice
+      - key: english
+        templateKey: invoice
         title: English Invoice
         description: English language invoice for international customers
         attributes:
@@ -232,17 +232,17 @@ VariantContentDto:
   description: |
     A variant's content in one catalog version, and how it stands against that version's base.
   required:
-    - variantId
+    - variantKey
     - templateModel
     - status
     - lastModified
   properties:
-    variantId:
+    variantKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the variant
+      description: Key of the variant
       example: english
     templateModel:
       $ref: '../../../catalog/schemas/template-document.schema.json'

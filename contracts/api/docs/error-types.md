@@ -56,7 +56,7 @@ A `validation-error` problem extends the base shape with an `errors` array. Each
   "detail": "The request body failed validation",
   "errors": [
     { "field": "name", "message": "must not be blank" },
-    { "field": "slug", "message": "must match ^[a-z][a-z0-9-]*$", "rejectedValue": "A B" }
+    { "field": "key", "message": "must match ^[a-z][a-z0-9-]*$", "rejectedValue": "A B" }
   ]
 }
 ```

@@ -2,27 +2,27 @@ ThemeDto:
   type: object
   description: A theme defines reusable styling that can be applied across multiple templates
   required:
-    - slug
-    - tenantId
+    - key
+    - tenantKey
     - name
     - documentStyles
     - createdAt
     - lastModified
   properties:
-    slug:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 20
       description: |
-        Slug identifier of the theme (e.g., "corporate")
+        Key of the theme (e.g., "corporate")
       example: corporate
-    tenantId:
+    tenantKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
-      description: Slug identifier of the tenant this theme belongs to
+      description: Key of the tenant this theme belongs to
       example: acme-corp
     name:
       type: string
@@ -74,8 +74,8 @@ ThemeDto:
       description: Timestamp when the theme was last modified
       example: "2026-01-18T14:30:00Z"
   example:
-    slug: corporate
-    tenantId: acme-corp
+    key: corporate
+    tenantKey: acme-corp
     name: Corporate Theme
     description: Default corporate branding with Acme colors and fonts
     documentStyles:
@@ -116,15 +116,15 @@ CreateThemeRequest:
   type: object
   description: Request body for creating a new theme
   required:
-    - id
+    - key
     - name
   properties:
-    id:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 20
-      description: Client-provided slug identifier for the theme
+      description: Client-chosen key for the theme
       example: corporate
     name:
       type: string
@@ -210,8 +210,8 @@ ThemeListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - slug: corporate
-        tenantId: acme-corp
+      - key: corporate
+        tenantKey: acme-corp
         name: Corporate Theme
         description: Default corporate branding with Acme colors and fonts
         documentStyles:

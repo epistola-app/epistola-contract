@@ -25,9 +25,16 @@ import tools.jackson.databind.node.ObjectNode
  *   author sets a selector rather than the migrator guessing one.
  * - **Stencil versions** are removed, both a stencil's own `version` and a stencil reference's
  *   `version` and `draftVersion`. A stencil reference resolves through its catalog's dependency.
+ * - **Keys.** A resource's public address is called its `key`, and so are references to one:
+ *   `slug` becomes `key` (a font reference's too), `themeId` `themeKey`, a stencil node's
+ *   `stencilId` `stencilKey`, an image node's `assetId` `imageKey`, the presentation's
+ *   `iconAssetSlug` and `imageAssetSlugs` `iconImageKey` and `imageKeys`, and an attribute
+ *   assignment's `catalog` `catalogKey` ([CatalogKeyRenames] lists every position).
  *
- * Each repair is reported with a [CatalogMigrationNotice]. A stencil reference's `isDraft`, which
- * catalog v5 already rejected, is left in place and remains a validation finding.
+ * Each repair is reported with a [CatalogMigrationNotice], except the key renames: like catalog
+ * v7's rename of a variant's `id` to `slug`, the value is unchanged, so there is nothing for an
+ * author to act on. A stencil reference's `isDraft`, which catalog v5 already rejected, is left in
+ * place and remains a validation finding.
  */
 internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
     override val fromVersion: Int = 7
@@ -42,8 +49,9 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
         if (identityFindings.isNotEmpty()) return CatalogMigrationStepResult(identityFindings)
         val registry = checkNotNull(options.registry)
         val namespace = checkNotNull(options.namespace)
+        CatalogKeyRenames.toCurrent(CatalogKeyRenames.manifestSites(tree))
         val catalog = tree["catalog"] as? ObjectNode ?: return CatalogMigrationStepResult()
-        val ownKey = catalog["slug"]?.takeIf { it.isString }?.asString()
+        val ownKey = catalog["key"]?.takeIf { it.isString }?.asString()
         val notices = mutableListOf<CatalogMigrationNotice>()
 
         catalog.put("registry", registry)
@@ -144,6 +152,7 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
     ): CatalogMigrationStepResult {
         tree.put("schemaVersion", toVersion)
         val resource = tree["resource"] as? ObjectNode ?: return CatalogMigrationStepResult()
+        CatalogKeyRenames.toCurrent(CatalogKeyRenames.resourceSites(resource, "$path.resource"))
         val notices = mutableListOf<CatalogMigrationNotice>()
         if (resource["type"]?.asString() == "stencil" && resource.remove("version") != null) {
             notices += CatalogMigrationNotice(

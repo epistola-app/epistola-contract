@@ -291,35 +291,35 @@ class CatalogValidatorTest {
         val attribute = AttributeResource(
             "locale",
             "Locale",
-            codeListBinding = CodeListBindingRef(catalogKey = "shared", slug = "countries", namespace = "acme-corp"),
+            codeListBinding = CodeListBindingRef(catalogKey = "shared", key = "countries", namespace = "acme-corp"),
         )
         val sameCatalog = AttributeResource(
             "region",
             "Region",
-            codeListBinding = CodeListBindingRef(slug = "regions", namespace = NAMESPACE, registry = REGISTRY),
+            codeListBinding = CodeListBindingRef(key = "regions", namespace = NAMESPACE, registry = REGISTRY),
         )
         val invalid = AttributeResource(
             "country",
             "Country",
-            codeListBinding = CodeListBindingRef(slug = "countries", namespace = "Not A Namespace"),
+            codeListBinding = CodeListBindingRef(key = "countries", namespace = "Not A Namespace"),
         )
         // The same namespace in another registry is another catalog, so this resolves elsewhere.
         val otherRegistry = AttributeResource(
             "district",
             "District",
-            codeListBinding = CodeListBindingRef(slug = "regions", namespace = NAMESPACE, registry = "acme.com"),
+            codeListBinding = CodeListBindingRef(key = "regions", namespace = NAMESPACE, registry = "acme.com"),
         )
         val registryOnly = AttributeResource(
             "province",
             "Province",
-            codeListBinding = CodeListBindingRef(slug = "regions", registry = "Not.A.Registry"),
+            codeListBinding = CodeListBindingRef(key = "regions", registry = "Not.A.Registry"),
         )
         val regions = CodeListResource("regions", "Regions", entries = emptyList())
         val details = listOf(attribute, sameCatalog, invalid, otherRegistry, registryOnly, regions).associate { resource ->
-            "${resource.type}/${resource.slug}" to ResourceDetail(CURRENT_VERSION, resource)
+            "${resource.type}/${resource.key}" to ResourceDetail(CURRENT_VERSION, resource)
         }
         val entries = details.map { (key, detail) ->
-            ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
+            ResourceEntry(detail.resource.type, detail.resource.key, detail.resource.name, detailUrl = "./resources/$key.json")
         }
 
         val report = CatalogValidator.validate(archive(manifest(resources = entries), details), policy)
@@ -344,7 +344,7 @@ class CatalogValidatorTest {
                 CatalogResourceReference("codeList", "regions", "fixture", NAMESPACE, "Not.A.Registry"),
                 CatalogResourceReference("codeList", "regions", "fixture", NAMESPACE, "acme.com"),
             ),
-            resolved.sortedWith(compareBy({ it.slug }, { it.catalogKey }, { it.registry })),
+            resolved.sortedWith(compareBy({ it.key }, { it.catalogKey }, { it.registry })),
         )
     }
 
@@ -356,7 +356,7 @@ class CatalogValidatorTest {
             themeNamespace: String? = null,
         ): List<Pair<String, String>> {
             val template = TemplateResource(
-                slug = "letter",
+                key = "letter",
                 name = "Letter",
                 templateModel = TemplateDocument(
                     root = "root",
@@ -365,7 +365,7 @@ class CatalogValidatorTest {
                     themeRef = theme,
                 ),
                 variants = emptyList(),
-                themeId = themeNamespace?.let { "corporate" },
+                themeKey = themeNamespace?.let { "corporate" },
                 themeNamespace = themeNamespace,
                 themeRegistry = themeRegistry,
             )
@@ -503,7 +503,7 @@ class CatalogValidatorTest {
             "image/hero" to ResourceDetail(CURRENT_VERSION, ImageResource("hero", "Hero", "IMAGE/PNG", contentUrl = "./resources/asset/hero.png", contentHash = "0000000000000000000000000000000000000000000000000000000000000000")),
         )
         val entries = details.map { (key, detail) ->
-            ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
+            ResourceEntry(detail.resource.type, detail.resource.key, detail.resource.name, detailUrl = "./resources/$key.json")
         }
         val catalog = CatalogInfo.create(
             "fixture",
@@ -529,7 +529,7 @@ class CatalogValidatorTest {
             "image/document" to ResourceDetail(CURRENT_VERSION, ImageResource("document", "Document", "application/pdf", contentUrl = "./document.pdf", contentHash = "0000000000000000000000000000000000000000000000000000000000000000")),
         )
         val entries = details.map { (key, detail) ->
-            ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
+            ResourceEntry(detail.resource.type, detail.resource.key, detail.resource.name, detailUrl = "./resources/$key.json")
         }
         val catalog = CatalogInfo.create(
             "fixture",
@@ -560,7 +560,7 @@ class CatalogValidatorTest {
 
         val report = CatalogValidator.validate(archive(manifest, mapOf("theme/$slug" to detail)))
 
-        assertTrue(CatalogValidationCodes.RESOURCE_SLUG_INVALID in report.codes())
+        assertTrue(CatalogValidationCodes.RESOURCE_KEY_INVALID in report.codes())
     }
 
     /** An image is the one type admitting a leading digit, because its slug may be a UUID string. */
@@ -575,7 +575,7 @@ class CatalogValidatorTest {
 
         val report = CatalogValidator.validate(archive(manifest, mapOf("image/$slug" to detail)))
 
-        assertTrue(CatalogValidationCodes.RESOURCE_SLUG_INVALID !in report.codes(), "findings: ${report.findings}")
+        assertTrue(CatalogValidationCodes.RESOURCE_KEY_INVALID !in report.codes(), "findings: ${report.findings}")
     }
 
     @Test
@@ -592,7 +592,7 @@ class CatalogValidatorTest {
         assertTrue(CatalogValidationCodes.RELEASE_FINGERPRINT_INVALID in report.codes())
         assertTrue(CatalogValidationCodes.MANIFEST_DETAIL_MISSING in report.codes())
         assertTrue(CatalogValidationCodes.MANIFEST_DETAIL_UNDECLARED in report.codes())
-        assertTrue(CatalogValidationCodes.RESOURCE_SLUG_INVALID in report.codes())
+        assertTrue(CatalogValidationCodes.RESOURCE_KEY_INVALID in report.codes())
         assertTrue(CatalogValidationCodes.ASSET_PATH_INVALID in report.codes())
         assertEquals(report.findings.sortedWith(compareBy({ it.path }, { it.code }, { it.severity }, { it.message })), report.findings)
     }
@@ -612,7 +612,7 @@ class CatalogValidatorTest {
             "stencil/address" to ResourceDetail(CURRENT_VERSION, stencil),
         )
         val entries = details.map { (key, detail) ->
-            ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
+            ResourceEntry(detail.resource.type, detail.resource.key, detail.resource.name, detailUrl = "./resources/$key.json")
         }
         val report = CatalogValidator.validate(archive(manifest(resources = entries), details))
         val graphPaths = report.findings.filter { it.code == TemplateValidationCodes.TEMPLATE_GRAPH_INVALID }.map { it.path }
@@ -669,7 +669,7 @@ class CatalogValidatorTest {
         val report = validateStencils(letter, contact)
 
         assertEquals(
-            listOf("resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilId"),
+            listOf("resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilKey"),
             report.findings
                 .filter { it.code == TemplateValidationCodes.STENCIL_REFERENCE_NOT_FOUND }
                 .map { it.path },
@@ -687,7 +687,7 @@ class CatalogValidatorTest {
         val report = validateStencils(letter)
 
         assertEquals(
-            listOf("resources/stencil/letter.json.resource.content.nodes.nested-letter.props.stencilId"),
+            listOf("resources/stencil/letter.json.resource.content.nodes.nested-letter.props.stencilKey"),
             report.findings.filter { it.code == TemplateValidationCodes.STENCIL_RECURSION }.map { it.path },
         )
     }
@@ -709,7 +709,7 @@ class CatalogValidatorTest {
 
         assertEquals(
             listOf(
-                "resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilId",
+                "resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilKey",
             ),
             report.findings.filter { it.code == TemplateValidationCodes.STENCIL_RECURSION }.map { it.path },
         )
@@ -746,7 +746,7 @@ class CatalogValidatorTest {
         val template = TemplateResource(
             "invoice",
             "Invoice",
-            themeId = "missing",
+            themeKey = "missing",
             templateModel = validDocument(),
             variants = emptyList(),
         )
@@ -776,11 +776,11 @@ class CatalogValidatorTest {
             variants = listOf(VariantEntry("same", isDefault = true), VariantEntry("same", isDefault = true)),
             // A face no longer names a resource, so the missing-reference case is covered by a
             // reference that still is one.
-            themeId = "absent",
+            themeKey = "absent",
         )
         val resources = listOf(
             template,
-            AttributeResource("locale", "Locale", listOf("nl"), CodeListBindingRef(slug = "countries")),
+            AttributeResource("locale", "Locale", listOf("nl"), CodeListBindingRef(key = "countries")),
             CodeListResource("countries", "Countries", entries = listOf(CodeListEntryEntry("NL", "NL"), CodeListEntryEntry("NL", "Duplicate"))),
             ImageResource("face", "Face", "bad", width = -1, contentUrl = "./resources/asset/missing.woff2", contentHash = "0000000000000000000000000000000000000000000000000000000000000000"),
             FontResource(
@@ -805,15 +805,15 @@ class CatalogValidatorTest {
                 ),
             ),
         )
-        val details = resources.associate { "${it.type}/${it.slug}" to ResourceDetail(CURRENT_VERSION, it) }
+        val details = resources.associate { "${it.type}/${it.key}" to ResourceDetail(CURRENT_VERSION, it) }
         val entries = details.map { (key, detail) ->
-            ResourceEntry(detail.resource.type, detail.resource.slug, detail.resource.name, detailUrl = "./resources/$key.json")
+            ResourceEntry(detail.resource.type, detail.resource.key, detail.resource.name, detailUrl = "./resources/$key.json")
         }
         val report = CatalogValidator.validate(archive(manifest(resources = entries), details))
 
         assertTrue(CatalogValidationCodes.TEMPLATE_DATA_EXAMPLE_INVALID in report.codes())
         assertTrue(CatalogValidationCodes.TEMPLATE_EXAMPLE_NAME_DUPLICATE in report.codes())
-        assertTrue(CatalogValidationCodes.TEMPLATE_VARIANT_ID_DUPLICATE in report.codes())
+        assertTrue(CatalogValidationCodes.TEMPLATE_VARIANT_KEY_DUPLICATE in report.codes())
         assertTrue(CatalogValidationCodes.TEMPLATE_VARIANT_DEFAULT_INVALID in report.codes())
         assertTrue(CatalogValidationCodes.ATTRIBUTE_VALUES_CONFLICT in report.codes())
         assertTrue(CatalogValidationCodes.CODE_LIST_CODE_DUPLICATE in report.codes())
@@ -926,7 +926,7 @@ class CatalogValidatorTest {
             nodeId,
             "stencil",
             slots = listOf("$nodeId-children"),
-            props = mapOf("stencilId" to slug) + extraProps,
+            props = mapOf("stencilKey" to slug) + extraProps,
         )
         return validDocument().copy(
             nodes = validDocument().nodes + (nested.id to nested),
@@ -938,14 +938,14 @@ class CatalogValidatorTest {
 
     private fun validateStencils(vararg stencils: StencilResource): CatalogValidationReport {
         val details = stencils.associate { stencil ->
-            "stencil/${stencil.slug}" to ResourceDetail(CURRENT_VERSION, stencil)
+            "stencil/${stencil.key}" to ResourceDetail(CURRENT_VERSION, stencil)
         }
         val entries = stencils.map { stencil ->
             ResourceEntry(
                 "stencil",
-                stencil.slug,
+                stencil.key,
                 stencil.name,
-                detailUrl = "./resources/stencil/${stencil.slug}.json",
+                detailUrl = "./resources/stencil/${stencil.key}.json",
             )
         }
         return CatalogValidator.validate(archive(manifest(resources = entries), details))
@@ -998,7 +998,7 @@ class CatalogValidatorTest {
     private fun stencilChain(depth: Int): Array<StencilResource> = Array(depth) { index ->
         val next = index + 1
         StencilResource(
-            slug = "stencil-$index",
+            key = "stencil-$index",
             name = "Stencil $index",
             content = if (next < depth) {
                 documentWithStencil("nested-stencil-$next", "stencil-$next")

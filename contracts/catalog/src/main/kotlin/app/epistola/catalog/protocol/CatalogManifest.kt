@@ -5,6 +5,7 @@
 package app.epistola.catalog.protocol
 
 import app.epistola.catalog.canonical.QualifiedCatalogFingerprint
+import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
@@ -112,8 +113,11 @@ data class CatalogDependency(
     JsonSubTypes.Type(value = DependencyRef.Font::class, name = "font"),
 )
 sealed class DependencyRef {
-    /** Resource slug within the dependency catalog. */
-    abstract val slug: String
+    /**
+     * Resource key within the dependency catalog: its public address there. Read as `slug` too,
+     * the name wire v7 and earlier gave it, so that manifests stored under those versions still bind.
+     */
+    abstract val key: String
 
     /** Key of the catalog holding the resource. */
     abstract val catalogKey: String
@@ -127,7 +131,8 @@ sealed class DependencyRef {
     /** Theme in another catalog. */
     data class Theme(
         override val catalogKey: String,
-        override val slug: String,
+        @JsonAlias("slug")
+        override val key: String,
         override val namespace: String? = null,
         override val registry: String? = null,
     ) : DependencyRef()
@@ -135,7 +140,8 @@ sealed class DependencyRef {
     /** Stencil in another catalog. */
     data class Stencil(
         override val catalogKey: String,
-        override val slug: String,
+        @JsonAlias("slug")
+        override val key: String,
         override val namespace: String? = null,
         override val registry: String? = null,
     ) : DependencyRef()
@@ -144,13 +150,14 @@ sealed class DependencyRef {
      * Image in another catalog.
      *
      * Qualified like every other kind since wire v7. It was unqualified while an image was an
-     * asset whose slug was a generated UUID, unique by construction across every catalog a tenant
-     * holds; a readable slug is not, so two catalogs may each hold a `logo` and an unqualified
+     * asset whose key was a generated UUID, unique by construction across every catalog a tenant
+     * holds; a readable key is not, so two catalogs may each hold a `logo` and an unqualified
      * reference to one of them means nothing.
      */
     data class Image(
         override val catalogKey: String,
-        override val slug: String,
+        @JsonAlias("slug")
+        override val key: String,
         override val namespace: String? = null,
         override val registry: String? = null,
     ) : DependencyRef()
@@ -158,7 +165,8 @@ sealed class DependencyRef {
     /** Code list in another catalog. */
     data class CodeList(
         override val catalogKey: String,
-        override val slug: String,
+        @JsonAlias("slug")
+        override val key: String,
         override val namespace: String? = null,
         override val registry: String? = null,
     ) : DependencyRef()
@@ -166,7 +174,8 @@ sealed class DependencyRef {
     /** Font family in another catalog. */
     data class Font(
         override val catalogKey: String,
-        override val slug: String,
+        @JsonAlias("slug")
+        override val key: String,
         override val namespace: String? = null,
         override val registry: String? = null,
     ) : DependencyRef()
@@ -175,13 +184,17 @@ sealed class DependencyRef {
 /**
  * Stable catalog identity, human-readable metadata, and authored discovery metadata.
  *
- * A catalog is identified by [registry], [namespace] and [slug] (its key) together. The
+ * A catalog is identified by [registry], [namespace] and [key] together. The
  * three-argument constructor preserves source compatibility for existing producers. Use [create],
  * [copyWithMetadata] or [withNamespace] when setting discovery metadata or the registry and
  * namespace.
  */
 class CatalogInfo private constructor(
-    val slug: String,
+    /**
+     * The catalog's key: its public address within [namespace]. Until wire v8 the member was called
+     * `slug`; binding reads either name, so that manifests stored under earlier versions still bind.
+     */
+    val key: String,
     val name: String,
     val description: String?,
     attributes: List<AttributeAssignment>,
@@ -216,8 +229,8 @@ class CatalogInfo private constructor(
     val keywords: Set<String> = immutableSortedSet(keywords)
 
     /** Source-compatible constructor retained from catalog 1.0.1. */
-    constructor(slug: String, name: String, description: String? = null) :
-        this(slug, name, description, emptyList(), emptySet(), null, null, null, null)
+    constructor(key: String, name: String, description: String? = null) :
+        this(key, name, description, emptyList(), emptySet(), null, null, null, null)
 
     /** Copies the catalog while replacing any discovery metadata. */
     fun copyWithMetadata(
@@ -225,19 +238,19 @@ class CatalogInfo private constructor(
         keywords: Set<String> = this.keywords,
         presentation: CatalogPresentation? = this.presentation,
         license: CatalogLicense? = this.license,
-    ): CatalogInfo = CatalogInfo(slug, name, description, attributes, keywords, presentation, license, namespace, registry)
+    ): CatalogInfo = CatalogInfo(key, name, description, attributes, keywords, presentation, license, namespace, registry)
 
     /** Copies the catalog with [registry] and [namespace] in place of its current ones. */
     fun withNamespace(
         registry: String?,
         namespace: String?,
-    ): CatalogInfo = CatalogInfo(slug, name, description, attributes, keywords, presentation, license, namespace, registry)
+    ): CatalogInfo = CatalogInfo(key, name, description, attributes, keywords, presentation, license, namespace, registry)
 
     override fun equals(other: Any?): Boolean = this === other ||
         other is CatalogInfo &&
         registry == other.registry &&
         namespace == other.namespace &&
-        slug == other.slug &&
+        key == other.key &&
         name == other.name &&
         description == other.description &&
         attributes == other.attributes &&
@@ -246,7 +259,7 @@ class CatalogInfo private constructor(
         license == other.license
 
     override fun hashCode(): Int {
-        var result = slug.hashCode()
+        var result = key.hashCode()
         result = 31 * result + (registry?.hashCode() ?: 0)
         result = 31 * result + (namespace?.hashCode() ?: 0)
         result = 31 * result + name.hashCode()
@@ -258,7 +271,7 @@ class CatalogInfo private constructor(
         return result
     }
 
-    override fun toString(): String = "CatalogInfo(registry=$registry, namespace=$namespace, slug=$slug, name=$name, description=$description, " +
+    override fun toString(): String = "CatalogInfo(registry=$registry, namespace=$namespace, key=$key, name=$name, description=$description, " +
         "attributes=$attributes, keywords=$keywords, presentation=$presentation, license=$license)"
 
     companion object {
@@ -266,7 +279,7 @@ class CatalogInfo private constructor(
         @JvmStatic
         @JsonCreator
         fun create(
-            @JsonProperty("slug") slug: String,
+            @JsonProperty("key") @JsonAlias("slug") key: String,
             @JsonProperty("name") name: String,
             @JsonProperty("description") description: String? = null,
             @JsonProperty("attributes") attributes: List<AttributeAssignment>? = null,
@@ -276,7 +289,7 @@ class CatalogInfo private constructor(
             @JsonProperty("namespace") namespace: String? = null,
             @JsonProperty("registry") registry: String? = null,
         ): CatalogInfo = CatalogInfo(
-            slug,
+            key,
             name,
             description,
             attributes.orEmpty(),
@@ -294,17 +307,33 @@ class CatalogInfo private constructor(
     }
 }
 
-/** A qualified attribute value applied to a catalog. */
+/**
+ * A qualified attribute value applied to a catalog.
+ *
+ * @property catalogKey key of the catalog defining the attribute. Until wire v8 the member was
+ *   called `catalog`; binding reads either name.
+ * @property key key of the attribute within that catalog.
+ */
 data class AttributeAssignment(
-    val catalog: String,
+    @JsonAlias("catalog")
+    val catalogKey: String,
     val key: String,
     val value: String,
 )
 
-/** Optional authored icon and ordered gallery references for a catalog. */
+/**
+ * Optional authored icon and ordered gallery references for a catalog.
+ *
+ * @property iconImageKey key of the image resource that serves as the catalog's icon. Until wire v8
+ *   the member was called `iconAssetSlug`; binding reads either name.
+ * @property imageKeys keys of the image resources shown in the catalog's gallery, in order. Until
+ *   wire v8 the member was called `imageAssetSlugs`; binding reads either name.
+ */
 data class CatalogPresentation(
-    val iconAssetSlug: String? = null,
-    val imageAssetSlugs: List<String> = emptyList(),
+    @JsonAlias("iconAssetSlug")
+    val iconImageKey: String? = null,
+    @JsonAlias("imageAssetSlugs")
+    val imageKeys: List<String> = emptyList(),
 )
 
 /** Catalog-wide license terms declared by the publisher. */
@@ -366,7 +395,11 @@ data class IncludeEntry(
  * Manifest entry binding a resource identity to its detail document.
  *
  * [detailUrl] is archive-relative and whole-catalog validation requires it to
- * resolve to `resources/{type}/{slug}.json`.
+ * resolve to `resources/{type}/{key}.json`.
+ *
+ * [key] is the resource's public address within the catalog and its type. Until wire v8 the member
+ * was called `slug`; binding reads either name, so that manifests stored under earlier versions
+ * still bind.
  *
  * Wire v7 dropped a per-resource `compatibility`. It was never written and never read, and a
  * version range per template -- separate from the catalog's own -- answered no question anyone
@@ -374,7 +407,8 @@ data class IncludeEntry(
  */
 data class ResourceEntry(
     val type: String,
-    val slug: String,
+    @JsonAlias("slug")
+    val key: String,
     val name: String,
     val description: String? = null,
     val updatedAt: String? = null,

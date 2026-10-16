@@ -60,44 +60,44 @@ public sealed class ValidatingGenerationApi
     }
 
     /// <summary>Checks the request data where the validator asks for it, then submits.</summary>
-    public GenerationJobResponse GenerateDocument(string tenantId, GenerateDocumentRequest request)
+    public GenerationJobResponse GenerateDocument(string tenantKey, GenerateDocumentRequest request)
     {
-        Preflight(tenantId, request);
-        return TranslatingProblem(() => _delegate.GenerateDocument(tenantId, request));
+        Preflight(tenantKey, request);
+        return TranslatingProblem(() => _delegate.GenerateDocument(tenantKey, request));
     }
 
     /// <inheritdoc cref="GenerateDocument"/>
-    public ApiResponse<GenerationJobResponse> GenerateDocumentWithHttpInfo(string tenantId, GenerateDocumentRequest request)
+    public ApiResponse<GenerationJobResponse> GenerateDocumentWithHttpInfo(string tenantKey, GenerateDocumentRequest request)
     {
-        Preflight(tenantId, request);
-        return TranslatingProblem(() => _delegate.GenerateDocumentWithHttpInfo(tenantId, request));
+        Preflight(tenantKey, request);
+        return TranslatingProblem(() => _delegate.GenerateDocumentWithHttpInfo(tenantKey, request));
     }
 
     /// <summary>The same for a batch, reporting every item's failures together when it pre-flights.</summary>
-    public GenerationJobResponse GenerateDocumentBatch(string tenantId, GenerateBatchRequest request)
+    public GenerationJobResponse GenerateDocumentBatch(string tenantKey, GenerateBatchRequest request)
     {
-        PreflightBatch(tenantId, request);
-        return TranslatingProblem(() => _delegate.GenerateDocumentBatch(tenantId, request));
+        PreflightBatch(tenantKey, request);
+        return TranslatingProblem(() => _delegate.GenerateDocumentBatch(tenantKey, request));
     }
 
     /// <inheritdoc cref="GenerateDocumentBatch"/>
-    public ApiResponse<GenerationJobResponse> GenerateDocumentBatchWithHttpInfo(string tenantId, GenerateBatchRequest request)
+    public ApiResponse<GenerationJobResponse> GenerateDocumentBatchWithHttpInfo(string tenantKey, GenerateBatchRequest request)
     {
-        PreflightBatch(tenantId, request);
-        return TranslatingProblem(() => _delegate.GenerateDocumentBatchWithHttpInfo(tenantId, request));
+        PreflightBatch(tenantKey, request);
+        return TranslatingProblem(() => _delegate.GenerateDocumentBatchWithHttpInfo(tenantKey, request));
     }
 
-    private void Preflight(string tenantId, GenerateDocumentRequest request)
+    private void Preflight(string tenantKey, GenerateDocumentRequest request)
     {
         if (!_validator.PreflightsGeneration)
         {
             return;
         }
         new TemplateSchemaValidator(_validator)
-            .Validate(tenantId, RegistrySegment(request.Registry), request.Namespace, request.CatalogKey, request.TemplateId, request.Data);
+            .Validate(tenantKey, RegistrySegment(request.Registry), request.Namespace, request.CatalogKey, request.TemplateKey, request.Data);
     }
 
-    private void PreflightBatch(string tenantId, GenerateBatchRequest request)
+    private void PreflightBatch(string tenantKey, GenerateBatchRequest request)
     {
         if (!_validator.PreflightsGeneration)
         {
@@ -108,7 +108,7 @@ public sealed class ValidatingGenerationApi
         {
             var item = request.Items[index];
             var prefix = $"items[{index}]";
-            foreach (var error in _validator.Validate(tenantId, RegistrySegment(item.Registry), item.Namespace, item.CatalogKey, item.TemplateId, item.Data))
+            foreach (var error in _validator.Validate(tenantKey, RegistrySegment(item.Registry), item.Namespace, item.CatalogKey, item.TemplateKey, item.Data))
             {
                 allErrors.Add(error.WithPathPrefix(prefix));
             }

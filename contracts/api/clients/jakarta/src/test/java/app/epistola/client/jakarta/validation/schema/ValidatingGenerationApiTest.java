@@ -40,16 +40,16 @@ class ValidatingGenerationApiTest {
     private final AtomicInteger submissions = new AtomicInteger();
 
     private final GenerateDocumentRequest request =
-            new GenerateDocumentRequest().namespace("acme-corp").catalogKey("default").templateId("invoice").data(Map.of());
+            new GenerateDocumentRequest().namespace("acme-corp").catalogKey("default").templateKey("invoice").data(Map.of());
 
     private final GenerateBatchRequest batch = new GenerateBatchRequest()
             .items(List.of(
-                    new BatchGenerationItem().namespace("acme-corp").catalogKey("default").templateId("invoice").data(Map.of()),
-                    new BatchGenerationItem().namespace("acme-corp").catalogKey("default").templateId("reminder").data(Map.of())));
+                    new BatchGenerationItem().namespace("acme-corp").catalogKey("default").templateKey("invoice").data(Map.of()),
+                    new BatchGenerationItem().namespace("acme-corp").catalogKey("default").templateKey("reminder").data(Map.of())));
 
     /** A validator that answers in-process, so it takes the pre-flight. */
     private TemplateDataValidator local(String... paths) {
-        return (tenantId, registry, namespace, catalogKey, templateId, data) -> {
+        return (tenantKey, registry, namespace, catalogKey, templateKey, data) -> {
             validations.incrementAndGet();
             List<ValidationError> findings = new ArrayList<>();
             for (String path : paths) {
@@ -189,7 +189,7 @@ class ValidatingGenerationApiTest {
     @Test
     void the_preflight_hands_the_validator_the_path_form_of_the_registry() {
         List<String> catalogs = new ArrayList<>();
-        TemplateDataValidator recording = (tenantId, registry, namespace, catalogKey, templateId, data) -> {
+        TemplateDataValidator recording = (tenantKey, registry, namespace, catalogKey, templateKey, data) -> {
             catalogs.add(registry + "|" + namespace + "|" + catalogKey);
             return List.of();
         };
@@ -201,7 +201,7 @@ class ValidatingGenerationApiTest {
                         .registry("exchange.example.org")
                         .namespace("team-a")
                         .catalogKey("letters")
-                        .templateId("invoice")
+                        .templateKey("invoice")
                         .data(Map.of()));
         api.generateDocumentBatch(
                 "acme-corp",
@@ -211,12 +211,12 @@ class ValidatingGenerationApiTest {
                                         .registry("exchange.example.org")
                                         .namespace("team-a")
                                         .catalogKey("letters")
-                                        .templateId("invoice")
+                                        .templateKey("invoice")
                                         .data(Map.of()),
                                 new BatchGenerationItem()
                                         .namespace("acme")
                                         .catalogKey("house-style")
-                                        .templateId("invoice")
+                                        .templateKey("invoice")
                                         .data(Map.of()))));
 
         assertEquals(

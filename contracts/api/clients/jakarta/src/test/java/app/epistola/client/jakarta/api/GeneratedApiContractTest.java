@@ -200,6 +200,50 @@ class GeneratedApiContractTest {
     }
 
     /**
+     * A resource's public address within its parent is its {@code key}; an {@code id} is a
+     * generated identifier that is not an address (contract 2.0, #84). No operation still takes a
+     * resource address under its old {@code …Id} or {@code slug} name, and no model still carries one.
+     */
+    @Test
+    void resources_are_addressed_and_referenced_by_key() throws Exception {
+        List<String> removedNames = List.of(
+                "slug", "tenantId", "templateId", "variantId", "environmentId", "stencilId",
+                "themeId", "codeListId", "fontId", "imageId", "assetId");
+
+        for (Class<?> api : GENERATED_APIS) {
+            for (Method method : api.getMethods()) {
+                for (Parameter parameter : method.getParameters()) {
+                    PathParam path = parameter.getAnnotation(PathParam.class);
+                    QueryParam query = parameter.getAnnotation(QueryParam.class);
+                    String name = path != null ? path.value() : query != null ? query.value() : null;
+                    assertTrue(
+                            name == null || !removedNames.contains(name),
+                            api.getSimpleName() + "." + method.getName() + " still takes " + name);
+                }
+            }
+        }
+
+        List<Class<?>> models = generatedModels();
+        assertTrue(models.size() > 50, "expected the generated models, found " + models.size());
+        for (Class<?> model : models) {
+            for (Method method : model.getDeclaredMethods()) {
+                String name = method.getName();
+                if (!name.startsWith("get") || name.length() < 4) {
+                    continue;
+                }
+                String property = Character.toLowerCase(name.charAt(3)) + name.substring(4);
+                assertTrue(
+                        !removedNames.contains(property),
+                        model.getSimpleName() + " still carries " + property);
+            }
+        }
+
+        assertEquals("tenantKey", pathParams(method(TemplatesApi.class, "getTemplate")).get(0));
+        assertNotNull(TenantDto.class.getMethod("getKey"));
+        assertNotNull(CreateTenantRequest.class.getMethod("getKey"));
+    }
+
+    /**
      * A catalog's content lives in its versions (contract 3.0): every operation on a catalog's
      * templates, variants, stencils, themes, attributes, code lists, fonts, images, dependencies,
      * changes and readiness takes the version it works on. Only data validation stays at the catalog,
@@ -233,7 +277,7 @@ class GeneratedApiContractTest {
 
         assertTrue(versionScoped > 20, "expected the catalog's content operations to be version-scoped");
         assertEquals(
-                List.of("tenantId", "registry", "namespace", "catalogKey", "templateId"),
+                List.of("tenantKey", "registry", "namespace", "catalogKey", "templateKey"),
                 pathParams(method(TemplatesApi.class, "validateTemplateData")),
                 "validateTemplateData stays at the catalog and takes no version");
     }
@@ -247,8 +291,8 @@ class GeneratedApiContractTest {
                     "CatalogsApi still has the removed " + removed);
         }
 
-        List<String> catalog = List.of("tenantId", "registry", "namespace", "catalogKey");
-        List<String> version = List.of("tenantId", "registry", "namespace", "catalogKey", "catalogVersion");
+        List<String> catalog = List.of("tenantKey", "registry", "namespace", "catalogKey");
+        List<String> version = List.of("tenantKey", "registry", "namespace", "catalogKey", "catalogVersion");
 
         assertOperation("listCatalogVersions", GET.class, CatalogVersionListResponse.class, catalog);
         assertOperation("createCatalogVersion", POST.class, CatalogVersionDto.class, catalog);
@@ -262,7 +306,7 @@ class GeneratedApiContractTest {
                 "resolveIncomingChange",
                 POST.class,
                 IncomingChangeDto.class,
-                List.of("tenantId", "registry", "namespace", "catalogKey", "catalogVersion", "changeId"));
+                List.of("tenantKey", "registry", "namespace", "catalogKey", "catalogVersion", "changeId"));
 
         for (String withBody : List.of(
                 "createCatalogVersion", "renumberCatalogVersion", "releaseCatalogVersion", "resolveIncomingChange")) {
@@ -286,12 +330,12 @@ class GeneratedApiContractTest {
         Method list = method(CatalogsApi.class, "listCatalogDependencies");
         assertNotNull(list.getAnnotation(GET.class), "listCatalogDependencies should be a GET");
         assertEquals(CatalogDependencyListResponse.class, list.getReturnType());
-        assertEquals(List.of("tenantId", "registry", "namespace", "catalogKey", "catalogVersion"), pathParams(list));
+        assertEquals(List.of("tenantKey", "registry", "namespace", "catalogKey", "catalogVersion"), pathParams(list));
 
         Method update = method(CatalogsApi.class, "updateCatalogDependencies");
         assertNotNull(update.getAnnotation(PUT.class), "updateCatalogDependencies should be a PUT");
         assertEquals(CatalogDependencyListResponse.class, update.getReturnType());
-        assertEquals(List.of("tenantId", "registry", "namespace", "catalogKey", "catalogVersion"), pathParams(update));
+        assertEquals(List.of("tenantKey", "registry", "namespace", "catalogKey", "catalogVersion"), pathParams(update));
         assertEquals(UpdateCatalogDependenciesRequest.class, update.getParameterTypes()[5]);
         assertEquals(List.of(VENDOR_JSON), List.of(update.getAnnotation(Consumes.class).value()));
     }
@@ -303,7 +347,7 @@ class GeneratedApiContractTest {
      */
     @Test
     void a_release_is_deployed_and_undeployed_by_its_path_alone() {
-        List<String> releasePath = List.of("tenantId", "environmentId", "registry", "namespace", "catalogKey", "releaseVersion");
+        List<String> releasePath = List.of("tenantKey", "environmentKey", "registry", "namespace", "catalogKey", "releaseVersion");
 
         Method deploy = method(EnvironmentsApi.class, "deployRelease");
         assertNotNull(deploy.getAnnotation(PUT.class), "deployRelease should be a PUT");
@@ -333,16 +377,16 @@ class GeneratedApiContractTest {
     @Test
     void the_vendor_media_type_is_actually_sent_and_accepted_on_the_wire() {
         try (StubServer stub = StubServer.start(request ->
-                StubServer.StubResponse.of(201, VENDOR_JSON, "{\"slug\":\"acme-corp\",\"name\":\"Acme\"}"))) {
+                StubServer.StubResponse.of(201, VENDOR_JSON, "{\"key\":\"acme-corp\",\"name\":\"Acme\"}"))) {
 
             TenantsApi tenants = EpistolaRestClients.builder()
                     .baseUri(stub.baseUri())
                     .build()
                     .api(TenantsApi.class);
 
-            TenantDto created = tenants.createTenant(new CreateTenantRequest().id("acme-corp").name("Acme"));
+            TenantDto created = tenants.createTenant(new CreateTenantRequest().key("acme-corp").name("Acme"));
 
-            assertEquals("acme-corp", created.getSlug());
+            assertEquals("acme-corp", created.getKey());
             StubServer.RecordedRequest request = stub.onlyRequest();
             assertEquals("/api/tenants", request.path());
             assertEquals(VENDOR_JSON, request.header("Content-Type"));
@@ -358,6 +402,25 @@ class GeneratedApiContractTest {
                 .filter(annotation -> annotation != null)
                 .map(PathParam::value)
                 .collect(Collectors.toList());
+    }
+
+    /** Every generated model class, read from the directory the model package compiled into. */
+    private static List<Class<?>> generatedModels() throws Exception {
+        String packageName = TenantDto.class.getPackageName();
+        java.nio.file.Path directory = java.nio.file.Path.of(
+                TenantDto.class.getResource(TenantDto.class.getSimpleName() + ".class").toURI()).getParent();
+        try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.list(directory)) {
+            List<String> names = files.map(file -> file.getFileName().toString())
+                    .filter(file -> file.endsWith(".class") && !file.contains("$"))
+                    .map(file -> file.substring(0, file.length() - ".class".length()))
+                    .sorted()
+                    .collect(Collectors.toList());
+            List<Class<?>> models = new java.util.ArrayList<>();
+            for (String name : names) {
+                models.add(Class.forName(packageName + "." + name));
+            }
+            return models;
+        }
     }
 
     private static Method method(Class<?> api, String name) {

@@ -43,7 +43,7 @@ when a consumer is intentionally validating without the full catalog graph;
 only an explicit `MISSING` result produces a missing-reference finding.
 
 Stencil composition is part of the portable specification. From wire v8 a
-stencil node names its stencil by `stencilId`, optionally qualified by
+stencil node names its stencil by `stencilKey` (`stencilId` until wire v8), optionally qualified by
 `catalogKey`, `namespace` and `registry` (each omitted one means the owning
 catalog's; a `registry` requires a `namespace`), and carries no version: catalogs are versioned as a whole, so the
 stencil reached is the one in the release the catalog dependency resolves to,
@@ -79,14 +79,14 @@ manifest/detail consistency, required files, resource references, resource-speci
 data schemas and examples, release metadata, and the canonical fingerprint. I/O failures remain
 exceptions; ordinary invalid content is returned as deterministic findings.
 
-For catalog discovery metadata (wire v6 and later), catalog attributes use an explicit `catalog`,
-`key`, and `value`. Catalog and key follow the normal lowercase slug syntax, and a catalog may
+For catalog discovery metadata (wire v6 and later), catalog attributes use an explicit `catalogKey`
+(`catalog` until wire v8), `key`, and `value`. Catalog key and key follow the normal lowercase slug syntax, and a catalog may
 assign each qualified attribute at most once. Attribute values remain generic: Suite and Exchange
 validate them against the referenced attribute definition. From wire v7, keywords are lowercase
 ASCII letters and digits in hyphen-separated parts, at most 30 characters, unique, and at most 20
 per catalog (`CATALOG_KEYWORD_INVALID`, `CATALOG_KEYWORD_TOO_LONG`, `CATALOG_KEYWORD_DUPLICATE`,
 `CATALOG_KEYWORD_LIMIT_EXCEEDED`). The migrator's wire check applies the same rules before binding.
-Catalog icon and ordered gallery slugs resolve only against image assets in the same catalog;
+The catalog icon (`iconImageKey`) and the ordered gallery keys (`imageKeys`) resolve only against image resources in the same catalog;
 missing resources, non-assets, non-image media types, and duplicate gallery entries have separate
 stable finding codes. The icon may also appear in the gallery.
 

@@ -10,5 +10,5 @@ importFileExtension: .js
 # Keep the FromJSON/ToJSON functions: they are what turn `format: date-time` into Date, and
 # what drops unset optional properties from request bodies instead of writing them as null.
 withoutRuntimeChecks: false
-# Every operation takes one request-parameters object (`api.getTemplate({ tenantId, ... })`).
+# Every operation takes one request-parameters object (`api.getTemplate({ tenantKey, ... })`).
 useSingleRequestParameter: true

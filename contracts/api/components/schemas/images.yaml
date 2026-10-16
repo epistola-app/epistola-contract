@@ -4,11 +4,11 @@ ImageDto:
     An image in a catalog, as metadata. The image itself is fetched through
     `GET .../images/{imageKey}/content`.
 
-    A template places an image by referencing its `key` from an image node, as `props.assetId`
+    A template places an image by referencing its `key` from an image node, as `props.imageKey`
     alongside the owning catalog's `props.catalogKey`.
   required:
-    - slug
-    - tenantId
+    - key
+    - tenantKey
     - registry
     - namespace
     - catalogKey
@@ -19,20 +19,20 @@ ImageDto:
     - sizeBytes
     - createdAt
   properties:
-    slug:
+    key:
       type: string
       pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       maxLength: 50
       description: |
-        The image's slug, unique within its catalog. It is the value a template references as
-        `props.assetId`, the image's slug in a catalog export, and the `{imageSlug}` that addresses
+        The image's key, unique within its catalog. It is the value a template references as
+        `props.imageKey`, the image's key in a catalog export, and the `{imageKey}` that addresses
         the image in this API.
 
         An image this installation creates has a generated UUID as its key. An image from a catalog
         published elsewhere may have a readable one, such as `municipality-mark`. Treat it as an
         opaque string either way.
       example: "4a64f2f9-2c7a-4d26-9cf7-d34c7ce92280"
-    tenantId:
+    tenantKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       example: acme-corp

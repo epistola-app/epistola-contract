@@ -81,9 +81,9 @@ class CatalogArchiveCodecTest {
         val archive = assertNotNull(result.archive)
         archive.use {
             assertTrue(result.findings.isEmpty())
-            assertEquals("example", archive.manifest.catalog.slug)
+            assertEquals("example", archive.manifest.catalog.key)
             assertEquals(setOf("catalog.json", "resources/theme/default.json"), archive.paths)
-            assertEquals("default", archive.resourceDetails.getValue("theme/default").resource.slug)
+            assertEquals("default", archive.resourceDetails.getValue("theme/default").resource.key)
         }
     }
 
@@ -311,7 +311,7 @@ class CatalogArchiveCodecTest {
     }
 
     private fun validCatalog(): CatalogArchive {
-        val detail = ResourceDetail(CURRENT_VERSION, ThemeResource(slug = "default", name = "Default"))
+        val detail = ResourceDetail(CURRENT_VERSION, ThemeResource(key = "default", name = "Default"))
         val manifest = CatalogManifest(
             schemaVersion = CURRENT_VERSION,
             catalog = CatalogInfo("example", "Example").withNamespace(REGISTRY, NAMESPACE),
@@ -320,7 +320,7 @@ class CatalogArchiveCodecTest {
             resources = listOf(
                 ResourceEntry(
                     type = "theme",
-                    slug = "default",
+                    key = "default",
                     name = "Default",
                     detailUrl = "./resources/theme/default.json",
                 ),
@@ -341,7 +341,7 @@ class CatalogArchiveCodecTest {
         val detail = ResourceDetail(
             CURRENT_VERSION,
             ImageResource(
-                slug = "logo",
+                key = "logo",
                 name = "Logo",
                 mediaType = "application/octet-stream",
                 contentUrl = contentUrl,
@@ -356,7 +356,7 @@ class CatalogArchiveCodecTest {
             resources = listOf(
                 ResourceEntry(
                     type = "asset",
-                    slug = "logo",
+                    key = "logo",
                     name = "Logo",
                     detailUrl = "./resources/asset/logo.json",
                 ),

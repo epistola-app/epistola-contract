@@ -24,8 +24,8 @@ action:
   name: deploy-release
   config:
     nodeId: conformance-node-1
-    tenantId: acme-corp
-    environmentId: production
+    tenantKey: acme-corp
+    environmentKey: production
     registry: "~"
     namespace: acme-corp
     catalogKey: letters

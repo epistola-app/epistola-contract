@@ -35,10 +35,10 @@ class StubTemplatesApi implements TemplateDataValidationSource {
   calls = 0
   sent: unknown[] = []
   constructor(private readonly result: Result) {}
-  addressed: { registry: string; namespace: string; catalogKey: string; templateId: string }[] = []
-  async validateTemplateData(requestParameters: { registry: string; namespace: string; catalogKey: string; templateId: string; validateTemplateDataRequest: unknown }): Promise<never> {
+  addressed: { registry: string; namespace: string; catalogKey: string; templateKey: string }[] = []
+  async validateTemplateData(requestParameters: { registry: string; namespace: string; catalogKey: string; templateKey: string; validateTemplateDataRequest: unknown }): Promise<never> {
     this.calls += 1
-    this.addressed.push({ registry: requestParameters.registry, namespace: requestParameters.namespace, catalogKey: requestParameters.catalogKey, templateId: requestParameters.templateId })
+    this.addressed.push({ registry: requestParameters.registry, namespace: requestParameters.namespace, catalogKey: requestParameters.catalogKey, templateKey: requestParameters.templateKey })
     this.sent.push(requestParameters.validateTemplateDataRequest)
     return this.result as never
   }
@@ -62,16 +62,16 @@ class StubGenerationApi implements GenerationApiLike {
 }
 
 const singleRequest = {
-  tenantId: 'acme-corp',
-  generateDocumentRequest: { registry: 'exchange.example.org', namespace: 'team-a', catalogKey: 'default', templateId: 'invoice', data: {} },
+  tenantKey: 'acme-corp',
+  generateDocumentRequest: { registry: 'exchange.example.org', namespace: 'team-a', catalogKey: 'default', templateKey: 'invoice', data: {} },
 } as never
 
 const batchRequest = {
-  tenantId: 'acme-corp',
+  tenantKey: 'acme-corp',
   generateBatchRequest: {
     items: [
-      { namespace: 'acme-corp', catalogKey: 'default', templateId: 'invoice', data: {} },
-      { registry: null, namespace: 'acme-corp', catalogKey: 'default', templateId: 'reminder', data: {} },
+      { namespace: 'acme-corp', catalogKey: 'default', templateKey: 'invoice', data: {} },
+      { registry: null, namespace: 'acme-corp', catalogKey: 'default', templateKey: 'reminder', data: {} },
     ],
   },
 } as never
@@ -192,14 +192,14 @@ test('the version selectors are passed through when configured', async () => {
   const api = new StubTemplatesApi({ valid: true })
 
   await new TemplateSchemaValidator(
-    new ServerTemplateDataValidator(api, { variantId: 'nl-nl', version: '^1.4.0', environmentId: 'production' }),
+    new ServerTemplateDataValidator(api, { variantKey: 'nl-nl', version: '^1.4.0', environmentKey: 'production' }),
   ).validate('acme-corp', '~', 'acme-corp', 'default', 'invoice', {})
 
-  const sent = api.sent[0] as { variantId?: string; version?: string; environmentId?: string }
-  assert.equal(sent.variantId, 'nl-nl')
-  // version and environmentId narrow the release together; neither displaces the other.
+  const sent = api.sent[0] as { variantKey?: string; version?: string; environmentKey?: string }
+  assert.equal(sent.variantKey, 'nl-nl')
+  // version and environmentKey narrow the release together; neither displaces the other.
   assert.equal(sent.version, '^1.4.0')
-  assert.equal(sent.environmentId, 'production')
+  assert.equal(sent.environmentKey, 'production')
 })
 
 test('the server validator addresses the catalog by registry, namespace and key', async () => {
@@ -207,13 +207,13 @@ test('the server validator addresses the catalog by registry, namespace and key'
 
   await new TemplateSchemaValidator(api).validate('acme-corp', 'exchange.example.org', 'team-a', 'letters', 'invoice', {})
 
-  assert.deepEqual(api.addressed, [{ registry: 'exchange.example.org', namespace: 'team-a', catalogKey: 'letters', templateId: 'invoice' }])
+  assert.deepEqual(api.addressed, [{ registry: 'exchange.example.org', namespace: 'team-a', catalogKey: 'letters', templateKey: 'invoice' }])
 })
 
 function recordingCatalogs(seen: string[]): TemplateDataValidator {
   return {
     preflightsGeneration: true,
-    async validate(_tenantId, registry, namespace, catalogKey): Promise<readonly ValidationFailure[]> {
+    async validate(_tenantKey, registry, namespace, catalogKey): Promise<readonly ValidationFailure[]> {
       seen.push(`${registry}/${namespace}/${catalogKey}`)
       return []
     },

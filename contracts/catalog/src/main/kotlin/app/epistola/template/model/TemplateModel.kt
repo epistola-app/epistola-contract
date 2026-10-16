@@ -4,6 +4,7 @@
 
 package app.epistola.template.model
 
+import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
@@ -147,7 +148,7 @@ data class Slot(
  *
  * JSON wire format uses a `type` discriminator:
  *   `{"type": "inherit"}` → [ThemeRef.Inherit]
- *   `{"type": "override", "themeId": "my-theme"}` → [ThemeRefOverride]
+ *   `{"type": "override", "themeKey": "my-theme"}` → [ThemeRefOverride]
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(
@@ -169,9 +170,11 @@ class ThemeRefInherit : ThemeRef() {
 }
 
 /**
- * Override with a specific theme by ID, optionally from a specific catalog.
+ * Override with a specific theme by key, optionally from a specific catalog.
  *
- * @property themeId Theme slug identifier.
+ * @property themeKey Key of the theme: its public address within its catalog. Until catalog wire v8
+ *   the member was called `themeId`; binding reads either name, so that documents stored under
+ *   earlier versions still bind.
  * @property catalogKey Catalog containing the theme. Null means same catalog as the owning template.
  * @property namespace Namespace of the catalog containing the theme. Null means the owning
  *   template's catalog namespace.
@@ -180,7 +183,8 @@ class ThemeRefInherit : ThemeRef() {
  *   a [namespace].
  */
 data class ThemeRefOverride(
-    val themeId: String,
+    @JsonAlias("themeId")
+    val themeKey: String,
     val catalogKey: String? = null,
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     val namespace: String? = null,

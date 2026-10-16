@@ -45,7 +45,7 @@ class ResultCollectorTest {
             "status" to status,
             "documentId" to documentId,
             "correlationId" to correlationId,
-            "templateId" to "invoice",
+            "templateKey" to "invoice",
             "completedAt" to "2026-04-24T10:00:00Z",
         ),
     )
@@ -263,7 +263,7 @@ class ResultCollectorTest {
 
         val collector = ResultCollector.builder()
             .restClient(restClient)
-            .tenantId("acme-corp")
+            .tenantKey("acme-corp")
             .minInterval(Duration.ofMillis(50))
             .maxInterval(Duration.ofSeconds(10))
             .kickInterval(Duration.ofMillis(200))
@@ -338,7 +338,7 @@ class ResultCollectorTest {
         val pollCount = AtomicInteger(0)
         val collector = ResultCollector.builder()
             .restClient(restClient)
-            .tenantId("acme-corp")
+            .tenantKey("acme-corp")
             .minInterval(Duration.ofMillis(50))
             .maxInterval(Duration.ofSeconds(10))
             .kickInterval(Duration.ofMillis(200))
@@ -400,12 +400,12 @@ class ResultCollectorTest {
     @Test
     fun `builder requires restClient`() {
         assertFailsWith<IllegalArgumentException> {
-            ResultCollector.builder().tenantId("t").handler { }.build()
+            ResultCollector.builder().tenantKey("t").handler { }.build()
         }
     }
 
     @Test
-    fun `builder requires tenantId`() {
+    fun `builder requires tenantKey`() {
         assertFailsWith<IllegalArgumentException> {
             ResultCollector.builder().restClient(mockk()).handler { }.build()
         }
@@ -414,7 +414,7 @@ class ResultCollectorTest {
     @Test
     fun `builder requires handler`() {
         assertFailsWith<IllegalArgumentException> {
-            ResultCollector.builder().restClient(mockk()).tenantId("t").build()
+            ResultCollector.builder().restClient(mockk()).tenantKey("t").build()
         }
     }
 
@@ -458,7 +458,7 @@ class ResultCollectorTest {
 
         val collector = ResultCollector.builder()
             .restClient(restClient)
-            .tenantId("acme-corp")
+            .tenantKey("acme-corp")
             .minInterval(Duration.ofMillis(200))
             .maxInterval(Duration.ofSeconds(5))
             .handler { }
@@ -490,7 +490,7 @@ class ResultCollectorTest {
         handler: (ResultCollector.GenerationResult) -> Unit,
     ) = ResultCollector.builder()
         .restClient(restClient)
-        .tenantId("acme-corp")
+        .tenantKey("acme-corp")
         .minInterval(Duration.ofMillis(50))
         .handler(handler)
         .objectMapper(objectMapper)

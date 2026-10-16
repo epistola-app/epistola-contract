@@ -65,7 +65,7 @@ public class NJsonSchemaTemplateDataValidatorTest
     {
         var api = Substitute.For<ITemplatesApi>();
         api.GetTemplate("acme", "~", "acme-corp", "default", "1.4.0", "invoice").Returns(new TemplateDto(
-            slug: "invoice", tenantId: "acme", name: "Invoice",
+            key: "invoice", tenantKey: "acme", name: "Invoice",
             schema: schema, variants: new List<VariantSummaryDto>()));
         return api;
     }

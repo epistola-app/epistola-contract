@@ -47,15 +47,15 @@ public class EpistolaUnsetPropertyHandlerTest
     {
         // A generation request's `data` is free-form and belongs to the caller; a null in there is
         // theirs and means what they meant by it.
-        var sent = await Send("""{"templateId":"invoice","data":{"notes":null},"filename":null}""");
+        var sent = await Send("""{"templateKey":"invoice","data":{"notes":null},"filename":null}""");
 
-        Assert.Equal("""{"templateId":"invoice","data":{"notes":null}}""", sent);
+        Assert.Equal("""{"templateKey":"invoice","data":{"notes":null}}""", sent);
     }
 
     [Fact]
     public async Task LeavesABodyWithNothingToStripByteIdentical()
     {
-        var body = """{"namespace":"acme-corp","catalogKey":"default","templateId":"invoice"}""";
+        var body = """{"namespace":"acme-corp","catalogKey":"default","templateKey":"invoice"}""";
 
         Assert.Equal(body, await Send(body));
     }

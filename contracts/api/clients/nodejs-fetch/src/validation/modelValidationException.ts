@@ -4,7 +4,7 @@
 
 /** One constraint a model value violates. */
 export interface ConstraintViolation {
-  /** The property that failed, e.g. `id`. */
+  /** The property that failed, e.g. `key`. */
   readonly property: string
   /** What the contract required, e.g. `must match pattern ^[a-z][a-z0-9]*(-[a-z0-9]+)*$`. */
   readonly message: string
@@ -12,7 +12,7 @@ export interface ConstraintViolation {
 
 /**
  * Thrown by the generated `validateModel` / `validate<Model>` helpers when a value violates the
- * constraints the contract declares on its model — a slug pattern, a length bound, a range — so
+ * constraints the contract declares on its model — a key pattern, a length bound, a range — so
  * a request that a validating server would reject fails before it leaves the process.
  */
 export class ModelValidationException extends Error {

@@ -16,10 +16,10 @@ preview-document:
       - Generation
     x-required-permissions: [DOCUMENT_GENERATE]
     parameters:
-      - name: tenantId
+      - name: tenantKey
         in: path
         required: true
-        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        description: Unique key of the tenant (e.g., "acme-corp")
         schema:
           type: string
           pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -59,10 +59,10 @@ generate-document:
       - Generation
     x-required-permissions: [DOCUMENT_GENERATE]
     parameters:
-      - name: tenantId
+      - name: tenantKey
         in: path
         required: true
-        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        description: Unique key of the tenant (e.g., "acme-corp")
         schema:
           type: string
           pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -97,10 +97,10 @@ generate-batch:
       - Generation
     x-required-permissions: [DOCUMENT_GENERATE]
     parameters:
-      - name: tenantId
+      - name: tenantKey
         in: path
         required: true
-        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        description: Unique key of the tenant (e.g., "acme-corp")
         schema:
           type: string
           pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -135,10 +135,10 @@ jobs:
       - Generation
     x-required-permissions: [DOCUMENT_VIEW]
     parameters:
-      - name: tenantId
+      - name: tenantKey
         in: path
         required: true
-        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        description: Unique key of the tenant (e.g., "acme-corp")
         schema:
           type: string
           pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -168,10 +168,10 @@ jobs:
 
 job-detail:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -234,18 +234,18 @@ documents:
       - Generation
     x-required-permissions: [DOCUMENT_VIEW]
     parameters:
-      - name: tenantId
+      - name: tenantKey
         in: path
         required: true
-        description: Unique slug identifier of the tenant (e.g., "acme-corp")
+        description: Unique key of the tenant (e.g., "acme-corp")
         schema:
           type: string
           pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
           minLength: 3
           maxLength: 63
-      - name: templateId
+      - name: templateKey
         in: query
-        description: Filter by template slug
+        description: Filter by template key
         schema:
           type: string
           pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -275,10 +275,10 @@ documents:
 
 document-detail:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant (e.g., "acme-corp")
+      description: Unique key of the tenant (e.g., "acme-corp")
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'

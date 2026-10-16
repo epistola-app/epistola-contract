@@ -20,10 +20,10 @@ The module generates Spring `@RestController` interfaces for all API endpoint gr
 class MyGenerationApi(private val mediator: Mediator) : GenerationApi {
 
     override fun generateDocument(
-        tenantId: String,
+        tenantKey: String,
         generateDocumentRequest: GenerateDocumentRequest,
     ): ResponseEntity<GenerationJobResponse> {
-        val result = mediator.send(GenerateDocument(tenantId, generateDocumentRequest))
+        val result = mediator.send(GenerateDocument(tenantKey, generateDocumentRequest))
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(result)
     }
 
@@ -125,9 +125,9 @@ class ApiExceptionHandler : ResponseEntityExceptionHandler() {
 The `ClientInfo` utility parses client identity from incoming request headers (`User-Agent` and `X-EP-Node-Id`).
 
 ```kotlin
-@GetMapping("/tenants/{tenantId}/templates")
+@GetMapping("/tenants/{tenantKey}/templates")
 fun listTemplates(
-    @PathVariable tenantId: String,
+    @PathVariable tenantKey: String,
     request: HttpServletRequest,
 ): ResponseEntity<TemplateListResponse> {
     val client = ClientInfo.from(request)

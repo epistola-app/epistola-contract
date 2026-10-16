@@ -3,7 +3,7 @@
   "catalog": {
     "registry": "exchange.epistola.app",
     "namespace": "acme-corp",
-    "slug": "letters",
+    "key": "letters",
     "name": "Letters",
     "description": "Catalog-v7 manifest that names other catalogs",
     "attributes": [],
@@ -26,21 +26,21 @@
       "registry": "exchange.epistola.app",
       "namespace": "acme-corp",
       "catalogKey": "shared",
-      "slug": "corporate"
+      "key": "corporate"
     },
     {
       "type": "stencil",
       "registry": "exchange.epistola.app",
       "namespace": "acme-corp",
       "catalogKey": "shared",
-      "slug": "address-block"
+      "key": "address-block"
     },
     {
       "type": "image",
       "registry": "exchange.epistola.app",
       "namespace": "acme-corp",
       "catalogKey": "brand",
-      "slug": "logo"
+      "key": "logo"
     }
   ],
   "catalogDependencies": [

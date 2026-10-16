@@ -157,12 +157,12 @@ class TemplateSchemaValidatorTest {
         val body = slot<ValidateTemplateDataRequest>()
         every { templatesApi.validateTemplateData("acme", "~", "acme-corp", "default", "invoice", capture(body)) } returns result(valid = true)
 
-        val validator = ServerTemplateDataValidator(templatesApi, variantId = "nl-nl", version = "^1.4.0", environmentId = "production")
+        val validator = ServerTemplateDataValidator(templatesApi, variantKey = "nl-nl", version = "^1.4.0", environmentKey = "production")
         TemplateSchemaValidator(validator).validate("acme", "~", "acme-corp", "default", "invoice", emptyMap<String, Any>())
 
-        assertEquals("nl-nl", body.captured.variantId)
+        assertEquals("nl-nl", body.captured.variantKey)
         assertEquals("^1.4.0", body.captured.version)
-        assertEquals("production", body.captured.environmentId)
+        assertEquals("production", body.captured.environmentKey)
     }
 
     @Test

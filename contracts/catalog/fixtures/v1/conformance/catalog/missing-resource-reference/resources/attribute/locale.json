@@ -2,11 +2,11 @@
   "schemaVersion": 8,
   "resource": {
     "type": "attribute",
-    "slug": "locale",
+    "key": "locale",
     "name": "Locale",
     "allowedValues": [],
     "codeListBinding": {
-      "slug": "countries"
+      "key": "countries"
     }
   }
 }

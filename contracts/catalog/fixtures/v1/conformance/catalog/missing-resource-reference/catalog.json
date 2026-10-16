@@ -3,7 +3,7 @@
   "catalog": {
     "registry": "exchange.epistola.app",
     "namespace": "epistola",
-    "slug": "fixture",
+    "key": "fixture",
     "name": "Fixture Catalog"
   },
   "publisher": {
@@ -15,7 +15,7 @@
   "resources": [
     {
       "type": "attribute",
-      "slug": "locale",
+      "key": "locale",
       "name": "Locale",
       "detailUrl": "./resources/attribute/locale.json"
     }

@@ -30,6 +30,8 @@ RESULTS = [
         "namespace": "team-a",
         "catalogKey": "invoices",
         "releaseVersion": "1.4.2",
+        "templateKey": "invoice",
+        "variantKey": "nl-nl",
     },
     {"sequence": 502, "requestId": "11111111-1111-4111-8111-000000000502", "status": "FAILED"},
     {"sequence": 503, "requestId": "11111111-1111-4111-8111-000000000503", "status": "COMPLETED"},
@@ -70,7 +72,7 @@ def _collector(base_url, handled):
     return (
         ResultCollector.builder()
         .api_client(EpistolaClientBuilder().base_url(f"{base_url}/api").build())
-        .tenant_id("acme-corp")
+        .tenant_key("acme-corp")
         .handler(handled.append)
         .register_shutdown_hook(False)
         .build()
@@ -128,3 +130,12 @@ def test_each_result_names_the_catalog_release_it_was_generated_from(server):
         None,
         None,
     )
+
+
+def test_each_result_names_its_template_and_variant_by_key(server):
+    handled = []
+
+    _collector(server, handled).collect_once()
+
+    assert (handled[0].template_key, handled[0].variant_key) == ("invoice", "nl-nl")
+    assert (handled[1].template_key, handled[1].variant_key) == (None, None)

@@ -21,7 +21,7 @@ action:
     nodeId: conformance-node-1
     auth: api-key
     apiKey: epk_conformance_0123456789
-    tenantId: acme-corp
+    tenantKey: acme-corp
     consumerId: billing-service
     name: Billing Service
 
@@ -30,7 +30,7 @@ script:
     contentType: application/vnd.epistola.v1+json
     body:
       id: billing-service
-      tenantId: acme-corp
+      tenantKey: acme-corp
       name: Billing Service
       authMethod: api-key
       status: active

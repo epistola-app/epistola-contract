@@ -3,7 +3,7 @@
   "catalog": {
     "registry": "exchange.epistola.app",
     "namespace": "epistola",
-    "slug": "fixture",
+    "key": "fixture",
     "name": "Fixture Catalog"
   },
   "publisher": {
@@ -15,7 +15,7 @@
   "resources": [
     {
       "type": "theme",
-      "slug": "default",
+      "key": "default",
       "name": "Default",
       "detailUrl": "./resources/theme/default.json"
     }

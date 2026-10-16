@@ -24,16 +24,16 @@ const manifest: CatalogManifest = {
   catalog: {
     registry: 'exchange.epistola.app',
     namespace: 'epistola',
-    slug: 'fixture',
+    key: 'fixture',
     name: 'Fixture',
-    attributes: [{ catalog: 'system', key: 'locale', value: 'nl-NL' }],
+    attributes: [{ catalogKey: 'system', key: 'locale', value: 'nl-NL' }],
     keywords: ['documents'],
     license: { name: 'Creative Commons Attribution 4.0 International', spdxExpression: 'CC-BY-4.0' },
   },
   publisher: { name: 'Epistola' },
   release: { version: '1.0.0' },
   resources: [],
-  dependencies: [{ type: 'theme', registry: 'acme.com', namespace: 'acme', catalogKey: 'shared', slug: 'corporate' }],
+  dependencies: [{ type: 'theme', registry: 'acme.com', namespace: 'acme', catalogKey: 'shared', key: 'corporate' }],
   catalogDependencies: [{ registry: 'acme.com', namespace: 'acme', catalogKey: 'shared', version: '^1.2.0', releaseVersion: '1.4.0', releaseFingerprint: 'v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42' }],
 }
 
@@ -51,28 +51,38 @@ const unfingerprintedDependency: CatalogDependency = { registry: 'acme.com', nam
 const fingerprintPattern: string = CATALOG_RELEASE_FINGERPRINT_PATTERN
 
 // A stencil carries no version from wire v8.
-const stencil: Omit<StencilResource, 'content'> = { type: 'stencil', slug: 'letter', name: 'Letter' }
+const stencil: Omit<StencilResource, 'content'> = { type: 'stencil', key: 'letter', name: 'Letter' }
 // @ts-expect-error a stencil version is not part of wire v8
-const versionedStencil: Omit<StencilResource, 'content'> = { type: 'stencil', slug: 'letter', name: 'Letter', version: 3 }
+const versionedStencil: Omit<StencilResource, 'content'> = { type: 'stencil', key: 'letter', name: 'Letter', version: 3 }
 
 // Content may omit the registry and namespace, each meaning the owning catalog's.
-const themeRef: ThemeRefOverride = { type: 'override', themeId: 'corporate', catalogKey: 'shared', namespace: 'acme-corp' }
-const qualifiedThemeRef: ThemeRefOverride = { type: 'override', themeId: 'corporate', catalogKey: 'shared', namespace: 'acme', registry: 'acme.com' }
+const themeRef: ThemeRefOverride = { type: 'override', themeKey: 'corporate', catalogKey: 'shared', namespace: 'acme-corp' }
+const qualifiedThemeRef: ThemeRefOverride = { type: 'override', themeKey: 'corporate', catalogKey: 'shared', namespace: 'acme', registry: 'acme.com' }
 const identityPatterns: string[] = [CATALOG_NAMESPACE_PATTERN, CATALOG_REGISTRY_PATTERN]
+
+// Wire v8 calls a resource's address its key (#84); the old names are not part of it.
+// @ts-expect-error a theme reference names its theme by themeKey, not themeId
+const legacyThemeRef: ThemeRefOverride = { type: 'override', themeId: 'corporate' }
+// @ts-expect-error a resource is addressed by key, not slug
+const legacyStencil: Omit<StencilResource, 'content'> = { type: 'stencil', slug: 'letter', name: 'Letter' }
+// @ts-expect-error the catalog icon is iconImageKey, not iconAssetSlug
+const legacyPresentation: CatalogPresentation = { iconAssetSlug: 'logo' }
+// @ts-expect-error an attribute assignment names its catalog by catalogKey, not catalog
+const legacyAttribute: AttributeAssignment = { catalog: 'system', key: 'locale', value: 'nl-NL' }
 
 // The schema bounds keywords at 20; the type must stay a plain array rather than a tuple union.
 const authoredKeywords: string[] = ['documents', 'getting-started']
-const keywordCatalog: CatalogInfo = { registry: 'acme.com', namespace: 'acme', slug: 'fixture', name: 'Fixture', keywords: authoredKeywords }
+const keywordCatalog: CatalogInfo = { registry: 'acme.com', namespace: 'acme', key: 'fixture', name: 'Fixture', keywords: authoredKeywords }
 const keyword: CatalogKeyword = 'documents'
 
-const locale: AttributeAssignment = { catalog: 'system', key: 'locale', value: 'nl-NL' }
+const locale: AttributeAssignment = { catalogKey: 'system', key: 'locale', value: 'nl-NL' }
 const license: CatalogLicense = { name: 'Proprietary', url: 'https://example.test/license' }
 
-const presentation: CatalogPresentation = { iconAssetSlug: 'logo', imageAssetSlugs: ['hero'] }
+const presentation: CatalogPresentation = { iconImageKey: 'logo', imageKeys: ['hero'] }
 
 const asset: ImageResource = {
   type: 'image',
-  slug: 'logo',
+  key: 'logo',
   name: 'Logo',
   mediaType: 'image/svg+xml',
   contentHash: '0000000000000000000000000000000000000000000000000000000000000000',
@@ -93,6 +103,10 @@ void registry
 void namespace
 void themeRef
 void qualifiedThemeRef
+void legacyThemeRef
+void legacyStencil
+void legacyPresentation
+void legacyAttribute
 void identityPatterns
 void keywordCatalog
 void keyword

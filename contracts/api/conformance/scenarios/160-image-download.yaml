@@ -30,12 +30,12 @@ action:
     nodeId: conformance-node-1
     auth: api-key
     apiKey: epk_conformance_0123456789
-    tenantId: acme-corp
+    tenantKey: acme-corp
     registry: acme.com
     namespace: acme
     catalogKey: main
     catalogVersion: 2.0.0
-    imageSlug: municipality-mark
+    imageKey: municipality-mark
 
 script:
   - status: 200

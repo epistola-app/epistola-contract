@@ -276,7 +276,7 @@ export type ContractHttpMethod = 'GET' | 'PUT' | 'POST' | 'DELETE' | 'OPTIONS' |
 export interface ContractOperation {
   readonly operationId: string
   readonly method: ContractHttpMethod
-  /** The path template, relative to the API base path, e.g. \`/tenants/{tenantId}/templates\`. */
+  /** The path template, relative to the API base path, e.g. \`/tenants/{tenantKey}/templates\`. */
   readonly path: string
   /**
    * The response media types the operation declares, in the order the contract declares them,
@@ -372,7 +372,7 @@ import { ModelValidationException, type ConstraintViolation } from '../validatio
  * counterpart of the Kotlin / .NET \`validate()\` extensions and the Python \`validate()\` helper.
  *
  * The generated models are plain interfaces with no runtime checks, so these are the only place a
- * constraint the contract declares — a slug pattern, a length bound, a range — is enforced before
+ * constraint the contract declares — a key pattern, a length bound, a range — is enforced before
  * the request leaves the process. The set of models is derived from the spec, so the build fails if
  * the contract ever silently drops all of its constraints.
  */

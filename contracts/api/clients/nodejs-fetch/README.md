@@ -56,7 +56,7 @@ const client = EpistolaClient.builder('https://epistola.example.com/api')
   .build()
 
 const templates = new TemplatesApi(client)
-const template = await templates.getTemplate({ tenantId: 'acme', registry: '~', namespace: 'acme', catalogKey: 'invoices', catalogVersion: '1.4.0', templateId: 'invoice' })
+const template = await templates.getTemplate({ tenantKey: 'acme', registry: '~', namespace: 'acme', catalogKey: 'invoices', catalogVersion: '1.4.0', templateKey: 'invoice' })
 ```
 
 A catalog is addressed by its `registry`, `namespace` and `catalogKey`. `registry: '~'` addresses the
@@ -107,7 +107,7 @@ carries a name and a type:
 import { readFile } from 'node:fs/promises'
 
 const file = new File([await readFile('logo.png')], 'logo.png', { type: 'image/png' })
-const image = await new ImagesApi(client).uploadImage({ tenantId: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', catalogVersion: '1.5.0', file, name: 'Logo' })
+const image = await new ImagesApi(client).uploadImage({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', catalogVersion: '1.5.0', file, name: 'Logo' })
 ```
 
 A plain `Blob` is always sent with the filename `blob`, and as `application/octet-stream` unless it
@@ -123,7 +123,7 @@ Catch `ProblemDetailException` and switch on `typeSlug` against `KnownProblemSlu
 import { KnownProblemSlugs, ProblemDetailException, ResponseError, TenantsApi } from '@epistola.app/epistola-client'
 
 try {
-  await new TenantsApi(client).getTenant({ tenantId: 'acme' })
+  await new TenantsApi(client).getTenant({ tenantKey: 'acme' })
 } catch (e) {
   if (e instanceof ProblemDetailException) {
     switch (e.typeSlug) {
@@ -168,7 +168,7 @@ against `MissingReleaseDependencyReason`). Pass `includeDependencies: true` to d
 
 ```ts
 await new EnvironmentsApi(client).deployRelease({
-  tenantId: 'acme', environmentId: 'production',
+  tenantKey: 'acme', environmentKey: 'production',
   registry: '~', namespace: 'acme', catalogKey: 'invoices', releaseVersion: '1.4.0',
   includeDependencies: true,
 })
@@ -181,7 +181,7 @@ import { ResultCollector } from '@epistola.app/epistola-client'
 
 const collector = ResultCollector.builder()
   .client(client)
-  .tenantId('acme')
+  .tenantKey('acme')
   .handler(async (result) => console.log(result.requestId, result.status))
   .build()
 
@@ -210,14 +210,14 @@ await validator.validate('acme', '~', 'acme', 'invoices', 'invoice', data)   // 
 
 // Against a particular release: a version selector, an environment, or both together
 const pinned = new TemplateSchemaValidator(
-  new ServerTemplateDataValidator(templatesApi, { version: '^1.4.0', environmentId: 'production' }),
+  new ServerTemplateDataValidator(templatesApi, { version: '^1.4.0', environmentKey: 'production' }),
 )
 
 // Or around generation, which turns the server's `template-data-invalid` problem into the same error:
 const generation = new ValidatingGenerationApi(new GenerationApi(client), templatesApi)
 
-// A request model against the constraints the contract declares on it (slug patterns, lengths, ranges):
-validateCreateTenantRequest({ id: 'Acme Corp', name: 'Acme' })  // throws ModelValidationException
+// A request model against the constraints the contract declares on it (key patterns, lengths, ranges):
+validateCreateTenantRequest({ key: 'Acme Corp', name: 'Acme' })  // throws ModelValidationException
 ```
 
 Each failure carries a **JSON Pointer** into the data (`/customer/email`), the JSON Schema `keyword`

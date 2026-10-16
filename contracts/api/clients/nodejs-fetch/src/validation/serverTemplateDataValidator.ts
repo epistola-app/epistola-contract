@@ -10,12 +10,12 @@ import type { TemplateDataValidator, ValidationFailure } from './templateDataVal
 export interface TemplateDataValidationSource {
   validateTemplateData(
     requestParameters: {
-      tenantId: string
+      tenantKey: string
       registry: string
       namespace: string
       catalogKey: string
-      templateId: string
-      validateTemplateDataRequest: { data: object; variantId?: string | null; version?: string | null; environmentId?: string | null }
+      templateKey: string
+      validateTemplateDataRequest: { data: object; variantKey?: string | null; version?: string | null; environmentKey?: string | null }
     },
     initOverrides?: RequestInit | InitOverrideFunction,
   ): Promise<TemplateDataValidationResult>
@@ -24,15 +24,15 @@ export interface TemplateDataValidationSource {
 /** Which release's contract to check against; omit all three to use the catalog's latest release and the default variant. */
 export interface ServerValidationTarget {
   /** Variant to check against; without it, the default variant of the template in the resolved release. */
-  readonly variantId?: string
+  readonly variantKey?: string
   /**
    * Version selector for the release of the template's catalog (`1.4.0`, or a range such as
    * `^1.4.0` where the server supports ranges). Sent as the request's `version`. Combined with
-   * `environmentId`, it narrows to the highest release that environment serves which satisfies it.
+   * `environmentKey`, it narrows to the highest release that environment serves which satisfies it.
    */
   readonly version?: string
   /** Environment whose deployed releases to check against; may be combined with `version`. */
-  readonly environmentId?: string
+  readonly environmentKey?: string
 }
 
 /**
@@ -62,18 +62,18 @@ export class ServerTemplateDataValidator implements TemplateDataValidator {
     private readonly target: ServerValidationTarget = {},
   ) {}
 
-  async validate(tenantId: string, registry: string, namespace: string, catalogKey: string, templateId: string, data: unknown): Promise<readonly ValidationFailure[]> {
+  async validate(tenantKey: string, registry: string, namespace: string, catalogKey: string, templateKey: string, data: unknown): Promise<readonly ValidationFailure[]> {
     const result = await this.templatesApi.validateTemplateData({
-      tenantId,
+      tenantKey,
       registry,
       namespace,
       catalogKey,
-      templateId,
+      templateKey,
       validateTemplateDataRequest: {
         data: (data ?? {}) as object,
-        variantId: this.target.variantId,
+        variantKey: this.target.variantKey,
         version: this.target.version,
-        environmentId: this.target.environmentId,
+        environmentKey: this.target.environmentKey,
       },
     })
     if (result.valid) {

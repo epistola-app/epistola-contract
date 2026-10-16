@@ -179,10 +179,10 @@ class ProblemDetailErrorHandlerTest {
     fun `parseProblem carries an unmodelled extension member through treeToValue, not just readValue`() {
         // treeToValue is a separate Jackson code path from readValue; the creator-based any-setter
         // has to work through it too, since that is what parseProblem actually calls.
-        val body = """{"type":"about:blank","title":"X","status":409,"themeId":"classic"}"""
+        val body = """{"type":"about:blank","title":"X","status":409,"themeKey":"classic"}"""
         val parsed = parseProblem(body.toByteArray())
         assertEquals(409, parsed?.problem?.status)
-        assertEquals("classic", parsed?.problem?.extensions?.get("themeId"))
+        assertEquals("classic", parsed?.problem?.extensions?.get("themeKey"))
         assertTrue(parsed?.errors?.isEmpty() == true)
         assertTrue(parsed?.validationErrors?.isEmpty() == true)
     }

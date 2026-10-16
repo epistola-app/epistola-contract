@@ -170,7 +170,7 @@ internal class CatalogV6ToV7Migration : CatalogSchemaMigration {
         // so its entries say `image`; a context built directly from a v6 manifest still says
         // `asset`. Both name the same entry, and only these two types ever carry a binary.
         val entry = context.manifest.resources
-            .firstOrNull { (it.type == "image" || it.type == "asset") && it.slug == assetSlug }
+            .firstOrNull { (it.type == "image" || it.type == "asset") && it.key == assetSlug }
             ?: return null
         val detailPath = entry.detailUrl.removePrefix("./")
         val content = context.content ?: return null

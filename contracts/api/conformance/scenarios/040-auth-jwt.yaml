@@ -19,7 +19,7 @@ action:
     auth: jwt
     consumerId: conformance-consumer
     tokenLifetimeSeconds: 60
-    tenantId: acme-corp
+    tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: main

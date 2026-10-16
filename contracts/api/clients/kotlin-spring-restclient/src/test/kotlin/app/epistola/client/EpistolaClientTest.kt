@@ -41,7 +41,7 @@ class EpistolaClientTest {
     @Test
     fun `identity headers, the JSON configuration, and the problem handler are all wired at once`() {
         var captured: com.sun.net.httpserver.HttpExchange? = null
-        val server = jsonServer(200, """{"id":"acme","tenantId":"t","name":"n","authMethod":"api-key","status":"active","createdAt":"2026-01-01T00:00:00Z","requestedPermissions":{},"grantedPermissions":{},"nodes":[]}""") {
+        val server = jsonServer(200, """{"id":"acme","tenantKey":"t","name":"n","authMethod":"api-key","status":"active","createdAt":"2026-01-01T00:00:00Z","requestedPermissions":{},"grantedPermissions":{},"nodes":[]}""") {
             captured = it
         }
         try {
@@ -66,7 +66,7 @@ class EpistolaClientTest {
     @Test
     fun `the request body omits properties the caller never set`() {
         var body: String? = null
-        val server = jsonServer(200, """{"id":"acme","tenantId":"t","name":"n","authMethod":"api-key","status":"active","createdAt":"2026-01-01T00:00:00Z","requestedPermissions":{},"grantedPermissions":{},"nodes":[]}""") {
+        val server = jsonServer(200, """{"id":"acme","tenantKey":"t","name":"n","authMethod":"api-key","status":"active","createdAt":"2026-01-01T00:00:00Z","requestedPermissions":{},"grantedPermissions":{},"nodes":[]}""") {
             body = String(it.requestBody.readAllBytes())
         }
         try {

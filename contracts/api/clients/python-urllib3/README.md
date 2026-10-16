@@ -132,7 +132,7 @@ from epistola_client import ResultCollector
 collector = (
     ResultCollector.builder()
     .api_client(http)
-    .tenant_id("acme")
+    .tenant_key("acme")
     .handler(lambda result: print(
         result.request_id,
         result.status,

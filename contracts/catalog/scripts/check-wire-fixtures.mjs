@@ -14,6 +14,7 @@ const readJson = async (path) => JSON.parse(await readFile(resolve(root, path), 
 const schemaNames = [
   'template-shared.schema.json',
   'template-document.schema.json',
+  'template-document-v7.schema.json',
   'theme.schema.json',
   'catalog-manifest-v5.schema.json',
   'resource-detail-v5.schema.json',
@@ -46,6 +47,8 @@ const cases = [
   ['resource-detail-v8.schema.json', 'fixtures/v1/wire-v8/resources/theme/default.json'],
   ['catalog-manifest-v8.schema.json', 'fixtures/v1/migrations/v7-to-v8/manifest-expected.json'],
   ['resource-detail-v8.schema.json', 'fixtures/v1/migrations/v7-to-v8/stencil-expected.json'],
+  ['resource-detail-v7.schema.json', 'fixtures/v1/migrations/v7-to-v8/template-input.json'],
+  ['resource-detail-v8.schema.json', 'fixtures/v1/migrations/v7-to-v8/template-expected.json'],
   ['catalog-manifest.schema.json', 'fixtures/v1/wire-v8/catalog.json'],
   ['resource-detail.schema.json', 'fixtures/v1/wire-v8/resources/theme/default.json'],
   ['catalog-manifest.schema.json', 'fixtures/v1/conformance/catalog/valid-minimal/catalog.json'],
@@ -205,6 +208,64 @@ for (const [description, edit] of [
   assert.equal(validateV8Manifest(manifest), true, `v8 manifest rejected ${description}: ${ajv.errorsText(validateV8Manifest.errors)}`);
 }
 
+// Wire v8 calls a resource's address its key (#84). An old name is not a v8 member, and the key is required.
+for (const [description, edit] of [
+  ['catalog slug', (m) => { m.catalog.slug = m.catalog.key; delete m.catalog.key; }],
+  ['resource entry slug', (m) => { m.resources[0].slug = m.resources[0].key; delete m.resources[0].key; }],
+  ['dependency slug', (m) => { m.dependencies[0].slug = m.dependencies[0].key; delete m.dependencies[0].key; }],
+  ['presentation iconAssetSlug', (m) => { m.catalog.presentation = { iconAssetSlug: 'logo' }; }],
+  ['presentation imageAssetSlugs', (m) => { m.catalog.presentation = { imageAssetSlugs: ['hero'] }; }],
+  ['attribute catalog', (m) => { m.catalog.attributes = [{ catalog: 'system', key: 'locale', value: 'nl-NL' }]; }],
+]) {
+  assert.equal(validateV8Manifest(await v8Manifest(edit)), false, `v8 manifest accepted the old name: ${description}`);
+}
+assert.equal(
+  validateV8Manifest(await v8Manifest((m) => { m.catalog.presentation = { iconImageKey: 'logo', imageKeys: ['hero'] }; })),
+  true,
+  `v8 manifest rejected a presentation icon: ${ajv.errorsText(validateV8Manifest.errors)}`,
+);
+
+const v8Theme = await readJson('fixtures/v1/wire-v8/resources/theme/default.json');
+const { key: themeKey, ...themeWithoutKey } = v8Theme.resource;
+assert.equal(
+  validateV8Detail({ ...v8Theme, resource: { ...themeWithoutKey, slug: themeKey } }),
+  false,
+  'v8 resource accepted slug in place of key',
+);
+const v8Template = (resource, templateModel) => ({
+  schemaVersion: 8,
+  resource: {
+    type: 'template',
+    key: 'letter',
+    name: 'Letter',
+    templateModel: {
+      modelVersion: 1,
+      root: 'root',
+      nodes: { root: { id: 'root', type: 'root', slots: [] } },
+      slots: {},
+      themeRef: { type: 'inherit' },
+      ...templateModel,
+    },
+    variants: [{ key: 'default' }],
+    ...resource,
+  },
+});
+assert.equal(validateV8Detail(v8Template({ themeKey: 'corporate' }, { themeRef: { type: 'override', themeKey: 'corporate' } })), true,
+  `v8 template rejected themeKey: ${ajv.errorsText(validateV8Detail.errors)}`);
+for (const [description, detail] of [
+  ['template themeId', v8Template({ themeId: 'corporate' })],
+  ['theme reference themeId', v8Template({}, { themeRef: { type: 'override', themeId: 'corporate' } })],
+  ['variant slug', v8Template({ variants: [{ slug: 'default' }] })],
+]) {
+  assert.equal(validateV8Detail(detail), false, `v8 template accepted the old name: ${description}`);
+}
+// Wire v5 to v7 keep naming a theme reference's theme themeId.
+const validateV7Detail = ajv.getSchema('https://epistola.app/schemas/resource-detail-v7.schema.json');
+const v7Template = v8Template({ slug: 'letter', variants: [{ slug: 'default' }] }, { themeRef: { type: 'override', themeId: 'corporate' } });
+v7Template.schemaVersion = 7;
+delete v7Template.resource.key;
+assert.equal(validateV7Detail(v7Template), true, `v7 template rejected themeId: ${ajv.errorsText(validateV7Detail.errors)}`);
+
 // Stencils carry no version from v8; content references may omit registry and namespace.
 const v8Stencil = await readJson('fixtures/v1/migrations/v7-to-v8/stencil-expected.json');
 assert.equal(validateV8Detail({ ...v8Stencil, resource: { ...v8Stencil.resource, version: 3 } }), false, 'v8 stencil accepted a version');
@@ -212,7 +273,7 @@ const v7Stencil = await readJson('fixtures/v1/migrations/v7-to-v8/stencil-input.
 assert.equal(validateV8Detail({ ...v7Stencil, schemaVersion: 8 }), false, 'v8 accepted a stencil with its v7 version');
 
 const attribute = await readJson('fixtures/v1/conformance/catalog/missing-resource-reference/resources/attribute/locale.json');
-const withBinding = (binding) => ({ ...attribute, resource: { ...attribute.resource, codeListBinding: { slug: 'countries', ...binding } } });
+const withBinding = (binding) => ({ ...attribute, resource: { ...attribute.resource, codeListBinding: { key: 'countries', ...binding } } });
 for (const binding of [
   {},
   { catalogKey: 'shared' },

@@ -11,11 +11,11 @@ PreviewDocumentRequest:
     - There are **no guarantees on latency or throughput**
     - Generated documents are **not stored** — use the async generation endpoint for production use
 
-    Specify either variantId (explicit) or attributes (auto-select) but not both.
+    Specify either variantKey (explicit) or attributes (auto-select) but not both.
   required:
     - namespace
     - catalogKey
-    - templateId
+    - templateKey
     - data
   properties:
     registry:
@@ -41,25 +41,25 @@ PreviewDocumentRequest:
       maxLength: 50
       description: Key of the catalog containing the template, unique within its registry and namespace
       example: letters
-    templateId:
+    templateKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of template to use for preview
+      description: Key of the template to use for preview
       example: invoice
-    variantId:
+    variantKey:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the variant to use (mutually exclusive with attributes)
+      description: Key of the variant to use (mutually exclusive with attributes)
       example: english
     attributes:
       type: array
       items:
         $ref: '#/VariantSelectionAttribute'
-      description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
+      description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantKey)
     version:
       type: [string, "null"]
       minLength: 1
@@ -67,17 +67,17 @@ PreviewDocumentRequest:
       description: |
         Which release of the template's catalog to render, as a version selector (see "Version
         selectors" in the API description); the highest release that satisfies it is rendered.
-        With `environmentId`, only the releases that environment serves are considered. Omitted:
-        the highest release (that the environment serves, with `environmentId`). Unreleased
+        With `environmentKey`, only the releases that environment serves are considered. Omitted:
+        the highest release (that the environment serves, with `environmentKey`). Unreleased
         changes are never rendered.
       example: null
-    environmentId:
+    environmentKey:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 30
       description: |
-        Slug identifier of an environment. The release rendered is chosen among the releases of
+        Key of an environment. The release rendered is chosen among the releases of
         the template's catalog that the environment serves: the highest one, or the highest that
         satisfies `version`. The request is refused when the environment serves no such release.
       example: null
@@ -87,7 +87,7 @@ PreviewDocumentRequest:
       maxLength: 50
       description: |
         Render a draft of the template's catalog, named by its exact version, including changes not
-        yet released (mutually exclusive with version and environmentId). Preview only: generated
+        yet released (mutually exclusive with version and environmentKey). Preview only: generated
         documents always render a release, and a version selector never matches a draft.
       example: null
     data:
@@ -130,10 +130,10 @@ VariantSelectionAttribute:
     `key` may take three forms (server resolves in this order):
       1. Explicit qualifier: provide `catalogKey` (and `namespace`, and `registry`, for a catalog
          in another namespace or registry than the template's) + a bare `key`. Recommended.
-      2. Dotted form: `key = "<catalogKey>.<slug>"`, for a catalog in the template's registry and
+      2. Dotted form: `key = "<catalogKey>.<key>"`, for a catalog in the template's registry and
          namespace.
          The catalog key grammar excludes `.`, so the split is unambiguous.
-      3. Bare slug: tenant-wide lookup (legacy). If the same slug exists in
+      3. Bare key: tenant-wide lookup (legacy). If the same key exists in
          multiple catalogs of the tenant, the validator silently picks one.
   required:
     - key
@@ -183,11 +183,11 @@ VariantSelectionAttribute:
 
 GenerateDocumentRequest:
   type: object
-  description: Request to generate a single document. Specify either variantId (explicit) or attributes (auto-select) but not both.
+  description: Request to generate a single document. Specify either variantKey (explicit) or attributes (auto-select) but not both.
   required:
     - namespace
     - catalogKey
-    - templateId
+    - templateKey
     - data
   properties:
     registry:
@@ -213,25 +213,25 @@ GenerateDocumentRequest:
       maxLength: 50
       description: Key of the catalog containing the template, unique within its registry and namespace
       example: letters
-    templateId:
+    templateKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of template to use for generation
+      description: Key of the template to use for generation
       example: invoice
-    variantId:
+    variantKey:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the variant to use (mutually exclusive with attributes)
+      description: Key of the variant to use (mutually exclusive with attributes)
       example: english
     attributes:
       type: array
       items:
         $ref: '#/VariantSelectionAttribute'
-      description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
+      description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantKey)
     version:
       type: [string, "null"]
       minLength: 1
@@ -239,17 +239,17 @@ GenerateDocumentRequest:
       description: |
         Which release of the template's catalog to render, as a version selector (see "Version
         selectors" in the API description); the highest release that satisfies it is rendered.
-        With `environmentId`, only the releases that environment serves are considered. Omitted:
-        the highest release (that the environment serves, with `environmentId`). Unreleased
+        With `environmentKey`, only the releases that environment serves are considered. Omitted:
+        the highest release (that the environment serves, with `environmentKey`). Unreleased
         changes are never rendered.
       example: null
-    environmentId:
+    environmentKey:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 30
       description: |
-        Slug identifier of an environment. The release rendered is chosen among the releases of
+        Key of an environment. The release rendered is chosen among the releases of
         the template's catalog that the environment serves: the highest one, or the highest that
         satisfies `version`. The request is refused when the environment serves no such release.
       example: null
@@ -314,11 +314,11 @@ GenerateDocumentRequest:
 
 BatchGenerationItem:
   type: object
-  description: Single item in a batch generation request. Specify either variantId (explicit) or attributes (auto-select) but not both. Both correlationId and filename must be unique within a batch (null values are excluded from uniqueness checks).
+  description: Single item in a batch generation request. Specify either variantKey (explicit) or attributes (auto-select) but not both. Both correlationId and filename must be unique within a batch (null values are excluded from uniqueness checks).
   required:
     - namespace
     - catalogKey
-    - templateId
+    - templateKey
     - data
   properties:
     registry:
@@ -344,25 +344,25 @@ BatchGenerationItem:
       maxLength: 50
       description: Key of the catalog containing the template, unique within its registry and namespace
       example: letters
-    templateId:
+    templateKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of template to use for generation
+      description: Key of the template to use for generation
       example: invoice
-    variantId:
+    variantKey:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the variant to use (mutually exclusive with attributes)
+      description: Key of the variant to use (mutually exclusive with attributes)
       example: english
     attributes:
       type: array
       items:
         $ref: '#/VariantSelectionAttribute'
-      description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantId)
+      description: Attribute criteria for auto-selecting a variant (mutually exclusive with variantKey)
     version:
       type: [string, "null"]
       minLength: 1
@@ -370,17 +370,17 @@ BatchGenerationItem:
       description: |
         Which release of the template's catalog to render, as a version selector (see "Version
         selectors" in the API description); the highest release that satisfies it is rendered.
-        With `environmentId`, only the releases that environment serves are considered. Omitted:
-        the highest release (that the environment serves, with `environmentId`). Unreleased
+        With `environmentKey`, only the releases that environment serves are considered. Omitted:
+        the highest release (that the environment serves, with `environmentKey`). Unreleased
         changes are never rendered.
       example: null
-    environmentId:
+    environmentKey:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 30
       description: |
-        Slug identifier of an environment. The release rendered is chosen among the releases of
+        Key of an environment. The release rendered is chosen among the releases of
         the template's catalog that the environment serves: the highest one, or the highest that
         satisfies `version`. The request is refused when the environment serves no such release.
       example: null
@@ -508,8 +508,8 @@ DocumentGenerationItemDto:
   description: Individual item in a generation batch
   required:
     - id
-    - templateId
-    - variantId
+    - templateKey
+    - variantKey
     - data
     - status
     - createdAt
@@ -543,19 +543,19 @@ DocumentGenerationItemDto:
       maxLength: 50
       description: Key of the template's catalog, unique within its registry and namespace. Null for a result accepted before contract 2.0
       example: letters
-    templateId:
+    templateKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of template used for generation
+      description: Key of the template used for generation
       example: invoice
-    variantId:
+    variantKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the variant used for generation
+      description: Key of the variant used for generation
       example: english
     releaseVersion:
       type: [string, "null"]
@@ -564,12 +564,12 @@ DocumentGenerationItemDto:
         Release of the template's catalog this item renders, bound when the request was accepted.
         Null for an item accepted before contract 2.0, which rendered a template version.
       example: "1.4.0"
-    environmentId:
+    environmentKey:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 30
-      description: Slug identifier of environment (if specified)
+      description: Key of the environment (if specified)
       example: null
     data:
       type: object
@@ -644,10 +644,10 @@ DocumentGenerationItemDto:
     registry: exchange.epistola.app
     namespace: acme-corp
     catalogKey: letters
-    templateId: invoice
-    variantId: english
+    templateKey: invoice
+    variantKey: english
     releaseVersion: "1.4.0"
-    environmentId: null
+    environmentKey: null
     data:
       customer:
         name: "Jane Smith"
@@ -793,10 +793,10 @@ GenerationJobDetail:
         registry: exchange.epistola.app
         namespace: acme-corp
         catalogKey: letters
-        templateId: invoice
-        variantId: english
+        templateKey: invoice
+        variantKey: english
         releaseVersion: "1.4.0"
-        environmentId: null
+        environmentKey: null
         data:
           customer:
             name: "Jane Smith"
@@ -865,9 +865,9 @@ DocumentDto:
   description: Generated document metadata
   required:
     - id
-    - tenantId
-    - templateId
-    - variantId
+    - tenantKey
+    - templateKey
+    - variantKey
     - releaseVersion
     - filename
     - contentType
@@ -879,12 +879,12 @@ DocumentDto:
       format: uuid
       description: Unique identifier of the document
       example: "770e8400-e29b-41d4-a716-446655440002"
-    tenantId:
+    tenantKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
-      description: Slug identifier of the tenant that owns this document
+      description: Key of the tenant that owns this document
       example: acme-corp
     registry:
       type: [string, "null"]
@@ -910,19 +910,19 @@ DocumentDto:
       maxLength: 50
       description: Key of the template's catalog, unique within its registry and namespace. Null for a result accepted before contract 2.0
       example: letters
-    templateId:
+    templateKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of template used to generate this document
+      description: Key of the template used to generate this document
       example: invoice
-    variantId:
+    variantKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the variant used to generate this document
+      description: Key of the variant used to generate this document
       example: english
     releaseVersion:
       type: [string, "null"]
@@ -959,12 +959,12 @@ DocumentDto:
       example: null
   example:
     id: "770e8400-e29b-41d4-a716-446655440002"
-    tenantId: acme-corp
+    tenantKey: acme-corp
     registry: exchange.epistola.app
     namespace: acme-corp
     catalogKey: letters
-    templateId: invoice
-    variantId: english
+    templateKey: invoice
+    variantKey: english
     releaseVersion: "1.4.0"
     filename: "invoice-2026-001.pdf"
     correlationId: "order-7890"
@@ -990,12 +990,12 @@ DocumentListResponse:
   example:
     items:
       - id: "770e8400-e29b-41d4-a716-446655440002"
-        tenantId: acme-corp
+        tenantKey: acme-corp
         registry: exchange.epistola.app
         namespace: acme-corp
         catalogKey: letters
-        templateId: invoice
-        variantId: english
+        templateKey: invoice
+        variantKey: english
         releaseVersion: "1.4.0"
         filename: "invoice-2026-001.pdf"
         correlationId: "order-7890"

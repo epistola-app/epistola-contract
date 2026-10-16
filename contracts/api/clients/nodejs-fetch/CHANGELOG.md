@@ -20,6 +20,14 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
+- **BREAKING:** a resource's address is its `key` (#84). The hand-written API follows the
+  generated one: `TemplateDataValidator.validate`, `TemplateSchemaValidator.validate`,
+  `ServerTemplateDataValidator.validate` and `SchemaCache.getOrLoad` / `evict` take
+  `(tenantKey, registry, namespace, catalogKey, templateKey, …)`; `ServerValidationTarget` takes
+  `variantKey` and `environmentKey` in place of `variantId` and `environmentId`; and
+  `ResultCollector.builder().tenantId(…)` is now `.tenantKey(…)`. The generated request parameters
+  and models carry the same renames (`tenantKey`, `templateKey`, …, and `key` in place of `slug` and
+  of a create request's `id`).
 - **BREAKING:** a catalog is addressed by registry, namespace and key. `TemplateDataValidator.validate`,
   `TemplateSchemaValidator.validate` and `ServerTemplateDataValidator.validate` take
   `(tenantId, registry, namespace, catalogKey, templateId, data)` in place of

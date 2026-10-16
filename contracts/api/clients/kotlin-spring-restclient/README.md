@@ -148,7 +148,7 @@ plain form field to a multipart parser expecting a file — override it:
 val archive = object : ByteArrayResource(bytes) {
     override fun getFilename() = "catalog.zip"
 }
-catalogsApi.importCatalog(tenantId, archive)
+catalogsApi.importCatalog(tenantKey, archive)
 ```
 
 `FileSystemResource(file)` needs no such override — a real file always has a name.
@@ -359,7 +359,7 @@ val job = api.generateDocument("acme-corp", GenerateDocumentRequest(
     // registry; name it in full (`registry = "acme.com"`) for a catalog from another one.
     namespace = "acme-corp",           // the namespace within the registry…
     catalogKey = "default",            // …and the catalog's key within that namespace
-    templateId = "invoice",
+    templateKey = "invoice",
     data = mapOf("customer" to "Jane Smith", "amount" to 99.99),
     version = "^1.4.0",                // optional: the highest release satisfying this selector
     correlationId = "order-123",
@@ -371,8 +371,8 @@ println("Job submitted: ${job.requestId}")
 val batch = api.generateDocumentBatch("acme-corp", GenerateBatchRequest(
     routingKey = "order-456",          // all items route to same node
     items = listOf(
-        BatchGenerationItem(namespace = "acme-corp", catalogKey = "default", templateId = "invoice", data = invoiceData),
-        BatchGenerationItem(registry = "acme.com", namespace = "acme", catalogKey = "shipping", templateId = "packing-slip", data = packingData),
+        BatchGenerationItem(namespace = "acme-corp", catalogKey = "default", templateKey = "invoice", data = invoiceData),
+        BatchGenerationItem(registry = "acme.com", namespace = "acme", catalogKey = "shipping", templateKey = "packing-slip", data = packingData),
     ),
 ))
 ```
@@ -408,7 +408,7 @@ The `ResultCollector` polls the `/generation/collect` endpoint for completed/fai
 ```kotlin
 val collector = ResultCollector.builder()
     .restClient(restClient)
-    .tenantId("acme-corp")
+    .tenantKey("acme-corp")
     .batchSize(100)                                    // max results per poll
     .minInterval(Duration.ofSeconds(1))                // poll interval when results are flowing
     .maxInterval(Duration.ofSeconds(30))               // max backoff when idle
@@ -471,7 +471,7 @@ Implement `ResultCollector.MetricsListener` for observability:
 ```kotlin
 val collector = ResultCollector.builder()
     .restClient(restClient)
-    .tenantId("acme-corp")
+    .tenantKey("acme-corp")
     .handler { result -> process(result) }
     .metricsListener(object : ResultCollector.MetricsListener {
         override fun onPoll(count: Int, hasMore: Boolean, durationMs: Long, error: Exception?) {
@@ -537,7 +537,7 @@ The client includes generated `.validate()` extension functions for request DTOs
 ```kotlin
 import app.epistola.client.validation.validate
 
-val request = CreateTenantRequest(id = "acme-corp", name = "Acme Corporation")
+val request = CreateTenantRequest(key = "acme-corp", name = "Acme Corporation")
 request.validate()  // throws IllegalArgumentException if constraints are violated
 ```
 
@@ -567,7 +567,7 @@ fun main() {
     // Start collecting results in a background thread
     val collector = ResultCollector.builder()
         .restClient(pollingClient)
-        .tenantId("acme-corp")
+        .tenantKey("acme-corp")
         .handler { result ->
             if (result.status == "COMPLETED") {
                 println("Document ${result.documentId} ready for ${result.correlationId}")
@@ -582,7 +582,7 @@ fun main() {
     val job = api.generateDocument("acme-corp", GenerateDocumentRequest(
         namespace = "acme-corp",
         catalogKey = "default",
-        templateId = "invoice",
+        templateKey = "invoice",
         data = mapOf("customer" to "Jane Smith"),
         routingKey = collector.routingKeyToMe("order-001") ?: "order-001",
     ))

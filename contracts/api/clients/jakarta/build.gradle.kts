@@ -115,7 +115,7 @@ openApiGenerate {
 fun rewriteMultipartMethods(source: String): String {
     // One method per line, as the generator emits it. The parameter list is matched up to the
     // trailing `throws` rather than to the first `)`, because an annotation carries its own.
-    //   ImageDto uploadImage(@PathParam("tenantId") String tenantId,  @FormParam("file") File x, …) throws …;
+    //   ImageDto uploadImage(@PathParam("tenantKey") String tenantKey,  @FormParam("file") File x, …) throws …;
     val declaration = Regex(
         """^ {4}(\S+(?:<[^>]*>)?) (\w+)\((.*@FormParam.*)\) throws ApiException, ProcessingException;$""",
         RegexOption.MULTILINE,

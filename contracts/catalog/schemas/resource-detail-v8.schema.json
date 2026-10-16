@@ -49,7 +49,8 @@
         "type": {
           "const": "template"
         },
-        "slug": {
+        "key": {
+          "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 3,
@@ -58,7 +59,8 @@
         "name": {
           "type": "string"
         },
-        "themeId": {
+        "themeKey": {
+          "description": "Key of the template's default theme. Qualified by themeCatalogKey, themeNamespace and themeRegistry when the theme lives in another catalog. Until wire v8 this member was called themeId.",
           "type": [
             "string",
             "null"
@@ -118,7 +120,7 @@
       },
       "required": [
         "type",
-        "slug",
+        "key",
         "name",
         "templateModel",
         "variants"
@@ -136,7 +138,8 @@
         "type": {
           "const": "theme"
         },
-        "slug": {
+        "key": {
+          "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 3,
@@ -189,7 +192,7 @@
       },
       "required": [
         "type",
-        "slug",
+        "key",
         "name"
       ],
       "additionalProperties": false
@@ -200,7 +203,8 @@
         "type": {
           "const": "stencil"
         },
-        "slug": {
+        "key": {
+          "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 3,
@@ -233,7 +237,7 @@
       },
       "required": [
         "type",
-        "slug",
+        "key",
         "name",
         "content"
       ],
@@ -245,7 +249,8 @@
         "type": {
           "const": "attribute"
         },
-        "slug": {
+        "key": {
+          "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 3,
@@ -273,7 +278,7 @@
       },
       "required": [
         "type",
-        "slug",
+        "key",
         "name"
       ],
       "additionalProperties": false
@@ -284,7 +289,8 @@
         "type": {
           "const": "image"
         },
-        "slug": {
+        "key": {
+          "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
           "type": "string",
           "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
           "minLength": 1,
@@ -320,7 +326,7 @@
       },
       "required": [
         "type",
-        "slug",
+        "key",
         "name",
         "mediaType",
         "contentHash"
@@ -333,7 +339,8 @@
         "type": {
           "const": "codeList"
         },
-        "slug": {
+        "key": {
+          "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 3,
@@ -357,7 +364,7 @@
       },
       "required": [
         "type",
-        "slug",
+        "key",
         "name",
         "entries"
       ],
@@ -369,7 +376,8 @@
         "type": {
           "const": "font"
         },
-        "slug": {
+        "key": {
+          "description": "The resource's key: its public address within its catalog. Until wire v8 this member was called slug.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 2,
@@ -390,7 +398,7 @@
       },
       "required": [
         "type",
-        "slug",
+        "key",
         "name",
         "kind",
         "variants"
@@ -406,7 +414,8 @@
             "null"
           ]
         },
-        "slug": {
+        "key": {
+          "description": "Key of the code list within the catalog named by catalogKey, namespace and registry. Until wire v8 this member was called slug.",
           "type": "string"
         },
         "namespace": {
@@ -424,7 +433,7 @@
         }
       },
       "required": [
-        "slug"
+        "key"
       ],
       "dependentRequired": {
         "registry": [
@@ -504,7 +513,8 @@
     "VariantEntry": {
       "type": "object",
       "properties": {
-        "slug": {
+        "key": {
+          "description": "The variant's key: its public address within its template. Until wire v8 this member was called slug.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 3,
@@ -544,7 +554,7 @@
         }
       },
       "required": [
-        "slug"
+        "key"
       ],
       "additionalProperties": false
     }

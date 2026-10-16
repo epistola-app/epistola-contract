@@ -157,9 +157,9 @@ class TemplateSchemaValidatorTest {
                 .validate("acme-corp", "exchange.example.org", "team-a", "letters", "invoice", Map.of());
 
         assertEquals(List.of("acme-corp", "exchange.example.org", "team-a", "letters", "invoice"), paths.get(0));
-        assertEquals("nl-nl", sent.get(0).getVariantId());
+        assertEquals("nl-nl", sent.get(0).getVariantKey());
         assertEquals("^1.4.0", sent.get(0).getVersion());
-        assertEquals("production", sent.get(0).getEnvironmentId());
+        assertEquals("production", sent.get(0).getEnvironmentKey());
     }
 
     @Test
@@ -169,7 +169,7 @@ class TemplateSchemaValidatorTest {
 
         TemplateDataValidationException e = assertThrows(
                 TemplateDataValidationException.class,
-                () -> new TemplateSchemaValidator((tenantId, registry, namespace, catalogKey, templateId, data) -> findings)
+                () -> new TemplateSchemaValidator((tenantKey, registry, namespace, catalogKey, templateKey, data) -> findings)
                         .validate("acme-corp", "~", "acme-corp", "default", "invoice", Map.of()));
 
         assertEquals(findings, e.getErrors());

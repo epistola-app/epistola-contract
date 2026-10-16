@@ -5,27 +5,27 @@ StencilDto:
     A stencil is a reusable template component that can be inserted into any template. Its content
     is edited in a draft of its catalog and marked ready; templates render its ready content.
   required:
-    - slug
-    - tenantId
+    - key
+    - tenantKey
     - name
     - status
     - createdAt
     - lastModified
   properties:
-    slug:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: |
-        Slug identifier of the stencil (e.g., "corporate-header")
+        Key of the stencil (e.g., "corporate-header")
       example: corporate-header
-    tenantId:
+    tenantKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
-      description: Slug identifier of the tenant this stencil belongs to
+      description: Key of the tenant this stencil belongs to
       example: acme-corp
     name:
       type: string
@@ -58,8 +58,8 @@ StencilDto:
       description: Timestamp when the stencil was last modified
       example: "2026-03-15T14:30:00Z"
   example:
-    slug: corporate-header
-    tenantId: acme-corp
+    key: corporate-header
+    tenantKey: acme-corp
     name: Corporate Header
     description: Standard corporate header with logo, company name, and address block
     tags:
@@ -73,27 +73,27 @@ StencilSummaryDto:
   type: object
   description: Summary view of a stencil for list displays
   required:
-    - slug
-    - tenantId
+    - key
+    - tenantKey
     - name
     - status
     - createdAt
     - lastModified
   properties:
-    slug:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: |
-        Slug identifier of the stencil
+        Key of the stencil
       example: corporate-header
-    tenantId:
+    tenantKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
-      description: Slug identifier of the tenant this stencil belongs to
+      description: Key of the tenant this stencil belongs to
       example: acme-corp
     name:
       type: string
@@ -126,8 +126,8 @@ StencilSummaryDto:
       description: Timestamp when the stencil was last modified
       example: "2026-03-15T14:30:00Z"
   example:
-    slug: corporate-header
-    tenantId: acme-corp
+    key: corporate-header
+    tenantKey: acme-corp
     name: Corporate Header
     description: Standard corporate header with logo, company name, and address block
     tags:
@@ -141,15 +141,15 @@ CreateStencilRequest:
   type: object
   description: Request body for creating a new stencil
   required:
-    - id
+    - key
     - name
   properties:
-    id:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Client-provided slug identifier for the stencil
+      description: Client-chosen key for the stencil
       example: corporate-header
     name:
       type: string
@@ -225,28 +225,28 @@ StencilUsageDto:
   type: object
   description: A template variant that uses the stencil, and whether its instance is held back
   required:
-    - templateId
+    - templateKey
     - templateName
-    - variantId
+    - variantKey
     - heldBack
   properties:
-    templateId:
+    templateKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the template using this stencil
+      description: Key of the template using this stencil
       example: monthly-invoice
     templateName:
       type: string
       description: Display name of the template
       example: Monthly Invoice
-    variantId:
+    variantKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the variant
+      description: Key of the variant
       example: english
     heldBack:
       type: boolean
@@ -255,9 +255,9 @@ StencilUsageDto:
         it had. The catalog release refuses until it is resolved.
       example: false
   example:
-    templateId: monthly-invoice
+    templateKey: monthly-invoice
     templateName: Monthly Invoice
-    variantId: english
+    variantKey: english
     heldBack: false
 
 StencilListResponse:
@@ -276,8 +276,8 @@ StencilListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - slug: corporate-header
-        tenantId: acme-corp
+      - key: corporate-header
+        tenantKey: acme-corp
         name: Corporate Header
         description: Standard corporate header with logo, company name, and address block
         tags:
@@ -308,9 +308,9 @@ StencilUsageListResponse:
       $ref: './common.yaml#/PageMeta'
   example:
     items:
-      - templateId: monthly-invoice
+      - templateKey: monthly-invoice
         templateName: Monthly Invoice
-        variantId: english
+        variantKey: english
         heldBack: false
     page:
       number: 0
@@ -352,17 +352,17 @@ StencilContentDto:
     A stencil's content in one catalog version: the TemplateDocument fragment that is inserted into
     templates, its parameters, and how it stands against that version's base.
   required:
-    - stencilId
+    - stencilKey
     - content
     - status
     - lastModified
   properties:
-    stencilId:
+    stencilKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier of the stencil
+      description: Key of the stencil
       example: corporate-header
     content:
       $ref: '../../../catalog/schemas/template-document.schema.json'

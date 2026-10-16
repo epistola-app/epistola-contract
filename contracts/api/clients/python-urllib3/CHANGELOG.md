@@ -20,6 +20,17 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
+- **BREAKING:** a resource's address is its `key`, following the contract's rename of `id`/`slug`
+  to `key` (#84). The hand-written library follows:
+  - `TemplateDataValidator.validate`, `ServerTemplateDataValidator.validate` and
+    `TemplateSchemaValidator.validate` take `(tenant_key, registry, namespace, catalog_key,
+    template_key, data)`.
+  - `ServerTemplateDataValidator`'s `variant_id=` and `environment_id=` are now `variant_key=` and
+    `environment_key=`.
+  - `ValidatingGenerationApi.generate_document` and `generate_document_batch` take `tenant_key`.
+  - `ResultCollectorBuilder.tenant_id()` is now `tenant_key()`, and `GenerationResult.template_id`
+    and `variant_id` are now `template_key` and `variant_key`, read from the stream's
+    `templateKey` and `variantKey`.
 - **BREAKING:** a catalog is identified by registry, namespace and key.
   `TemplateDataValidator.validate`, `ServerTemplateDataValidator.validate` and
   `TemplateSchemaValidator.validate` take `(tenant_id, registry, namespace, catalog_key,

@@ -47,6 +47,16 @@ needs a new wire version:
   versions), the old fingerprint must still verify against the source content
   (`CatalogCanonicalizer.matchesSourceV4Fingerprint`). New identity or content gets a new
   fingerprint algorithm (V5 at v8) rather than changing an existing one.
+- When a migration renames a member (v8 renamed `slug` to `key`, `themeId`, `stencilId`,
+  `assetId`, `iconAssetSlug` and `imageAssetSlugs` to their `…Key`/`…Keys` forms, and an attribute
+  assignment's `catalog` to `catalogKey`), list it once in `CatalogKeyRenames`: the
+  migration renames forward from it, the wire check refuses the old name at the new version, and
+  the legacy fingerprint algorithms (V1 to V4) canonicalize under the old name from it, so no
+  published fingerprint moves. Keep `@JsonAlias` with the old name on the renamed Kotlin property,
+  so stored documents still bind.
+- The template document schemas are shared across wire versions. When one changes in a way an
+  older wire version must not see, freeze the older shape (`template-document-v7.schema.json`
+  holds the theme reference's `themeId` for wire v5 to v7) rather than tightening it in place.
 - Add golden fixtures under `fixtures/v1/migrations/` and `fixtures/v1/wire-vN/`.
 - Bump the conformance fixtures.
 - Bump `x-epistola-catalog-contract.wireSchemaVersion` in `contracts/api/openapi.yaml`, which the

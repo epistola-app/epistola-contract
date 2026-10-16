@@ -37,7 +37,7 @@ namespace Epistola.Client.Collect;
 public sealed class ResultCollector
 {
     private readonly HttpClient _http;
-    private readonly string _tenantId;
+    private readonly string _tenantKey;
     private readonly int _batchSize;
     private readonly TimeSpan _minInterval;
     private readonly TimeSpan _maxInterval;
@@ -69,7 +69,7 @@ public sealed class ResultCollector
 
     private ResultCollector(
         HttpClient http,
-        string tenantId,
+        string tenantKey,
         int batchSize,
         TimeSpan minInterval,
         TimeSpan maxInterval,
@@ -81,7 +81,7 @@ public sealed class ResultCollector
         bool registerShutdownHook)
     {
         _http = http;
-        _tenantId = tenantId;
+        _tenantKey = tenantKey;
         _batchSize = batchSize;
         _minInterval = minInterval;
         _maxInterval = maxInterval;
@@ -296,7 +296,7 @@ public sealed class ResultCollector
                 ? $"{{\"acknowledgeUpTo\":{_lastAcknowledgedSequence},\"limit\":{_batchSize}}}"
                 : $"{{\"limit\":{_batchSize}}}";
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"tenants/{_tenantId}/generation/collect")
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"tenants/{_tenantKey}/generation/collect")
             {
                 Content = new StringContent(body, Encoding.UTF8, VendorJson),
             };
@@ -381,8 +381,8 @@ public sealed class ResultCollector
         DocumentId: node["documentId"]?.Value<string>(),
         CorrelationId: node["correlationId"]?.Value<string>(),
         RoutingKey: node["routingKey"]?.Value<string>(),
-        TemplateId: node["templateId"]?.Value<string>(),
-        VariantId: node["variantId"]?.Value<string>(),
+        TemplateKey: node["templateKey"]?.Value<string>(),
+        VariantKey: node["variantKey"]?.Value<string>(),
         Registry: node["registry"]?.Value<string>(),
         Namespace: node["namespace"]?.Value<string>(),
         CatalogKey: node["catalogKey"]?.Value<string>(),
@@ -527,8 +527,8 @@ public sealed class ResultCollector
         string? DocumentId,
         string? CorrelationId,
         string? RoutingKey,
-        string? TemplateId,
-        string? VariantId,
+        string? TemplateKey,
+        string? VariantKey,
         string? Registry,
         string? Namespace,
         string? CatalogKey,
@@ -565,7 +565,7 @@ public sealed class ResultCollector
     public sealed class ResultCollectorBuilder
     {
         private HttpClient? _http;
-        private string? _tenantId;
+        private string? _tenantKey;
         private int _batchSize = 100;
         private TimeSpan _minInterval = TimeSpan.FromSeconds(1);
         private TimeSpan _maxInterval = TimeSpan.FromSeconds(30);
@@ -580,7 +580,7 @@ public sealed class ResultCollector
         public ResultCollectorBuilder HttpClient(HttpClient client) { _http = client; return this; }
 
         /// <summary>The tenant whose results to collect.</summary>
-        public ResultCollectorBuilder TenantId(string tenantId) { _tenantId = tenantId; return this; }
+        public ResultCollectorBuilder TenantKey(string tenantKey) { _tenantKey = tenantKey; return this; }
 
         /// <summary>Maximum results per collection (default: 100).</summary>
         public ResultCollectorBuilder BatchSize(int size)
@@ -622,7 +622,7 @@ public sealed class ResultCollector
         /// <summary>Builds the <see cref="ResultCollector"/>.</summary>
         public ResultCollector Build() => new(
             _http ?? throw new InvalidOperationException("httpClient is required"),
-            _tenantId ?? throw new InvalidOperationException("tenantId is required"),
+            _tenantKey ?? throw new InvalidOperationException("tenantKey is required"),
             _batchSize,
             _minInterval,
             _maxInterval,

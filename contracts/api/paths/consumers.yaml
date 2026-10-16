@@ -2,10 +2,10 @@
 
 consumer-register:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -57,10 +57,10 @@ consumer-register:
 
 consumer-collection:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -109,10 +109,10 @@ consumer-collection:
 
 consumer-resource:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -200,7 +200,7 @@ consumer-resource:
       - Uncollected generation results remain in the system but are no longer
         deliverable via the `/generation/collect` endpoint.
       - Generated documents can still be accessed directly via
-        `GET /tenants/{tenantId}/documents/{documentId}`.
+        `GET /tenants/{tenantKey}/documents/{documentId}`.
       - The `createdBy` field on documents retains the consumer ID
         (orphaned reference).
     tags:
@@ -218,10 +218,10 @@ consumer-resource:
 
 consumer-approve:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -274,10 +274,10 @@ consumer-approve:
 
 consumer-reject:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -329,10 +329,10 @@ consumer-reject:
 
 consumer-public-key:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'

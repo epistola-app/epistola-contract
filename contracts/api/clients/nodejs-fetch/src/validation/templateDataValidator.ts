@@ -77,18 +77,18 @@ export interface TemplateDataValidator {
    * Resolves to the findings for `data` against the given template's data contract, empty when
    * there are none.
    *
-   * @param tenantId Tenant identifier.
+   * @param tenantKey Tenant key.
    * @param registry Registry of the template's catalog, in its path-segment form: `~` for the
    *   server's default registry, or a registry named in full (`acme.com`), because it addresses the
    *   catalog in a URL path.
    * @param namespace Namespace of the template's catalog within its registry (`acme-corp`).
    * @param catalogKey Key of the template's catalog within its registry and namespace. The same
-   *   template id in two catalogs of one tenant is two different templates with two different
+   *   template key in two catalogs of one tenant is two different templates with two different
    *   contracts.
-   * @param templateId Template identifier.
+   * @param templateKey Template key (its address within the catalog).
    * @param data The data to check.
    */
-  validate(tenantId: string, registry: string, namespace: string, catalogKey: string, templateId: string, data: unknown): Promise<readonly ValidationFailure[]>
+  validate(tenantKey: string, registry: string, namespace: string, catalogKey: string, templateKey: string, data: unknown): Promise<readonly ValidationFailure[]>
 
   /**
    * Whether `ValidatingGenerationApi` should check data with this validator *before* submitting a

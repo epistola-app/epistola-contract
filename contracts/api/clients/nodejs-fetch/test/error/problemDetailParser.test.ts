@@ -35,12 +35,12 @@ test('parses a validation problem with its errors array', () => {
     status: 400,
     errors: [
       { field: 'name', message: 'must not be blank' },
-      { field: 'slug', message: 'invalid', rejectedValue: 'BAD' },
+      { field: 'key', message: 'invalid', rejectedValue: 'BAD' },
     ],
   }, 400)!
   assert.equal(problem.typeSlug, KnownProblemSlugs.VALIDATION_ERROR)
   assert.ok(problem.isValidationProblem)
-  assert.deepEqual(problem.errors.map((e) => e.field), ['name', 'slug'])
+  assert.deepEqual(problem.errors.map((e) => e.field), ['name', 'key'])
   assert.equal(problem.errors[1].rejectedValue, 'BAD')
   // The raw extension member is also reachable by name.
   assert.ok(Array.isArray(problem.extensions.errors))

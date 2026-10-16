@@ -95,7 +95,7 @@ public static class Driver
     }
 
     /// <summary>
-    /// Reports what the client made of the last listing, <c>id</c> included while it is still served.
+    /// Reports the keys the client parsed from the last listing.
     /// </summary>
     private static void ListTemplates(string baseUrl, JsonElement config)
     {
@@ -104,13 +104,13 @@ public static class Driver
         TemplateListResponse? response = null;
         for (var i = 0; i < Int(config, "repeat", 1); i++)
         {
-            response = api.ListTemplates(Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
+            response = api.ListTemplates(Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
         }
         var templates = response!.Items;
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["templateSlugs"] = string.Join(",", templates.Select(template => Show(template.Slug))),
+            ["templateKeys"] = string.Join(",", templates.Select(template => Show(template.Key))),
         });
     }
 
@@ -119,7 +119,7 @@ public static class Driver
         var (http, apiBase) = Client(baseUrl, config);
         try
         {
-            new TemplatesApi(http, apiBase).ListTemplates(Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
+            new TemplatesApi(http, apiBase).ListTemplates(Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
             Report(baseUrl, new Dictionary<string, object> { ["problemTypeSlug"] = "<no exception was thrown>" });
         }
         catch (ProblemDetailException e)
@@ -146,7 +146,7 @@ public static class Driver
             : new Dictionary<string, object>();
         try
         {
-            validator.Validate(Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "templateId"), data);
+            validator.Validate(Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "templateKey"), data);
             Report(baseUrl, new Dictionary<string, object>
             {
                 ["validationFailurePaths"] = "<accepted>",
@@ -172,7 +172,7 @@ public static class Driver
 
         var collector = ResultCollector.Builder()
             .HttpClient(http)
-            .TenantId(Str(config, "tenantId"))
+            .TenantKey(Str(config, "tenantKey"))
             .BatchSize(Int(config, "batchSize"))
             .MinInterval(TimeSpan.FromMilliseconds(Int(config, "minIntervalMs")))
             .MaxInterval(TimeSpan.FromMilliseconds(Int(config, "maxIntervalMs")))
@@ -219,18 +219,18 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         new GenerationApi(http, apiBase).GenerateDocument(
-            Str(config, "tenantId"),
+            Str(config, "tenantKey"),
             new GenerateDocumentRequest(
                 // Left unset when the scenario does not name it: omitted means the default registry, which
                 // only the server knows, so the client must not fill one in.
                 registry: OptStr(config, "registry")!,
                 varNamespace: Str(config, "namespace"),
                 catalogKey: Str(config, "catalogKey"),
-                templateId: Str(config, "templateId"),
+                templateKey: Str(config, "templateKey"),
                 // Optional, and left unset when the scenario does not name them: an unset optional
                 // must stay off the wire (scenario 120), not go out as null.
                 varVersion: OptStr(config, "version"),
-                environmentId: OptStr(config, "environmentId"),
+                environmentKey: OptStr(config, "environmentKey"),
                 // Parsed with Newtonsoft, not System.Text.Json: the generated models serialize
                 // through Newtonsoft, which does not know what to do with a JsonElement and emits
                 // an empty object for it.
@@ -249,7 +249,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         new ConsumersApi(http, apiBase).UpdateConsumer(
-            Str(config, "tenantId"),
+            Str(config, "tenantKey"),
             Str(config, "consumerId"),
             new UpdateConsumerRequest(name: Str(config, "name")));
     }
@@ -264,7 +264,7 @@ public static class Driver
         var (http, _) = Client(baseUrl, config);
         var collector = ResultCollector.Builder()
             .HttpClient(http)
-            .TenantId(Str(config, "tenantId"))
+            .TenantKey(Str(config, "tenantKey"))
             .RegisterShutdownHook(false)
             .Handler(_ => { })
             .Build();
@@ -298,7 +298,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var file = new GenerationApi(http, apiBase).DownloadDocument(
-            Str(config, "tenantId"), Guid.Parse(Str(config, "documentId")));
+            Str(config, "tenantKey"), Guid.Parse(Str(config, "documentId")));
 
         ReportBytes(baseUrl, file);
     }
@@ -311,12 +311,12 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var images = new ImagesApi(http, apiBase)
-            .ListImages(Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"), search: Str(config, "search"))
+            .ListImages(Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"), search: Str(config, "search"))
             .Items;
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["imageSlugs"] = string.Join(",", images.Select(image => image.Slug)),
+            ["imageKeys"] = string.Join(",", images.Select(image => image.Key)),
             ["widths"] = string.Join(",", images.Select(image => Show(image.Width))),
             ["heights"] = string.Join(",", images.Select(image => Show(image.Height))),
             ["mediaTypes"] = string.Join(",", images.Select(image => image.MediaType)),
@@ -332,26 +332,26 @@ public static class Driver
         var (http, apiBase) = Client(baseUrl, config);
         using var content = new MemoryStream(Convert.FromBase64String(Str(config, "fileBase64")));
         var image = new ImagesApi(http, apiBase).UploadImage(
-            Str(config, "tenantId"),
+            Str(config, "tenantKey"),
             Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
             new FileParameter(Str(config, "filename"), Str(config, "fileContentType"), content),
             name: Str(config, "name"));
 
-        Report(baseUrl, new Dictionary<string, object> { ["imageSlug"] = image.Slug, ["imageName"] = image.Name });
+        Report(baseUrl, new Dictionary<string, object> { ["imageKey"] = image.Key, ["imageName"] = image.Name });
     }
 
     private static void DownloadImage(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         ReportBytes(baseUrl, new ImagesApi(http, apiBase).DownloadImageContent(
-            Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"), Str(config, "imageSlug")));
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"), Str(config, "imageKey")));
     }
 
     private static void DeleteImage(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         new ImagesApi(http, apiBase).DeleteImage(
-            Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"), Str(config, "imageSlug"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"), Str(config, "imageKey"),
             force: config.GetProperty("force").GetBoolean());
     }
 
@@ -359,7 +359,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         ReportDependencies(baseUrl, new CatalogsApi(http, apiBase).ListCatalogDependencies(
-            Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion")));
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion")));
     }
 
     /// <summary>
@@ -379,7 +379,7 @@ public static class Driver
                 varVersion: Str(d, "version")))
             .ToList();
         ReportDependencies(baseUrl, new CatalogsApi(http, apiBase).UpdateCatalogDependencies(
-            Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
             new UpdateCatalogDependenciesRequest(dependencies: dependencies)));
     }
 
@@ -406,7 +406,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var version = new CatalogsApi(http, apiBase).CreateCatalogVersion(
-            Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
             new CreateCatalogVersionRequest(varVersion: Str(config, "version"), from: OptStr(config, "from")!));
 
         Report(baseUrl, new Dictionary<string, object>
@@ -424,7 +424,7 @@ public static class Driver
         var (http, apiBase) = Client(baseUrl, config);
         var status = OptStr(config, "status");
         var items = new CatalogsApi(http, apiBase).ListCatalogVersions(
-            Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
             status: status == null ? null : Parse<CatalogVersionStatus>(status)).Items;
 
         Report(baseUrl, new Dictionary<string, object>
@@ -440,7 +440,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var version = new CatalogsApi(http, apiBase).GetCatalogVersion(
-            Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
 
         Report(baseUrl, new Dictionary<string, object>
         {
@@ -465,7 +465,7 @@ public static class Driver
             ? new RenumberCatalogVersionRequest(varVersion: Str(config, "version"), acknowledgeWarnings: acknowledge.GetBoolean())
             : new RenumberCatalogVersionRequest(varVersion: Str(config, "version"));
         var version = new CatalogsApi(http, apiBase).RenumberCatalogVersion(
-            Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
             request);
 
         Report(baseUrl, new Dictionary<string, object>
@@ -484,7 +484,7 @@ public static class Driver
         var (http, apiBase) = Client(baseUrl, config);
         var preview = new CatalogsApi(http, apiBase).PreviewCatalogVersionRenumber(
             Str(config, "to"),
-            Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
 
         Report(baseUrl, new Dictionary<string, object>
         {
@@ -497,14 +497,14 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         new CatalogsApi(http, apiBase).DeleteCatalogVersion(
-            Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
     }
 
     private static void ReleaseCatalogVersion(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         var response = new CatalogsApi(http, apiBase).ReleaseCatalogVersion(
-            Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
             new ReleaseCatalogVersionRequest(notes: OptStr(config, "notes")!));
 
         Report(baseUrl, new Dictionary<string, object>
@@ -525,7 +525,7 @@ public static class Driver
         var (http, apiBase) = Client(baseUrl, config);
         var state = OptStr(config, "state");
         var items = new CatalogsApi(http, apiBase).ListIncomingChanges(
-            Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
             state: state == null ? null : Parse<IncomingChangeState>(state)).Items;
 
         Report(baseUrl, new Dictionary<string, object>
@@ -541,7 +541,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var change = new CatalogsApi(http, apiBase).ResolveIncomingChange(
-            Str(config, "tenantId"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
             Str(config, "changeId"),
             new ResolveIncomingChangeRequest(resolution: Parse<IncomingChangeResolution>(Str(config, "resolution"))));
 
@@ -581,7 +581,7 @@ public static class Driver
         try
         {
             deployment = new EnvironmentsApi(http, apiBase).DeployRelease(
-                Str(config, "tenantId"), Str(config, "environmentId"),
+                Str(config, "tenantKey"), Str(config, "environmentKey"),
                 Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "releaseVersion"),
                 includeDependencies: OptBool(config, "includeDependencies"));
         }
@@ -610,7 +610,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         new EnvironmentsApi(http, apiBase).UndeployRelease(
-            Str(config, "tenantId"), Str(config, "environmentId"),
+            Str(config, "tenantKey"), Str(config, "environmentKey"),
             Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "releaseVersion"));
     }
 

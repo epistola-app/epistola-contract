@@ -83,18 +83,18 @@ public class InvoiceService {
     @RestClient
     GenerationApi generationApi;
 
-    public UUID submit(String tenantId, Map<String, Object> data) {
+    public UUID submit(String tenantKey, Map<String, Object> data) {
         GenerateDocumentRequest request = new GenerateDocumentRequest()
                 .namespace("acme-corp")           // the catalog's namespace and key, in the
                 .catalogKey("invoices")           // default registry (set .registry("acme.com")
                                                   // for a catalog in another registry)
-                .templateId("monthly-invoice")
-                .variantId("english")
+                .templateKey("monthly-invoice")
+                .variantKey("english")
                 .version("^1.4.0")                // optional: a version selector for the release
                 .correlationId("order-7890")
                 .data(data);
 
-        return generationApi.generateDocument(tenantId, request).getRequestId();
+        return generationApi.generateDocument(tenantKey, request).getRequestId();
     }
 }
 ```
@@ -258,7 +258,7 @@ ManagedExecutorService executor;
 
 ResultCollector collector = ResultCollector.builder()
         .collectApi(collectApi)
-        .tenantId("acme-corp")
+        .tenantKey("acme-corp")
         .registerShutdownHook(false)          // the container owns the lifecycle
         .handler(result -> {
             switch (result.getStatus()) {
@@ -297,7 +297,7 @@ the request's `routingKey`.
 
 ```java
 String routingKey = collector.routingKeyToMe("order-7890");
-generationApi.generateDocument(tenantId, request.routingKey(routingKey));
+generationApi.generateDocument(tenantKey, request.routingKey(routingKey));
 collector.kick();                              // a result is expected shortly
 ```
 
@@ -310,7 +310,7 @@ Two independent layers, both opt-in.
 of costing a round trip. Each overload returns its argument:
 
 ```java
-tenants.createTenant(ModelValidation.validate(new CreateTenantRequest().id("acme-corp").name("Acme")));
+tenants.createTenant(ModelValidation.validate(new CreateTenantRequest().key("acme-corp").name("Acme")));
 ```
 
 **Template data** — `TemplateSchemaValidator` checks data against a template's data contract and

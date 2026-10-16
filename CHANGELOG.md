@@ -50,6 +50,42 @@ libraries.
 
 ### Changed
 
+- **BREAKING: a resource's address is its `key`** (#84). The rule: a `key` is a resource's public
+  address within its parent; an `id` is a generated identifier that is not an address
+  (`documentId`, `requestId`, `batchId`, `correlationId`, `consumerId`, `changeId`, node and slot
+  ids).
+  - Read models: `slug` → `key` on every DTO that had one (templates, variants, stencils, themes,
+    environments, tenants, attributes, code lists, fonts, images, import and catalog results,
+    resource and incoming changes). Create requests: `id` (and `CreateCodeListRequest.slug`) →
+    `key`, as are `DataExampleDto.id` and `ImportVariantDto.id`.
+  - References: `tenantId` → `tenantKey`, `templateId` → `templateKey`, `variantId` →
+    `variantKey`, `environmentId` → `environmentKey` and `stencilId` → `stencilKey`, in every body
+    and in the result-collection stream (`GenerationResult`).
+  - Path and query parameters: `{tenantKey}`, `{templateKey}`, `{variantKey}`, `{stencilKey}`,
+    `{environmentKey}`, `{themeKey}`, `{codeListKey}`, `{fontKey}`, `{imageKey}`. URLs are
+    unchanged; the generated method arguments are renamed in every client.
+  - The conformance scenario `template-listing-by-slug` is now `template-listing-by-key`, and the
+    driver config and reports use the new names.
+  - Template content: `ThemeRef.themeId` → `themeKey`, and in the component registry the stencil
+    node prop `stencilId` → `stencilKey` and the image node prop `assetId` → `imageKey`. Stored
+    documents with the old names no longer validate; the catalog migration rewrites archives, and
+    Epistola Suite has to migrate its stored documents.
+  - Wire v8 (changed in place): `catalog.key`, and `key` on every resource entry, resource detail,
+    variant entry, resource dependency and code-list binding; `TemplateResource.themeKey`;
+    `CatalogPresentation.iconImageKey` and `imageKeys` (was `imageAssetSlugs`);
+    `AttributeAssignment.catalogKey` (was `catalog`); a style's `fontFamily` reference names its font
+    by `key` (was `slug`). `CatalogV7ToV8Migration` renames all of them, in template
+    content too, without notices; a v8 archive using an old name is refused
+    (`CATALOG_SCHEMA_UNKNOWN`). The Kotlin model renames the properties and keeps the old JSON
+    names as `@JsonAlias`, so stored manifests still bind. V5 fingerprints change (V5 is
+    unreleased); V1–V4 reproduce their published values. Wire v5–v7 resolve template content
+    through a frozen `template-document-v7.schema.json`, so released versions are not tightened.
+  - Kotlin API: `CatalogSlugs` → `CatalogKeys`, `CatalogResourceReference.slug` → `key`,
+    `TemplateValidationContext.forStencil(stencilKey =)`; finding codes
+    `CATALOG_RESOURCE_SLUG_MISMATCH` / `_SLUG_INVALID` → `CATALOG_RESOURCE_KEY_MISMATCH` /
+    `_KEY_INVALID`, and `CATALOG_TEMPLATE_VARIANT_ID_DUPLICATE` →
+    `CATALOG_TEMPLATE_VARIANT_KEY_DUPLICATE`.
+
 - **BREAKING: an API fingerprint names its algorithm.** `CatalogDto.fingerprint` and
   `CatalogVersionDto.fingerprint` are `v5:<hex>`, the value in the release's catalog archive
   (pattern `^(v[1-9][0-9]*:)?[0-9a-f]{64}$`). A bare hex value is a fingerprint recorded before
@@ -113,7 +149,7 @@ libraries.
   `importCatalog` takes the draft to import into as `catalogVersion`, and reports it.
 
 - **BREAKING: a catalog is identified by its registry, its namespace and its key** (ADR 0003).
-  Every catalog-scoped path is `/tenants/{tenantId}/catalogs/{registry}/{namespace}/{catalogKey}/…`
+  Every catalog-scoped path is `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/…`
   instead of `…/catalogs/{catalogId}/…`. The registry is the DNS name of the registry the catalog
   is published on (`exchange.epistola.app`, `registry.gemeente-x.nl`); `~` in a path means the
   server's configured default registry, which may also be named in full. The namespace is a slug
@@ -130,7 +166,7 @@ libraries.
 - **BREAKING: a release is selected by a version selector, together with an environment.** The
   generation, preview, batch and validation requests take `version` in place of `releaseVersion`:
   a selector in the npm SemVer range grammar, of which a server may accept only exact versions for
-  now. It combines with `environmentId`, which narrows the choice to the releases that environment
+  now. It combines with `environmentKey`, which narrows the choice to the releases that environment
   serves; the highest release that satisfies the selector is rendered. `DeployReleaseRequest` and
   `DeploymentEventDto.previousReleaseVersion` are removed.
 
@@ -174,7 +210,7 @@ libraries.
 - **BREAKING: generation renders a catalog release, never a template version.** `versionId` is gone
   from `GenerateDocumentRequest`, `BatchGenerationItem`, `PreviewDocumentRequest` and
   `ValidateTemplateDataRequest`. A request names the release with `releaseVersion`, or an
-  environment with `environmentId` (which renders the release that environment serves); with
+  environment with `environmentKey` (which renders the release that environment serves); with
   neither, the catalog's latest release is rendered, never unreleased changes. Preview gains
   `workingCopy: true` to render the working copy instead. Jobs, documents and collected results
   report `releaseVersion` in place of `versionId`; it is null for anything generated before 2.0.
@@ -205,13 +241,12 @@ libraries.
 
 ### Removed
 
-- **BREAKING: the deprecated `id` and `key` halves of each resource address.** `slug` is now the
-  only address on `TemplateDto`, `TemplateSummaryDto`, `VariantDto`, `VariantSummaryDto`,
-  `StencilDto`, `StencilSummaryDto`, `ThemeDto`, `EnvironmentDto`, `TenantDto`, `CatalogDto` and
-  `AttributeDto`, and is required (#84). `upgradeCatalog` takes no request body: its only field, the
-  ignored `includeNewSlugs`, is gone with `UpgradeCatalogRequest`, as is the empty `Assets` tag. The
+- **BREAKING: the deprecated `id` and `slug` halves of each resource address.** `key` is now the
+  only address on every read model, and is required (#84; see "a resource's address is its `key`"
+  under Changed). `upgradeCatalog` takes no request body: its only field, the ignored
+  `includeNewSlugs`, is gone with `UpgradeCatalogRequest`, as is the empty `Assets` tag. The
   `older-server-response` conformance scenario, which proved a 1.x client could read a server from
-  before 1.3.0, is replaced by `template-listing-by-slug`.
+  before 1.3.0, is replaced by `template-listing-by-key`.
 
 ### Fixed
 

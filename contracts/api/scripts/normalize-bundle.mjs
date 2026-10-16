@@ -34,7 +34,7 @@
  *   3. JSON Schema can infer the integer type from `const: 1`, while OpenAPI Generator cannot.
  *      Adding the redundant `type: integer` keeps generated client/server models strongly typed.
  *   4. The catalog's `ThemeRef` is an exact `oneOf`, but the Kotlin generators merge its inline
- *      branches and incorrectly require `themeId` for `inherit`. The bundle rewrites that union
+ *      branches and incorrectly require `themeKey` for `inherit`. The bundle rewrites that union
  *      to an equivalent object schema using `if`/`then`: validators retain the same accepted JSON,
  *      while generators see a required enum discriminator and optional override fields.
  *
@@ -76,7 +76,7 @@ const generatedThemeRef = `    ThemeRef:
           properties:
             type:
               const: override
-            themeId:
+            themeKey:
               type: string
               minLength: 1
             catalogKey:
@@ -96,7 +96,7 @@ const generatedThemeRef = `    ThemeRef:
               description: Registry of the catalog containing the theme. Omitted means the owning template's catalog registry, never an installation default. Requires namespace. Added with catalog wire v8.
           required:
             - type
-            - themeId
+            - themeKey
           dependentRequired:
             registry:
               - namespace
@@ -111,7 +111,7 @@ const generatorCompatibleThemeRef = `    ThemeRef:
           enum:
             - inherit
             - override
-        themeId:
+        themeKey:
           type: string
           minLength: 1
         catalogKey:
@@ -144,7 +144,7 @@ const generatorCompatibleThemeRef = `    ThemeRef:
             not:
               anyOf:
                 - required:
-                    - themeId
+                    - themeKey
                 - required:
                     - catalogKey
                 - required:
@@ -159,7 +159,7 @@ const generatorCompatibleThemeRef = `    ThemeRef:
               - type
           then:
             required:
-              - themeId`;
+              - themeKey`;
 
 let bundle = await readFile(bundlePath, 'utf8');
 

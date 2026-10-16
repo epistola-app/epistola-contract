@@ -100,7 +100,7 @@ class ProblemDetailExceptionTest {
             ),
             errors = listOf(
                 ValidationError(field = "name", message = "must not be blank"),
-                ValidationError(field = "slug", message = "invalid format", rejectedValue = "A B"),
+                ValidationError(field = "key", message = "invalid format", rejectedValue = "A B"),
             ),
         )
         assertTrue(ex.isValidationProblem)

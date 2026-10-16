@@ -19,7 +19,7 @@ action:
   name: problem
   config:
     nodeId: conformance-node-1
-    tenantId: acme-corp
+    tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: main
@@ -37,8 +37,8 @@ script:
       errors:
         - field: name
           message: must not be blank
-        - field: id
-          message: must match the slug pattern
+        - field: key
+          message: must match the key pattern
 
 expect:
   requestCount: 1
@@ -48,4 +48,4 @@ expect:
     problemStatus: 400
     problemTitle: Validation failed
     # The extension member survives parsing, in order, both fields intact.
-    problemFieldErrors: name:must not be blank,id:must match the slug pattern
+    problemFieldErrors: name:must not be blank,key:must match the key pattern

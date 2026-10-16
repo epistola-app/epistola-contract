@@ -9,7 +9,7 @@
     },
     {
       "scope": "template",
-      "scenario": "STENCIL_DEFINITION_REFERENCES_SAME_SLUG_IN_ANOTHER_NAMESPACE"
+      "scenario": "STENCIL_DEFINITION_REFERENCES_SAME_KEY_IN_ANOTHER_NAMESPACE"
     },
     {
       "scope": "catalog",
@@ -27,7 +27,7 @@
       "expectedFindings": [
         {
           "code": "STENCIL_RECURSION",
-          "path": "nodes.stencil-0.props.stencilId"
+          "path": "nodes.stencil-0.props.stencilKey"
         }
       ]
     },
@@ -37,7 +37,7 @@
       "expectedFindings": [
         {
           "code": "STENCIL_RECURSION",
-          "path": "nodes.stencil-1.props.stencilId"
+          "path": "nodes.stencil-1.props.stencilKey"
         }
       ]
     },
@@ -47,7 +47,7 @@
       "expectedFindings": [
         {
           "code": "STENCIL_NESTING_DEPTH_EXCEEDED",
-          "path": "nodes.stencil-4.props.stencilId"
+          "path": "nodes.stencil-4.props.stencilKey"
         }
       ]
     },
@@ -57,7 +57,7 @@
       "expectedFindings": [
         {
           "code": "STENCIL_REFERENCE_NOT_FOUND",
-          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilId"
+          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilKey"
         }
       ]
     },
@@ -77,7 +77,7 @@
       "expectedFindings": [
         {
           "code": "STENCIL_RECURSION",
-          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilId"
+          "path": "resources/stencil/letter.json.resource.content.nodes.nested-address.props.stencilKey"
         }
       ]
     },
@@ -87,7 +87,7 @@
       "expectedFindings": [
         {
           "code": "STENCIL_NESTING_DEPTH_EXCEEDED",
-          "path": "resources/stencil/stencil-4.json.resource.content.nodes.nested-stencil-5.props.stencilId"
+          "path": "resources/stencil/stencil-4.json.resource.content.nodes.nested-stencil-5.props.stencilKey"
         }
       ]
     }

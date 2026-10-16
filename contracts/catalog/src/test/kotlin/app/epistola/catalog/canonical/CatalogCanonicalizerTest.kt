@@ -315,7 +315,7 @@ class CatalogCanonicalizerTest {
         val detail = ResourceDetail(
             schemaVersion = CURRENT_VERSION,
             resource = TemplateResource(
-                slug = "permit-confirmation",
+                key = "permit-confirmation",
                 name = "Permit confirmation",
                 dataModel = mapOf(
                     "type" to "object",

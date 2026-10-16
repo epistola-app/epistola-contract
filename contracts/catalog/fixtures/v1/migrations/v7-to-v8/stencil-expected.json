@@ -2,7 +2,7 @@
   "schemaVersion": 8,
   "resource": {
     "type": "stencil",
-    "slug": "letter",
+    "key": "letter",
     "name": "Letter",
     "tags": [],
     "content": {
@@ -21,7 +21,7 @@
           "type": "stencil",
           "slots": [],
           "props": {
-            "stencilId": "address"
+            "stencilKey": "address"
           }
         },
         "shared-footer": {
@@ -29,7 +29,7 @@
           "type": "stencil",
           "slots": [],
           "props": {
-            "stencilId": "footer",
+            "stencilKey": "footer",
             "catalogKey": "shared"
           }
         }

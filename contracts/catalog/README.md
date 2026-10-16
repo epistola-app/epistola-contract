@@ -21,7 +21,9 @@ repository's coordinated release train.
 
 The versioned v5 through v8 manifest and resource-detail schemas preserve each accepted wire shape.
 Their unversioned counterparts point at v8, and the npm package root exports TypeScript declarations
-generated from the current schemas.
+generated from the current schemas. `template-document.schema.json` is the current (v8) template
+document; wire v5 to v7 resolve theirs through `template-document-v7.schema.json`, which keeps the
+theme reference's `themeId`.
 
 Wire v8 identifies a catalog by three separate parts, **registry**, **namespace** and key, and
 versions catalogs as a whole:
@@ -45,6 +47,15 @@ versions catalogs as a whole:
   invalid.
 - Stencils carry no version: `StencilResource.version` is gone, and a stencil node carries no
   `version` or `draftVersion`. A stencil resolves through its catalog's dependency.
+- A resource's public address is its `key`; an `id` is only ever a generated identifier that is
+  not an address. Wire v8 therefore says `key` where v7 said `slug` (the catalog, resource entries,
+  resource dependencies, every resource, variants, code-list bindings), `themeKey` for `themeId`,
+  and, in content, `stencilKey` and `imageKey` for a stencil or image node's `stencilId` and
+  `assetId`, `key` for a `fontFamily` font reference's `slug`, `iconImageKey` and `imageKeys` for
+  the presentation's `iconAssetSlug` and `imageAssetSlugs`, and `catalogKey` for an attribute
+  assignment's `catalog`. The migration renames them
+  silently; a v8 document that uses an old name is refused. The Kotlin model still binds the old
+  names so that documents stored under earlier versions keep loading.
 
 A v7 archive names no registry or namespace, so migrating one needs both from the importer: pass
 `CatalogMigrationOptions(namespace, registry)` to `CatalogSchemaMigrator.migrateManifest`,

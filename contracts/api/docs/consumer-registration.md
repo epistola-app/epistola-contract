@@ -168,14 +168,14 @@ TemplateDependencyDto:
   type: object
   required:
     - consumerId
-    - templateId
+    - templateKey
     - createdAt
   properties:
     consumerId:
       type: string
       description: ID of the consumer that declared this dependency
       example: invoice-service
-    templateId:
+    templateKey:
       type: string
       description: Template this consumer depends on
       example: invoice
@@ -471,7 +471,7 @@ Dependencies are managed under the tenant scope because the templates they refer
 Uses `PUT` for idempotent upsert — the consumer either creates or replaces its dependency declaration for a given template.
 
 ```
-PUT /tenants/{tenantId}/consumers/{consumerId}/dependencies/{templateId}
+PUT /tenants/{tenantKey}/consumers/{consumerId}/dependencies/{templateKey}
 Content-Type: application/vnd.epistola.v1+json
 
 {
@@ -485,7 +485,7 @@ Content-Type: application/vnd.epistola.v1+json
 
 {
   "consumerId": "invoice-service",
-  "templateId": "invoice",
+  "templateKey": "invoice",
   "variantIds": ["english", "dutch"],
   "environmentIds": ["production"],
   "purpose": "Generates monthly PDF invoices for B2B customers",
@@ -522,7 +522,7 @@ DeclareTemplateDependencyRequest:
 #### List dependencies for a consumer in a tenant
 
 ```
-GET /tenants/{tenantId}/consumers/{consumerId}/dependencies
+GET /tenants/{tenantKey}/consumers/{consumerId}/dependencies
 Accept: application/vnd.epistola.v1+json
 
 200 OK
@@ -532,7 +532,7 @@ Content-Type: application/vnd.epistola.v1+json
   "items": [
     {
       "consumerId": "invoice-service",
-      "templateId": "invoice",
+      "templateKey": "invoice",
       "variantIds": ["english", "dutch"],
       "environmentIds": ["production"],
       "purpose": "Generates monthly PDF invoices for B2B customers",
@@ -541,7 +541,7 @@ Content-Type: application/vnd.epistola.v1+json
     },
     {
       "consumerId": "invoice-service",
-      "templateId": "credit-note",
+      "templateKey": "credit-note",
       "variantIds": [],
       "environmentIds": ["production"],
       "purpose": "Generates credit notes when invoices are reversed",
@@ -571,7 +571,7 @@ TemplateDependencyListResponse:
 #### Remove a dependency
 
 ```
-DELETE /tenants/{tenantId}/consumers/{consumerId}/dependencies/{templateId}
+DELETE /tenants/{tenantKey}/consumers/{consumerId}/dependencies/{templateKey}
 
 204 No Content
 ```
@@ -583,7 +583,7 @@ Allows querying which consumers depend on a given template. This is the read sid
 #### List dependents for a template
 
 ```
-GET /tenants/{tenantId}/templates/{templateId}/dependents?status=active
+GET /tenants/{tenantKey}/templates/{templateKey}/dependents?status=active
 Accept: application/vnd.epistola.v1+json
 
 200 OK
@@ -593,7 +593,7 @@ Content-Type: application/vnd.epistola.v1+json
   "items": [
     {
       "consumerId": "invoice-service",
-      "templateId": "invoice",
+      "templateKey": "invoice",
       "variantIds": ["english", "dutch"],
       "environmentIds": ["production"],
       "purpose": "Generates monthly PDF invoices for B2B customers",
@@ -602,7 +602,7 @@ Content-Type: application/vnd.epistola.v1+json
     },
     {
       "consumerId": "report-generator",
-      "templateId": "invoice",
+      "templateKey": "invoice",
       "variantIds": [],
       "environmentIds": [],
       "purpose": "Generates monthly summary reports including invoice copies",
@@ -640,7 +640,7 @@ When a delete operation targets a resource that has dependent consumers, the API
 #### Template delete with dependents
 
 ```
-DELETE /tenants/{tenantId}/templates/{templateId}
+DELETE /tenants/{tenantKey}/templates/{templateKey}
 
 409 Conflict
 Content-Type: application/vnd.epistola.v1+json
@@ -670,7 +670,7 @@ The `dependents` array includes consumer name and contact so operators can immed
 To proceed despite dependents, add `?force=true`:
 
 ```
-DELETE /tenants/{tenantId}/templates/{templateId}?force=true
+DELETE /tenants/{tenantKey}/templates/{templateKey}?force=true
 
 204 No Content
 ```
@@ -683,9 +683,9 @@ The 409 Conflict pattern applies to:
 
 | Operation | Conflict condition |
 |---|---|
-| `DELETE /tenants/{tenantId}/templates/{templateId}` | Any consumer has a dependency on this template |
-| `DELETE /tenants/{tenantId}/templates/{templateId}/variants/{variantId}` | Any consumer's dependency references this specific variant |
-| `DELETE /tenants/{tenantId}/themes/{themeId}` | Any consumer's dependency references a template using this theme |
+| `DELETE /tenants/{tenantKey}/templates/{templateKey}` | Any consumer has a dependency on this template |
+| `DELETE /tenants/{tenantKey}/templates/{templateKey}/variants/{variantKey}` | Any consumer's dependency references this specific variant |
+| `DELETE /tenants/{tenantKey}/themes/{themeKey}` | Any consumer's dependency references a template using this theme |
 
 All support `?force=true` to override.
 
@@ -738,18 +738,18 @@ DependentConflictResponse:
 | `GET` | `/consumers/{consumerId}` | `getConsumer` | Consumers | `tenant_control` |
 | `PATCH` | `/consumers/{consumerId}` | `updateConsumer` | Consumers | `tenant_control` |
 | `DELETE` | `/consumers/{consumerId}` | `deleteConsumer` | Consumers | `tenant_control` |
-| `PUT` | `/tenants/{tenantId}/consumers/{consumerId}/dependencies/{templateId}` | `declareTemplateDependency` | Consumer Dependencies | `reader, editor, generator, manager` |
-| `GET` | `/tenants/{tenantId}/consumers/{consumerId}/dependencies` | `listConsumerDependencies` | Consumer Dependencies | `reader, editor, generator, manager` |
-| `DELETE` | `/tenants/{tenantId}/consumers/{consumerId}/dependencies/{templateId}` | `deleteTemplateDependency` | Consumer Dependencies | `reader, editor, generator, manager` |
-| `GET` | `/tenants/{tenantId}/templates/{templateId}/dependents` | `listTemplateDependents` | Consumer Dependencies | `reader, editor, generator, manager` |
+| `PUT` | `/tenants/{tenantKey}/consumers/{consumerId}/dependencies/{templateKey}` | `declareTemplateDependency` | Consumer Dependencies | `reader, editor, generator, manager` |
+| `GET` | `/tenants/{tenantKey}/consumers/{consumerId}/dependencies` | `listConsumerDependencies` | Consumer Dependencies | `reader, editor, generator, manager` |
+| `DELETE` | `/tenants/{tenantKey}/consumers/{consumerId}/dependencies/{templateKey}` | `deleteTemplateDependency` | Consumer Dependencies | `reader, editor, generator, manager` |
+| `GET` | `/tenants/{tenantKey}/templates/{templateKey}/dependents` | `listTemplateDependents` | Consumer Dependencies | `reader, editor, generator, manager` |
 
 ### 5.7 Path Design
 
 **Consumer CRUD** is placed at `/consumers` (no tenant prefix) because consumers are platform-level resources. This is consistent with the pattern that platform-level resources (tenants at `/tenants`) do not have a tenant prefix.
 
-**Dependency management** is placed under `/tenants/{tenantId}/consumers/{consumerId}/dependencies/...` because dependencies reference tenant-scoped resources. The consumer ID in the path identifies the consumer; the tenant ID scopes the dependency to that tenant's templates.
+**Dependency management** is placed under `/tenants/{tenantKey}/consumers/{consumerId}/dependencies/...` because dependencies reference tenant-scoped resources. The consumer ID in the path identifies the consumer; the tenant ID scopes the dependency to that tenant's templates.
 
-**Impact query** is placed under `/tenants/{tenantId}/templates/{templateId}/dependents` because the question is "who depends on this template?" — a template-centric view.
+**Impact query** is placed under `/tenants/{tenantKey}/templates/{templateKey}/dependents` because the question is "who depends on this template?" — a template-centric view.
 
 ---
 
@@ -798,10 +798,10 @@ Consumer registration also generates its own events:
 | `consumer.registered` | `POST /consumers` |
 | `consumer.updated` | `PATCH /consumers/{consumerId}` |
 | `consumer.deleted` | `DELETE /consumers/{consumerId}` |
-| `dependency.declared` | `PUT .../dependencies/{templateId}` |
-| `dependency.removed` | `DELETE .../dependencies/{templateId}` |
+| `dependency.declared` | `PUT .../dependencies/{templateKey}` |
+| `dependency.removed` | `DELETE .../dependencies/{templateKey}` |
 
-Note: Consumer events are **not** tenant-scoped (consumers are platform-level). This requires extending the event model to support events without a `tenantId`, or using a reserved tenant ID (e.g., `_platform`). This decision is deferred to the event system implementation.
+Note: Consumer events are **not** tenant-scoped (consumers are platform-level). This requires extending the event model to support events without a `tenantKey`, or using a reserved tenant ID (e.g., `_platform`). This decision is deferred to the event system implementation.
 
 Dependency events **are** tenant-scoped and fit the existing event model without modification.
 
@@ -812,8 +812,8 @@ The `DocumentDto.createdBy` field (currently `type: [string, "null"]`, always `n
 ```json
 {
   "id": "770e8400-e29b-41d4-a716-446655440002",
-  "templateId": "invoice",
-  "variantId": "english",
+  "templateKey": "invoice",
+  "variantKey": "english",
   "versionId": 3,
   "filename": "invoice-2026-001.pdf",
   "correlationId": "order-7890",
@@ -868,8 +868,8 @@ Consumer registration delivers value incrementally. Each phase is independently 
 
 **API changes**:
 - Add `TemplateDependencyDto`, `DeclareTemplateDependencyRequest`, `TemplateDependencyListResponse`, `TemplateDependentListResponse`, `DependentConflictResponse` schemas
-- Add dependency management endpoints under `/tenants/{tenantId}/consumers/{consumerId}/dependencies/`
-- Add impact query endpoint under `/tenants/{tenantId}/templates/{templateId}/dependents`
+- Add dependency management endpoints under `/tenants/{tenantKey}/consumers/{consumerId}/dependencies/`
+- Add impact query endpoint under `/tenants/{tenantKey}/templates/{templateKey}/dependents`
 - Modify delete endpoints to return 409 when dependents exist
 - Add `?force=true` query parameter to delete endpoints
 - Add `Consumer Dependencies` tag
@@ -901,9 +901,9 @@ Consumer registration introduces the first platform-level resource besides tenan
 |---|---|---|---|
 | Tenants | Platform | `/tenants` | `tenant_control` |
 | Consumers | Platform | `/consumers` | `tenant_control` |
-| Templates | Tenant | `/tenants/{tenantId}/templates` | `editor`, `manager` |
-| Themes | Tenant | `/tenants/{tenantId}/themes` | `editor`, `manager` |
-| Environments | Tenant | `/tenants/{tenantId}/environments` | `editor`, `manager` |
+| Templates | Tenant | `/tenants/{tenantKey}/templates` | `editor`, `manager` |
+| Themes | Tenant | `/tenants/{tenantKey}/themes` | `editor`, `manager` |
+| Environments | Tenant | `/tenants/{tenantKey}/environments` | `editor`, `manager` |
 
 ## Appendix B: Hybrid Scoping Coherence
 
@@ -915,7 +915,7 @@ When a consumer is deleted (`DELETE /consumers/{consumerId}`), all dependencies 
 
 **Scenario: Tenant is deleted while dependencies reference it**
 
-When a tenant is deleted (`DELETE /tenants/{tenantId}`), all dependencies within that tenant are deleted as part of the tenant cleanup. The consumer record itself is unaffected (it may have dependencies in other tenants).
+When a tenant is deleted (`DELETE /tenants/{tenantKey}`), all dependencies within that tenant are deleted as part of the tenant cleanup. The consumer record itself is unaffected (it may have dependencies in other tenants).
 
 **Scenario: Consumer exists but has no dependencies in a tenant**
 

@@ -18,7 +18,7 @@ action:
   name: get-catalog-version
   config:
     nodeId: conformance-node-1
-    tenantId: acme-corp
+    tenantKey: acme-corp
     registry: exchange.example.org
     namespace: team-a
     catalogKey: letters

@@ -13,7 +13,7 @@ ImportTemplatesRequest:
         $ref: '#/ImportTemplateDto'
   example:
     templates:
-      - slug: subsidiebesluit
+      - key: subsidiebesluit
         name: Subsidiebesluit
         version: "1.0.0"
         dataModel:
@@ -25,7 +25,7 @@ ImportTemplatesRequest:
                 name:
                   type: string
         dataExamples:
-          - id: voorbeeld
+          - key: voorbeeld
             name: Voorbeeld
             data:
               beneficiary:
@@ -50,7 +50,7 @@ ImportTemplatesRequest:
           themeRef:
             type: inherit
         variants:
-          - id: default
+          - key: default
             title: Standaard
             isDefault: true
             attributes:
@@ -63,18 +63,18 @@ ImportTemplateDto:
     including metadata, data model, visual layout and variants. Importing fills the
     draft; releasing the draft and deploying the release are separate steps.
   required:
-    - slug
+    - key
     - name
     - version
     - templateModel
     - variants
   properties:
-    slug:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier for the template (used as template ID)
+      description: Key of the template
       example: subsidiebesluit
     name:
       type: string
@@ -106,7 +106,7 @@ ImportTemplateDto:
       items:
         $ref: '#/ImportVariantDto'
   example:
-    slug: subsidiebesluit
+    key: subsidiebesluit
     name: Subsidiebesluit
     version: "1.0.0"
     dataModel:
@@ -137,7 +137,7 @@ ImportTemplateDto:
       themeRef:
         type: inherit
     variants:
-      - id: default
+      - key: default
         title: Standaard
         attributes:
           language: nl
@@ -146,14 +146,14 @@ ImportVariantDto:
   type: object
   description: Variant definition within an import template
   required:
-    - id
+    - key
   properties:
-    id:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Slug identifier for the variant
+      description: Key of the variant, unique within its template
       example: default
     title:
       type:
@@ -175,7 +175,7 @@ ImportVariantDto:
     templateModel:
       $ref: '../../../catalog/schemas/template-document.schema.json'
   example:
-    id: default
+    key: default
     title: Standaard
     isDefault: true
     attributes:
@@ -194,7 +194,7 @@ ImportTemplatesResponse:
         $ref: '#/ImportTemplateResultDto'
   example:
     results:
-      - slug: subsidiebesluit
+      - key: subsidiebesluit
         status: created
         version: "1.0.0"
 
@@ -202,13 +202,13 @@ ImportTemplateResultDto:
   type: object
   description: Import result for a single template
   required:
-    - slug
+    - key
     - status
     - version
   properties:
-    slug:
+    key:
       type: string
-      description: Template slug that was imported
+      description: Key of the template that was imported
       example: subsidiebesluit
     status:
       type: string
@@ -234,7 +234,7 @@ ImportTemplateResultDto:
         - 'null'
       description: Error message if status is "failed"
   example:
-    slug: subsidiebesluit
+    key: subsidiebesluit
     status: created
     version: "1.0.0"
 

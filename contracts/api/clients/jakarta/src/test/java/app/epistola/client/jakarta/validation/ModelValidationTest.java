@@ -38,7 +38,7 @@ class ModelValidationTest {
     @Test
     void the_slug_pattern_accepts_valid_slugs() {
         for (String slug : List.of("abc", "a1b", "test-env", "my-long-slug-123")) {
-            CreateTenantRequest request = new CreateTenantRequest().id(slug).name("Test");
+            CreateTenantRequest request = new CreateTenantRequest().key(slug).name("Test");
             assertSame(request, ModelValidation.validate(request), "expected '" + slug + "' to be valid");
         }
     }
@@ -56,55 +56,55 @@ class ModelValidationTest {
 
         invalid.forEach((slug, reason) -> assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(new CreateTenantRequest().id(slug).name("Test")),
+                () -> ModelValidation.validate(new CreateTenantRequest().key(slug).name("Test")),
                 "expected '" + slug + "' to fail (" + reason + ")"));
     }
 
     // --- String length boundaries ---
 
     @Test
-    void an_id_at_the_exact_bounds_passes_and_one_step_outside_fails() {
-        ModelValidation.validate(new CreateTenantRequest().id("abc").name("Tenant"));
-        ModelValidation.validate(new CreateTenantRequest().id("a" + "b".repeat(62)).name("Tenant"));
+    void a_key_at_the_exact_bounds_passes_and_one_step_outside_fails() {
+        ModelValidation.validate(new CreateTenantRequest().key("abc").name("Tenant"));
+        ModelValidation.validate(new CreateTenantRequest().key("a" + "b".repeat(62)).name("Tenant"));
 
         assertEquals(
-                "id: length must be between 3 and 63",
+                "key: length must be between 3 and 63",
                 assertThrows(
                                 IllegalArgumentException.class,
-                                () -> ModelValidation.validate(new CreateTenantRequest().id("ab").name("Tenant")))
+                                () -> ModelValidation.validate(new CreateTenantRequest().key("ab").name("Tenant")))
                         .getMessage());
         assertEquals(
-                "id: length must be between 3 and 63",
+                "key: length must be between 3 and 63",
                 assertThrows(
                                 IllegalArgumentException.class,
                                 () -> ModelValidation.validate(
-                                        new CreateTenantRequest().id("a".repeat(64)).name("Tenant")))
+                                        new CreateTenantRequest().key("a".repeat(64)).name("Tenant")))
                         .getMessage());
     }
 
     @Test
     void a_name_is_checked_at_both_of_its_bounds() {
-        ModelValidation.validate(new CreateTenantRequest().id("abc").name("x"));
-        ModelValidation.validate(new CreateTenantRequest().id("abc").name("x".repeat(255)));
+        ModelValidation.validate(new CreateTenantRequest().key("abc").name("x"));
+        ModelValidation.validate(new CreateTenantRequest().key("abc").name("x".repeat(255)));
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(new CreateTenantRequest().id("abc").name("")));
+                () -> ModelValidation.validate(new CreateTenantRequest().key("abc").name("")));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(new CreateTenantRequest().id("abc").name("x".repeat(256))));
+                () -> ModelValidation.validate(new CreateTenantRequest().key("abc").name("x".repeat(256))));
     }
 
     @Test
-    void environments_have_their_own_shorter_id_bound() {
-        ModelValidation.validate(new CreateEnvironmentRequest().id("a" + "b".repeat(29)).name("Env"));
+    void environments_have_their_own_shorter_key_bound() {
+        ModelValidation.validate(new CreateEnvironmentRequest().key("a" + "b".repeat(29)).name("Env"));
 
         assertEquals(
-                "id: length must be between 3 and 30",
+                "key: length must be between 3 and 30",
                 assertThrows(
                                 IllegalArgumentException.class,
                                 () -> ModelValidation.validate(
-                                        new CreateEnvironmentRequest().id("a".repeat(31)).name("Env")))
+                                        new CreateEnvironmentRequest().key("a".repeat(31)).name("Env")))
                         .getMessage());
     }
 
@@ -125,7 +125,7 @@ class ModelValidationTest {
     @Test
     void a_missing_required_field_is_named_rather_than_causing_a_null_pointer() {
         assertEquals(
-                "id: is required",
+                "key: is required",
                 assertThrows(
                                 IllegalArgumentException.class,
                                 () -> ModelValidation.validate(new CreateTenantRequest().name("Tenant")))
@@ -148,11 +148,11 @@ class ModelValidationTest {
     }
 
     @Test
-    void a_slug_inside_a_catalog_versions_content_is_checked() {
+    void a_key_inside_a_catalog_versions_content_is_checked() {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> ModelValidation.validate(new VariantContentDto()
-                        .variantId("English")
+                        .variantKey("English")
                         .status(ResourceStatus.MODIFIED)
                         .lastModified(OffsetDateTime.now())));
     }
@@ -198,8 +198,8 @@ class ModelValidationTest {
         GenerateDocumentRequest request = new GenerateDocumentRequest()
                 .namespace("acme-corp")
                 .catalogKey("default")
-                .templateId("monthly-invoice")
-                .variantId("english")
+                .templateKey("monthly-invoice")
+                .variantKey("english")
                 .version("^1.4.0")
                 .filename("invoice-2026-001.pdf")
                 .correlationId("order-7890")
@@ -218,10 +218,10 @@ class ModelValidationTest {
                 IllegalArgumentException.class,
                 () -> ModelValidation.validate(baseGenerationRequest().version("")));
 
-        ModelValidation.validate(baseGenerationRequest().environmentId(null));
+        ModelValidation.validate(baseGenerationRequest().environmentKey(null));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(baseGenerationRequest().environmentId("PROD")));
+                () -> ModelValidation.validate(baseGenerationRequest().environmentKey("PROD")));
 
         ModelValidation.validate(baseGenerationRequest().filename("x".repeat(255)));
         assertEquals(
@@ -248,15 +248,15 @@ class ModelValidationTest {
                 new BatchGenerationItem()
                         .namespace("acme-corp")
                         .catalogKey("default")
-                        .templateId("invoice")
-                        .variantId("english")
+                        .templateKey("invoice")
+                        .variantKey("english")
                         .data(Map.of("invoiceNumber", "INV-2026-001"))
                         .filename("invoice-001.pdf"),
                 new BatchGenerationItem()
                         .namespace("acme-corp")
                         .catalogKey("default")
-                        .templateId("invoice")
-                        .variantId("english")
+                        .templateKey("invoice")
+                        .variantKey("english")
                         .data(Map.of("invoiceNumber", "INV-2026-002")));
 
         GenerateBatchRequest request = new GenerateBatchRequest().items(items);
@@ -266,7 +266,7 @@ class ModelValidationTest {
     @Test
     void a_template_with_a_nested_json_schema_passes() {
         CreateTemplateRequest request = new CreateTemplateRequest()
-                .id("monthly-invoice")
+                .key("monthly-invoice")
                 .name("Monthly Invoice")
                 .schema(Map.of(
                         "type", "object",
@@ -278,7 +278,7 @@ class ModelValidationTest {
 
     @Test
     void validate_returns_its_argument_so_it_composes_into_a_call() {
-        CreateTenantRequest request = new CreateTenantRequest().id("acme-corp").name("Acme Corporation");
+        CreateTenantRequest request = new CreateTenantRequest().key("acme-corp").name("Acme Corporation");
         assertSame(request, ModelValidation.validate(request));
     }
 
@@ -286,8 +286,8 @@ class ModelValidationTest {
         return new GenerateDocumentRequest()
                 .namespace("acme-corp")
                 .catalogKey("default")
-                .templateId("invoice")
-                .variantId("english")
+                .templateKey("invoice")
+                .variantKey("english")
                 .data(Map.of());
     }
 }

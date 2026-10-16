@@ -12,8 +12,8 @@ CodeListDto:
     over HTTPS via the manual "refresh" action). Catalog-imported code lists
     always land as `INLINE` because the entries ship in the catalog manifest.
   required:
-    - slug
-    - tenantId
+    - key
+    - tenantKey
     - registry
     - namespace
     - catalogKey
@@ -25,14 +25,14 @@ CodeListDto:
     - createdAt
     - lastModified
   properties:
-    slug:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 1
       maxLength: 50
-      description: Slug identifier (unique within `tenant + catalog`).
+      description: Key (unique within `tenant + catalog`).
       example: bcp-47
-    tenantId:
+    tenantKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       example: acme-corp
@@ -120,8 +120,8 @@ CodeListDto:
       format: date-time
       example: "2026-05-11T00:00:00Z"
   example:
-    slug: bcp-47
-    tenantId: acme-corp
+    key: bcp-47
+    tenantKey: acme-corp
     registry: exchange.epistola.app
     namespace: epistola
     catalogKey: system
@@ -216,11 +216,11 @@ CreateCodeListRequest:
 
     Writing to a SUBSCRIBED catalog (e.g. `system`) returns 409.
   required:
-    - slug
+    - key
     - displayName
     - sourceType
   properties:
-    slug:
+    key:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 1

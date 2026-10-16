@@ -70,19 +70,19 @@ class CatalogWireParityTest {
         assertEquals(null, manifest.catalog.namespace)
         assertEquals(null, manifest.catalogDependencies)
         assertTrue(manifest.dependencies.orEmpty().all { it.registry == null && it.namespace == null })
-        assertEquals("letter", stencil.resource.slug)
+        assertEquals("letter", stencil.resource.key)
     }
 
     @Test
     fun `optional content registries and namespaces are omitted when absent so earlier fingerprints still reproduce`() {
-        val binding = mapper.valueToTree<JsonNode>(CodeListBindingRef(slug = "countries"))
-        val font = mapper.valueToTree<JsonNode>(FontRef(slug = "inter"))
+        val binding = mapper.valueToTree<JsonNode>(CodeListBindingRef(key = "countries"))
+        val font = mapper.valueToTree<JsonNode>(FontRef(key = "inter"))
         val theme = mapper.valueToTree<JsonNode>(ThemeRefOverride("corporate"))
 
         listOf(binding, font, theme).forEach { node ->
             assertTrue(!node.has("namespace") && !node.has("registry"), node.toString())
         }
-        val qualified = mapper.valueToTree<JsonNode>(CodeListBindingRef(slug = "x", namespace = "acme", registry = "acme.com"))
+        val qualified = mapper.valueToTree<JsonNode>(CodeListBindingRef(key = "x", namespace = "acme", registry = "acme.com"))
         assertEquals("acme", qualified["namespace"].asString())
         assertEquals("acme.com", qualified["registry"].asString())
     }
@@ -98,7 +98,7 @@ class CatalogWireParityTest {
     @Test
     fun `catalog info factory normalizes additive v6 metadata`() {
         val info = CatalogInfo.create(
-            slug = "fixture",
+            key = "fixture",
             name = "Fixture",
             attributes = listOf(AttributeAssignment("system", "locale", "nl-NL")),
             keywords = linkedSetOf("zoning", "documents"),
@@ -127,7 +127,7 @@ class CatalogWireParityTest {
     fun `legacy catalog info constructor remains source compatible`() {
         val info = CatalogInfo("fixture", "Fixture")
 
-        assertEquals("fixture", info.slug)
+        assertEquals("fixture", info.key)
         assertEquals("Fixture", info.name)
         assertEquals(null, info.description)
         assertEquals(emptyList(), info.attributes)

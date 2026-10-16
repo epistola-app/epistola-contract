@@ -17,9 +17,9 @@ export type { TemplateDataValidator, ValidationFailure } from './templateDataVal
 export type SchemaLoader = () => Promise<object | undefined>
 
 /**
- * Cache for JSON Schemas keyed by (tenantId, registry, namespace, catalogKey, templateId).
+ * Cache for JSON Schemas keyed by (tenantKey, registry, namespace, catalogKey, templateKey).
  *
- * The catalog is part of the key, not decoration: the same template id in two catalogs of one
+ * The catalog is part of the key, not decoration: the same template key in two catalogs of one
  * tenant is two different templates with two different schemas.
  *
  * Nothing this package ships uses this any more — the default validator asks the server, which has
@@ -32,7 +32,7 @@ export interface SchemaCache {
    * Returns a cached schema, or invokes `loader` on a miss and stores the result. An undefined
    * result means the template has no schema defined, and is cached as such.
    */
-  getOrLoad(tenantId: string, registry: string, namespace: string, catalogKey: string, templateId: string, loader: SchemaLoader): Promise<object | undefined>
+  getOrLoad(tenantKey: string, registry: string, namespace: string, catalogKey: string, templateKey: string, loader: SchemaLoader): Promise<object | undefined>
 }
 
 /** Default TTL-based cache. Entries expire `ttlMs` after they were stored (default: 5 minutes). */
@@ -45,8 +45,8 @@ export class TtlSchemaCache implements SchemaCache {
     }
   }
 
-  async getOrLoad(tenantId: string, registry: string, namespace: string, catalogKey: string, templateId: string, loader: SchemaLoader): Promise<object | undefined> {
-    const key = cacheKey(tenantId, registry, namespace, catalogKey, templateId)
+  async getOrLoad(tenantKey: string, registry: string, namespace: string, catalogKey: string, templateKey: string, loader: SchemaLoader): Promise<object | undefined> {
+    const key = cacheKey(tenantKey, registry, namespace, catalogKey, templateKey)
     const entry = this.entries.get(key)
     if (entry !== undefined && performance.now() < entry.storedAt + this.ttlMs) {
       return entry.schema
@@ -57,8 +57,8 @@ export class TtlSchemaCache implements SchemaCache {
   }
 
   /** Evicts a specific entry (useful after template updates). */
-  evict(tenantId: string, registry: string, namespace: string, catalogKey: string, templateId: string): void {
-    this.entries.delete(cacheKey(tenantId, registry, namespace, catalogKey, templateId))
+  evict(tenantKey: string, registry: string, namespace: string, catalogKey: string, templateKey: string): void {
+    this.entries.delete(cacheKey(tenantKey, registry, namespace, catalogKey, templateKey))
   }
 
   /** Evicts all entries. */
@@ -102,8 +102,8 @@ export class TemplateSchemaValidator {
    * Against a server older than contract 1.4.0 the default validator rejects with the API's own
    * error, because `validateTemplateData` does not exist there.
    */
-  async validate(tenantId: string, registry: string, namespace: string, catalogKey: string, templateId: string, data: unknown): Promise<void> {
-    const failures = await this.validator.validate(tenantId, registry, namespace, catalogKey, templateId, data)
+  async validate(tenantKey: string, registry: string, namespace: string, catalogKey: string, templateKey: string, data: unknown): Promise<void> {
+    const failures = await this.validator.validate(tenantKey, registry, namespace, catalogKey, templateKey, data)
     if (failures.length > 0) {
       throw new TemplateDataValidationException(failures)
     }
@@ -146,7 +146,7 @@ export class ValidatingGenerationApi {
   async generateDocument(requestParameters: GenerateDocumentOperationRequest, initOverrides?: RequestInit | InitOverrideFunction): Promise<GenerationJobResponse> {
     if (this.validator.preflightsGeneration !== false) {
       const request = requestParameters.generateDocumentRequest
-      const failures = await this.validator.validate(requestParameters.tenantId, registryPathSegment(request.registry), request.namespace, request.catalogKey, request.templateId, request.data)
+      const failures = await this.validator.validate(requestParameters.tenantKey, registryPathSegment(request.registry), request.namespace, request.catalogKey, request.templateKey, request.data)
       if (failures.length > 0) {
         throw new TemplateDataValidationException(failures)
       }
@@ -158,7 +158,7 @@ export class ValidatingGenerationApi {
     if (this.validator.preflightsGeneration !== false) {
       const failures: ValidationFailure[] = []
       for (const [index, item] of requestParameters.generateBatchRequest.items.entries()) {
-        for (const failure of await this.validator.validate(requestParameters.tenantId, registryPathSegment(item.registry), item.namespace, item.catalogKey, item.templateId, item.data)) {
+        for (const failure of await this.validator.validate(requestParameters.tenantKey, registryPathSegment(item.registry), item.namespace, item.catalogKey, item.templateKey, item.data)) {
           failures.push({ ...failure, path: `items[${index}]${failure.path}` })
         }
       }
@@ -203,6 +203,6 @@ function registryPathSegment(registry: string | null | undefined): string {
 /** The path segment that addresses the server's default registry. */
 const DEFAULT_REGISTRY_SEGMENT = '~'
 
-function cacheKey(tenantId: string, registry: string, namespace: string, catalogKey: string, templateId: string): string {
-  return JSON.stringify([tenantId, registry, namespace, catalogKey, templateId])
+function cacheKey(tenantKey: string, registry: string, namespace: string, catalogKey: string, templateKey: string): string {
+  return JSON.stringify([tenantKey, registry, namespace, catalogKey, templateKey])
 }

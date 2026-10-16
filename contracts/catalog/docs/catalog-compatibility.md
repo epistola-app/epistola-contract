@@ -21,7 +21,8 @@ wire version. Wire v8 belongs to contract 2.0 and changes the Kotlin model incom
 | Declared catalog dependencies | Wire v8 requires every catalog named by a resource dependency to be declared once in `catalogDependencies`, with a version selector, the release it was cut with (`releaseVersion`), and that release's V5 fingerprint (`releaseFingerprint`, lowercase SHA-256 hex), the two null together or set together (`CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`). | v7 archives migrate with one declaration per catalog, selector `*`, `releaseVersion: null` and `releaseFingerprint: null`, with a notice; set the selector before re-releasing. Producers write the fingerprint of the dependency release they cut with. |
 | Bounded lowercase keywords | Wire v7 accepts catalog keywords only as lowercase ASCII letters and digits in hyphen-separated parts, at most 30 characters, and at most 20 per catalog. A v7 archive with other keywords is invalid. | v6 archives migrate with notices: keywords are normalized, shortened, merged, or removed. Producers normalize with `CatalogKeywords.normalize` before emitting v7. |
 | Canonical rich text | A text component's `content` must be a ProseMirror document object. Historical string and bare-array forms are invalid. | Open and save the content with a current editor, or transform it to `{ "type": "doc", "content": [...] }` before export. |
-| Unversioned stencils | From wire v8 a stencil carries no `version`, and a stencil node declares a valid `stencilId`, optionally `catalogKey`, `namespace` and `registry`, and no `version` or `draftVersion` (they are reported as undeclared properties). A stencil resolves through its catalog's dependency, or within the same catalog. | v7 archives migrate with notices. Producers stop writing stencil versions; authoring consumers resolve a draft stencil through the catalog version being edited, not a node property. |
+| A resource's address is its key | Wire v8 calls a resource's public address its `key` and an `id` only a generated identifier that is not an address. `slug` becomes `key` on the catalog, every resource entry, resource dependency, resource, variant and code-list binding; `themeId` becomes `themeKey` on a template and in a document's `ThemeRef`; a stencil node's `stencilId` becomes `stencilKey`, an image node's `assetId` `imageKey`, a `fontFamily` font reference's `slug` `key`, the presentation's `iconAssetSlug` and `imageAssetSlugs` `iconImageKey` and `imageKeys`, and an attribute assignment's `catalog` `catalogKey`. The finding codes follow: `CATALOG_RESOURCE_KEY_MISMATCH`, `CATALOG_RESOURCE_KEY_INVALID` and `CATALOG_TEMPLATE_VARIANT_KEY_DUPLICATE` replace their `SLUG` and `ID` forms. Values and their rules are unchanged. A v8 document using an old name is refused by the migrator's wire check (`CATALOG_SCHEMA_UNKNOWN`), and the old node props are undeclared (`TEMPLATE_NODE_PROPERTY_INVALID`). The Kotlin properties are renamed alike (`CatalogInfo.key`, `CatalogResource.key`, `ResourceEntry.key`, `DependencyRef.key`, `VariantEntry.key`, `CodeListBindingRef.key`, `TemplateResource.themeKey`, `ThemeRefOverride.themeKey`, `CatalogPresentation.iconImageKey` and `.imageKeys`, `FontRef.key`, `AttributeAssignment.catalogKey`), as are `CatalogResourceReference.key` and `CatalogKeys` (formerly `CatalogSlugs`). | v7 archives migrate silently: the value is unchanged, so like v7's rename of a variant's `id` there is nothing to report. The model still binds the old names (`@JsonAlias`), so manifests and details a consumer stored under earlier versions keep loading with plain Jackson. Producers write the new names. |
+| Unversioned stencils | From wire v8 a stencil carries no `version`, and a stencil node declares a valid `stencilKey`, optionally `catalogKey`, `namespace` and `registry`, and no `version` or `draftVersion` (they are reported as undeclared properties). A stencil resolves through its catalog's dependency, or within the same catalog. | v7 archives migrate with notices. Producers stop writing stencil versions; authoring consumers resolve a draft stencil through the catalog version being edited, not a node property. |
 | Stricter semantic validation | Malformed graphs, unsupported nodes or property shapes, invalid slots, placeholders, parameter schemas or bindings, expressions, theme/style references, data schemas/examples, and unresolved catalog references that were previously accepted may now produce validation errors. | Correct the reported findings before saving, publishing, or importing the content. Ordinary invalidity is returned as stable findings rather than an I/O exception. |
 | Stencil nesting limit | A stencil-instance ancestry chain may contain at most five stencil levels. Direct/transitive recursion and whole-catalog stencil cycles are invalid. | Flatten or split deeper composition and remove recursive references. |
 
@@ -36,12 +37,15 @@ ignores it when binding a stored v7 document.
   either Jackson 2 or the Suite's Jackson 3 runtime can inspect them. Public
   APIs do not expose an `ObjectMapper`.
 - Existing V1 through V3 catalog fingerprints remain accepted when reading legacy v4/v5 input.
+  V1 to V4 canonicalize the members wire v8 renamed under their old names, so the rename moves no
+  legacy fingerprint and only V5 names a resource's address `key`.
   v6 and v7 catalogs carry V4; a v6 fingerprint over keywords that the v7 migration rewrote, and a
   v7 fingerprint over stencil versions that the v8 migration removed, still verify. v8 catalogs use
   V5, written as `v5:<hex>` (`currentQualifiedFingerprint`); `currentFingerprint` still returns
   the bare hex. The existing `fingerprint` API retains its V1 result and the
   exact-version overload is additive.
-- The 1.0.1 `CatalogInfo(slug, name, description)` construction shape remains source-compatible.
+- The 1.0.1 `CatalogInfo(key, name, description)` construction shape remains source-compatible
+  for positional callers; the first parameter is named `key` from wire v8.
   New discovery metadata is exposed through `create` and `copyWithMetadata`. Consumers must
   recompile when upgrading the Kotlin artifact; drop-in compatibility with JVM bytecode compiled
   against an older JAR is not part of the catalog compatibility guarantee.
@@ -52,7 +56,7 @@ ignores it when binding a stored v7 document.
 ## Authoring documents versus catalog exports
 
 `TemplateDocument` is the shared document model. From wire v8 a stencil node
-names its stencil by `stencilId`, `catalogKey` and `namespace` only, in authoring
+names its stencil by `stencilKey`, `catalogKey` and `namespace` only, in authoring
 and in exports alike: which version is used follows from the catalog version the
 document belongs to and its catalog dependencies. `templateModelVersion` stays 1:
 the template-document schema keeps node `props` free-form, and the stencil-node

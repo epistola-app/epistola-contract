@@ -2,7 +2,7 @@
   "schemaVersion": 8,
   "resource": {
     "type": "theme",
-    "slug": "default",
+    "key": "default",
     "name": "Default",
     "description": null,
     "documentStyles": {

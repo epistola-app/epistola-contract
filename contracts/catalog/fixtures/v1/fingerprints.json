@@ -1,15 +1,15 @@
 {
   "fixtureVersion": 1,
   "catalogFingerprint": "f696120480b9edd317f2fc127f74eec4b621e2e95fe4ac235ccddfb820ddedb5",
-  "currentCatalogFingerprint": "58f497de36c26dc7c58da1c67be35788afaa0d355d1e626badec7b876b8bfa4d",
+  "currentCatalogFingerprint": "720855657992f90e5b13423c36fe086cd09eaf285f1133299a7b0ab0bc725ac1",
   "catalogFingerprints": {
     "V1": "f696120480b9edd317f2fc127f74eec4b621e2e95fe4ac235ccddfb820ddedb5",
     "V2": "54ddd6d47b9b07c638c14ea262c4127b503b785664826da06e4d06a077cc3e03",
     "V3": "54ddd6d47b9b07c638c14ea262c4127b503b785664826da06e4d06a077cc3e03",
     "V4": "026ef55bf700eb6a6e976a241e2f7116d6b5fcc819e4d36562c385ccef7ccf7e",
-    "V5": "58f497de36c26dc7c58da1c67be35788afaa0d355d1e626badec7b876b8bfa4d"
+    "V5": "720855657992f90e5b13423c36fe086cd09eaf285f1133299a7b0ab0bc725ac1"
   },
-  "currentWireV8CatalogFingerprint": "31526702514e48d8868c7d90fd654f3bf08b1eb6ad50067cf8f090c7d69cf719",
+  "currentWireV8CatalogFingerprint": "6cd75f3bcf8470dc7070ee03197fac74ee4d1ebf74f76d2d969849c3fa4290cb",
   "resourceFingerprints": {
     "theme/default": "30edf3c18acf6882267ad37c7cddd60f12b2536c3517c618d36f9ce0610b3e95"
   }

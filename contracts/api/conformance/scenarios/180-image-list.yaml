@@ -23,7 +23,7 @@ action:
     nodeId: conformance-node-1
     auth: api-key
     apiKey: epk_conformance_0123456789
-    tenantId: acme-corp
+    tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: main
@@ -35,8 +35,8 @@ script:
     contentType: application/vnd.epistola.v1+json
     body:
       items:
-        - slug: municipality-mark
-          tenantId: acme-corp
+        - key: municipality-mark
+          tenantKey: acme-corp
           registry: exchange.epistola.app
           namespace: acme-corp
           catalogKey: main
@@ -48,8 +48,8 @@ script:
           width: null
           height: null
           createdAt: "2026-09-11T10:00:00Z"
-        - slug: 4a64f2f9-2c7a-4d26-9cf7-d34c7ce92280
-          tenantId: acme-corp
+        - key: 4a64f2f9-2c7a-4d26-9cf7-d34c7ce92280
+          tenantKey: acme-corp
           registry: exchange.epistola.app
           namespace: acme-corp
           catalogKey: main
@@ -75,7 +75,7 @@ expect:
         page: { whenPresent: '0' }
         size: { whenPresent: '20' }
   report:
-    imageSlugs: municipality-mark,4a64f2f9-2c7a-4d26-9cf7-d34c7ce92280
+    imageKeys: municipality-mark,4a64f2f9-2c7a-4d26-9cf7-d34c7ce92280
     widths: null,512
     heights: null,128
     mediaTypes: image/svg+xml,image/png

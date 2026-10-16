@@ -97,7 +97,7 @@ using Epistola.Client.Error;
 
 try
 {
-    templates.GetTemplate("my-tenant", "acme-corp", "default", "1.4.0", "unknown");
+    templates.GetTemplate("my-tenant", "~", "acme-corp", "default", "1.4.0", "unknown");
 }
 catch (ProblemDetailException e)
 {
@@ -148,7 +148,7 @@ using Epistola.Client.Collect;
 
 var collector = ResultCollector.Builder()
     .HttpClient(http)
-    .TenantId("acme-corp")
+    .TenantKey("acme-corp")
     .Handler(result =>
     {
         switch (result.Status)
@@ -266,7 +266,7 @@ extension methods (from `Epistola.Client.Validation`):
 ```csharp
 using Epistola.Client.Validation;
 
-var request = new CreateTenantRequest(id: "acme-corp", name: "Acme").Validate();
+var request = new CreateTenantRequest(key: "acme-corp", name: "Acme").Validate();
 ```
 
 ## Building from source

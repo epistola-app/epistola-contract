@@ -69,7 +69,8 @@ export interface ThemeRefInherit {
 
 export interface ThemeRefOverride {
   type: 'override'
-  themeId: string
+  /** Key of the theme: its public address within its catalog. Called `themeId` until catalog wire v8. */
+  themeKey: string
   /** Catalog containing the theme. Omitted means the owning template's catalog. */
   catalogKey?: string
   /**

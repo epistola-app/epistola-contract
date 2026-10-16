@@ -44,7 +44,7 @@ import kotlin.concurrent.withLock
  * ```
  * val collector = ResultCollector.builder()
  *     .restClient(restClient)
- *     .tenantId("acme-corp")
+ *     .tenantKey("acme-corp")
  *     .handler { result ->
  *         when (result.status) {
  *             "COMPLETED" -> downloadAndProcess(result.documentId, result.correlationId)
@@ -58,7 +58,7 @@ import kotlin.concurrent.withLock
  */
 class ResultCollector private constructor(
     private val restClient: RestClient,
-    private val tenantId: String,
+    private val tenantKey: String,
     private val batchSize: Int,
     private val minInterval: Duration,
     private val maxInterval: Duration,
@@ -116,8 +116,8 @@ class ResultCollector private constructor(
         val documentId: String?,
         val correlationId: String?,
         val routingKey: String?,
-        val templateId: String?,
-        val variantId: String?,
+        val templateKey: String?,
+        val variantKey: String?,
         /** Registry of the template's catalog, in full; null for a result accepted before contract 2.0. */
         val registry: String?,
         /** Namespace of the template's catalog; null for a result accepted before contract 2.0. */
@@ -300,7 +300,7 @@ class ResultCollector private constructor(
             }
 
             val result = restClient.method(HttpMethod.POST)
-                .uri("/tenants/{tenantId}/generation/collect", tenantId)
+                .uri("/tenants/{tenantKey}/generation/collect", tenantKey)
                 .contentType(EPISTOLA_JSON)
                 .accept(NDJSON)
                 .header("Accept-Encoding", Compression.acceptEncoding())
@@ -373,8 +373,8 @@ class ResultCollector private constructor(
         documentId = node["documentId"]?.asText(),
         correlationId = node["correlationId"]?.asText(),
         routingKey = node["routingKey"]?.asText(),
-        templateId = node["templateId"]?.asText(),
-        variantId = node["variantId"]?.asText(),
+        templateKey = node["templateKey"]?.asText(),
+        variantKey = node["variantKey"]?.asText(),
         registry = node["registry"]?.takeUnless { it.isNull }?.asText(),
         namespace = node["namespace"]?.takeUnless { it.isNull }?.asText(),
         catalogKey = node["catalogKey"]?.takeUnless { it.isNull }?.asText(),
@@ -399,7 +399,7 @@ class ResultCollector private constructor(
 
     class Builder {
         private var restClient: RestClient? = null
-        private var tenantId: String? = null
+        private var tenantKey: String? = null
         private var batchSize: Int = 100
         private var minInterval: Duration = Duration.ofSeconds(1)
         private var maxInterval: Duration = Duration.ofSeconds(30)
@@ -412,7 +412,7 @@ class ResultCollector private constructor(
         private var registerShutdownHook: Boolean = true
 
         fun restClient(client: RestClient) = apply { this.restClient = client }
-        fun tenantId(tenantId: String) = apply { this.tenantId = tenantId }
+        fun tenantKey(tenantKey: String) = apply { this.tenantKey = tenantKey }
 
         /** Maximum results per collection (default: 100). */
         fun batchSize(size: Int) = apply {
@@ -476,7 +476,7 @@ class ResultCollector private constructor(
         fun build(): ResultCollector =
             ResultCollector(
                 restClient = requireNotNull(restClient) { "restClient is required" },
-                tenantId = requireNotNull(tenantId) { "tenantId is required" },
+                tenantKey = requireNotNull(tenantKey) { "tenantKey is required" },
                 batchSize = batchSize,
                 minInterval = minInterval,
                 maxInterval = maxInterval,

@@ -1,9 +1,9 @@
 catalogs:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -40,10 +40,10 @@ catalogs:
 
 catalog-upgrade-preview:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -60,7 +60,7 @@ catalog-upgrade-preview:
       Preview what upgrading a SUBSCRIBED catalog to its source's latest
       release would do, **without applying it**. Re-fetches the source
       manifest and diffs it against the installed release (source-vs-source):
-      added / removed / changed / unchanged resources (each `type/slug`), plus
+      added / removed / changed / unchanged resources (each `type/key`), plus
       any cross-catalog conflicts that would block removals.
 
       Read-only. Apply the returned change set with `POST .../upgrade`.
@@ -83,10 +83,10 @@ catalog-upgrade-preview:
 
 catalog-upgrade:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -131,10 +131,10 @@ catalog-upgrade:
 
 catalog-changes:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -171,10 +171,10 @@ catalog-changes:
 
 catalog-mark-ready:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -212,10 +212,10 @@ catalog-mark-ready:
 
 catalog-dependencies:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -288,10 +288,10 @@ catalog-dependencies:
 
 catalog-versions:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -383,10 +383,10 @@ catalog-versions:
 
 catalog-version:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -488,10 +488,10 @@ catalog-version:
 
 catalog-version-renumber-preview:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -541,10 +541,10 @@ catalog-version-renumber-preview:
 
 catalog-version-release:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -601,10 +601,10 @@ catalog-version-release:
 
 catalog-version-incoming:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -649,10 +649,10 @@ catalog-version-incoming:
 
 catalog-version-incoming-resolve:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
-      description: Unique slug identifier of the tenant
+      description: Unique key of the tenant
       schema:
         type: string
         pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
