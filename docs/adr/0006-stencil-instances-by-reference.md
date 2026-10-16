@@ -163,7 +163,7 @@ the same result:
 | Copy of the latest version of its stencil, unchanged except for fills | Reference + fills (part 1) |
 | Copy of an older version | Reference + fills; renders the latest stencil. What no longer fits (part 3) is reported, not prevented |
 | No stencil reference, or a copy that differs from its version beyond fills | Plain content (the stencil node is replaced by its copied content), reported |
-| Fill reading the stencil's alias (`params`, or its `paramsAlias`) | The stencil's placeholder gets `passParameters: true`, with `parametersAs` set to that alias when it is not `params`; the fill is not rewritten and sees what it saw before 2.0 |
+| Fill reading the instance's alias (`params`, or the instance's `paramsAlias`) | The stencil's placeholder gets `passParameters: true`; when the instance's alias is not `params`, the fill gets `parametersAs` set to it. The fill is not rewritten and sees what it saw before 2.0 |
 | Stencil whose content reads the template's data or loop variables (part 5) | The stencil gets `readsTemplateData: true`; its content is not rewritten. Every other stencil gets `false` |
 
 Nothing is rewritten: a placeholder that passes parameters and a stencil that reads the template's
