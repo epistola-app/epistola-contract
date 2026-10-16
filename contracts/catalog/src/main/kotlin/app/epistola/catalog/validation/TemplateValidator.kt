@@ -506,7 +506,14 @@ object TemplateValidator {
                 "parameterBindings",
                 "paramsAlias",
                 "parameterSchemaSnapshot",
+                // Carried on an expanded instance from its stencil (ADR 0006, part 5).
+                "readsTemplateData",
             )
+        }
+        if (component.type == "placeholder") {
+            // ADR 0006, part 4: a stencil's placeholder may pass the stencil's parameters to its fill,
+            // under a default name; a fill may choose its own name.
+            allowedTopLevel += setOf("passParameters", "parametersAs")
         }
         props.keys.sorted().filterNot(allowedTopLevel::contains).forEach { key ->
             findings.error(TEMPLATE_NODE_PROPERTY_INVALID, "nodes.${node.id}.props.$key", "property '$key' is not declared by component '${node.type}'")
@@ -713,6 +720,36 @@ object TemplateValidator {
         walk(document.root, false)
     }
 
+    /**
+     * ADR 0006: `readsTemplateData` and `passParameters` are booleans; `parametersAs` names the
+     * passed parameters like a `paramsAlias`, so it follows the same rules.
+     */
+    private fun validatePassedParameters(
+        node: Node,
+        props: Map<String, Any?>,
+        findings: MutableList<TemplateValidationFinding>,
+    ) {
+        for (flag in listOf("readsTemplateData", "passParameters")) {
+            val value = props[flag]
+            if (value != null && value !is Boolean) {
+                findings.error(TEMPLATE_NODE_PROPERTY_INVALID, "nodes.${node.id}.props.$flag", "$flag must be a boolean")
+            }
+        }
+        val name = props["parametersAs"] ?: return
+        when {
+            name !is String || !parameterNameRegex.matches(name) -> findings.error(
+                NODE_PARAMETER_BINDINGS_INVALID_SHAPE,
+                "nodes.${node.id}.props.parametersAs",
+                "parametersAs must match ^[a-z][a-zA-Z0-9_]{0,63}$",
+            )
+            name in reservedAliases -> findings.error(
+                NODE_PARAMS_ALIAS_RESERVED,
+                "nodes.${node.id}.props.parametersAs",
+                "parametersAs '$name' collides with a reserved scope name",
+            )
+        }
+    }
+
     private fun validateBindings(
         document: TemplateDocument,
         context: TemplateValidationContext,
@@ -726,6 +763,7 @@ object TemplateValidator {
             } else if (alias in reservedAliases) {
                 findings.error(NODE_PARAMS_ALIAS_RESERVED, "nodes.${node.id}.props.paramsAlias", "paramsAlias '$alias' collides with a reserved scope name")
             }
+            validatePassedParameters(node, props, findings)
             val raw = props["parameterBindings"]
             if (raw != null && raw !is Map<*, *>) {
                 findings.error(NODE_PARAMETER_BINDINGS_INVALID_SHAPE, "nodes.${node.id}.props.parameterBindings", "parameterBindings must be an object of paramName to expression entries")

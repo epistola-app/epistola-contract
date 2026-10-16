@@ -151,6 +151,13 @@ data class StencilResource(
     val tags: List<String> = emptyList(),
     val content: TemplateDocument,
     val parameterSchema: Map<String, Any?>? = null,
+    /**
+     * The stencil's content also sees the using template's data and loop variables, not only its
+     * parameters (ADR 0006, part 5). Wire v8; left out of the JSON when false, so V5 fingerprints of
+     * stencils that do not use it stay put.
+     */
+    @get:JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    val readsTemplateData: Boolean = false,
 ) : CatalogResource {
     override val type: String get() = "stencil"
 }

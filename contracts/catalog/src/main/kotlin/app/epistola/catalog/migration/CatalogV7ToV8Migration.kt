@@ -6,7 +6,6 @@ package app.epistola.catalog.migration
 
 import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogNamespaces
-import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 
@@ -208,7 +207,7 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
                 "stencil version was removed; catalog v8 versions catalogs as a whole",
             )
         }
-        stripStencilReferenceVersions(resource, "$path.resource", notices)
+        StencilReferenceVersions.strip(resource, "$path.resource", notices)
         if (resource["type"]?.takeIf { it.isString }?.asString() == "template") assignExampleKeys(resource, "$path.resource", notices)
         return CatalogMigrationStepResult(notices = notices)
     }
@@ -283,35 +282,6 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
                 "$path.dataExamples[$index].key",
                 "data example '$name' was given the key '$key'",
             )
-        }
-    }
-
-    /** Removes `version` and `draftVersion` from every stencil node, wherever a document embeds it. */
-    private fun stripStencilReferenceVersions(
-        node: JsonNode,
-        path: String,
-        notices: MutableList<CatalogMigrationNotice>,
-    ) {
-        when (node) {
-            is ObjectNode -> {
-                val props = node["props"] as? ObjectNode
-                if (node["type"]?.takeIf { it.isString }?.asString() == "stencil" && props != null) {
-                    for (name in listOf("draftVersion", "version")) {
-                        if (props.remove(name) != null) {
-                            notices += CatalogMigrationNotice(
-                                CatalogMigrationCodes.STENCIL_VERSION_REMOVED,
-                                "$path.props.$name",
-                                "stencil reference $name was removed; the stencil resolves through its catalog's dependency",
-                            )
-                        }
-                    }
-                }
-                node.propertyNames().toList().sorted().forEach { name ->
-                    stripStencilReferenceVersions(node[name], "$path.$name", notices)
-                }
-            }
-            is ArrayNode -> node.forEachIndexed { index, child -> stripStencilReferenceVersions(child, "$path[$index]", notices) }
-            else -> Unit
         }
     }
 

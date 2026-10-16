@@ -102,6 +102,18 @@ internal object CatalogKeyRenames {
         return sites
     }
 
+    /** The renamed positions in one template document at [path] ([CatalogDocumentMigration]). */
+    fun documentSites(
+        document: JsonNode?,
+        path: String,
+    ): List<Site> = mutableListOf<Site>().also { documentSites(document, path, it) }
+
+    /** The renamed position in one style map at [path]: its `fontFamily` reference. */
+    fun styleSites(
+        styles: JsonNode?,
+        path: String,
+    ): List<Site> = mutableListOf<Site>().also { fontSite(styles, path, it) }
+
     /**
      * A template document's theme reference, the props of its stencil and image nodes, and the font
      * references in its document and node styles.

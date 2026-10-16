@@ -244,6 +244,10 @@
             "object",
             "null"
           ]
+        },
+        "readsTemplateData": {
+          "type": "boolean",
+          "description": "The stencil's content also sees the using template's data and loop variables (ADR 0006). Absent means false."
         }
       },
       "required": [

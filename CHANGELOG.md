@@ -11,6 +11,15 @@ libraries.
 
 ### Added
 
+- **Stencils by reference, with lexical scope (ADR 0006), catalog side.** A stencil declares
+  `readsTemplateData` (wire v8, default `false`, left out of the JSON when false and not covered by
+  the legacy fingerprint algorithms) when its content also sees the using template's data. The
+  template validator accepts `readsTemplateData` on a stencil node, and `passParameters` and
+  `parametersAs` on a placeholder (a placeholder that passes the stencil's parameters to its fill,
+  under a name following the `paramsAlias` rules). `CatalogDocumentMigration` migrates one stored
+  template document or style map from wire v7 to v8 exactly as the archive migration does inside a
+  resource, so a producer's store and an archive migrate alike.
+
 - **Catalog versions: several drafts at once, released in place** (ADR 0002). A catalog consists
   of versions, each a `draft` or `released`, addressed as
   `…/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}`. `listCatalogVersions`,

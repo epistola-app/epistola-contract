@@ -16,6 +16,7 @@ import tools.jackson.databind.node.ObjectNode
  * | a template's data examples | `key` (assigned from the name by [CatalogV7ToV8Migration]) |
  * | a template | `description` |
  * | a template's variants | `metadata` |
+ * | a stencil | `readsTemplateData` |
  *
  * V1 to V4 canonicalize a resource as a catalog-v7 producer serialized it, so they leave these out:
  * otherwise a key the migration derived would move every fingerprint a v7 producer published. V5
@@ -24,7 +25,12 @@ import tools.jackson.databind.node.ObjectNode
 internal object CatalogV8Additions {
     /** A copy of [resource], a resource payload, without the members wire v8 added. */
     fun withoutAdditions(resource: JsonNode): JsonNode {
-        if (resource !is ObjectNode || resource["type"]?.takeIf { it.isString }?.asString() != "template") return resource
+        if (resource !is ObjectNode) return resource
+        when (resource["type"]?.takeIf { it.isString }?.asString()) {
+            "template" -> Unit
+            "stencil" -> return resource.deepCopy().apply { remove("readsTemplateData") }
+            else -> return resource
+        }
         val copy = resource.deepCopy()
         copy.remove("description")
         (copy["dataExamples"] as? ArrayNode)?.forEach { (it as? ObjectNode)?.remove("key") }
