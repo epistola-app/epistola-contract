@@ -41,7 +41,7 @@ needs a new wire version:
 
 - Add new versioned schemas and keep the previous ones.
 - Bump `CatalogWireSchema.CURRENT_VERSION` and add an explicit migration that repairs with notices.
-  What an archive cannot say for itself (the namespace of a v7 archive) comes from the caller through
+  What an archive cannot say for itself (the registry and namespace of a v7 archive) comes from the caller through
   `CatalogMigrationOptions`; without it the migration reports a finding and never invents a value.
 - When a migration rewrites or removes content a fingerprint covers (v7 keywords, v8 stencil
   versions), the old fingerprint must still verify against the source content

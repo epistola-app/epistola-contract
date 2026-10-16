@@ -15,7 +15,7 @@ import app.epistola.client.api.TemplatesApi
  *
  * ```kotlin
  * val validator = TemplateSchemaValidator(templatesApi)
- * validator.validate("my-tenant", "default", "my-template", myDataMap)
+ * validator.validate("my-tenant", TemplateDataValidator.DEFAULT_REGISTRY, "acme-corp", "default", "my-template", myDataMap)
  * ```
  *
  * To have the check run in-process instead, pass an implementation of [TemplateDataValidator] built
@@ -40,7 +40,9 @@ class TemplateSchemaValidator(private val validator: TemplateDataValidator) {
      * Validates [data] against the data contract of the specified template.
      *
      * @param tenantId Tenant identifier.
-     * @param namespace Namespace of the template's catalog.
+     * @param registry Registry of the template's catalog, as its path segment: `~` for the server's
+     *   default registry, or the registry in full (`acme.com`).
+     * @param namespace Namespace of the template's catalog within [registry].
      * @param catalogKey Key of the template's catalog within [namespace].
      * @param templateId Template identifier.
      * @param data The data object (typically a `Map<String, Any?>`) to validate.
@@ -49,8 +51,8 @@ class TemplateSchemaValidator(private val validator: TemplateDataValidator) {
      *   the server and the call fails — including against a server older than contract 1.4.0,
      *   which does not offer `validateTemplateData`.
      */
-    fun validate(tenantId: String, namespace: String, catalogKey: String, templateId: String, data: Any) {
-        val errors = validator.validate(tenantId, namespace, catalogKey, templateId, data)
+    fun validate(tenantId: String, registry: String, namespace: String, catalogKey: String, templateId: String, data: Any) {
+        val errors = validator.validate(tenantId, registry, namespace, catalogKey, templateId, data)
         if (errors.isNotEmpty()) {
             throw TemplateDataValidationException(errors)
         }

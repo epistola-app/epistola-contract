@@ -87,7 +87,8 @@ class ResultCollectorTest {
                 "sequence" to 100,
                 "requestId" to "r1",
                 "status" to "COMPLETED",
-                "namespace" to "exchange.example.org/team-a",
+                "registry" to "exchange.example.org",
+                "namespace" to "team-a",
                 "catalogKey" to "letters",
                 "releaseVersion" to "1.4.0",
             ),
@@ -97,6 +98,7 @@ class ResultCollectorTest {
                 "sequence" to 101,
                 "requestId" to "r2",
                 "status" to "COMPLETED",
+                "registry" to null,
                 "namespace" to null,
                 "catalogKey" to null,
                 "releaseVersion" to null,
@@ -106,9 +108,11 @@ class ResultCollectorTest {
 
         buildCollector(restClient) { results.add(it) }.collectOnce()
 
-        assertEquals("exchange.example.org/team-a", results[0].namespace)
+        assertEquals("exchange.example.org", results[0].registry)
+        assertEquals("team-a", results[0].namespace)
         assertEquals("letters", results[0].catalogKey)
         assertEquals("1.4.0", results[0].releaseVersion)
+        assertNull(results[1].registry)
         assertNull(results[1].namespace)
         assertNull(results[1].catalogKey)
         assertNull(results[1].releaseVersion)

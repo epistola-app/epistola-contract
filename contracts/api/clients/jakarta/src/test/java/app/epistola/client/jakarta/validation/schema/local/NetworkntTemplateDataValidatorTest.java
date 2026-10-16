@@ -61,11 +61,11 @@ class NetworkntTemplateDataValidatorTest {
     private TemplatesApi templatesApi(Object schema) {
         return FakeApis.of(TemplatesApi.class, Map.of("getTemplate", args -> {
             fetches.incrementAndGet();
-            assertEquals("1.4.0", args[3], "the schema is read from the configured catalog version");
+            assertEquals("1.4.0", args[4], "the schema is read from the configured catalog version");
             return new TemplateDto()
-                    .slug((String) args[4])
+                    .slug((String) args[5])
                     .tenantId((String) args[0])
-                    .name((String) args[4])
+                    .name((String) args[5])
                     .schema(schema);
         }));
     }
@@ -74,7 +74,7 @@ class NetworkntTemplateDataValidatorTest {
     void valid_data_yields_no_findings() {
         NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(INVOICE_SCHEMA), "1.4.0");
 
-        assertEquals(List.of(), validator.validate("acme-corp", "acme-corp", "default", "invoice", VALID_DATA));
+        assertEquals(List.of(), validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", VALID_DATA));
     }
 
     @Test
@@ -84,7 +84,7 @@ class NetworkntTemplateDataValidatorTest {
                 "customer", Map.of("name", "", "email", "jane@example.com"),
                 "invoiceNumber", "INV-2026-001");
 
-        List<ValidationError> findings = validator.validate("acme-corp", "acme-corp", "default", "invoice", data);
+        List<ValidationError> findings = validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", data);
 
         // The regression this guards: networknt's default renders `$.customer.name`.
         assertEquals(1, findings.size());
@@ -101,7 +101,7 @@ class NetworkntTemplateDataValidatorTest {
                 "invoiceNumber", "INV-2026-001",
                 "lineItems", List.of(Map.of("quantity", 0)));
 
-        List<ValidationError> findings = validator.validate("acme-corp", "acme-corp", "default", "invoice", data);
+        List<ValidationError> findings = validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", data);
 
         assertEquals("/lineItems/0/quantity", findings.get(0).getPath());
         assertEquals("minimum", findings.get(0).getKeyword());
@@ -117,22 +117,22 @@ class NetworkntTemplateDataValidatorTest {
         // Not a defect in the adapter: under 2020-12 `format` is an annotation, not an assertion.
         // It is recorded because it is the clearest case of a local engine reaching a different
         // answer than Epistola will, and the reason ServerTemplateDataValidator is the default.
-        assertEquals(List.of(), validator.validate("acme-corp", "acme-corp", "default", "invoice", data));
+        assertEquals(List.of(), validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", data));
     }
 
     @Test
     void a_template_without_a_schema_claims_nothing_about_the_data() {
         NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(null), "1.4.0");
 
-        assertEquals(List.of(), validator.validate("acme-corp", "acme-corp", "default", "invoice", Map.of("anything", 1)));
+        assertEquals(List.of(), validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", Map.of("anything", 1)));
     }
 
     @Test
     void the_schema_is_fetched_once_and_reused() {
         NetworkntTemplateDataValidator validator = new NetworkntTemplateDataValidator(templatesApi(INVOICE_SCHEMA), "1.4.0");
 
-        validator.validate("acme-corp", "acme-corp", "default", "invoice", VALID_DATA);
-        validator.validate("acme-corp", "acme-corp", "default", "invoice", VALID_DATA);
+        validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", VALID_DATA);
+        validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", VALID_DATA);
 
         // Without the cache a "local" validator costs a round trip per call, which is worse than
         // asking the server to validate outright.

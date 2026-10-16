@@ -7,21 +7,24 @@ import { test } from 'node:test'
 import { CONTRACT_OPERATIONS, findOperation, operationPath } from '../../src/index.js'
 
 test('a listing operation asks for the success type and the problem document, in that order', () => {
-  const operation = findOperation('GET', '/tenants/acme-corp/catalogs/acme-corp/main/versions/1.0.0/templates')!
+  const operation = findOperation('GET', '/tenants/acme-corp/catalogs/~/acme-corp/main/versions/1.0.0/templates')!
   assert.equal(operation.operationId, 'listTemplates')
   assert.equal(operation.accept, 'application/vnd.epistola.v1+json, application/problem+json')
   assert.equal(operation.contentType, undefined)
 })
 
-test('a catalog is addressed by namespace and key, the namespace in its path-segment form', () => {
-  assert.equal(findOperation('GET', '/tenants/acme/catalogs/exchange.example.org~team-a/letters/versions/1.4.1/dependencies')!.operationId, 'listCatalogDependencies')
-  assert.equal(findOperation('PUT', '/tenants/acme/catalogs/acme.com/letters/versions/2.0.0-rc.1/dependencies')!.operationId, 'updateCatalogDependencies')
-  assert.equal(findOperation('PUT', '/tenants/acme/environments/production/deployments/acme-corp/letters/1.4.0')!.operationId, 'deployRelease')
-  assert.equal(findOperation('DELETE', '/tenants/acme/environments/production/deployments/acme-corp/letters/1.4.0')!.operationId, 'undeployRelease')
+test('a catalog is addressed by registry, namespace and key, the default registry as ~ or %7E', () => {
+  assert.equal(findOperation('GET', '/tenants/acme/catalogs/exchange.example.org/team-a/letters/versions/1.4.1/dependencies')!.operationId, 'listCatalogDependencies')
+  assert.equal(findOperation('PUT', '/tenants/acme/catalogs/~/acme/letters/versions/2.0.0-rc.1/dependencies')!.operationId, 'updateCatalogDependencies')
+  assert.equal(findOperation('PUT', '/tenants/acme/catalogs/%7E/acme/letters/versions/2.0.0-rc.1/dependencies')!.operationId, 'updateCatalogDependencies')
+  assert.equal(findOperation('PUT', '/tenants/acme/environments/production/deployments/~/acme-corp/letters/1.4.0')!.operationId, 'deployRelease')
+  assert.equal(findOperation('DELETE', '/tenants/acme/environments/production/deployments/acme.com/acme/letters/1.4.0')!.operationId, 'undeployRelease')
+  // Without the registry segment a catalog path addresses nothing.
+  assert.equal(findOperation('GET', '/tenants/acme/catalogs/team-a/letters/versions/1.4.1/dependencies'), undefined)
 })
 
 test('a catalog version is addressed by its number, and its sub-resources by literal segments', () => {
-  const base = '/tenants/acme/catalogs/acme-corp/letters/versions'
+  const base = '/tenants/acme/catalogs/~/acme-corp/letters/versions'
   assert.equal(findOperation('GET', base)!.operationId, 'listCatalogVersions')
   assert.equal(findOperation('POST', base)!.operationId, 'createCatalogVersion')
   assert.equal(findOperation('GET', `${base}/1.4.0`)!.operationId, 'getCatalogVersion')
@@ -32,10 +35,10 @@ test('a catalog version is addressed by its number, and its sub-resources by lit
   assert.equal(findOperation('GET', `${base}/2.0.0/incoming`)!.operationId, 'listIncomingChanges')
   assert.equal(findOperation('POST', `${base}/2.0.0/incoming/chg-1/resolve`)!.operationId, 'resolveIncomingChange')
   // Data validation stayed on the catalog: it checks against a release, not a version's content.
-  assert.equal(findOperation('POST', '/tenants/acme/catalogs/acme-corp/letters/templates/invoice/validate')!.operationId, 'validateTemplateData')
+  assert.equal(findOperation('POST', '/tenants/acme/catalogs/~/acme-corp/letters/templates/invoice/validate')!.operationId, 'validateTemplateData')
   // The release operations that versions replaced are gone.
-  assert.equal(findOperation('POST', '/tenants/acme/catalogs/acme-corp/letters/release'), undefined)
-  assert.equal(findOperation('GET', '/tenants/acme/catalogs/acme-corp/letters/releases'), undefined)
+  assert.equal(findOperation('POST', '/tenants/acme/catalogs/~/acme-corp/letters/release'), undefined)
+  assert.equal(findOperation('GET', '/tenants/acme/catalogs/~/acme-corp/letters/releases'), undefined)
 })
 
 test('ping declares no error responses, so only the success type is asked for', () => {

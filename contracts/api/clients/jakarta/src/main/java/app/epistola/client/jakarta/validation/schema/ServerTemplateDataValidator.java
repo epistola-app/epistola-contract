@@ -56,7 +56,7 @@ public class ServerTemplateDataValidator implements TemplateDataValidator {
 
     @Override
     public List<TemplateDataValidationException.ValidationError> validate(
-            String tenantId, String namespace, String catalogKey, String templateId, Object data) {
+            String tenantId, String registry, String namespace, String catalogKey, String templateId, Object data) {
 
         ValidateTemplateDataRequest request = new ValidateTemplateDataRequest();
         request.setData(data);
@@ -65,7 +65,7 @@ public class ServerTemplateDataValidator implements TemplateDataValidator {
         request.setEnvironmentId(environmentId);
 
         TemplateDataValidationResult result =
-                templatesApi.validateTemplateData(tenantId, namespace, catalogKey, templateId, request);
+                templatesApi.validateTemplateData(tenantId, registry, namespace, catalogKey, templateId, request);
         if (result == null) {
             return Collections.emptyList();
         }

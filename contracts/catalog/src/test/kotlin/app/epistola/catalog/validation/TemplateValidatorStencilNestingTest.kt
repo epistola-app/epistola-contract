@@ -223,7 +223,7 @@ class TemplateValidatorStencilNestingTest {
     @Test
     fun `same slug in another namespace is not self reference`() {
         val nested = stencil("nested", "letter", listOf("nested-children")).copy(
-            props = mapOf("namespace" to "acme.com", "stencilId" to "letter"),
+            props = mapOf("namespace" to "acme", "stencilId" to "letter"),
         )
         val document = template(
             nodes = listOf(nested),
@@ -231,8 +231,8 @@ class TemplateValidatorStencilNestingTest {
             rootChildren = listOf(nested.id),
         )
 
-        val own = TemplateValidator.validate(document, TemplateValidationContext.forStencil("letter", "default", "exchange.epistola.app/epistola"))
-        val sameNamespace = TemplateValidator.validate(document, TemplateValidationContext.forStencil("letter", "default", "acme.com"))
+        val own = TemplateValidator.validate(document, TemplateValidationContext.forStencil("letter", "default", "epistola", "exchange.epistola.app"))
+        val sameNamespace = TemplateValidator.validate(document, TemplateValidationContext.forStencil("letter", "default", "acme", "exchange.epistola.app"))
 
         assertTrue(own.valid, own.findings.toString())
         assertEquals(
@@ -242,24 +242,51 @@ class TemplateValidatorStencilNestingTest {
     }
 
     @Test
-    fun `stencil references carry no version and name a namespace in either form`() {
+    fun `same namespace and slug in another registry is not self reference`() {
+        val nested = stencil("nested", "letter", listOf("nested-children")).copy(
+            props = mapOf("registry" to "acme.com", "namespace" to "epistola", "stencilId" to "letter"),
+        )
+        val document = template(
+            nodes = listOf(nested),
+            slots = listOf(Slot("nested-children", nested.id, "children")),
+            rootChildren = listOf(nested.id),
+        )
+
+        val own = TemplateValidator.validate(document, TemplateValidationContext.forStencil("letter", "default", "epistola", "exchange.epistola.app"))
+        val sameRegistry = TemplateValidator.validate(document, TemplateValidationContext.forStencil("letter", "default", "epistola", "acme.com"))
+
+        assertTrue(own.valid, own.findings.toString())
+        assertEquals(
+            listOf("nodes.nested.props.stencilId"),
+            sameRegistry.findings.filter { it.code == STENCIL_RECURSION }.map { it.path },
+        )
+    }
+
+    @Test
+    fun `stencil references carry no version and name a registry only with a namespace`() {
         val versioned = stencil("versioned", "address", listOf("versioned-children")).copy(
             props = mapOf("stencilId" to "address", "version" to 1, "draftVersion" to 2),
         )
-        val shortNamespace = stencil("short-namespace", "contact", listOf("short-children")).copy(
+        val namespaced = stencil("namespaced", "contact", listOf("namespaced-children")).copy(
             props = mapOf("stencilId" to "contact", "namespace" to "acme-corp"),
         )
-        val invalidNamespace = stencil("invalid-namespace", "footer", listOf("invalid-children")).copy(
-            props = mapOf("stencilId" to "footer", "namespace" to "Not Valid"),
+        val qualified = stencil("qualified", "header", listOf("qualified-children")).copy(
+            props = mapOf("stencilId" to "header", "registry" to "acme.com", "namespace" to "acme"),
         )
+        val invalidNamespace = stencil("invalid-namespace", "footer", listOf("invalid-children")).copy(
+            props = mapOf("stencilId" to "footer", "namespace" to "acme.com/acme"),
+        )
+        val invalidRegistry = stencil("invalid-registry", "footer", listOf("invalid-registry-children")).copy(
+            props = mapOf("stencilId" to "footer", "registry" to "~", "namespace" to "acme"),
+        )
+        val registryOnly = stencil("registry-only", "footer", listOf("registry-only-children")).copy(
+            props = mapOf("stencilId" to "footer", "registry" to "acme.com"),
+        )
+        val nodes = listOf(versioned, namespaced, qualified, invalidNamespace, invalidRegistry, registryOnly)
         val document = template(
-            nodes = listOf(versioned, shortNamespace, invalidNamespace),
-            slots = listOf(
-                Slot("versioned-children", versioned.id, "children"),
-                Slot("short-children", shortNamespace.id, "children"),
-                Slot("invalid-children", invalidNamespace.id, "children"),
-            ),
-            rootChildren = listOf(versioned.id, shortNamespace.id, invalidNamespace.id),
+            nodes = nodes,
+            slots = nodes.map { Slot(it.slots.single(), it.id, "children") },
+            rootChildren = nodes.map { it.id },
         )
 
         val report = TemplateValidator.validate(document, TemplateValidationContext.forStencil("letter", "default"))
@@ -269,6 +296,8 @@ class TemplateValidatorStencilNestingTest {
                 TEMPLATE_NODE_PROPERTY_INVALID to "nodes.versioned.props.draftVersion",
                 TEMPLATE_NODE_PROPERTY_INVALID to "nodes.versioned.props.version",
                 STENCIL_REFERENCE_INVALID to "nodes.invalid-namespace.props.namespace",
+                STENCIL_REFERENCE_INVALID to "nodes.invalid-registry.props.registry",
+                STENCIL_REFERENCE_INVALID to "nodes.registry-only.props.namespace",
             ).sortedBy { it.second },
             report.findings.map { it.code to it.path }.sortedBy { it.second },
         )
@@ -300,9 +329,9 @@ class TemplateValidatorStencilNestingTest {
     }
 
     @Test
-    fun `stencil reference passes its catalog and namespace to the resolver`() {
+    fun `stencil reference passes its catalog, namespace and registry to the resolver`() {
         val qualified = stencil("qualified", "address", listOf("qualified-children")).copy(
-            props = mapOf("stencilId" to "address", "catalogKey" to "shared", "namespace" to "acme.com"),
+            props = mapOf("stencilId" to "address", "catalogKey" to "shared", "namespace" to "acme", "registry" to "acme.com"),
         )
         val document = template(
             nodes = listOf(qualified),
@@ -322,7 +351,7 @@ class TemplateValidatorStencilNestingTest {
             },
         )
 
-        assertEquals(CatalogResourceReference("stencil", "address", "shared", "acme.com"), resolved)
+        assertEquals(CatalogResourceReference("stencil", "address", "shared", "acme", "acme.com"), resolved)
         assertEquals(
             listOf(STENCIL_REFERENCE_NOT_FOUND to "nodes.qualified.props.stencilId"),
             report.findings.map { it.code to it.path },
@@ -418,11 +447,11 @@ class TemplateValidatorStencilNestingTest {
                 document.copy(
                     nodes = document.nodes + (
                         node.id to node.copy(
-                            props = node.props.orEmpty() + ("namespace" to "acme.com"),
+                            props = node.props.orEmpty() + ("namespace" to "acme"),
                         )
                         ),
                 ),
-                TemplateValidationContext.forStencil("letter", "default", "exchange.epistola.app/epistola"),
+                TemplateValidationContext.forStencil("letter", "default", "epistola", "exchange.epistola.app"),
             )
         }
         "STENCIL_DEFINITION_EXCEEDS_DEPTH" ->

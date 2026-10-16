@@ -85,6 +85,9 @@
     "CatalogInfo": {
       "type": "object",
       "properties": {
+        "registry": {
+          "$ref": "#/$defs/CatalogRegistry"
+        },
         "namespace": {
           "$ref": "#/$defs/CatalogNamespace"
         },
@@ -146,18 +149,25 @@
         }
       },
       "required": [
+        "registry",
         "namespace",
         "slug",
         "name"
       ],
       "additionalProperties": false
     },
+    "CatalogRegistry": {
+      "description": "The registry a catalog's namespace lives in: an exchange (exchange.epistola.app) or a domain that publishes its own catalogs (acme.com), as a lowercase DNS name in normal order. Always written in full: an archive has no default registry, which is installation configuration.",
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
+    },
     "CatalogNamespace": {
-      "description": "A catalog namespace written in full: a domain (acme.com), or a namespace on an exchange written host/name (exchange.epistola.app/acme-corp). Never the short form, which depends on the installation's default exchange.",
+      "description": "A catalog namespace within its registry, as a lowercase kebab-case slug (acme-corp). The same name in two registries is two different namespaces.",
       "type": "string",
       "minLength": 3,
-      "maxLength": 320,
-      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?$"
+      "maxLength": 63,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
     },
     "CatalogKeyword": {
       "description": "Lowercase ASCII letters and digits in hyphen-separated parts, at most 30 characters.",
@@ -354,7 +364,7 @@
       "additionalProperties": false
     },
     "DependencyRef": {
-      "description": "Every dependency names a catalog (namespace and key) from wire v8, so this is exactly CatalogDependencyRef. A dependency carries no version; the catalog it names must be declared in catalogDependencies.",
+      "description": "Every dependency names a catalog (registry, namespace and key) from wire v8, so this is exactly CatalogDependencyRef. A dependency carries no version; the catalog it names must be declared in catalogDependencies.",
       "oneOf": [
         {
           "$ref": "#/$defs/CatalogDependencyRef"
@@ -372,6 +382,9 @@
             "font",
             "image"
           ]
+        },
+        "registry": {
+          "$ref": "#/$defs/CatalogRegistry"
         },
         "namespace": {
           "$ref": "#/$defs/CatalogNamespace"
@@ -391,6 +404,7 @@
       },
       "required": [
         "type",
+        "registry",
         "namespace",
         "catalogKey",
         "slug"
@@ -401,6 +415,9 @@
       "description": "A catalog this catalog depends on, declared once. References from this catalog's resources into it carry no version: they render with the release this declaration resolves to.",
       "type": "object",
       "properties": {
+        "registry": {
+          "$ref": "#/$defs/CatalogRegistry"
+        },
         "namespace": {
           "$ref": "#/$defs/CatalogNamespace"
         },
@@ -417,21 +434,52 @@
           "maxLength": 100
         },
         "releaseVersion": {
-          "description": "The exact release of the dependency this archive's release was cut with. Null only for a catalog migrated from wire v7 or earlier.",
+          "description": "The exact release of the dependency this archive's release was cut with. Null only for a catalog migrated from wire v7 or earlier, and then releaseFingerprint is null too.",
           "type": [
             "string",
             "null"
           ],
           "minLength": 1,
           "maxLength": 100
+        },
+        "releaseFingerprint": {
+          "description": "The canonical fingerprint (current algorithm, lowercase SHA-256 hex) of the release releaseVersion names, so a copy of that release fetched from any registry or mirror can be checked. Null exactly when releaseVersion is null.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
         }
       },
       "required": [
+        "registry",
         "namespace",
         "catalogKey",
         "version",
-        "releaseVersion"
+        "releaseVersion",
+        "releaseFingerprint"
       ],
+      "if": {
+        "properties": {
+          "releaseVersion": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "releaseFingerprint": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "releaseFingerprint": {
+            "type": "string"
+          }
+        }
+      },
       "additionalProperties": false
     }
   }

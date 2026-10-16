@@ -17,6 +17,7 @@ action:
   config:
     nodeId: conformance-node-1
     tenantId: acme-corp
+    registry: "~"
     namespace: acme-corp
     catalogKey: letters
     catalogVersion: 1.5.0
@@ -44,7 +45,7 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions/1.5.0/renumber-preview
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/1.5.0/renumber-preview
       queryParams:
         to: 2.1.0
   report:

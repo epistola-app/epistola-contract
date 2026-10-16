@@ -4,6 +4,7 @@
 
 package app.epistola.catalog.protocol
 
+import app.epistola.template.model.ThemeRefOverride
 import tools.jackson.databind.JsonNode
 import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
@@ -53,31 +54,37 @@ class CatalogWireParityTest {
         val manifest = fixture("wire-v8/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
         val detail = fixture("wire-v8/resources/theme/default.json").use { mapper.readValue(it, ResourceDetail::class.java) }
 
-        assertEquals("exchange.epistola.app/epistola", manifest.catalog.namespace)
-        assertEquals(listOf(CatalogDependency("exchange.epistola.app/epistola", "shared", "^1.2.0", "1.4.0")), manifest.catalogDependencies)
+        assertEquals("exchange.epistola.app", manifest.catalog.registry)
+        assertEquals("epistola", manifest.catalog.namespace)
+        assertEquals(listOf(CatalogDependency("exchange.epistola.app", "epistola", "shared", "^1.2.0", "1.4.0", "69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42")), manifest.catalogDependencies)
         assertEquals(manifest, mapper.readValue(mapper.writeValueAsBytes(manifest), CatalogManifest::class.java))
         assertEquals(detail, mapper.readValue(mapper.writeValueAsBytes(detail), ResourceDetail::class.java))
     }
 
     @Test
-    fun `the model binds documents stored under v7, which name no namespace and pin stencil versions`() {
+    fun `the model binds documents stored under v7, which name no registry or namespace and pin stencil versions`() {
         val manifest = fixture("migrations/v7-to-v8/manifest-input.json").use { mapper.readValue(it, CatalogManifest::class.java) }
         val stencil = fixture("migrations/v7-to-v8/stencil-input.json").use { mapper.readValue(it, ResourceDetail::class.java) }
 
+        assertEquals(null, manifest.catalog.registry)
         assertEquals(null, manifest.catalog.namespace)
         assertEquals(null, manifest.catalogDependencies)
-        assertTrue(manifest.dependencies.orEmpty().all { it.namespace == null })
+        assertTrue(manifest.dependencies.orEmpty().all { it.registry == null && it.namespace == null })
         assertEquals("letter", stencil.resource.slug)
     }
 
     @Test
-    fun `optional content namespaces are omitted when absent so earlier fingerprints still reproduce`() {
+    fun `optional content registries and namespaces are omitted when absent so earlier fingerprints still reproduce`() {
         val binding = mapper.valueToTree<JsonNode>(CodeListBindingRef(slug = "countries"))
         val font = mapper.valueToTree<JsonNode>(FontRef(slug = "inter"))
+        val theme = mapper.valueToTree<JsonNode>(ThemeRefOverride("corporate"))
 
-        assertTrue(!binding.has("namespace"), binding.toString())
-        assertTrue(!font.has("namespace"), font.toString())
-        assertEquals("acme.com", mapper.valueToTree<JsonNode>(CodeListBindingRef(slug = "x", namespace = "acme.com"))["namespace"].asString())
+        listOf(binding, font, theme).forEach { node ->
+            assertTrue(!node.has("namespace") && !node.has("registry"), node.toString())
+        }
+        val qualified = mapper.valueToTree<JsonNode>(CodeListBindingRef(slug = "x", namespace = "acme", registry = "acme.com"))
+        assertEquals("acme", qualified["namespace"].asString())
+        assertEquals("acme.com", qualified["registry"].asString())
     }
 
     @Test

@@ -49,7 +49,7 @@ class ValidatingGenerationApiTest {
 
     /** A validator that answers in-process, so it takes the pre-flight. */
     private TemplateDataValidator local(String... paths) {
-        return (tenantId, namespace, catalogKey, templateId, data) -> {
+        return (tenantId, registry, namespace, catalogKey, templateId, data) -> {
             validations.incrementAndGet();
             List<ValidationError> findings = new ArrayList<>();
             for (String path : paths) {
@@ -182,15 +182,15 @@ class ValidatingGenerationApiTest {
     }
 
     /**
-     * A body writes a namespace on a non-default exchange with {@code /}; the validator puts it in a
-     * URL path, where the contract writes it with {@code ~}. Handing the body form through would
-     * percent-encode the slash and address a catalog that does not exist.
+     * A body may leave {@code registry} unset, meaning the server's default registry; the validator
+     * puts it in a URL path, which cannot leave the segment out and writes the default as
+     * {@code ~}. A registry the body names is handed through as it is, and never filled in.
      */
     @Test
-    void the_preflight_hands_the_validator_the_path_form_of_the_namespace() {
-        List<String> namespaces = new ArrayList<>();
-        TemplateDataValidator recording = (tenantId, namespace, catalogKey, templateId, data) -> {
-            namespaces.add(namespace + "|" + catalogKey);
+    void the_preflight_hands_the_validator_the_path_form_of_the_registry() {
+        List<String> catalogs = new ArrayList<>();
+        TemplateDataValidator recording = (tenantId, registry, namespace, catalogKey, templateId, data) -> {
+            catalogs.add(registry + "|" + namespace + "|" + catalogKey);
             return List.of();
         };
         ValidatingGenerationApi api = new ValidatingGenerationApi(generationApi(null), recording);
@@ -198,7 +198,8 @@ class ValidatingGenerationApiTest {
         api.generateDocument(
                 "acme-corp",
                 new GenerateDocumentRequest()
-                        .namespace("exchange.example.org/team-a")
+                        .registry("exchange.example.org")
+                        .namespace("team-a")
                         .catalogKey("letters")
                         .templateId("invoice")
                         .data(Map.of()));
@@ -207,31 +208,31 @@ class ValidatingGenerationApiTest {
                 new GenerateBatchRequest()
                         .items(List.of(
                                 new BatchGenerationItem()
-                                        .namespace("exchange.example.org/team-a")
+                                        .registry("exchange.example.org")
+                                        .namespace("team-a")
                                         .catalogKey("letters")
                                         .templateId("invoice")
                                         .data(Map.of()),
                                 new BatchGenerationItem()
-                                        .namespace("acme.com")
+                                        .namespace("acme")
                                         .catalogKey("house-style")
                                         .templateId("invoice")
                                         .data(Map.of()))));
 
         assertEquals(
                 List.of(
-                        "exchange.example.org~team-a|letters",
-                        "exchange.example.org~team-a|letters",
-                        "acme.com|house-style"),
-                namespaces);
+                        "exchange.example.org|team-a|letters",
+                        "exchange.example.org|team-a|letters",
+                        "~|acme|house-style"),
+                catalogs);
     }
 
     @Test
-    void the_path_form_only_replaces_the_exchange_separator() {
-        assertEquals("exchange.example.org~team-a", ValidatingGenerationApi.pathSegment("exchange.example.org/team-a"));
-        assertEquals("acme-corp", ValidatingGenerationApi.pathSegment("acme-corp"));
+    void the_path_form_writes_only_an_unset_registry_as_the_default() {
+        assertEquals("~", ValidatingGenerationApi.pathSegment(null));
         assertEquals("acme.com", ValidatingGenerationApi.pathSegment("acme.com"));
-        assertEquals("exchange.example.org~team-a", ValidatingGenerationApi.pathSegment("exchange.example.org~team-a"));
-        assertEquals(null, ValidatingGenerationApi.pathSegment(null));
+        assertEquals("exchange.epistola.app", ValidatingGenerationApi.pathSegment("exchange.epistola.app"));
+        assertEquals("~", ValidatingGenerationApi.pathSegment("~"));
     }
 
     @Test

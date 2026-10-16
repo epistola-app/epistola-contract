@@ -41,8 +41,9 @@ fun interface TemplateDataValidator {
      * there are none.
      *
      * @param tenantId Tenant identifier.
-     * @param namespace Namespace of the template's catalog, in its path-segment form (`acme-corp`,
-     *   `acme.com`, or `exchange.example.org~team-a`).
+     * @param registry Registry of the template's catalog, as its path segment: `~` for the server's
+     *   default registry, or the registry in full (`acme.com`, `exchange.example.org`).
+     * @param namespace Namespace of the template's catalog within [registry] (`acme-corp`).
      * @param catalogKey Key of the template's catalog within [namespace]. The same template id in
      *   two catalogs of one tenant is two different templates with two different contracts.
      * @param templateId Template identifier.
@@ -50,6 +51,7 @@ fun interface TemplateDataValidator {
      */
     fun validate(
         tenantId: String,
+        registry: String,
         namespace: String,
         catalogKey: String,
         templateId: String,
@@ -70,4 +72,12 @@ fun interface TemplateDataValidator {
      */
     val preflightsGeneration: Boolean
         get() = true
+
+    companion object {
+        /**
+         * The `registry` path segment that addresses the server's default registry, `~`. A request
+         * body that leaves `registry` out means the same registry.
+         */
+        const val DEFAULT_REGISTRY: String = "~"
+    }
 }

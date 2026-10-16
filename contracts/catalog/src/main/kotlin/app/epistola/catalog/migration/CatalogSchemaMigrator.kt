@@ -5,13 +5,13 @@
 package app.epistola.catalog.migration
 
 import app.epistola.catalog.archive.ArchiveContentProvider
+import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogNamespaces
 import app.epistola.catalog.protocol.KeywordRule
 import app.epistola.catalog.protocol.ResourceDetail
 import tools.jackson.core.JacksonException
-import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jsonMapper
@@ -33,15 +33,25 @@ object CatalogWireSchema {
 /**
  * What the caller knows about a catalog that its archive does not say.
  *
- * @property namespace the namespace to give a catalog migrated from wire v7 or earlier, which names
- *   none. Written in full ([app.epistola.catalog.protocol.CatalogNamespaces.FULL_PATTERN]); an
- *   importer typically chooses the tenant's own. Ignored for an archive at wire v8 or later, which
- *   names its own. Without it, migrating such an archive fails with
- *   [CatalogMigrationCodes.NAMESPACE_MISSING]: a namespace is identity, and the migrator never
- *   invents one.
+ * A catalog migrated from wire v7 or earlier names neither its registry nor its namespace, and both
+ * are identity: an importer typically chooses the tenant's own namespace in its installation's
+ * registry. Both are ignored for an archive at wire v8 or later, which names its own. Without
+ * either, migrating such an archive fails with [CatalogMigrationCodes.REGISTRY_MISSING] or
+ * [CatalogMigrationCodes.NAMESPACE_MISSING]; the migrator never invents one.
+ *
+ * [namespace] comes first so that call sites written before the registry existed still compile.
+ *
+ * @property namespace the namespace to give such a catalog
+ *   ([app.epistola.catalog.protocol.CatalogNamespaces.PATTERN]).
+ * @property registry the registry to give such a catalog, written in full
+ *   ([app.epistola.catalog.protocol.CatalogNamespaces.REGISTRY_PATTERN]). An archive has no default
+ *   registry, so the caller names its default by its real name.
  */
-data class CatalogMigrationOptions(
+data class CatalogMigrationOptions
+@JvmOverloads
+constructor(
     val namespace: String? = null,
+    val registry: String? = null,
 ) {
     companion object {
         /** No caller knowledge: archives from before wire v8 cannot be migrated with these. */
@@ -131,20 +141,47 @@ object CatalogMigrationCodes {
     const val ASSET_CONTENT_UNRESOLVED = "CATALOG_ASSET_CONTENT_UNRESOLVED"
 
     /**
+     * A catalog-v7 (or earlier) archive names no registry, and the caller supplied none in
+     * [CatalogMigrationOptions.registry]. Not repairable without the caller: a registry is part of
+     * the catalog's identity, so the migrator never invents one.
+     */
+    const val REGISTRY_MISSING = "CATALOG_REGISTRY_MISSING"
+
+    /**
+     * A registry is not a DNS name written in full, whether the archive's own or the one the caller
+     * supplied for a catalog-v7 archive. Also raised when a catalog-v8 manifest or dependency names
+     * none.
+     */
+    const val REGISTRY_INVALID = "CATALOG_REGISTRY_INVALID"
+
+    /**
      * A catalog-v7 (or earlier) archive names no namespace, and the caller supplied none in
-     * [CatalogMigrationOptions.namespace]. Not repairable without the caller: a namespace is the
-     * catalog's identity, so the migrator never invents one.
+     * [CatalogMigrationOptions.namespace]. Not repairable without the caller: a namespace is part of
+     * the catalog's identity, so the migrator never invents one.
      */
     const val NAMESPACE_MISSING = "CATALOG_NAMESPACE_MISSING"
 
     /**
-     * A namespace is not written in full, whether the archive's own or the one the caller supplied
-     * for a catalog-v7 archive. Also raised when a catalog-v8 manifest or dependency names none.
+     * A namespace is not a valid slug, whether the archive's own or the one the caller supplied for
+     * a catalog-v7 archive. Also raised when a catalog-v8 manifest or dependency names none.
      */
     const val NAMESPACE_INVALID = "CATALOG_NAMESPACE_INVALID"
 
+    /**
+     * A catalog-v8 catalog dependency's `releaseFingerprint` does not pair with its `releaseVersion`:
+     * it is missing or null although a release is recorded, set although none is, or not a
+     * lowercase SHA-256 hex string.
+     */
+    const val DEPENDENCY_CATALOG_FINGERPRINT_INVALID = "CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID"
+
+    /** Notice: a catalog-v7 catalog was given the registry the caller supplied. */
+    const val REGISTRY_ASSIGNED = "CATALOG_REGISTRY_ASSIGNED"
+
     /** Notice: a catalog-v7 catalog was given the namespace the caller supplied. */
     const val NAMESPACE_ASSIGNED = "CATALOG_NAMESPACE_ASSIGNED"
+
+    /** Notice: a catalog-v7 resource dependency was given the catalog's own registry. */
+    const val DEPENDENCY_REGISTRY_ASSIGNED = "CATALOG_DEPENDENCY_REGISTRY_ASSIGNED"
 
     /** Notice: a catalog-v7 resource dependency was given the catalog's own namespace. */
     const val DEPENDENCY_NAMESPACE_ASSIGNED = "CATALOG_DEPENDENCY_NAMESPACE_ASSIGNED"
@@ -189,7 +226,7 @@ object CatalogSchemaMigrator {
      * Parses and migrates `catalog.json` to the current [CatalogManifest].
      *
      * [input] is consumed but not closed by this method. [options] supplies what an archive from
-     * before wire v8 cannot say for itself, notably its namespace.
+     * before wire v8 cannot say for itself, notably its registry and namespace.
      *
      * @throws IOException when the stream cannot be read.
      */
@@ -272,35 +309,65 @@ object CatalogSchemaMigrator {
 
     private fun schemaVersion(tree: ObjectNode): Int? = tree["schemaVersion"]?.takeIf { it.isIntegralNumber }?.asInt()
 
-    private fun validateManifestWireValues(tree: ObjectNode): List<CatalogMigrationFinding> = namespaceFindings(tree) + keywordFindings(tree)
+    private fun validateManifestWireValues(tree: ObjectNode): List<CatalogMigrationFinding> = namespaceFindings(tree) + releaseFingerprintFindings(tree) + keywordFindings(tree)
 
     /**
-     * Wire v8 requires every top-level namespace in full. The model binds a missing one, so that
-     * manifests stored under earlier versions still load; the wire check is where v8 enforces it.
+     * Wire v8 records a catalog dependency's release fingerprint exactly when it records the
+     * release. The model binds either alone, so that manifests stored without the fingerprint still
+     * load; the wire check is where v8 enforces the pairing.
+     */
+    private fun releaseFingerprintFindings(tree: ObjectNode): List<CatalogMigrationFinding> {
+        val dependencies = tree["catalogDependencies"] as? ArrayNode ?: return emptyList()
+        return dependencies.mapIndexedNotNull { index, entry ->
+            if (entry !is ObjectNode) return@mapIndexedNotNull null
+            val path = "catalog.json.catalogDependencies[$index].releaseFingerprint"
+            val release = entry["releaseVersion"]?.takeUnless { it.isNull }
+            val fingerprint = entry["releaseFingerprint"]?.takeUnless { it.isNull }
+            val message = when {
+                release == null && fingerprint != null -> "releaseFingerprint must be null when no releaseVersion is recorded"
+                release != null && fingerprint == null -> "releaseFingerprint is required when a releaseVersion is recorded"
+                fingerprint != null && !(fingerprint.isString && CatalogDependency.isValidReleaseFingerprint(fingerprint.asString())) ->
+                    "releaseFingerprint must be a lowercase SHA-256 hex string"
+                else -> null
+            }
+            message?.let { CatalogMigrationFinding(CatalogMigrationCodes.DEPENDENCY_CATALOG_FINGERPRINT_INVALID, path, it) }
+        }
+    }
+
+    /**
+     * Wire v8 requires a registry, written in full, and a namespace wherever the manifest names a
+     * catalog. The model binds missing ones, so that manifests stored under earlier versions still
+     * load; the wire check is where v8 enforces them.
      */
     private fun namespaceFindings(tree: ObjectNode): List<CatalogMigrationFinding> {
         val findings = mutableListOf<CatalogMigrationFinding>()
 
         fun check(
-            node: JsonNode?,
+            entry: ObjectNode,
             path: String,
             what: String,
         ) {
-            if (node != null && node.isString && CatalogNamespaces.isValidFull(node.asString())) return
-            findings += CatalogMigrationFinding(
-                CatalogMigrationCodes.NAMESPACE_INVALID,
-                path,
-                if (node == null || node.isNull) {
-                    "$what names no namespace"
-                } else {
-                    "$what namespace must be written in full, as a domain optionally followed by /name"
-                },
-            )
+            val registry = entry["registry"]
+            if (registry == null || !registry.isString || !CatalogNamespaces.isValidRegistry(registry.asString())) {
+                findings += CatalogMigrationFinding(
+                    CatalogMigrationCodes.REGISTRY_INVALID,
+                    "$path.registry",
+                    if (registry == null || registry.isNull) "$what names no registry" else "$what registry must be a DNS name written in full",
+                )
+            }
+            val namespace = entry["namespace"]
+            if (namespace == null || !namespace.isString || !CatalogNamespaces.isValid(namespace.asString())) {
+                findings += CatalogMigrationFinding(
+                    CatalogMigrationCodes.NAMESPACE_INVALID,
+                    "$path.namespace",
+                    if (namespace == null || namespace.isNull) "$what names no namespace" else "$what namespace must be a lowercase slug",
+                )
+            }
         }
-        (tree["catalog"] as? ObjectNode)?.let { check(it["namespace"], "catalog.json.catalog.namespace", "catalog") }
+        (tree["catalog"] as? ObjectNode)?.let { check(it, "catalog.json.catalog", "catalog") }
         listOf("dependencies", "catalogDependencies").forEach { field ->
             (tree[field] as? ArrayNode)?.forEachIndexed { index, entry ->
-                if (entry is ObjectNode) check(entry["namespace"], "catalog.json.$field[$index].namespace", "dependency")
+                if (entry is ObjectNode) check(entry, "catalog.json.$field[$index]", "dependency")
             }
         }
         return findings

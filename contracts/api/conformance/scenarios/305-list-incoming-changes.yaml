@@ -17,6 +17,7 @@ action:
   config:
     nodeId: conformance-node-1
     tenantId: acme-corp
+    registry: "~"
     namespace: acme-corp
     catalogKey: letters
     catalogVersion: 2.0.0
@@ -34,7 +35,7 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions/2.0.0/incoming
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/2.0.0/incoming
       queryParams:
         state: { absent: true }
   report:

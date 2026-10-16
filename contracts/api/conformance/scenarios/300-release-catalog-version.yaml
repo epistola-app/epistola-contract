@@ -18,6 +18,7 @@ action:
   config:
     nodeId: conformance-node-1
     tenantId: acme-corp
+    registry: "~"
     namespace: acme-corp
     catalogKey: letters
     catalogVersion: 1.5.0
@@ -48,7 +49,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions/1.5.0/release
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/1.5.0/release
       body:
         json:
           notes: Finished improvements, ahead of 2.0.0.

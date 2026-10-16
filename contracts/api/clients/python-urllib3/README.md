@@ -52,8 +52,8 @@ http = (
 )
 
 templates = TemplatesApi(http)
-# tenant, catalog namespace, catalog key, catalog version, template
-template = templates.get_template("acme", "acme", "invoices", "1.4.0", "invoice")
+# tenant, catalog registry ("~" = the server's default), namespace, key, catalog version, template
+template = templates.get_template("acme", "~", "acme", "invoices", "1.4.0", "invoice")
 ```
 
 Everything in a catalog is addressed through one of its versions, a draft or a release, by its
@@ -129,7 +129,7 @@ collector = (
         result.request_id,
         result.status,
         # The catalog release it was generated from; None for results from before contract 2.0.
-        f"{result.namespace}/{result.catalog_key}@{result.release_version}",
+        f"{result.registry}/{result.namespace}/{result.catalog_key}@{result.release_version}",
     ))
     .build()
 )
@@ -146,13 +146,15 @@ from epistola_client import ImagesApi
 
 with open("logo.png", "rb") as f:
     image = ImagesApi(http).upload_image(
-        "acme-corp", "acme-corp", "main", "2.0.0", ("logo.png", f.read()), name="Logo"
+        "acme-corp", "~", "acme-corp", "main", "2.0.0", ("logo.png", f.read()), name="Logo"
     )
 ```
 
-A catalog is addressed by its namespace and its key — here namespace `acme-corp`, key `main` — and
-an image belongs to one of its versions, here the draft `2.0.0`. In a path, a namespace on a
-non-default exchange is written with `~` in place of its `/` (`exchange.example.org~team-a`).
+A catalog is addressed by its registry, namespace and key — here the server's default registry
+`~`, namespace `acme-corp`, key `main` — and an image belongs to one of its versions, here the
+draft `2.0.0`. A registry other than the default is named in full (`exchange.example.org`,
+`acme.com`). In a request body, leave `registry` unset for the default registry; responses always
+name it in full.
 
 Bare `bytes` are sent with the field name, `file`, as their filename and with type
 `application/octet-stream`. The server then names the image `file`, and rejects it as not an image

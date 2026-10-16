@@ -1,7 +1,8 @@
 {
   "schemaVersion": 8,
   "catalog": {
-    "namespace": "exchange.epistola.app/epistola",
+    "registry": "exchange.epistola.app",
+    "namespace": "epistola",
     "slug": "fixture",
     "name": "Fixture Catalog"
   },

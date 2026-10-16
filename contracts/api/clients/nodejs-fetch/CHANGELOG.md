@@ -11,20 +11,20 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
-- **BREAKING:** a catalog is addressed by namespace and key. `TemplateDataValidator.validate`,
+- **BREAKING:** a catalog is addressed by registry, namespace and key. `TemplateDataValidator.validate`,
   `TemplateSchemaValidator.validate` and `ServerTemplateDataValidator.validate` take
-  `(tenantId, namespace, catalogKey, templateId, data)` in place of
-  `(tenantId, catalogId, templateId, data)`, the namespace in its path-segment form
-  (`exchange.example.org~team-a`). `SchemaCache.getOrLoad` / `evict` are keyed the same way.
-  `ValidatingGenerationApi` hands a pre-flighting validator the request's body-form namespace
-  rewritten to that path-segment form (`/` → `~`).
+  `(tenantId, registry, namespace, catalogKey, templateId, data)` in place of
+  `(tenantId, catalogId, templateId, data)`, the registry in its path-segment form (`~` for the
+  server's default registry, or named in full, such as `acme.com`) and the namespace a plain slug.
+  `SchemaCache.getOrLoad` / `evict` are keyed the same way. `ValidatingGenerationApi` hands a
+  pre-flighting validator the request's `registry`, or `~` when the request leaves it out or null.
 - **BREAKING:** `ServerValidationTarget` takes a `version` (a version selector such as `1.4.0` or
   `^1.4.0`, sent as the request's `version`) in place of `versionId`, matching contract 2.0's
   generation by release. It may be combined with `environmentId`; without either, the catalog's
   latest release is checked.
-- Results handed to a `ResultCollector` handler carry the template's catalog as `namespace` and
-  `catalogKey` next to `releaseVersion`; all three are null for a result accepted before
-  contract 2.0.
+- Results handed to a `ResultCollector` handler carry the template's catalog as `registry`,
+  `namespace` and `catalogKey` next to `releaseVersion`; all four are null for a result accepted
+  before contract 2.0.
 
 - **Template data is validated by the server, not by a bundled schema compiler.**
   `TemplateSchemaValidator` and `ValidatingGenerationApi` now call `validateTemplateData` through a

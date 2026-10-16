@@ -137,28 +137,59 @@ const v8Manifest = async (edit) => {
   return manifest;
 };
 
-for (const namespace of ['acme.com', 'exchange.epistola.app/acme-corp', 'a.b', `${'a'.repeat(300)}.com`]) {
-  const manifest = await v8Manifest((m) => { m.catalog.namespace = namespace; });
-  assert.equal(validateV8Manifest(manifest), true, `valid v8 namespace was rejected: ${namespace}: ${ajv.errorsText(validateV8Manifest.errors)}`);
+const v8Targets = [
+  ['catalog', (m) => m.catalog],
+  ['dependency', (m) => m.dependencies[0]],
+  ['catalog dependency', (m) => m.catalogDependencies[0]],
+];
+
+for (const namespace of ['acme-corp', 'abc', `a${'b'.repeat(62)}`]) {
+  for (const [where, target] of v8Targets) {
+    const manifest = await v8Manifest((m) => { target(m).namespace = namespace; });
+    assert.equal(validateV8Manifest(manifest), true, `valid v8 ${where} namespace was rejected: ${namespace}: ${ajv.errorsText(validateV8Manifest.errors)}`);
+  }
 }
 
-// The short form depends on the installation's default exchange, so an archive never writes it.
-for (const namespace of ['acme-corp', 'Acme.com', 'acme.com/', 'acme.com/Acme', '-acme.com', 'acme..com', `${'a'.repeat(320)}.com`, '']) {
-  const manifest = await v8Manifest((m) => { m.catalog.namespace = namespace; });
-  assert.equal(validateV8Manifest(manifest), false, `invalid v8 catalog namespace was accepted: ${namespace}`);
-  const dependency = await v8Manifest((m) => { m.dependencies[0].namespace = namespace; });
-  assert.equal(validateV8Manifest(dependency), false, `invalid v8 dependency namespace was accepted: ${namespace}`);
-  const declared = await v8Manifest((m) => { m.catalogDependencies[0].namespace = namespace; });
-  assert.equal(validateV8Manifest(declared), false, `invalid v8 catalog dependency namespace was accepted: ${namespace}`);
+// A namespace is a slug within its registry; the joined pre-registry forms are not namespaces.
+for (const namespace of ['acme.com', 'exchange.epistola.app/acme-corp', 'Acme', 'ab', '-acme', `a${'b'.repeat(63)}`, '']) {
+  for (const [where, target] of v8Targets) {
+    const manifest = await v8Manifest((m) => { target(m).namespace = namespace; });
+    assert.equal(validateV8Manifest(manifest), false, `invalid v8 ${where} namespace was accepted: ${namespace}`);
+  }
+}
+
+for (const registry of ['acme.com', 'exchange.epistola.app', 'a.b', `${'a'.repeat(249)}.com`]) {
+  for (const [where, target] of v8Targets) {
+    const manifest = await v8Manifest((m) => { target(m).registry = registry; });
+    assert.equal(validateV8Manifest(manifest), true, `valid v8 ${where} registry was rejected: ${registry}: ${ajv.errorsText(validateV8Manifest.errors)}`);
+  }
+}
+
+// An archive has no default registry, so it never writes `~` or a bare name; domain order is normal.
+for (const registry of ['~', 'acme', 'Acme.com', 'acme.com/', 'acme.com/acme', '-acme.com', 'acme..com', 'acme.com.', `${'a'.repeat(250)}.com`, '']) {
+  for (const [where, target] of v8Targets) {
+    const manifest = await v8Manifest((m) => { target(m).registry = registry; });
+    assert.equal(validateV8Manifest(manifest), false, `invalid v8 ${where} registry was accepted: ${registry}`);
+  }
 }
 
 for (const [description, edit] of [
   ['catalog without a namespace', (m) => { delete m.catalog.namespace; }],
+  ['catalog without a registry', (m) => { delete m.catalog.registry; }],
   ['dependency without a namespace', (m) => { delete m.dependencies[0].namespace; }],
+  ['dependency without a registry', (m) => { delete m.dependencies[0].registry; }],
+  ['catalog dependency without a namespace', (m) => { delete m.catalogDependencies[0].namespace; }],
+  ['catalog dependency without a registry', (m) => { delete m.catalogDependencies[0].registry; }],
   ['catalog dependency without a version', (m) => { delete m.catalogDependencies[0].version; }],
   ['catalog dependency with an empty version', (m) => { m.catalogDependencies[0].version = ''; }],
   ['catalog dependency with a 101-character version', (m) => { m.catalogDependencies[0].version = '1'.repeat(101); }],
   ['catalog dependency without releaseVersion', (m) => { delete m.catalogDependencies[0].releaseVersion; }],
+  ['catalog dependency without releaseFingerprint', (m) => { delete m.catalogDependencies[0].releaseFingerprint; }],
+  ['catalog dependency with a release but no releaseFingerprint', (m) => { m.catalogDependencies[0].releaseFingerprint = null; }],
+  ['catalog dependency with a releaseFingerprint but no release', (m) => { m.catalogDependencies[0].releaseVersion = null; }],
+  ['catalog dependency with an uppercase releaseFingerprint', (m) => { m.catalogDependencies[0].releaseFingerprint = m.catalogDependencies[0].releaseFingerprint.toUpperCase(); }],
+  ['catalog dependency with a short releaseFingerprint', (m) => { m.catalogDependencies[0].releaseFingerprint = m.catalogDependencies[0].releaseFingerprint.slice(1); }],
+  ['catalog dependency with a prefixed releaseFingerprint', (m) => { m.catalogDependencies[0].releaseFingerprint = `sha256:${m.catalogDependencies[0].releaseFingerprint}`; }],
   ['catalog dependency with an unknown member', (m) => { m.catalogDependencies[0].range = '^1.0.0'; }],
 ]) {
   assert.equal(validateV8Manifest(await v8Manifest(edit)), false, `v8 manifest accepted ${description}`);
@@ -167,25 +198,38 @@ for (const [description, edit] of [
 for (const [description, edit] of [
   ['no catalog dependencies', (m) => { delete m.catalogDependencies; m.dependencies = []; }],
   ['null catalog dependencies', (m) => { m.catalogDependencies = null; m.dependencies = []; }],
-  ['a migrated catalog dependency', (m) => { m.catalogDependencies[0].version = '*'; m.catalogDependencies[0].releaseVersion = null; }],
+  ['a migrated catalog dependency', (m) => { m.catalogDependencies[0].version = '*'; m.catalogDependencies[0].releaseVersion = null; m.catalogDependencies[0].releaseFingerprint = null; }],
   ['a range union selector', (m) => { m.catalogDependencies[0].version = '>=1.0.0 <2.0.0 || ^3.1.0'; }],
 ]) {
   const manifest = await v8Manifest(edit);
   assert.equal(validateV8Manifest(manifest), true, `v8 manifest rejected ${description}: ${ajv.errorsText(validateV8Manifest.errors)}`);
 }
 
-// Stencils carry no version from v8; content references may name a namespace in either form.
+// Stencils carry no version from v8; content references may omit registry and namespace.
 const v8Stencil = await readJson('fixtures/v1/migrations/v7-to-v8/stencil-expected.json');
 assert.equal(validateV8Detail({ ...v8Stencil, resource: { ...v8Stencil.resource, version: 3 } }), false, 'v8 stencil accepted a version');
 const v7Stencil = await readJson('fixtures/v1/migrations/v7-to-v8/stencil-input.json');
 assert.equal(validateV8Detail({ ...v7Stencil, schemaVersion: 8 }), false, 'v8 accepted a stencil with its v7 version');
 
 const attribute = await readJson('fixtures/v1/conformance/catalog/missing-resource-reference/resources/attribute/locale.json');
-for (const namespace of ['acme-corp', 'acme.com', 'exchange.epistola.app/acme-corp']) {
-  const detail = { ...attribute, resource: { ...attribute.resource, codeListBinding: { slug: 'countries', catalogKey: 'shared', namespace } } };
-  assert.equal(validateV8Detail(detail), true, `valid content namespace was rejected: ${namespace}: ${ajv.errorsText(validateV8Detail.errors)}`);
+const withBinding = (binding) => ({ ...attribute, resource: { ...attribute.resource, codeListBinding: { slug: 'countries', ...binding } } });
+for (const binding of [
+  {},
+  { catalogKey: 'shared' },
+  { catalogKey: 'shared', namespace: 'acme-corp' },
+  { catalogKey: 'shared', namespace: 'acme', registry: 'acme.com' },
+]) {
+  assert.equal(validateV8Detail(withBinding(binding)), true, `valid content reference was rejected: ${JSON.stringify(binding)}: ${ajv.errorsText(validateV8Detail.errors)}`);
 }
-for (const namespace of ['Acme', 'acme.com/', 'ab']) {
-  const detail = { ...attribute, resource: { ...attribute.resource, codeListBinding: { slug: 'countries', namespace } } };
-  assert.equal(validateV8Detail(detail), false, `invalid content namespace was accepted: ${namespace}`);
+for (const binding of [
+  { namespace: 'Acme' },
+  { namespace: 'acme.com' },
+  { namespace: 'exchange.epistola.app/acme-corp' },
+  { namespace: 'ab' },
+  { namespace: 'acme', registry: '~' },
+  { namespace: 'acme', registry: 'acme' },
+  // A registry without a namespace names no catalog.
+  { registry: 'acme.com' },
+]) {
+  assert.equal(validateV8Detail(withBinding(binding)), false, `invalid content reference was accepted: ${JSON.stringify(binding)}`);
 }

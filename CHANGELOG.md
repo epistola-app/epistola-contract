@@ -13,7 +13,7 @@ libraries.
 
 - **Catalog versions: several drafts at once, released in place** (ADR 0002). A catalog consists
   of versions, each a `draft` or `released`, addressed as
-  `…/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}`. `listCatalogVersions`,
+  `…/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}`. `listCatalogVersions`,
   `createCatalogVersion` (from the version's base, or `from` any other version),
   `getCatalogVersion`, `renumberCatalogVersion` (drafts only; warnings from
   `previewCatalogVersionRenumber` must be acknowledged), `deleteCatalogVersion` (drafts only) and
@@ -28,7 +28,7 @@ libraries.
   version's base and whether releasing it would be accepted (including `openConflicts`);
   `markCatalogReady` marks everything changed ready in one action. An environment can
   serve several releases of one catalog: `listEnvironmentDeployments`, `deployRelease` and
-  `undeployRelease` (both addressed by the release, `…/deployments/{namespace}/{catalogKey}/{releaseVersion}`,
+  `undeployRelease` (both addressed by the release, `…/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}`,
   with no request body), and `listDeploymentHistory` with every deploy and undeploy.
 
 - **Catalog dependencies.** A catalog declares each catalog its resources reference, once, with a
@@ -40,35 +40,42 @@ libraries.
 
 ### Changed
 
-- **BREAKING: portable catalog wire v8.** A catalog archive identifies its catalog by namespace and
-  key and versions catalogs as a whole; `x-epistola-catalog-contract.wireSchemaVersion` is 8.
-  - `catalog.namespace` is required, always in full (`acme.com`, `exchange.epistola.app/acme-corp`).
+- **BREAKING: portable catalog wire v8.** A catalog archive identifies its catalog by registry,
+  namespace and key (ADR 0003) and versions catalogs as a whole;
+  `x-epistola-catalog-contract.wireSchemaVersion` is 8.
+  - `catalog.registry` (a DNS name, always in full) and `catalog.namespace` (a slug) are required.
     New manifest member `catalogDependencies` declares each catalog depended on once, with a version
-    selector (`version`, npm range grammar) and the exact `releaseVersion` the release was cut with.
-    Each resource dependency gains a required `namespace`, and every catalog it names must be
-    declared. References inside content (`ThemeRef` override, stencil nodes, `CodeListBindingRef`,
-    `TemplateResource.themeNamespace`, `FontRef`) gain an optional `namespace` in either form. The
-    API embeds the catalog's `TemplateDocument`, so its `ThemeRef` gains the optional `namespace` in
-    every client too (the bundle normalization in `normalize-bundle.mjs` carries it).
+    selector (`version`, npm range grammar), the exact `releaseVersion` the release was cut with, and
+    that release's `releaseFingerprint`, so a copy fetched through any mirror can be checked (both
+    null only for archives migrated from v7). Each resource dependency gains a required `registry`
+    and `namespace`, and every catalog it names must be declared. References inside content
+    (`ThemeRef` override, stencil nodes, `CodeListBindingRef`, `TemplateResource.themeRegistry` /
+    `themeNamespace`, `FontRef`) gain an optional `registry` and `namespace`; each omitted one means
+    the owning catalog's, and a `registry` without a `namespace` is invalid. The API embeds the
+    catalog's `TemplateDocument`, so its `ThemeRef` gains them in every client too (the bundle
+    normalization in `normalize-bundle.mjs` carries it).
   - Stencils carry no version: `StencilResource.version` is removed from the wire and the Kotlin
     model, and a stencil node no longer allows `version` or `draftVersion`.
-  - `CatalogV7ToV8Migration` takes the namespace from the caller (`CatalogMigrationOptions`, accepted
-    by `CatalogSchemaMigrator.migrateManifest`, `CatalogArchiveReader.read` and
-    `CatalogValidationPolicy`); without one a v7 archive is refused with
-    `CATALOG_NAMESPACE_MISSING`. It qualifies dependencies with that namespace, declares each
-    referenced catalog with selector `*`, and removes stencil versions, each with a notice.
-  - Fingerprints: V5 (now `currentFingerprint`) also covers the namespace and declared
-    dependencies. v6 and v7 archives keep verifying against their V4 fingerprint; re-exporting
+  - `CatalogV7ToV8Migration` takes the registry and namespace from the caller
+    (`CatalogMigrationOptions(namespace, registry)`, accepted by `CatalogSchemaMigrator.migrateManifest`,
+    `CatalogArchiveReader.read` and `CatalogValidationPolicy`); without them a v7 archive is refused
+    with `CATALOG_REGISTRY_MISSING` / `CATALOG_NAMESPACE_MISSING`. It qualifies dependencies with
+    them, declares each referenced catalog with selector `*`, and removes stencil versions, each with
+    a notice.
+  - Fingerprints: V5 (now `currentFingerprint`) also covers the registry, namespace and declared
+    dependencies, including their release fingerprints. v6 and v7 archives keep verifying against their V4 fingerprint; re-exporting
     replaces it with V5.
-  - New validator codes `CATALOG_NAMESPACE_INVALID`, `CATALOG_DEPENDENCY_CATALOG_UNDECLARED`,
+  - New validator codes `CATALOG_REGISTRY_INVALID`, `CATALOG_NAMESPACE_INVALID`,
+    `CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`, `CATALOG_DEPENDENCY_CATALOG_UNDECLARED`,
     `CATALOG_DEPENDENCY_CATALOG_DUPLICATE`, `CATALOG_DEPENDENCY_CATALOG_SELF` and
     `CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`. `CatalogNamespaces` (Kotlin) and the
-    `CATALOG_NAMESPACE_*` constants (npm) publish the namespace rules.
+    `CATALOG_REGISTRY_*`, `CATALOG_NAMESPACE_*` and `CATALOG_RELEASE_FINGERPRINT_PATTERN` constants
+    (npm) publish the rules.
   - Kotlin API: `StencilResource.version`, `CatalogResourceReference.version`/`draftVersion`,
     `TemplateValidationContext.allowDraftStencilReferences` and the `version` parameter of
-    `TemplateValidationContext.forStencil` are removed; `CatalogInfo.namespace`,
-    `CatalogManifest.catalogDependencies` and `namespace` on `DependencyRef` and
-    `CatalogResourceReference` are added (nullable in the model so manifests stored under v7 still
+    `TemplateValidationContext.forStencil` are removed; `CatalogInfo.registry` and `namespace`,
+    `CatalogManifest.catalogDependencies` and `registry` and `namespace` on `DependencyRef`,
+    `CatalogResourceReference`, `ThemeRefOverride`, `CodeListBindingRef` and `FontRef` are added (nullable in the model so manifests stored under v7 still
     bind). `templateModelVersion` stays 1.
 
 - **BREAKING: catalog content is edited and read per catalog version, not in one working copy.**
@@ -81,18 +88,20 @@ libraries.
   `draftVersion` instead of `workingCopy`. `CatalogChangesDto.latestRelease` is now `base`.
   `importCatalog` takes the draft to import into as `catalogVersion`, and reports it.
 
-- **BREAKING: a catalog is identified by its namespace and its key.** Every catalog-scoped path is
-  `/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/…` instead of `…/catalogs/{catalogId}/…`.
-  A namespace is `some-namespace` on the server's configured default exchange (written in full as
-  `exchange.epistola.app/some-namespace`), or a domain such as `acme.com`; in a path a non-default
-  exchange's `/` is written `~`. Requests may omit the default exchange, responses always write a
-  namespace in full. Every DTO that named a catalog (`catalogId`, `catalog`, or a catalog's `slug`)
-  now carries `namespace` and `catalogKey`: the generation, preview and batch requests,
+- **BREAKING: a catalog is identified by its registry, its namespace and its key** (ADR 0003).
+  Every catalog-scoped path is `/tenants/{tenantId}/catalogs/{registry}/{namespace}/{catalogKey}/…`
+  instead of `…/catalogs/{catalogId}/…`. The registry is the DNS name of the registry the catalog
+  is published on (`exchange.epistola.app`, `registry.gemeente-x.nl`); `~` in a path means the
+  server's configured default registry, which may also be named in full. The namespace is a slug
+  within the registry. Requests may omit the registry (the default); responses always name it in
+  full. Every DTO that named a catalog (`catalogId`, `catalog`, or a catalog's `slug`)
+  now carries `registry`, `namespace` and `catalogKey`: the generation, preview and batch requests,
   `VariantSelectionAttribute`, `CatalogDto`, `ReleaseDependencyDto`, `CatalogUpgradeDiff`,
   `DeploymentDto`, `DeploymentEventDto`, `AttributeDto` (and its `codeListBinding`), `CodeListDto`,
   `FontDto`, `ImageDto` and `ImportCatalogResponse`. Generated documents, generation items and
-  collected results add nullable `namespace` and `catalogKey` next to `releaseVersion`.
-  `importCatalog` takes an optional `namespace`.
+  collected results add nullable `registry`, `namespace` and `catalogKey` next to `releaseVersion`.
+  `importCatalog` takes an optional `registry` and `namespace`. The client libraries' template data
+  validators take `registry` before `namespace` (`DEFAULT_REGISTRY = "~"`).
 
 - **BREAKING: a release is selected by a version selector, together with an environment.** The
   generation, preview, batch and validation requests take `version` in place of `releaseVersion`:

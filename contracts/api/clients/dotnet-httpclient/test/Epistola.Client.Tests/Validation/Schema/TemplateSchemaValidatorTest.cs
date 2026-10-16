@@ -25,7 +25,7 @@ public class TemplateSchemaValidatorTest
     private static ITemplatesApi ApiAnswering(TemplateDataValidationResult result)
     {
         var api = Substitute.For<ITemplatesApi>();
-        api.ValidateTemplateData("acme", "acme-corp", "default", "person", Arg.Any<ValidateTemplateDataRequest>()).Returns(result);
+        api.ValidateTemplateData("acme", "~", "acme-corp", "default", "person", Arg.Any<ValidateTemplateDataRequest>()).Returns(result);
         return api;
     }
 
@@ -41,9 +41,9 @@ public class TemplateSchemaValidatorTest
     {
         var api = ApiAnswering(Result(valid: true));
 
-        new TemplateSchemaValidator(api).Validate("acme", "acme-corp", "default", "person", new Dictionary<string, object> { ["name"] = "Jane" });
+        new TemplateSchemaValidator(api).Validate("acme", "~", "acme-corp", "default", "person", new Dictionary<string, object> { ["name"] = "Jane" });
 
-        api.Received(1).ValidateTemplateData("acme", "acme-corp", "default", "person", Arg.Any<ValidateTemplateDataRequest>());
+        api.Received(1).ValidateTemplateData("acme", "~", "acme-corp", "default", "person", Arg.Any<ValidateTemplateDataRequest>());
     }
 
     [Fact]
@@ -52,9 +52,9 @@ public class TemplateSchemaValidatorTest
         var api = ApiAnswering(Result(valid: true));
         var data = new Dictionary<string, object> { ["name"] = "Jane" };
 
-        new TemplateSchemaValidator(api).Validate("acme", "acme-corp", "default", "person", data);
+        new TemplateSchemaValidator(api).Validate("acme", "~", "acme-corp", "default", "person", data);
 
-        api.Received(1).ValidateTemplateData("acme", "acme-corp", "default", "person", Arg.Is<ValidateTemplateDataRequest>(r => ReferenceEquals(r.Data, data)));
+        api.Received(1).ValidateTemplateData("acme", "~", "acme-corp", "default", "person", Arg.Is<ValidateTemplateDataRequest>(r => ReferenceEquals(r.Data, data)));
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public class TemplateSchemaValidatorTest
         }));
 
         var thrown = Assert.Throws<TemplateDataValidationException>(
-            () => new TemplateSchemaValidator(api).Validate("acme", "acme-corp", "default", "person", new Dictionary<string, object>()));
+            () => new TemplateSchemaValidator(api).Validate("acme", "~", "acme-corp", "default", "person", new Dictionary<string, object>()));
 
         Assert.Equal(new[] { "/customer/email", "/lineItems/0/quantity" }, thrown.Errors.Select(e => e.Path));
         Assert.Equal(new[] { "format", "minimum" }, thrown.Errors.Select(e => e.Keyword));
@@ -83,7 +83,7 @@ public class TemplateSchemaValidatorTest
         }));
 
         var thrown = Assert.Throws<TemplateDataValidationException>(
-            () => new TemplateSchemaValidator(api).Validate("acme", "acme-corp", "default", "person", new Dictionary<string, object>()));
+            () => new TemplateSchemaValidator(api).Validate("acme", "~", "acme-corp", "default", "person", new Dictionary<string, object>()));
 
         Assert.Equal(new[] { "/customer/address" }, thrown.Errors.Select(e => e.Path));
         Assert.Equal("required", thrown.Errors[0].Keyword);
@@ -98,7 +98,7 @@ public class TemplateSchemaValidatorTest
         }));
 
         var thrown = Assert.Throws<TemplateDataValidationException>(
-            () => new TemplateSchemaValidator(api).Validate("acme", "acme-corp", "default", "person", new Dictionary<string, object>()));
+            () => new TemplateSchemaValidator(api).Validate("acme", "~", "acme-corp", "default", "person", new Dictionary<string, object>()));
 
         Assert.Equal("/invoiceNumber", thrown.Errors[0].Path);
         Assert.Equal("pattern", thrown.Errors[0].Keyword);
@@ -116,7 +116,7 @@ public class TemplateSchemaValidatorTest
             invalidFields: new List<InvalidDataField> { new(path: "/customer/email", keyword: "format", message: "must be a valid email address") }));
 
         var thrown = Assert.Throws<TemplateDataValidationException>(
-            () => new TemplateSchemaValidator(api).Validate("acme", "acme-corp", "default", "person", new Dictionary<string, object>()));
+            () => new TemplateSchemaValidator(api).Validate("acme", "~", "acme-corp", "default", "person", new Dictionary<string, object>()));
 
         Assert.Equal(new[] { "/customer/email" }, thrown.Errors.Select(e => e.Path));
     }
@@ -127,7 +127,7 @@ public class TemplateSchemaValidatorTest
         // `valid: false` is the verdict, and reporting no reason must not become "fine".
         var thrown = Assert.Throws<TemplateDataValidationException>(
             () => new TemplateSchemaValidator(ApiAnswering(Result(valid: false)))
-                .Validate("acme", "acme-corp", "default", "person", new Dictionary<string, object>()));
+                .Validate("acme", "~", "acme-corp", "default", "person", new Dictionary<string, object>()));
 
         Assert.Single(thrown.Errors);
         Assert.Equal(string.Empty, thrown.Errors[0].Path);
@@ -139,9 +139,9 @@ public class TemplateSchemaValidatorTest
         var api = ApiAnswering(Result(valid: true));
 
         new TemplateSchemaValidator(new ServerTemplateDataValidator(api, variantId: "nl-nl", version: "^1.4.0", environmentId: "production"))
-            .Validate("acme", "acme-corp", "default", "person", new Dictionary<string, object>());
+            .Validate("acme", "~", "acme-corp", "default", "person", new Dictionary<string, object>());
 
-        api.Received(1).ValidateTemplateData("acme", "acme-corp", "default", "person",
+        api.Received(1).ValidateTemplateData("acme", "~", "acme-corp", "default", "person",
             Arg.Is<ValidateTemplateDataRequest>(r => r.VariantId == "nl-nl" && r.VarVersion == "^1.4.0" && r.EnvironmentId == "production"));
     }
 
@@ -156,10 +156,10 @@ public class TemplateSchemaValidatorTest
 
         var thrown = Assert.Throws<TemplateDataValidationException>(
             () => new TemplateSchemaValidator(new StubValidator(findings))
-                .Validate("acme", "acme-corp", "default", "person", new Dictionary<string, object>()));
+                .Validate("acme", "~", "acme-corp", "default", "person", new Dictionary<string, object>()));
 
         Assert.Equal(findings, thrown.Errors);
-        api.DidNotReceive().ValidateTemplateData(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<ValidateTemplateDataRequest>());
+        api.DidNotReceive().ValidateTemplateData(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<ValidateTemplateDataRequest>());
     }
 
     [Fact]
@@ -185,14 +185,14 @@ public class TemplateSchemaValidatorTest
 
         public int Calls { get; private set; }
 
-        /// <summary>The catalog each call named, as <c>namespace|catalogKey</c>.</summary>
+        /// <summary>The catalog each call named, as <c>registry|namespace|catalogKey</c>.</summary>
         public List<string> Catalogs { get; } = new();
 
         public IReadOnlyList<TemplateDataValidationException.ValidationError> Validate(
-            string tenantId, string @namespace, string catalogKey, string templateId, object data)
+            string tenantId, string registry, string @namespace, string catalogKey, string templateId, object data)
         {
             Calls++;
-            Catalogs.Add($"{@namespace}|{catalogKey}");
+            Catalogs.Add($"{registry}|{@namespace}|{catalogKey}");
             return _findings;
         }
     }

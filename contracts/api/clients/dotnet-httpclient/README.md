@@ -40,8 +40,9 @@ var http = new EpistolaHttpClientBuilder()
     .Build();
 
 var templates = new TemplatesApi(http, "https://epistola.example.com/api");
-// Catalog content is addressed by namespace, catalog key and catalog version (SemVer).
-var template = templates.GetTemplate("my-tenant", "acme-corp", "default", "1.4.0", "monthly-invoice");
+// Catalog content is addressed by registry, namespace, catalog key and catalog version (SemVer).
+// The registry `~` is the server's default registry; another is named in full ("acme.com").
+var template = templates.GetTemplate("my-tenant", "~", "acme-corp", "default", "1.4.0", "monthly-invoice");
 ```
 
 The builder always installs two corrections the C# generator gives no way to configure on the model:
@@ -134,7 +135,7 @@ var collector = ResultCollector.Builder()
     {
         switch (result.Status)
         {
-            // Namespace, CatalogKey and ReleaseVersion name the release rendered (null before contract 2.0).
+            // Registry, Namespace, CatalogKey and ReleaseVersion name the release rendered (null before contract 2.0).
             case "COMPLETED": Download(result.DocumentId, result.CorrelationId); break;
             case "FAILED":    LogFailure(result.CorrelationId, result.Error);    break;
         }
@@ -201,9 +202,9 @@ which optional fields the version being rendered actually reads.
 using Epistola.Client.Validation.Schema;
 
 var validator = new TemplateSchemaValidator(new TemplatesApi(http));
-// A catalog is addressed by namespace and key; the namespace in its path-segment form
-// (`acme-corp`, `acme.com`, `exchange.example.org~team-a`).
-validator.Validate("my-tenant", "acme-corp", "default", "invoice", data);   // throws TemplateDataValidationException
+// A catalog is addressed by registry, namespace and key. The registry is `~` for the server's
+// default registry (ITemplateDataValidator.DefaultRegistry), or named in full ("acme.com").
+validator.Validate("my-tenant", "~", "acme-corp", "default", "invoice", data);   // throws TemplateDataValidationException
 
 // Or around generation, which turns the server's `template-data-invalid` problem into the same exception:
 var validating = new ValidatingGenerationApi(new GenerationApi(http), new TemplatesApi(http));

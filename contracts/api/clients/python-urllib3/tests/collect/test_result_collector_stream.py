@@ -26,7 +26,8 @@ RESULTS = [
         "sequence": 501,
         "requestId": "11111111-1111-4111-8111-000000000501",
         "status": "COMPLETED",
-        "namespace": "exchange.example.org/team-a",
+        "registry": "exchange.example.org",
+        "namespace": "team-a",
         "catalogKey": "invoices",
         "releaseVersion": "1.4.2",
     },
@@ -113,11 +114,17 @@ def test_each_result_names_the_catalog_release_it_was_generated_from(server):
     _collector(server, handled).collect_once()
 
     first = handled[0]
-    assert (first.namespace, first.catalog_key, first.release_version) == (
-        "exchange.example.org/team-a",
+    assert (first.registry, first.namespace, first.catalog_key, first.release_version) == (
+        "exchange.example.org",
+        "team-a",
         "invoices",
         "1.4.2",
     )
-    # A result from before contract 2.0 carries none of the three; that is null, not an error.
+    # A result from before contract 2.0 carries none of the four; that is null, not an error.
     second = handled[1]
-    assert (second.namespace, second.catalog_key, second.release_version) == (None, None, None)
+    assert (second.registry, second.namespace, second.catalog_key, second.release_version) == (
+        None,
+        None,
+        None,
+        None,
+    )

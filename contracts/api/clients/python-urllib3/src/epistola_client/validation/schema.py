@@ -11,7 +11,9 @@ will do.
 Example::
 
     validator = TemplateSchemaValidator(templates_api)
-    validator.validate("my-tenant", "acme-corp", "my-catalog", "my-template", my_data)
+    validator.validate("my-tenant", "~", "acme-corp", "my-catalog", "my-template", my_data)
+
+``"~"`` is the server's default registry; a registry can also be named in full (``acme.com``).
 
 To validate in-process instead, implement :class:`TemplateDataValidator` and pass it in place of
 the API — see its docstring for the failure shape an implementation owes its callers.
@@ -142,6 +144,7 @@ class ServerTemplateDataValidator:
     def validate(
         self,
         tenant_id: str,
+        registry: str,
         namespace: str,
         catalog_key: str,
         template_id: str,
@@ -149,6 +152,7 @@ class ServerTemplateDataValidator:
     ) -> List[ValidationFailure]:
         result = self._templates_api.validate_template_data(
             tenant_id,
+            registry,
             namespace,
             catalog_key,
             template_id,
@@ -180,7 +184,13 @@ class TemplateSchemaValidator:
         )
 
     def validate(
-        self, tenant_id: str, namespace: str, catalog_key: str, template_id: str, data: Any
+        self,
+        tenant_id: str,
+        registry: str,
+        namespace: str,
+        catalog_key: str,
+        template_id: str,
+        data: Any,
     ) -> None:
         """Validate ``data`` against the template's data contract.
 
@@ -188,7 +198,9 @@ class TemplateSchemaValidator:
         than contract 1.4.0 the default validator raises the generated ``ApiException`` instead,
         because ``validateTemplateData`` does not exist there.
         """
-        failures = list(self._validator.validate(tenant_id, namespace, catalog_key, template_id, data))
+        failures = list(
+            self._validator.validate(tenant_id, registry, namespace, catalog_key, template_id, data)
+        )
         if failures:
             raise TemplateDataValidationError(failures)
 
@@ -228,7 +240,8 @@ class ValidatingGenerationApi:
             failures = list(
                 self._validator.validate(
                     tenant_id,
-                    to_path_namespace(request.namespace),
+                    to_path_registry(request.registry),
+                    request.namespace,
                     request.catalog_key,
                     request.template_id,
                     request.data,
@@ -243,7 +256,12 @@ class ValidatingGenerationApi:
             all_failures: List[ValidationFailure] = []
             for index, item in enumerate(request.items):
                 for failure in self._validator.validate(
-                    tenant_id, to_path_namespace(item.namespace), item.catalog_key, item.template_id, item.data
+                    tenant_id,
+                    to_path_registry(item.registry),
+                    item.namespace,
+                    item.catalog_key,
+                    item.template_id,
+                    item.data,
                 ):
                     all_failures.append(
                         ValidationFailure(
@@ -274,15 +292,18 @@ class ValidatingGenerationApi:
             ) from exc
 
 
-def to_path_namespace(namespace: str) -> str:
-    """A namespace in the path-segment form a catalog-scoped URL takes.
+#: The path segment for the server's default registry.
+DEFAULT_REGISTRY = "~"
 
-    A request body may write a namespace on a non-default exchange in full
-    (``exchange.example.org/team-a``); a path segment cannot carry the ``/``, which the contract
-    writes as ``~`` (``exchange.example.org~team-a``). Passed through unconverted, the generated
-    client would percent-encode the slash and address a catalog that does not exist.
+
+def to_path_registry(registry: Optional[str]) -> str:
+    """A request body's ``registry`` in the form a catalog-scoped URL path takes.
+
+    A body may leave ``registry`` out, which means the server's default registry. A path cannot
+    leave its registry segment out, and writes the default registry as ``~``. Which registry is the
+    default is server configuration, so the client cannot name it, and must not guess.
     """
-    return namespace.replace("/", "~")
+    return registry if registry else DEFAULT_REGISTRY
 
 
 def _is_validator(candidate: Any) -> bool:

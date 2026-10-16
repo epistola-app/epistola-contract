@@ -1,27 +1,34 @@
 CatalogDto:
   type: object
   required:
+    - registry
     - namespace
     - catalogKey
     - name
     - type
     - draftVersions
   properties:
+    registry:
+      type: string
+      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+      maxLength: 253
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
     namespace:
       type: string
-      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
-      maxLength: 320
-      description: |
-        Namespace of the catalog. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
-        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
-      example: exchange.epistola.app/acme-corp
+      maxLength: 63
+      description: Namespace of the catalog, within its registry
+      example: acme-corp
     catalogKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Key of the catalog, unique within its namespace
+      description: Key of the catalog, unique within its registry and namespace
       example: municipality-demo
     name:
       type: string
@@ -77,6 +84,7 @@ CatalogUpgradeDiff:
     Source-vs-source preview of upgrading a SUBSCRIBED catalog to its source's
     latest release. Each bucket entry is `"type/slug"` (e.g. `theme/corporate`).
   required:
+    - registry
     - namespace
     - catalogKey
     - newVersion
@@ -88,21 +96,27 @@ CatalogUpgradeDiff:
     - conflicts
     - blockedByConflicts
   properties:
+    registry:
+      type: string
+      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+      maxLength: 253
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
     namespace:
       type: string
-      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
-      maxLength: 320
-      description: |
-        Namespace of the catalog. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
-        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
-      example: some-namespace
+      maxLength: 63
+      description: Namespace of the catalog, within its registry
+      example: acme-corp
     catalogKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Key of the catalog, unique within its namespace
+      description: Key of the catalog, unique within its registry and namespace
       example: letters
     previousVersion:
       type: [string, "null"]
@@ -226,26 +240,33 @@ RemovedCatalogResourceDto:
 ReleaseDependencyDto:
   type: object
   required:
+    - registry
     - namespace
     - catalogKey
     - releaseVersion
     - direct
   properties:
+    registry:
+      type: string
+      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+      maxLength: 253
+      description: |
+        Registry of the catalog depended on: the exchange or domain its namespace lives in. Always
+        written in full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
     namespace:
       type: string
-      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
-      maxLength: 320
-      description: |
-        Namespace of the catalog. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
-        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
-      example: some-namespace
+      maxLength: 63
+      description: Namespace of the catalog depended on, within its registry
+      example: epistola
     catalogKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Key of the catalog, unique within its namespace
+      description: Key of the catalog, unique within its registry and namespace
       example: letters
     releaseVersion:
       type: string
@@ -333,22 +354,28 @@ CatalogDependencyRequirement:
     - catalogKey
     - version
   properties:
+    registry:
+      type: [string, "null"]
+      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+      maxLength: 253
+      description: |
+        Registry of the catalog depended on: the exchange or domain its namespace lives in. Omitted
+        or null: the default registry, which the server configures. A response always names it in
+        full.
+      example: null
     namespace:
       type: string
-      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
-      maxLength: 320
-      description: |
-        Namespace of the catalog depended on. A response always writes it in full
-        (`exchange.epistola.app/some-namespace`, or a domain such as `acme.com`); a request may omit
-        the default exchange (`some-namespace`).
-      example: exchange.epistola.app/epistola
+      maxLength: 63
+      description: Namespace of the catalog depended on, within its registry
+      example: epistola
     catalogKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Key of the catalog depended on, unique within its namespace
+      description: Key of the catalog depended on, unique within its registry and namespace
       example: system
     version:
       type: string
@@ -364,23 +391,32 @@ CatalogDependencyDto:
   type: object
   description: A declared dependency, and the release it resolves to now
   required:
+    - registry
     - namespace
     - catalogKey
     - version
   properties:
+    registry:
+      type: string
+      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+      maxLength: 253
+      description: |
+        Registry of the catalog depended on: the exchange or domain its namespace lives in. Always
+        written in full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
     namespace:
       type: string
-      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
-      maxLength: 320
-      description: Namespace of the catalog depended on, written in full
-      example: exchange.epistola.app/epistola
+      maxLength: 63
+      description: Namespace of the catalog depended on, within its registry
+      example: epistola
     catalogKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Key of the catalog depended on, unique within its namespace
+      description: Key of the catalog depended on, unique within its registry and namespace
       example: system
     version:
       type: string

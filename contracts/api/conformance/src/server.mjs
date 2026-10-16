@@ -6,8 +6,9 @@
  * The conformance server: a scripted Epistola API that records everything it is sent.
  *
  * It plays a scenario's `script` back one entry per request, so a driver walks a deterministic
- * sequence of responses, and it keeps a journal of the requests it received — method, path,
- * headers, body and arrival time. The journal is what `expect.mjs` judges; the client's own
+ * sequence of responses, and it keeps a journal of the requests it received — method, path (with
+ * percent-encoded unreserved characters such as `%7E` decoded), headers, body and arrival time.
+ * The journal is what `expect.mjs` judges; the client's own
  * assertions are irrelevant here, and drivers deliberately make none.
  *
  * A scenario can instead name an upstream (`backend: prism`), in which case the server stops
@@ -266,9 +267,20 @@ function parseJson(buffer) {
   }
 }
 
+/**
+ * The path as the journal records it: with percent-encoded unreserved characters decoded, which
+ * RFC 3986 (section 6.2.2.2) makes equivalent to the characters themselves. The registry segment
+ * `~` is the case that matters: some encoders (Java's URLEncoder among them) send it as `%7E`, and
+ * a scenario should not have to spell every path twice. Nothing else is decoded, so an encoded `/`
+ * or space still shows exactly as the client sent it.
+ */
 function pathOf(url) {
   const questionMark = url.indexOf('?')
-  return questionMark === -1 ? url : url.slice(0, questionMark)
+  const raw = questionMark === -1 ? url : url.slice(0, questionMark)
+  return raw.replace(/%([0-9A-Fa-f]{2})/g, (escape, hex) => {
+    const char = String.fromCharCode(parseInt(hex, 16))
+    return /^[A-Za-z0-9\-._~]$/.test(char) ? char : escape
+  })
 }
 
 function queryOf(url) {

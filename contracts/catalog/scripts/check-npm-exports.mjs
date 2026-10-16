@@ -30,20 +30,32 @@ const namespaceSchema = manifestSchema.$defs.CatalogNamespace;
 assert.equal(catalog.CATALOG_NAMESPACE_PATTERN, namespaceSchema.pattern, 'npm and schema namespace patterns must agree');
 assert.equal(catalog.MIN_CATALOG_NAMESPACE_LENGTH, namespaceSchema.minLength, 'npm and schema namespace minimum lengths must agree');
 assert.equal(catalog.MAX_CATALOG_NAMESPACE_LENGTH, namespaceSchema.maxLength, 'npm and schema namespace maximum lengths must agree');
+const registrySchema = manifestSchema.$defs.CatalogRegistry;
+assert.equal(catalog.CATALOG_REGISTRY_PATTERN, registrySchema.pattern, 'npm and schema registry patterns must agree');
+assert.equal(catalog.MAX_CATALOG_REGISTRY_LENGTH, registrySchema.maxLength, 'npm and schema registry maximum lengths must agree');
 assert.equal(
   catalog.MAX_CATALOG_DEPENDENCY_VERSION_LENGTH,
   manifestSchema.$defs.CatalogDependency.properties.version.maxLength,
   'npm and schema version selector limits must agree',
 );
+assert.equal(
+  catalog.CATALOG_RELEASE_FINGERPRINT_PATTERN,
+  manifestSchema.$defs.CatalogDependency.properties.releaseFingerprint.pattern,
+  'npm and schema release fingerprint patterns must agree',
+);
 
 const detailSchema = JSON.parse(
   await readFile(new URL('../schemas/resource-detail-v8.schema.json', import.meta.url), 'utf8'),
 );
-assert.equal(
-  catalog.CATALOG_NAMESPACE_REFERENCE_PATTERN,
-  detailSchema.$defs.CodeListBindingRef.properties.namespace.pattern,
-  'npm and schema content namespace patterns must agree',
-);
+const bindingSchema = detailSchema.$defs.CodeListBindingRef.properties;
+const templateSchema = detailSchema.$defs.TemplateResource.properties;
+for (const [where, namespace, registry] of [
+  ['code list binding', bindingSchema.namespace, bindingSchema.registry],
+  ['template theme', templateSchema.themeNamespace, templateSchema.themeRegistry],
+]) {
+  assert.equal(catalog.CATALOG_NAMESPACE_PATTERN, namespace.pattern, `npm and schema ${where} namespace patterns must agree`);
+  assert.equal(catalog.CATALOG_REGISTRY_PATTERN, registry.pattern, `npm and schema ${where} registry patterns must agree`);
+}
 
 const registry = await import(`${packageName}/registry`);
 assert.ok(registry.componentRegistry, 'component registry must be exported');

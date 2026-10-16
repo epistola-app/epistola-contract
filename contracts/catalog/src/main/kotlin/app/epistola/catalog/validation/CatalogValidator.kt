@@ -33,6 +33,7 @@ import app.epistola.catalog.protocol.TemplateResource
 import app.epistola.catalog.protocol.ThemeResource
 import app.epistola.template.model.Node
 import app.epistola.template.model.TemplateDocument
+import app.epistola.template.model.ThemeRefOverride
 import com.networknt.schema.InputFormat
 import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion
@@ -95,7 +96,7 @@ fun interface CatalogDependencyResolver {
  * @property verifyFingerprint whether a declared release fingerprint must
  *   equal a supported canonical fingerprint.
  * @property migration what the caller knows that an archive from before the current wire version
- *   does not say, notably the namespace of a catalog-v7 archive. Used when validating a ZIP stream.
+ *   does not say, notably the registry and namespace of a catalog-v7 archive. Used when validating a ZIP stream.
  */
 data class CatalogValidationPolicy(
     val archive: CatalogArchivePolicy = CatalogArchivePolicy(),
@@ -126,15 +127,22 @@ object CatalogValidationCodes {
     const val DEPENDENCY_DUPLICATE = "CATALOG_DEPENDENCY_DUPLICATE"
 
     /**
-     * A namespace is missing or malformed: the catalog's own or a dependency's is not written in
-     * full, or a reference inside content names one that is not a namespace in either form.
+     * A namespace is missing or malformed: the catalog's own or a dependency's is missing or not a
+     * slug, a reference inside content names one that is not a slug, or a reference inside content
+     * names a registry without a namespace.
      */
     const val NAMESPACE_INVALID = "CATALOG_NAMESPACE_INVALID"
+
+    /**
+     * A registry is missing or malformed: the catalog's own or a dependency's is missing or not a
+     * DNS name written in full, or a reference inside content names one that is not.
+     */
+    const val REGISTRY_INVALID = "CATALOG_REGISTRY_INVALID"
 
     /** A resource dependency names a catalog that `catalogDependencies` does not declare. */
     const val DEPENDENCY_CATALOG_UNDECLARED = "CATALOG_DEPENDENCY_CATALOG_UNDECLARED"
 
-    /** `catalogDependencies` declares the same catalog (namespace and key) more than once. */
+    /** `catalogDependencies` declares the same catalog (registry, namespace and key) more than once. */
     const val DEPENDENCY_CATALOG_DUPLICATE = "CATALOG_DEPENDENCY_CATALOG_DUPLICATE"
 
     /** A catalog dependency, or a resource dependency, names the catalog itself. */
@@ -146,6 +154,12 @@ object CatalogValidationCodes {
      * is not SemVer.
      */
     const val DEPENDENCY_CATALOG_VERSION_INVALID = "CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID"
+
+    /**
+     * A catalog dependency's `releaseFingerprint` does not pair with its `releaseVersion`: missing
+     * although a release is recorded, set although none is, or not a lowercase SHA-256 hex string.
+     */
+    const val DEPENDENCY_CATALOG_FINGERPRINT_INVALID = "CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID"
     const val RELEASE_VERSION_INVALID = "CATALOG_RELEASE_VERSION_INVALID"
     const val RELEASE_TIMESTAMP_INVALID = "CATALOG_RELEASE_TIMESTAMP_INVALID"
     const val RELEASE_FINGERPRINT_INVALID = "CATALOG_RELEASE_FINGERPRINT_INVALID"
@@ -189,7 +203,9 @@ object CatalogValidationCodes {
  * @property catalogKey identity used for same-catalog references.
  * @property resources resources keyed by `type/slug`.
  * @property namespace the catalog's namespace; a reference naming none, or this one, with no or this
- *   [catalogKey], is a same-catalog reference. Null when the namespace is not known.
+ *   [catalogKey] and [registry], is a same-catalog reference. Null when the namespace is not known.
+ * @property registry the catalog's registry; a reference that omits its registry means this one.
+ *   Null when the registry is not known.
  * @property paths normalized archive paths available through the catalog.
  * @property dependencyResolver lookup boundary for other catalogs.
  */
@@ -207,6 +223,7 @@ data class ResourceValidationContext(
      */
     val content: ArchiveContentProvider? = null,
     val namespace: String? = null,
+    val registry: String? = null,
 )
 
 /**
@@ -269,9 +286,14 @@ object ResourceValidator {
         findings: MutableList<CatalogValidationFinding>,
     ) {
         resource.themeId?.let { themeId ->
-            validateReference("theme", themeId, resource.themeCatalogKey, resource.themeNamespace, context, "$path.themeId", findings)
+            validateReference(
+                CatalogResourceReference("theme", themeId, resource.themeCatalogKey, resource.themeNamespace, resource.themeRegistry),
+                context,
+                "$path.themeId",
+                findings,
+            )
         }
-        validateContentNamespace(resource.themeNamespace, "$path.themeNamespace", findings)
+        validateContentIdentity(resource.themeRegistry, "$path.themeRegistry", resource.themeNamespace, "$path.themeNamespace", findings)
         validateDocument(resource.templateModel, context, "$path.templateModel", null, findings)
         val variantSlugs = mutableSetOf<String>()
         resource.variants.forEachIndexed { index, variant ->
@@ -316,6 +338,9 @@ object ResourceValidator {
         containingStencil: StencilResource?,
         findings: MutableList<CatalogValidationFinding>,
     ) {
+        (document.themeRef as? ThemeRefOverride)?.let { theme ->
+            validateContentIdentity(theme.registry, "$path.themeRef.registry", theme.namespace, "$path.themeRef.namespace", findings)
+        }
         val report = TemplateValidator.validate(
             document,
             object : TemplateValidationContext {
@@ -323,8 +348,9 @@ object ResourceValidator {
                     if (containingStencil == null) TemplateDocumentKind.TEMPLATE else TemplateDocumentKind.STENCIL
                 override val currentCatalogKey: String = context.catalogKey
                 override val currentNamespace: String? = context.namespace
+                override val currentRegistry: String? = context.registry
                 override val containingStencil: CatalogResourceReference? = containingStencil?.let {
-                    CatalogResourceReference("stencil", it.slug, context.catalogKey, context.namespace)
+                    CatalogResourceReference("stencil", it.slug, context.catalogKey, context.namespace, context.registry)
                 }
 
                 override fun resolveResource(reference: CatalogResourceReference): ResourceResolution = resolveReference(reference, context)
@@ -378,8 +404,9 @@ object ResourceValidator {
         val slug = font["slug"] as? String ?: return
         val catalogKey = font["catalogKey"] as? String
         val namespace = font["namespace"] as? String
-        validateContentNamespace(namespace, "$path.fontFamily.namespace", findings)
-        validateReference("font", slug, catalogKey, namespace, context, "$path.fontFamily", findings)
+        val registry = font["registry"] as? String
+        validateContentIdentity(registry, "$path.fontFamily.registry", namespace, "$path.fontFamily.namespace", findings)
+        validateReference(CatalogResourceReference("font", slug, catalogKey, namespace, registry), context, "$path.fontFamily", findings)
     }
 
     private fun validateAttribute(
@@ -396,8 +423,13 @@ object ResourceValidator {
             )
         }
         resource.codeListBinding?.let {
-            validateContentNamespace(it.namespace, "$path.codeListBinding.namespace", findings)
-            validateReference("codeList", it.slug, it.catalogKey, it.namespace, context, "$path.codeListBinding", findings)
+            validateContentIdentity(it.registry, "$path.codeListBinding.registry", it.namespace, "$path.codeListBinding.namespace", findings)
+            validateReference(
+                CatalogResourceReference("codeList", it.slug, it.catalogKey, it.namespace, it.registry),
+                context,
+                "$path.codeListBinding",
+                findings,
+            )
         }
     }
 
@@ -508,48 +540,59 @@ object ResourceValidator {
     }
 
     private fun validateReference(
-        type: String,
-        slug: String,
-        catalogKey: String?,
-        namespace: String?,
+        reference: CatalogResourceReference,
         context: ResourceValidationContext,
         path: String,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        val resolution = resolveReference(CatalogResourceReference(type, slug, catalogKey, namespace), context)
+        val resolution = resolveReference(reference, context)
         if (resolution == ResourceResolution.MISSING) {
-            findings.error(CatalogValidationCodes.RESOURCE_REFERENCE_MISSING, path, "$type resource '$slug' cannot be resolved")
+            findings.error(CatalogValidationCodes.RESOURCE_REFERENCE_MISSING, path, "${reference.type} resource '${reference.slug}' cannot be resolved")
         }
     }
 
-    /** A namespace inside content may take either form, or be omitted for the owning catalog's. */
-    private fun validateContentNamespace(
+    /**
+     * A reference inside content may omit its registry and namespace, each meaning the owning
+     * catalog's. Whatever it names must be well-formed, and a registry needs a namespace: a
+     * namespace is only meaningful within a registry, so naming another registry with the owning
+     * catalog's namespace would be a coincidence of names, not a reference.
+     */
+    private fun validateContentIdentity(
+        registry: String?,
+        registryPath: String,
         namespace: String?,
-        path: String,
+        namespacePath: String,
         findings: MutableList<CatalogValidationFinding>,
     ) {
+        if (registry != null && !CatalogNamespaces.isValidRegistry(registry)) {
+            findings.error(CatalogValidationCodes.REGISTRY_INVALID, registryPath, "registry '$registry' is not a DNS name written in full")
+        }
         if (namespace != null && !CatalogNamespaces.isValid(namespace)) {
-            findings.error(CatalogValidationCodes.NAMESPACE_INVALID, path, "namespace '$namespace' is not a valid catalog namespace")
+            findings.error(CatalogValidationCodes.NAMESPACE_INVALID, namespacePath, "namespace '$namespace' is not a valid catalog namespace")
+        }
+        if (registry != null && namespace == null) {
+            findings.error(CatalogValidationCodes.NAMESPACE_INVALID, namespacePath, "a reference naming registry '$registry' must name a namespace too")
         }
     }
 
     /**
      * Resolves within the catalog when the reference names no other catalog, and otherwise through
      * the consumer's resolver. A reference to another catalog reaches the resolver with the owning
-     * catalog's namespace or key filled in where it omitted one, and its namespace as written:
-     * expanding a short form depends on the installation's default exchange.
+     * catalog's registry, namespace or key filled in wherever it omitted one.
      */
     private fun resolveReference(
         reference: CatalogResourceReference,
         context: ResourceValidationContext,
     ): ResourceResolution {
+        val otherRegistry = reference.registry != null && reference.registry != context.registry
         val otherNamespace = reference.namespace != null && reference.namespace != context.namespace
         val otherCatalog = reference.catalogKey != null && reference.catalogKey != context.catalogKey
-        if (otherNamespace || otherCatalog) {
+        if (otherRegistry || otherNamespace || otherCatalog) {
             return context.dependencyResolver.resolve(
                 reference.copy(
                     catalogKey = reference.catalogKey ?: context.catalogKey,
                     namespace = reference.namespace ?: context.namespace,
+                    registry = reference.registry ?: context.registry,
                 ),
             )
         }
@@ -672,11 +715,12 @@ object CatalogValidator {
             paths = catalog.paths,
             dependencyResolver = policy.dependencyResolver,
             namespace = manifest.catalog.namespace,
+            registry = manifest.catalog.registry,
         )
         catalog.resourceDetails.toSortedMap().forEach { (key, detail) ->
             findings += ResourceValidator.validate(detail, context, "resources/$key.json").findings
         }
-        validateStencilComposition(resources, manifest.catalog.slug, manifest.catalog.namespace, findings)
+        validateStencilComposition(resources, manifest.catalog.slug, manifest.catalog.namespace, manifest.catalog.registry, findings)
         return CatalogValidationReport(findings.distinct().sorted())
     }
 
@@ -684,6 +728,7 @@ object CatalogValidator {
         resources: Map<String, CatalogResource>,
         catalogKey: String,
         namespace: String?,
+        registry: String?,
         findings: MutableList<CatalogValidationFinding>,
     ) {
         val stencils = resources.values
@@ -712,7 +757,10 @@ object CatalogValidator {
                     val slug = node.props?.get("stencilId") as? String ?: return@mapNotNull null
                     val referenceCatalog = node.props["catalogKey"] as? String ?: catalogKey
                     val referenceNamespace = node.props["namespace"] as? String ?: namespace
-                    if (referenceCatalog != catalogKey || referenceNamespace != namespace) return@mapNotNull null
+                    val referenceRegistry = node.props["registry"] as? String ?: registry
+                    if (referenceCatalog != catalogKey || referenceNamespace != namespace || referenceRegistry != registry) {
+                        return@mapNotNull null
+                    }
                     StencilCompositionEdge(
                         target = StencilResourceIdentity(slug),
                         path = "resources/stencil/${stencil.slug}.json.resource.content.nodes.${node.id}.props.stencilId",
@@ -937,20 +985,21 @@ object CatalogValidator {
     }
 
     /**
-     * Wire v8: the catalog names its namespace in full, and declares each catalog it depends on once,
-     * never itself, with a version selector and, unless migrated, the release it was cut with.
+     * Wire v8: the catalog names its registry in full and its namespace, and declares each catalog it
+     * depends on once, never itself, with a version selector and, unless migrated, the release it
+     * was cut with and that release's fingerprint.
      */
     private fun validateCatalogDependencies(
         manifest: CatalogManifest,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        val own = manifest.catalog.namespace to manifest.catalog.slug
-        validateFullNamespace(manifest.catalog.namespace, "catalog.json.catalog.namespace", "catalog", findings)
-        val seen = mutableSetOf<Pair<String, String>>()
+        val own = CatalogIdentity(manifest.catalog.registry, manifest.catalog.namespace, manifest.catalog.slug)
+        validateTopLevelIdentity(manifest.catalog.registry, manifest.catalog.namespace, "catalog.json.catalog", "catalog", findings)
+        val seen = mutableSetOf<CatalogIdentity>()
         manifest.catalogDependencies.orEmpty().forEachIndexed { index, dependency ->
             val path = "catalog.json.catalogDependencies[$index]"
-            val identity = dependency.namespace to dependency.catalogKey
-            validateFullNamespace(dependency.namespace, "$path.namespace", "catalog dependency", findings)
+            val identity = CatalogIdentity(dependency.registry, dependency.namespace, dependency.catalogKey)
+            validateTopLevelIdentity(dependency.registry, dependency.namespace, path, "catalog dependency", findings)
             if (!CatalogSlugs.matches(CatalogSlugs.CATALOG, dependency.catalogKey)) {
                 findings.error(
                     CatalogValidationCodes.RESOURCE_SLUG_INVALID,
@@ -965,7 +1014,7 @@ object CatalogValidator {
                 findings.error(
                     CatalogValidationCodes.DEPENDENCY_CATALOG_DUPLICATE,
                     path,
-                    "catalog '${dependency.namespace}/${dependency.catalogKey}' is declared more than once",
+                    "catalog $identity is declared more than once",
                 )
             }
             if (dependency.version.isBlank() || dependency.version.length > CatalogDependency.MAX_VERSION_LENGTH) {
@@ -980,23 +1029,52 @@ object CatalogValidator {
                     findings.error(CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID, "$path.releaseVersion", "releaseVersion must be SemVer")
                 }
             }
+            val fingerprintFinding = when {
+                dependency.releaseVersion == null && dependency.releaseFingerprint != null ->
+                    "releaseFingerprint must be null when no releaseVersion is recorded"
+                dependency.releaseVersion != null && dependency.releaseFingerprint == null ->
+                    "releaseFingerprint is required when a releaseVersion is recorded"
+                dependency.releaseFingerprint != null && !CatalogDependency.isValidReleaseFingerprint(dependency.releaseFingerprint) ->
+                    "releaseFingerprint must be a lowercase SHA-256 hex string"
+                else -> null
+            }
+            fingerprintFinding?.let { findings.error(CatalogValidationCodes.DEPENDENCY_CATALOG_FINGERPRINT_INVALID, "$path.releaseFingerprint", it) }
         }
     }
 
-    private fun validateFullNamespace(
+    /** Where an archive names a catalog at its top level, both registry and namespace are required. */
+    private fun validateTopLevelIdentity(
+        registry: String?,
         namespace: String?,
         path: String,
         what: String,
         findings: MutableList<CatalogValidationFinding>,
     ) {
         when {
-            namespace == null -> findings.error(CatalogValidationCodes.NAMESPACE_INVALID, path, "$what names no namespace")
-            !CatalogNamespaces.isValidFull(namespace) -> findings.error(
-                CatalogValidationCodes.NAMESPACE_INVALID,
-                path,
-                "$what namespace '$namespace' must be written in full, as a domain optionally followed by /name",
+            registry == null -> findings.error(CatalogValidationCodes.REGISTRY_INVALID, "$path.registry", "$what names no registry")
+            !CatalogNamespaces.isValidRegistry(registry) -> findings.error(
+                CatalogValidationCodes.REGISTRY_INVALID,
+                "$path.registry",
+                "$what registry '$registry' must be a DNS name written in full",
             )
         }
+        when {
+            namespace == null -> findings.error(CatalogValidationCodes.NAMESPACE_INVALID, "$path.namespace", "$what names no namespace")
+            !CatalogNamespaces.isValid(namespace) -> findings.error(
+                CatalogValidationCodes.NAMESPACE_INVALID,
+                "$path.namespace",
+                "$what namespace '$namespace' must be a lowercase slug",
+            )
+        }
+    }
+
+    /** A catalog's identity: registry, namespace and key. Parts are null only in a malformed manifest. */
+    private data class CatalogIdentity(
+        val registry: String?,
+        val namespace: String?,
+        val catalogKey: String,
+    ) {
+        override fun toString(): String = "'$catalogKey' in namespace '$namespace' of registry '$registry'"
     }
 
     private fun validateDependencies(
@@ -1004,26 +1082,27 @@ object CatalogValidator {
         policy: CatalogValidationPolicy,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        val own = manifest.catalog.namespace to manifest.catalog.slug
-        val declared = manifest.catalogDependencies.orEmpty().mapTo(mutableSetOf()) { it.namespace to it.catalogKey }
+        val own = CatalogIdentity(manifest.catalog.registry, manifest.catalog.namespace, manifest.catalog.slug)
+        val declared = manifest.catalogDependencies.orEmpty().mapTo(mutableSetOf()) { CatalogIdentity(it.registry, it.namespace, it.catalogKey) }
         val seen = mutableSetOf<String>()
         manifest.dependencies.orEmpty().forEachIndexed { index, dependency ->
             val path = "catalog.json.dependencies[$index]"
-            val reference = when (dependency) {
-                is DependencyRef.Theme -> CatalogResourceReference("theme", dependency.slug, dependency.catalogKey, dependency.namespace)
-                is DependencyRef.Stencil -> CatalogResourceReference("stencil", dependency.slug, dependency.catalogKey, dependency.namespace)
-                is DependencyRef.CodeList -> CatalogResourceReference("codeList", dependency.slug, dependency.catalogKey, dependency.namespace)
-                is DependencyRef.Font -> CatalogResourceReference("font", dependency.slug, dependency.catalogKey, dependency.namespace)
-                is DependencyRef.Image -> CatalogResourceReference("image", dependency.slug, dependency.catalogKey, dependency.namespace)
+            val type = when (dependency) {
+                is DependencyRef.Theme -> "theme"
+                is DependencyRef.Stencil -> "stencil"
+                is DependencyRef.CodeList -> "codeList"
+                is DependencyRef.Font -> "font"
+                is DependencyRef.Image -> "image"
             }
-            val key = "${reference.type}|${reference.namespace.orEmpty()}|${reference.catalogKey.orEmpty()}|${reference.slug}"
+            val reference = CatalogResourceReference(type, dependency.slug, dependency.catalogKey, dependency.namespace, dependency.registry)
+            val key = "${reference.type}|${reference.registry.orEmpty()}|${reference.namespace.orEmpty()}|${reference.catalogKey.orEmpty()}|${reference.slug}"
             if (!seen.add(key)) {
                 findings.error(CatalogValidationCodes.DEPENDENCY_DUPLICATE, path, "dependency '$key' is duplicated")
             }
-            validateFullNamespace(dependency.namespace, "$path.namespace", "dependency", findings)
-            val catalog = dependency.namespace to dependency.catalogKey
+            validateTopLevelIdentity(dependency.registry, dependency.namespace, path, "dependency", findings)
+            val catalog = CatalogIdentity(dependency.registry, dependency.namespace, dependency.catalogKey)
             when {
-                dependency.namespace == null -> Unit
+                dependency.registry == null || dependency.namespace == null -> Unit
                 catalog == own -> findings.error(
                     CatalogValidationCodes.DEPENDENCY_CATALOG_SELF,
                     path,
@@ -1032,7 +1111,7 @@ object CatalogValidator {
                 catalog !in declared -> findings.error(
                     CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED,
                     path,
-                    "dependency '$key' names catalog '${dependency.namespace}/${dependency.catalogKey}', which catalogDependencies does not declare",
+                    "dependency '$key' names catalog $catalog, which catalogDependencies does not declare",
                 )
             }
             if (policy.dependencyResolver.resolve(reference) == ResourceResolution.MISSING) {

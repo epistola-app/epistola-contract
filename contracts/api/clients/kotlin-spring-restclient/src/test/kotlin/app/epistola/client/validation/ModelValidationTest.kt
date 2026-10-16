@@ -319,6 +319,29 @@ class ModelValidationTest {
         assertEquals("templateId: must match pattern ^[a-z][a-z0-9]*(-[a-z0-9]+)*\$", ex.message)
     }
 
+    @Test
+    fun `GenerateDocumentRequest names its registry in full or leaves it out, and its namespace as a slug`() {
+        fun request(registry: String?, namespace: String = "acme-corp") = GenerateDocumentRequest(
+            registry = registry,
+            namespace = namespace,
+            catalogKey = "default",
+            templateId = "invoice",
+            data = emptyMap<String, Any>(),
+        )
+
+        // omitted: the server's default registry
+        request(registry = null).validate()
+        // a registry in full
+        request(registry = "exchange.example.org").validate()
+
+        // `~` addresses the default registry in a path only; a body leaves the registry out instead
+        assertFailsWith<IllegalArgumentException> { request(registry = "~").validate() }
+        // a registry is a DNS name with at least one dot
+        assertFailsWith<IllegalArgumentException> { request(registry = "localhost").validate() }
+        // the registry is its own member; the namespace no longer carries it
+        assertFailsWith<IllegalArgumentException> { request(registry = null, namespace = "exchange.example.org/team-a").validate() }
+    }
+
     // --- BatchGenerationItem: all constraint types in one model ---
 
     @Test

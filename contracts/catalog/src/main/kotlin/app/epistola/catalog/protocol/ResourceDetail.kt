@@ -59,8 +59,9 @@ sealed interface CatalogResource {
  * therefore needs no `schemaVersion` bump (see "Future wire evolution" in
  * `contracts/catalog/docs/catalog-compatibility.md`).
  *
- * [themeCatalogKey] and [themeNamespace] qualify [themeId] when the theme lives in another
- * catalog; null means the template's own catalog and namespace.
+ * [themeCatalogKey], [themeNamespace] and [themeRegistry] qualify [themeId] when the theme lives in
+ * another catalog; each null one means the template's own catalog's (wire v8). A [themeRegistry]
+ * without a [themeNamespace] is invalid.
  */
 data class TemplateResource(
     override val slug: String,
@@ -74,6 +75,8 @@ data class TemplateResource(
     val variants: List<VariantEntry>,
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     val themeNamespace: String? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val themeRegistry: String? = null,
 ) : CatalogResource {
     override val type: String get() = "template"
 }
@@ -147,9 +150,10 @@ data class AttributeResource(
  * Points a variant-attribute definition at a code list that constrains its
  * allowed values. `catalogKey = null` means "the same catalog as the
  * attribute" (the typical case for catalogs that author both an attribute
- * and the list it binds to). `namespace = null` means the owning catalog's
- * namespace (wire v8); either form of [CatalogNamespaces.PATTERN] is allowed,
- * because content is read relative to a catalog whose namespace is explicit.
+ * and the list it binds to). `namespace = null` and `registry = null` mean
+ * the owning catalog's namespace and registry (wire v8), never an
+ * installation default: content means the same thing wherever it is
+ * installed. A `registry` without a `namespace` is invalid.
  *
  * Mutually exclusive with `AttributeResource.allowedValues` on the
  * consumer side. The wire format doesn't enforce that — it relies on the
@@ -161,6 +165,8 @@ data class CodeListBindingRef(
     val slug: String,
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     val namespace: String? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val registry: String? = null,
 )
 
 /**
@@ -170,13 +176,17 @@ data class CodeListBindingRef(
  * tenant — most notably the bundled `system` catalog. Mirrors
  * [CodeListBindingRef]; this is the shape stored in `documentStyles`,
  * block-style presets, and inline node styles under the `fontFamily` key.
- * `namespace = null` means the referencing catalog's namespace (wire v8).
+ * `namespace = null` and `registry = null` mean the referencing catalog's
+ * namespace and registry (wire v8); a `registry` without a `namespace` is
+ * invalid.
  */
 data class FontRef(
     val catalogKey: String? = null,
     val slug: String,
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     val namespace: String? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val registry: String? = null,
 )
 
 /**

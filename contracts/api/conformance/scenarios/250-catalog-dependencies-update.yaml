@@ -9,9 +9,10 @@ why: >
   which release they render with. So the declaration is the whole answer to "what does this
   release render with", and a client that drops a field from it changes that answer.
 
-  The two dependencies cover both namespace forms: a short one on the default exchange
-  (`epistola`) and a domain (`acme.com`). The request may use the short form; the response writes
-  every namespace in full, and a client must surface it as written rather than shorten it back.
+  The two dependencies cover both ways to name a registry. The first leaves `registry` out, which
+  means the default registry; the client must not send one it was not given. The second names a
+  registry in full (`acme.com`). The response writes every registry in full, the default one by its
+  real name, and a client must surface it as written rather than leave it out again.
 
   `resolvedVersion` is null when no installed release satisfies the selector. That is the state
   that blocks a release, so a client that turns null into an empty string or drops the entry hides
@@ -22,36 +23,39 @@ action:
   config:
     nodeId: conformance-node-1
     tenantId: acme-corp
+    registry: "~"
     namespace: acme-corp
     catalogKey: letters
     catalogVersion: 2.0.0
     dependencies:
       - { namespace: epistola, catalogKey: system, version: 1.3.0 }
-      - { namespace: acme.com, catalogKey: house-style, version: 2.1.0 }
+      - { registry: acme.com, namespace: acme, catalogKey: house-style, version: 2.1.0 }
 
 script:
   - status: 200
     contentType: application/vnd.epistola.v1+json
     body:
       items:
-        - { namespace: exchange.epistola.app/epistola, catalogKey: system, version: 1.3.0, resolvedVersion: 1.3.0 }
-        - { namespace: acme.com, catalogKey: house-style, version: 2.1.0, resolvedVersion: null }
+        - { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, version: 1.3.0, resolvedVersion: 1.3.0 }
+        - { registry: acme.com, namespace: acme, catalogKey: house-style, version: 2.1.0, resolvedVersion: null }
 
 expect:
   requestCount: 1
   requests:
     - method: PUT
-      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions/2.0.0/dependencies
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/2.0.0/dependencies
       headers:
         Content-Type:
           matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
       body:
         json:
           dependencies:
-            - { namespace: epistola, catalogKey: system, version: 1.3.0 }
-            - { namespace: acme.com, catalogKey: house-style, version: 2.1.0 }
+            # Omitted or null both mean the default registry; a value the caller never gave is not.
+            - { registry: { whenPresent: { equals: null } }, namespace: epistola, catalogKey: system, version: 1.3.0 }
+            - { registry: acme.com, namespace: acme, catalogKey: house-style, version: 2.1.0 }
   report:
-    namespaces: exchange.epistola.app/epistola,acme.com
+    registries: exchange.epistola.app,acme.com
+    namespaces: epistola,acme
     catalogKeys: system,house-style
     versions: 1.3.0,2.1.0
     resolvedVersions: 1.3.0,null

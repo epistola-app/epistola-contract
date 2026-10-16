@@ -3,17 +3,19 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: deploy-release
-title: Deploying addresses one release of a catalog, with a namespace segment that survives the path
+title: Deploying addresses one release of a catalog, and `~` in the path addresses the default registry
 why: >
   An environment can serve several releases of one catalog, so a deployment is addressed by the
   release, not by the catalog: the path ends in the release version and the request has no body.
   A client that still sends the version in a body deploys nothing a server can identify.
 
-  The namespace here is on a non-default exchange. A path segment cannot carry its `/`, so it is
-  written with `~` (`exchange.example.org~team-a`), and the dots of the host stay as they are. `~`
-  is an unreserved character, so a client may send it as is or percent-encoded as `%7E`, which
-  RFC 3986 makes equivalent. What no client may do is encode it as anything else, or split the
-  segment.
+  The catalog is in the default registry, addressed as `~`. `~` is an unreserved character, so a
+  client may send it as is or percent-encoded as `%7E`, which RFC 3986 makes equivalent (the
+  harness records `%7E` as `~`). What no client may do is encode it as anything else, drop the
+  segment, or replace it with a registry of its own choosing: only the server knows its default.
+
+  The response names the registry in full, by its real name, never `~`. A client must surface
+  that name as written, so a value read here means the same catalog on another installation.
 
 action:
   name: deploy-release
@@ -21,7 +23,8 @@ action:
     nodeId: conformance-node-1
     tenantId: acme-corp
     environmentId: production
-    namespace: exchange.example.org~team-a
+    registry: "~"
+    namespace: acme-corp
     catalogKey: letters
     releaseVersion: 1.4.0
 
@@ -29,7 +32,8 @@ script:
   - status: 200
     contentType: application/vnd.epistola.v1+json
     body:
-      namespace: exchange.example.org/team-a
+      registry: exchange.epistola.app
+      namespace: acme-corp
       catalogKey: letters
       releaseVersion: 1.4.0
       deployedAt: "2026-10-02T07:30:00Z"
@@ -38,9 +42,9 @@ expect:
   requestCount: 1
   requests:
     - method: PUT
-      path:
-        matches: '^/api/tenants/acme-corp/environments/production/deployments/exchange\.example\.org(~|%7E|%7e)team-a/letters/1\.4\.0$'
+      path: /api/tenants/acme-corp/environments/production/deployments/~/acme-corp/letters/1.4.0
   report:
-    namespace: exchange.example.org/team-a
+    registry: exchange.epistola.app
+    namespace: acme-corp
     catalogKey: letters
     releaseVersion: 1.4.0

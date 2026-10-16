@@ -11,6 +11,7 @@ export interface TemplateDataValidationSource {
   validateTemplateData(
     requestParameters: {
       tenantId: string
+      registry: string
       namespace: string
       catalogKey: string
       templateId: string
@@ -61,9 +62,10 @@ export class ServerTemplateDataValidator implements TemplateDataValidator {
     private readonly target: ServerValidationTarget = {},
   ) {}
 
-  async validate(tenantId: string, namespace: string, catalogKey: string, templateId: string, data: unknown): Promise<readonly ValidationFailure[]> {
+  async validate(tenantId: string, registry: string, namespace: string, catalogKey: string, templateId: string, data: unknown): Promise<readonly ValidationFailure[]> {
     const result = await this.templatesApi.validateTemplateData({
       tenantId,
+      registry,
       namespace,
       catalogKey,
       templateId,

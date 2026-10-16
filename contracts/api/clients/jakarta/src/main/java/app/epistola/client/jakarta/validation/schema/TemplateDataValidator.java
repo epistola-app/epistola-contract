@@ -43,12 +43,20 @@ import java.util.List;
 public interface TemplateDataValidator {
 
     /**
+     * The {@code registry} path segment that addresses the server's default registry. A request
+     * body that leaves its {@code registry} unset means the same catalog.
+     */
+    String DEFAULT_REGISTRY = "~";
+
+    /**
      * Returns the findings for {@code data} against the given template's data contract, empty when
      * there are none.
      *
      * @param tenantId   tenant identifier
-     * @param namespace  the catalog's namespace, as a request may write it ({@code acme-corp},
-     *                   {@code acme.com}, or {@code exchange.example.org~team-a} in a path)
+     * @param registry   the catalog's registry as a path writes it: {@link #DEFAULT_REGISTRY}
+     *                   ({@code ~}) for the server's default registry, or a name in full
+     *                   ({@code acme.com})
+     * @param namespace  the catalog's namespace within its registry ({@code acme-corp})
      * @param catalogKey the catalog's key within its namespace; the same template id in two
      *                   catalogs of one tenant is two different templates with two different
      *                   contracts
@@ -56,7 +64,7 @@ public interface TemplateDataValidator {
      * @param data       the data object to check
      */
     List<TemplateDataValidationException.ValidationError> validate(
-            String tenantId, String namespace, String catalogKey, String templateId, Object data);
+            String tenantId, String registry, String namespace, String catalogKey, String templateId, Object data);
 
     /**
      * Whether {@link ValidatingGenerationApi} should check data with this validator <em>before</em>

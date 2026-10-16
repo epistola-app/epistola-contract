@@ -13,6 +13,7 @@ action:
   config:
     nodeId: conformance-node-1
     tenantId: acme-corp
+    registry: "~"
     namespace: acme-corp
     catalogKey: letters
     catalogVersion: 3.0.0
@@ -24,4 +25,4 @@ expect:
   requestCount: 1
   requests:
     - method: DELETE
-      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions/3.0.0
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/3.0.0

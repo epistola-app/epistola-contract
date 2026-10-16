@@ -94,7 +94,7 @@ public sealed class ValidatingGenerationApi
             return;
         }
         new TemplateSchemaValidator(_validator)
-            .Validate(tenantId, PathSegment(request.Namespace), request.CatalogKey, request.TemplateId, request.Data);
+            .Validate(tenantId, RegistrySegment(request.Registry), request.Namespace, request.CatalogKey, request.TemplateId, request.Data);
     }
 
     private void PreflightBatch(string tenantId, GenerateBatchRequest request)
@@ -108,7 +108,7 @@ public sealed class ValidatingGenerationApi
         {
             var item = request.Items[index];
             var prefix = $"items[{index}]";
-            foreach (var error in _validator.Validate(tenantId, PathSegment(item.Namespace), item.CatalogKey, item.TemplateId, item.Data))
+            foreach (var error in _validator.Validate(tenantId, RegistrySegment(item.Registry), item.Namespace, item.CatalogKey, item.TemplateId, item.Data))
             {
                 allErrors.Add(error.WithPathPrefix(prefix));
             }
@@ -120,11 +120,12 @@ public sealed class ValidatingGenerationApi
     }
 
     /// <summary>
-    /// A request body names the namespace in its body form (<c>exchange.example.org/team-a</c>); a
-    /// validator addresses the catalog in a path, which cannot carry the <c>/</c>, so it takes the
-    /// path-segment form, with <c>~</c> in its place. The contract defines exactly this mapping.
+    /// A request body leaves <c>registry</c> unset (or null) for the server's default registry; a
+    /// validator addresses the catalog in a path, where the default registry is written <c>~</c>.
+    /// A registry the body names is passed on as is.
     /// </summary>
-    private static string PathSegment(string @namespace) => @namespace.Replace('/', '~');
+    private static string RegistrySegment(string? registry) =>
+        string.IsNullOrEmpty(registry) ? ITemplateDataValidator.DefaultRegistry : registry;
 
     /// <summary>
     /// Rewrites the server's <c>template-data-invalid</c> problem into the exception a caller of this

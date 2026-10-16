@@ -13,6 +13,7 @@ action:
   config:
     nodeId: conformance-node-1
     tenantId: acme-corp
+    registry: "~"
     namespace: acme-corp
     catalogKey: letters
     catalogVersion: 2.0.0
@@ -28,7 +29,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions/2.0.0/incoming/chg-1/resolve
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/2.0.0/incoming/chg-1/resolve
       body:
         json:
           resolution: keep

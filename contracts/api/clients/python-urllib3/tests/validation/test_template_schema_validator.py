@@ -30,10 +30,10 @@ class _StubTemplatesApi:
         self.calls = 0
         self.sent = []
 
-    def validate_template_data(self, tenant_id, namespace, catalog_key, template_id, request):
+    def validate_template_data(self, tenant_id, registry, namespace, catalog_key, template_id, request):
         self.calls += 1
         self.sent.append(request)
-        self.addressed = (tenant_id, namespace, catalog_key, template_id)
+        self.addressed = (tenant_id, registry, namespace, catalog_key, template_id)
         return self._result
 
 
@@ -61,15 +61,15 @@ class _LocalValidator:
     def __init__(self, *paths):
         self._paths = paths
         self.calls = 0
-        self.namespaces = []
+        self.catalogs = []
 
     preflights_generation = True
 
-    def validate(self, tenant_id, namespace, catalog_key, template_id, data):
+    def validate(self, tenant_id, registry, namespace, catalog_key, template_id, data):
         from epistola_client import ValidationFailure
 
         self.calls += 1
-        self.namespaces.append(namespace)
+        self.catalogs.append(f"{registry}/{namespace}/{catalog_key}")
         return [
             ValidationFailure(path=path, message="is required but was not supplied", keyword="required")
             for path in self._paths
@@ -82,17 +82,18 @@ def _result(valid, errors=None, missing_fields=None, invalid_fields=None):
     )
 
 
+def _item(template_id):
+    return SimpleNamespace(
+        registry=None, namespace="acme-corp", catalog_key="default", template_id=template_id, data={}
+    )
+
+
 def _single_request():
-    return SimpleNamespace(namespace="acme-corp", catalog_key="default", template_id="invoice", data={})
+    return _item("invoice")
 
 
 def _batch_request():
-    return SimpleNamespace(
-        items=[
-            SimpleNamespace(namespace="acme-corp", catalog_key="default", template_id="invoice", data={}),
-            SimpleNamespace(namespace="acme-corp", catalog_key="default", template_id="reminder", data={}),
-        ]
-    )
+    return SimpleNamespace(items=[_item("invoice"), _item("reminder")])
 
 
 def _template_data_invalid(missing_fields=None, invalid_fields=None):
@@ -115,7 +116,7 @@ def _template_data_invalid(missing_fields=None, invalid_fields=None):
 def test_valid_data_passes_without_raising():
     api = _StubTemplatesApi(_result(valid=True))
 
-    TemplateSchemaValidator(api).validate("acme-corp", "acme-corp", "default", "invoice", {"name": "Jane"})
+    TemplateSchemaValidator(api).validate("acme-corp", "~", "acme-corp", "default", "invoice", {"name": "Jane"})
 
     assert api.calls == 1
     assert api.sent[0].data == {"name": "Jane"}
@@ -133,7 +134,7 @@ def test_invalid_fields_become_failures_keyed_by_their_json_pointer():
     )
 
     with pytest.raises(TemplateDataValidationError) as raised:
-        TemplateSchemaValidator(api).validate("acme-corp", "acme-corp", "default", "invoice", {})
+        TemplateSchemaValidator(api).validate("acme-corp", "~", "acme-corp", "default", "invoice", {})
 
     assert [e.path for e in raised.value.errors] == ["/customer/email", "/lineItems/0/quantity"]
     assert [e.keyword for e in raised.value.errors] == ["format", "minimum"]
@@ -151,7 +152,7 @@ def test_a_missing_required_field_is_a_failure_and_a_missing_optional_field_is_n
     )
 
     with pytest.raises(TemplateDataValidationError) as raised:
-        TemplateSchemaValidator(api).validate("acme-corp", "acme-corp", "default", "invoice", {})
+        TemplateSchemaValidator(api).validate("acme-corp", "~", "acme-corp", "default", "invoice", {})
 
     assert [e.path for e in raised.value.errors] == ["/customer/address"]
     assert raised.value.errors[0].keyword == "required"
@@ -166,7 +167,7 @@ def test_errors_is_used_when_the_server_sends_no_field_members():
     )
 
     with pytest.raises(TemplateDataValidationError) as raised:
-        TemplateSchemaValidator(api).validate("acme-corp", "acme-corp", "default", "invoice", {})
+        TemplateSchemaValidator(api).validate("acme-corp", "~", "acme-corp", "default", "invoice", {})
 
     assert raised.value.errors[0].path == "/invoiceNumber"
     assert raised.value.errors[0].keyword == "pattern"
@@ -184,7 +185,7 @@ def test_the_field_members_win_over_errors():
     )
 
     with pytest.raises(TemplateDataValidationError) as raised:
-        TemplateSchemaValidator(api).validate("acme-corp", "acme-corp", "default", "invoice", {})
+        TemplateSchemaValidator(api).validate("acme-corp", "~", "acme-corp", "default", "invoice", {})
 
     assert [e.path for e in raised.value.errors] == ["/customer/email"]
 
@@ -194,7 +195,7 @@ def test_an_invalid_result_with_nothing_to_report_still_raises():
     api = _StubTemplatesApi(_result(valid=False))
 
     with pytest.raises(TemplateDataValidationError) as raised:
-        TemplateSchemaValidator(api).validate("acme-corp", "acme-corp", "default", "invoice", {})
+        TemplateSchemaValidator(api).validate("acme-corp", "~", "acme-corp", "default", "invoice", {})
 
     assert len(raised.value.errors) == 1
     assert raised.value.errors[0].path == ""
@@ -205,20 +206,20 @@ def test_the_version_selectors_are_passed_through_when_configured():
 
     TemplateSchemaValidator(
         ServerTemplateDataValidator(api, variant_id="nl-nl", environment_id="production")
-    ).validate("acme-corp", "acme-corp", "default", "invoice", {})
+    ).validate("acme-corp", "~", "acme-corp", "default", "invoice", {})
 
     assert api.sent[0].variant_id == "nl-nl"
     assert api.sent[0].environment_id == "production"
 
 
-def test_the_catalog_is_addressed_by_namespace_and_key_and_the_version_selector_is_sent():
+def test_the_catalog_is_addressed_by_registry_namespace_and_key_and_the_version_selector_is_sent():
     api = _StubTemplatesApi(_result(valid=True))
 
     ServerTemplateDataValidator(api, version="^1.4.0", environment_id="production").validate(
-        "acme-corp", "exchange.example.org~team-a", "default", "invoice", {}
+        "acme-corp", "exchange.example.org", "team-a", "default", "invoice", {}
     )
 
-    assert api.addressed == ("acme-corp", "exchange.example.org~team-a", "default", "invoice")
+    assert api.addressed == ("acme-corp", "exchange.example.org", "team-a", "default", "invoice")
     assert api.sent[0].version == "^1.4.0"
     assert api.sent[0].environment_id == "production"
 
@@ -228,7 +229,7 @@ def test_a_plugged_in_validator_replaces_the_server_entirely():
     local = _LocalValidator("/name")
 
     with pytest.raises(TemplateDataValidationError) as raised:
-        TemplateSchemaValidator(local).validate("acme-corp", "acme-corp", "default", "invoice", {})
+        TemplateSchemaValidator(local).validate("acme-corp", "~", "acme-corp", "default", "invoice", {})
 
     assert raised.value.errors[0].path == "/name"
     assert api.calls == 0
@@ -316,14 +317,27 @@ def test_the_default_validator_preflights_nothing_per_batch_item_either():
     assert generation.submissions == 1
 
 
-def test_the_preflight_addresses_a_body_form_namespace_in_its_path_segment_form():
-    # The validator puts the namespace in a URL path, which cannot carry the `/` of the body form;
-    # unconverted, the slash is percent-encoded and the pre-flight addresses no catalog at all.
+def test_the_preflight_addresses_the_default_registry_as_tilde_when_the_body_omits_it():
+    # A body may leave `registry` out, meaning the server's default registry. The validator puts it
+    # in a URL path, which has to say something there: `~`, never a guessed registry name.
     local = _LocalValidator()
-    item = dict(namespace="exchange.example.org/team-a", catalog_key="default", template_id="invoice", data={})
+    item = dict(registry=None, namespace="team-a", catalog_key="default", template_id="invoice", data={})
     api = ValidatingGenerationApi(_StubGenerationApi(), local)
 
     api.generate_document("acme-corp", SimpleNamespace(**item))
     api.generate_document_batch("acme-corp", SimpleNamespace(items=[SimpleNamespace(**item)]))
 
-    assert local.namespaces == ["exchange.example.org~team-a", "exchange.example.org~team-a"]
+    assert local.catalogs == ["~/team-a/default", "~/team-a/default"]
+
+
+def test_the_preflight_passes_a_registry_the_body_names_in_full():
+    local = _LocalValidator()
+    item = dict(
+        registry="exchange.example.org", namespace="team-a", catalog_key="default", template_id="invoice", data={}
+    )
+    api = ValidatingGenerationApi(_StubGenerationApi(), local)
+
+    api.generate_document("acme-corp", SimpleNamespace(**item))
+    api.generate_document_batch("acme-corp", SimpleNamespace(items=[SimpleNamespace(**item)]))
+
+    assert local.catalogs == ["exchange.example.org/team-a/default", "exchange.example.org/team-a/default"]

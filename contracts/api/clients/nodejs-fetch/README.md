@@ -56,8 +56,11 @@ const client = EpistolaClient.builder('https://epistola.example.com/api')
   .build()
 
 const templates = new TemplatesApi(client)
-const template = await templates.getTemplate({ tenantId: 'acme', namespace: 'acme', catalogKey: 'invoices', catalogVersion: '1.4.0', templateId: 'invoice' })
+const template = await templates.getTemplate({ tenantId: 'acme', registry: '~', namespace: 'acme', catalogKey: 'invoices', catalogVersion: '1.4.0', templateId: 'invoice' })
 ```
+
+A catalog is addressed by its `registry`, `namespace` and `catalogKey`. `registry: '~'` addresses the
+server's default registry; any other registry is named in full (`registry: 'acme.com'`).
 
 `EpistolaClient.builder(baseUrl, apiKey)` is a shorthand for the same thing. The legacy `X-API-Key`
 header is not sent: it remains supported server-side but is deprecated. Some Epistola Suite
@@ -104,7 +107,7 @@ carries a name and a type:
 import { readFile } from 'node:fs/promises'
 
 const file = new File([await readFile('logo.png')], 'logo.png', { type: 'image/png' })
-const image = await new ImagesApi(client).uploadImage({ tenantId: 'acme-corp', namespace: 'acme-corp', catalogKey: 'main', catalogVersion: '1.5.0', file, name: 'Logo' })
+const image = await new ImagesApi(client).uploadImage({ tenantId: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', catalogVersion: '1.5.0', file, name: 'Logo' })
 ```
 
 A plain `Blob` is always sent with the filename `blob`, and as `application/octet-stream` unless it
@@ -182,8 +185,8 @@ fields the release being rendered actually reads.
 import { ServerTemplateDataValidator, TemplateSchemaValidator, ValidatingGenerationApi, validateCreateTenantRequest } from '@epistola.app/epistola-client'
 
 const validator = new TemplateSchemaValidator(templatesApi)
-// tenant, catalog namespace (path-segment form), catalog key, template
-await validator.validate('acme', 'acme', 'invoices', 'invoice', data)   // throws TemplateDataValidationException
+// tenant, catalog registry (`~` for the server's default, or in full: 'acme.com'), namespace, catalog key, template
+await validator.validate('acme', '~', 'acme', 'invoices', 'invoice', data)   // throws TemplateDataValidationException
 
 // Against a particular release: a version selector, an environment, or both together
 const pinned = new TemplateSchemaValidator(

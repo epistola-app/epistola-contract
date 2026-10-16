@@ -60,6 +60,21 @@ class CatalogCanonicalizerTest {
     }
 
     @Test
+    fun `golden v8 fingerprint covers declared dependencies with their release fingerprints`() {
+        val manifest = resource("wire-v8/catalog.json").use { mapper.readValue(it, CatalogManifest::class.java) }
+        val detail = resource("wire-v8/resources/theme/default.json").use { mapper.readValue(it, ResourceDetail::class.java) }
+        val archive = CatalogArchive(
+            manifest = manifest,
+            resourceDetails = mapOf("theme/default" to detail),
+            paths = setOf("resources/theme/default.json"),
+            content = ArchiveContentProvider { path -> resource("wire-v8/$path") },
+        )
+        val expected = resource("fingerprints.json").use(mapper::readTree)
+
+        assertEquals(expected["currentWireV8CatalogFingerprint"].asString(), CatalogCanonicalizer.currentFingerprint(archive).value)
+    }
+
+    @Test
     fun `fingerprint ignores release metadata manifest URLs and JSON key order`() {
         val original = goldenArchive()
         val changedManifest = original.manifest.copy(
@@ -161,24 +176,29 @@ class CatalogCanonicalizerTest {
 
     @Test
     fun `v5 fingerprints cover catalog identity and declared dependencies, which v4 never did`() {
-        val namespace = "exchange.epistola.app/epistola"
+        val registry = "exchange.epistola.app"
+        val namespace = "epistola"
         val original = goldenArchive()
-        val shared = CatalogDependency(namespace, "shared", "^1.2.0", "1.4.0")
-        val brand = CatalogDependency(namespace, "brand", "*", null)
+        val shared = CatalogDependency(registry, namespace, "shared", "^1.2.0", "1.4.0", "69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42")
+        val brand = CatalogDependency(registry, namespace, "brand", "*", null)
         val base = original.copyWithManifest(
             original.manifest.copy(
                 schemaVersion = CURRENT_VERSION,
-                catalog = original.manifest.catalog.withNamespace(namespace),
-                dependencies = listOf(DependencyRef.Theme("shared", "corporate", namespace)),
+                catalog = original.manifest.catalog.withNamespace(registry, namespace),
+                dependencies = listOf(DependencyRef.Theme("shared", "corporate", namespace, registry)),
                 catalogDependencies = listOf(shared, brand),
             ),
         )
         fun changed(edit: (CatalogManifest) -> CatalogManifest) = base.copyWithManifest(edit(base.manifest))
         val variants = mapOf(
-            "namespace" to changed { it.copy(catalog = it.catalog.withNamespace("acme.com")) },
-            "dependency namespace" to changed { it.copy(dependencies = listOf(DependencyRef.Theme("shared", "corporate", "acme.com"))) },
+            "namespace" to changed { it.copy(catalog = it.catalog.withNamespace(registry, "acme")) },
+            "registry" to changed { it.copy(catalog = it.catalog.withNamespace("acme.com", namespace)) },
+            "dependency namespace" to changed { it.copy(dependencies = listOf(DependencyRef.Theme("shared", "corporate", "acme", registry))) },
+            "dependency registry" to changed { it.copy(dependencies = listOf(DependencyRef.Theme("shared", "corporate", namespace, "acme.com"))) },
+            "declared registry" to changed { it.copy(catalogDependencies = listOf(shared.copy(registry = "acme.com"), brand)) },
             "version selector" to changed { it.copy(catalogDependencies = listOf(shared.copy(version = "^2.0.0"), brand)) },
             "recorded release" to changed { it.copy(catalogDependencies = listOf(shared.copy(releaseVersion = "1.5.0"), brand)) },
+            "release fingerprint" to changed { it.copy(catalogDependencies = listOf(shared.copy(releaseFingerprint = "0".repeat(64)), brand)) },
             "declared catalogs" to changed { it.copy(catalogDependencies = listOf(shared)) },
         )
 

@@ -169,6 +169,7 @@ class CatalogArchiveCodecTest {
         assertNotNull(reRead.archive).use { rewritten ->
             assertEquals(CURRENT_VERSION, rewritten.sourceSchemaVersion)
             assertEquals(emptyList(), reRead.migrationNotices)
+            assertEquals(REGISTRY, rewritten.manifest.catalog.registry)
             assertEquals(NAMESPACE, rewritten.manifest.catalog.namespace)
             assertEquals(CatalogCanonicalizer.currentFingerprint(rewritten).value, rewritten.manifest.release.fingerprint)
             assertEquals(emptyList(), CatalogValidator.validate(rewritten).findings)
@@ -186,11 +187,11 @@ class CatalogArchiveCodecTest {
     }
 
     @Test
-    fun `a v7 archive cannot be read without a namespace for it`() {
+    fun `a v7 archive cannot be read without a registry and namespace for it`() {
         val result = CatalogArchiveReader.read(ByteArrayInputStream(signedV7StencilZip()))
 
         assertNull(result.archive)
-        assertEquals(listOf("CATALOG_NAMESPACE_MISSING"), result.findings.map { it.code })
+        assertEquals(listOf("CATALOG_NAMESPACE_MISSING", "CATALOG_REGISTRY_MISSING"), result.findings.map { it.code })
     }
 
     @Test
@@ -313,7 +314,7 @@ class CatalogArchiveCodecTest {
         val detail = ResourceDetail(CURRENT_VERSION, ThemeResource(slug = "default", name = "Default"))
         val manifest = CatalogManifest(
             schemaVersion = CURRENT_VERSION,
-            catalog = CatalogInfo("example", "Example").withNamespace(NAMESPACE),
+            catalog = CatalogInfo("example", "Example").withNamespace(REGISTRY, NAMESPACE),
             publisher = PublisherInfo("Example"),
             release = ReleaseInfo("1.0.0"),
             resources = listOf(
@@ -349,7 +350,7 @@ class CatalogArchiveCodecTest {
         )
         val manifest = CatalogManifest(
             schemaVersion = CURRENT_VERSION,
-            catalog = CatalogInfo("example", "Example").withNamespace(NAMESPACE),
+            catalog = CatalogInfo("example", "Example").withNamespace(REGISTRY, NAMESPACE),
             publisher = PublisherInfo("Example"),
             release = ReleaseInfo("1.0.0"),
             resources = listOf(
@@ -501,10 +502,11 @@ class CatalogArchiveCodecTest {
         ((bytes[offset + 3].toInt() and 0xff) shl 24)
 
     private companion object {
-        const val NAMESPACE = "exchange.epistola.app/epistola"
+        const val REGISTRY = "exchange.epistola.app"
+        const val NAMESPACE = "epistola"
 
-        /** An archive from before wire v8 names no namespace; the reader's caller supplies one. */
-        val MIGRATION = CatalogMigrationOptions(NAMESPACE)
+        /** An archive from before wire v8 names no registry or namespace; the reader's caller supplies both. */
+        val MIGRATION = CatalogMigrationOptions(NAMESPACE, REGISTRY)
         val POLICY = CatalogValidationPolicy(migration = MIGRATION)
 
         /**

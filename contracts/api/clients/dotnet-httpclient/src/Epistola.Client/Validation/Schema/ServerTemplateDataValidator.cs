@@ -68,7 +68,7 @@ public sealed class ServerTemplateDataValidator : ITemplateDataValidator
 
     /// <inheritdoc />
     public IReadOnlyList<TemplateDataValidationException.ValidationError> Validate(
-        string tenantId, string @namespace, string catalogKey, string templateId, object data)
+        string tenantId, string registry, string @namespace, string catalogKey, string templateId, object data)
     {
         var request = new ValidateTemplateDataRequest(
             variantId: _variantId,
@@ -76,7 +76,7 @@ public sealed class ServerTemplateDataValidator : ITemplateDataValidator
             environmentId: _environmentId,
             data: data);
 
-        var result = _templatesApi.ValidateTemplateData(tenantId, @namespace, catalogKey, templateId, request);
+        var result = _templatesApi.ValidateTemplateData(tenantId, registry, @namespace, catalogKey, templateId, request);
         if (result == null || result.Valid)
         {
             return new List<TemplateDataValidationException.ValidationError>();

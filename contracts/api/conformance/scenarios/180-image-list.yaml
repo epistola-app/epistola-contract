@@ -24,6 +24,7 @@ action:
     auth: api-key
     apiKey: epk_conformance_0123456789
     tenantId: acme-corp
+    registry: "~"
     namespace: acme-corp
     catalogKey: main
     catalogVersion: 2.0.0
@@ -36,7 +37,8 @@ script:
       items:
         - slug: municipality-mark
           tenantId: acme-corp
-          namespace: exchange.epistola.app/acme-corp
+          registry: exchange.epistola.app
+          namespace: acme-corp
           catalogKey: main
           catalogType: AUTHORED
           readOnly: false
@@ -48,7 +50,8 @@ script:
           createdAt: "2026-09-11T10:00:00Z"
         - slug: 4a64f2f9-2c7a-4d26-9cf7-d34c7ce92280
           tenantId: acme-corp
-          namespace: exchange.epistola.app/acme-corp
+          registry: exchange.epistola.app
+          namespace: acme-corp
           catalogKey: main
           catalogType: AUTHORED
           readOnly: false
@@ -64,7 +67,7 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/acme-corp/main/versions/2.0.0/images
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/main/versions/2.0.0/images
       queryParams:
         search: mark
         mediaCategory: { absent: true }

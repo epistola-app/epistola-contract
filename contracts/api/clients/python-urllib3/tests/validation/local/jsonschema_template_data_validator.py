@@ -51,7 +51,7 @@ class JsonSchemaTemplateDataValidator:
         self._catalog_version = catalog_version
         self._ttl = ttl_seconds
         self._lock = threading.Lock()
-        self._cache: Dict[Tuple[str, str, str, str], Tuple[Optional[Dict[str, Any]], float]] = {}
+        self._cache: Dict[Tuple[str, str, str, str, str], Tuple[Optional[Dict[str, Any]], float]] = {}
 
     @property
     def preflights_generation(self) -> bool:
@@ -63,12 +63,13 @@ class JsonSchemaTemplateDataValidator:
     def validate(
         self,
         tenant_id: str,
+        registry: str,
         namespace: str,
         catalog_key: str,
         template_id: str,
         data: Any,
     ) -> List[ValidationFailure]:
-        schema = self._schema_for(tenant_id, namespace, catalog_key, template_id)
+        schema = self._schema_for(tenant_id, registry, namespace, catalog_key, template_id)
         # No schema on the template means nothing is claimed about the data, so nothing is wrong
         # with it. Same answer the server gives.
         if schema is None:
@@ -88,16 +89,16 @@ class JsonSchemaTemplateDataValidator:
         ]
 
     def _schema_for(
-        self, tenant_id: str, namespace: str, catalog_key: str, template_id: str
+        self, tenant_id: str, registry: str, namespace: str, catalog_key: str, template_id: str
     ) -> Optional[Dict[str, Any]]:
-        key = (tenant_id, namespace, catalog_key, template_id)
+        key = (tenant_id, registry, namespace, catalog_key, template_id)
         now = time.monotonic()
         with self._lock:
             entry = self._cache.get(key)
             if entry is not None and now < entry[1] + self._ttl:
                 return entry[0]
         template = self._templates_api.get_template(
-            tenant_id, namespace, catalog_key, self._catalog_version, template_id
+            tenant_id, registry, namespace, catalog_key, self._catalog_version, template_id
         )
         schema = template.var_schema
         with self._lock:

@@ -36,8 +36,8 @@ class TemplateSchemaValidatorTest {
 
     private TemplatesApi answering(TemplateDataValidationResult result) {
         return FakeApis.of(TemplatesApi.class, Map.of("validateTemplateData", args -> {
-            paths.add(List.of(args[0], args[1], args[2], args[3]));
-            sent.add((ValidateTemplateDataRequest) args[4]);
+            paths.add(List.of(args[0], args[1], args[2], args[3], args[4]));
+            sent.add((ValidateTemplateDataRequest) args[5]);
             return result;
         }));
     }
@@ -49,7 +49,7 @@ class TemplateSchemaValidatorTest {
     @Test
     void valid_data_passes_without_throwing() {
         new TemplateSchemaValidator(answering(valid()))
-                .validate("acme-corp", "acme-corp", "default", "invoice", Map.of("customerName", "Jane"));
+                .validate("acme-corp", "~", "acme-corp", "default", "invoice", Map.of("customerName", "Jane"));
 
         assertEquals(1, sent.size());
         assertEquals(Map.of("customerName", "Jane"), sent.get(0).getData());
@@ -71,7 +71,7 @@ class TemplateSchemaValidatorTest {
 
         TemplateDataValidationException e = assertThrows(
                 TemplateDataValidationException.class,
-                () -> new TemplateSchemaValidator(answering(result)).validate("acme-corp", "acme-corp", "default", "invoice", Map.of()));
+                () -> new TemplateSchemaValidator(answering(result)).validate("acme-corp", "~", "acme-corp", "default", "invoice", Map.of()));
 
         assertEquals(
                 List.of("/customer/email", "/lineItems/0/quantity"),
@@ -89,7 +89,7 @@ class TemplateSchemaValidatorTest {
 
         TemplateDataValidationException e = assertThrows(
                 TemplateDataValidationException.class,
-                () -> new TemplateSchemaValidator(answering(result)).validate("acme-corp", "acme-corp", "default", "invoice", Map.of()));
+                () -> new TemplateSchemaValidator(answering(result)).validate("acme-corp", "~", "acme-corp", "default", "invoice", Map.of()));
 
         assertEquals(1, e.getErrors().size());
         assertEquals("/customer/address", e.getErrors().get(0).getPath());
@@ -107,7 +107,7 @@ class TemplateSchemaValidatorTest {
 
         TemplateDataValidationException e = assertThrows(
                 TemplateDataValidationException.class,
-                () -> new TemplateSchemaValidator(answering(result)).validate("acme-corp", "acme-corp", "default", "invoice", Map.of()));
+                () -> new TemplateSchemaValidator(answering(result)).validate("acme-corp", "~", "acme-corp", "default", "invoice", Map.of()));
 
         assertEquals("/invoiceNumber", e.getErrors().get(0).getPath());
         assertEquals("pattern", e.getErrors().get(0).getKeyword());
@@ -131,7 +131,7 @@ class TemplateSchemaValidatorTest {
 
         TemplateDataValidationException e = assertThrows(
                 TemplateDataValidationException.class,
-                () -> new TemplateSchemaValidator(answering(result)).validate("acme-corp", "acme-corp", "default", "invoice", Map.of()));
+                () -> new TemplateSchemaValidator(answering(result)).validate("acme-corp", "~", "acme-corp", "default", "invoice", Map.of()));
 
         assertEquals(1, e.getErrors().size());
         assertEquals("/customer/email", e.getErrors().get(0).getPath());
@@ -143,7 +143,7 @@ class TemplateSchemaValidatorTest {
         TemplateDataValidationException e = assertThrows(
                 TemplateDataValidationException.class,
                 () -> new TemplateSchemaValidator(answering(new TemplateDataValidationResult().valid(false)))
-                        .validate("acme-corp", "acme-corp", "default", "invoice", Map.of()));
+                        .validate("acme-corp", "~", "acme-corp", "default", "invoice", Map.of()));
 
         assertEquals(1, e.getErrors().size());
         assertEquals("", e.getErrors().get(0).getPath());
@@ -154,9 +154,9 @@ class TemplateSchemaValidatorTest {
         TemplatesApi api = answering(valid());
 
         new TemplateSchemaValidator(new ServerTemplateDataValidator(api, "nl-nl", "^1.4.0", "production"))
-                .validate("acme-corp", "exchange.example.org~team-a", "letters", "invoice", Map.of());
+                .validate("acme-corp", "exchange.example.org", "team-a", "letters", "invoice", Map.of());
 
-        assertEquals(List.of("acme-corp", "exchange.example.org~team-a", "letters", "invoice"), paths.get(0));
+        assertEquals(List.of("acme-corp", "exchange.example.org", "team-a", "letters", "invoice"), paths.get(0));
         assertEquals("nl-nl", sent.get(0).getVariantId());
         assertEquals("^1.4.0", sent.get(0).getVersion());
         assertEquals("production", sent.get(0).getEnvironmentId());
@@ -169,8 +169,8 @@ class TemplateSchemaValidatorTest {
 
         TemplateDataValidationException e = assertThrows(
                 TemplateDataValidationException.class,
-                () -> new TemplateSchemaValidator((tenantId, namespace, catalogKey, templateId, data) -> findings)
-                        .validate("acme-corp", "acme-corp", "default", "invoice", Map.of()));
+                () -> new TemplateSchemaValidator((tenantId, registry, namespace, catalogKey, templateId, data) -> findings)
+                        .validate("acme-corp", "~", "acme-corp", "default", "invoice", Map.of()));
 
         assertEquals(findings, e.getErrors());
         assertTrue(sent.isEmpty(), "the server must not be consulted");
@@ -179,6 +179,6 @@ class TemplateSchemaValidatorTest {
     @Test
     void the_server_backed_validator_declines_generation_preflight() {
         assertFalse(new ServerTemplateDataValidator(answering(valid())).preflightsGeneration());
-        assertTrue(((TemplateDataValidator) (t, n, k, tp, d) -> List.of()).preflightsGeneration());
+        assertTrue(((TemplateDataValidator) (t, r, n, k, tp, d) -> List.of()).preflightsGeneration());
     }
 }

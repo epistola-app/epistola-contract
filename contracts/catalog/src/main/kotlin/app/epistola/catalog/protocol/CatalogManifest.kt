@@ -46,25 +46,43 @@ data class CatalogManifest(
  * A catalog this catalog depends on, declared once for the whole catalog (wire v8).
  *
  * Catalogs are versioned as a whole, so the version lives here and nowhere else: a reference from
- * this catalog's resources into the dependency names the catalog ([namespace] and [catalogKey]) but
- * never a version. The catalog renders with the release [version] resolves to.
+ * this catalog's resources into the dependency names the catalog ([registry], [namespace] and
+ * [catalogKey]) but never a version. The catalog renders with the release [version] resolves to.
  *
- * @property namespace the dependency's namespace, written in full ([CatalogNamespaces.FULL_PATTERN]).
+ * @property registry the dependency's registry, written in full ([CatalogNamespaces.REGISTRY_PATTERN]).
+ * @property namespace the dependency's namespace within [registry] ([CatalogNamespaces.PATTERN]).
  * @property catalogKey the dependency's key within [namespace].
  * @property version the declared version selector, in the npm SemVer range grammar (`^1.4.0`,
  *   `>=1.0.0 <2.0.0`, `1.4.0`, `*`, ...), at most [MAX_VERSION_LENGTH] characters.
  * @property releaseVersion the exact release of the dependency that this archive's release was cut
  *   with. Null only for a catalog migrated from wire v7 or earlier, which never recorded one.
+ * @property releaseFingerprint the canonical fingerprint of the [releaseVersion] release, in the
+ *   current algorithm (`CatalogCanonicalizer.currentFingerprint`), as its lowercase SHA-256 hex
+ *   string. It lets an installation check a copy of that release fetched from any registry or
+ *   mirror. Null exactly when [releaseVersion] is null. The wire requires the pairing; the
+ *   migrator's wire check and the validator enforce it, not this model, so that manifests stored
+ *   without it still bind.
  */
 data class CatalogDependency(
+    val registry: String,
     val namespace: String,
     val catalogKey: String,
     val version: String,
     val releaseVersion: String? = null,
+    val releaseFingerprint: String? = null,
 ) {
     companion object {
         /** Longest version selector a declaration may carry. */
         const val MAX_VERSION_LENGTH: Int = 100
+
+        /** The shape of a [releaseFingerprint]: a lowercase SHA-256 hex string. */
+        const val RELEASE_FINGERPRINT_PATTERN: String = "^[0-9a-f]{64}$"
+
+        private val RELEASE_FINGERPRINT = Regex(RELEASE_FINGERPRINT_PATTERN)
+
+        /** Whether [fingerprint] has the shape of a [releaseFingerprint]. */
+        @JvmStatic
+        fun isValidReleaseFingerprint(fingerprint: String): Boolean = RELEASE_FINGERPRINT.matches(fingerprint)
     }
 }
 
@@ -72,15 +90,15 @@ data class CatalogDependency(
  * A reference to a resource that this catalog depends on.
  * Sealed hierarchy ensures type-safe construction:
  * - Every kind is catalog-scoped and requires catalogKey (assets too, from wire v7)
- * - Every kind names the catalog's namespace from wire v8, written in full
+ * - Every kind names the catalog's registry and namespace from wire v8, the registry in full
  *
  * A reference carries no version: catalogs are versioned as a whole, so the version is declared
  * once per catalog in [CatalogManifest.catalogDependencies], which must declare every
- * (namespace, catalogKey) named here.
+ * (registry, namespace, catalogKey) named here.
  *
- * `namespace` is nullable in the model only so that manifests stored under wire v7 or earlier, which
- * name none, still bind. The wire requires it from v8; the migrator's wire check and the validator
- * enforce that.
+ * `registry` and `namespace` are nullable in the model only so that manifests stored under wire v7
+ * or earlier, which name neither, still bind. The wire requires both from v8; the migrator's wire
+ * check and the validator enforce that.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(
@@ -97,14 +115,18 @@ sealed class DependencyRef {
     /** Key of the catalog holding the resource. */
     abstract val catalogKey: String
 
-    /** Namespace of the catalog holding the resource, written in full (wire v8). */
+    /** Namespace of the catalog holding the resource, within [registry] (wire v8). */
     abstract val namespace: String?
+
+    /** Registry of the catalog holding the resource, written in full (wire v8). */
+    abstract val registry: String?
 
     /** Theme in another catalog. */
     data class Theme(
         override val catalogKey: String,
         override val slug: String,
         override val namespace: String? = null,
+        override val registry: String? = null,
     ) : DependencyRef()
 
     /** Stencil in another catalog. */
@@ -112,6 +134,7 @@ sealed class DependencyRef {
         override val catalogKey: String,
         override val slug: String,
         override val namespace: String? = null,
+        override val registry: String? = null,
     ) : DependencyRef()
 
     /**
@@ -126,6 +149,7 @@ sealed class DependencyRef {
         override val catalogKey: String,
         override val slug: String,
         override val namespace: String? = null,
+        override val registry: String? = null,
     ) : DependencyRef()
 
     /** Code list in another catalog. */
@@ -133,6 +157,7 @@ sealed class DependencyRef {
         override val catalogKey: String,
         override val slug: String,
         override val namespace: String? = null,
+        override val registry: String? = null,
     ) : DependencyRef()
 
     /** Font family in another catalog. */
@@ -140,15 +165,17 @@ sealed class DependencyRef {
         override val catalogKey: String,
         override val slug: String,
         override val namespace: String? = null,
+        override val registry: String? = null,
     ) : DependencyRef()
 }
 
 /**
  * Stable catalog identity, human-readable metadata, and authored discovery metadata.
  *
- * A catalog is identified by [namespace] and [slug] (its key) together. The three-argument
- * constructor preserves source compatibility for existing producers. Use [create],
- * [copyWithMetadata] or [withNamespace] when setting discovery metadata or the namespace.
+ * A catalog is identified by [registry], [namespace] and [slug] (its key) together. The
+ * three-argument constructor preserves source compatibility for existing producers. Use [create],
+ * [copyWithMetadata] or [withNamespace] when setting discovery metadata or the registry and
+ * namespace.
  */
 class CatalogInfo private constructor(
     val slug: String,
@@ -159,13 +186,20 @@ class CatalogInfo private constructor(
     val presentation: CatalogPresentation?,
     val license: CatalogLicense?,
     /**
-     * The catalog's namespace, written in full ([CatalogNamespaces.FULL_PATTERN]); wire v8.
+     * The catalog's namespace within [registry] ([CatalogNamespaces.PATTERN]); wire v8.
      *
      * Nullable in the model only so that manifests stored under wire v7 or earlier, which name
      * none, still bind. The wire requires it from v8; the migrator's wire check and the validator
      * enforce that.
      */
     val namespace: String?,
+    /**
+     * The catalog's registry, written in full ([CatalogNamespaces.REGISTRY_PATTERN]); wire v8. An
+     * archive has no default registry.
+     *
+     * Nullable in the model for the same reason as [namespace].
+     */
+    val registry: String?,
 ) {
     /** Immutable attributes applied to this catalog, preserving authored order. */
     val attributes: List<AttributeAssignment> = Collections.unmodifiableList(attributes.toList())
@@ -180,7 +214,7 @@ class CatalogInfo private constructor(
 
     /** Source-compatible constructor retained from catalog 1.0.1. */
     constructor(slug: String, name: String, description: String? = null) :
-        this(slug, name, description, emptyList(), emptySet(), null, null, null)
+        this(slug, name, description, emptyList(), emptySet(), null, null, null, null)
 
     /** Copies the catalog while replacing any discovery metadata. */
     fun copyWithMetadata(
@@ -188,13 +222,17 @@ class CatalogInfo private constructor(
         keywords: Set<String> = this.keywords,
         presentation: CatalogPresentation? = this.presentation,
         license: CatalogLicense? = this.license,
-    ): CatalogInfo = CatalogInfo(slug, name, description, attributes, keywords, presentation, license, namespace)
+    ): CatalogInfo = CatalogInfo(slug, name, description, attributes, keywords, presentation, license, namespace, registry)
 
-    /** Copies the catalog with [namespace] in place of its current one. */
-    fun withNamespace(namespace: String?): CatalogInfo = CatalogInfo(slug, name, description, attributes, keywords, presentation, license, namespace)
+    /** Copies the catalog with [registry] and [namespace] in place of its current ones. */
+    fun withNamespace(
+        registry: String?,
+        namespace: String?,
+    ): CatalogInfo = CatalogInfo(slug, name, description, attributes, keywords, presentation, license, namespace, registry)
 
     override fun equals(other: Any?): Boolean = this === other ||
         other is CatalogInfo &&
+        registry == other.registry &&
         namespace == other.namespace &&
         slug == other.slug &&
         name == other.name &&
@@ -206,6 +244,7 @@ class CatalogInfo private constructor(
 
     override fun hashCode(): Int {
         var result = slug.hashCode()
+        result = 31 * result + (registry?.hashCode() ?: 0)
         result = 31 * result + (namespace?.hashCode() ?: 0)
         result = 31 * result + name.hashCode()
         result = 31 * result + (description?.hashCode() ?: 0)
@@ -216,7 +255,7 @@ class CatalogInfo private constructor(
         return result
     }
 
-    override fun toString(): String = "CatalogInfo(namespace=$namespace, slug=$slug, name=$name, description=$description, " +
+    override fun toString(): String = "CatalogInfo(registry=$registry, namespace=$namespace, slug=$slug, name=$name, description=$description, " +
         "attributes=$attributes, keywords=$keywords, presentation=$presentation, license=$license)"
 
     companion object {
@@ -232,6 +271,7 @@ class CatalogInfo private constructor(
             @JsonProperty("presentation") presentation: CatalogPresentation? = null,
             @JsonProperty("license") license: CatalogLicense? = null,
             @JsonProperty("namespace") namespace: String? = null,
+            @JsonProperty("registry") registry: String? = null,
         ): CatalogInfo = CatalogInfo(
             slug,
             name,
@@ -241,6 +281,7 @@ class CatalogInfo private constructor(
             presentation,
             license,
             namespace,
+            registry,
         )
 
         private fun immutableSortedSet(values: Set<String>): Set<String> = when {

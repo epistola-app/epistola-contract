@@ -139,7 +139,7 @@ public final class Driver {
         TemplatesApi api = clients(baseUrl, config).api(TemplatesApi.class);
         TemplateListResponse response = null;
         for (int i = 0; i < config.getInt("repeat", 1); i++) {
-            response = api.listTemplates(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), null, 0, 20, null, "desc");
+            response = api.listTemplates(config.getString("tenantId"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), null, 0, 20, null, "desc");
         }
         List<TemplateSummaryDto> templates = response.getItems();
 
@@ -153,7 +153,7 @@ public final class Driver {
         try {
             clients(baseUrl, config)
                     .api(TemplatesApi.class)
-                    .listTemplates(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), null, 0, 20, null, "desc");
+                    .listTemplates(config.getString("tenantId"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), null, 0, 20, null, "desc");
             report(baseUrl, Map.of("problemTypeSlug", "<no exception was thrown>"));
         } catch (ProblemDetailException e) {
             report(
@@ -184,7 +184,7 @@ public final class Driver {
         try {
             validator.validate(
                     config.getString("tenantId"),
-                    config.getString("namespace"), config.getString("catalogKey"),
+                    config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"),
                     config.getString("templateId"),
                     config.containsKey("data") ? config.getJsonObject("data") : JsonValue.EMPTY_JSON_OBJECT);
             report(
@@ -255,7 +255,8 @@ public final class Driver {
                                         .collect(Collectors.joining(",")),
                         "releases",
                                 handled.stream()
-                                        .map(result -> result.getNamespace() + "/" + result.getCatalogKey() + "@"
+                                        .map(result -> result.getRegistry() + "/" + result.getNamespace() + "/"
+                                                + result.getCatalogKey() + "@"
                                                 + result.getReleaseVersion())
                                         .collect(Collectors.joining(",")),
                         "partitionTotal", assignment == null ? -1 : assignment.getTotal()));
@@ -273,6 +274,7 @@ public final class Driver {
                 .generateDocument(
                         config.getString("tenantId"),
                         new GenerateDocumentRequest()
+                                .registry(optional(config, "registry"))
                                 .namespace(config.getString("namespace"))
                                 .catalogKey(config.getString("catalogKey"))
                                 .templateId(config.getString("templateId"))
@@ -360,7 +362,7 @@ public final class Driver {
     private static void listImages(String baseUrl, JsonObject config) {
         List<ImageDto> images = clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .listImages(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), config.getString("search"), null, null)
+                .listImages(config.getString("tenantId"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), config.getString("search"), null, null)
                 .getItems();
 
         report(
@@ -385,7 +387,7 @@ public final class Driver {
         try {
             ImageDto image = clients(baseUrl, config)
                     .api(ImagesApi.class)
-                    .uploadImage(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), file, config.getString("name"), null, null);
+                    .uploadImage(config.getString("tenantId"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), file, config.getString("name"), null, null);
             report(baseUrl, Map.of("imageSlug", image.getSlug(), "imageName", image.getName()));
         } finally {
             Files.deleteIfExists(file.toPath());
@@ -396,14 +398,14 @@ public final class Driver {
     private static void downloadImage(String baseUrl, JsonObject config) throws Exception {
         File file = clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .downloadImageContent(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), config.getString("imageSlug"));
+                .downloadImageContent(config.getString("tenantId"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), config.getString("imageSlug"));
         reportBytes(baseUrl, Files.readAllBytes(file.toPath()));
     }
 
     private static void deleteImage(String baseUrl, JsonObject config) {
         clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .deleteImage(config.getString("tenantId"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), config.getString("imageSlug"), config.getBoolean("force"));
+                .deleteImage(config.getString("tenantId"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), config.getString("imageSlug"), config.getBoolean("force"));
     }
 
     private static void listCatalogDependencies(String baseUrl, JsonObject config) {
@@ -411,6 +413,7 @@ public final class Driver {
                 .api(CatalogsApi.class)
                 .listCatalogDependencies(
                         config.getString("tenantId"),
+                        config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("catalogVersion"));
@@ -421,6 +424,7 @@ public final class Driver {
         List<CatalogDependencyRequirement> dependencies = config.getJsonArray("dependencies").stream()
                 .map(JsonValue::asJsonObject)
                 .map(dependency -> new CatalogDependencyRequirement()
+                        .registry(optional(dependency, "registry"))
                         .namespace(dependency.getString("namespace"))
                         .catalogKey(dependency.getString("catalogKey"))
                         .version(dependency.getString("version")))
@@ -430,6 +434,7 @@ public final class Driver {
                 .api(CatalogsApi.class)
                 .updateCatalogDependencies(
                         config.getString("tenantId"),
+                        config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("catalogVersion"),
@@ -439,6 +444,7 @@ public final class Driver {
         report(
                 baseUrl,
                 Map.of(
+                        "registries", joined(items, CatalogDependencyDto::getRegistry),
                         "namespaces", joined(items, CatalogDependencyDto::getNamespace),
                         "catalogKeys", joined(items, CatalogDependencyDto::getCatalogKey),
                         "versions", joined(items, CatalogDependencyDto::getVersion),
@@ -450,6 +456,7 @@ public final class Driver {
                 .api(CatalogsApi.class)
                 .createCatalogVersion(
                         config.getString("tenantId"),
+                        config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         new CreateCatalogVersionRequest()
@@ -471,6 +478,7 @@ public final class Driver {
                 .api(CatalogsApi.class)
                 .listCatalogVersions(
                         config.getString("tenantId"),
+                        config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         status == null ? null : CatalogVersionStatus.fromValue(status),
@@ -491,6 +499,7 @@ public final class Driver {
                 .api(CatalogsApi.class)
                 .getCatalogVersion(
                         config.getString("tenantId"),
+                        config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("catalogVersion"));
@@ -505,7 +514,8 @@ public final class Driver {
                         "dependencies",
                                 joined(
                                         dependencies,
-                                        dependency -> dependency.getNamespace() + "/" + dependency.getCatalogKey() + "@"
+                                        dependency -> dependency.getRegistry() + "/" + dependency.getNamespace() + "/"
+                                                + dependency.getCatalogKey() + "@"
                                                 + dependency.getReleaseVersion()),
                         "deployedTo",
                                 version.getDeployedTo() == null ? "null" : String.join(",", version.getDeployedTo())));
@@ -524,6 +534,7 @@ public final class Driver {
                 .api(CatalogsApi.class)
                 .renumberCatalogVersion(
                         config.getString("tenantId"),
+                        config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("catalogVersion"),
@@ -542,6 +553,7 @@ public final class Driver {
                 .previewCatalogVersionRenumber(
                         config.getString("to"),
                         config.getString("tenantId"),
+                        config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("catalogVersion"));
@@ -558,6 +570,7 @@ public final class Driver {
                 .api(CatalogsApi.class)
                 .deleteCatalogVersion(
                         config.getString("tenantId"),
+                        config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("catalogVersion"));
@@ -568,6 +581,7 @@ public final class Driver {
                 .api(CatalogsApi.class)
                 .releaseCatalogVersion(
                         config.getString("tenantId"),
+                        config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("catalogVersion"),
@@ -591,6 +605,7 @@ public final class Driver {
                 .api(CatalogsApi.class)
                 .listIncomingChanges(
                         config.getString("tenantId"),
+                        config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("catalogVersion"),
@@ -610,6 +625,7 @@ public final class Driver {
                 .api(CatalogsApi.class)
                 .resolveIncomingChange(
                         config.getString("tenantId"),
+                        config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("catalogVersion"),
@@ -635,12 +651,14 @@ public final class Driver {
                 .deployRelease(
                         config.getString("tenantId"),
                         config.getString("environmentId"),
+                        config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("releaseVersion"));
         report(
                 baseUrl,
                 Map.of(
+                        "registry", String.valueOf(deployment.getRegistry()),
                         "namespace", String.valueOf(deployment.getNamespace()),
                         "catalogKey", String.valueOf(deployment.getCatalogKey()),
                         "releaseVersion", String.valueOf(deployment.getReleaseVersion())));
@@ -652,6 +670,7 @@ public final class Driver {
                 .undeployRelease(
                         config.getString("tenantId"),
                         config.getString("environmentId"),
+                        config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("releaseVersion"));

@@ -88,8 +88,8 @@ for (const gzip of [false, true]) {
 
 test('a result names its catalog and release, and a result from before contract 2.0 has none', async () => {
   const lines = [
-    { ...RESULTS[0], namespace: 'exchange.epistola.app/acme-corp', catalogKey: 'letters', releaseVersion: '1.4.0' },
-    { ...RESULTS[2], namespace: null, catalogKey: null, releaseVersion: null },
+    { ...RESULTS[0], registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'letters', releaseVersion: '1.4.0' },
+    { ...RESULTS[2], registry: null, namespace: null, catalogKey: null, releaseVersion: null },
     { ...META, hasMore: false, count: 2 },
   ]
   const server = await startServer((_, res) => respond(res, lines))
@@ -98,10 +98,10 @@ test('a result names its catalog and release, and a result from before contract 
     await collector(server, handled).collectOnce()
 
     assert.deepEqual(
-      handled.map((r) => [r.namespace, r.catalogKey, r.releaseVersion]),
+      handled.map((r) => [r.registry, r.namespace, r.catalogKey, r.releaseVersion]),
       [
-        ['exchange.epistola.app/acme-corp', 'letters', '1.4.0'],
-        [null, null, null],
+        ['exchange.epistola.app', 'acme-corp', 'letters', '1.4.0'],
+        [null, null, null, null],
       ],
     )
   } finally {

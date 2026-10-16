@@ -9,9 +9,9 @@
 
 In contract 2.0 a catalog is versioned as a whole. Its resources are edited in one **working copy**,
 marked ready, and released together as an immutable SemVer release. A catalog is identified by
-namespace and key, published to an exchange, and installed and deployed elsewhere. Environments can
-serve several releases of one catalog. A render request picks the highest release that satisfies its
-version selector, among the releases its environment serves.
+registry, namespace and key, published to an exchange, and installed and deployed elsewhere.
+Environments can serve several releases of one catalog. A render request picks the highest release
+that satisfies its version selector, among the releases its environment serves.
 
 The editorial flow this ADR is about:
 

@@ -51,7 +51,10 @@ class GenerationResult:
     routing_key: Optional[str]
     template_id: Optional[str]
     variant_id: Optional[str]
-    #: The catalog's namespace, in body form; ``None`` for results from before contract 2.0.
+    #: The catalog's registry, named in full (never ``~``); ``None`` for results from before
+    #: contract 2.0.
+    registry: Optional[str]
+    #: The catalog's namespace within its registry; ``None`` for results from before contract 2.0.
     namespace: Optional[str]
     #: The catalog's key within its namespace; ``None`` for results from before contract 2.0.
     catalog_key: Optional[str]
@@ -483,6 +486,7 @@ def _parse_result(node: dict) -> GenerationResult:
         routing_key=node.get("routingKey"),
         template_id=node.get("templateId"),
         variant_id=node.get("variantId"),
+        registry=node.get("registry"),
         namespace=node.get("namespace"),
         catalog_key=node.get("catalogKey"),
         release_version=node.get("releaseVersion"),

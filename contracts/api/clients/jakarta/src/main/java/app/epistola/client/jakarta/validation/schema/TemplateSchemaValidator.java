@@ -16,7 +16,7 @@ import java.util.List;
  *
  * <pre>{@code
  * TemplateSchemaValidator validator = new TemplateSchemaValidator(templatesApi);
- * validator.validate("my-tenant", "default", "monthly-invoice", data);
+ * validator.validate("my-tenant", "~", "acme-corp", "invoices", "monthly-invoice", data);
  * }</pre>
  *
  * <p>To have the check run in-process instead, pass an implementation built on the JSON Schema
@@ -50,9 +50,10 @@ public class TemplateSchemaValidator {
      *     and the call fails — including against a server older than contract 1.4.0, which does not
      *     offer {@code validateTemplateData}
      */
-    public void validate(String tenantId, String namespace, String catalogKey, String templateId, Object data) {
+    public void validate(
+            String tenantId, String registry, String namespace, String catalogKey, String templateId, Object data) {
         List<TemplateDataValidationException.ValidationError> errors =
-                validator.validate(tenantId, namespace, catalogKey, templateId, data);
+                validator.validate(tenantId, registry, namespace, catalogKey, templateId, data);
         if (!errors.isEmpty()) {
             throw new TemplateDataValidationException(errors);
         }

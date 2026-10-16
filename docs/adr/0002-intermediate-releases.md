@@ -145,10 +145,10 @@ Addresses use the version number, the same for drafts and released versions. The
 `catalogVersion`:
 
 ```
-/v1/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions
-/v1/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}
-/v1/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateId}
-/v1/tenants/{tenantId}/catalogs/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilId}
+/v1/tenants/{tenantId}/catalogs/{registry}/{namespace}/{catalogKey}/versions
+/v1/tenants/{tenantId}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}
+/v1/tenants/{tenantId}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateId}
+/v1/tenants/{tenantId}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilId}
 …
 ```
 

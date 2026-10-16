@@ -346,10 +346,37 @@ function checkValue(label, matcher, actual, failures) {
 function checkSubset(label, expected, actual, failures) {
   for (const [key, value] of Object.entries(expected)) {
     const child = actual === null || actual === undefined ? undefined : actual[key]
-    if (value !== null && typeof value === 'object' && !Array.isArray(value) && !isMatcher(value)) {
+    if (Array.isArray(value)) {
+      checkArray(`${label}.${key}`, value, child, failures)
+    } else if (value !== null && typeof value === 'object' && !isMatcher(value)) {
       checkSubset(`${label}.${key}`, value, child, failures)
     } else {
       checkValue(`${label}.${key}`, value, child, failures)
+    }
+  }
+}
+
+/**
+ * An array matches element by element, in order and at the same length; each element is a deep
+ * subset (an object) or a value. Before this existed an expected array matched anything present,
+ * because it fell through to the matcher branch of checkValue with no matcher keys in it.
+ */
+function checkArray(label, expected, actual, failures) {
+  if (!Array.isArray(actual)) {
+    failures.push(`${label}: expected an array of ${expected.length}, got ${JSON.stringify(actual)}`)
+    return
+  }
+  if (actual.length !== expected.length) {
+    failures.push(`${label}: expected ${expected.length} element(s), got ${actual.length}: ${truncate(JSON.stringify(actual))}`)
+  }
+  for (const [index, value] of expected.entries()) {
+    const child = actual[index]
+    if (Array.isArray(value)) {
+      checkArray(`${label}[${index}]`, value, child, failures)
+    } else if (value !== null && typeof value === 'object' && !isMatcher(value)) {
+      checkSubset(`${label}[${index}]`, value, child, failures)
+    } else {
+      checkValue(`${label}[${index}]`, value, child, failures)
     }
   }
 }

@@ -62,10 +62,10 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | --- | --- |
 | `ping` | `POST /ping` with client metadata, through the generated API |
 | `list-templates` | `GET …/templates`, `config.repeat` times, reporting the ids and slugs it parsed from the last response |
-| `collect` | build a `ResultCollector` from `config`, run it for `config.runForMs`, stop it, report what it handled, including each result's catalog and release as `releases` (`namespace/catalogKey@releaseVersion`, a missing value as `null`) |
+| `collect` | build a `ResultCollector` from `config`, run it for `config.runForMs`, stop it, report what it handled, including each result's catalog and release as `releases` (`registry/namespace/catalogKey@releaseVersion`, a missing value as `null`) |
 | `problem` | make a request the server answers with a problem, report the parsed slug and members |
 | `validate-template-data` | validate `config.data` for a template through `TemplateSchemaValidator`, reporting the paths and keywords of the failures it surfaced |
-| `generate-document` | `POST …/documents/generate` with a real body, through the generated API; `config.version` and `config.environmentId` are sent when present |
+| `generate-document` | `POST …/documents/generate` with a real body, through the generated API; `config.registry`, `config.version` and `config.environmentId` are sent when present, and left unset otherwise |
 | `routing` | poll once for a partition assignment, then report what the routing helpers compute |
 | `update-consumer` | `PATCH …/consumers/{id}` setting exactly one field |
 | `download-document` | `GET …/documents/{id}`, reporting the SHA-256 and length of the bytes |
@@ -74,24 +74,29 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | `download-image` | `GET …/images/{imageSlug}/content`, reporting the SHA-256 and length of the bytes |
 | `delete-image` | `DELETE …/images/{imageSlug}` with `force` from `config` |
 | `list-catalog-dependencies` | `GET …/versions/{catalogVersion}/dependencies` |
-| `update-catalog-dependencies` | `PUT …/versions/{catalogVersion}/dependencies` with `config.dependencies`, reporting the `namespaces`, `catalogKeys`, `versions` and `resolvedVersions` it parsed, in order |
-| `create-catalog-version` | `POST …/catalogs/{namespace}/{catalogKey}/versions` with `config.version`, and `config.from` when present, reporting the `version`, `status`, `base`, `createdFrom` and `releasedAt` it parsed |
+| `update-catalog-dependencies` | `PUT …/versions/{catalogVersion}/dependencies` with `config.dependencies`, each entry's `registry` set only when the entry has one, reporting the `registries`, `namespaces`, `catalogKeys`, `versions` and `resolvedVersions` it parsed, in order |
+| `create-catalog-version` | `POST …/catalogs/{registry}/{namespace}/{catalogKey}/versions` with `config.version`, and `config.from` when present, reporting the `version`, `status`, `base`, `createdFrom` and `releasedAt` it parsed |
 | `list-catalog-versions` | `GET …/versions`, with `config.status` as the `status` filter when present, reporting the `versions`, `statuses`, `bases` and `openConflicts` it parsed, in order |
-| `get-catalog-version` | `GET …/versions/{catalogVersion}`, reporting the `version`, `status` and `releasedAt` it parsed, its `dependencies` as `namespace/catalogKey@releaseVersion`, and `deployedTo` |
+| `get-catalog-version` | `GET …/versions/{catalogVersion}`, reporting the `version`, `status` and `releasedAt` it parsed, its `dependencies` as `registry/namespace/catalogKey@releaseVersion`, and `deployedTo` |
 | `renumber-catalog-version` | `PATCH …/versions/{catalogVersion}` with `config.version`, and `config.acknowledgeWarnings` when present, reporting the `version` and `status` it parsed |
 | `preview-catalog-version-renumber` | `GET …/versions/{catalogVersion}/renumber-preview?to=…` with `config.to`, reporting the `newBase` and the `warningKinds` it parsed, in order |
 | `delete-catalog-version` | `DELETE …/versions/{catalogVersion}` |
 | `release-catalog-version` | `POST …/versions/{catalogVersion}/release` with `config.notes` when present, reporting the released `version` and `status`, `flowedInto` as `version:merged:conflicts` per draft, and `openedDraft` |
 | `list-incoming-changes` | `GET …/versions/{catalogVersion}/incoming`, with `config.state` as the `state` filter when present, reporting the `ids`, `nodes`, `states` and `resolutions` it parsed, in order |
 | `resolve-incoming-change` | `POST …/versions/{catalogVersion}/incoming/{changeId}/resolve` with `config.resolution`, reporting the `id`, `state` and `resolution` it parsed |
-| `deploy-release` | `PUT …/environments/{environmentId}/deployments/{namespace}/{catalogKey}/{releaseVersion}`, reporting the `namespace`, `catalogKey` and `releaseVersion` it parsed |
-| `undeploy-release` | `DELETE …/environments/{environmentId}/deployments/{namespace}/{catalogKey}/{releaseVersion}` |
+| `deploy-release` | `PUT …/environments/{environmentId}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}`, reporting the `registry`, `namespace`, `catalogKey` and `releaseVersion` it parsed |
+| `undeploy-release` | `DELETE …/environments/{environmentId}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}` |
 
-Catalog-scoped actions take the catalog as `config.namespace` and `config.catalogKey`, and actions
-on a catalog version (templates, images, dependencies, and the version operations) take the version
-as `config.catalogVersion`. They pass the namespace to the client exactly as given: in its path-segment form (`acme-corp`, `acme.com`,
-`exchange.example.org~team-a`) where it goes into a path, in its body form where it goes into a
-body.
+Catalog-scoped actions take the catalog as `config.registry`, `config.namespace` and
+`config.catalogKey`, and actions on a catalog version (templates, images, dependencies, and the
+version operations) take the version as `config.catalogVersion`. They pass each to the client
+exactly as given. In a path the registry is `~` (the server's default registry) or a name in full
+(`acme.com`); a client may send `~` as is or percent-encoded as `%7E`, which RFC 3986 makes
+equivalent, and the harness records both as `~`. In a body, a `registry` the config does not give
+is left unset, never filled in: omitted means the default registry, which only the server knows.
+
+A report that names a catalog writes `registry/namespace/catalogKey`, and a value the response
+gave as null (a result accepted before contract 2.0) as `null` in its place.
 
 A new action also needs an entry in `ACTION_OPERATIONS` in `src/fixtures.mjs`, which names the
 operation whose response schema its fixtures are checked against.
@@ -155,8 +160,10 @@ the thing under test.
 **Expectations** are `requestCount` / `requestCountAtMost` / `requestCountAtLeast`, a positional
 `requests` list, an `everyRequest` matcher, `gaps`, `jwt`, and `report`. Header and body values match
 literally, or as `{matches: regex}`, `{contains}`, `{oneOf}`, `{absent: true}`; bodies also take
-`{json: {...}}` for a deep subset, `{jsonAbsent: [keys]}` and `{jsonNullOrAbsent: [keys]}`. Query
-strings match whole via `query` or per parameter via `queryParams`.
+`{json: {...}}` for a deep subset, `{jsonAbsent: [keys]}` and `{jsonNullOrAbsent: [keys]}`. An array
+in `json` matches element by element, at the same length, each element a deep subset. Query
+strings match whole via `query` or per parameter via `queryParams`. A request's `path` is matched
+with percent-encoded unreserved characters decoded (`%7E` is recorded as `~`).
 
 A `multipart/form-data` body is matched part by part with `{multipart: {<field>: {...}}}`. Each field
 takes `filename`, `contentType` and `value` (the part as text) as value matchers, and `byteLength` and

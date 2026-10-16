@@ -348,8 +348,10 @@ val api = GenerationApi(restClient)
 
 // Single document
 val job = api.generateDocument("acme-corp", GenerateDocumentRequest(
-    namespace = "acme-corp",           // the catalog: its namespace…
-    catalogKey = "default",            // …and its key within that namespace
+    // the catalog: registry, namespace and key. Leave `registry` out for the server's default
+    // registry; name it in full (`registry = "acme.com"`) for a catalog from another one.
+    namespace = "acme-corp",           // the namespace within the registry…
+    catalogKey = "default",            // …and the catalog's key within that namespace
     templateId = "invoice",
     data = mapOf("customer" to "Jane Smith", "amount" to 99.99),
     version = "^1.4.0",                // optional: the highest release satisfying this selector
@@ -359,11 +361,11 @@ val job = api.generateDocument("acme-corp", GenerateDocumentRequest(
 println("Job submitted: ${job.requestId}")
 
 // Batch generation
-val batch = api.generateBatch("acme-corp", GenerateBatchRequest(
+val batch = api.generateDocumentBatch("acme-corp", GenerateBatchRequest(
     routingKey = "order-456",          // all items route to same node
     items = listOf(
         BatchGenerationItem(namespace = "acme-corp", catalogKey = "default", templateId = "invoice", data = invoiceData),
-        BatchGenerationItem(namespace = "acme-corp", catalogKey = "default", templateId = "packing-slip", data = packingData),
+        BatchGenerationItem(registry = "acme.com", namespace = "acme", catalogKey = "shipping", templateId = "packing-slip", data = packingData),
     ),
 ))
 ```

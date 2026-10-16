@@ -17,11 +17,11 @@ wire version. Wire v8 belongs to contract 2.0 and changes the Kotlin model incom
 | Artifact rename | `app.epistola.contract:epistola-model`, `@epistola.app/epistola-model`, and `META-INF/epistola-model` are no longer published. | Depend on `app.epistola.contract:epistola-catalog`, `@epistola.app/epistola-catalog`, and `META-INF/epistola-catalog`. |
 | npm public boundary | Implementation-specific `/generated/*` imports are no longer exported. | Import model, component, theme, and style types from the package root. |
 | Explicit wire migration | Catalog-wide `schemaVersion: 8` is current and version 4 is the migration baseline. Pre-v4 and post-v8 archives are rejected. | Confirm the stepwise conversion to v8 or re-export from a current producer. |
-| Catalog namespace | Wire v8 requires `catalog.namespace`, written in full (a domain, or `host/name` on an exchange), and a `namespace` on every resource dependency. An archive at v7 or earlier names none. | Migrating a v7 archive needs the namespace the importer chooses, passed as `CatalogMigrationOptions(namespace)`; without it the archive is refused with `CATALOG_NAMESPACE_MISSING`. |
-| Declared catalog dependencies | Wire v8 requires every catalog named by a resource dependency to be declared once in `catalogDependencies`, with a version selector and the release it was cut with. | v7 archives migrate with one declaration per catalog, selector `*` and `releaseVersion: null`, with a notice; set the selector before re-releasing. |
+| Catalog registry and namespace | Wire v8 requires `catalog.registry` (a DNS name such as `exchange.epistola.app` or `acme.com`, always in full) and `catalog.namespace` (a slug within that registry), as two separate members, and both on every resource dependency and catalog dependency. An archive at v7 or earlier names neither. | Migrating a v7 archive needs the registry and namespace the importer chooses, passed as `CatalogMigrationOptions(namespace, registry)`; without them the archive is refused with `CATALOG_REGISTRY_MISSING` or `CATALOG_NAMESPACE_MISSING`. |
+| Declared catalog dependencies | Wire v8 requires every catalog named by a resource dependency to be declared once in `catalogDependencies`, with a version selector, the release it was cut with (`releaseVersion`), and that release's V5 fingerprint (`releaseFingerprint`, lowercase SHA-256 hex), the two null together or set together (`CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`). | v7 archives migrate with one declaration per catalog, selector `*`, `releaseVersion: null` and `releaseFingerprint: null`, with a notice; set the selector before re-releasing. Producers write the fingerprint of the dependency release they cut with. |
 | Bounded lowercase keywords | Wire v7 accepts catalog keywords only as lowercase ASCII letters and digits in hyphen-separated parts, at most 30 characters, and at most 20 per catalog. A v7 archive with other keywords is invalid. | v6 archives migrate with notices: keywords are normalized, shortened, merged, or removed. Producers normalize with `CatalogKeywords.normalize` before emitting v7. |
 | Canonical rich text | A text component's `content` must be a ProseMirror document object. Historical string and bare-array forms are invalid. | Open and save the content with a current editor, or transform it to `{ "type": "doc", "content": [...] }` before export. |
-| Unversioned stencils | From wire v8 a stencil carries no `version`, and a stencil node declares a valid `stencilId`, optionally `catalogKey` and `namespace`, and no `version` or `draftVersion` (they are reported as undeclared properties). A stencil resolves through its catalog's dependency, or within the same catalog. | v7 archives migrate with notices. Producers stop writing stencil versions; authoring consumers resolve a draft stencil through the catalog version being edited, not a node property. |
+| Unversioned stencils | From wire v8 a stencil carries no `version`, and a stencil node declares a valid `stencilId`, optionally `catalogKey`, `namespace` and `registry`, and no `version` or `draftVersion` (they are reported as undeclared properties). A stencil resolves through its catalog's dependency, or within the same catalog. | v7 archives migrate with notices. Producers stop writing stencil versions; authoring consumers resolve a draft stencil through the catalog version being edited, not a node property. |
 | Stricter semantic validation | Malformed graphs, unsupported nodes or property shapes, invalid slots, placeholders, parameter schemas or bindings, expressions, theme/style references, data schemas/examples, and unresolved catalog references that were previously accepted may now produce validation errors. | Correct the reported findings before saving, publishing, or importing the content. Ordinary invalidity is returned as stable findings rather than an I/O exception. |
 | Stencil nesting limit | A stencil-instance ancestry chain may contain at most five stencil levels. Direct/transitive recursion and whole-catalog stencil cycles are invalid. | Flatten or split deeper composition and remove recursive references. |
 
@@ -104,8 +104,8 @@ wire check and `CatalogValidator` enforce the v7 rules instead.
 
 ### Wire v8
 
-Wire v8 identifies a catalog by namespace and key and versions catalogs as a whole. It is not
-round-trip compatible with v7 -- a namespace is new required identity, and stencil versions are
+Wire v8 identifies a catalog by registry, namespace and key and versions catalogs as a whole. It is
+not round-trip compatible with v7 -- registry and namespace are new required identity, and stencil versions are
 gone -- so it is a new wire version with an explicit migration, and v7 stays valid at 7.
 
 The Kotlin model changes with it, which is why v8 belongs to contract 2.0:
@@ -113,14 +113,16 @@ The Kotlin model changes with it, which is why v8 belongs to contract 2.0:
 - `StencilResource.version`, `CatalogResourceReference.version` and `.draftVersion`,
   `TemplateValidationContext.allowDraftStencilReferences`, and the `version` parameter of
   `TemplateValidationContext.forStencil` are removed.
-- `CatalogInfo.namespace`, `CatalogManifest.catalogDependencies` (`CatalogDependency`), and
-  `namespace` on every `DependencyRef`, `CatalogResourceReference`, `CodeListBindingRef`, `FontRef`,
-  and `ThemeRefOverride`, plus `TemplateResource.themeNamespace`, are added.
+- `CatalogInfo.registry` and `.namespace`, `CatalogManifest.catalogDependencies`
+  (`CatalogDependency`), and `registry` and `namespace` on every `DependencyRef`,
+  `CatalogResourceReference`, `CodeListBindingRef`, `FontRef`, and `ThemeRefOverride`, plus
+  `TemplateResource.themeRegistry` and `.themeNamespace`, are added. `CatalogMigrationOptions`
+  gains `registry` after `namespace`, so a one-argument call still names the namespace.
 
-The new members that the wire requires (`CatalogInfo.namespace`, `DependencyRef.namespace`) are
-nullable in the model, as keywords were at v7: consumers rebind manifests they stored under v7 with
-plain Jackson, and those name no namespace. The migrator's wire check and `CatalogValidator`
-enforce them. `StencilResource` likewise ignores a stored `version` when binding.
+The new members that the wire requires (`CatalogInfo.registry` and `.namespace`,
+`DependencyRef.registry` and `.namespace`) are nullable in the model, as keywords were at v7:
+consumers rebind manifests they stored under v7 with plain Jackson, and those name neither. The
+migrator's wire check and `CatalogValidator` enforce them. `StencilResource` likewise ignores a stored `version` when binding.
 
 Here, backwards compatibility applies to catalog JSON. Common Kotlin construction and property-access
 patterns remain source-compatible where practical, but the Kotlin API is a recompile-on-upgrade

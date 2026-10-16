@@ -124,7 +124,7 @@ object Driver {
     private fun listTemplates(baseUrl: String, config: ObjectNode) {
         val api = TemplatesApi(restClient(baseUrl, config))
         val templates = List(config.path("repeat").asInt(1)) {
-            api.listTemplates(config["tenantId"].asText(), config["namespace"].asText(), config["catalogKey"].asText(), config["catalogVersion"].asText())
+            api.listTemplates(config["tenantId"].asText(), config["registry"].asText(), config["namespace"].asText(), config["catalogKey"].asText(), config["catalogVersion"].asText())
         }.last().items
 
         report(
@@ -140,6 +140,7 @@ object Driver {
             TemplatesApi(restClient(baseUrl, config))
                 .listTemplates(
                     config["tenantId"].asText(),
+                    config["registry"].asText(),
                     config["namespace"].asText(),
                     config["catalogKey"].asText(),
                     config["catalogVersion"].asText(),
@@ -166,6 +167,7 @@ object Driver {
         try {
             validator.validate(
                 config["tenantId"].asText(),
+                config["registry"].asText(),
                 config["namespace"].asText(),
                 config["catalogKey"].asText(),
                 config["templateId"].asText(),
@@ -221,7 +223,7 @@ object Driver {
                 "handledSequences" to handled.joinToString(",") { it.sequence.toString() },
                 "partitionTotal" to (collector.partitionAssignment?.total ?: -1),
                 "releases" to handled.joinToString(",") {
-                    "${it.namespace ?: "null"}/${it.catalogKey ?: "null"}@${it.releaseVersion ?: "null"}"
+                    "${it.registry ?: "null"}/${it.namespace ?: "null"}/${it.catalogKey ?: "null"}@${it.releaseVersion ?: "null"}"
                 },
             ),
         )
@@ -237,6 +239,7 @@ object Driver {
         GenerationApi(restClient(baseUrl, config)).generateDocument(
             config["tenantId"].asText(),
             GenerateDocumentRequest(
+                registry = config.optionalText("registry"),
                 namespace = config["namespace"].asText(),
                 catalogKey = config["catalogKey"].asText(),
                 templateId = config["templateId"].asText(),
@@ -315,6 +318,7 @@ object Driver {
         val images = ImagesApi(restClient(baseUrl, config))
             .listImages(
                 config["tenantId"].asText(),
+                config["registry"].asText(),
                 config["namespace"].asText(),
                 config["catalogKey"].asText(),
                 config["catalogVersion"].asText(),
@@ -345,6 +349,7 @@ object Driver {
         }
         val image = ImagesApi(restClient(baseUrl, config)).uploadImage(
             config["tenantId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
@@ -358,6 +363,7 @@ object Driver {
     private fun downloadImage(baseUrl: String, config: ObjectNode) {
         val resource = ImagesApi(restClient(baseUrl, config)).downloadImageContent(
             config["tenantId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
@@ -369,6 +375,7 @@ object Driver {
     private fun deleteImage(baseUrl: String, config: ObjectNode) {
         ImagesApi(restClient(baseUrl, config)).deleteImage(
             config["tenantId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
@@ -380,6 +387,7 @@ object Driver {
     private fun listCatalogDependencies(baseUrl: String, config: ObjectNode) {
         val dependencies = CatalogsApi(restClient(baseUrl, config)).listCatalogDependencies(
             config["tenantId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
@@ -391,12 +399,14 @@ object Driver {
     private fun updateCatalogDependencies(baseUrl: String, config: ObjectNode) {
         val dependencies = CatalogsApi(restClient(baseUrl, config)).updateCatalogDependencies(
             config["tenantId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
             UpdateCatalogDependenciesRequest(
                 dependencies = config.path("dependencies").map {
                     CatalogDependencyRequirement(
+                        registry = it.optionalText("registry"),
                         namespace = it["namespace"].asText(),
                         catalogKey = it["catalogKey"].asText(),
                         version = it["version"].asText(),
@@ -410,6 +420,7 @@ object Driver {
     private fun reportDependencies(baseUrl: String, dependencies: List<CatalogDependencyDto>) = report(
         baseUrl,
         mapOf(
+            "registries" to dependencies.joinToString(",") { it.registry },
             "namespaces" to dependencies.joinToString(",") { it.namespace },
             "catalogKeys" to dependencies.joinToString(",") { it.catalogKey },
             "versions" to dependencies.joinToString(",") { it.version },
@@ -423,6 +434,7 @@ object Driver {
     private fun createCatalogVersion(baseUrl: String, config: ObjectNode) {
         val version = CatalogsApi(restClient(baseUrl, config)).createCatalogVersion(
             config["tenantId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             CreateCatalogVersionRequest(version = config["version"].asText(), from = config.optionalText("from")),
@@ -442,6 +454,7 @@ object Driver {
     private fun listCatalogVersions(baseUrl: String, config: ObjectNode) {
         val versions = CatalogsApi(restClient(baseUrl, config)).listCatalogVersions(
             config["tenantId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             status = config.optionalText("status")?.let { CatalogVersionStatus.decode(it) },
@@ -457,10 +470,11 @@ object Driver {
         )
     }
 
-    /** Reports the release data, with dependencies' namespaces as written in the body. */
+    /** Reports the release data, with each dependency named as registry/namespace/catalogKey. */
     private fun getCatalogVersion(baseUrl: String, config: ObjectNode) {
         val version = CatalogsApi(restClient(baseUrl, config)).getCatalogVersion(
             config["tenantId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
@@ -472,7 +486,7 @@ object Driver {
                 "status" to version.status.value,
                 "releasedAt" to timestamp(version.releasedAt),
                 "dependencies" to version.dependencies.joinToString(",") {
-                    "${it.namespace}/${it.catalogKey}@${it.releaseVersion}"
+                    "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}"
                 },
                 "deployedTo" to version.deployedTo.joinToString(","),
             ),
@@ -486,6 +500,7 @@ object Driver {
     private fun renumberCatalogVersion(baseUrl: String, config: ObjectNode) {
         val version = CatalogsApi(restClient(baseUrl, config)).renumberCatalogVersion(
             config["tenantId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
@@ -501,6 +516,7 @@ object Driver {
     private fun previewCatalogVersionRenumber(baseUrl: String, config: ObjectNode) {
         val preview = CatalogsApi(restClient(baseUrl, config)).previewCatalogVersionRenumber(
             config["tenantId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
@@ -518,6 +534,7 @@ object Driver {
     private fun deleteCatalogVersion(baseUrl: String, config: ObjectNode) {
         CatalogsApi(restClient(baseUrl, config)).deleteCatalogVersion(
             config["tenantId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
@@ -527,6 +544,7 @@ object Driver {
     private fun releaseCatalogVersion(baseUrl: String, config: ObjectNode) {
         val response = CatalogsApi(restClient(baseUrl, config)).releaseCatalogVersion(
             config["tenantId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
@@ -546,6 +564,7 @@ object Driver {
     private fun listIncomingChanges(baseUrl: String, config: ObjectNode) {
         val changes = CatalogsApi(restClient(baseUrl, config)).listIncomingChanges(
             config["tenantId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
@@ -565,6 +584,7 @@ object Driver {
     private fun resolveIncomingChange(baseUrl: String, config: ObjectNode) {
         val change = CatalogsApi(restClient(baseUrl, config)).resolveIncomingChange(
             config["tenantId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
@@ -586,11 +606,12 @@ object Driver {
     /** An instant as ISO 8601 with seconds, which `OffsetDateTime.toString()` drops when zero. */
     private fun timestamp(value: OffsetDateTime?): String = value?.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME) ?: "null"
 
-    /** Deploys one release; the namespace goes into the path in its path-segment form, as given. */
+    /** Deploys one release; the registry and namespace go into the path as given. */
     private fun deployRelease(baseUrl: String, config: ObjectNode) {
         val deployment = EnvironmentsApi(restClient(baseUrl, config)).deployRelease(
             config["tenantId"].asText(),
             config["environmentId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["releaseVersion"].asText(),
@@ -598,6 +619,7 @@ object Driver {
         report(
             baseUrl,
             mapOf(
+                "registry" to deployment.registry,
                 "namespace" to deployment.namespace,
                 "catalogKey" to deployment.catalogKey,
                 "releaseVersion" to deployment.releaseVersion,
@@ -609,6 +631,7 @@ object Driver {
         EnvironmentsApi(restClient(baseUrl, config)).undeployRelease(
             config["tenantId"].asText(),
             config["environmentId"].asText(),
+            config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["releaseVersion"].asText(),
@@ -616,7 +639,7 @@ object Driver {
     }
 
     /** An optional value from `config`: absent or null stays null, so the request omits it. */
-    private fun ObjectNode.optionalText(name: String): String? = get(name)?.takeUnless { it.isNull }?.asText()
+    private fun JsonNode.optionalText(name: String): String? = get(name)?.takeUnless { it.isNull }?.asText()
 
     private fun reportBytes(baseUrl: String, bytes: ByteArray) = report(
         baseUrl,

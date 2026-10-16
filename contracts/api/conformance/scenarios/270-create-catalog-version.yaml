@@ -19,6 +19,7 @@ action:
   config:
     nodeId: conformance-node-1
     tenantId: acme-corp
+    registry: "~"
     namespace: acme-corp
     catalogKey: letters
     version: 3.0.0
@@ -28,7 +29,7 @@ script:
   - status: 201
     contentType: application/vnd.epistola.v1+json
     headers:
-      Location: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions/3.0.0
+      Location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/3.0.0
     body:
       version: 3.0.0
       status: draft
@@ -47,7 +48,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions
       headers:
         Content-Type:
           matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'

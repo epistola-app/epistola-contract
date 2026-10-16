@@ -26,6 +26,7 @@ action:
   config:
     nodeId: conformance-node-1
     tenantId: acme-corp
+    registry: "~"
     namespace: acme-corp
     catalogKey: main
     templateId: invoice
@@ -66,7 +67,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/acme-corp/main/templates/invoice/validate
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/main/templates/invoice/validate
       body:
         data:
           customer:

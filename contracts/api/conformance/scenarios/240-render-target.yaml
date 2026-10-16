@@ -3,11 +3,14 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: render-target
-title: A generation request names its catalog by namespace and key, and narrows the release by version and environment together
+title: A generation request names its catalog by namespace and key, leaves the default registry implicit, and narrows the release by version and environment together
 why: >
-  A catalog is identified by its namespace and its key; the key alone can name two different
-  catalogs from two publishers. A client that drops the namespace renders a template from whichever
-  catalog the server happens to resolve.
+  A catalog is identified by its registry, its namespace and its key; the key alone can name two
+  different catalogs from two publishers. A client that drops the namespace renders a template from
+  whichever catalog the server happens to resolve.
+
+  The catalog is in the default registry, so the caller leaves `registry` out, and the client must
+  not invent one: omitted or null both mean the default registry, which only the server knows.
 
   The release rendered is chosen by `version` and `environmentId` together: the highest release the
   environment serves that satisfies the selector. They used to be mutually exclusive, so a client
@@ -55,3 +58,4 @@ expect:
           environmentId: production
           data:
             customerName: Acme B.V.
+        jsonNullOrAbsent: [registry]

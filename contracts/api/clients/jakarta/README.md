@@ -85,8 +85,9 @@ public class InvoiceService {
 
     public UUID submit(String tenantId, Map<String, Object> data) {
         GenerateDocumentRequest request = new GenerateDocumentRequest()
-                .namespace("acme-corp")           // the catalog's namespace and key
-                .catalogKey("invoices")
+                .namespace("acme-corp")           // the catalog's namespace and key, in the
+                .catalogKey("invoices")           // default registry (set .registry("acme.com")
+                                                  // for a catalog in another registry)
                 .templateId("monthly-invoice")
                 .variantId("english")
                 .version("^1.4.0")                // optional: a version selector for the release
@@ -206,7 +207,8 @@ Some Epistola Suite deployments disable API-key authentication entirely; that ar
 
 `uploadImage` and `importCatalog` send `multipart/form-data`. Pass a `File` and the part gets its
 filename, and the media type that filename implies. An image belongs to a catalog version, so the
-upload names the tenant, the catalog's namespace and key, and the draft version it goes into:
+upload names the tenant, the catalog's registry (`~` for the server's default registry), namespace and
+key, and the draft version it goes into:
 
 ```java
 @Inject
@@ -214,14 +216,14 @@ upload names the tenant, the catalog's namespace and key, and the draft version 
 ImagesApi imagesApi;
 
 ImageDto image = imagesApi.uploadImage(
-        "acme-corp", "acme-corp", "main", "1.4.0", new File("logo.png"), "Logo", null, null);
+        "acme-corp", "~", "acme-corp", "main", "1.4.0", new File("logo.png"), "Logo", null, null);
 ```
 
 For content that is not a file on disk, or a media type the filename does not imply, build the parts
 and call the overload that takes them:
 
 ```java
-ImageDto image = imagesApi.uploadImage("acme-corp", "acme-corp", "main", "1.4.0", MultipartForm.create()
+ImageDto image = imagesApi.uploadImage("acme-corp", "~", "acme-corp", "main", "1.4.0", MultipartForm.create()
         .file("file", "logo.png", "image/png", bytes)
         .field("name", "Logo")
         .build());
@@ -255,8 +257,8 @@ ResultCollector collector = ResultCollector.builder()
         .registerShutdownHook(false)          // the container owns the lifecycle
         .handler(result -> {
             switch (result.getStatus()) {
-                // result.getNamespace()/getCatalogKey()/getReleaseVersion() name the release
-                // rendered; all three are null for a result accepted before contract 2.0.
+                // result.getRegistry()/getNamespace()/getCatalogKey()/getReleaseVersion() name
+                // the release rendered; all four are null for a result accepted before contract 2.0.
                 case COMPLETED -> download(result.getDocumentId(), result.getCorrelationId());
                 case FAILED -> logFailure(result.getCorrelationId(), result.getError());
             }
@@ -309,12 +311,13 @@ tenants.createTenant(ModelValidation.validate(new CreateTenantRequest().id("acme
 **Template data** — `TemplateSchemaValidator` checks data against a template's data contract and
 throws a `TemplateDataValidationException` carrying JSON Pointer paths. By default it asks the
 server (`validateTemplateData`); plug in your own `TemplateDataValidator` to check in-process. A
-template is addressed by its catalog's namespace and key:
+template is addressed by its catalog's registry (`~` for the server's default registry), namespace
+and key:
 
 ```java
 new TemplateSchemaValidator(
         new ServerTemplateDataValidator(templatesApi, "english", "^1.4.0", "production"))
-    .validate("my-tenant", "acme-corp", "invoices", "monthly-invoice", data);
+    .validate("my-tenant", "~", "acme-corp", "invoices", "monthly-invoice", data);
 ```
 
 `ValidatingGenerationApi` wraps `GenerationApi` and reports a rejected generation request as the

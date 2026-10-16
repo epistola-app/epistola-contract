@@ -37,19 +37,35 @@ invalid catalog content.
 The reader passes `catalog.json` and every resource document through `CatalogSchemaMigrator`, so
 an archive at an older wire version is returned at the current one, with a notice for each repair
 in `CatalogArchiveReadResult.migrationNotices`. An archive from before wire v8 names no catalog
-namespace, and nothing in it says which one it belongs to, so the caller supplies it:
+registry or namespace, and nothing in it says where it belongs, so the caller supplies both:
 
 ```kotlin
-CatalogArchiveReader.read(input, migration = CatalogMigrationOptions("exchange.epistola.app/acme-corp"))
+CatalogArchiveReader.read(
+    input,
+    migration = CatalogMigrationOptions(namespace = "acme-corp", registry = "exchange.epistola.app"),
+)
 ```
 
-The namespace is written in full. An importer typically chooses the tenant's own. Without one, a
-v7 or older archive is refused with `CATALOG_NAMESPACE_MISSING`; an archive at v8 names its own and
-ignores the option. `CatalogValidator.validate(input, policy)` takes it as
+The registry is written in full, the installation's default by its real name: an archive has no
+default registry. An importer typically chooses the tenant's own namespace. Without either, a v7 or
+older archive is refused with `CATALOG_REGISTRY_MISSING` or `CATALOG_NAMESPACE_MISSING`; an archive
+at v8 names its own and ignores the options. `CatalogValidator.validate(input, policy)` takes it as
 `CatalogValidationPolicy(migration = ...)`.
 
 The writer only emits the current wire version. Re-exporting a migrated catalog that carried a
 fingerprint replaces it with the current algorithm's.
+
+## Dependency Release Fingerprints
+
+Each `catalogDependencies` entry records the release of the dependency the archive's release was
+cut with, `releaseVersion`, and that release's canonical fingerprint, `releaseFingerprint`: the
+current algorithm's (V5) lowercase SHA-256 hex string, as `CatalogCanonicalizer.currentFingerprint`
+produces it. An installation that fetches the dependency release from any registry or mirror
+checks the copy against it. Both are null for a dependency of an archive migrated from wire v7,
+which never recorded a release; otherwise both are set. The migrator's wire check and
+`CatalogValidator` report any other pairing, or a malformed fingerprint, as
+`CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`. The Kotlin model binds either alone, so manifests
+stored without the member still load.
 
 ## Deterministic Output
 

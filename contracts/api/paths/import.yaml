@@ -17,10 +17,10 @@ import-catalog:
       Import a self-contained catalog ZIP archive. The ZIP must contain a `catalog.json` manifest
       and resource detail files matching the catalog exchange protocol.
 
-      - If the catalog (namespace + key) already exists and is AUTHORED: resources are merged into
+      - If the catalog (registry + namespace + key) already exists and is AUTHORED: resources are merged into
         the draft `catalogVersion`, or replaced, per `authoredMode` (default `MERGE` — upsert and keep local-only
         resources; `REPLACE` also deletes local-only resources, conflict-checked first)
-      - If the catalog (namespace + key) already exists and is SUBSCRIBED: the ZIP is applied as a
+      - If the catalog (registry + namespace + key) already exists and is SUBSCRIBED: the ZIP is applied as a
         full upgrade (conflict-checked; on a failed resource the upgrade is aborted
         before any pruning and the catalog stays on its previous release — see
         `aborted` in the response)
@@ -44,15 +44,23 @@ import-catalog:
                 type: string
                 format: binary
                 description: The catalog ZIP archive
+              registry:
+                type: string
+                pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+                maxLength: 253
+                description: |
+                  Registry to import the catalog into. Omitted: the registry the archive names. An
+                  archive from before catalog wire version 8 names none, and the server then uses
+                  the default registry.
               namespace:
                 type: string
-                pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+                pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
                 minLength: 3
-                maxLength: 320
+                maxLength: 63
                 description: |
-                  Namespace to import the catalog into. Omitted: the namespace the archive names. An
-                  archive from before catalog wire version 8 names none, and the server then chooses
-                  one (typically the tenant's own).
+                  Namespace, within the registry, to import the catalog into. Omitted: the
+                  namespace the archive names. An archive from before catalog wire version 8 names
+                  none, and the server then chooses one (typically the tenant's own).
               catalogVersion:
                 type: string
                 pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'

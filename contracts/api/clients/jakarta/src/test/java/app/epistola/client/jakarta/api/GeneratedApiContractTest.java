@@ -162,12 +162,12 @@ class GeneratedApiContractTest {
     }
 
     /**
-     * A catalog is addressed by its namespace and key together (contract 2.0). Every operation
-     * under a catalog takes both as path parameters, and none still takes the removed
-     * {@code catalogId}.
+     * A catalog is addressed by its registry, namespace and key together (contract 2.0). Every
+     * operation under a catalog takes all three as path parameters, in that order, and none still
+     * takes the removed {@code catalogId}.
      */
     @Test
-    void catalog_scoped_operations_address_a_catalog_by_namespace_and_key() {
+    void catalog_scoped_operations_address_a_catalog_by_registry_namespace_and_key() {
         int catalogScoped = 0;
 
         for (Class<?> api : GENERATED_APIS) {
@@ -183,9 +183,14 @@ class GeneratedApiContractTest {
                     continue;
                 }
                 catalogScoped++;
+                int registry = pathParams.indexOf("registry");
                 assertTrue(
-                        pathParams.contains("namespace") && pathParams.contains("catalogKey"),
-                        where + " is catalog-scoped but does not take both namespace and catalogKey: " + pathParams);
+                        registry >= 0
+                                && registry + 3 <= pathParams.size()
+                                && pathParams.subList(registry, registry + 3)
+                                        .equals(List.of("registry", "namespace", "catalogKey")),
+                        where + " is catalog-scoped but does not take registry, namespace and catalogKey in order: "
+                                + pathParams);
             }
         }
 
@@ -208,7 +213,7 @@ class GeneratedApiContractTest {
             for (Method method : api.getMethods()) {
                 Path path = method.getAnnotation(Path.class);
                 String fullPath = base + (path == null ? "" : path.value());
-                String catalog = "/catalogs/{namespace}/{catalogKey}";
+                String catalog = "/catalogs/{registry}/{namespace}/{catalogKey}";
                 int at = fullPath.indexOf(catalog);
                 if (at < 0) {
                     continue; // not under a catalog, such as a deployment naming a release
@@ -226,7 +231,7 @@ class GeneratedApiContractTest {
 
         assertTrue(versionScoped > 20, "expected the catalog's content operations to be version-scoped");
         assertEquals(
-                List.of("tenantId", "namespace", "catalogKey", "templateId"),
+                List.of("tenantId", "registry", "namespace", "catalogKey", "templateId"),
                 pathParams(method(TemplatesApi.class, "validateTemplateData")),
                 "validateTemplateData stays at the catalog and takes no version");
     }
@@ -240,8 +245,8 @@ class GeneratedApiContractTest {
                     "CatalogsApi still has the removed " + removed);
         }
 
-        List<String> catalog = List.of("tenantId", "namespace", "catalogKey");
-        List<String> version = List.of("tenantId", "namespace", "catalogKey", "catalogVersion");
+        List<String> catalog = List.of("tenantId", "registry", "namespace", "catalogKey");
+        List<String> version = List.of("tenantId", "registry", "namespace", "catalogKey", "catalogVersion");
 
         assertOperation("listCatalogVersions", GET.class, CatalogVersionListResponse.class, catalog);
         assertOperation("createCatalogVersion", POST.class, CatalogVersionDto.class, catalog);
@@ -255,7 +260,7 @@ class GeneratedApiContractTest {
                 "resolveIncomingChange",
                 POST.class,
                 IncomingChangeDto.class,
-                List.of("tenantId", "namespace", "catalogKey", "catalogVersion", "changeId"));
+                List.of("tenantId", "registry", "namespace", "catalogKey", "catalogVersion", "changeId"));
 
         for (String withBody : List.of(
                 "createCatalogVersion", "renumberCatalogVersion", "releaseCatalogVersion", "resolveIncomingChange")) {
@@ -279,13 +284,13 @@ class GeneratedApiContractTest {
         Method list = method(CatalogsApi.class, "listCatalogDependencies");
         assertNotNull(list.getAnnotation(GET.class), "listCatalogDependencies should be a GET");
         assertEquals(CatalogDependencyListResponse.class, list.getReturnType());
-        assertEquals(List.of("tenantId", "namespace", "catalogKey", "catalogVersion"), pathParams(list));
+        assertEquals(List.of("tenantId", "registry", "namespace", "catalogKey", "catalogVersion"), pathParams(list));
 
         Method update = method(CatalogsApi.class, "updateCatalogDependencies");
         assertNotNull(update.getAnnotation(PUT.class), "updateCatalogDependencies should be a PUT");
         assertEquals(CatalogDependencyListResponse.class, update.getReturnType());
-        assertEquals(List.of("tenantId", "namespace", "catalogKey", "catalogVersion"), pathParams(update));
-        assertEquals(UpdateCatalogDependenciesRequest.class, update.getParameterTypes()[4]);
+        assertEquals(List.of("tenantId", "registry", "namespace", "catalogKey", "catalogVersion"), pathParams(update));
+        assertEquals(UpdateCatalogDependenciesRequest.class, update.getParameterTypes()[5]);
         assertEquals(List.of(VENDOR_JSON), List.of(update.getAnnotation(Consumes.class).value()));
     }
 
@@ -295,7 +300,7 @@ class GeneratedApiContractTest {
      */
     @Test
     void a_release_is_deployed_and_undeployed_by_its_path_alone() {
-        List<String> releasePath = List.of("tenantId", "environmentId", "namespace", "catalogKey", "releaseVersion");
+        List<String> releasePath = List.of("tenantId", "environmentId", "registry", "namespace", "catalogKey", "releaseVersion");
 
         Method deploy = method(EnvironmentsApi.class, "deployRelease");
         assertNotNull(deploy.getAnnotation(PUT.class), "deployRelease should be a PUT");

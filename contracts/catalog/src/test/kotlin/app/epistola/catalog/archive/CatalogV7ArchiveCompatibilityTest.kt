@@ -28,12 +28,12 @@ import kotlin.test.assertTrue
  * A whole catalog-v7 archive, shaped the way a v7 publisher wrote one, read by the current reader.
  *
  * The migration tests work on one document at a time; this one holds the steps together. A v7
- * catalog names no namespace, depends on other catalogs only through resource dependencies, and
+ * catalog names no registry or namespace, depends on other catalogs only through resource dependencies, and
  * pins every stencil reference to a version, inside its own catalog and across catalogs.
  */
 class CatalogV7ArchiveCompatibilityTest {
     @Test
-    fun `a v7 archive binds at the current version under the namespace its importer chooses`() {
+    fun `a v7 archive binds at the current version under the registry and namespace its importer chooses`() {
         val result = CatalogArchiveReader.read(ByteArrayInputStream(v7Archive()), migration = MIGRATION)
         val archive = assertNotNull(result.archive, "findings: ${result.findings}")
 
@@ -41,9 +41,10 @@ class CatalogV7ArchiveCompatibilityTest {
             assertTrue(result.findings.isEmpty(), "unexpected findings: ${result.findings}")
             val manifest = archive.manifest
             assertEquals(CatalogWireSchema.CURRENT_VERSION, manifest.schemaVersion)
+            assertEquals(REGISTRY, manifest.catalog.registry)
             assertEquals(NAMESPACE, manifest.catalog.namespace)
-            assertEquals(listOf(CatalogDependency(NAMESPACE, "shared", "*", null)), manifest.catalogDependencies)
-            assertEquals(listOf(NAMESPACE), manifest.dependencies.orEmpty().map { it.namespace })
+            assertEquals(listOf(CatalogDependency(REGISTRY, NAMESPACE, "shared", "*", null)), manifest.catalogDependencies)
+            assertEquals(listOf(REGISTRY to NAMESPACE), manifest.dependencies.orEmpty().map { it.registry to it.namespace })
 
             // No stencil carries a version any more, and no reference pins one.
             val stencil = archive.resourceDetails.values.map { it.resource }.filterIsInstance<StencilResource>().single()
@@ -53,7 +54,14 @@ class CatalogV7ArchiveCompatibilityTest {
             assertEquals(3, stencilNodes.size)
             assertTrue(stencilNodes.none { it.props.orEmpty().keys.any { key -> key == "version" || key == "draftVersion" } })
             assertEquals(
-                setOf(CatalogMigrationCodes.NAMESPACE_ASSIGNED, CatalogMigrationCodes.DEPENDENCY_NAMESPACE_ASSIGNED, CatalogMigrationCodes.DEPENDENCY_CATALOG_DECLARED, CatalogMigrationCodes.STENCIL_VERSION_REMOVED),
+                setOf(
+                    CatalogMigrationCodes.REGISTRY_ASSIGNED,
+                    CatalogMigrationCodes.NAMESPACE_ASSIGNED,
+                    CatalogMigrationCodes.DEPENDENCY_REGISTRY_ASSIGNED,
+                    CatalogMigrationCodes.DEPENDENCY_NAMESPACE_ASSIGNED,
+                    CatalogMigrationCodes.DEPENDENCY_CATALOG_DECLARED,
+                    CatalogMigrationCodes.STENCIL_VERSION_REMOVED,
+                ),
                 result.migrationNotices.mapTo(mutableSetOf()) { it.code },
             )
         }
@@ -73,7 +81,7 @@ class CatalogV7ArchiveCompatibilityTest {
         val report = CatalogValidator.validate(ByteArrayInputStream(v7Archive()), policy)
 
         assertEquals(emptyList(), report.findings)
-        assertTrue(CatalogResourceReference("stencil", "footer", "shared", NAMESPACE) in resolved, resolved.toString())
+        assertTrue(CatalogResourceReference("stencil", "footer", "shared", NAMESPACE, REGISTRY) in resolved, resolved.toString())
     }
 
     private fun v7Archive(): ByteArray {
@@ -128,9 +136,10 @@ class CatalogV7ArchiveCompatibilityTest {
     }
 
     private companion object {
-        const val NAMESPACE = "exchange.epistola.app/acme-corp"
+        const val REGISTRY = "exchange.epistola.app"
+        const val NAMESPACE = "acme-corp"
 
-        /** A v7 archive names no namespace; the reader's caller supplies one, as an importer would. */
-        val MIGRATION = CatalogMigrationOptions(NAMESPACE)
+        /** A v7 archive names no registry or namespace; the reader's caller supplies both, as an importer would. */
+        val MIGRATION = CatalogMigrationOptions(NAMESPACE, REGISTRY)
     }
 }

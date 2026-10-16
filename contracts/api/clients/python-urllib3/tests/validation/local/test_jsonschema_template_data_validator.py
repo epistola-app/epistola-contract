@@ -53,23 +53,23 @@ class _StubTemplatesApi:
         self._schema = schema
         self.fetches = 0
 
-    def get_template(self, tenant_id, namespace, catalog_key, catalog_version, template_id):
+    def get_template(self, tenant_id, registry, namespace, catalog_key, catalog_version, template_id):
         self.fetches += 1
-        self.addressed = (tenant_id, namespace, catalog_key, catalog_version, template_id)
+        self.addressed = (tenant_id, registry, namespace, catalog_key, catalog_version, template_id)
         return SimpleNamespace(var_schema=self._schema)
 
 
 def test_valid_data_yields_no_findings():
     validator = JsonSchemaTemplateDataValidator(_StubTemplatesApi(_INVOICE_SCHEMA), "1.4.0")
 
-    assert validator.validate("acme-corp", "acme-corp", "default", "invoice", _VALID_DATA) == []
+    assert validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", _VALID_DATA) == []
 
 
 def test_paths_are_json_pointers_not_dotted_keys():
     validator = JsonSchemaTemplateDataValidator(_StubTemplatesApi(_INVOICE_SCHEMA), "1.4.0")
     data = dict(_VALID_DATA, customer={"name": "", "email": "jane@example.com"})
 
-    findings = validator.validate("acme-corp", "acme-corp", "default", "invoice", data)
+    findings = validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", data)
 
     # The regression this guards: the implementation this replaced joined segments with `.`,
     # reporting `customer.name`.
@@ -81,7 +81,7 @@ def test_a_pointer_into_an_array_uses_the_index_as_a_segment():
     validator = JsonSchemaTemplateDataValidator(_StubTemplatesApi(_INVOICE_SCHEMA), "1.4.0")
     data = dict(_VALID_DATA, lineItems=[{"quantity": 0}])
 
-    findings = validator.validate("acme-corp", "acme-corp", "default", "invoice", data)
+    findings = validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", data)
 
     assert [f.path for f in findings] == ["/lineItems/0/quantity"]
     assert findings[0].keyword == "minimum"
@@ -90,7 +90,9 @@ def test_a_pointer_into_an_array_uses_the_index_as_a_segment():
 def test_a_missing_required_field_is_reported_where_the_library_puts_it():
     validator = JsonSchemaTemplateDataValidator(_StubTemplatesApi(_INVOICE_SCHEMA), "1.4.0")
 
-    findings = validator.validate("acme-corp", "acme-corp", "default", "invoice", {"invoiceNumber": "INV-2026-001"})
+    findings = validator.validate(
+        "acme-corp", "~", "acme-corp", "default", "invoice", {"invoiceNumber": "INV-2026-001"}
+    )
 
     # `jsonschema` reports `required` against the object that lacks the property, so the pointer is
     # the parent — the root here. The server reports the absent field's own pointer in
@@ -108,21 +110,21 @@ def test_format_is_not_asserted_which_is_why_the_server_owns_the_verdict():
     # checker is passed. The Node reference adapter registers ajv-formats and *does* reject this.
     # Two local libraries, two answers, same contract — which is the argument for the default
     # being the one that decides what renders.
-    assert validator.validate("acme-corp", "acme-corp", "default", "invoice", data) == []
+    assert validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", data) == []
 
 
 def test_a_template_without_a_schema_claims_nothing_about_the_data():
     validator = JsonSchemaTemplateDataValidator(_StubTemplatesApi(None), "1.4.0")
 
-    assert validator.validate("acme-corp", "acme-corp", "default", "invoice", {"anything": 1}) == []
+    assert validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", {"anything": 1}) == []
 
 
 def test_the_schema_is_fetched_once_and_reused():
     templates = _StubTemplatesApi(_INVOICE_SCHEMA)
     validator = JsonSchemaTemplateDataValidator(templates, "1.4.0")
 
-    validator.validate("acme-corp", "acme-corp", "default", "invoice", _VALID_DATA)
-    validator.validate("acme-corp", "acme-corp", "default", "invoice", _VALID_DATA)
+    validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", _VALID_DATA)
+    validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", _VALID_DATA)
 
     # Without the cache a "local" validator costs a round trip per call, which is worse than
     # asking the server to validate outright.
@@ -133,9 +135,9 @@ def test_the_schema_is_read_from_the_configured_catalog_version():
     templates = _StubTemplatesApi(_INVOICE_SCHEMA)
     validator = JsonSchemaTemplateDataValidator(templates, "1.4.0")
 
-    validator.validate("acme-corp", "acme-corp", "default", "invoice", _VALID_DATA)
+    validator.validate("acme-corp", "~", "acme-corp", "default", "invoice", _VALID_DATA)
 
-    assert templates.addressed == ("acme-corp", "acme-corp", "default", "1.4.0", "invoice")
+    assert templates.addressed == ("acme-corp", "~", "acme-corp", "default", "1.4.0", "invoice")
 
 
 def test_it_takes_the_generation_preflight():

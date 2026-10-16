@@ -20,15 +20,17 @@ why: >
   types it and each client hands its serializer a raw map. Every JSON type is in there, including a
   decimal, because that is where serializers most often disagree with each other.
 
-  The namespace is one on a non-default exchange, so it carries a `/`. In a body that is plain
-  JSON (an escaped `\/` is the same string); only in a URL path does it become `~`.
+  The catalog is in a registry other than the default, so the body names it: `registry` and
+  `namespace` are two members, each sent exactly as given. A client that drops `registry` asks
+  for the same namespace in the default registry, which is a different catalog.
 
 action:
   name: generate-document
   config:
     nodeId: conformance-node-1
     tenantId: acme-corp
-    namespace: exchange.example.org/team-a
+    registry: exchange.example.org
+    namespace: team-a
     catalogKey: default
     templateId: invoice
     correlationId: inv-2026-0042
@@ -68,7 +70,8 @@ expect:
           matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
       body:
         json:
-          namespace: exchange.example.org/team-a
+          registry: exchange.example.org
+          namespace: team-a
           catalogKey: default
           templateId: invoice
           correlationId: inv-2026-0042

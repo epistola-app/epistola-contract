@@ -152,8 +152,8 @@ class CatalogV6ArchiveCompatibilityTest {
     }
 
     private companion object {
-        /** A v6 archive names no namespace; the reader's caller supplies one, as an importer would. */
-        val MIGRATION = CatalogMigrationOptions("exchange.epistola.app/town-hall")
+        /** A v6 archive names no registry or namespace; the reader's caller supplies both, as an importer would. */
+        val MIGRATION = CatalogMigrationOptions(namespace = "town-hall", registry = "exchange.epistola.app")
         val SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"></svg>""".toByteArray()
         val TTF = byteArrayOf(0, 1, 0, 0, 0, 13, 0, -128)
     }

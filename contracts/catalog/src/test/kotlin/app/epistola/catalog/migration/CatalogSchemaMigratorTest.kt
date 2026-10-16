@@ -44,11 +44,13 @@ class CatalogSchemaMigratorTest {
         assertEquals(CatalogWireSchema.CURRENT_VERSION, result.sourceVersion)
         assertTrue(result.notices.isEmpty())
         assertEquals("fixture", assertNotNull(result.value).catalog.slug)
+        assertEquals(REGISTRY, result.value.catalog.registry)
         assertEquals(NAMESPACE, result.value.catalog.namespace)
         assertEquals(
-            listOf(CatalogDependency(NAMESPACE, "shared", "^1.2.0", "1.4.0")),
+            listOf(CatalogDependency(REGISTRY, NAMESPACE, "shared", "^1.2.0", "1.4.0", SHARED_FINGERPRINT)),
             result.value.catalogDependencies,
         )
+        assertEquals(REGISTRY, result.value.dependencies.orEmpty().single().registry)
         assertEquals(NAMESPACE, result.value.dependencies.orEmpty().single().namespace)
     }
 
@@ -96,7 +98,10 @@ class CatalogSchemaMigratorTest {
         assertEquals(emptyList(), catalog.attributes)
         assertEquals(emptySet(), catalog.keywords)
         assertEquals(null, catalog.license)
-        assertEquals(listOf(CatalogMigrationCodes.NAMESPACE_ASSIGNED), result.notices.map { it.code })
+        assertEquals(
+            listOf(CatalogMigrationCodes.REGISTRY_ASSIGNED, CatalogMigrationCodes.NAMESPACE_ASSIGNED),
+            result.notices.map { it.code },
+        )
         assertEquals(resource("migrations/v5-to-v6/manifest-expected.json").use(mapper::readTree), tree)
         assertEquals(resource("migrations/v5-to-v6/notices.json").use(mapper::readTree), mapper.valueToTree(step.notices))
     }
@@ -206,7 +211,7 @@ class CatalogSchemaMigratorTest {
     }
 
     @Test
-    fun `v7 golden manifest takes the caller's namespace and declares the catalogs it names`() {
+    fun `v7 golden manifest takes the caller's registry and namespace and declares the catalogs it names`() {
         val input = resource("migrations/v7-to-v8/manifest-input.json").use(mapper::readTree) as ObjectNode
         val step = CatalogV7ToV8Migration().migrateManifest(input, OPTIONS_ACME)
         val result = CatalogSchemaMigrator.migrateManifest(resource("migrations/v7-to-v8/manifest-input.json"), OPTIONS_ACME)
@@ -218,39 +223,54 @@ class CatalogSchemaMigratorTest {
         assertTrue(result.valid, result.findings.toString())
         assertEquals(step.notices, result.notices)
         val manifest = assertNotNull(result.value)
+        assertEquals(REGISTRY, manifest.catalog.registry)
         assertEquals(ACME, manifest.catalog.namespace)
         assertEquals(
             listOf(
-                CatalogDependency(ACME, "brand", "*", null),
-                CatalogDependency(ACME, "shared", "*", null),
+                CatalogDependency(REGISTRY, ACME, "brand", "*", null),
+                CatalogDependency(REGISTRY, ACME, "shared", "*", null),
             ),
             manifest.catalogDependencies,
         )
-        assertTrue(manifest.dependencies.orEmpty().all { it.namespace == ACME })
+        assertTrue(manifest.dependencies.orEmpty().all { it.registry == REGISTRY && it.namespace == ACME })
     }
 
     @Test
-    fun `a v7 manifest without a namespace from the caller is a finding, never a guess`() {
-        val missing = CatalogSchemaMigrator.migrateManifest(resource("migrations/v7-to-v8/manifest-input.json"))
-        val short = CatalogSchemaMigrator.migrateManifest(
-            resource("migrations/v7-to-v8/manifest-input.json"),
-            CatalogMigrationOptions("acme-corp"),
-        )
+    fun `a v7 manifest without a registry or namespace from the caller is a finding, never a guess`() {
+        fun findings(options: CatalogMigrationOptions): List<Pair<String, String>> {
+            val result = CatalogSchemaMigrator.migrateManifest(resource("migrations/v7-to-v8/manifest-input.json"), options)
+            assertEquals(null, result.value)
+            return result.findings.map { it.code to it.path }
+        }
 
-        assertEquals(null, missing.value)
+        assertEquals(
+            listOf(
+                CatalogMigrationCodes.REGISTRY_MISSING to "catalog.json.catalog.registry",
+                CatalogMigrationCodes.NAMESPACE_MISSING to "catalog.json.catalog.namespace",
+            ),
+            findings(CatalogMigrationOptions.DEFAULT),
+        )
+        // The source-compatible one-argument form names a namespace but no registry.
+        assertEquals(
+            listOf(CatalogMigrationCodes.REGISTRY_MISSING to "catalog.json.catalog.registry"),
+            findings(CatalogMigrationOptions(ACME)),
+        )
         assertEquals(
             listOf(CatalogMigrationCodes.NAMESPACE_MISSING to "catalog.json.catalog.namespace"),
-            missing.findings.map { it.code to it.path },
+            findings(CatalogMigrationOptions(registry = REGISTRY)),
         )
-        // The short form depends on the installation's default exchange, so an archive never holds it.
+        // An archive has no default registry, so `~` is not one; the joined pre-registry form is no namespace.
         assertEquals(
-            listOf(CatalogMigrationCodes.NAMESPACE_INVALID to "catalog.json.catalog.namespace"),
-            short.findings.map { it.code to it.path },
+            listOf(
+                CatalogMigrationCodes.REGISTRY_INVALID to "catalog.json.catalog.registry",
+                CatalogMigrationCodes.NAMESPACE_INVALID to "catalog.json.catalog.namespace",
+            ),
+            findings(CatalogMigrationOptions(namespace = "exchange.epistola.app/acme-corp", registry = "~")),
         )
     }
 
     @Test
-    fun `a v7 dependency on its own catalog gets a namespace but no catalog dependency`() {
+    fun `a v7 dependency on its own catalog gets a registry and namespace but no catalog dependency`() {
         val input = mapper.readTree(
             """{"schemaVersion":7,"catalog":{"slug":"letters","name":"Letters"},
                "dependencies":[{"type":"theme","catalogKey":"letters","slug":"base"}]}""",
@@ -258,12 +278,13 @@ class CatalogSchemaMigratorTest {
         val step = CatalogV7ToV8Migration().migrateManifest(input, OPTIONS_ACME)
 
         assertTrue(step.findings.isEmpty(), step.findings.toString())
+        assertEquals(REGISTRY, input["dependencies"][0]["registry"].asString())
         assertEquals(ACME, input["dependencies"][0]["namespace"].asString())
         assertEquals(0, input["catalogDependencies"].size())
     }
 
     @Test
-    fun `a v8 manifest names its own namespace, in full, everywhere`() {
+    fun `a v8 manifest names its own registry, in full, and namespace everywhere`() {
         fun findings(edit: (ObjectNode) -> Unit): List<Pair<String, String>> {
             val tree = resource("wire-v8/catalog.json").use(mapper::readTree) as ObjectNode
             edit(tree)
@@ -277,7 +298,23 @@ class CatalogSchemaMigratorTest {
         )
         assertEquals(
             listOf(CatalogMigrationCodes.NAMESPACE_INVALID to "catalog.json.catalog.namespace"),
-            findings { (it["catalog"] as ObjectNode).put("namespace", "epistola") },
+            findings { (it["catalog"] as ObjectNode).put("namespace", "exchange.epistola.app/epistola") },
+        )
+        assertEquals(
+            listOf(CatalogMigrationCodes.REGISTRY_INVALID to "catalog.json.catalog.registry"),
+            findings { (it["catalog"] as ObjectNode).remove("registry") },
+        )
+        assertEquals(
+            listOf(CatalogMigrationCodes.REGISTRY_INVALID to "catalog.json.catalog.registry"),
+            findings { (it["catalog"] as ObjectNode).put("registry", "~") },
+        )
+        assertEquals(
+            listOf(CatalogMigrationCodes.REGISTRY_INVALID to "catalog.json.dependencies[0].registry"),
+            findings { (it["dependencies"][0] as ObjectNode).put("registry", "exchange") },
+        )
+        assertEquals(
+            listOf(CatalogMigrationCodes.REGISTRY_INVALID to "catalog.json.catalogDependencies[0].registry"),
+            findings { (it["catalogDependencies"][0] as ObjectNode).remove("registry") },
         )
         assertEquals(
             listOf(CatalogMigrationCodes.NAMESPACE_INVALID to "catalog.json.dependencies[0].namespace"),
@@ -287,9 +324,40 @@ class CatalogSchemaMigratorTest {
             listOf(CatalogMigrationCodes.NAMESPACE_INVALID to "catalog.json.catalogDependencies[0].namespace"),
             findings { (it["catalogDependencies"][0] as ObjectNode).put("namespace", "Acme.com") },
         )
-        // The caller's namespace applies only to an archive that names none.
-        val native = CatalogSchemaMigrator.migrateManifest(resource("wire-v8/catalog.json"), OPTIONS_ACME)
-        assertEquals(NAMESPACE, assertNotNull(native.value).catalog.namespace)
+        // The caller's registry and namespace apply only to an archive that names none.
+        val native = CatalogSchemaMigrator.migrateManifest(
+            resource("wire-v8/catalog.json"),
+            CatalogMigrationOptions(namespace = ACME, registry = "acme.com"),
+        )
+        assertEquals(REGISTRY, assertNotNull(native.value).catalog.registry)
+        assertEquals(NAMESPACE, native.value.catalog.namespace)
+    }
+
+    @Test
+    fun `a v8 catalog dependency records its release fingerprint exactly when it records a release`() {
+        fun findings(edit: (ObjectNode) -> Unit): List<Pair<String, String>> {
+            val tree = resource("wire-v8/catalog.json").use(mapper::readTree) as ObjectNode
+            edit(tree["catalogDependencies"][0] as ObjectNode)
+            return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(mapper.writeValueAsBytes(tree)), OPTIONS)
+                .findings.map { it.code to it.path }
+        }
+        val invalid = listOf(CatalogMigrationCodes.DEPENDENCY_CATALOG_FINGERPRINT_INVALID to "catalog.json.catalogDependencies[0].releaseFingerprint")
+
+        assertEquals(emptyList(), findings { })
+        assertEquals(emptyList(), findings { it.putNull("releaseVersion").putNull("releaseFingerprint") })
+        assertEquals(invalid, findings { it.remove("releaseFingerprint") })
+        assertEquals(invalid, findings { it.putNull("releaseFingerprint") })
+        assertEquals(invalid, findings { it.putNull("releaseVersion") })
+        assertEquals(invalid, findings { it.put("releaseFingerprint", SHARED_FINGERPRINT.uppercase()) })
+        assertEquals(invalid, findings { it.put("releaseFingerprint", SHARED_FINGERPRINT.drop(1)) })
+        assertEquals(invalid, findings { it.put("releaseFingerprint", 1) })
+        // The model binds either alone, so that manifests stored without the fingerprint still load.
+        val stored = resource("wire-v8/catalog.json").use(mapper::readTree) as ObjectNode
+        (stored["catalogDependencies"][0] as ObjectNode).remove("releaseFingerprint")
+        assertEquals(
+            CatalogDependency(REGISTRY, NAMESPACE, "shared", "^1.2.0", "1.4.0"),
+            mapper.treeToValue(stored, CatalogManifest::class.java).catalogDependencies.orEmpty().single(),
+        )
     }
 
     @Test
@@ -435,7 +503,7 @@ class CatalogSchemaMigratorTest {
 
     private fun minimalManifest(version: Int): CatalogMigrationResult<CatalogManifest> {
         val json = """
-            {"schemaVersion":$version,"catalog":{"namespace":"$NAMESPACE","slug":"x","name":"X"},"publisher":{"name":"X"},
+            {"schemaVersion":$version,"catalog":{"registry":"$REGISTRY","namespace":"$NAMESPACE","slug":"x","name":"X"},"publisher":{"name":"X"},
             "release":{"version":"1.0.0"},"resources":[]}
         """.trimIndent()
         return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(json.toByteArray()), OPTIONS)
@@ -453,8 +521,8 @@ class CatalogSchemaMigratorTest {
         return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(json.toByteArray()), OPTIONS)
     }
 
-    /** A catalog names its namespace from wire v8; before that the migrator is told it. */
-    private fun namespaceMember(version: Int) = if (version >= 8) "\"namespace\":\"$NAMESPACE\"," else ""
+    /** A catalog names its registry and namespace from wire v8; before that the migrator is told them. */
+    private fun namespaceMember(version: Int) = if (version >= 8) "\"registry\":\"$REGISTRY\",\"namespace\":\"$NAMESPACE\"," else ""
 
     private fun resource(path: String) = requireNotNull(javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/$path"))
 
@@ -468,9 +536,11 @@ class CatalogSchemaMigratorTest {
     )
 
     private companion object {
-        const val NAMESPACE = "exchange.epistola.app/epistola"
-        val OPTIONS = CatalogMigrationOptions(NAMESPACE)
-        const val ACME = "exchange.epistola.app/acme-corp"
-        val OPTIONS_ACME = CatalogMigrationOptions(ACME)
+        const val REGISTRY = "exchange.epistola.app"
+        const val NAMESPACE = "epistola"
+        const val SHARED_FINGERPRINT = "69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42"
+        val OPTIONS = CatalogMigrationOptions(NAMESPACE, REGISTRY)
+        const val ACME = "acme-corp"
+        val OPTIONS_ACME = CatalogMigrationOptions(ACME, REGISTRY)
     }
 }

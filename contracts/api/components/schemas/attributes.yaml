@@ -13,6 +13,7 @@ AttributeDto:
   required:
     - slug
     - tenantId
+    - registry
     - namespace
     - catalogKey
     - displayName
@@ -37,21 +38,27 @@ AttributeDto:
       maxLength: 63
       description: Slug identifier of the tenant this attribute belongs to.
       example: acme-corp
+    registry:
+      type: string
+      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+      maxLength: 253
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
     namespace:
       type: string
-      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
-      maxLength: 320
-      description: |
-        Namespace of the catalog. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
-        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
-      example: exchange.epistola.app/epistola
+      maxLength: 63
+      description: Namespace of the catalog, within its registry
+      example: epistola
     catalogKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Key of the catalog this resource lives in, unique within its namespace
+      description: Key of the catalog this resource lives in, unique within its registry and namespace
       example: system
     displayName:
       type: string
@@ -82,19 +89,24 @@ AttributeDto:
         local attribute binding to `system/iso-639-1`). Another catalog must be one the attribute's
         catalog declares as a dependency.
       required:
+        - registry
+        - namespace
         - catalogKey
         - slug
       properties:
+        registry:
+          type: string
+          pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+          maxLength: 253
+          description: Registry of the catalog the bound code list belongs to, written in full
+          example: exchange.epistola.app
         namespace:
-          type: [string, "null"]
-          pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+          type: string
+          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
           minLength: 3
-          maxLength: 320
-          description: |
-            Namespace of the catalog the bound code list belongs to. Omitted in a request: the
-            attribute's own namespace. A response writes it in full. A list in another catalog is
-            read from the release of that catalog the attribute's catalog depends on.
-          example: exchange.epistola.app/epistola
+          maxLength: 63
+          description: Namespace of the catalog the bound code list belongs to, within its registry
+          example: epistola
         catalogKey:
           type: string
           pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -132,13 +144,15 @@ AttributeDto:
   example:
     slug: locale
     tenantId: acme-corp
-    namespace: exchange.epistola.app/epistola
+    registry: exchange.epistola.app
+    namespace: epistola
     catalogKey: system
     displayName: Locale
     description: BCP-47 language + region tag (e.g. en-US, nl-NL).
     allowedValues: []
     codeListBinding:
-      namespace: exchange.epistola.app/epistola
+      registry: exchange.epistola.app
+      namespace: epistola
       catalogKey: system
       slug: bcp-47
     catalogType: SUBSCRIBED
@@ -188,16 +202,24 @@ CreateAttributeRequest:
         - catalogKey
         - slug
       properties:
+        registry:
+          type: [string, "null"]
+          pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+          maxLength: 253
+          description: |
+            Registry of the catalog the bound code list belongs to. Omitted or null: the registry of
+            the attribute's own catalog (not the default registry). Set only together with
+            `namespace`.
+          example: null
         namespace:
           type: [string, "null"]
-          pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
           minLength: 3
-          maxLength: 320
+          maxLength: 63
           description: |
-            Namespace of the catalog the bound code list belongs to. Omitted in a request: the
-            attribute's own namespace. A response writes it in full. A list in another catalog is
-            read from the release of that catalog the attribute's catalog depends on.
-          example: exchange.epistola.app/epistola
+            Namespace of the catalog the bound code list belongs to, within its registry. Omitted or
+            null: the namespace of the attribute's own catalog.
+          example: null
         catalogKey:
           type: string
           pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -234,11 +256,24 @@ UpdateAttributeRequest:
         - catalogKey
         - slug
       properties:
+        registry:
+          type: [string, "null"]
+          pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+          maxLength: 253
+          description: |
+            Registry of the catalog the bound code list belongs to. Omitted or null: the registry of
+            the attribute's own catalog (not the default registry). Set only together with
+            `namespace`.
+          example: null
         namespace:
           type: [string, "null"]
-          pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
           minLength: 3
-          maxLength: 320
+          maxLength: 63
+          description: |
+            Namespace of the catalog the bound code list belongs to, within its registry. Omitted or
+            null: the namespace of the attribute's own catalog.
+          example: null
         catalogKey:
           type: string
           pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -265,18 +300,20 @@ AttributeListResponse:
     items:
       - slug: locale
         tenantId: acme-corp
-        namespace: exchange.epistola.app/epistola
+        registry: exchange.epistola.app
+        namespace: epistola
         catalogKey: system
         displayName: Locale
         allowedValues: []
-        codeListBinding: { namespace: exchange.epistola.app/epistola, catalogKey: system, slug: bcp-47 }
+        codeListBinding: { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, slug: bcp-47 }
         catalogType: SUBSCRIBED
         readOnly: true
         createdAt: "2026-01-16T10:00:00Z"
         lastModified: "2026-05-11T12:00:00Z"
       - slug: priority
         tenantId: acme-corp
-        namespace: exchange.epistola.app/acme-corp
+        registry: exchange.epistola.app
+        namespace: acme-corp
         catalogKey: default
         displayName: Priority
         allowedValues: [low, normal, high]

@@ -57,13 +57,14 @@ public sealed class TemplateSchemaValidator
     /// than contract 1.4.0, which does not offer <c>validateTemplateData</c>.
     /// </exception>
     /// <param name="tenantId">Tenant identifier.</param>
-    /// <param name="namespace">Namespace of the template's catalog, in its path-segment form (<c>exchange.example.org~team-a</c>, not <c>exchange.example.org/team-a</c>).</param>
-    /// <param name="catalogKey">Key of the template's catalog within its namespace.</param>
+    /// <param name="registry">Registry of the template's catalog as a path writes it: <c>~</c> (<see cref="ITemplateDataValidator.DefaultRegistry"/>) for the server's default registry, or the registry in full (<c>acme.com</c>).</param>
+    /// <param name="namespace">Namespace of the template's catalog within its registry (<c>acme-corp</c>).</param>
+    /// <param name="catalogKey">Key of the template's catalog within its registry and namespace.</param>
     /// <param name="templateId">Template identifier.</param>
     /// <param name="data">The data object to check.</param>
-    public void Validate(string tenantId, string @namespace, string catalogKey, string templateId, object data)
+    public void Validate(string tenantId, string registry, string @namespace, string catalogKey, string templateId, object data)
     {
-        var errors = _validator.Validate(tenantId, @namespace, catalogKey, templateId, data);
+        var errors = _validator.Validate(tenantId, registry, @namespace, catalogKey, templateId, data);
         if (errors.Count > 0)
         {
             throw new TemplateDataValidationException(errors);

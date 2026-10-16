@@ -71,11 +71,17 @@
           ]
         },
         "themeNamespace": {
-          "description": "Namespace of the catalog holding the theme, in full or short form. Omitted means the template's own catalog namespace.",
+          "description": "Namespace of the catalog holding the theme. Omitted means the template's own catalog namespace.",
           "type": "string",
           "minLength": 3,
-          "maxLength": 320,
-          "pattern": "^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$"
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        "themeRegistry": {
+          "description": "Registry of the catalog holding the theme. Omitted means the template's own catalog registry, never an installation default. Requires themeNamespace.",
+          "type": "string",
+          "maxLength": 253,
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
         },
         "pdfaEnabled": {
           "type": "boolean",
@@ -117,6 +123,11 @@
         "templateModel",
         "variants"
       ],
+      "dependentRequired": {
+        "themeRegistry": [
+          "themeNamespace"
+        ]
+      },
       "additionalProperties": false
     },
     "ThemeResource": {
@@ -399,16 +410,27 @@
           "type": "string"
         },
         "namespace": {
-          "description": "Namespace of the catalog holding the code list, in full or short form. Omitted means the attribute's own catalog namespace.",
+          "description": "Namespace of the catalog holding the code list. Omitted means the attribute's own catalog namespace.",
           "type": "string",
           "minLength": 3,
-          "maxLength": 320,
-          "pattern": "^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$"
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        "registry": {
+          "description": "Registry of the catalog holding the code list. Omitted means the attribute's own catalog registry, never an installation default. Requires namespace.",
+          "type": "string",
+          "maxLength": 253,
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
         }
       },
       "required": [
         "slug"
       ],
+      "dependentRequired": {
+        "registry": [
+          "namespace"
+        ]
+      },
       "additionalProperties": false
     },
     "CodeListEntryEntry": {

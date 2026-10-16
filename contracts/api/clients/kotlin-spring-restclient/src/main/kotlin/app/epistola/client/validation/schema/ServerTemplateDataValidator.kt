@@ -41,6 +41,7 @@ class ServerTemplateDataValidator @JvmOverloads constructor(
 
     override fun validate(
         tenantId: String,
+        registry: String,
         namespace: String,
         catalogKey: String,
         templateId: String,
@@ -48,6 +49,7 @@ class ServerTemplateDataValidator @JvmOverloads constructor(
     ): List<TemplateDataValidationException.ValidationError> {
         val result = templatesApi.validateTemplateData(
             tenantId,
+            registry,
             namespace,
             catalogKey,
             templateId,

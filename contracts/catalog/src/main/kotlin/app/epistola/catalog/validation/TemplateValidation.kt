@@ -70,8 +70,10 @@ enum class ResourceResolution {
  * @property type portable resource discriminator such as `stencil` or `theme`.
  * @property slug resource slug within its catalog.
  * @property catalogKey owning catalog; null means the current catalog.
- * @property namespace namespace of the owning catalog, in full or short form; null means the
- *   current catalog's namespace (wire v8).
+ * @property namespace namespace of the owning catalog; null means the current catalog's namespace
+ *   (wire v8).
+ * @property registry registry of the owning catalog; null means the current catalog's registry
+ *   (wire v8), never an installation default. Naming a registry requires naming a [namespace].
  *
  * A reference carries no version. Catalogs are versioned as a whole from wire v8, so the resource a
  * reference reaches is the one in the release its catalog dependency resolves to, or the one in
@@ -82,6 +84,7 @@ data class CatalogResourceReference(
     val slug: String,
     val catalogKey: String? = null,
     val namespace: String? = null,
+    val registry: String? = null,
 )
 
 /**
@@ -107,6 +110,12 @@ interface TemplateValidationContext {
      * namespace resolves to this namespace when comparing reference identity.
      */
     val currentNamespace: String? get() = null
+
+    /**
+     * Registry of the catalog that owns the document being validated. A null stencil-node registry
+     * resolves to this registry when comparing reference identity.
+     */
+    val currentRegistry: String? get() = null
 
     /**
      * Stencil resource whose content is being validated, when applicable.
@@ -150,20 +159,22 @@ interface TemplateValidationContext {
         /**
          * Creates a standalone stencil context.
          *
-         * Supplying [stencilId] seeds self-reference detection. Catalog and
-         * namespace are optional when validating content that has not yet been
-         * assigned a portable identity.
+         * Supplying [stencilId] seeds self-reference detection. Catalog,
+         * namespace and registry are optional when validating content that has
+         * not yet been assigned a portable identity.
          */
         fun forStencil(
             stencilId: String? = null,
             catalogKey: String? = null,
             namespace: String? = null,
+            registry: String? = null,
         ): TemplateValidationContext = object : TemplateValidationContext {
             override val documentKind: TemplateDocumentKind = TemplateDocumentKind.STENCIL
             override val currentCatalogKey: String? = catalogKey
             override val currentNamespace: String? = namespace
+            override val currentRegistry: String? = registry
             override val containingStencil: CatalogResourceReference? = stencilId?.let {
-                CatalogResourceReference("stencil", it, catalogKey, namespace)
+                CatalogResourceReference("stencil", it, catalogKey, namespace, registry)
             }
         }
     }

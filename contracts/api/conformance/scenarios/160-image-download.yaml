@@ -12,6 +12,9 @@ why: >
   parameter as a UUID, or escapes a hyphenated key, cannot reach an image named `municipality-mark`
   at all.
 
+  The catalog is in a registry other than the default, named in full (`acme.com`). Its dots stay
+  as they are and it is a segment of its own, before the namespace.
+
   It also comes back as one of four image types, chosen by the image rather than the caller, and
   none of them is `application/octet-stream`. A client that asks for only some of them gets a 406
   for the rest from a server that negotiates strictly. A client that treats a non-octet-stream body
@@ -28,7 +31,8 @@ action:
     auth: api-key
     apiKey: epk_conformance_0123456789
     tenantId: acme-corp
-    namespace: acme.com
+    registry: acme.com
+    namespace: acme
     catalogKey: main
     catalogVersion: 2.0.0
     imageSlug: municipality-mark
@@ -44,7 +48,7 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/acme.com/main/versions/2.0.0/images/municipality-mark/content
+      path: /api/tenants/acme-corp/catalogs/acme.com/acme/main/versions/2.0.0/images/municipality-mark/content
       headers:
         # Each declared image type is acceptable, by name or by wildcard, and so is the problem
         # document the client parses on failure.

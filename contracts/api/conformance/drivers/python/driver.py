@@ -120,7 +120,7 @@ def _list_templates(base_url: str, config: dict) -> None:
     api = TemplatesApi(_client(base_url, config))
     for _ in range(config.get("repeat", 1)):
         response = api.list_templates(
-            config["tenantId"], config["namespace"], config["catalogKey"], config["catalogVersion"]
+            config["tenantId"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"]
         )
     _report(
         base_url,
@@ -133,7 +133,7 @@ def _list_templates(base_url: str, config: dict) -> None:
 def _problem(base_url: str, config: dict) -> None:
     try:
         TemplatesApi(_client(base_url, config)).list_templates(
-            config["tenantId"], config["namespace"], config["catalogKey"], config["catalogVersion"]
+            config["tenantId"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"]
         )
         _report(base_url, {"problemTypeSlug": "<no exception was thrown>"})
     except ProblemDetailException as exc:
@@ -162,6 +162,7 @@ def _validate_template_data(base_url: str, config: dict) -> None:
     try:
         validator.validate(
             config["tenantId"],
+            config["registry"],
             config["namespace"],
             config["catalogKey"],
             config["templateId"],
@@ -224,7 +225,7 @@ def _collect(base_url: str, config: dict) -> None:
             "handledSequences": ",".join(str(result.sequence) for result in handled),
             "partitionTotal": assignment.total if assignment is not None else -1,
             "releases": ",".join(
-                f"{_show(r.namespace)}/{_show(r.catalog_key)}@{_show(r.release_version)}"
+                f"{_show(r.registry)}/{_show(r.namespace)}/{_show(r.catalog_key)}@{_show(r.release_version)}"
                 for r in handled
             ),
         },
@@ -242,7 +243,7 @@ def _generate_document(base_url: str, config: dict) -> None:
     """
     optional = {
         name: config[name]
-        for name in ("version", "environmentId", "correlationId", "routingKey")
+        for name in ("registry", "version", "environmentId", "correlationId", "routingKey")
         if name in config
     }
     GenerationApi(_client(base_url, config)).generate_document(
@@ -279,6 +280,7 @@ def _list_images(base_url: str, config: dict) -> None:
         ImagesApi(_client(base_url, config))
         .list_images(
             config["tenantId"],
+            config["registry"],
             config["namespace"],
             config["catalogKey"],
             config["catalogVersion"],
@@ -303,6 +305,7 @@ def _upload_image(base_url: str, config: dict) -> None:
     """
     image = ImagesApi(_client(base_url, config)).upload_image(
         config["tenantId"],
+        config["registry"],
         config["namespace"],
         config["catalogKey"],
         config["catalogVersion"],
@@ -315,6 +318,7 @@ def _upload_image(base_url: str, config: dict) -> None:
 def _download_image(base_url: str, config: dict) -> None:
     content = ImagesApi(_client(base_url, config)).download_image_content(
         config["tenantId"],
+        config["registry"],
         config["namespace"],
         config["catalogKey"],
         config["catalogVersion"],
@@ -326,6 +330,7 @@ def _download_image(base_url: str, config: dict) -> None:
 def _delete_image(base_url: str, config: dict) -> None:
     ImagesApi(_client(base_url, config)).delete_image(
         config["tenantId"],
+        config["registry"],
         config["namespace"],
         config["catalogKey"],
         config["catalogVersion"],
@@ -336,7 +341,7 @@ def _delete_image(base_url: str, config: dict) -> None:
 
 def _list_catalog_dependencies(base_url: str, config: dict) -> None:
     response = CatalogsApi(_client(base_url, config)).list_catalog_dependencies(
-        config["tenantId"], config["namespace"], config["catalogKey"], config["catalogVersion"]
+        config["tenantId"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"]
     )
     _report_dependencies(base_url, response.items)
 
@@ -344,12 +349,15 @@ def _list_catalog_dependencies(base_url: str, config: dict) -> None:
 def _update_catalog_dependencies(base_url: str, config: dict) -> None:
     response = CatalogsApi(_client(base_url, config)).update_catalog_dependencies(
         config["tenantId"],
+        config["registry"],
         config["namespace"],
         config["catalogKey"],
         config["catalogVersion"],
         UpdateCatalogDependenciesRequest(
             dependencies=[
                 CatalogDependencyRequirement(
+                    # Only when the entry names one: omitted means the server's default registry.
+                    **({"registry": dependency["registry"]} if "registry" in dependency else {}),
                     namespace=dependency["namespace"],
                     catalogKey=dependency["catalogKey"],
                     version=dependency["version"],
@@ -365,6 +373,7 @@ def _report_dependencies(base_url: str, dependencies) -> None:
     _report(
         base_url,
         {
+            "registries": ",".join(_show(d.registry) for d in dependencies),
             "namespaces": ",".join(_show(d.namespace) for d in dependencies),
             "catalogKeys": ",".join(_show(d.catalog_key) for d in dependencies),
             "versions": ",".join(_show(d.version) for d in dependencies),
@@ -374,7 +383,7 @@ def _report_dependencies(base_url: str, dependencies) -> None:
 
 
 def _catalog_version_address(config: dict) -> tuple:
-    return (config["tenantId"], config["namespace"], config["catalogKey"], config["catalogVersion"])
+    return (config["tenantId"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"])
 
 
 def _create_catalog_version(base_url: str, config: dict) -> None:
@@ -383,6 +392,7 @@ def _create_catalog_version(base_url: str, config: dict) -> None:
     optional = {"from": config["from"]} if "from" in config else {}
     created = CatalogsApi(_client(base_url, config)).create_catalog_version(
         config["tenantId"],
+        config["registry"],
         config["namespace"],
         config["catalogKey"],
         CreateCatalogVersionRequest(version=config["version"], **optional),
@@ -404,7 +414,7 @@ def _list_catalog_versions(base_url: str, config: dict) -> None:
     versions = (
         CatalogsApi(_client(base_url, config))
         .list_catalog_versions(
-            config["tenantId"], config["namespace"], config["catalogKey"], **optional
+            config["tenantId"], config["registry"], config["namespace"], config["catalogKey"], **optional
         )
         .items
     )
@@ -430,7 +440,7 @@ def _get_catalog_version(base_url: str, config: dict) -> None:
             "status": _show(_enum(version.status)),
             "releasedAt": _show_instant(version.released_at),
             "dependencies": ",".join(
-                f"{_show(d.namespace)}/{_show(d.catalog_key)}@{_show(d.release_version)}"
+                f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}@{_show(d.release_version)}"
                 for d in version.dependencies
             ),
             "deployedTo": ",".join(version.deployed_to),
@@ -527,6 +537,7 @@ def _deploy_release(base_url: str, config: dict) -> None:
     deployment = EnvironmentsApi(_client(base_url, config)).deploy_release(
         config["tenantId"],
         config["environmentId"],
+        config["registry"],
         config["namespace"],
         config["catalogKey"],
         config["releaseVersion"],
@@ -534,6 +545,7 @@ def _deploy_release(base_url: str, config: dict) -> None:
     _report(
         base_url,
         {
+            "registry": _show(deployment.registry),
             "namespace": _show(deployment.namespace),
             "catalogKey": _show(deployment.catalog_key),
             "releaseVersion": _show(deployment.release_version),
@@ -545,6 +557,7 @@ def _undeploy_release(base_url: str, config: dict) -> None:
     EnvironmentsApi(_client(base_url, config)).undeploy_release(
         config["tenantId"],
         config["environmentId"],
+        config["registry"],
         config["namespace"],
         config["catalogKey"],
         config["releaseVersion"],

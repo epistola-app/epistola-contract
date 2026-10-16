@@ -59,8 +59,8 @@ public class ResultCollectorTest
     public void AResultNamesTheCatalogAndReleaseItRendered()
     {
         var ndjson =
-            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"COMPLETED\",\"namespace\":\"exchange.epistola.app/acme-corp\",\"catalogKey\":\"letters\",\"releaseVersion\":\"1.4.0\"}\n" +
-            "{\"sequence\":2,\"requestId\":\"r2\",\"status\":\"COMPLETED\",\"namespace\":null,\"catalogKey\":null,\"releaseVersion\":null}\n" +
+            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"COMPLETED\",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"letters\",\"releaseVersion\":\"1.4.0\"}\n" +
+            "{\"sequence\":2,\"requestId\":\"r2\",\"status\":\"COMPLETED\",\"registry\":null,\"namespace\":null,\"catalogKey\":null,\"releaseVersion\":null}\n" +
             "{\"_meta\":true,\"hasMore\":false}\n";
 
         var received = new List<ResultCollector.GenerationResult>();
@@ -72,10 +72,12 @@ public class ResultCollectorTest
             .Build()
             .CollectOnce();
 
-        Assert.Equal("exchange.epistola.app/acme-corp", received[0].Namespace);
+        Assert.Equal("exchange.epistola.app", received[0].Registry);
+        Assert.Equal("acme-corp", received[0].Namespace);
         Assert.Equal("letters", received[0].CatalogKey);
         Assert.Equal("1.4.0", received[0].ReleaseVersion);
-        // A result from before contract 2.0 has none of the three: missing, not empty.
+        // A result from before contract 2.0 has none of the four: missing, not empty.
+        Assert.Null(received[1].Registry);
         Assert.Null(received[1].Namespace);
         Assert.Null(received[1].CatalogKey);
         Assert.Null(received[1].ReleaseVersion);

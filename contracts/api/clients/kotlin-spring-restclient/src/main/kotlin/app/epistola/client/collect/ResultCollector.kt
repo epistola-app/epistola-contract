@@ -118,6 +118,8 @@ class ResultCollector private constructor(
         val routingKey: String?,
         val templateId: String?,
         val variantId: String?,
+        /** Registry of the template's catalog, in full; null for a result accepted before contract 2.0. */
+        val registry: String?,
         /** Namespace of the template's catalog; null for a result accepted before contract 2.0. */
         val namespace: String?,
         /** Key of the template's catalog; null for a result accepted before contract 2.0. */
@@ -373,6 +375,7 @@ class ResultCollector private constructor(
         routingKey = node["routingKey"]?.asText(),
         templateId = node["templateId"]?.asText(),
         variantId = node["variantId"]?.asText(),
+        registry = node["registry"]?.takeUnless { it.isNull }?.asText(),
         namespace = node["namespace"]?.takeUnless { it.isNull }?.asText(),
         catalogKey = node["catalogKey"]?.takeUnless { it.isNull }?.asText(),
         releaseVersion = node["releaseVersion"]?.takeUnless { it.isNull }?.asText(),

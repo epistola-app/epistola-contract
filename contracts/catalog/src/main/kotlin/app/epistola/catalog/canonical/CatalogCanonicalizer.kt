@@ -31,9 +31,10 @@ value class CatalogFingerprint(val value: String)
  *
  * V1 through V4 are retained for fingerprints already stored by older producers. V4, introduced with
  * catalog v6, includes authored discovery metadata. V5 is the current algorithm, introduced with
- * catalog v8, and also covers the catalog's identity and declared dependencies: its namespace, the
- * namespace of every resource dependency, and every catalog dependency with its version selector
- * and recorded release.
+ * catalog v8, and also covers the catalog's identity and declared dependencies: its registry and
+ * namespace, the registry and namespace of every resource dependency, and every catalog dependency
+ * with its registry, namespace, version selector, recorded release and that release's fingerprint.
+ * Registry and namespace are separate members, never joined into one string.
  */
 enum class CatalogFingerprintVersion {
     V1,
@@ -121,8 +122,9 @@ object CatalogCanonicalizer {
      * - catalog v8 removes stencil versions, which V4 covered as part of each resource, so they are
      *   restored from the raw resource documents.
      *
-     * V4 never covered a namespace or a catalog dependency, so what catalog v8 adds to the manifest
-     * needs no undoing.
+     * V4 never covered a registry, a namespace or a catalog dependency, so what catalog v8 adds to the
+     * manifest needs no undoing. A reference inside content that names a registry or namespace is
+     * catalog-v8 content, so no migrated archive carries one.
      */
     internal fun matchesSourceV4Fingerprint(
         catalog: CatalogArchive,
@@ -217,9 +219,10 @@ object CatalogCanonicalizer {
     /**
      * V5: V4 plus the catalog's identity and declared dependencies, introduced with catalog v8.
      *
-     * A namespace is identity, and a catalog dependency's version selector decides what the catalog
-     * renders with, so two releases that differ only there are different content. A stencil carries
-     * no version from catalog v8, so V5 covers none; the resource entries are otherwise V4's.
+     * A registry and namespace are identity, and a catalog dependency's version selector decides what
+     * the catalog renders with, so two releases that differ only there are different content. A
+     * stencil carries no version from catalog v8, so V5 covers none; the resource entries are
+     * otherwise V4's.
      */
     private fun canonicalV5(
         catalog: CatalogArchive,
@@ -267,7 +270,10 @@ object CatalogCanonicalizer {
         val manifest = catalog.manifest
         val canonical = linkedMapOf<String, Any?>(
             "catalog" to canonicalCatalogInfo(info, includeV6Metadata).also {
-                if (includeV8Identity) it["namespace"] = info.namespace
+                if (includeV8Identity) {
+                    it["registry"] = info.registry
+                    it["namespace"] = info.namespace
+                }
             },
             "publisher" to manifest.publisher,
             "compatibility" to manifest.compatibility,
@@ -286,13 +292,15 @@ object CatalogCanonicalizer {
         )
         if (includeV8Identity) {
             canonical["catalogDependencies"] = manifest.catalogDependencies.orEmpty()
-                .sortedWith(compareBy({ it.namespace }, { it.catalogKey }, { it.version }, { it.releaseVersion }))
+                .sortedWith(compareBy({ it.registry }, { it.namespace }, { it.catalogKey }, { it.version }, { it.releaseVersion }, { it.releaseFingerprint }))
                 .map { dependency ->
                     linkedMapOf(
+                        "registry" to dependency.registry,
                         "namespace" to dependency.namespace,
                         "catalogKey" to dependency.catalogKey,
                         "version" to dependency.version,
                         "releaseVersion" to dependency.releaseVersion,
+                        "releaseFingerprint" to dependency.releaseFingerprint,
                     )
                 }
         }
@@ -344,11 +352,17 @@ object CatalogCanonicalizer {
                 "type" to type,
                 "catalogKey" to catalogKey.takeIf(String::isNotEmpty),
                 "slug" to dependency.slug,
-            ).also { if (includeNamespace) it["namespace"] = dependency.namespace }
+            ).also {
+                if (includeNamespace) {
+                    it["registry"] = dependency.registry
+                    it["namespace"] = dependency.namespace
+                }
+            }
         }
         .sortedWith(
             compareBy(
                 { it["type"].toString() },
+                { it["registry"].toString() },
                 { it["namespace"].toString() },
                 { it["catalogKey"].toString() },
                 { it["slug"].toString() },

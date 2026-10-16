@@ -53,7 +53,7 @@ object CatalogArchiveReader {
      * @param input ZIP content to consume sequentially.
      * @param policy safety limits applied before and during extraction.
      * @param migration what the caller knows that an archive from before the current wire version
-     *   does not say, notably the namespace of a catalog-v7 archive.
+     *   does not say, notably the registry and namespace of a catalog-v7 archive.
      * @throws IllegalArgumentException when [policy] contains invalid limits.
      * @throws IOException for unrecoverable storage or stream failures.
      */

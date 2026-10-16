@@ -17,6 +17,7 @@ action:
   config:
     nodeId: conformance-node-1
     tenantId: acme-corp
+    registry: "~"
     namespace: acme-corp
     catalogKey: letters
     status: draft
@@ -35,7 +36,7 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/acme-corp/letters/versions
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions
       queryParams:
         status: draft
         page: { whenPresent: '0' }

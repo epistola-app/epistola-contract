@@ -21,38 +21,65 @@ class CatalogSchemaParityTest {
 
         assertTrue(overrideProperties.has("catalogKey"), overrideProperties.toString())
         assertEquals(CatalogNamespaces.PATTERN, overrideProperties["namespace"]["pattern"].asString())
+        assertEquals(CatalogNamespaces.REGISTRY_PATTERN, overrideProperties["registry"]["pattern"].asString())
+        assertEquals("namespace", schema["\$defs"]["ThemeRef"]["oneOf"][1]["dependentRequired"]["registry"][0].asString())
     }
 
     @Test
-    fun `v8 namespace rules match the schema`() {
+    fun `v8 registry and namespace rules match the schema`() {
         val manifest = schema("catalog-manifest-v8.schema.json")
         val detail = schema("resource-detail-v8.schema.json")
-        val full = manifest["\$defs"]["CatalogNamespace"]
-        val content = detail["\$defs"]["CodeListBindingRef"]["properties"]["namespace"]
+        val namespace = manifest["\$defs"]["CatalogNamespace"]
+        val registry = manifest["\$defs"]["CatalogRegistry"]
+        val binding = detail["\$defs"]["CodeListBindingRef"]
+        val template = detail["\$defs"]["TemplateResource"]
 
-        assertEquals(CatalogNamespaces.FULL_PATTERN, full["pattern"].asString())
-        assertEquals(CatalogNamespaces.MIN_LENGTH, full["minLength"].asInt())
-        assertEquals(CatalogNamespaces.MAX_LENGTH, full["maxLength"].asInt())
-        assertEquals(CatalogNamespaces.PATTERN, content["pattern"].asString())
-        assertEquals(CatalogNamespaces.PATTERN, detail["\$defs"]["TemplateResource"]["properties"]["themeNamespace"]["pattern"].asString())
+        assertEquals(CatalogNamespaces.PATTERN, namespace["pattern"].asString())
+        assertEquals(CatalogNamespaces.MIN_LENGTH, namespace["minLength"].asInt())
+        assertEquals(CatalogNamespaces.MAX_LENGTH, namespace["maxLength"].asInt())
+        assertEquals(CatalogNamespaces.REGISTRY_PATTERN, registry["pattern"].asString())
+        assertEquals(CatalogNamespaces.REGISTRY_MAX_LENGTH, registry["maxLength"].asInt())
+        for (properties in listOf(binding["properties"])) {
+            assertEquals(CatalogNamespaces.PATTERN, properties["namespace"]["pattern"].asString())
+            assertEquals(CatalogNamespaces.MAX_LENGTH, properties["namespace"]["maxLength"].asInt())
+            assertEquals(CatalogNamespaces.REGISTRY_PATTERN, properties["registry"]["pattern"].asString())
+            assertEquals(CatalogNamespaces.REGISTRY_MAX_LENGTH, properties["registry"]["maxLength"].asInt())
+        }
+        assertEquals(CatalogNamespaces.PATTERN, template["properties"]["themeNamespace"]["pattern"].asString())
+        assertEquals(CatalogNamespaces.REGISTRY_PATTERN, template["properties"]["themeRegistry"]["pattern"].asString())
+        assertEquals("namespace", binding["dependentRequired"]["registry"][0].asString())
+        assertEquals("themeNamespace", template["dependentRequired"]["themeRegistry"][0].asString())
+        listOf("CatalogInfo", "CatalogDependencyRef", "CatalogDependency").forEach { name ->
+            val node = manifest["\$defs"][name]["required"]
+            val required = List(node.size()) { node[it].asString() }
+            assertTrue("registry" in required && "namespace" in required, "$name requires registry and namespace: $required")
+        }
         assertEquals(
             CatalogDependency.MAX_VERSION_LENGTH,
             manifest["\$defs"]["CatalogDependency"]["properties"]["version"]["maxLength"].asInt(),
+        )
+        assertEquals(
+            CatalogDependency.RELEASE_FINGERPRINT_PATTERN,
+            manifest["\$defs"]["CatalogDependency"]["properties"]["releaseFingerprint"]["pattern"].asString(),
         )
         assertTrue(!detail["\$defs"]["StencilResource"]["properties"].has("version"))
     }
 
     @Test
-    fun `namespace rules accept both forms only where content allows the short one`() {
-        listOf("acme.com", "exchange.epistola.app/acme-corp", "a.b").forEach {
-            assertTrue(CatalogNamespaces.isValidFull(it), it)
-            assertTrue(CatalogNamespaces.isValid(it), it)
-        }
-        assertTrue(!CatalogNamespaces.isValidFull("acme-corp"))
-        assertTrue(CatalogNamespaces.isValid("acme-corp"))
-        listOf("", "ab", "Acme.com", "acme.com/", "acme.com/Acme", "-acme.com", "acme..com", "a".repeat(318) + ".com").forEach {
-            assertTrue(!CatalogNamespaces.isValidFull(it), it)
+    fun `registry is a DNS name and namespace a slug`() {
+        listOf("acme.com", "exchange.epistola.app", "a.b", "a".repeat(249) + ".com").forEach {
+            assertTrue(CatalogNamespaces.isValidRegistry(it), it)
             assertTrue(!CatalogNamespaces.isValid(it), it)
+        }
+        listOf("acme-corp", "abc", "a" + "b".repeat(62)).forEach {
+            assertTrue(CatalogNamespaces.isValid(it), it)
+            assertTrue(!CatalogNamespaces.isValidRegistry(it), it)
+        }
+        listOf("", "ab", "Acme", "acme-", "1acme", "a".repeat(64), "acme.com/acme-corp", "~").forEach {
+            assertTrue(!CatalogNamespaces.isValid(it), it)
+        }
+        listOf("", "acme", "Acme.com", "acme.com.", "-acme.com", "acme..com", "acme.com/acme-corp", "~", "a".repeat(250) + ".com").forEach {
+            assertTrue(!CatalogNamespaces.isValidRegistry(it), it)
         }
     }
 

@@ -66,7 +66,8 @@ public class ValidatingGenerationApi {
             new TemplateSchemaValidator(validator)
                     .validate(
                             tenantId,
-                            pathSegment(request.getNamespace()),
+                            pathSegment(request.getRegistry()),
+                            request.getNamespace(),
                             request.getCatalogKey(),
                             request.getTemplateId(),
                             request.getData());
@@ -91,7 +92,12 @@ public class ValidatingGenerationApi {
             String prefix = "items[" + index + "]";
             for (TemplateDataValidationException.ValidationError error :
                     validator.validate(
-                            tenantId, pathSegment(item.getNamespace()), item.getCatalogKey(), item.getTemplateId(), item.getData())) {
+                            tenantId,
+                            pathSegment(item.getRegistry()),
+                            item.getNamespace(),
+                            item.getCatalogKey(),
+                            item.getTemplateId(),
+                            item.getData())) {
                 allErrors.add(error.withPathPrefix(prefix));
             }
         }
@@ -101,13 +107,13 @@ public class ValidatingGenerationApi {
     }
 
     /**
-     * A request body writes a namespace on a non-default exchange with a {@code /}
-     * ({@code exchange.example.org/team-a}); a URL path cannot carry one, so the contract writes it
-     * there with {@code ~}. A validator puts the namespace into a path, so it gets the path form —
-     * otherwise the slash is percent-encoded and the call addresses a catalog that does not exist.
+     * A request body may leave {@code registry} unset, meaning the server's default registry; a path
+     * cannot leave the segment out, so it writes the default as {@code ~}. A validator puts the
+     * registry into a path, so it gets the path form — the client never fills in the default
+     * registry's name, which only the server knows.
      */
-    static String pathSegment(String namespace) {
-        return namespace == null ? null : namespace.replace('/', '~');
+    static String pathSegment(String registry) {
+        return registry == null ? TemplateDataValidator.DEFAULT_REGISTRY : registry;
     }
 
     /**

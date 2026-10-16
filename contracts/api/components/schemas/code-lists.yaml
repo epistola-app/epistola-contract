@@ -14,6 +14,7 @@ CodeListDto:
   required:
     - slug
     - tenantId
+    - registry
     - namespace
     - catalogKey
     - displayName
@@ -35,21 +36,27 @@ CodeListDto:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       example: acme-corp
+    registry:
+      type: string
+      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+      maxLength: 253
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
     namespace:
       type: string
-      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
-      maxLength: 320
-      description: |
-        Namespace of the catalog. A response always writes it in full (`exchange.epistola.app/some-namespace`, or a
-        domain such as `acme.com`); a request may omit the default exchange (`some-namespace`).
-      example: exchange.epistola.app/epistola
+      maxLength: 63
+      description: Namespace of the catalog, within its registry
+      example: epistola
     catalogKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Key of the catalog this resource lives in, unique within its namespace
+      description: Key of the catalog this resource lives in, unique within its registry and namespace
       example: system
     displayName:
       type: string
@@ -115,7 +122,8 @@ CodeListDto:
   example:
     slug: bcp-47
     tenantId: acme-corp
-    namespace: exchange.epistola.app/epistola
+    registry: exchange.epistola.app
+    namespace: epistola
     catalogKey: system
     displayName: BCP-47 Language Tags
     description: Curated subset of common BCP-47 language + region tags.

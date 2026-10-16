@@ -383,6 +383,7 @@ public sealed class ResultCollector
         RoutingKey: node["routingKey"]?.Value<string>(),
         TemplateId: node["templateId"]?.Value<string>(),
         VariantId: node["variantId"]?.Value<string>(),
+        Registry: node["registry"]?.Value<string>(),
         Namespace: node["namespace"]?.Value<string>(),
         CatalogKey: node["catalogKey"]?.Value<string>(),
         ReleaseVersion: node["releaseVersion"]?.Value<string>(),
@@ -512,10 +513,11 @@ public sealed class ResultCollector
 
     /// <summary>A completed or failed generation result.</summary>
     /// <remarks>
-    /// <see cref="Namespace"/>, <see cref="CatalogKey"/> and <see cref="ReleaseVersion"/> name the
-    /// catalog release the document was rendered from; a release version means nothing without its
-    /// catalog. <see cref="Namespace"/> is in its body form (<c>exchange.example.org/team-a</c>). All
-    /// three are null for a result accepted before contract 2.0, which rendered a template version.
+    /// <see cref="Registry"/>, <see cref="Namespace"/>, <see cref="CatalogKey"/> and
+    /// <see cref="ReleaseVersion"/> name the catalog release the document was rendered from; a
+    /// release version means nothing without its catalog. <see cref="Registry"/> is always named in
+    /// full (<c>exchange.epistola.app</c>), never <c>~</c>. All four are null for a result accepted
+    /// before contract 2.0, which rendered a template version.
     /// </remarks>
     public sealed record GenerationResult(
         long Sequence,
@@ -527,6 +529,7 @@ public sealed class ResultCollector
         string? RoutingKey,
         string? TemplateId,
         string? VariantId,
+        string? Registry,
         string? Namespace,
         string? CatalogKey,
         string? ReleaseVersion,

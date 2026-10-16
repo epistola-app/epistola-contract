@@ -11,6 +11,16 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
+- **BREAKING:** a catalog is identified by registry, namespace and key.
+  `TemplateDataValidator.validate`, `ServerTemplateDataValidator.validate` and
+  `TemplateSchemaValidator.validate` take `(tenant_id, registry, namespace, catalog_key,
+  template_id, data)`; `registry` is `~` for the server's default registry or a registry named in
+  full (`acme.com`). `ValidatingGenerationApi`'s pre-flight passes a request's `registry`, or `~`
+  when the request leaves it unset, and its namespace as is: the `host/name` → `host~name`
+  conversion is gone, because a namespace is now a plain slug.
+- The result collector's `GenerationResult` gained `registry` next to `namespace`, `catalog_key`
+  and `release_version` (`None` for results from before contract 2.0).
+
 - **BREAKING:** a catalog is addressed by namespace and key. `TemplateDataValidator.validate`,
   `ServerTemplateDataValidator.validate` and `TemplateSchemaValidator.validate` take
   `(tenant_id, namespace, catalog_key, template_id, data)` in place of
@@ -18,9 +28,6 @@ records contract changes; this file records changes to the hand-written library 
   `namespace` and `catalog_key` to the validator. `ServerTemplateDataValidator`'s
   `release_version=` is now `version=`, a version selector (`1.4.0`, `^1.4.0`) that may be combined
   with `environment_id=`.
-- `ValidatingGenerationApi`'s pre-flight passes the validator a request's namespace in its
-  path-segment form (`exchange.example.org/team-a` → `exchange.example.org~team-a`), so a
-  namespace on a non-default exchange addresses its catalog rather than a percent-encoded slash.
 - The result collector's `GenerationResult` gained `namespace` and `catalog_key` next to
   `release_version`, naming the catalog release a document was generated from (`None` for results
   from before contract 2.0).

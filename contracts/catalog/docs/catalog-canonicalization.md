@@ -22,19 +22,22 @@ implementations.
 
 The v7-to-v8 migration gives the catalog an identity and versions it as a whole:
 
-- **Namespace.** A v7 archive names none, and nothing in it says which namespace it belongs to, so
-  the caller supplies it with `CatalogMigrationOptions(namespace)`, written in full. The catalog
-  takes it with a `CATALOG_NAMESPACE_ASSIGNED` notice. Without one the manifest fails with
-  `CATALOG_NAMESPACE_MISSING`, and with a namespace that is not in full form (such as the short
-  `acme-corp`) with `CATALOG_NAMESPACE_INVALID`. The migrator never invents an identity. The option
-  is ignored for an archive at v8, which names its own.
-- **Resource dependencies** take the catalog's namespace (`CATALOG_DEPENDENCY_NAMESPACE_ASSIGNED`):
-  a v7 catalog's content lived in one tenant, so every catalog it referenced sat beside it.
+- **Registry and namespace.** A v7 archive names neither, and nothing in it says where it belongs,
+  so the caller supplies both with `CatalogMigrationOptions(namespace, registry)`: a slug, and a
+  registry written in full. The catalog takes them with `CATALOG_REGISTRY_ASSIGNED` and
+  `CATALOG_NAMESPACE_ASSIGNED` notices. Without one the manifest fails with
+  `CATALOG_REGISTRY_MISSING` or `CATALOG_NAMESPACE_MISSING`, and with a malformed one (such as the
+  joined `exchange.epistola.app/acme-corp` as a namespace, or `~` as a registry) with
+  `CATALOG_REGISTRY_INVALID` or `CATALOG_NAMESPACE_INVALID`. The migrator never invents an
+  identity. The options are ignored for an archive at v8, which names its own.
+- **Resource dependencies** take the catalog's registry and namespace
+  (`CATALOG_DEPENDENCY_REGISTRY_ASSIGNED`, `CATALOG_DEPENDENCY_NAMESPACE_ASSIGNED`): a v7 catalog's
+  content lived in one tenant, so every catalog it referenced sat beside it.
 - **Catalog dependencies.** Each distinct other catalog the resource dependencies name is declared
-  in `catalogDependencies` with that namespace, the unpinned selector `*`, and
-  `releaseVersion: null` (`CATALOG_DEPENDENCY_CATALOG_DECLARED`). v7 never said which version was
-  meant; the author sets the selector rather than the migrator guessing one. A dependency on the
-  catalog itself is not declared.
+  in `catalogDependencies` with that registry and namespace, the unpinned selector `*`,
+  `releaseVersion: null` and `releaseFingerprint: null` (`CATALOG_DEPENDENCY_CATALOG_DECLARED`). v7
+  never said which version was meant; the author sets the selector rather than the migrator
+  guessing one. A dependency on the catalog itself is not declared.
 - **Stencil versions** are removed: a stencil's own `version`, and every stencil node's `version`
   and `draftVersion`, in template, variant, and stencil content (`CATALOG_STENCIL_VERSION_REMOVED`).
   A stencil node's `isDraft`, which v5 already rejected, is left in place and remains a validation
@@ -60,18 +63,21 @@ should always use `currentFingerprint`.
   and key, sorted `keywords`, catalog presentation asset references, and catalog-wide license
   metadata. It was the current algorithm for wires v6 and v7.
 - V5, introduced with wire v8, is V4 under its own domain prefix (`algorithm sha256-v5`) plus the
-  catalog's identity and declared dependencies: `catalog.namespace`, each resource dependency's
-  `namespace` (dependencies sort by type, namespace, catalog key, and slug), and every
-  `catalogDependencies` entry with its `version` selector and `releaseVersion`, sorted by namespace
-  and catalog key. A namespace is identity, and a selector decides which release of a dependency
-  the catalog renders with, so two releases differing only there are different content. Resource
-  entries are V4's; a stencil carries no version at v8, so V5 covers none. Optional content
-  namespaces (`ThemeRef.namespace`, `CodeListBindingRef.namespace`, `FontRef.namespace`,
-  `TemplateResource.themeNamespace`) are omitted from the canonical resource JSON when absent, so
-  resources that do not use them hash exactly as before.
+  catalog's identity and declared dependencies: `catalog.registry` and `catalog.namespace`, each
+  resource dependency's `registry` and `namespace` (dependencies sort by type, registry, namespace,
+  catalog key, and slug), and every `catalogDependencies` entry with its `registry`, `namespace`,
+  `version` selector, `releaseVersion` and `releaseFingerprint`, sorted by registry, namespace and
+  catalog key. Registry and namespace are separate members, never one joined string. They are
+  identity, and a selector decides which release of a dependency the catalog renders with, so two
+  releases differing only there are different content. A dependency's recorded release and its
+  fingerprint are part of what the release was cut with, so V5 covers them too. Resource entries are V4's; a stencil carries no version at v8, so
+  V5 covers none. Optional content registries and namespaces (`ThemeRef.registry`/`.namespace`,
+  `CodeListBindingRef.registry`/`.namespace`, `FontRef.registry`/`.namespace`,
+  `TemplateResource.themeRegistry`/`.themeNamespace`) are omitted from the canonical resource JSON
+  when absent, so resources that do not use them hash exactly as before.
 
 **Why a new algorithm rather than extending V4.** V4 fingerprints are already published and must
-keep verifying. Adding the namespace and catalog dependencies to V4 would change every V4 value; a
+keep verifying. Adding the registry, namespace and catalog dependencies to V4 would change every V4 value; a
 new version keeps V4 reproducible and makes the new coverage explicit.
 
 Whole-catalog validation chooses the rule by the archive's source wire version:
@@ -82,8 +88,8 @@ Whole-catalog validation chooses the rule by the archive's source wire version:
   `catalog.json` listed (the v7 migration may have normalized them), and it restores the stencil
   versions the v8 migration removed, a stencil's own `version` and each stencil node's `version` and
   `draftVersion`, from the raw resource documents in the archive
-  (`CatalogCanonicalizer.matchesSourceV4Fingerprint`). V4 never covered a namespace or a catalog
-  dependency, so what v8 adds needs no undoing. A fingerprint over different content still
+  (`CatalogCanonicalizer.matchesSourceV4Fingerprint`). V4 never covered a registry, a namespace or
+  a catalog dependency, so what v8 adds needs no undoing. A fingerprint over different content still
   mismatches.
 - Native v8 input must carry V5 over its own content.
 
@@ -91,4 +97,7 @@ Re-exporting a migrated catalog replaces a present legacy fingerprint with V5.
 
 Authoritative versioned inputs and expected hashes are published below
 `META-INF/epistola-catalog/fixtures/v1` in the Maven artifact and
-`@epistola.app/epistola-catalog/fixtures/v1/*` in the npm artifact.
+`@epistola.app/epistola-catalog/fixtures/v1/*` in the npm artifact. `fingerprints.json` pins every
+algorithm's fingerprint of the wire-v4 golden catalog and, as `currentWireV8CatalogFingerprint`,
+the V5 fingerprint of the wire-v8 golden catalog, whose declared dependency records a release and
+its fingerprint.

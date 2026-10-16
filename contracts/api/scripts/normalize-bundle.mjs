@@ -86,12 +86,20 @@ const generatedThemeRef = `    ThemeRef:
             namespace:
               type: string
               minLength: 3
-              maxLength: 320
-              pattern: ^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$
-              description: Namespace of the catalog containing the theme, in full or short form. Omitted means the owning template's catalog namespace. Added with catalog wire v8.
+              maxLength: 63
+              pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+              description: Namespace of the catalog containing the theme. Omitted means the owning template's catalog namespace. Added with catalog wire v8.
+            registry:
+              type: string
+              maxLength: 253
+              pattern: ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$
+              description: Registry of the catalog containing the theme. Omitted means the owning template's catalog registry, never an installation default. Requires namespace. Added with catalog wire v8.
           required:
             - type
             - themeId
+          dependentRequired:
+            registry:
+              - namespace
           additionalProperties: false`;
 const generatorCompatibleThemeRef = `    ThemeRef:
       type: object
@@ -113,9 +121,17 @@ const generatorCompatibleThemeRef = `    ThemeRef:
         namespace:
           type: string
           minLength: 3
-          maxLength: 320
-          pattern: ^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$
-          description: Namespace of the catalog containing the theme, in full or short form. Omitted means the owning template's catalog namespace. Added with catalog wire v8.
+          maxLength: 63
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          description: Namespace of the catalog containing the theme. Omitted means the owning template's catalog namespace. Added with catalog wire v8.
+        registry:
+          type: string
+          maxLength: 253
+          pattern: ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$
+          description: Registry of the catalog containing the theme. Omitted means the owning template's catalog registry, never an installation default. Requires namespace. Added with catalog wire v8.
+      dependentRequired:
+        registry:
+          - namespace
       additionalProperties: false
       allOf:
         - if:
@@ -133,6 +149,8 @@ const generatorCompatibleThemeRef = `    ThemeRef:
                     - catalogKey
                 - required:
                     - namespace
+                - required:
+                    - registry
         - if:
             properties:
               type:

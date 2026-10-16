@@ -175,7 +175,7 @@ The Epistola API manages:
 
 ```
 Tenant
-├── Catalog (identified by namespace + key)
+├── Catalog (identified by registry + namespace + key; `~` in a path = the default registry)
 │   └── Version (SemVer number, its address): draft ──release──▶ released (immutable)
 │       └── Template (with data contract) → Variant, Stencil, Theme, …
 │           each new / modified / ready / released against the version's base

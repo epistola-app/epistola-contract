@@ -44,6 +44,7 @@ export type {
 export type {
   CatalogManifest,
   CatalogInfo,
+  CatalogRegistry,
   CatalogNamespace,
   CatalogKeyword,
   AttributeAssignment,
@@ -88,25 +89,35 @@ export const MAX_CATALOG_KEYWORDS = 20
 /** Pattern a catalog keyword must match in full: lowercase ASCII letters and digits in hyphen-separated parts (wire v7). */
 export const CATALOG_KEYWORD_PATTERN = '^[a-z0-9]+(?:-[a-z0-9]+)*$'
 
-/** Shortest catalog namespace, in either form (wire v8). */
+/** Shortest catalog namespace (wire v8). */
 export const MIN_CATALOG_NAMESPACE_LENGTH = 3
 
-/** Longest catalog namespace, in either form (wire v8). */
-export const MAX_CATALOG_NAMESPACE_LENGTH = 320
+/** Longest catalog namespace (wire v8). */
+export const MAX_CATALOG_NAMESPACE_LENGTH = 63
 
 /**
- * Pattern a namespace written in full must match: a domain, optionally followed by `/name`. Required
- * wherever an archive names a catalog at its top level (`catalog.namespace`, dependencies) (wire v8).
+ * Pattern a catalog namespace must match: a lowercase kebab-case slug, within its registry
+ * (wire v8). The same pattern applies wherever a namespace appears, in the manifest or in content.
  */
-export const CATALOG_NAMESPACE_PATTERN =
-  '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?$'
+export const CATALOG_NAMESPACE_PATTERN = '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+
+/** Longest catalog registry, the longest DNS name (wire v8). */
+export const MAX_CATALOG_REGISTRY_LENGTH = 253
 
 /**
- * Pattern a namespace inside resource content must match: the full form, or a bare name on the
- * installation's default exchange (wire v8).
+ * Pattern a catalog registry must match: a lowercase DNS name with at least one dot, in normal
+ * order (`exchange.epistola.app`, `acme.com`) (wire v8). An archive always writes it in full; a
+ * reference inside content may omit it to mean the owning catalog's registry, but never names one
+ * without a namespace.
  */
-export const CATALOG_NAMESPACE_REFERENCE_PATTERN =
-  '^([a-z][a-z0-9]*(-[a-z0-9]+)*|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(/[a-z][a-z0-9]*(-[a-z0-9]+)*)?)$'
+export const CATALOG_REGISTRY_PATTERN = '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
 
 /** Longest version selector a catalog dependency may declare (wire v8). */
 export const MAX_CATALOG_DEPENDENCY_VERSION_LENGTH = 100
+
+/**
+ * Pattern a catalog dependency's `releaseFingerprint` must match: the current canonical
+ * fingerprint of the release `releaseVersion` names, as lowercase SHA-256 hex (wire v8). It is
+ * null exactly when `releaseVersion` is null, which only a catalog migrated from wire v7 has.
+ */
+export const CATALOG_RELEASE_FINGERPRINT_PATTERN = '^[0-9a-f]{64}$'

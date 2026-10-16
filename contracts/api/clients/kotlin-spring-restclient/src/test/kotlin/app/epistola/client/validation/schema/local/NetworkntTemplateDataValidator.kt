@@ -52,13 +52,14 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class NetworkntTemplateDataValidator(
     private val templatesApi: TemplatesApi,
-    private val catalogVersion: (tenantId: String, namespace: String, catalogKey: String) -> String,
+    private val catalogVersion: (tenantId: String, registry: String, namespace: String, catalogKey: String) -> String,
     private val objectMapper: ObjectMapper = Serializer.jacksonObjectMapper,
     private val ttl: Duration = Duration.ofMinutes(5),
 ) : TemplateDataValidator {
 
     private data class Key(
         val tenantId: String,
+        val registry: String,
         val namespace: String,
         val catalogKey: String,
         val catalogVersion: String,
@@ -70,6 +71,7 @@ class NetworkntTemplateDataValidator(
 
     override fun validate(
         tenantId: String,
+        registry: String,
         namespace: String,
         catalogKey: String,
         templateId: String,
@@ -77,7 +79,7 @@ class NetworkntTemplateDataValidator(
     ): List<ValidationError> {
         // No schema on the template means nothing is claimed about the data, so nothing is wrong
         // with it. Same answer the server gives.
-        val schema = schemaFor(Key(tenantId, namespace, catalogKey, catalogVersion(tenantId, namespace, catalogKey), templateId)) ?: return emptyList()
+        val schema = schemaFor(Key(tenantId, registry, namespace, catalogKey, catalogVersion(tenantId, registry, namespace, catalogKey), templateId)) ?: return emptyList()
 
         return schema.validate(objectMapper.valueToTree<JsonNode>(data)).map { message ->
             ValidationError(
@@ -99,7 +101,7 @@ class NetworkntTemplateDataValidator(
     }
 
     private fun loadSchema(key: Key): JsonSchema? {
-        val template = templatesApi.getTemplate(key.tenantId, key.namespace, key.catalogKey, key.catalogVersion, key.templateId)
+        val template = templatesApi.getTemplate(key.tenantId, key.registry, key.namespace, key.catalogKey, key.catalogVersion, key.templateId)
         val schemaObject = template.schema ?: return null
         val schemaNode: JsonNode = objectMapper.valueToTree(schemaObject)
         val config = SchemaValidatorsConfig.builder().pathType(PathType.JSON_POINTER).build()

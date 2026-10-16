@@ -35,6 +35,7 @@ import app.epistola.catalog.protocol.VariantEntry
 import app.epistola.template.model.Node
 import app.epistola.template.model.Slot
 import app.epistola.template.model.TemplateDocument
+import app.epistola.template.model.ThemeRefOverride
 import tools.jackson.databind.JsonNode
 import tools.jackson.module.kotlin.jsonMapper
 import tools.jackson.module.kotlin.kotlinModule
@@ -142,12 +143,15 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `a catalog names its namespace in full`() {
-        fun findings(namespace: String?) = CatalogValidator.validate(
+    fun `a catalog names its registry in full and its namespace`() {
+        fun findings(
+            registry: String?,
+            namespace: String?,
+        ) = CatalogValidator.validate(
             archive(
                 CatalogManifest(
                     CURRENT_VERSION,
-                    CatalogInfo("fixture", "Fixture").withNamespace(namespace),
+                    CatalogInfo("fixture", "Fixture").withNamespace(registry, namespace),
                     PublisherInfo("Epistola"),
                     ReleaseInfo("1.0.0"),
                     resources = emptyList(),
@@ -156,20 +160,28 @@ class CatalogValidatorTest {
             ),
         ).findings.map { it.code to it.path }
 
-        assertEquals(emptyList(), findings("acme.com"))
-        assertEquals(emptyList(), findings("exchange.epistola.app/acme-corp"))
-        listOf(null, "acme-corp", "Acme.com", "acme.com/").forEach { namespace ->
+        assertEquals(emptyList(), findings("acme.com", "acme"))
+        assertEquals(emptyList(), findings("exchange.epistola.app", "acme-corp"))
+        listOf(null, "acme.com", "exchange.epistola.app/acme-corp", "Acme", "ab").forEach { namespace ->
             assertEquals(
                 listOf(CatalogValidationCodes.NAMESPACE_INVALID to "catalog.json.catalog.namespace"),
-                findings(namespace),
+                findings(REGISTRY, namespace),
                 namespace.toString(),
+            )
+        }
+        // An archive has no default registry: `~` and a bare name are not registries.
+        listOf(null, "~", "acme", "Acme.com", "acme.com/").forEach { registry ->
+            assertEquals(
+                listOf(CatalogValidationCodes.REGISTRY_INVALID to "catalog.json.catalog.registry"),
+                findings(registry, NAMESPACE),
+                registry.toString(),
             )
         }
     }
 
     @Test
     fun `every catalog a resource dependency names is declared once, and never the catalog itself`() {
-        val shared = CatalogDependency(NAMESPACE, "shared", "^1.2.0", "1.4.0")
+        val shared = CatalogDependency(REGISTRY, NAMESPACE, "shared", "^1.2.0", "1.4.0", FINGERPRINT)
         fun findings(
             dependencies: List<DependencyRef>,
             catalogDependencies: List<CatalogDependency>,
@@ -177,20 +189,32 @@ class CatalogValidatorTest {
             archive(manifest(dependencies = dependencies, catalogDependencies = catalogDependencies), emptyMap()),
         ).findings.map { it.code to it.path }
 
-        assertEquals(emptyList(), findings(listOf(DependencyRef.Theme("shared", "base", NAMESPACE)), listOf(shared)))
+        assertEquals(emptyList(), findings(listOf(DependencyRef.Theme("shared", "base", NAMESPACE, REGISTRY)), listOf(shared)))
         // Declared but unused is allowed: a catalog may pin a dependency its content reaches only indirectly.
         assertEquals(emptyList(), findings(emptyList(), listOf(shared)))
         assertEquals(
             listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "catalog.json.dependencies[0]"),
-            findings(listOf(DependencyRef.Theme("shared", "base", "acme.com")), listOf(shared)),
+            findings(listOf(DependencyRef.Theme("shared", "base", "acme", REGISTRY)), listOf(shared)),
+        )
+        // The same namespace and key in another registry is another catalog.
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "catalog.json.dependencies[0]"),
+            findings(listOf(DependencyRef.Theme("shared", "base", NAMESPACE, "acme.com")), listOf(shared)),
         )
         assertEquals(
             listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "catalog.json.dependencies[0]"),
-            findings(listOf(DependencyRef.Image("brand", "logo", NAMESPACE)), listOf(shared)),
+            findings(listOf(DependencyRef.Image("brand", "logo", NAMESPACE, REGISTRY)), listOf(shared)),
         )
         assertEquals(
-            listOf(CatalogValidationCodes.NAMESPACE_INVALID to "catalog.json.dependencies[0].namespace"),
+            listOf(
+                CatalogValidationCodes.NAMESPACE_INVALID to "catalog.json.dependencies[0].namespace",
+                CatalogValidationCodes.REGISTRY_INVALID to "catalog.json.dependencies[0].registry",
+            ),
             findings(listOf(DependencyRef.Theme("shared", "base")), listOf(shared)),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.REGISTRY_INVALID to "catalog.json.dependencies[0].registry"),
+            findings(listOf(DependencyRef.Theme("shared", "base", NAMESPACE)), listOf(shared)),
         )
         assertEquals(
             listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_DUPLICATE to "catalog.json.catalogDependencies[1]"),
@@ -198,15 +222,21 @@ class CatalogValidatorTest {
         )
         assertEquals(
             listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_SELF to "catalog.json.catalogDependencies[0]"),
-            findings(emptyList(), listOf(CatalogDependency(NAMESPACE, "fixture", "*", null))),
+            findings(emptyList(), listOf(CatalogDependency(REGISTRY, NAMESPACE, "fixture", "*", null))),
         )
         assertEquals(
             listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_SELF to "catalog.json.dependencies[0]"),
-            findings(listOf(DependencyRef.Theme("fixture", "base", NAMESPACE)), emptyList()),
+            findings(listOf(DependencyRef.Theme("fixture", "base", NAMESPACE, REGISTRY)), emptyList()),
         )
+        // Not itself: the same namespace and key in another registry.
+        assertEquals(emptyList(), findings(emptyList(), listOf(CatalogDependency("acme.com", NAMESPACE, "fixture", "*", null))))
         assertEquals(
             listOf(CatalogValidationCodes.NAMESPACE_INVALID to "catalog.json.catalogDependencies[0].namespace"),
-            findings(emptyList(), listOf(shared.copy(namespace = "shared-namespace"))),
+            findings(emptyList(), listOf(shared.copy(namespace = "exchange.epistola.app/epistola"))),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.REGISTRY_INVALID to "catalog.json.catalogDependencies[0].registry"),
+            findings(emptyList(), listOf(shared.copy(registry = "~"))),
         )
         assertEquals(
             listOf(
@@ -222,7 +252,23 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `references inside content may name a namespace in either form and resolve through the resolver`() {
+    fun `a catalog dependency records its release fingerprint exactly when it records a release`() {
+        val shared = CatalogDependency(REGISTRY, NAMESPACE, "shared", "^1.2.0", "1.4.0", FINGERPRINT)
+        fun findings(dependency: CatalogDependency) = CatalogValidator.validate(
+            archive(manifest(catalogDependencies = listOf(dependency)), emptyMap()),
+        ).findings.map { it.code to it.path }
+        val invalid = listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_FINGERPRINT_INVALID to "catalog.json.catalogDependencies[0].releaseFingerprint")
+
+        assertEquals(emptyList(), findings(shared))
+        assertEquals(emptyList(), findings(shared.copy(version = "*", releaseVersion = null, releaseFingerprint = null)))
+        assertEquals(invalid, findings(shared.copy(releaseFingerprint = null)))
+        assertEquals(invalid, findings(shared.copy(releaseVersion = null)))
+        assertEquals(invalid, findings(shared.copy(releaseFingerprint = FINGERPRINT.uppercase())))
+        assertEquals(invalid, findings(shared.copy(releaseFingerprint = "sha256:$FINGERPRINT")))
+    }
+
+    @Test
+    fun `references inside content default to the owning catalog's registry and namespace and resolve through the resolver`() {
         val resolved = mutableListOf<CatalogResourceReference>()
         val policy = CatalogValidationPolicy(
             dependencyResolver = CatalogDependencyResolver { reference ->
@@ -238,15 +284,26 @@ class CatalogValidatorTest {
         val sameCatalog = AttributeResource(
             "region",
             "Region",
-            codeListBinding = CodeListBindingRef(slug = "regions", namespace = NAMESPACE),
+            codeListBinding = CodeListBindingRef(slug = "regions", namespace = NAMESPACE, registry = REGISTRY),
         )
         val invalid = AttributeResource(
             "country",
             "Country",
             codeListBinding = CodeListBindingRef(slug = "countries", namespace = "Not A Namespace"),
         )
+        // The same namespace in another registry is another catalog, so this resolves elsewhere.
+        val otherRegistry = AttributeResource(
+            "district",
+            "District",
+            codeListBinding = CodeListBindingRef(slug = "regions", namespace = NAMESPACE, registry = "acme.com"),
+        )
+        val registryOnly = AttributeResource(
+            "province",
+            "Province",
+            codeListBinding = CodeListBindingRef(slug = "regions", registry = "Not.A.Registry"),
+        )
         val regions = CodeListResource("regions", "Regions", entries = emptyList())
-        val details = listOf(attribute, sameCatalog, invalid, regions).associate { resource ->
+        val details = listOf(attribute, sameCatalog, invalid, otherRegistry, registryOnly, regions).associate { resource ->
             "${resource.type}/${resource.slug}" to ResourceDetail(CURRENT_VERSION, resource)
         }
         val entries = details.map { (key, detail) ->
@@ -259,17 +316,65 @@ class CatalogValidatorTest {
             listOf(
                 CatalogValidationCodes.RESOURCE_REFERENCE_MISSING to "resources/attribute/country.json.resource.codeListBinding",
                 CatalogValidationCodes.NAMESPACE_INVALID to "resources/attribute/country.json.resource.codeListBinding.namespace",
+                CatalogValidationCodes.RESOURCE_REFERENCE_MISSING to "resources/attribute/district.json.resource.codeListBinding",
                 CatalogValidationCodes.RESOURCE_REFERENCE_MISSING to "resources/attribute/locale.json.resource.codeListBinding",
+                CatalogValidationCodes.RESOURCE_REFERENCE_MISSING to "resources/attribute/province.json.resource.codeListBinding",
+                CatalogValidationCodes.NAMESPACE_INVALID to "resources/attribute/province.json.resource.codeListBinding.namespace",
+                CatalogValidationCodes.REGISTRY_INVALID to "resources/attribute/province.json.resource.codeListBinding.registry",
             ),
             report.findings.map { it.code to it.path },
         )
-        // The owning catalog's key fills in where a reference names only a namespace.
+        // The owning catalog's registry, namespace and key fill in wherever a reference omits one.
         assertEquals(
             listOf(
-                CatalogResourceReference("codeList", "countries", "fixture", "Not A Namespace"),
-                CatalogResourceReference("codeList", "countries", "shared", "acme-corp"),
+                CatalogResourceReference("codeList", "countries", "fixture", "Not A Namespace", REGISTRY),
+                CatalogResourceReference("codeList", "countries", "shared", "acme-corp", REGISTRY),
+                CatalogResourceReference("codeList", "regions", "fixture", NAMESPACE, "Not.A.Registry"),
+                CatalogResourceReference("codeList", "regions", "fixture", NAMESPACE, "acme.com"),
             ),
-            resolved.sortedBy { it.catalogKey },
+            resolved.sortedWith(compareBy({ it.slug }, { it.catalogKey }, { it.registry })),
+        )
+    }
+
+    @Test
+    fun `a theme reference in a template names a registry only together with a namespace`() {
+        fun findings(
+            theme: ThemeRefOverride,
+            themeRegistry: String? = null,
+            themeNamespace: String? = null,
+        ): List<Pair<String, String>> {
+            val template = TemplateResource(
+                slug = "letter",
+                name = "Letter",
+                templateModel = TemplateDocument(
+                    root = "root",
+                    nodes = mapOf("root" to Node("root", "root", slots = listOf("root-children"))),
+                    slots = mapOf("root-children" to Slot("root-children", "root", "children", emptyList())),
+                    themeRef = theme,
+                ),
+                variants = emptyList(),
+                themeId = themeNamespace?.let { "corporate" },
+                themeNamespace = themeNamespace,
+                themeRegistry = themeRegistry,
+            )
+            val details = mapOf("template/letter" to ResourceDetail(CURRENT_VERSION, template))
+            val entries = listOf(ResourceEntry("template", "letter", "Letter", detailUrl = "./resources/template/letter.json"))
+            return CatalogValidator.validate(archive(manifest(resources = entries), details)).findings.map { it.code to it.path }
+        }
+
+        assertEquals(emptyList(), findings(ThemeRefOverride("corporate", "shared", "acme", "acme.com")))
+        assertEquals(emptyList(), findings(ThemeRefOverride("corporate", "shared", "acme")))
+        assertEquals(
+            listOf(CatalogValidationCodes.NAMESPACE_INVALID to "resources/template/letter.json.resource.templateModel.themeRef.namespace"),
+            findings(ThemeRefOverride("corporate", "shared", registry = "acme.com")),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.REGISTRY_INVALID to "resources/template/letter.json.resource.templateModel.themeRef.registry"),
+            findings(ThemeRefOverride("corporate", "shared", "acme", "~")),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.NAMESPACE_INVALID to "resources/template/letter.json.resource.themeNamespace"),
+            findings(ThemeRefOverride("corporate", "shared"), themeRegistry = "acme.com"),
         )
     }
 
@@ -763,7 +868,7 @@ class CatalogValidatorTest {
         assertEquals(publishedCodes, fixtureCodes)
     }
 
-    /** A current manifest; a [catalog] naming no namespace is given [NAMESPACE]. */
+    /** A current manifest; a [catalog] naming no namespace is given [REGISTRY] and [NAMESPACE]. */
     private fun manifest(
         release: ReleaseInfo = ReleaseInfo("1.0.0"),
         resources: List<ResourceEntry> = emptyList(),
@@ -772,7 +877,7 @@ class CatalogValidatorTest {
         catalogDependencies: List<CatalogDependency>? = null,
     ) = CatalogManifest(
         CURRENT_VERSION,
-        catalog.takeIf { it.namespace != null } ?: catalog.withNamespace(NAMESPACE),
+        catalog.takeIf { it.namespace != null } ?: catalog.withNamespace(REGISTRY, NAMESPACE),
         PublisherInfo("Epistola"),
         release,
         resources = resources,
@@ -898,6 +1003,8 @@ class CatalogValidatorTest {
     )
 
     private companion object {
-        const val NAMESPACE = "exchange.epistola.app/epistola"
+        const val REGISTRY = "exchange.epistola.app"
+        const val NAMESPACE = "epistola"
+        const val FINGERPRINT = "69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42"
     }
 }

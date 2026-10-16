@@ -11,16 +11,22 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
+- **BREAKING:** a catalog is identified by registry, namespace and key.
+  `ITemplateDataValidator.Validate`, `TemplateSchemaValidator.Validate` and
+  `ServerTemplateDataValidator.Validate` take `(tenantId, registry, namespace, catalogKey,
+  templateId, data)` in place of `(tenantId, catalogId, templateId, data)`. The registry is the path segment: `~`
+  (`ITemplateDataValidator.DefaultRegistry`) for the server's default registry, or a name in full
+  (`acme.com`). The namespace is a plain slug. `ValidatingGenerationApi` hands a validator `~` for
+  a request whose `registry` is unset and passes a named registry on as given. It no longer
+  converts `host/name` namespaces to `host~name`, because neither form exists any more.
+- **BREAKING:** the result collector's `GenerationResult` gained `Registry` (null for results from
+  before contract 2.0), before `Namespace`. `GenerationResult` is a positional record, so code
+  constructing it positionally must add the argument.
+
 - The reference in-process validator to copy, `NJsonSchemaTemplateDataValidator` under
   `test/Epistola.Client.Tests/Validation/Schema/Local/`, takes the catalog version whose template
   schema it holds data to, because a template is now read from a catalog version. The shipped
   validators are unchanged: `validateTemplateData` is not addressed by version.
-- **BREAKING:** a catalog is addressed by namespace and key. `ITemplateDataValidator.Validate`,
-  `TemplateSchemaValidator.Validate` and `ServerTemplateDataValidator.Validate` take
-  `(tenantId, namespace, catalogKey, templateId, data)` in place of
-  `(tenantId, catalogId, templateId, data)`; the namespace is in its path-segment form
-  (`exchange.example.org~team-a`). `ValidatingGenerationApi` converts a request's body-form
-  namespace (`exchange.example.org/team-a`) to that form before handing it to a validator.
 - **BREAKING:** `ServerTemplateDataValidator`'s `releaseVersion` parameter is now `version`, a
   version selector sent as the request's `version`; it may be combined with `environmentId`.
 - The result collector's `GenerationResult` gained `Namespace` and `CatalogKey` (null for results

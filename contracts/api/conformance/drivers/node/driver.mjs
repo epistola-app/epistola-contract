@@ -105,6 +105,7 @@ async function listTemplates(baseUrl, config) {
   for (let i = 0; i < (config.repeat ?? 1); i++) {
     response = await api.listTemplates({
       tenantId: config.tenantId,
+      registry: config.registry,
       namespace: config.namespace,
       catalogKey: config.catalogKey,
       catalogVersion: config.catalogVersion,
@@ -119,6 +120,7 @@ async function problem(baseUrl, config) {
   try {
     await new TemplatesApi(client(baseUrl, config)).listTemplates({
       tenantId: config.tenantId,
+      registry: config.registry,
       namespace: config.namespace,
       catalogKey: config.catalogKey,
       catalogVersion: config.catalogVersion,
@@ -140,7 +142,7 @@ async function problem(baseUrl, config) {
 async function validateTemplateData(baseUrl, config) {
   const validator = new TemplateSchemaValidator(new TemplatesApi(client(baseUrl, config)))
   try {
-    await validator.validate(config.tenantId, config.namespace, config.catalogKey, config.templateId, config.data ?? {})
+    await validator.validate(config.tenantId, config.registry, config.namespace, config.catalogKey, config.templateId, config.data ?? {})
     await report(baseUrl, { validationFailurePaths: '<accepted>', validationFailureKeywords: '<accepted>' })
   } catch (error) {
     if (!(error instanceof TemplateDataValidationException)) throw error
@@ -183,7 +185,7 @@ async function collect(baseUrl, config) {
     correlationIds: handled.map((r) => r.correlationId ?? '').join(','),
     handledSequences: handled.map((r) => String(r.sequence)).join(','),
     partitionTotal: assignment ? assignment.total : -1,
-    releases: handled.map((r) => `${show(r.namespace)}/${show(r.catalogKey)}@${show(r.releaseVersion)}`).join(','),
+    releases: handled.map((r) => `${show(r.registry)}/${show(r.namespace)}/${show(r.catalogKey)}@${show(r.releaseVersion)}`).join(','),
   })
 }
 
@@ -202,7 +204,9 @@ async function generateDocument(baseUrl, config) {
     correlationId: config.correlationId,
     routingKey: config.routingKey,
   }
-  // Only what the scenario sets: an unset optional must stay off the wire, not go out as null.
+  // Only what the scenario sets: an unset optional must stay off the wire, not go out as null. An
+  // unset registry means the server's default, which only the server knows.
+  if (config.registry !== undefined) request.registry = config.registry
   if (config.version !== undefined) request.version = config.version
   if (config.environmentId !== undefined) request.environmentId = config.environmentId
   await new GenerationApi(client(baseUrl, config)).generateDocument({
@@ -228,6 +232,7 @@ async function downloadDocument(baseUrl, config) {
 async function listImages(baseUrl, config) {
   const { items } = await new ImagesApi(client(baseUrl, config)).listImages({
     tenantId: config.tenantId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
@@ -250,6 +255,7 @@ async function uploadImage(baseUrl, config) {
   const file = new File([Buffer.from(config.fileBase64, 'base64')], config.filename, { type: config.fileContentType })
   const image = await new ImagesApi(client(baseUrl, config)).uploadImage({
     tenantId: config.tenantId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
@@ -262,6 +268,7 @@ async function uploadImage(baseUrl, config) {
 async function downloadImage(baseUrl, config) {
   const blob = await new ImagesApi(client(baseUrl, config)).downloadImageContent({
     tenantId: config.tenantId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
@@ -273,6 +280,7 @@ async function downloadImage(baseUrl, config) {
 async function deleteImage(baseUrl, config) {
   await new ImagesApi(client(baseUrl, config)).deleteImage({
     tenantId: config.tenantId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
@@ -285,6 +293,7 @@ async function deleteImage(baseUrl, config) {
 async function listCatalogDependencies(baseUrl, config) {
   const response = await new CatalogsApi(client(baseUrl, config)).listCatalogDependencies({
     tenantId: config.tenantId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
@@ -293,15 +302,19 @@ async function listCatalogDependencies(baseUrl, config) {
 }
 
 /**
- * Declares a catalog's dependencies. The response writes every namespace in full and a
- * `resolvedVersion` that nothing satisfies as null; both are reported exactly as parsed.
+ * Declares a catalog's dependencies. An entry's `registry` goes out only when the scenario gives
+ * one: omitted means the server's default registry. The response writes every registry in full and
+ * a `resolvedVersion` that nothing satisfies as null; both are reported exactly as parsed.
  */
 async function updateCatalogDependencies(baseUrl, config) {
   const response = await new CatalogsApi(client(baseUrl, config)).updateCatalogDependencies({
     tenantId: config.tenantId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
+    // Each entry as given: a `registry` the scenario leaves out stays undefined, which the
+    // generated serializer keeps off the wire.
     updateCatalogDependenciesRequest: { dependencies: config.dependencies },
   })
   await reportDependencies(baseUrl, response.items)
@@ -309,6 +322,7 @@ async function updateCatalogDependencies(baseUrl, config) {
 
 function reportDependencies(baseUrl, items) {
   return report(baseUrl, {
+    registries: items.map((d) => show(d.registry)).join(','),
     namespaces: items.map((d) => show(d.namespace)).join(','),
     catalogKeys: items.map((d) => show(d.catalogKey)).join(','),
     versions: items.map((d) => show(d.version)).join(','),
@@ -322,6 +336,7 @@ async function createCatalogVersion(baseUrl, config) {
   if (config.from !== undefined) request.from = config.from
   const version = await new CatalogsApi(client(baseUrl, config)).createCatalogVersion({
     tenantId: config.tenantId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     createCatalogVersionRequest: request,
@@ -337,7 +352,7 @@ async function createCatalogVersion(baseUrl, config) {
 
 /** Lists a catalog's versions; the `status` filter goes out only when the scenario sets one. */
 async function listCatalogVersions(baseUrl, config) {
-  const request = { tenantId: config.tenantId, namespace: config.namespace, catalogKey: config.catalogKey }
+  const request = { tenantId: config.tenantId, registry: config.registry, namespace: config.namespace, catalogKey: config.catalogKey }
   if (config.status !== undefined) request.status = config.status
   const { items } = await new CatalogsApi(client(baseUrl, config)).listCatalogVersions(request)
   await report(baseUrl, {
@@ -352,6 +367,7 @@ async function listCatalogVersions(baseUrl, config) {
 async function getCatalogVersion(baseUrl, config) {
   const version = await new CatalogsApi(client(baseUrl, config)).getCatalogVersion({
     tenantId: config.tenantId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
@@ -360,7 +376,7 @@ async function getCatalogVersion(baseUrl, config) {
     version: show(version.version),
     status: show(version.status),
     releasedAt: showInstant(version.releasedAt),
-    dependencies: (version.dependencies ?? []).map((d) => `${show(d.namespace)}/${show(d.catalogKey)}@${show(d.releaseVersion)}`).join(','),
+    dependencies: (version.dependencies ?? []).map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.releaseVersion)}`).join(','),
     deployedTo: (version.deployedTo ?? []).map(show).join(','),
   })
 }
@@ -371,6 +387,7 @@ async function renumberCatalogVersion(baseUrl, config) {
   if (config.acknowledgeWarnings !== undefined) request.acknowledgeWarnings = config.acknowledgeWarnings
   const version = await new CatalogsApi(client(baseUrl, config)).renumberCatalogVersion({
     tenantId: config.tenantId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
@@ -383,6 +400,7 @@ async function renumberCatalogVersion(baseUrl, config) {
 async function previewCatalogVersionRenumber(baseUrl, config) {
   const preview = await new CatalogsApi(client(baseUrl, config)).previewCatalogVersionRenumber({
     tenantId: config.tenantId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
@@ -398,6 +416,7 @@ async function previewCatalogVersionRenumber(baseUrl, config) {
 async function deleteCatalogVersion(baseUrl, config) {
   await new CatalogsApi(client(baseUrl, config)).deleteCatalogVersion({
     tenantId: config.tenantId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
@@ -410,6 +429,7 @@ async function releaseCatalogVersion(baseUrl, config) {
   if (config.notes !== undefined) request.notes = config.notes
   const response = await new CatalogsApi(client(baseUrl, config)).releaseCatalogVersion({
     tenantId: config.tenantId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
@@ -427,6 +447,7 @@ async function releaseCatalogVersion(baseUrl, config) {
 async function listIncomingChanges(baseUrl, config) {
   const request = {
     tenantId: config.tenantId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
@@ -445,6 +466,7 @@ async function listIncomingChanges(baseUrl, config) {
 async function resolveIncomingChange(baseUrl, config) {
   const change = await new CatalogsApi(client(baseUrl, config)).resolveIncomingChange({
     tenantId: config.tenantId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
@@ -459,11 +481,13 @@ async function deployRelease(baseUrl, config) {
   const deployment = await new EnvironmentsApi(client(baseUrl, config)).deployRelease({
     tenantId: config.tenantId,
     environmentId: config.environmentId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     releaseVersion: config.releaseVersion,
   })
   await report(baseUrl, {
+    registry: show(deployment.registry),
     namespace: show(deployment.namespace),
     catalogKey: show(deployment.catalogKey),
     releaseVersion: show(deployment.releaseVersion),
@@ -475,6 +499,7 @@ async function undeployRelease(baseUrl, config) {
   await new EnvironmentsApi(client(baseUrl, config)).undeployRelease({
     tenantId: config.tenantId,
     environmentId: config.environmentId,
+    registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     releaseVersion: config.releaseVersion,
