@@ -923,6 +923,37 @@ class CatalogValidatorTest {
     }
 
     @Test
+    fun `an example may leave out a required property that has a default, as rendering fills it in`() {
+        val dataModel = mapOf(
+            "type" to "object",
+            "properties" to mapOf(
+                "invoiceNumber" to mapOf("type" to "string"),
+                "taxRate" to mapOf("type" to "number", "default" to 0.21),
+                "vendor" to mapOf(
+                    "type" to "object",
+                    "properties" to mapOf("country" to mapOf("type" to "string", "default" to "NL")),
+                    "required" to listOf("country"),
+                ),
+            ),
+            "required" to listOf("invoiceNumber", "taxRate", "vendor"),
+        )
+        fun codes(data: Map<String, Any?>) = validateTemplate(
+            TemplateResource(
+                "invoice",
+                "Invoice",
+                dataModel = dataModel,
+                dataExamples = listOf(DataExampleEntry("example", data, key = "example")),
+                templateModel = validDocument(),
+                variants = emptyList(),
+            ),
+        ).codes()
+
+        assertTrue(CatalogValidationCodes.TEMPLATE_DATA_EXAMPLE_INVALID !in codes(mapOf("invoiceNumber" to "1", "vendor" to emptyMap<String, Any?>())))
+        assertTrue(CatalogValidationCodes.TEMPLATE_DATA_EXAMPLE_INVALID in codes(mapOf("taxRate" to 0.21, "vendor" to emptyMap<String, Any?>())), "no default for invoiceNumber")
+        assertTrue(CatalogValidationCodes.TEMPLATE_DATA_EXAMPLE_INVALID in codes(mapOf("invoiceNumber" to "1", "taxRate" to null, "vendor" to emptyMap<String, Any?>())), "an explicit null is a value")
+    }
+
+    @Test
     fun `data example keys are required, well-formed and unique within their template`() {
         fun codes(vararg examples: DataExampleEntry) = validateTemplate(letter(dataExamples = examples.toList())).codes()
 

@@ -407,7 +407,9 @@ object ResourceValidator {
             }
             if (schemaErrors.isEmpty()) {
                 resource.dataExamples.orEmpty().forEachIndexed { index, example ->
-                    PortableJsonSchema.validate(example.data, schema).forEach { message ->
+                    // Rendering fills an absent property from its schema default before it validates the
+                    // data, so an example is held to what rendering would accept.
+                    PortableJsonSchema.validate(PortableJsonSchema.withDefaults(example.data, schema), schema).forEach { message ->
                         findings.error(CatalogValidationCodes.TEMPLATE_DATA_EXAMPLE_INVALID, "$path.dataExamples[$index].data", message)
                     }
                 }
@@ -1361,6 +1363,26 @@ private object PortableJsonSchema {
         onSuccess = { emptyList() },
         onFailure = { listOf("invalid JSON Schema: ${it.message}") },
     )
+
+    /**
+     * [data] with each absent property's `default` filled in, recursing into nested objects. A present
+     * value, an explicit `null` included, is kept: a `default` stands in only for an absent key.
+     * Composition keywords (`allOf`, `oneOf`, `anyOf`) are not expanded.
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun withDefaults(
+        data: Map<String, Any?>,
+        schema: Map<String, Any?>,
+    ): Map<String, Any?> {
+        val properties = schema["properties"] as? Map<String, Any?> ?: return data
+        val result = LinkedHashMap(data)
+        for ((name, property) in properties) {
+            val propertySchema = property as? Map<String, Any?> ?: continue
+            if (name !in result && "default" in propertySchema) result[name] = propertySchema["default"]
+            (result[name] as? Map<String, Any?>)?.let { nested -> result[name] = withDefaults(nested, propertySchema) }
+        }
+        return result
+    }
 
     fun validate(
         value: Any?,

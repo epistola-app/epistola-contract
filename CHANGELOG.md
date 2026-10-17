@@ -353,6 +353,12 @@ libraries.
 
 ### Fixed
 
+- **An example may leave out a required property that has a default.** The validator held data
+  examples strictly to the schema, while rendering fills an absent property from its `default`
+  before validating, so a catalog demonstrating schema defaults was refused on export. Examples are
+  now validated with defaults filled in, recursing into nested objects; an explicit `null` is still a
+  value.
+
 - **`missingFields` and `invalidFields` reach consumers.** Contract 1.4.0 added both to
   `TemplateDataValidationProblemDetail`, but no client's hand-written problem parser read them: the
   Jakarta, Python and .NET parsers surfaced `errors` and `validationErrors` only, and the Kotlin and
