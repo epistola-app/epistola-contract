@@ -11,6 +11,11 @@ libraries.
 
 ### Added
 
+- **Renumber warnings name the changes that make a number too low.** `RenumberWarningDto` gains
+  `reasons`, and its known kinds gain `passes-draft`, `breaking-changes-in-minor` and
+  `additions-in-patch` beside `breaking-changes-in-patch`: breaking changes need a major, additions
+  a minor (ADR 0001's rule for what breaks).
+
 - **Stencils by reference, with lexical scope (ADR 0006), catalog side.** A stencil declares
   `readsTemplateData` (wire v8, default `false`, left out of the JSON when false and not covered by
   the legacy fingerprint algorithms) when its content also sees the using template's data. The

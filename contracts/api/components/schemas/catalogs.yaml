@@ -696,8 +696,13 @@ RenumberWarningDto:
           becomes behind them (see `CatalogVersionDto.behind`).
         - `contains-later-releases`: the draft moves down past released versions, and keeps their
           changes, so it will release what those releases did.
+        - `passes-draft`: the draft moves past another open draft of the catalog.
         - `breaking-changes-in-patch`: the new number is a patch of the base, while the draft has
-          changes that are breaking against it.
+          changes that are breaking against it (ADR 0001's rule); they need a major.
+        - `breaking-changes-in-minor`: the new number is a minor of the base, while the draft has
+          breaking changes; they need a major.
+        - `additions-in-patch`: the new number is a patch of the base, while the draft adds to it
+          (a resource, a variant, a value, a widened data contract); additions need a minor.
       example: falls-behind
     message:
       type: string
@@ -709,6 +714,15 @@ RenumberWarningDto:
       items:
         type: string
       example: ["1.6.0"]
+    reasons:
+      type: array
+      description: |
+        For a warning about the kind of change (`breaking-changes-in-patch`,
+        `breaking-changes-in-minor`, `additions-in-patch`): each change that makes the number too
+        low, naming the resource, e.g. `template 'invoice': removed`. Empty for other kinds.
+      items:
+        type: string
+      example: ["template 'invoice': removed"]
 
 ReleaseCatalogVersionRequest:
   type: object
