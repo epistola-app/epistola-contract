@@ -80,6 +80,17 @@ libraries.
 
 ### Changed
 
+- **Stencil usage reports whether an instance fits, not whether it is held back** (ADR 0006).
+  `StencilUsageDto.heldBack` is replaced by `fits` and `problems`; `MarkStencilReadyResponse.heldBack`
+  by `notFitting`, the instances that do not fit; `ResourceChangeDto.heldBackInstances` is removed.
+  Marking a stencil ready moves nothing: every instance renders the stencil as it is, and one that
+  does not fit blocks the release.
+
+- **`UpdateTemplateRequest.forceUpdate` has no effect.** A template is edited in a draft catalog
+  version, which nothing renders, so a breaking data-model change is saved without confirmation and
+  is no longer refused with `409`; it is weighed when the draft is numbered and released (ADR 0002).
+  The field stays so 1.x requests parse. Data examples are still always validated (`422`).
+
 - **A variant attribute key may name another catalog's attribute.** Wire v8 gave variant
   attribute keys the resource key rule, which refused the qualified form `<catalogKey>.<key>`
   (`system.locale`) that names an attribute defined in another catalog, so a template using the

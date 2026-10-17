@@ -302,8 +302,8 @@ CatalogChangesDto:
     releasable:
       type: boolean
       description: |
-        True when the version is a draft, no resource is `new` or `modified`, no stencil instance is
-        held back, every catalog a resource references is a declared
+        True when the version is a draft, no resource is `new` or `modified`, every stencil instance
+        fits its stencil, every catalog a resource references is a declared
         dependency that resolves to a release, and something changed
       example: false
     dependenciesChanged:
@@ -343,11 +343,6 @@ ResourceChangeDto:
         `new`, `modified` and `ready` as in ResourceStatus; `removed` for a resource in the base
         that is no longer in this version.
       example: modified
-    heldBackInstances:
-      type: integer
-      minimum: 0
-      description: For a stencil, how many of its instances are held back
-      example: 0
 
 CatalogDependencyRequirement:
   type: object

@@ -291,14 +291,15 @@ stencil-mark-ready:
     operationId: markStencilReady
     summary: Mark the stencil ready
     description: |
-      Records that the stencil's current content is reviewed. Instances the change does not break
-      move to it; instances it breaks are held back and named in the response.
+      Records that the stencil's current content is reviewed, and nothing else: every instance
+      already renders the stencil as it is (ADR 0006). The response names the instances that do not
+      fit the content, which block the catalog release.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_EDIT]
     responses:
       '200':
-        description: The stencil, and the instances held back
+        description: The stencil, and the instances that do not fit it
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -340,7 +341,7 @@ stencil-usage:
   get:
     operationId: listStencilUsage
     summary: List the template variants that use the stencil
-    description: Every template variant in this catalog version with an instance of the stencil, and whether that instance is held back.
+    description: Every template variant in this catalog version with an instance of the stencil, and whether that instance fits the stencil.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_VIEW]

@@ -762,10 +762,11 @@ UpdateTemplateRequest:
       type: boolean
       default: false
       description: >-
-        When true, confirms publishing a backwards-incompatible (breaking) data-model
-        change; dependent template versions are auto-upgraded. Data examples are always
-        validated against the schema regardless of this flag — an incompatible example
-        is rejected (422) even when forceUpdate is true.
+        Has no effect, and is kept so 1.x requests still parse. A template is edited in a
+        draft catalog version, which nothing renders, so a backwards-incompatible
+        (breaking) data-model change is saved without confirmation; it is weighed when the
+        draft is numbered and released (ADR 0002). Data examples are always validated
+        against the schema — an incompatible example is rejected (422).
       example: false
 
 TemplateListResponse:

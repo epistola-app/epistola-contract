@@ -190,7 +190,7 @@ catalog-mark-ready:
     summary: Mark every changed resource of a draft ready
     description: |
       Marks each `new` or `modified` resource of the draft ready in one action, and returns the
-      changes that remain. Refused with 409 for a released version. Stencil instances the change breaks are held back, as for a single stencil.
+      changes that remain. Refused with 409 for a released version.
     tags:
       - Catalogs
     x-required-permissions: [TEMPLATE_EDIT, STENCIL_EDIT]

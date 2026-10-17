@@ -223,12 +223,17 @@ UpdateStencilRequest:
 
 StencilUsageDto:
   type: object
-  description: A template variant that uses the stencil, and whether its instance is held back
+  description: |
+    A template variant that uses the stencil, and whether its instance fits the stencil's content in
+    this catalog version (ADR 0006). An instance renders the stencil as it is; one that does not fit
+    (it fills a placeholder the stencil no longer has, or leaves a required parameter unbound) blocks
+    the catalog release until its template variant is edited.
   required:
     - templateKey
     - templateName
     - variantKey
-    - heldBack
+    - fits
+    - problems
   properties:
     templateKey:
       type: string
@@ -248,17 +253,22 @@ StencilUsageDto:
       maxLength: 50
       description: Key of the variant
       example: english
-    heldBack:
+    fits:
       type: boolean
-      description: |
-        True when the stencil's ready content breaks this instance, so it still renders the content
-        it had. The catalog release refuses until it is resolved.
-      example: false
+      description: True when the instance fits the stencil's content; false blocks the release
+      example: true
+    problems:
+      type: array
+      description: Why the instance does not fit; empty when it fits
+      items:
+        type: string
+      example: []
   example:
     templateKey: monthly-invoice
     templateName: Monthly Invoice
     variantKey: english
-    heldBack: false
+    fits: true
+    problems: []
 
 StencilListResponse:
   description: List of stencils
@@ -311,7 +321,8 @@ StencilUsageListResponse:
       - templateKey: monthly-invoice
         templateName: Monthly Invoice
         variantKey: english
-        heldBack: false
+        fits: true
+        problems: []
     page:
       number: 0
       size: 20
@@ -387,21 +398,20 @@ StencilContentDto:
 MarkStencilReadyResponse:
   type: object
   description: |
-    The stencil, now ready, and the instances its change holds back.
+    The stencil, now ready, and the instances of it that do not fit its content.
 
-    Marking a stencil ready moves every instance whose templates the change does not break to the
-    new content: an unchanged interface, or one that accepts more than before. An instance the change
-    breaks (a removed or retyped placeholder or parameter it fills) is **held back** on the content it
-    had, and the catalog release refuses until each held-back instance is resolved by editing its
-    template variant.
+    Marking a stencil ready records that its content is reviewed, and nothing else (ADR 0006): every
+    instance already renders the stencil as it is. An instance the content breaks (it fills a
+    placeholder the stencil no longer has, or leaves a required parameter unbound) is listed in
+    `notFitting`, and the catalog release refuses until its template variant is edited.
   required:
     - stencil
-    - heldBack
+    - notFitting
   properties:
     stencil:
       $ref: '#/StencilContentDto'
-    heldBack:
+    notFitting:
       type: array
-      description: The instances the change holds back; empty when every instance moved
+      description: The instances that do not fit the stencil's content; empty when every one fits
       items:
         $ref: '#/StencilUsageDto'
