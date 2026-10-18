@@ -383,7 +383,6 @@ async function getCatalogVersion(baseUrl, config) {
     version: show(version.version),
     draftId: show(version.draftId),
     isNext: show(version.isNext),
-    preRelease: show(version.preRelease),
     name: show(version.name),
     status: show(version.status),
     releasedAt: showInstant(version.releasedAt),
@@ -445,8 +444,8 @@ async function deleteCatalogDraft(baseUrl, config) {
 }
 
 /**
- * Releases a draft (the next version, or long-term work as a pre-release); `version`, `notes` and
- * `acknowledgedBehind` go out only when the scenario sets them.
+ * Releases the next version; `version`, `notes` and `acknowledgedBehind` go out only when the
+ * scenario sets them.
  */
 async function releaseCatalogDraft(baseUrl, config) {
   const request = {}
@@ -466,7 +465,6 @@ async function releaseCatalogDraft(baseUrl, config) {
     status: show(response.catalogVersion.status),
     draftId: show(response.catalogVersion.draftId),
     isNext: show(response.catalogVersion.isNext),
-    preRelease: show(response.catalogVersion.preRelease),
     draftsBehind: response.draftsBehind.map(show).join('|'),
   })
 }
@@ -491,7 +489,6 @@ async function promoteCatalogDraft(baseUrl, config) {
     version: show(version.version),
     draftId: show(version.draftId),
     isNext: show(version.isNext),
-    preRelease: show(version.preRelease),
     name: show(version.name),
     status: show(version.status),
     base: show(version.base),

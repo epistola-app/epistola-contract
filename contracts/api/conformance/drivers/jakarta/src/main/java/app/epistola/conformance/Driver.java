@@ -519,7 +519,6 @@ public final class Driver {
                         Map.entry("version", String.valueOf(version.getVersion())),
                         Map.entry("draftId", String.valueOf(version.getDraftId())),
                         Map.entry("isNext", String.valueOf(version.getIsNext())),
-                        Map.entry("preRelease", String.valueOf(version.getPreRelease())),
                         Map.entry("name", String.valueOf(version.getName())),
                         Map.entry("status", String.valueOf(version.getStatus())),
                         Map.entry("releasedAt", instant(version.getReleasedAt())),
@@ -609,7 +608,7 @@ public final class Driver {
                         config.getString("catalogVersion"));
     }
 
-    /** Releases a draft (long-term work as a pre-release); each member is sent only when the scenario names it. */
+    /** Releases the next version; each member is sent only when the scenario names it. */
     private static void releaseCatalogDraft(String baseUrl, JsonObject config) {
         ReleaseCatalogDraftResponse response = clients(baseUrl, config)
                 .api(CatalogsApi.class)
@@ -636,7 +635,6 @@ public final class Driver {
                         "status", String.valueOf(response.getCatalogVersion().getStatus()),
                         "draftId", String.valueOf(response.getCatalogVersion().getDraftId()),
                         "isNext", String.valueOf(response.getCatalogVersion().getIsNext()),
-                        "preRelease", String.valueOf(response.getCatalogVersion().getPreRelease()),
                         "draftsBehind", String.join("|", draftsBehind)));
     }
 
@@ -664,7 +662,6 @@ public final class Driver {
                         "version", String.valueOf(version.getVersion()),
                         "draftId", String.valueOf(version.getDraftId()),
                         "isNext", String.valueOf(version.getIsNext()),
-                        "preRelease", String.valueOf(version.getPreRelease()),
                         "name", String.valueOf(version.getName()),
                         "status", String.valueOf(version.getStatus()),
                         "base", String.valueOf(version.getBase()),

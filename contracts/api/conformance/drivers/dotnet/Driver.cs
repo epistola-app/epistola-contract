@@ -454,7 +454,6 @@ public static class Driver
             ["version"] = Show(version.VarVersion),
             ["draftId"] = Show(version.DraftId),
             ["isNext"] = Bool(version.IsNext),
-            ["preRelease"] = Bool(version.PreRelease),
             ["name"] = Show(version.Name),
             ["status"] = Show(Wire(version.Status)),
             ["releasedAt"] = Show(Iso(version.ReleasedAt)),
@@ -510,7 +509,7 @@ public static class Driver
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
     }
 
-    /// <summary>Releases a draft (long-term work as a pre-release); each member is left unset when the scenario does not name it.</summary>
+    /// <summary>Releases the next version; each member is left unset when the scenario does not name it.</summary>
     private static void ReleaseCatalogDraft(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
@@ -527,7 +526,6 @@ public static class Driver
             ["status"] = Show(response.CatalogVersion == null ? null : Wire(response.CatalogVersion.Status)),
             ["draftId"] = Show(response.CatalogVersion?.DraftId),
             ["isNext"] = response.CatalogVersion == null ? "null" : Bool(response.CatalogVersion.IsNext),
-            ["preRelease"] = response.CatalogVersion == null ? "null" : Bool(response.CatalogVersion.PreRelease),
             ["draftsBehind"] = string.Join("|", response.DraftsBehind ?? new List<string>()),
         });
     }
@@ -547,7 +545,6 @@ public static class Driver
             ["version"] = Show(version.VarVersion),
             ["draftId"] = Show(version.DraftId),
             ["isNext"] = Bool(version.IsNext),
-            ["preRelease"] = Bool(version.PreRelease),
             ["name"] = Show(version.Name),
             ["status"] = Show(Wire(version.Status)),
             ["base"] = Show(version.Base),
