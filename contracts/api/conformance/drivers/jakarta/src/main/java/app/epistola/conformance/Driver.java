@@ -684,12 +684,16 @@ public final class Driver {
     }
 
     /**
-     * Deploys a release, passing {@code includeDependencies} only when the scenario names it. A
-     * refusal is reported as the problem it carried, with every missing dependency in order.
+     * Deploys a release, passing {@code includeDependencies} and {@code replace} only when the
+     * scenario names them. A refusal is reported as the problem it carried, with every missing
+     * dependency in order.
      */
     private static void deployRelease(String baseUrl, JsonObject config) {
         Boolean includeDependencies = config.containsKey("includeDependencies") && !config.isNull("includeDependencies")
                 ? config.getBoolean("includeDependencies")
+                : null;
+        Boolean replace = config.containsKey("replace") && !config.isNull("replace")
+                ? config.getBoolean("replace")
                 : null;
         DeploymentDto deployment;
         try {
@@ -702,7 +706,8 @@ public final class Driver {
                             config.getString("namespace"),
                             config.getString("catalogKey"),
                             config.getString("releaseVersion"),
-                            includeDependencies);
+                            includeDependencies,
+                            replace);
         } catch (ProblemDetailException e) {
             report(
                     baseUrl,
@@ -724,7 +729,9 @@ public final class Driver {
                         "registry", String.valueOf(deployment.getRegistry()),
                         "namespace", String.valueOf(deployment.getNamespace()),
                         "catalogKey", String.valueOf(deployment.getCatalogKey()),
-                        "releaseVersion", String.valueOf(deployment.getReleaseVersion())));
+                        "releaseVersion", String.valueOf(deployment.getReleaseVersion()),
+                        "lastUsedAt", instant(deployment.getLastUsedAt()),
+                        "documentsRequested", String.valueOf(deployment.getDocumentsRequested())));
     }
 
     private static void undeployRelease(String baseUrl, JsonObject config) {

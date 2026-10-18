@@ -17,8 +17,11 @@ why: >
   The response names the registry in full, by its real name, never `~`. A client must surface
   that name as written, so a value read here means the same catalog on another installation.
 
-  `includeDependencies` is not set, so no query string is sent: the server's default (false)
-  applies.
+  `includeDependencies` and `replace` are not set, so no query string is sent: the server's
+  defaults (false) apply.
+
+  A release just deployed has not been used yet: `lastUsedAt` is null and `documentsRequested` is
+  0. A client must surface the null as a missing instant, not fail on it or invent one.
 
 action:
   name: deploy-release
@@ -40,16 +43,21 @@ script:
       catalogKey: letters
       releaseVersion: 1.4.0
       deployedAt: "2026-10-02T07:30:00Z"
+      lastUsedAt: null
+      documentsRequested: 0
 
 expect:
   requestCount: 1
   requests:
     - method: PUT
       path: /api/tenants/acme-corp/environments/production/deployments/~/acme-corp/letters/1.4.0
-      # Without `config.includeDependencies` the driver leaves the flag unset, so nothing is sent.
+      # Without `config.includeDependencies` or `config.replace` the driver leaves the flags unset,
+      # so nothing is sent.
       query: ""
   report:
     registry: exchange.epistola.app
     namespace: acme-corp
     catalogKey: letters
     releaseVersion: 1.4.0
+    lastUsedAt: "null"
+    documentsRequested: "0"
