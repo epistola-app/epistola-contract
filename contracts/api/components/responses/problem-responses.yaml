@@ -77,6 +77,21 @@ ReleaseDependenciesMissingError:
             releaseVersion: 3.2.0
             reason: NOT_DEPLOYED
 
+CatalogDraftKindError:
+  description: >-
+    The request conflicts with the current state of the resource. When the draft is long-term work,
+    which is not released (it is released after `promoteCatalogDraft` makes it the next version), the
+    problem is `catalog-draft-kind`. Other conflicts use `conflict`.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ProblemDetail'
+      example:
+        type: https://epistola.app/errors/catalog-draft-kind
+        title: Catalog Draft Kind
+        status: 409
+        detail: "Redesign 2027 is long-term work: make it the next version to release it"
+
 TemplateDataInvalidError:
   description: >-
     The request failed validation. When the template data breaks the template's data contract, the

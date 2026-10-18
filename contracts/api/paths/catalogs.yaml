@@ -544,28 +544,31 @@ catalog-version-release:
 
   post:
     operationId: releaseCatalogDraft
-    summary: Release a draft
+    summary: Release the next version
     description: |
-      Releases a draft of an AUTHORED catalog (ADR 0002, amendment 2), numbering it as `version` or,
-      when that is omitted, as its changes need against the latest release
-      (`previewCatalogDraftRelease`). A given number lower than the changes need is refused with 400.
-      A release contains the whole draft: it is refused while any resource is `new` or `modified`.
+      Releases the next version of an AUTHORED catalog (ADR 0002, amendment 2), numbering it: as
+      `version`, or, when that is omitted, as its changes need against the latest release
+      (`previewCatalogDraftRelease`). A given number must be above every release and no lower than
+      the changes need, or the release is refused with 409. A release contains the whole draft: it is
+      refused while any resource is `new` or `modified`.
 
-      - **The next version** is released as a release, above every release; the catalog's history
-        moves forward. A next version that is **behind** (see `CatalogVersionDto.behind`) is released
-        only when `acknowledgedBehind` names every one of those releases. After the release the next
-        version continues, as a draft on it; long-term work is untouched and now behind it
-        (`draftsBehind`).
-      - **Long-term work** is released as a **pre-release**, `MAJOR.MINOR.PATCH-<label>.<n>`: the
-        number its changes need, a label from its name, counted (`2.0.0-redesign-2027.1`). A
-        pre-release is never the latest release, matched by no version range, never published to an
-        exchange, and does not move the catalog's released version: it is used where it is deployed
-        by its number, to try the work. The work carries on as it was.
+      Only the next version is released: the catalog's history moves forward. Releasing long-term
+      work is refused with 409 (`catalog-draft-kind`). Long-term work is tried by pointing an
+      environment at it (an environment override), and released after it is made the next version
+      (`promoteCatalogDraft`).
+
+      A next version that is **behind** (see `CatalogVersionDto.behind`) does not contain those
+      releases' changes unless an author applied them by hand, which the server cannot tell.
+      Releasing it is refused with 409 unless `acknowledgedBehind` names every one of those
+      versions.
 
       Each declared dependency is resolved to one release, and so are the dependencies of those
       releases in turn; the release records them all. It is refused when a resource references a
       catalog that is not declared, when a dependency resolves to no release, or when two paths
       through the dependencies need different releases of one catalog.
+
+      After the release, the next version continues, as a draft on it. Long-term work is untouched
+      and now behind it; the response names it (`draftsBehind`).
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_RELEASE]
@@ -577,7 +580,7 @@ catalog-version-release:
             $ref: '../components/schemas/catalogs.yaml#/ReleaseCatalogDraftRequest'
     responses:
       '200':
-        description: The draft is released
+        description: The next version is released
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -591,7 +594,7 @@ catalog-version-release:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogDraftKindError'
 
 catalog-version-promote:
   parameters:
