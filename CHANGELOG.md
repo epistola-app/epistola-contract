@@ -9,6 +9,20 @@ libraries.
 
 ## [Unreleased]
 
+### Added
+
+- **Long-term work is released as a pre-release, and becomes the next version** (ADR 0002,
+  amendment 2). `releaseCatalogDraft` on long-term work releases `MAJOR.MINOR.PATCH-<label>.<n>`
+  (the number its changes need, a label from its name, counted): never the latest release, matched
+  by no version range, never published to an exchange. `promoteCatalogDraft`
+  (`{keepPreviousAs?, acknowledgedBehind?}`) makes it the next version. `CatalogVersionDto` gains
+  `preRelease`; release numbers in addresses, `ReleaseCatalogDraftRequest.version` and
+  `CreateCatalogDraftRequest.from` accept pre-releases.
+- **Catalog bundles (fat exports)** ([docs/catalog-bundle.md](docs/catalog-bundle.md)): one file with a
+  release and the releases it pins, transitively. `importCatalog` accepts one, installs the catalogs
+  it uses first and reports them (`installedDependencies`, `presentDependencies`); a catalog the
+  tenant has at another release refuses the import with 409.
+
 ### Changed
 
 - **A draft is numbered when it is released** (ADR 0002, amendment 2). Every AUTHORED catalog has
@@ -21,7 +35,8 @@ libraries.
   next version or a release), `renumberCatalogVersion` becomes `renameCatalogDraft`,
   `deleteCatalogVersion` becomes `deleteCatalogDraft` (discarding the next version starts it again
   on the latest release), `previewCatalogVersionRenumber` becomes `previewCatalogDraftRelease` (the
-  number it would be released as, from the kind of change against the latest release, and why),
+  number it would be released as, from the kind of change against the latest release, and why; a
+  number lower than the changes need is refused with 400),
   and `releaseCatalogVersion` becomes `releaseCatalogDraft`, which numbers the next version (as
   `version`, never lower than its changes need, or as they need) and continues it on the release;
   it no longer returns `openedDraft`, and `draftsBehind` names long-term work. `RenumberWarningDto`

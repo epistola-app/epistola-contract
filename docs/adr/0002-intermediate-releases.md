@@ -180,8 +180,12 @@ another catalog's long-term work cannot be released until that work is promoted,
   paths: `createCatalogDraft` and `listCatalogVersions` on `…/versions`, `getCatalogVersion`,
   `renameCatalogDraft` and `deleteCatalogDraft` on `…/versions/{catalogVersion}`,
   `previewCatalogDraftRelease` on `…/versions/{catalogVersion}/release-preview` (the number it would
-  be released as, and why), and `releaseCatalogDraft` on `…/versions/{catalogVersion}/release`.
-  `promoteCatalogDraft` follows with long-term work's release as a pre-release.
+  be released as, and why), `releaseCatalogDraft` on `…/versions/{catalogVersion}/release` (a release
+  for the next version, a pre-release for long-term work), and `promoteCatalogDraft` on
+  `…/versions/{catalogVersion}/promote` (`{keepPreviousAs?, acknowledgedBehind?}`). Promotion leaves
+  the work on the latest release, behind nothing, since what it was behind is acknowledged.
+- A release number in an address may be a pre-release (`…/versions/2.0.0-redesign-2027.1`), and so may
+  `from` when starting long-term work.
 - Preview names a draft by `next` or its `draftId` in place of `draftVersion`.
 
 ### Decided (2026-10-18)
@@ -192,6 +196,9 @@ another catalog's long-term work cannot be released until that work is promoted,
   build on, and a pre-release is work in progress. It moves between installations as an export,
   imported where it is to be tried (for example an acceptance installation reviewing it), and is
   selected only where it is deployed by its full number: no version selector matches it.
+- **Exports can carry what a release uses** ([catalog bundle](../catalog-bundle.md)): one file with
+  the release and the releases it pins, transitively, installed dependencies first. It is how a
+  catalog, or a pre-release, moves to an installation that does not reach an exchange.
 
 ## Decision (proposed)
 

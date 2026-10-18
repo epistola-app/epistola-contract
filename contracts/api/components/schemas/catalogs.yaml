@@ -501,6 +501,7 @@ CatalogVersionDto:
     - version
     - status
     - isNext
+    - preRelease
     - dependencies
     - deployedTo
     - behind
@@ -520,6 +521,13 @@ CatalogVersionDto:
     isNext:
       type: boolean
       description: The catalog's next version. False for long-term work and released versions.
+      example: false
+    preRelease:
+      type: boolean
+      description: |
+        A released version that is a pre-release of long-term work (`2.0.0-redesign-2027.1`): never the
+        latest release, matched by no version range, never published to an exchange; used where it is
+        deployed by its number. False for a release and for a draft.
       example: false
     name:
       type: [string, "null"]
@@ -678,12 +686,34 @@ CreateCatalogDraftRequest:
       example: Redesign 2027
     from:
       type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
       maxLength: 50
       description: |
-        A released version to start from, which becomes its base. Omitted: a copy of the next
+        A released version (or pre-release) to start from, which becomes its base. Omitted: a copy of the next
         version, unreleased changes included, on the next version's base.
       example: null
+
+PromoteCatalogDraftRequest:
+  type: object
+  properties:
+    keepPreviousAs:
+      type: [string, "null"]
+      minLength: 1
+      maxLength: 100
+      description: |
+        Keep the draft that was the next version as long-term work under this name. Omitted: it is
+        discarded with its changes.
+      example: null
+    acknowledgedBehind:
+      type: array
+      description: |
+        The releases published since the work started that the caller confirms it may leave out
+        (their changes applied by hand, or left out on purpose). Promoting work that is behind
+        releases is refused with 409 unless this names every one.
+      items:
+        type: string
+        maxLength: 50
+      example: ["1.4.1"]
 
 RenameCatalogDraftRequest:
   type: object
@@ -739,12 +769,14 @@ ReleaseCatalogDraftRequest:
   properties:
     version:
       type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
       maxLength: 50
       description: |
-        The number to release it as: above every release, and no lower than its changes need
-        (`previewCatalogDraftRelease`), or the release is refused with 409. Omitted: the number its
-        changes need.
+        The number to release it as, no lower than its changes need against the latest release
+        (`previewCatalogDraftRelease`), or the release is refused with 400. For the next version, a
+        release number above every release; for long-term work, a pre-release (`2.0.0-beta.1`).
+        Omitted: for the next version the number its changes need, for long-term work that number as
+        a pre-release labelled after its name and counted (`2.0.0-redesign-2027.1`).
       example: null
     notes:
       type: [string, "null"]

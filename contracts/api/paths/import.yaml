@@ -17,6 +17,14 @@ import-catalog:
       Import a self-contained catalog ZIP archive. The ZIP must contain a `catalog.json` manifest
       and resource detail files matching the catalog exchange protocol.
 
+      It may also be a **catalog bundle** (a fat export: `bundle.json` and one catalog archive per
+      catalog, see `docs/catalog-bundle.md`): the catalogs the bundled catalog uses are installed
+      first, each as a SUBSCRIBED catalog, when this tenant does not have them at the bundled release
+      (`installedDependencies`); those it has already are left alone (`presentDependencies`). One the
+      tenant has at another release, or under another registry or namespace, refuses the whole import
+      with 409, naming each, and nothing changes. The bundled catalog itself is then imported as
+      below.
+
       - If the catalog (registry + namespace + key) already exists and is AUTHORED: resources are merged into
         the draft `catalogVersion`, or replaced, per `authoredMode` (default `MERGE` — upsert and keep local-only
         resources; `REPLACE` also deletes local-only resources, conflict-checked first)
@@ -25,7 +33,7 @@ import-catalog:
         before any pruning and the catalog stays on its previous release — see
         `aborted` in the response)
       - If the catalog is new: a new catalog is created with the specified type. A new AUTHORED
-        catalog gets one draft, numbered `catalogVersion` (default `1.0.0`).
+        catalog gets its next version, which the archive fills.
 
       Resources are installed in dependency order: assets → attributes → themes → stencils → templates.
     tags:
@@ -63,13 +71,12 @@ import-catalog:
                   none, and the server then chooses one (typically the tenant's own).
               catalogVersion:
                 type: string
-                pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-                maxLength: 50
+                pattern: '^(next|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$'
+                maxLength: 36
                 description: |
-                  For an AUTHORED catalog, the draft to import into. Omitted: the catalog's only
-                  open draft; refused with 409 when it has several. For a new AUTHORED catalog, the
-                  number of its first draft (default `1.0.0`). Ignored for a SUBSCRIBED catalog,
-                  which installs the archive's release.
+                  For an AUTHORED catalog, the draft to import into: `next` or a draft id. Omitted:
+                  its next version. Ignored for a new catalog, whose next version it fills, and for a
+                  SUBSCRIBED catalog, which installs the archive's release.
               catalogType:
                 type: string
                 enum: [AUTHORED, SUBSCRIBED]
