@@ -122,6 +122,23 @@ another catalog's **draft** cannot be released alone: releasing it releases that
 version too, in the same transaction, all or nothing, and pins the new release. A draft that uses
 another catalog's long-term work cannot be released until that work is promoted, or the use removed.
 
+### Dependencies are exact; compatibility is checked per use
+
+- A release pins **exact** releases of the catalogs it uses (ADR 0003), and renders with exactly
+  those wherever it is installed. Nobody chooses a version range: a declaration's range defaults to
+  `*`, and stays only for clients that set one over the API.
+- Moving to a newer release of a catalog it uses is decided while authoring, and **checked per use**,
+  not by the version number. The newer release is compared with the pinned one resource by resource,
+  by the rules that classify a release's changes (a resource removed, a stencil placeholder removed
+  or a parameter now required, a code removed, …), and only the breaking changes to resources this
+  catalog **uses** count:
+  - none: the newer release **fits**, and the next release moves to it;
+  - any: it does not fit; the catalog stays on the pinned release, and the author is told what does
+    not fit and why, until the templates are adapted.
+  A major release that breaks only what is not used fits; a patch that breaks something used does not.
+- Version numbers still say, for people, what kind of change a release is. They no longer decide
+  compatibility.
+
 ### Installing and deploying (unchanged, restated)
 
 - Installing a release requires the releases it pins to be present. Installing from an exchange
