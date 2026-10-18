@@ -217,6 +217,49 @@ tasks.openApiGenerate {
         }
         logger.lifecycle("Rewrote multipart uploads onto EntityPart in $rewritten API interface(s)")
     }
+
+    // A JSON null for an enum member. The generator's JSON-B enum deserializer reads every value
+    // with `parser.getString()`, which JSON-P refuses on VALUE_NULL, so a nullable enum such as
+    // `CatalogDraftReleasePreview.changeKind` failed the whole response instead of reading as null
+    // (found by the `preview-catalog-draft-first-release` conformance scenario). A null now reads
+    // as null, as it does for every other member type. `currentEvent()` is JSON-P 2.1, which
+    // Jakarta EE 10 requires.
+    val modelDir = generatedDir.map { it.dir("src/main/java/app/epistola/client/jakarta/model") }
+    doLast {
+        val deserialize = Regex(
+            """( +)public \w+ deserialize\(JsonParser parser, DeserializationContext ctx, Type rtType\) \{\n""",
+        )
+        var deserializers = 0
+        fileTree(modelDir) { include("**/*.java") }.forEach { modelFile ->
+            val source = modelFile.readText()
+            if (!source.contains("implements JsonbDeserializer<")) {
+                return@forEach
+            }
+            val declared = Regex("""implements JsonbDeserializer<""").findAll(source).count()
+            val matched = deserialize.findAll(source).count()
+            check(matched == declared) {
+                "${modelFile.name} has $declared enum deserializer(s) but the null rewrite matched " +
+                    "$matched — the generator's emitted shape changed; update this rewrite"
+            }
+            modelFile.writeText(
+                deserialize.replace(source) { match ->
+                    val indent = match.groupValues[1] + "    "
+                    match.value +
+                        "${indent}if (parser.currentEvent() == JsonParser.Event.VALUE_NULL) {\n" +
+                        "$indent    return null;\n" +
+                        "$indent}\n"
+                },
+            )
+            deserializers += matched
+        }
+        if (deserializers == 0) {
+            throw GradleException(
+                "the enum null rewrite matched no generated deserializer — the generator no longer " +
+                    "emits JSON-B enum deserializers; check that a null enum member still reads as null",
+            )
+        }
+        logger.lifecycle("Taught $deserializers enum deserializer(s) to read a JSON null as null")
+    }
 }
 
 // The spec-walking these three tasks share with the Kotlin client lives in build-logic; only the

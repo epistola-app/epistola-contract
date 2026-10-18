@@ -376,6 +376,13 @@ libraries.
 
 ### Fixed
 
+- **The Jakarta EE client reads a null enum member as null.** The generated JSON-B enum
+  deserializers read every value as a string, so a JSON `null` failed the whole response; the first
+  nullable enum in the contract, `CatalogDraftReleasePreview.changeKind`, made a release preview of
+  a catalog that was never released unreadable. The build now teaches each generated enum
+  deserializer to return null for a JSON null. Found by the new
+  `preview-catalog-draft-first-release` conformance scenario.
+
 - **An example may leave out a required property that has a default.** The validator held data
   examples strictly to the schema, while rendering fills an absent property from its `default`
   before validating, so a catalog demonstrating schema defaults was refused on export. Examples are
