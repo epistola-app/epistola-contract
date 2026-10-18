@@ -48,13 +48,13 @@ const ACTIONS = {
   'delete-image': deleteImage,
   'list-catalog-dependencies': listCatalogDependencies,
   'update-catalog-dependencies': updateCatalogDependencies,
-  'create-catalog-version': createCatalogVersion,
+  'create-catalog-draft': createCatalogDraft,
   'list-catalog-versions': listCatalogVersions,
   'get-catalog-version': getCatalogVersion,
-  'renumber-catalog-version': renumberCatalogVersion,
-  'preview-catalog-version-renumber': previewCatalogVersionRenumber,
-  'delete-catalog-version': deleteCatalogVersion,
-  'release-catalog-version': releaseCatalogVersion,
+  'rename-catalog-draft': renameCatalogDraft,
+  'preview-catalog-draft-release': previewCatalogDraftRelease,
+  'delete-catalog-draft': deleteCatalogDraft,
+  'release-catalog-draft': releaseCatalogDraft,
   'deploy-release': deployRelease,
   'undeploy-release': undeployRelease,
 }
@@ -329,19 +329,22 @@ function reportDependencies(baseUrl, items) {
   })
 }
 
-/** Opens a draft; `from` goes out only when the scenario names one. */
-async function createCatalogVersion(baseUrl, config) {
-  const request = { version: config.version }
+/** Starts long-term work; `from` goes out only when the scenario names one. */
+async function createCatalogDraft(baseUrl, config) {
+  const request = { name: config.name }
   if (config.from !== undefined) request.from = config.from
-  const version = await new CatalogsApi(client(baseUrl, config)).createCatalogVersion({
+  const version = await new CatalogsApi(client(baseUrl, config)).createCatalogDraft({
     tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    createCatalogVersionRequest: request,
+    createCatalogDraftRequest: request,
   })
   await report(baseUrl, {
     version: show(version.version),
+    draftId: show(version.draftId),
+    isNext: show(version.isNext),
+    name: show(version.name),
     status: show(version.status),
     base: show(version.base),
     createdFrom: show(version.createdFrom),
@@ -356,8 +359,12 @@ async function listCatalogVersions(baseUrl, config) {
   const { items } = await new CatalogsApi(client(baseUrl, config)).listCatalogVersions(request)
   await report(baseUrl, {
     versions: items.map((v) => show(v.version)).join(','),
+    draftIds: items.map((v) => show(v.draftId)).join(','),
+    isNext: items.map((v) => show(v.isNext)).join(','),
+    names: items.map((v) => show(v.name)).join('|'),
     statuses: items.map((v) => show(v.status)).join(','),
     bases: items.map((v) => show(v.base)).join(','),
+    createdFrom: items.map((v) => show(v.createdFrom)).join(','),
     behindCounts: items.map((v) => show(v.behind.length)).join(','),
   })
 }
@@ -373,6 +380,9 @@ async function getCatalogVersion(baseUrl, config) {
   })
   await report(baseUrl, {
     version: show(version.version),
+    draftId: show(version.draftId),
+    isNext: show(version.isNext),
+    name: show(version.name),
     status: show(version.status),
     releasedAt: showInstant(version.releasedAt),
     fingerprint: show(version.fingerprint),
@@ -384,39 +394,46 @@ async function getCatalogVersion(baseUrl, config) {
   })
 }
 
-/** Renumbers a draft; `acknowledgeWarnings` goes out only when the scenario sets it, false included. */
-async function renumberCatalogVersion(baseUrl, config) {
-  const request = { version: config.version }
-  if (config.acknowledgeWarnings !== undefined) request.acknowledgeWarnings = config.acknowledgeWarnings
-  const version = await new CatalogsApi(client(baseUrl, config)).renumberCatalogVersion({
+/** Renames long-term work; only the name goes out, to its unchanged address. */
+async function renameCatalogDraft(baseUrl, config) {
+  const version = await new CatalogsApi(client(baseUrl, config)).renameCatalogDraft({
     tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
-    renumberCatalogVersionRequest: request,
-  })
-  await report(baseUrl, { version: show(version.version), status: show(version.status) })
-}
-
-/** Previews a renumber, surfacing every warning kind, including ones this client does not know. */
-async function previewCatalogVersionRenumber(baseUrl, config) {
-  const preview = await new CatalogsApi(client(baseUrl, config)).previewCatalogVersionRenumber({
-    tenantKey: config.tenantKey,
-    registry: config.registry,
-    namespace: config.namespace,
-    catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
-    to: config.to,
+    renameCatalogDraftRequest: { name: config.name },
   })
   await report(baseUrl, {
-    warningKinds: preview.warnings.map((w) => show(w.kind)).join(','),
+    version: show(version.version),
+    draftId: show(version.draftId),
+    isNext: show(version.isNext),
+    name: show(version.name),
+    status: show(version.status),
+    base: show(version.base),
+  })
+}
+
+/** Previews the number a draft would be released as, with every reason, in order. */
+async function previewCatalogDraftRelease(baseUrl, config) {
+  const preview = await new CatalogsApi(client(baseUrl, config)).previewCatalogDraftRelease({
+    tenantKey: config.tenantKey,
+    registry: config.registry,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
+  })
+  await report(baseUrl, {
+    latest: show(preview.latest),
+    changeKind: show(preview.changeKind),
+    reasons: preview.reasons.map(show).join('|'),
+    suggested: show(preview.suggested),
   })
 }
 
 /** Discards a draft; the 204 has no body to parse. */
-async function deleteCatalogVersion(baseUrl, config) {
-  await new CatalogsApi(client(baseUrl, config)).deleteCatalogVersion({
+async function deleteCatalogDraft(baseUrl, config) {
+  await new CatalogsApi(client(baseUrl, config)).deleteCatalogDraft({
     tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
@@ -425,24 +442,29 @@ async function deleteCatalogVersion(baseUrl, config) {
   })
 }
 
-/** Releases a draft; `notes` and `acknowledgedBehind` go out only when the scenario sets them. */
-async function releaseCatalogVersion(baseUrl, config) {
+/**
+ * Releases the next version; `version`, `notes` and `acknowledgedBehind` go out only when the
+ * scenario sets them.
+ */
+async function releaseCatalogDraft(baseUrl, config) {
   const request = {}
+  if (config.version !== undefined) request.version = config.version
   if (config.notes !== undefined) request.notes = config.notes
   if (config.acknowledgedBehind !== undefined) request.acknowledgedBehind = config.acknowledgedBehind
-  const response = await new CatalogsApi(client(baseUrl, config)).releaseCatalogVersion({
+  const response = await new CatalogsApi(client(baseUrl, config)).releaseCatalogDraft({
     tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
-    releaseCatalogVersionRequest: request,
+    releaseCatalogDraftRequest: request,
   })
   await report(baseUrl, {
     version: show(response.catalogVersion.version),
     status: show(response.catalogVersion.status),
-    draftsBehind: response.draftsBehind.map(show).join(','),
-    openedDraft: show(response.openedDraft),
+    draftId: show(response.catalogVersion.draftId),
+    isNext: show(response.catalogVersion.isNext),
+    draftsBehind: response.draftsBehind.map(show).join('|'),
   })
 }
 

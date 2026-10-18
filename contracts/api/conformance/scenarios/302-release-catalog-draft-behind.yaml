@@ -2,27 +2,32 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: release-catalog-version-behind
-title: Releasing a draft that is behind names the releases the author acknowledges
+id: release-catalog-draft-behind
+title: Releasing a next version that is behind names the releases the author acknowledges
 why: >
-  `2.0.0` is behind `1.5.0` and `1.6.0`: it was opened before they were released, and nothing is
-  merged into it. The server refuses to release it unless the request names every release it is
-  behind in `acknowledgedBehind`, the author's confirmation that they applied those changes by hand
-  or left them out on purpose. That is what stops a fix shipped in `1.5.0` from silently
-  disappearing in `2.0.0`.
+  The next version continues on each release, so in the ordinary course it is behind none. It can
+  be: when long-term work started from `1.4.0` becomes the next version (ADR 0002, amendment 2), it
+  is still behind `1.5.0` and `1.6.0`, released while it was apart, and nothing is merged into it.
+  Only the next version is released, so this request goes to `…/versions/next/release`.
+
+  The server refuses to release it unless the request names every release it is behind in
+  `acknowledgedBehind`, the author's confirmation that they applied those changes by hand or left
+  them out on purpose. That is what stops a fix shipped in `1.5.0` from silently disappearing in
+  `2.0.0`.
 
   The list is an array of version strings in the JSON body. A client that drops it, sends it as a
-  single string, or reorders it into something else gets the release refused.
+  single string, or reorders it into something else gets the release refused. No `version` was
+  given, so the server numbers it, and the client sends none.
 
 action:
-  name: release-catalog-version
+  name: release-catalog-draft
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: 2.0.0
+    catalogVersion: next
     notes: The 2.0 house style.
     acknowledgedBehind: [1.5.0, 1.6.0]
 
@@ -32,6 +37,9 @@ script:
     body:
       catalogVersion:
         version: 2.0.0
+        draftId: null
+        isNext: false
+        name: null
         status: released
         base: 1.4.0
         createdFrom: null
@@ -44,19 +52,20 @@ script:
         deployedTo: []
       unchangedContent: false
       draftsBehind: []
-      openedDraft: 2.0.1
 
 expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/2.0.0/release
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/next/release
       body:
         json:
           notes: The 2.0 house style.
           acknowledgedBehind: [1.5.0, 1.6.0]
+        jsonAbsent: [version]
   report:
     version: 2.0.0
     status: released
+    draftId: 'null'
+    isNext: 'false'
     draftsBehind: ""
-    openedDraft: 2.0.1

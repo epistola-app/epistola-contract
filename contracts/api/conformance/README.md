@@ -49,8 +49,9 @@ one scenario). `run.sh` gets only a base URL, and asks the server for the rest:
 | `POST /__conformance/done` | `{}`, or `{"error": "…"}` if the driver could not complete |
 
 Control-plane traffic is not journalled, so it cannot be mistaken for API traffic. Report values are
-strings and numbers only — a list is joined with commas — so that no driver needs a serializer for
-its own types.
+strings and numbers only — a list is joined with commas, or with `|` where its items are free text —
+so that no driver needs a serializer for its own types. A boolean is reported as `true` or `false`,
+and a missing value as `null`, whatever the driver's language prints for them.
 
 The base URL addresses the server's root; a driver appends `/api` itself, because that base path is
 part of the contract's `servers` entry and a client that drops it is a client with a bug. Exactly
@@ -75,20 +76,20 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | `delete-image` | `DELETE …/images/{imageKey}` with `force` from `config` |
 | `list-catalog-dependencies` | `GET …/versions/{catalogVersion}/dependencies` |
 | `update-catalog-dependencies` | `PUT …/versions/{catalogVersion}/dependencies` with `config.dependencies`, each entry's `registry` set only when the entry has one, reporting the `registries`, `namespaces`, `catalogKeys`, `versions` and `resolvedVersions` it parsed, in order |
-| `create-catalog-version` | `POST …/catalogs/{registry}/{namespace}/{catalogKey}/versions` with `config.version`, and `config.from` when present, reporting the `version`, `status`, `base`, `createdFrom` and `releasedAt` it parsed |
-| `list-catalog-versions` | `GET …/versions`, with `config.status` as the `status` filter when present, reporting the `versions`, `statuses`, `bases` and `behindCounts` (how many releases each is behind) it parsed, in order |
-| `get-catalog-version` | `GET …/versions/{catalogVersion}`, reporting the `version`, `status`, `releasedAt` and `fingerprint` it parsed, its `dependencies` as `registry/namespace/catalogKey@releaseVersion`, `deployedTo`, and `behind` as `version=type/key:change+…` per release, releases joined with `;` (empty when none) |
-| `renumber-catalog-version` | `PATCH …/versions/{catalogVersion}` with `config.version`, and `config.acknowledgeWarnings` when present, reporting the `version` and `status` it parsed |
-| `preview-catalog-version-renumber` | `GET …/versions/{catalogVersion}/renumber-preview?to=…` with `config.to`, reporting the `warningKinds` it parsed, in order |
-| `delete-catalog-version` | `DELETE …/versions/{catalogVersion}` |
-| `release-catalog-version` | `POST …/versions/{catalogVersion}/release` with `config.notes` and `config.acknowledgedBehind` (an array) when present, each left out otherwise, reporting the released `version` and `status`, `draftsBehind` comma-joined (empty when none), and `openedDraft` |
+| `create-catalog-draft` | `POST …/catalogs/{registry}/{namespace}/{catalogKey}/versions` with `config.name`, and `config.from` when present, reporting the `version`, `draftId`, `isNext`, `name`, `status`, `base`, `createdFrom` and `releasedAt` it parsed |
+| `list-catalog-versions` | `GET …/versions`, with `config.status` as the `status` filter when present, reporting the `versions`, `draftIds`, `isNext`, `names` (joined with `\|`), `statuses`, `bases`, `createdFrom` and `behindCounts` (how many releases each is behind) it parsed, in order |
+| `get-catalog-version` | `GET …/versions/{catalogVersion}`, reporting the `version`, `draftId`, `isNext`, `name`, `status`, `releasedAt` and `fingerprint` it parsed, its `dependencies` as `registry/namespace/catalogKey@releaseVersion`, `deployedTo`, and `behind` as `version=type/key:change+…` per release, releases joined with `;` (empty when none) |
+| `rename-catalog-draft` | `PATCH …/versions/{catalogVersion}` with `config.name`, reporting the `version`, `draftId`, `isNext`, `name`, `status` and `base` it parsed |
+| `preview-catalog-draft-release` | `GET …/versions/{catalogVersion}/release-preview`, with no query, reporting the `latest`, `changeKind`, `reasons` (joined with `\|`, in order) and `suggested` it parsed |
+| `delete-catalog-draft` | `DELETE …/versions/{catalogVersion}` |
+| `release-catalog-draft` | `POST …/versions/{catalogVersion}/release` with `config.version`, `config.notes` and `config.acknowledgedBehind` (an array) when present, each left out otherwise, reporting the released `version`, `status`, `draftId` and `isNext`, and `draftsBehind` joined with `\|` (empty when none) |
 | `deploy-release` | `PUT …/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}`, with `includeDependencies` from `config` when present and unset otherwise, reporting the `registry`, `namespace`, `catalogKey` and `releaseVersion` it parsed. When the server answers with a problem, report `problemTypeSlug`, `problemStatus` and `problemMissingDependencies` (`registry/namespace/catalogKey@releaseVersion:reason`, comma-joined, in order) instead |
 | `undeploy-release` | `DELETE …/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}` |
 
 Catalog-scoped actions take the catalog as `config.registry`, `config.namespace` and
 `config.catalogKey`, and actions on a catalog version (templates, images, dependencies, and the
-version operations) take the version as `config.catalogVersion`. They pass each to the client
-exactly as given. In a path the registry is `~` (the server's default registry) or a name in full
+version operations) take the version as `config.catalogVersion`: `next`, a draft id, or a released
+version's number. They pass each to the client exactly as given. In a path the registry is `~` (the server's default registry) or a name in full
 (`acme.com`); a client may send `~` as is or percent-encoded as `%7E`, which RFC 3986 makes
 equivalent, and the harness records both as `~`. In a body, a `registry` the config does not give
 is left unset, never filled in: omitted means the default registry, which only the server knows.

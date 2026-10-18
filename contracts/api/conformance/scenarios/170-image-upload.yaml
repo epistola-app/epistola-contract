@@ -24,6 +24,9 @@ why: >
 
   The response carries a readable `key`, which the client must deserialize and hand back intact.
 
+  A write goes to a draft, and the next version is addressed by the literal segment `next`
+  (ADR 0002, amendment 2); a released version's number would be refused with 409.
+
 action:
   name: upload-image
   config:
@@ -34,7 +37,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: main
-    catalogVersion: 2.0.0
+    catalogVersion: next
     filename: municipality-mark.png
     fileContentType: image/png
     # PNG signature + every byte 0x00-0xFF
@@ -64,7 +67,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/main/versions/2.0.0/images
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/main/versions/next/images
       headers:
         Content-Type:
           matches: '^multipart/form-data;\s*boundary='

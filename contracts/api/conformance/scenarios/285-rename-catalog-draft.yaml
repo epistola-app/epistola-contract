@@ -2,36 +2,41 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: renumber-catalog-version
-title: Renumbering a draft sends the new number and the acknowledgement, to the old address
+id: rename-catalog-draft
+title: Renaming long-term work sends only the new name, to its unchanged address
 why: >
-  A draft's number is its address, and renumbering changes it. The request goes to the old number
-  and carries the new one; the response is the draft under its new number. A renumber with
-  consequences is refused unless the caller acknowledges them, so a client that drops a false-y
-  flag it was given, or invents one it was not, changes whether the request is accepted.
+  Long-term work is named, and addressed by its `draftId`, not by its name (ADR 0002, amendment 2).
+  Renaming it is a PATCH to that address carrying the new `name`, and the address does not change:
+  the response is the same draft under its new name. A client that still sends a `version`, or an
+  `acknowledgeWarnings` flag from the renumber this replaced, sends members the contract no longer
+  has.
+
+  This catalog was never released, so the draft has no base: it was copied from the next version,
+  which had none either. A client that cannot read a null `base` cannot rename work on a new
+  catalog.
 
 action:
-  name: renumber-catalog-version
+  name: rename-catalog-draft
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
-    catalogKey: letters
-    catalogVersion: 1.4.1
-    version: 1.5.0
-    acknowledgeWarnings: true
+    catalogKey: onboarding
+    catalogVersion: 0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
+    name: Redesign 2028
 
 script:
   - status: 200
     contentType: application/vnd.epistola.v1+json
-    headers:
-      Location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/1.5.0
     body:
-      version: 1.5.0
+      version: null
+      draftId: 0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
+      isNext: false
+      name: Redesign 2028
       status: draft
-      base: 1.4.0
-      createdFrom: null
+      base: null
+      createdFrom: next
       behind: []
       dependencies: []
       deployedTo: []
@@ -40,11 +45,18 @@ expect:
   requestCount: 1
   requests:
     - method: PATCH
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/1.4.1
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/onboarding/versions/0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
       body:
         json:
-          version: 1.5.0
-          acknowledgeWarnings: true
+          name: Redesign 2028
+        jsonAbsent: [version, acknowledgeWarnings]
   report:
-    version: 1.5.0
+    version: 'null'
+    draftId: 0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
+    isNext: 'false'
+    name: Redesign 2028
     status: draft
+    base: 'null'
