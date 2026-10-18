@@ -128,6 +128,41 @@ public class ModelValidationTest
         Assert.Same(request, request.Validate());
     }
 
+    // Long-term work is released as a pre-release, which a release number may name (ADR 0002, amendment 2).
+    [Theory]
+    [InlineData("1.4.0")]
+    [InlineData("2.0.0-beta.1")]
+    [InlineData("2.0.0-redesign-2027.1")]
+    public void ReleaseNumberAcceptsAReleaseOrPreRelease(string version)
+    {
+        var release = new ReleaseCatalogDraftRequest(varVersion: version);
+        Assert.Same(release, release.Validate());
+        var draft = new CreateCatalogDraftRequest(name: "Follow-up", from: version);
+        Assert.Same(draft, draft.Validate());
+    }
+
+    [Theory]
+    [InlineData("1.4")]
+    [InlineData("v1.4.0")]
+    [InlineData("1.4.0+build")]
+    [InlineData("1.4.0-")]
+    [InlineData("1.4.0-rc..1")]
+    [InlineData("next")]
+    public void ReleaseNumberRejectsAnythingElse(string version)
+    {
+        Assert.Throws<ArgumentException>(() => new ReleaseCatalogDraftRequest(varVersion: version).Validate());
+        Assert.Throws<ArgumentException>(() => new CreateCatalogDraftRequest(name: "Follow-up", from: version).Validate());
+    }
+
+    [Fact]
+    public void PromoteRequestNamesThePreviousNextVersionWithinBounds()
+    {
+        new PromoteCatalogDraftRequest().Validate();
+        new PromoteCatalogDraftRequest(keepPreviousAs: "Before the redesign", acknowledgedBehind: new List<string> { "1.5.0" }).Validate();
+        Assert.Throws<ArgumentException>(() => new PromoteCatalogDraftRequest(keepPreviousAs: "").Validate());
+        Assert.Throws<ArgumentException>(() => new PromoteCatalogDraftRequest(keepPreviousAs: new string('x', 101)).Validate());
+    }
+
     [Fact]
     public void ValidateReturnsSameInstanceForFluentChaining()
     {
