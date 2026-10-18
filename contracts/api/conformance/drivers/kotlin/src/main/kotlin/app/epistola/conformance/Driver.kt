@@ -21,9 +21,9 @@ import app.epistola.client.identity.ClientIdentity
 import app.epistola.client.model.CatalogDependencyDto
 import app.epistola.client.model.CatalogDependencyRequirement
 import app.epistola.client.model.CatalogVersionStatus
-import app.epistola.client.model.CreateCatalogVersionRequest
-import app.epistola.client.model.ReleaseCatalogVersionRequest
-import app.epistola.client.model.RenumberCatalogVersionRequest
+import app.epistola.client.model.CreateCatalogDraftRequest
+import app.epistola.client.model.ReleaseCatalogDraftRequest
+import app.epistola.client.model.RenameCatalogDraftRequest
 import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.PingRequest
 import app.epistola.client.model.UpdateCatalogDependenciesRequest
@@ -84,13 +84,13 @@ object Driver {
                 "delete-image" -> deleteImage(baseUrl, config)
                 "list-catalog-dependencies" -> listCatalogDependencies(baseUrl, config)
                 "update-catalog-dependencies" -> updateCatalogDependencies(baseUrl, config)
-                "create-catalog-version" -> createCatalogVersion(baseUrl, config)
+                "create-catalog-draft" -> createCatalogDraft(baseUrl, config)
                 "list-catalog-versions" -> listCatalogVersions(baseUrl, config)
                 "get-catalog-version" -> getCatalogVersion(baseUrl, config)
-                "renumber-catalog-version" -> renumberCatalogVersion(baseUrl, config)
-                "preview-catalog-version-renumber" -> previewCatalogVersionRenumber(baseUrl, config)
-                "delete-catalog-version" -> deleteCatalogVersion(baseUrl, config)
-                "release-catalog-version" -> releaseCatalogVersion(baseUrl, config)
+                "rename-catalog-draft" -> renameCatalogDraft(baseUrl, config)
+                "preview-catalog-draft-release" -> previewCatalogDraftRelease(baseUrl, config)
+                "delete-catalog-draft" -> deleteCatalogDraft(baseUrl, config)
+                "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config)
                 "deploy-release" -> deployRelease(baseUrl, config)
                 "undeploy-release" -> undeployRelease(baseUrl, config)
                 else -> error("unknown action $action")
@@ -426,19 +426,22 @@ object Driver {
 
     // --- Catalog versions ---
 
-    /** Opens a draft; `from` is sent only when configured, so an absent one stays off the wire. */
-    private fun createCatalogVersion(baseUrl: String, config: ObjectNode) {
-        val version = CatalogsApi(restClient(baseUrl, config)).createCatalogVersion(
+    /** Starts long-term work; `from` is sent only when configured, so an absent one stays off the wire. */
+    private fun createCatalogDraft(baseUrl: String, config: ObjectNode) {
+        val version = CatalogsApi(restClient(baseUrl, config)).createCatalogDraft(
             config["tenantKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            CreateCatalogVersionRequest(version = config["version"].asText(), from = config.optionalText("from")),
+            CreateCatalogDraftRequest(name = config["name"].asText(), from = config.optionalText("from")),
         )
         report(
             baseUrl,
             mapOf(
-                "version" to version.version,
+                "version" to (version.version ?: "null"),
+                "draftId" to (version.draftId?.toString() ?: "null"),
+                "isNext" to version.isNext.toString(),
+                "name" to (version.name ?: "null"),
                 "status" to version.status.value,
                 "base" to (version.base ?: "null"),
                 "createdFrom" to (version.createdFrom ?: "null"),
@@ -458,9 +461,13 @@ object Driver {
         report(
             baseUrl,
             mapOf(
-                "versions" to versions.joinToString(",") { it.version },
+                "versions" to versions.joinToString(",") { it.version ?: "null" },
+                "draftIds" to versions.joinToString(",") { it.draftId?.toString() ?: "null" },
+                "isNext" to versions.joinToString(",") { it.isNext.toString() },
+                "names" to versions.joinToString("|") { it.name ?: "null" },
                 "statuses" to versions.joinToString(",") { it.status.value },
                 "bases" to versions.joinToString(",") { it.base ?: "null" },
+                "createdFrom" to versions.joinToString(",") { it.createdFrom ?: "null" },
                 "behindCounts" to versions.joinToString(",") { it.behind.size.toString() },
             ),
         )
@@ -478,7 +485,10 @@ object Driver {
         report(
             baseUrl,
             mapOf(
-                "version" to version.version,
+                "version" to (version.version ?: "null"),
+                "draftId" to (version.draftId?.toString() ?: "null"),
+                "isNext" to version.isNext.toString(),
+                "name" to (version.name ?: "null"),
                 "status" to version.status.value,
                 "releasedAt" to timestamp(version.releasedAt),
                 "fingerprint" to (version.fingerprint ?: "null"),
@@ -493,45 +503,51 @@ object Driver {
         )
     }
 
-    /**
-     * Renumbers a draft. The acknowledgement is passed explicitly, null when not configured, because
-     * the generated request defaults it to `false` and a default must not reach the wire uninvited.
-     */
-    private fun renumberCatalogVersion(baseUrl: String, config: ObjectNode) {
-        val version = CatalogsApi(restClient(baseUrl, config)).renumberCatalogVersion(
+    /** Renames long-term work; only the name is sent, to its unchanged address. */
+    private fun renameCatalogDraft(baseUrl: String, config: ObjectNode) {
+        val version = CatalogsApi(restClient(baseUrl, config)).renameCatalogDraft(
             config["tenantKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
-            RenumberCatalogVersionRequest(
-                version = config["version"].asText(),
-                acknowledgeWarnings = config.get("acknowledgeWarnings")?.takeUnless { it.isNull }?.asBoolean(),
-            ),
-        )
-        report(baseUrl, mapOf("version" to version.version, "status" to version.status.value))
-    }
-
-    /** Surfaces every warning kind, including ones this client was not built to know. */
-    private fun previewCatalogVersionRenumber(baseUrl: String, config: ObjectNode) {
-        val preview = CatalogsApi(restClient(baseUrl, config)).previewCatalogVersionRenumber(
-            config["tenantKey"].asText(),
-            config["registry"].asText(),
-            config["namespace"].asText(),
-            config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
-            config["to"].asText(),
+            RenameCatalogDraftRequest(name = config["name"].asText()),
         )
         report(
             baseUrl,
             mapOf(
-                "warningKinds" to preview.warnings.joinToString(",") { it.kind },
+                "version" to (version.version ?: "null"),
+                "draftId" to (version.draftId?.toString() ?: "null"),
+                "isNext" to version.isNext.toString(),
+                "name" to (version.name ?: "null"),
+                "status" to version.status.value,
+                "base" to (version.base ?: "null"),
             ),
         )
     }
 
-    private fun deleteCatalogVersion(baseUrl: String, config: ObjectNode) {
-        CatalogsApi(restClient(baseUrl, config)).deleteCatalogVersion(
+    /** Surfaces the number a draft would be released as, and every reason, in order. */
+    private fun previewCatalogDraftRelease(baseUrl: String, config: ObjectNode) {
+        val preview = CatalogsApi(restClient(baseUrl, config)).previewCatalogDraftRelease(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+        )
+        report(
+            baseUrl,
+            mapOf(
+                "latest" to (preview.latest ?: "null"),
+                "changeKind" to (preview.changeKind?.value ?: "null"),
+                "reasons" to preview.reasons.joinToString("|"),
+                "suggested" to preview.suggested,
+            ),
+        )
+    }
+
+    private fun deleteCatalogDraft(baseUrl: String, config: ObjectNode) {
+        CatalogsApi(restClient(baseUrl, config)).deleteCatalogDraft(
             config["tenantKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
@@ -540,14 +556,16 @@ object Driver {
         )
     }
 
-    private fun releaseCatalogVersion(baseUrl: String, config: ObjectNode) {
-        val response = CatalogsApi(restClient(baseUrl, config)).releaseCatalogVersion(
+    /** Releases the next version; each member is sent only when configured. */
+    private fun releaseCatalogDraft(baseUrl: String, config: ObjectNode) {
+        val response = CatalogsApi(restClient(baseUrl, config)).releaseCatalogDraft(
             config["tenantKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
-            ReleaseCatalogVersionRequest(
+            ReleaseCatalogDraftRequest(
+                version = config.optionalText("version"),
                 notes = config.optionalText("notes"),
                 acknowledgedBehind = config.get("acknowledgedBehind")?.takeUnless { it.isNull }?.map { it.asText() },
             ),
@@ -555,10 +573,11 @@ object Driver {
         report(
             baseUrl,
             mapOf(
-                "version" to response.catalogVersion.version,
+                "version" to (response.catalogVersion.version ?: "null"),
                 "status" to response.catalogVersion.status.value,
-                "draftsBehind" to response.draftsBehind.joinToString(","),
-                "openedDraft" to (response.openedDraft ?: "null"),
+                "draftId" to (response.catalogVersion.draftId?.toString() ?: "null"),
+                "isNext" to response.catalogVersion.isNext.toString(),
+                "draftsBehind" to response.draftsBehind.joinToString("|"),
             ),
         )
     }

@@ -2,50 +2,49 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: preview-catalog-version-renumber
-title: A renumber preview surfaces every warning, including a kind the client does not know
+id: preview-catalog-draft-release
+title: A release preview of the next version surfaces the number, the kind of change and every reason
 why: >
-  The warnings are what the author confirms before a renumber. Their `kind` is an open set that
-  may grow, so it is a plain string in the contract, not an enum: a client that rejects the third
-  warning below, whose kind did not exist when it was built, hides every warning from the author,
-  and a renumber the author would not have confirmed goes through.
+  A draft is numbered when it is released, from the kind of change it holds against the latest
+  release (ADR 0002, amendment 2). The preview is what an author sees before releasing: the latest
+  release, the kind of change (`none`, `additive` or `breaking`), each change that makes it more
+  than a fix, breaking first, and the lowest number that fits, which releasing without a `version`
+  uses. A client that drops a reason hides why the number is a major.
 
-  The target number travels as the `to` query parameter.
+  The next version is addressed as `next`, a literal path segment. The preview takes no query
+  parameters: the renumber preview it replaced took the target number as `to`, and a client that
+  still sends one sends a parameter the contract does not have.
 
 action:
-  name: preview-catalog-version-renumber
+  name: preview-catalog-draft-release
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: 1.5.0
-    to: 2.1.0
+    catalogVersion: next
 
 script:
   - status: 200
     contentType: application/vnd.epistola.v1+json
     body:
-      from: 1.5.0
-      to: 2.1.0
-      warnings:
-        - kind: falls-behind
-          message: This draft does not contain release 1.6.0; it will be behind it.
-          versions: [1.6.0]
-        - kind: contains-later-releases
-          message: This draft already contains what release 1.5.1 shipped.
-          versions: [1.5.1]
-        - kind: a-kind-from-the-future
-          message: Something this client was not built to know about.
-          versions: []
+      latest: 1.6.0
+      changeKind: breaking
+      reasons:
+        - "template 'invoice': removed"
+        - "template 'reminder': added"
+      suggested: 2.0.0
 
 expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/1.5.0/renumber-preview
-      queryParams:
-        to: 2.1.0
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/next/release-preview
+      query: ""
   report:
-    warningKinds: falls-behind,contains-later-releases,a-kind-from-the-future
+    latest: 1.6.0
+    changeKind: breaking
+    # Reasons are free text, so they are joined with `|`.
+    reasons: "template 'invoice': removed|template 'reminder': added"
+    suggested: 2.0.0

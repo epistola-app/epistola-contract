@@ -58,13 +58,13 @@ public static class Driver
                 case "delete-image": DeleteImage(baseUrl, config); break;
                 case "list-catalog-dependencies": ListCatalogDependencies(baseUrl, config); break;
                 case "update-catalog-dependencies": UpdateCatalogDependencies(baseUrl, config); break;
-                case "create-catalog-version": CreateCatalogVersion(baseUrl, config); break;
+                case "create-catalog-draft": CreateCatalogDraft(baseUrl, config); break;
                 case "list-catalog-versions": ListCatalogVersions(baseUrl, config); break;
                 case "get-catalog-version": GetCatalogVersion(baseUrl, config); break;
-                case "renumber-catalog-version": RenumberCatalogVersion(baseUrl, config); break;
-                case "preview-catalog-version-renumber": PreviewCatalogVersionRenumber(baseUrl, config); break;
-                case "delete-catalog-version": DeleteCatalogVersion(baseUrl, config); break;
-                case "release-catalog-version": ReleaseCatalogVersion(baseUrl, config); break;
+                case "rename-catalog-draft": RenameCatalogDraft(baseUrl, config); break;
+                case "preview-catalog-draft-release": PreviewCatalogDraftRelease(baseUrl, config); break;
+                case "delete-catalog-draft": DeleteCatalogDraft(baseUrl, config); break;
+                case "release-catalog-draft": ReleaseCatalogDraft(baseUrl, config); break;
                 case "deploy-release": DeployRelease(baseUrl, config); break;
                 case "undeploy-release": UndeployRelease(baseUrl, config); break;
                 default: throw new ArgumentException($"unknown action {instruction.GetProperty("action")}");
@@ -398,19 +398,22 @@ public static class Driver
     // --- Catalog versions ---
 
     /// <summary>
-    /// Opens a draft. <c>from</c> is optional and left unset when the scenario does not name it, so
-    /// it stays off the wire rather than going out as null.
+    /// Starts long-term work. <c>from</c> is optional and left unset when the scenario does not name
+    /// it, so it stays off the wire rather than going out as null.
     /// </summary>
-    private static void CreateCatalogVersion(string baseUrl, JsonElement config)
+    private static void CreateCatalogDraft(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        var version = new CatalogsApi(http, apiBase).CreateCatalogVersion(
+        var version = new CatalogsApi(http, apiBase).CreateCatalogDraft(
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
-            new CreateCatalogVersionRequest(varVersion: Str(config, "version"), from: OptStr(config, "from")!));
+            new CreateCatalogDraftRequest(name: Str(config, "name"), from: OptStr(config, "from")!));
 
         Report(baseUrl, new Dictionary<string, object>
         {
             ["version"] = Show(version.VarVersion),
+            ["draftId"] = Show(version.DraftId),
+            ["isNext"] = Bool(version.IsNext),
+            ["name"] = Show(version.Name),
             ["status"] = Show(Wire(version.Status)),
             ["base"] = Show(version.Base),
             ["createdFrom"] = Show(version.CreatedFrom),
@@ -429,8 +432,12 @@ public static class Driver
         Report(baseUrl, new Dictionary<string, object>
         {
             ["versions"] = string.Join(",", items.Select(v => Show(v.VarVersion))),
+            ["draftIds"] = string.Join(",", items.Select(v => Show(v.DraftId))),
+            ["isNext"] = string.Join(",", items.Select(v => Bool(v.IsNext))),
+            ["names"] = string.Join("|", items.Select(v => Show(v.Name))),
             ["statuses"] = string.Join(",", items.Select(v => Show(Wire(v.Status)))),
             ["bases"] = string.Join(",", items.Select(v => Show(v.Base))),
+            ["createdFrom"] = string.Join(",", items.Select(v => Show(v.CreatedFrom))),
             ["behindCounts"] = string.Join(",", items.Select(v => (v.Behind ?? new List<BehindReleaseDto>()).Count)),
         });
     }
@@ -444,6 +451,9 @@ public static class Driver
         Report(baseUrl, new Dictionary<string, object>
         {
             ["version"] = Show(version.VarVersion),
+            ["draftId"] = Show(version.DraftId),
+            ["isNext"] = Bool(version.IsNext),
+            ["name"] = Show(version.Name),
             ["status"] = Show(Wire(version.Status)),
             ["releasedAt"] = Show(Iso(version.ReleasedAt)),
             ["fingerprint"] = Show(version.Fingerprint),
@@ -456,66 +466,71 @@ public static class Driver
         });
     }
 
-    /// <summary>
-    /// Renumbers a draft. <c>acknowledgeWarnings</c> is passed only when the scenario names it; the
-    /// generated model types it as a plain <c>bool</c> defaulting to the contract's <c>false</c>.
-    /// </summary>
-    private static void RenumberCatalogVersion(string baseUrl, JsonElement config)
+    /// <summary>Renames long-term work; only the name is sent, to its unchanged address.</summary>
+    private static void RenameCatalogDraft(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        var request = config.TryGetProperty("acknowledgeWarnings", out var acknowledge) && acknowledge.ValueKind != JsonValueKind.Null
-            ? new RenumberCatalogVersionRequest(varVersion: Str(config, "version"), acknowledgeWarnings: acknowledge.GetBoolean())
-            : new RenumberCatalogVersionRequest(varVersion: Str(config, "version"));
-        var version = new CatalogsApi(http, apiBase).RenumberCatalogVersion(
+        var version = new CatalogsApi(http, apiBase).RenameCatalogDraft(
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
-            request);
+            new RenameCatalogDraftRequest(name: Str(config, "name")));
 
         Report(baseUrl, new Dictionary<string, object>
         {
             ["version"] = Show(version.VarVersion),
+            ["draftId"] = Show(version.DraftId),
+            ["isNext"] = Bool(version.IsNext),
+            ["name"] = Show(version.Name),
             ["status"] = Show(Wire(version.Status)),
+            ["base"] = Show(version.Base),
         });
     }
 
-    /// <summary>
-    /// A warning's <c>kind</c> is an open set, a plain string in the contract, so a kind the client
-    /// was not built with must come through rather than fail the whole preview.
-    /// </summary>
-    private static void PreviewCatalogVersionRenumber(string baseUrl, JsonElement config)
+    /// <summary>The number a draft would be released as, and every reason, in order.</summary>
+    private static void PreviewCatalogDraftRelease(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        var preview = new CatalogsApi(http, apiBase).PreviewCatalogVersionRenumber(
-            Str(config, "to"),
+        var preview = new CatalogsApi(http, apiBase).PreviewCatalogDraftRelease(
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["warningKinds"] = string.Join(",", preview.Warnings.Select(w => Show(w.Kind))),
+            ["latest"] = Show(preview.Latest),
+            ["changeKind"] = preview.ChangeKind is { } kind ? Wire(kind) : "null",
+            ["reasons"] = string.Join("|", preview.Reasons ?? new List<string>()),
+            ["suggested"] = Show(preview.Suggested),
         });
     }
 
-    private static void DeleteCatalogVersion(string baseUrl, JsonElement config)
+    private static void DeleteCatalogDraft(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        new CatalogsApi(http, apiBase).DeleteCatalogVersion(
+        new CatalogsApi(http, apiBase).DeleteCatalogDraft(
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
     }
 
-    private static void ReleaseCatalogVersion(string baseUrl, JsonElement config)
+    /// <summary>Releases the next version; each member is left unset when the scenario does not name it.</summary>
+    private static void ReleaseCatalogDraft(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        var response = new CatalogsApi(http, apiBase).ReleaseCatalogVersion(
+        var response = new CatalogsApi(http, apiBase).ReleaseCatalogDraft(
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
-            new ReleaseCatalogVersionRequest(notes: OptStr(config, "notes")!, acknowledgedBehind: OptStrList(config, "acknowledgedBehind")!));
+            new ReleaseCatalogDraftRequest(
+                varVersion: OptStr(config, "version")!,
+                notes: OptStr(config, "notes")!,
+                acknowledgedBehind: OptStrList(config, "acknowledgedBehind")!));
 
         Report(baseUrl, new Dictionary<string, object>
         {
             ["version"] = Show(response.CatalogVersion?.VarVersion),
             ["status"] = Show(response.CatalogVersion == null ? null : Wire(response.CatalogVersion.Status)),
-            ["draftsBehind"] = string.Join(",", response.DraftsBehind ?? new List<string>()),
-            ["openedDraft"] = Show(response.OpenedDraft),
+            ["draftId"] = Show(response.CatalogVersion?.DraftId),
+            ["isNext"] = response.CatalogVersion == null ? "null" : Bool(response.CatalogVersion.IsNext),
+            ["draftsBehind"] = string.Join("|", response.DraftsBehind ?? new List<string>()),
         });
     }
+
+    /// <summary>A boolean as JSON spells it; <c>ToString()</c> of one is <c>True</c>.</summary>
+    private static string Bool(bool value) => value ? "true" : "false";
 
     /// <summary>
     /// An instant in the ISO 8601 form the contract carries (<c>2026-10-01T12:00:00Z</c>), rather

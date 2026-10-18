@@ -26,7 +26,7 @@ from epistola_client import (
     CatalogsApi,
     ClientIdentity,
     ConsumersApi,
-    CreateCatalogVersionRequest,
+    CreateCatalogDraftRequest,
     EnvironmentsApi,
     EpistolaClientBuilder,
     GenerateDocumentRequest,
@@ -35,8 +35,8 @@ from epistola_client import (
     JwtSigner,
     PingRequest,
     ProblemDetailException,
-    ReleaseCatalogVersionRequest,
-    RenumberCatalogVersionRequest,
+    ReleaseCatalogDraftRequest,
+    RenameCatalogDraftRequest,
     ResultCollector,
     SystemApi,
     TemplateDataValidationError,
@@ -72,13 +72,13 @@ def main() -> int:
         "delete-image": _delete_image,
         "list-catalog-dependencies": _list_catalog_dependencies,
         "update-catalog-dependencies": _update_catalog_dependencies,
-        "create-catalog-version": _create_catalog_version,
+        "create-catalog-draft": _create_catalog_draft,
         "list-catalog-versions": _list_catalog_versions,
         "get-catalog-version": _get_catalog_version,
-        "renumber-catalog-version": _renumber_catalog_version,
-        "preview-catalog-version-renumber": _preview_catalog_version_renumber,
-        "delete-catalog-version": _delete_catalog_version,
-        "release-catalog-version": _release_catalog_version,
+        "rename-catalog-draft": _rename_catalog_draft,
+        "preview-catalog-draft-release": _preview_catalog_draft_release,
+        "delete-catalog-draft": _delete_catalog_draft,
+        "release-catalog-draft": _release_catalog_draft,
         "deploy-release": _deploy_release,
         "undeploy-release": _undeploy_release,
     }
@@ -384,21 +384,24 @@ def _catalog_version_address(config: dict) -> tuple:
     return (config["tenantKey"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"])
 
 
-def _create_catalog_version(base_url: str, config: dict) -> None:
-    """Opens a draft. ``from`` is a Python keyword, so the generated model names the member
+def _create_catalog_draft(base_url: str, config: dict) -> None:
+    """Starts long-term work. ``from`` is a Python keyword, so the generated model names the member
     ``var_from``; it is passed by its alias, and only when the scenario sets it."""
     optional = {"from": config["from"]} if "from" in config else {}
-    created = CatalogsApi(_client(base_url, config)).create_catalog_version(
+    created = CatalogsApi(_client(base_url, config)).create_catalog_draft(
         config["tenantKey"],
         config["registry"],
         config["namespace"],
         config["catalogKey"],
-        CreateCatalogVersionRequest(version=config["version"], **optional),
+        CreateCatalogDraftRequest(name=config["name"], **optional),
     )
     _report(
         base_url,
         {
             "version": _show(created.version),
+            "draftId": _show(created.draft_id),
+            "isNext": _show_bool(created.is_next),
+            "name": _show(created.name),
             "status": _show(_enum(created.status)),
             "base": _show(created.base),
             "createdFrom": _show(created.created_from),
@@ -420,8 +423,12 @@ def _list_catalog_versions(base_url: str, config: dict) -> None:
         base_url,
         {
             "versions": ",".join(_show(v.version) for v in versions),
+            "draftIds": ",".join(_show(v.draft_id) for v in versions),
+            "isNext": ",".join(_show_bool(v.is_next) for v in versions),
+            "names": "|".join(_show(v.name) for v in versions),
             "statuses": ",".join(_show(_enum(v.status)) for v in versions),
             "bases": ",".join(_show(v.base) for v in versions),
+            "createdFrom": ",".join(_show(v.created_from) for v in versions),
             "behindCounts": ",".join(str(len(v.behind)) for v in versions),
         },
     )
@@ -435,6 +442,9 @@ def _get_catalog_version(base_url: str, config: dict) -> None:
         base_url,
         {
             "version": _show(version.version),
+            "draftId": _show(version.draft_id),
+            "isNext": _show_bool(version.is_next),
+            "name": _show(version.name),
             "status": _show(_enum(version.status)),
             "releasedAt": _show_instant(version.released_at),
             "fingerprint": _show(version.fingerprint),
@@ -452,51 +462,59 @@ def _get_catalog_version(base_url: str, config: dict) -> None:
     )
 
 
-def _renumber_catalog_version(base_url: str, config: dict) -> None:
-    optional = (
-        {"acknowledgeWarnings": config["acknowledgeWarnings"]}
-        if "acknowledgeWarnings" in config
-        else {}
-    )
-    version = CatalogsApi(_client(base_url, config)).renumber_catalog_version(
+def _rename_catalog_draft(base_url: str, config: dict) -> None:
+    version = CatalogsApi(_client(base_url, config)).rename_catalog_draft(
         *_catalog_version_address(config),
-        RenumberCatalogVersionRequest(version=config["version"], **optional),
-    )
-    _report(base_url, {"version": _show(version.version), "status": _show(_enum(version.status))})
-
-
-def _preview_catalog_version_renumber(base_url: str, config: dict) -> None:
-    """Warning kinds are an open set: a kind this client has never heard of is reported as is."""
-    preview = CatalogsApi(_client(base_url, config)).preview_catalog_version_renumber(
-        config["to"], *_catalog_version_address(config)
+        RenameCatalogDraftRequest(name=config["name"]),
     )
     _report(
         base_url,
         {
-            "warningKinds": ",".join(w.kind for w in preview.warnings),
+            "version": _show(version.version),
+            "draftId": _show(version.draft_id),
+            "isNext": _show_bool(version.is_next),
+            "name": _show(version.name),
+            "status": _show(_enum(version.status)),
+            "base": _show(version.base),
         },
     )
 
 
-def _delete_catalog_version(base_url: str, config: dict) -> None:
-    CatalogsApi(_client(base_url, config)).delete_catalog_version(*_catalog_version_address(config))
+def _preview_catalog_draft_release(base_url: str, config: dict) -> None:
+    preview = CatalogsApi(_client(base_url, config)).preview_catalog_draft_release(
+        *_catalog_version_address(config)
+    )
+    _report(
+        base_url,
+        {
+            "latest": _show(preview.latest),
+            "changeKind": _show(_enum(preview.change_kind)),
+            "reasons": "|".join(preview.reasons),
+            "suggested": _show(preview.suggested),
+        },
+    )
 
 
-def _release_catalog_version(base_url: str, config: dict) -> None:
+def _delete_catalog_draft(base_url: str, config: dict) -> None:
+    CatalogsApi(_client(base_url, config)).delete_catalog_draft(*_catalog_version_address(config))
+
+
+def _release_catalog_draft(base_url: str, config: dict) -> None:
     optional = {
-        name: config[name] for name in ("notes", "acknowledgedBehind") if name in config
+        name: config[name] for name in ("version", "notes", "acknowledgedBehind") if name in config
     }
-    response = CatalogsApi(_client(base_url, config)).release_catalog_version(
+    response = CatalogsApi(_client(base_url, config)).release_catalog_draft(
         *_catalog_version_address(config),
-        ReleaseCatalogVersionRequest(**optional),
+        ReleaseCatalogDraftRequest(**optional),
     )
     _report(
         base_url,
         {
             "version": _show(response.catalog_version.version),
             "status": _show(_enum(response.catalog_version.status)),
-            "draftsBehind": ",".join(response.drafts_behind),
-            "openedDraft": _show(response.opened_draft),
+            "draftId": _show(response.catalog_version.draft_id),
+            "isNext": _show_bool(response.catalog_version.is_next),
+            "draftsBehind": "|".join(response.drafts_behind),
         },
     )
 
@@ -614,6 +632,11 @@ def _show(value) -> str:
     """Renders a missing value the way the other drivers' languages print theirs, so the harness
     compares one spelling rather than four."""
     return "null" if value is None else str(value)
+
+
+def _show_bool(value) -> str:
+    """A boolean as JSON spells it; ``str()`` of one is ``True``."""
+    return "null" if value is None else ("true" if value else "false")
 
 
 def _enum(value):

@@ -3,17 +3,21 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: list-catalog-versions
-title: Listing a catalog's versions filters by status and keeps drafts without a base
+title: Listing a catalog's drafts filters by status, and tells the next version from long-term work
 why: >
   Drafts and released versions share one collection, told apart by `status`. The filter is a query
   parameter with an enum value; a client that sends it in another case, or drops it, lists the
   wrong versions.
 
-  The first draft of a catalog that was never released has no base. A client that cannot read a
-  null `base` cannot list a new catalog at all.
+  A draft has no number until it is released (ADR 0002, amendment 2), so every `version` here is
+  null, and a draft is told apart by its `draftId` and `isNext`. The next version comes first and
+  has no name of its own; long-term work follows, by name. A client that cannot read a null
+  `version` cannot list a catalog's drafts at all.
 
-  `2.0.0` is behind release `1.5.0`: it was opened from `1.4.0`, and nothing is merged into a draft,
-  so it holds 1.5.0's changes only if an author applied them by hand.
+  The next version continues on each release, so it is behind none. "Redesign 2027" was copied from
+  the next version (`createdFrom: next`) while 1.4.0 was its base, and is behind release `1.5.0`:
+  nothing is merged into a draft, so it holds 1.5.0's changes only if an author applied them by
+  hand.
 
 action:
   name: list-catalog-versions
@@ -30,10 +34,9 @@ script:
     contentType: application/vnd.epistola.v1+json
     body:
       items:
-        - { version: 2.0.0, status: draft, base: 1.4.0, createdFrom: null, behind: [{ version: 1.5.0, changes: [{ type: template, key: invoice, change: modified }] }], dependencies: [], deployedTo: [] }
-        - { version: 1.4.1, status: draft, base: 1.4.0, createdFrom: null, behind: [], dependencies: [], deployedTo: [] }
-        - { version: 0.1.0, status: draft, base: null, createdFrom: null, behind: [], dependencies: [], deployedTo: [] }
-      page: { number: 0, size: 20, totalElements: 3, totalPages: 1 }
+        - { version: null, draftId: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b, isNext: true, name: null, status: draft, base: 1.5.0, createdFrom: null, behind: [], dependencies: [], deployedTo: [] }
+        - { version: null, draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192, isNext: false, name: Redesign 2027, status: draft, base: 1.4.0, createdFrom: next, behind: [{ version: 1.5.0, changes: [{ type: template, key: invoice, change: modified }] }], dependencies: [], deployedTo: [] }
+      page: { number: 0, size: 20, totalElements: 2, totalPages: 1 }
 
 expect:
   requestCount: 1
@@ -45,8 +48,13 @@ expect:
         page: { whenPresent: '0' }
         size: { whenPresent: '20' }
   report:
-    versions: 2.0.0,1.4.1,0.1.0
-    statuses: draft,draft,draft
-    bases: 1.4.0,1.4.0,null
-    # How many releases each draft is behind: 2.0.0 does not contain release 1.5.0.
-    behindCounts: 1,0,0
+    versions: null,null
+    draftIds: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b,0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+    isNext: true,false
+    # Names are free text, so they are joined with `|`; the next version has none.
+    names: null|Redesign 2027
+    statuses: draft,draft
+    bases: 1.5.0,1.4.0
+    createdFrom: null,next
+    # How many releases each draft is behind: "Redesign 2027" does not contain release 1.5.0.
+    behindCounts: 0,1

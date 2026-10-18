@@ -3,15 +3,20 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: get-draft-behind
-title: A draft says which releases it is behind, and what they changed
+title: Long-term work, addressed by its id, says which releases it is behind, and what they changed
 why: >
-  Drafts are independent copies; nothing is merged between them. A draft opened from `1.4.0` does
-  not get the changes of `1.5.0` when that is released later, so it is **behind** `1.5.0`. The
-  server cannot tell whether an author applied those changes by hand, so it lists every release the
-  draft is behind with the resources each one changed. That list is what lets an author port a fix
-  before releasing `2.0.0`, and what they must acknowledge when they release it.
+  A draft has no number until it is released, so long-term work is addressed by its `draftId`, a
+  UUID, in the same path segment that takes `next` and a release's number (ADR 0002, amendment 2).
+  A client must send the id as given, lowercase and with its hyphens.
 
-  A client must surface every release, in order, with every change and its kind.
+  Drafts are independent copies; nothing is merged between them. "Redesign 2027" was started from
+  `1.4.0`, and does not get the changes of `1.5.0` and `1.6.0`, released from the next version since,
+  so it is **behind** them. The server cannot tell whether an author applied those changes by hand,
+  so it lists every release the draft is behind with the resources each one changed. That list is
+  what lets an author port a fix into the work before it becomes the next version.
+
+  A client must surface every release, in order, with every change and its kind, and the draft's
+  null `version` as null.
 
 action:
   name: get-catalog-version
@@ -21,13 +26,16 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: 2.0.0
+    catalogVersion: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
 
 script:
   - status: 200
     contentType: application/vnd.epistola.v1+json
     body:
-      version: 2.0.0
+      version: null
+      draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+      isNext: false
+      name: Redesign 2027
       status: draft
       base: 1.4.0
       createdFrom: null
@@ -51,8 +59,11 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/2.0.0
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
   report:
-    version: 2.0.0
+    version: 'null'
+    draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+    isNext: 'false'
+    name: Redesign 2027
     status: draft
     behind: 1.5.0=template/invoice:modified+theme/corporate:added;1.6.0=stencil/letter-shell:removed

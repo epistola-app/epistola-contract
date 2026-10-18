@@ -1,0 +1,63 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: release-catalog-draft-version
+title: Releasing the next version under a number the author chose sends that number, and nothing else
+why: >
+  The server numbers a release from its changes, but the author may raise the number, for example
+  to mark a major on purpose (ADR 0002, amendment 2). The number travels as `version` in the body
+  of `…/versions/next/release`; the server refuses one lower than the changes need, or not above
+  every release. A client that drops it releases `1.5.0` where the author asked for `2.0.0`.
+
+  No notes and no acknowledgement were given, so neither is sent. No long-term work is open, so
+  `draftsBehind` is empty.
+
+action:
+  name: release-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: next
+    version: 2.0.0
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      catalogVersion:
+        version: 2.0.0
+        draftId: null
+        isNext: false
+        name: null
+        status: released
+        base: 1.4.0
+        createdFrom: null
+        behind: []
+        releasedAt: "2026-10-15T10:00:00Z"
+        notes: null
+        fingerprint: v5:2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b
+        contentRetained: true
+        dependencies: []
+        deployedTo: []
+      unchangedContent: false
+      draftsBehind: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/next/release
+      body:
+        json:
+          version: 2.0.0
+        jsonAbsent: [notes, acknowledgedBehind]
+  report:
+    version: 2.0.0
+    status: released
+    draftId: 'null'
+    isNext: 'false'
+    draftsBehind: ""

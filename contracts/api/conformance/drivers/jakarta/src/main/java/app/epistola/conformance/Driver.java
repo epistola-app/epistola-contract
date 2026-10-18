@@ -21,22 +21,21 @@ import app.epistola.client.jakarta.identity.ClientIdentity;
 import app.epistola.client.jakarta.model.BehindReleaseDto;
 import app.epistola.client.jakarta.model.CatalogDependencyDto;
 import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
+import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
 import app.epistola.client.jakarta.model.CatalogVersionDto;
-import app.epistola.client.jakarta.model.CatalogVersionRenumberPreview;
 import app.epistola.client.jakarta.model.CatalogVersionStatus;
-import app.epistola.client.jakarta.model.CreateCatalogVersionRequest;
+import app.epistola.client.jakarta.model.CreateCatalogDraftRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.ImageDto;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
-import app.epistola.client.jakarta.model.ReleaseCatalogVersionRequest;
-import app.epistola.client.jakarta.model.ReleaseCatalogVersionResponse;
+import app.epistola.client.jakarta.model.ReleaseCatalogDraftRequest;
+import app.epistola.client.jakarta.model.ReleaseCatalogDraftResponse;
 import app.epistola.client.jakarta.model.ReleaseDependencyDto;
 import app.epistola.client.jakarta.model.ReleasedChangeDto;
-import app.epistola.client.jakarta.model.RenumberCatalogVersionRequest;
-import app.epistola.client.jakarta.model.RenumberWarningDto;
+import app.epistola.client.jakarta.model.RenameCatalogDraftRequest;
 import app.epistola.client.jakarta.model.TemplateListResponse;
 import app.epistola.client.jakarta.model.TemplateSummaryDto;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
@@ -100,13 +99,13 @@ public final class Driver {
                 case "delete-image" -> deleteImage(baseUrl, config);
                 case "list-catalog-dependencies" -> listCatalogDependencies(baseUrl, config);
                 case "update-catalog-dependencies" -> updateCatalogDependencies(baseUrl, config);
-                case "create-catalog-version" -> createCatalogVersion(baseUrl, config);
+                case "create-catalog-draft" -> createCatalogDraft(baseUrl, config);
                 case "list-catalog-versions" -> listCatalogVersions(baseUrl, config);
                 case "get-catalog-version" -> getCatalogVersion(baseUrl, config);
-                case "renumber-catalog-version" -> renumberCatalogVersion(baseUrl, config);
-                case "preview-catalog-version-renumber" -> previewCatalogVersionRenumber(baseUrl, config);
-                case "delete-catalog-version" -> deleteCatalogVersion(baseUrl, config);
-                case "release-catalog-version" -> releaseCatalogVersion(baseUrl, config);
+                case "rename-catalog-draft" -> renameCatalogDraft(baseUrl, config);
+                case "preview-catalog-draft-release" -> previewCatalogDraftRelease(baseUrl, config);
+                case "delete-catalog-draft" -> deleteCatalogDraft(baseUrl, config);
+                case "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config);
                 case "deploy-release" -> deployRelease(baseUrl, config);
                 case "undeploy-release" -> undeployRelease(baseUrl, config);
                 default -> throw new IllegalArgumentException("unknown action " + instruction.getString("action"));
@@ -448,21 +447,24 @@ public final class Driver {
                         "resolvedVersions", joined(items, CatalogDependencyDto::getResolvedVersion)));
     }
 
-    private static void createCatalogVersion(String baseUrl, JsonObject config) {
+    private static void createCatalogDraft(String baseUrl, JsonObject config) {
         CatalogVersionDto version = clients(baseUrl, config)
                 .api(CatalogsApi.class)
-                .createCatalogVersion(
+                .createCatalogDraft(
                         config.getString("tenantKey"),
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        new CreateCatalogVersionRequest()
-                                .version(config.getString("version"))
+                        new CreateCatalogDraftRequest()
+                                .name(config.getString("name"))
                                 .from(optional(config, "from")));
         report(
                 baseUrl,
                 Map.of(
                         "version", String.valueOf(version.getVersion()),
+                        "draftId", String.valueOf(version.getDraftId()),
+                        "isNext", String.valueOf(version.getIsNext()),
+                        "name", String.valueOf(version.getName()),
                         "status", String.valueOf(version.getStatus()),
                         "base", String.valueOf(version.getBase()),
                         "createdFrom", String.valueOf(version.getCreatedFrom()),
@@ -486,8 +488,15 @@ public final class Driver {
                 baseUrl,
                 Map.of(
                         "versions", joined(versions, CatalogVersionDto::getVersion),
+                        "draftIds", joined(versions, version -> String.valueOf(version.getDraftId())),
+                        "isNext", joined(versions, version -> String.valueOf(version.getIsNext())),
+                        "names",
+                                versions.stream()
+                                        .map(version -> String.valueOf(version.getName()))
+                                        .collect(Collectors.joining("|")),
                         "statuses", joined(versions, version -> String.valueOf(version.getStatus())),
                         "bases", joined(versions, CatalogVersionDto::getBase),
+                        "createdFrom", joined(versions, CatalogVersionDto::getCreatedFrom),
                         "behindCounts", joined(versions, version -> String.valueOf(behind(version).size()))));
     }
 
@@ -504,20 +513,31 @@ public final class Driver {
                 version.getDependencies() == null ? List.of() : version.getDependencies();
         report(
                 baseUrl,
-                Map.of(
-                        "version", String.valueOf(version.getVersion()),
-                        "status", String.valueOf(version.getStatus()),
-                        "releasedAt", instant(version.getReleasedAt()),
-                        "fingerprint", version.getFingerprint() == null ? "null" : version.getFingerprint(),
-                        "dependencies",
+                Map.ofEntries(
+                        Map.entry("version", String.valueOf(version.getVersion())),
+                        Map.entry("draftId", String.valueOf(version.getDraftId())),
+                        Map.entry("isNext", String.valueOf(version.getIsNext())),
+                        Map.entry("name", String.valueOf(version.getName())),
+                        Map.entry("status", String.valueOf(version.getStatus())),
+                        Map.entry("releasedAt", instant(version.getReleasedAt())),
+                        Map.entry(
+                                "fingerprint",
+                                version.getFingerprint() == null ? "null" : version.getFingerprint()),
+                        Map.entry(
+                                "dependencies",
                                 joined(
                                         dependencies,
                                         dependency -> dependency.getRegistry() + "/" + dependency.getNamespace() + "/"
                                                 + dependency.getCatalogKey() + "@"
-                                                + dependency.getReleaseVersion()),
-                        "deployedTo",
-                                version.getDeployedTo() == null ? "null" : String.join(",", version.getDeployedTo()),
-                        "behind", behind(version).stream().map(Driver::behindRelease).collect(Collectors.joining(";"))));
+                                                + dependency.getReleaseVersion())),
+                        Map.entry(
+                                "deployedTo",
+                                version.getDeployedTo() == null ? "null" : String.join(",", version.getDeployedTo())),
+                        Map.entry(
+                                "behind",
+                                behind(version).stream()
+                                        .map(Driver::behindRelease)
+                                        .collect(Collectors.joining(";")))));
     }
 
     /** One release a draft is behind, as {@code version=type/key:change+type/key:change}. */
@@ -533,53 +553,52 @@ public final class Driver {
         return version.getBehind() == null ? List.of() : version.getBehind();
     }
 
-    private static void renumberCatalogVersion(String baseUrl, JsonObject config) {
-        // The generated model initialises acknowledgeWarnings to its default, false; it is sent only
-        // when the scenario names it.
-        RenumberCatalogVersionRequest request = new RenumberCatalogVersionRequest()
-                .version(config.getString("version"))
-                .acknowledgeWarnings(
-                        config.containsKey("acknowledgeWarnings") && !config.isNull("acknowledgeWarnings")
-                                ? config.getBoolean("acknowledgeWarnings")
-                                : null);
+    /** Renames long-term work; only the name is sent, to its unchanged address. */
+    private static void renameCatalogDraft(String baseUrl, JsonObject config) {
         CatalogVersionDto version = clients(baseUrl, config)
                 .api(CatalogsApi.class)
-                .renumberCatalogVersion(
+                .renameCatalogDraft(
                         config.getString("tenantKey"),
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("catalogVersion"),
-                        request);
+                        new RenameCatalogDraftRequest().name(config.getString("name")));
         report(
                 baseUrl,
                 Map.of(
                         "version", String.valueOf(version.getVersion()),
-                        "status", String.valueOf(version.getStatus())));
+                        "draftId", String.valueOf(version.getDraftId()),
+                        "isNext", String.valueOf(version.getIsNext()),
+                        "name", String.valueOf(version.getName()),
+                        "status", String.valueOf(version.getStatus()),
+                        "base", String.valueOf(version.getBase())));
     }
 
-    /** Warning kinds are an open set: one this client has never heard of is reported, not rejected. */
-    private static void previewCatalogVersionRenumber(String baseUrl, JsonObject config) {
-        CatalogVersionRenumberPreview preview = clients(baseUrl, config)
+    /** The number a draft would be released as, and every reason, in order. */
+    private static void previewCatalogDraftRelease(String baseUrl, JsonObject config) {
+        CatalogDraftReleasePreview preview = clients(baseUrl, config)
                 .api(CatalogsApi.class)
-                .previewCatalogVersionRenumber(
-                        config.getString("to"),
+                .previewCatalogDraftRelease(
                         config.getString("tenantKey"),
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("catalogVersion"));
-        List<RenumberWarningDto> warnings = preview.getWarnings() == null ? List.of() : preview.getWarnings();
+        List<String> reasons = preview.getReasons() == null ? List.of() : preview.getReasons();
         report(
                 baseUrl,
                 Map.of(
-                        "warningKinds", joined(warnings, RenumberWarningDto::getKind)));
+                        "latest", String.valueOf(preview.getLatest()),
+                        "changeKind", String.valueOf(preview.getChangeKind()),
+                        "reasons", String.join("|", reasons),
+                        "suggested", String.valueOf(preview.getSuggested())));
     }
 
-    private static void deleteCatalogVersion(String baseUrl, JsonObject config) {
+    private static void deleteCatalogDraft(String baseUrl, JsonObject config) {
         clients(baseUrl, config)
                 .api(CatalogsApi.class)
-                .deleteCatalogVersion(
+                .deleteCatalogDraft(
                         config.getString("tenantKey"),
                         config.getString("registry"),
                         config.getString("namespace"),
@@ -587,16 +606,18 @@ public final class Driver {
                         config.getString("catalogVersion"));
     }
 
-    private static void releaseCatalogVersion(String baseUrl, JsonObject config) {
-        ReleaseCatalogVersionResponse response = clients(baseUrl, config)
+    /** Releases the next version; each member is sent only when the scenario names it. */
+    private static void releaseCatalogDraft(String baseUrl, JsonObject config) {
+        ReleaseCatalogDraftResponse response = clients(baseUrl, config)
                 .api(CatalogsApi.class)
-                .releaseCatalogVersion(
+                .releaseCatalogDraft(
                         config.getString("tenantKey"),
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("catalogVersion"),
-                        new ReleaseCatalogVersionRequest()
+                        new ReleaseCatalogDraftRequest()
+                                .version(optional(config, "version"))
                                 .notes(optional(config, "notes"))
                                 // The generated model leaves the list null until set; null stays off the wire.
                                 .acknowledgedBehind(
@@ -610,8 +631,9 @@ public final class Driver {
                 Map.of(
                         "version", String.valueOf(response.getCatalogVersion().getVersion()),
                         "status", String.valueOf(response.getCatalogVersion().getStatus()),
-                        "draftsBehind", String.join(",", draftsBehind),
-                        "openedDraft", String.valueOf(response.getOpenedDraft())));
+                        "draftId", String.valueOf(response.getCatalogVersion().getDraftId()),
+                        "isNext", String.valueOf(response.getCatalogVersion().getIsNext()),
+                        "draftsBehind", String.join("|", draftsBehind)));
     }
 
     /** A timestamp as ISO 8601 in UTC with its seconds, or {@code null}; offsets and precision vary by parser. */

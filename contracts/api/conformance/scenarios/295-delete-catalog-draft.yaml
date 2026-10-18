@@ -2,21 +2,22 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: delete-catalog-version
-title: Discarding a draft addresses it by number, and its empty answer is a success
+id: delete-catalog-draft
+title: Discarding long-term work addresses it by its id, and its empty answer is a success
 why: >
-  Discarding a draft is a DELETE on its address. The answer is a 204 with no body and no content
-  type, which a client must treat as success rather than fail to deserialize.
+  A draft has no number, so discarding long-term work is a DELETE on the address its `draftId`
+  gives it (ADR 0002, amendment 2). The answer is a 204 with no body and no content type, which a
+  client must treat as success rather than fail to deserialize.
 
 action:
-  name: delete-catalog-version
+  name: delete-catalog-draft
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: 3.0.0
+    catalogVersion: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
 
 script:
   - status: 204
@@ -25,4 +26,4 @@ expect:
   requestCount: 1
   requests:
     - method: DELETE
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/3.0.0
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
