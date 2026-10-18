@@ -22,8 +22,8 @@ info:
       release (`previewCatalogDraftRelease`), and it then continues, as a draft on that release.
     - **Long-term work** is any other draft: named, started from the next version or a release, and
       kept apart until it is ready. It is not released: it is tried by pointing a non-production
-      environment at it (an environment override), and released after it becomes the next version
-      (`promoteCatalogDraft`).
+      environment at it (an environment override, `setEnvironmentOverride`), and released after it
+      becomes the next version (`promoteCatalogDraft`).
     - A draft's **base** is the released version it started from, which its changes are measured
       against. It does not move when other versions are released.
     - Drafts are independent copies: releasing one does not change another, and nothing is merged.
@@ -31,8 +31,9 @@ info:
       author applied them by hand. `getCatalogVersion` lists them, and releasing a draft that is
       behind must be acknowledged.
 
-    Documents are always rendered from a released version; version selectors never match a draft.
-    Only preview renders a draft, named by `next` or its id.
+    Documents are rendered from a released version, and version selectors never match a draft. Two
+    things render a draft: preview, naming it by `next` or its id, and an environment that follows
+    a draft (see "Environment overrides").
 
     ## Catalog identity
     A catalog is identified by three parts together, never by its key alone: two publishers can
@@ -78,6 +79,23 @@ info:
     (`1.0.0 - 2.0.0`), or a `||` union of these. The highest release that satisfies the selector is
     chosen. A server that does not support ranges yet accepts an exact version only and refuses a
     range as a validation failure on that field; responses always name the exact release used.
+
+    ## Environment overrides
+    An environment serves catalog releases, and a request through it (`environmentKey`) renders the
+    highest one it serves, or the highest that satisfies the request's `version`. An environment
+    can **override** that for a catalog (`setEnvironmentOverride`): it then uses one of the releases
+    it serves (a rollback), or a **draft** of the catalog, the next version or long-term work,
+    rendered live with no release. This is how the next version and long-term work are tried.
+
+    - A request through the environment that names **no version, or a version range**, gets the
+      override. A request naming an **exact release** still gets that release.
+    - An environment marked **production** (`EnvironmentDto.production`) uses only published
+      versions: an override there may name a release, never a draft.
+    - A document rendered from a draft carries the draft's id and its name at render time
+      (`draftId`, `draftLabel`, with a null `releaseVersion`), and its PDF a preview watermark.
+    - Undeploying the release an override names ends the override, and so does discarding the draft
+      it follows. Promoting long-term work moves environments following the next version to the new
+      next version.
 
     ## Authentication
     The API accepts authentication through the `Authorization` header:
@@ -247,6 +265,13 @@ x-problem-types:
         The operation does not apply to this kind of draft: releasing long-term
         work, which is released only after it is made the next version
         (`promoteCatalogDraft`).
+    - slug: environment-override-refused
+      status: 409
+      schema: ProblemDetail
+      description: >-
+        An environment override cannot be set: a draft on a production
+        environment, or a release the environment does not serve; or an
+        environment that follows a draft cannot be marked production.
     - slug: data-model-validation-error
       status: 422
       schema: DataModelValidationProblemDetail
@@ -401,6 +426,10 @@ paths:
     $ref: './paths/environments.yaml#/environment-deployments'
   /tenants/{tenantKey}/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}:
     $ref: './paths/environments.yaml#/environment-deployment-release'
+  /tenants/{tenantKey}/environments/{environmentKey}/overrides:
+    $ref: './paths/environments.yaml#/environment-overrides'
+  /tenants/{tenantKey}/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}:
+    $ref: './paths/environments.yaml#/environment-override'
   /tenants/{tenantKey}/environments/{environmentKey}/deployment-history:
     $ref: './paths/environments.yaml#/environment-deployment-history'
 
@@ -599,6 +628,12 @@ components:
       $ref: './components/schemas/environments.yaml#/DeploymentEventDto'
     DeploymentHistoryResponse:
       $ref: './components/schemas/environments.yaml#/DeploymentHistoryResponse'
+    EnvironmentOverrideDto:
+      $ref: './components/schemas/environments.yaml#/EnvironmentOverrideDto'
+    EnvironmentOverrideListResponse:
+      $ref: './components/schemas/environments.yaml#/EnvironmentOverrideListResponse'
+    SetEnvironmentOverrideRequest:
+      $ref: './components/schemas/environments.yaml#/SetEnvironmentOverrideRequest'
 
     # Image schemas
     ImageDto:

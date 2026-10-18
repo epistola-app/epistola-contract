@@ -121,8 +121,23 @@ GenerationResult:
       type: ['string', 'null']
       description: |
         Release of the template's catalog used for generation. Null for a result accepted before
-        contract 2.0, which rendered a template version.
+        contract 2.0, which rendered a template version, and for one rendered from a draft
+        (`draftId`).
       example: "1.4.0"
+    draftId:
+      type: [string, "null"]
+      format: uuid
+      description: |
+        The draft rendered, live, through an environment that follows it
+        (`setEnvironmentOverride`); `releaseVersion` is then null. Null when rendered from a release.
+      example: null
+    draftLabel:
+      type: [string, "null"]
+      maxLength: 100
+      description: |
+        The name of that draft at render time: "Next version" for the next version, else the work's
+        name. Null when rendered from a release.
+      example: null
     filename:
       type: ['string', 'null']
       description: Filename of the generated document

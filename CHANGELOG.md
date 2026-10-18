@@ -19,6 +19,23 @@ libraries.
   cycle, are withdrawn before release: there is no `CatalogVersionDto.preRelease`, and release
   numbers in addresses, `ReleaseCatalogDraftRequest.version` and `CreateCatalogDraftRequest.from`
   are plain `MAJOR.MINOR.PATCH`.
+- **Environment overrides and a production mark** (ADR 0002, amendment 2). An environment can
+  override which version of a catalog it uses as its latest: one of the releases it serves (a
+  rollback), or a draft, the next version or long-term work, rendered live with no release.
+  `listEnvironmentOverrides`, `setEnvironmentOverride` (`PUT
+  …/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}`,
+  `SetEnvironmentOverrideRequest {releaseVersion? | catalogVersion?}`, exactly one) and
+  `clearEnvironmentOverride` (204, idempotent) manage them (`EnvironmentOverrideDto`). A generation
+  or preview request through the environment naming no version or a range gets the override; one
+  naming an exact release still gets that release. `EnvironmentDto` gains the required
+  `production`, settable on create and update: a production environment uses only published
+  versions, so an override there names a release, never a draft. A refused override, or marking
+  production an environment that follows a draft, is 409 `environment-override-refused` (a new
+  problem type). Documents, generation items and collected results rendered from a draft carry
+  `draftId` and `draftLabel` (its name at render time) with a null `releaseVersion`. Deployment
+  history records `override-set` and `override-cleared`, with a nullable `releaseVersion` and a new
+  `draftLabel`. Undeploying the release an override names, or discarding the draft it follows, ends
+  it; promoting long-term work moves environments following the next version to the new one.
 - **Catalog bundles (fat exports)** ([docs/catalog-bundle.md](docs/catalog-bundle.md)): one file with a
   release and the releases it pins, transitively. `importCatalog` accepts one, installs the catalogs
   it uses first and reports them (`installedDependencies`, `presentDependencies`); a catalog the

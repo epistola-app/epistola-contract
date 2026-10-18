@@ -35,6 +35,7 @@ class ProblemRegistryTest {
         assertEquals("rate-limited", KnownProblemSlugs.RATE_LIMITED);
         assertEquals("release-dependencies-missing", KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING);
         assertEquals("catalog-draft-kind", KnownProblemSlugs.CATALOG_DRAFT_KIND);
+        assertEquals("environment-override-refused", KnownProblemSlugs.ENVIRONMENT_OVERRIDE_REFUSED);
     }
 
     @Test

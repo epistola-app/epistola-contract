@@ -464,7 +464,8 @@ catalog-version:
     description: |
       Discards a draft and everything changed in it. Discarding the **next version** throws its
       changes away: it starts again as a copy of the latest release (empty when there is none), under
-      a new id, so everyday work always has somewhere to go. Long-term work is gone.
+      a new id, so everyday work always has somewhere to go. Long-term work is gone. Environment
+      overrides that follow the draft end (`setEnvironmentOverride`).
 
       Refused with 409 for a released version, and while the draft alone holds a resource something
       outside it still uses (the tenant's default theme, a code list another catalog's attribute
@@ -554,7 +555,7 @@ catalog-version-release:
 
       Only the next version is released: the catalog's history moves forward. Releasing long-term
       work is refused with 409 (`catalog-draft-kind`). Long-term work is tried by pointing an
-      environment at it (an environment override), and released after it is made the next version
+      environment at it (`setEnvironmentOverride`), and released after it is made the next version
       (`promoteCatalogDraft`).
 
       A next version that is **behind** (see `CatalogVersionDto.behind`) does not contain those
@@ -620,7 +621,8 @@ catalog-version-promote:
       out with everyday work. It must contain every release published since it started, or
       `acknowledgedBehind` names those it leaves out; it then continues on the latest release and is
       behind nothing. The draft that was the next version is discarded with its changes, or kept as
-      long-term work under `keepPreviousAs`.
+      long-term work under `keepPreviousAs`. Environments following the next version
+      (`setEnvironmentOverride`) move to the new next version.
 
       Refused with 409 for the next version itself, for work behind a release not acknowledged, for
       a name another draft has, and while the discarded next version alone holds a resource something

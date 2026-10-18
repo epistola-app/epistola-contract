@@ -126,6 +126,12 @@ object ProblemDetails {
         /** 409 — the operation does not apply to this kind of draft: releasing long-term work. */
         const val CATALOG_DRAFT_KIND: String = KnownProblemSlugs.CATALOG_DRAFT_KIND
 
+        /**
+         * 409 — an environment override cannot be set (a draft on a production environment, a
+         * release the environment does not serve), or a following environment marked production.
+         */
+        const val ENVIRONMENT_OVERRIDE_REFUSED: String = KnownProblemSlugs.ENVIRONMENT_OVERRIDE_REFUSED
+
         /** 422 — data examples do not validate against the data model (use [dataModelValidation]). */
         const val DATA_MODEL_VALIDATION_ERROR: String = KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR
 

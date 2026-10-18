@@ -41,7 +41,9 @@ environments:
   post:
     operationId: createEnvironment
     summary: Create a new environment
-    description: Create a new environment for the specified tenant.
+    description: |
+      Create a new environment for the specified tenant. `production` marks it as a production
+      environment, which uses only published versions.
     tags:
       - Environments
     x-required-permissions: [TENANT_SETTINGS]
@@ -114,7 +116,10 @@ environments-id:
   patch:
     operationId: updateEnvironment
     summary: Update an environment
-    description: Update an existing environment's name.
+    description: |
+      Update an existing environment's name, or whether it is a production environment. Marking it
+      production while it follows a draft of any catalog is refused with 409
+      (`environment-override-refused`): a production environment uses only published versions.
     tags:
       - Environments
     x-required-permissions: [TENANT_SETTINGS]
@@ -140,7 +145,7 @@ environments-id:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/EnvironmentOverrideRefusedError'
 
   delete:
     operationId: deleteEnvironment
@@ -188,7 +193,7 @@ environment-deployments:
     description: |
       Every catalog release the environment serves; one catalog can have several. Generation naming
       the environment renders the highest of them, or the highest that satisfies the request's
-      `version`.
+      `version`, unless the environment overrides the catalog (`listEnvironmentOverrides`).
     tags:
       - Environments
     x-required-permissions: [TEMPLATE_VIEW]
@@ -246,7 +251,9 @@ environment-deployment-release:
       it that it already serves. Generation naming the environment renders the highest release it
       serves, or the highest that satisfies the request's `version`; so deploying a higher release
       moves such requests to it, and undeploying it moves them back. Requests already accepted keep
-      the release they were bound to. Only a release that kept its content can be deployed.
+      the release they were bound to. An environment override of the catalog
+      (`setEnvironmentOverride`) takes precedence for requests naming no version or a range. Only a
+      release that kept its content can be deployed.
       Deploying a release the environment already serves changes nothing.
 
       A release renders with the releases of other catalogs it was cut with (its `dependencies`,
@@ -298,13 +305,154 @@ environment-deployment-release:
     description: |
       The environment stops serving this release. Generation naming the environment then renders
       the highest release of the catalog it still serves, and fails for the catalog's templates when
-      it serves none.
+      it serves none. An override naming this release (`setEnvironmentOverride`) ends with it.
     tags:
       - Environments
     x-required-permissions: [ENVIRONMENT_DEPLOY]
     responses:
       '204':
         description: The environment no longer serves the release
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+environment-overrides:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: environmentKey
+      in: path
+      required: true
+      description: Key of the environment
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 30
+
+  get:
+    operationId: listEnvironmentOverrides
+    summary: List an environment's overrides
+    description: |
+      Every catalog the environment overrides, at most one override per catalog: the release it uses
+      in place of the highest it serves, or the draft it follows. See `setEnvironmentOverride`.
+    tags:
+      - Environments
+    x-required-permissions: [TEMPLATE_VIEW]
+    responses:
+      '200':
+        description: The environment's overrides
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/environments.yaml#/EnvironmentOverrideListResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+
+environment-override:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
+    - name: environmentKey
+      in: path
+      required: true
+      description: Key of the environment
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 30
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+
+  put:
+    operationId: setEnvironmentOverride
+    summary: Override which version of a catalog an environment uses
+    description: |
+      Sets which version of the catalog the environment uses as its latest, replacing any override
+      it had for the catalog:
+
+      - **a release** it serves (`releaseVersion`), such as an earlier one to roll back to without
+        undeploying anything; or
+      - **a draft** of the catalog (`catalogVersion`: `next` or a `draftId`), rendered live with no
+        release, to try the next version or long-term work. Following the next version follows the
+        catalog's next version, whichever draft that is.
+
+      A generation or preview request through the environment (`environmentKey`) that names no
+      `version`, or a version range, gets the override; one naming an exact release still gets that
+      release. A document rendered from a draft carries the draft's id and its name at render time
+      (`draftId`, `draftLabel`), and its PDF a preview watermark.
+
+      A **production** environment uses only published versions: a draft there is refused with 409
+      (`environment-override-refused`), and so is a release the environment does not serve.
+      Neither or both of `releaseVersion` and `catalogVersion` is refused with 400.
+
+      The override ends when the release it names is undeployed (`undeployRelease`) or the draft it
+      follows is discarded (`deleteCatalogDraft`). Promoting long-term work (`promoteCatalogDraft`)
+      moves environments following the next version to the new next version. Every change is
+      recorded in the deployment history (`override-set`, `override-cleared`).
+    tags:
+      - Environments
+    x-required-permissions: [ENVIRONMENT_DEPLOY]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v1+json:
+          schema:
+            $ref: '../components/schemas/environments.yaml#/SetEnvironmentOverrideRequest'
+    responses:
+      '200':
+        description: The override
+        content:
+          application/vnd.epistola.v1+json:
+            schema:
+              $ref: '../components/schemas/environments.yaml#/EnvironmentOverrideDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/EnvironmentOverrideRefusedError'
+
+  delete:
+    operationId: clearEnvironmentOverride
+    summary: Clear an environment's override of a catalog
+    description: |
+      The environment uses the highest release of the catalog it serves again (or the highest that
+      satisfies a request's `version`). Clearing a catalog the environment does not override changes
+      nothing and succeeds.
+    tags:
+      - Environments
+    x-required-permissions: [ENVIRONMENT_DEPLOY]
+    responses:
+      '204':
+        description: The environment no longer overrides the catalog
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -336,7 +484,7 @@ environment-deployment-history:
   get:
     operationId: listDeploymentHistory
     summary: List what an environment served over time
-    description: Every deploy and undeploy on the environment, newest first.
+    description: Every deploy, undeploy and override change on the environment, newest first.
     tags:
       - Environments
     x-required-permissions: [TEMPLATE_VIEW]
