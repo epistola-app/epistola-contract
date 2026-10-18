@@ -173,10 +173,14 @@ another catalog's long-term work cannot be released until that work is promoted,
   operations move under the draft.
 - Preview names a draft by `draftId` in place of `draftVersion`.
 
-### Open questions
+### Decided (2026-10-18)
 
-- Does the next version's name show anywhere, or is it always "Next version"?
-- Should a pre-release be publishable to an exchange, or local only?
+- **The next version has no name of its own**: it is always "Next version". Only long-term work is
+  named; its name is shown wherever it is, and gives its pre-releases their label.
+- **A pre-release is never published to an exchange.** An exchange carries what other installations
+  build on, and a pre-release is work in progress. It moves between installations as an export,
+  imported where it is to be tried (for example an acceptance installation reviewing it), and is
+  selected only where it is deployed by its full number: no version selector matches it.
 
 ## Decision (proposed)
 
