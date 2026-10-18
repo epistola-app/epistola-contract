@@ -12,12 +12,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import app.epistola.client.jakarta.EpistolaRestClients;
 import app.epistola.client.jakarta.StubServer;
 import app.epistola.client.jakarta.model.CatalogDependencyListResponse;
+import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
 import app.epistola.client.jakarta.model.CatalogVersionDto;
 import app.epistola.client.jakarta.model.CatalogVersionListResponse;
-import app.epistola.client.jakarta.model.CatalogVersionRenumberPreview;
 import app.epistola.client.jakarta.model.CreateTenantRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
-import app.epistola.client.jakarta.model.ReleaseCatalogVersionResponse;
+import app.epistola.client.jakarta.model.ReleaseCatalogDraftResponse;
 import app.epistola.client.jakarta.model.TenantDto;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
 import jakarta.ws.rs.Consumes;
@@ -290,7 +290,14 @@ class GeneratedApiContractTest {
                 "listCatalogReleases",
                 "getCatalogRelease",
                 "listIncomingChanges",
-                "resolveIncomingChange")) {
+                "resolveIncomingChange",
+                // A draft is numbered when it is released (ADR 0002, amendment 2): the operations
+                // that numbered it up front are gone.
+                "createCatalogVersion",
+                "renumberCatalogVersion",
+                "deleteCatalogVersion",
+                "previewCatalogVersionRenumber",
+                "releaseCatalogVersion")) {
             assertTrue(
                     Arrays.stream(CatalogsApi.class.getMethods()).noneMatch(method -> method.getName().equals(removed)),
                     "CatalogsApi still has the removed " + removed);
@@ -300,14 +307,24 @@ class GeneratedApiContractTest {
         List<String> version = List.of("tenantKey", "registry", "namespace", "catalogKey", "catalogVersion");
 
         assertOperation("listCatalogVersions", GET.class, CatalogVersionListResponse.class, catalog);
-        assertOperation("createCatalogVersion", POST.class, CatalogVersionDto.class, catalog);
+        assertOperation("createCatalogDraft", POST.class, CatalogVersionDto.class, catalog);
         assertOperation("getCatalogVersion", GET.class, CatalogVersionDto.class, version);
-        assertOperation("renumberCatalogVersion", PATCH.class, CatalogVersionDto.class, version);
-        assertOperation("deleteCatalogVersion", DELETE.class, void.class, version);
-        assertOperation("previewCatalogVersionRenumber", GET.class, CatalogVersionRenumberPreview.class, version);
-        assertOperation("releaseCatalogVersion", POST.class, ReleaseCatalogVersionResponse.class, version);
+        assertOperation("renameCatalogDraft", PATCH.class, CatalogVersionDto.class, version);
+        assertOperation("deleteCatalogDraft", DELETE.class, void.class, version);
+        assertOperation("previewCatalogDraftRelease", GET.class, CatalogDraftReleasePreview.class, version);
+        assertOperation("releaseCatalogDraft", POST.class, ReleaseCatalogDraftResponse.class, version);
+        assertTrue(
+                method(CatalogsApi.class, "previewCatalogDraftRelease")
+                        .getAnnotation(Path.class)
+                        .value()
+                        .endsWith("/versions/{catalogVersion}/release-preview"),
+                "previewCatalogDraftRelease is a release-preview below the version");
+        assertTrue(
+                Arrays.stream(method(CatalogsApi.class, "previewCatalogDraftRelease").getParameters())
+                        .noneMatch(parameter -> parameter.isAnnotationPresent(QueryParam.class)),
+                "previewCatalogDraftRelease takes no query parameters");
 
-        for (String withBody : List.of("createCatalogVersion", "renumberCatalogVersion", "releaseCatalogVersion")) {
+        for (String withBody : List.of("createCatalogDraft", "renameCatalogDraft", "releaseCatalogDraft")) {
             assertEquals(
                     List.of(VENDOR_JSON),
                     List.of(method(CatalogsApi.class, withBody).getAnnotation(Consumes.class).value()),
