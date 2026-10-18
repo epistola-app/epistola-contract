@@ -66,15 +66,15 @@ libraries.
   (`CATALOG_DATA_EXAMPLE_KEY_ASSIGNED`); the published `data-example-keys.json` fixture lists the
   derivation cases.
 
-- **Deploying checks a release's dependency releases** (ADR 0003). The environment must serve the
-  releases of other catalogs the deployed release renders with. Without the new `deployRelease`
-  query parameter `includeDependencies` (default false) a missing one refuses the deployment with
-  the new problem type `release-dependencies-missing` (409), whose `missingDependencies` member
-  lists each release (`MissingReleaseDependency`) and its `reason` (`NOT_DEPLOYED`,
-  `NOT_INSTALLED`, `UNAVAILABLE`, `CONTENT_NOT_RETAINED`). With `includeDependencies=true` they are
-  deployed along, installed first when the tenant lacks them, all or nothing. Every client's problem
-  parser surfaces `missingDependencies`; the server stubs add
-  `ProblemDetails.releaseDependenciesMissing`. Epistola Suite may not implement this yet.
+- **Deploying uses a release's dependency releases implicitly** (ADR 0003). A release renders the
+  releases of other catalogs it is pinned to from the tenant's copy, so deploying it makes the
+  environment use them without deploying them. A dependency release that cannot be had refuses the
+  deployment with the new problem type `release-dependencies-missing` (409), whose
+  `missingDependencies` member lists each release (`MissingReleaseDependency`) and its `reason`
+  (`UNAVAILABLE`, `CONTENT_NOT_RETAINED`; `NOT_DEPLOYED` and `NOT_INSTALLED` are no longer
+  returned). The new `deployRelease` query parameter `includeDependencies` (default false) also
+  deploys them explicitly, all or nothing. Every client's problem parser surfaces
+  `missingDependencies`; the server stubs add `ProblemDetails.releaseDependenciesMissing`.
 
 - **Catalog dependencies.** A catalog declares each catalog its resources reference, once, with a
   version selector: `listCatalogDependencies` and `updateCatalogDependencies`. References between

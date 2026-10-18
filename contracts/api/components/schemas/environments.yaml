@@ -183,21 +183,20 @@ MissingReleaseDependency:
 MissingReleaseDependencyReason:
   type: string
   description: |
-    Why a dependency release is missing:
+    Why a dependency release cannot be used:
 
-    - `NOT_DEPLOYED`: the tenant has the release, but the environment does not serve it, and
-      `includeDependencies` was not set.
-    - `NOT_INSTALLED`: the tenant does not have the release, and `includeDependencies` was not set.
-    - `UNAVAILABLE`: `includeDependencies` was set, but the release could not be fetched from its
+    - `UNAVAILABLE`: the tenant does not have the release, and it could not be fetched from its
       registry or any configured mirror, or the copy did not match its recorded fingerprint.
-    - `CONTENT_NOT_RETAINED`: the tenant has the release without its content, so it cannot be
-      deployed either way.
+    - `CONTENT_NOT_RETAINED`: the tenant has the release without its content, so nothing can
+      render from it.
+    - `NOT_DEPLOYED`, `NOT_INSTALLED`: not returned. From an earlier draft, in which a dependency
+      release had to be deployed (dependency releases are used implicitly now).
   enum:
     - NOT_DEPLOYED
     - NOT_INSTALLED
     - UNAVAILABLE
     - CONTENT_NOT_RETAINED
-  example: NOT_DEPLOYED
+  example: UNAVAILABLE
 
 DeploymentListResponse:
   type: object
