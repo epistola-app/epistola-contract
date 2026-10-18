@@ -35,6 +35,7 @@ script:
       version: null
       draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
       isNext: false
+      preRelease: false
       name: Redesign 2027
       status: draft
       base: 1.4.0

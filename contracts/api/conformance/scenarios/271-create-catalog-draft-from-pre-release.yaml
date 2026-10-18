@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: create-catalog-draft-from-pre-release
+title: Long-term work may start from a pre-release, whose full number is sent as given
+why: >
+  A pre-release is a released version (ADR 0002, amendment 2), so new long-term work may start from
+  one: `from` names `2.0.0-redesign-2027.1`, which becomes the work's base. A client that still
+  validates `from` against three numbers refuses the request before it is sent, and one that trims
+  the label starts the work from another release.
+
+action:
+  name: create-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    name: Redesign 2027 follow-up
+    from: 2.0.0-redesign-2027.1
+
+script:
+  - status: 201
+    contentType: application/vnd.epistola.v1+json
+    headers:
+      Location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-ab01-7f3e-9c4d-5e6f708192a4
+    body:
+      version: null
+      draftId: 0193a6b2-ab01-7f3e-9c4d-5e6f708192a4
+      isNext: false
+      preRelease: false
+      name: Redesign 2027 follow-up
+      status: draft
+      base: 2.0.0-redesign-2027.1
+      createdFrom: null
+      createdAt: "2026-10-18T09:00:00Z"
+      behind: []
+      releasedAt: null
+      notes: null
+      fingerprint: null
+      contentRetained: null
+      dependencies: []
+      deployedTo: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions
+      body:
+        json:
+          name: Redesign 2027 follow-up
+          from: 2.0.0-redesign-2027.1
+  report:
+    draftId: 0193a6b2-ab01-7f3e-9c4d-5e6f708192a4
+    status: draft
+    base: 2.0.0-redesign-2027.1

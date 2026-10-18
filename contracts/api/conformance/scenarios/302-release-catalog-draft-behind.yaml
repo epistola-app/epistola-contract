@@ -8,7 +8,8 @@ why: >
   The next version continues on each release, so in the ordinary course it is behind none. It can
   be: when long-term work started from `1.4.0` becomes the next version (ADR 0002, amendment 2), it
   is still behind `1.5.0` and `1.6.0`, released while it was apart, and nothing is merged into it.
-  Only the next version is released, so this request goes to `…/versions/next/release`.
+  Only the next version is released as a release, so this request goes to
+  `…/versions/next/release`.
 
   The server refuses to release it unless the request names every release it is behind in
   `acknowledgedBehind`, the author's confirmation that they applied those changes by hand or left
@@ -39,6 +40,7 @@ script:
         version: 2.0.0
         draftId: null
         isNext: false
+        preRelease: false
         name: null
         status: released
         base: 1.4.0
@@ -68,4 +70,5 @@ expect:
     status: released
     draftId: 'null'
     isNext: 'false'
+    preRelease: 'false'
     draftsBehind: ""

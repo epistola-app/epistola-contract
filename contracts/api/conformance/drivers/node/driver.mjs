@@ -55,6 +55,7 @@ const ACTIONS = {
   'preview-catalog-draft-release': previewCatalogDraftRelease,
   'delete-catalog-draft': deleteCatalogDraft,
   'release-catalog-draft': releaseCatalogDraft,
+  'promote-catalog-draft': promoteCatalogDraft,
   'deploy-release': deployRelease,
   'undeploy-release': undeployRelease,
 }
@@ -382,6 +383,7 @@ async function getCatalogVersion(baseUrl, config) {
     version: show(version.version),
     draftId: show(version.draftId),
     isNext: show(version.isNext),
+    preRelease: show(version.preRelease),
     name: show(version.name),
     status: show(version.status),
     releasedAt: showInstant(version.releasedAt),
@@ -443,8 +445,8 @@ async function deleteCatalogDraft(baseUrl, config) {
 }
 
 /**
- * Releases the next version; `version`, `notes` and `acknowledgedBehind` go out only when the
- * scenario sets them.
+ * Releases a draft (the next version, or long-term work as a pre-release); `version`, `notes` and
+ * `acknowledgedBehind` go out only when the scenario sets them.
  */
 async function releaseCatalogDraft(baseUrl, config) {
   const request = {}
@@ -464,7 +466,36 @@ async function releaseCatalogDraft(baseUrl, config) {
     status: show(response.catalogVersion.status),
     draftId: show(response.catalogVersion.draftId),
     isNext: show(response.catalogVersion.isNext),
+    preRelease: show(response.catalogVersion.preRelease),
     draftsBehind: response.draftsBehind.map(show).join('|'),
+  })
+}
+
+/**
+ * Makes long-term work the next version; `keepPreviousAs` and `acknowledgedBehind` go out only when
+ * the scenario sets them.
+ */
+async function promoteCatalogDraft(baseUrl, config) {
+  const request = {}
+  if (config.keepPreviousAs !== undefined) request.keepPreviousAs = config.keepPreviousAs
+  if (config.acknowledgedBehind !== undefined) request.acknowledgedBehind = config.acknowledgedBehind
+  const version = await new CatalogsApi(client(baseUrl, config)).promoteCatalogDraft({
+    tenantKey: config.tenantKey,
+    registry: config.registry,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
+    promoteCatalogDraftRequest: request,
+  })
+  await report(baseUrl, {
+    version: show(version.version),
+    draftId: show(version.draftId),
+    isNext: show(version.isNext),
+    preRelease: show(version.preRelease),
+    name: show(version.name),
+    status: show(version.status),
+    base: show(version.base),
+    behind: show(version.behind.length),
   })
 }
 

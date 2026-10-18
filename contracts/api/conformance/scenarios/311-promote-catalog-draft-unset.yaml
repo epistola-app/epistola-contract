@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: promote-catalog-draft-unset
+title: Promoting long-term work that is behind nothing sends an empty body, not null members
+why: >
+  Long-term work started from the latest release is behind nothing, and an author who lets the old
+  next version go gives no name to keep it under (ADR 0002, amendment 2). The request body is
+  required, so it is sent, but with neither member: an omitted `keepPreviousAs` discards the old
+  next version, which is what the author asked for here. A client that sends
+  `"keepPreviousAs": null` or `"acknowledgedBehind": null` sends members the author never set, and a
+  null list is not an array.
+
+action:
+  name: promote-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: 0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      version: null
+      draftId: 0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
+      isNext: true
+      preRelease: false
+      name: null
+      status: draft
+      base: 1.5.0
+      createdFrom: null
+      behind: []
+      dependencies: []
+      deployedTo: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-9c21-7e3f-8c4d-5e6f708192a3/promote
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+      body:
+        jsonAbsent: [keepPreviousAs, acknowledgedBehind]
+        # The body is required: an empty object, not no body and not `null`.
+        matches: '^\s*\{\s*\}\s*$'
+  report:
+    draftId: 0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
+    isNext: 'true'
+    preRelease: 'false'
+    behind: '0'
