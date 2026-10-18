@@ -160,25 +160,27 @@ declaration resolves to. There is no single winning version and therefore no con
 
 Upgrading a subscribed catalog follows the same steps for the new release's dependencies.
 
-### Deploying checks dependencies, and brings them along on request
+### Deploying uses dependencies implicitly; deploying them too is a choice
 
-A release renders with the dependency releases it was cut with, so the environment it is deployed
-to must serve exactly those, direct and transitive. Deploying (`deployRelease`) takes a flag,
-`includeDependencies`, default false:
+A release renders with the dependency releases it was cut with, direct and transitive: it is pinned
+to them, and renders them from the tenant's copy whatever the environment serves. So deploying a
+release (`deployRelease`) makes the environment use its dependency releases **implicitly**: they are
+not deployed, and nothing else the environment serves changes. Deploying one of them as well, so
+that the environment also serves that catalog's own templates, is an explicit deployment of its own,
+or the flag `includeDependencies`, default false:
 
-- **Without it**, a deployment whose dependency releases the environment does not serve is refused
-  with `release-dependencies-missing` (409). The problem's `missingDependencies` lists each missing
-  release and why: `NOT_DEPLOYED` (the tenant has it), `NOT_INSTALLED` (the tenant does not), or
-  `CONTENT_NOT_RETAINED` (the tenant has it without content, so it cannot be deployed at all).
-  Nothing is deployed.
-- **With it**, the missing releases are deployed along, and one the tenant does not have is
-  installed first, as described above. It is all or nothing: when one cannot be fetched or does
-  not match its fingerprint (`UNAVAILABLE`), or has no content, nothing is deployed and the
-  problem lists those.
+- **Always**, a dependency release must be available to render from. One the tenant does not have
+  is installed first, as described above. When one cannot be fetched or does not match its
+  fingerprint (`UNAVAILABLE`), or the tenant has it without content (`CONTENT_NOT_RETAINED`), the
+  deployment is refused with `release-dependencies-missing` (409), whose `missingDependencies`
+  lists those. Nothing is deployed.
+- **With `includeDependencies`**, the dependency releases the environment does not serve are also
+  deployed explicitly, in the same transaction. It is all or nothing.
 
-The default refuses because a deployment changes what an environment renders. Deploying a
-dependency release along can change what other catalogs in that environment render, when they
-select the same catalog with a range; the caller opts into that.
+Implicit is the default because deploying a dependency release explicitly can change what other
+catalogs in that environment render, when they select the same catalog with a range: the caller
+opts into that. `NOT_DEPLOYED` and `NOT_INSTALLED` remain in the reason enum for clients written
+against the earlier draft; a deployment is no longer refused for them.
 
 ### Migrating existing catalogs
 

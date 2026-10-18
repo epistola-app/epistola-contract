@@ -250,18 +250,19 @@ environment-deployment-release:
       Deploying a release the environment already serves changes nothing.
 
       A release renders with the releases of other catalogs it was cut with (its `dependencies`,
-      direct and through other dependencies), so the environment must serve those exactly. When it
-      does not serve one:
+      direct and through other dependencies), from the tenant's copy whatever the environment
+      serves. Deploying it makes the environment use them implicitly: they are not deployed, and
+      nothing else the environment serves changes. A dependency release the tenant does not have yet
+      is installed first: fetched from its registry, through the registry's configured mirrors, and
+      checked against the fingerprint it was recorded with. When one cannot be had
+      (`UNAVAILABLE`) or kept no content (`CONTENT_NOT_RETAINED`), the deployment is refused with
+      `release-dependencies-missing` (409), whose `missingDependencies` lists those. Nothing is
+      deployed.
 
-      - Without `includeDependencies`, the deployment is refused with `release-dependencies-missing`
-        (409), whose `missingDependencies` lists every missing release and why. Nothing is deployed.
-      - With `includeDependencies=true`, the missing releases are deployed along, and a release the
-        tenant does not have yet is installed first: fetched from its registry, through the
-        registry's configured mirrors, and checked against the fingerprint it was recorded with. It
-        is all or nothing: when one cannot be deployed, nothing is, and the problem lists those that
-        could not (`UNAVAILABLE`, `CONTENT_NOT_RETAINED`).
+      With `includeDependencies=true`, the dependency releases the environment does not serve are
+      also deployed explicitly, in the same transaction, all or nothing.
 
-      Epistola Suite may not implement `includeDependencies` or the dependency check yet.
+      Epistola Suite may not implement installing missing dependency releases yet.
     tags:
       - Environments
     x-required-permissions: [ENVIRONMENT_DEPLOY]
@@ -270,9 +271,8 @@ environment-deployment-release:
         in: query
         required: false
         description: |
-          Deploy the dependency releases the environment does not serve along with this release,
-          installing those the tenant does not have. When false or omitted, a missing dependency
-          release refuses the deployment instead.
+          Also deploy, explicitly, the dependency releases the environment does not serve. When
+          false or omitted, the environment uses them implicitly, without deploying them.
         schema:
           type: boolean
           default: false
