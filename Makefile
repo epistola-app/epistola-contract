@@ -50,17 +50,17 @@ build-protocol:
 	cd $(API_DIR)/protocol-java && ./gradlew build
 
 # Build Kotlin client
-build-client:
+build-client: bundle
 	@echo "==> Building Kotlin client..."
 	cd $(API_DIR)/clients/kotlin-spring-restclient && ./gradlew build
 
 # Build Jakarta EE client (generates from the bundled spec, then builds and tests)
-build-jakarta:
+build-jakarta: bundle
 	@echo "==> Building Jakarta EE client..."
 	cd $(API_DIR)/clients/jakarta && ./gradlew build
 
 # Build Kotlin server
-build-server:
+build-server: bundle
 	@echo "==> Building Kotlin server..."
 	cd $(API_DIR)/server-stubs/kotlin-springboot4 && ./gradlew build
 
