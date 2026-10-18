@@ -1,0 +1,55 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: deploy-release-replace
+title: Deploying with replace asks the server to stop serving the catalog's other releases, and usage comes back as sent
+why: >
+  Deploying adds a release beside the others an environment serves. `replace=true` asks the server
+  to also stop serving the catalog's other releases in that environment, each undeployed, in the
+  same request. The flag is an optional boolean query parameter: a client must send it as `true`,
+  the literal JSON boolean, and still address the release by its path alone, with no body. Only
+  `replace` is set here, so `includeDependencies` must stay off the query.
+
+  The environment already served 1.4.0, so the deployment carries its usage: `lastUsedAt`, when a
+  generation request through the environment was last accepted for it, and `documentsRequested`,
+  how many were. An operator reads those to decide what to undeploy. A client must surface the
+  instant as sent and the count in full: it is an int64, and 5000000000 does not fit in 32 bits.
+
+action:
+  name: deploy-release
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    environmentKey: production
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    releaseVersion: 1.4.0
+    replace: true
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      registry: exchange.epistola.app
+      namespace: acme-corp
+      catalogKey: letters
+      releaseVersion: 1.4.0
+      deployedAt: "2026-10-02T07:30:00Z"
+      lastUsedAt: "2026-10-17T14:05:00Z"
+      documentsRequested: 5000000000
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PUT
+      path: /api/tenants/acme-corp/environments/production/deployments/~/acme-corp/letters/1.4.0
+      query: replace=true
+  report:
+    registry: exchange.epistola.app
+    namespace: acme-corp
+    catalogKey: letters
+    releaseVersion: 1.4.0
+    lastUsedAt: "2026-10-17T14:05:00Z"
+    documentsRequested: "5000000000"

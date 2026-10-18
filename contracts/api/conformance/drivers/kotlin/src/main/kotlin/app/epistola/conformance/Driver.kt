@@ -625,8 +625,8 @@ object Driver {
 
     /**
      * Deploys one release; the registry and namespace go into the path as given, and
-     * `includeDependencies` is passed only when configured, so an unset one sends nothing. A refusal
-     * is reported by its problem, with each missing dependency release and why.
+     * `includeDependencies` and `replace` are passed only when configured, so an unset one sends
+     * nothing. A refusal is reported by its problem, with each missing dependency release and why.
      */
     private fun deployRelease(baseUrl: String, config: ObjectNode) {
         val deployment = try {
@@ -638,6 +638,7 @@ object Driver {
                 config["catalogKey"].asText(),
                 config["releaseVersion"].asText(),
                 config.get("includeDependencies")?.takeUnless { it.isNull }?.asBoolean(),
+                config.get("replace")?.takeUnless { it.isNull }?.asBoolean(),
             )
         } catch (e: ProblemDetailException) {
             report(
@@ -659,6 +660,8 @@ object Driver {
                 "namespace" to deployment.namespace,
                 "catalogKey" to deployment.catalogKey,
                 "releaseVersion" to deployment.releaseVersion,
+                "lastUsedAt" to timestamp(deployment.lastUsedAt),
+                "documentsRequested" to deployment.documentsRequested.toString(),
             ),
         )
     }

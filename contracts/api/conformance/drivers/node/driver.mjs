@@ -513,6 +513,7 @@ async function deployRelease(baseUrl, config) {
   }
   // Sent only when the scenario sets it, false included; otherwise the query parameter stays off.
   if (config.includeDependencies !== undefined) request.includeDependencies = config.includeDependencies
+  if (config.replace !== undefined) request.replace = config.replace
   let deployment
   try {
     deployment = await new EnvironmentsApi(client(baseUrl, config)).deployRelease(request)
@@ -532,6 +533,8 @@ async function deployRelease(baseUrl, config) {
     namespace: show(deployment.namespace),
     catalogKey: show(deployment.catalogKey),
     releaseVersion: show(deployment.releaseVersion),
+    lastUsedAt: showInstant(deployment.lastUsedAt),
+    documentsRequested: show(deployment.documentsRequested),
   })
 }
 

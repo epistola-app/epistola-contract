@@ -578,8 +578,9 @@ public static class Driver
     /// <summary>
     /// Deploys one release. The registry goes into the path exactly as the scenario gives it,
     /// <c>~</c> for the server's default registry or a name in full; the request has no body.
-    /// <c>includeDependencies</c> is passed only when the scenario names it, so it stays off the
-    /// query otherwise. A refusal is reported as its problem and the dependency releases it lists.
+    /// <c>includeDependencies</c> and <c>replace</c> are passed only when the scenario names them, so
+    /// they stay off the query otherwise. A refusal is reported as its problem and the dependency
+    /// releases it lists.
     /// </summary>
     private static void DeployRelease(string baseUrl, JsonElement config)
     {
@@ -590,7 +591,8 @@ public static class Driver
             deployment = new EnvironmentsApi(http, apiBase).DeployRelease(
                 Str(config, "tenantKey"), Str(config, "environmentKey"),
                 Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "releaseVersion"),
-                includeDependencies: OptBool(config, "includeDependencies"));
+                includeDependencies: OptBool(config, "includeDependencies"),
+                replace: OptBool(config, "replace"));
         }
         catch (ProblemDetailException e)
         {
@@ -610,6 +612,8 @@ public static class Driver
             ["namespace"] = Show(deployment.Namespace),
             ["catalogKey"] = Show(deployment.CatalogKey),
             ["releaseVersion"] = Show(deployment.ReleaseVersion),
+            ["lastUsedAt"] = Show(Iso(deployment.LastUsedAt)),
+            ["documentsRequested"] = Show(deployment.DocumentsRequested),
         });
     }
 

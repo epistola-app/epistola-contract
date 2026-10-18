@@ -554,14 +554,14 @@ def _promote_catalog_draft(base_url: str, config: dict) -> None:
 def _deploy_release(base_url: str, config: dict) -> None:
     """Deploys one release; the request has no body, the release is the last path segment.
 
-    ``includeDependencies`` is passed only when the scenario sets it, so an unset one sends no
-    query parameter. A refusal is reported by the dependency releases it names.
+    ``includeDependencies`` and ``replace`` are passed only when the scenario sets them, so an unset
+    one sends no query parameter. A refusal is reported by the dependency releases it names.
     """
-    optional = (
-        {"include_dependencies": config["includeDependencies"]}
-        if "includeDependencies" in config
-        else {}
-    )
+    optional = {}
+    if "includeDependencies" in config:
+        optional["include_dependencies"] = config["includeDependencies"]
+    if "replace" in config:
+        optional["replace"] = config["replace"]
     try:
         deployment = EnvironmentsApi(_client(base_url, config)).deploy_release(
             config["tenantKey"],
@@ -592,6 +592,8 @@ def _deploy_release(base_url: str, config: dict) -> None:
             "namespace": _show(deployment.namespace),
             "catalogKey": _show(deployment.catalog_key),
             "releaseVersion": _show(deployment.release_version),
+            "lastUsedAt": _show_instant(deployment.last_used_at),
+            "documentsRequested": _show(deployment.documents_requested),
         },
     )
 
