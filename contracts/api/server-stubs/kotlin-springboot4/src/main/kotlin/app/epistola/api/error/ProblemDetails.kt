@@ -123,6 +123,9 @@ object ProblemDetails {
          */
         const val RELEASE_DEPENDENCIES_MISSING: String = KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
 
+        /** 409 — the operation does not apply to this kind of draft: releasing long-term work. */
+        const val CATALOG_DRAFT_KIND: String = KnownProblemSlugs.CATALOG_DRAFT_KIND
+
         /** 422 — data examples do not validate against the data model (use [dataModelValidation]). */
         const val DATA_MODEL_VALIDATION_ERROR: String = KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR
 

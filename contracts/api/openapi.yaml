@@ -18,11 +18,12 @@ info:
     is addressed as `next` or by its `draftId`, and a released version by its SemVer number.
 
     - Every AUTHORED catalog has one **next version** (`next`): the draft everyday work goes into, and
-      the only one released as a release. Releasing numbers it from the kind of change against the
-      latest release (`previewCatalogDraftRelease`), and it then continues, as a draft on that release.
+      the only one that is released. Releasing numbers it from the kind of change against the latest
+      release (`previewCatalogDraftRelease`), and it then continues, as a draft on that release.
     - **Long-term work** is any other draft: named, started from the next version or a release, and
-      kept apart until it is ready. It is released as a **pre-release** (`2.0.0-redesign-2027.1`) to
-      try it where it is deployed, and becomes the next version with `promoteCatalogDraft`.
+      kept apart until it is ready. It is not released: it is tried by pointing a non-production
+      environment at it (an environment override), and released after it becomes the next version
+      (`promoteCatalogDraft`).
     - A draft's **base** is the released version it started from, which its changes are measured
       against. It does not move when other versions are released.
     - Drafts are independent copies: releasing one does not change another, and nothing is merged.
@@ -239,6 +240,13 @@ x-problem-types:
         the releases of other catalogs it renders with, and the request did not
         ask to deploy them along (or they could not be); `missingDependencies`
         lists each one and why.
+    - slug: catalog-draft-kind
+      status: 409
+      schema: ProblemDetail
+      description: >-
+        The operation does not apply to this kind of draft: releasing long-term
+        work, which is released only after it is made the next version
+        (`promoteCatalogDraft`).
     - slug: data-model-validation-error
       status: 422
       schema: DataModelValidationProblemDetail

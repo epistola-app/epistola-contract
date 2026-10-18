@@ -98,9 +98,8 @@ and stay as ADR 0001 describes; they will be fitted to this model separately.
 
 ### Releasing: forward, numbered from what changed
 
-- **Releasing the next version** numbers it from the kind of change against the **latest release**
-  (the highest that is not a pre-release): corrections raise the patch, additions the minor,
-  breaking changes the major, by the rules `markStencilReady` and the release impact already use. The
+- **Releasing the next version** numbers it from the kind of change against the **latest release**:
+  corrections raise the patch, additions the minor, breaking changes the major, by the rules `markStencilReady` and the release impact already use. The
   author may raise the number (to mark a major on purpose), never lower it below what the changes
   need, and it must be above every release of the catalog. Only what others rely on counts, so a
   catalog's dependencies do not make a release breaking by themselves: a dependency added is an
@@ -109,15 +108,41 @@ and stay as ADR 0001 describes; they will be fitted to this model separately.
   catalog uses (the per-use check below), whatever the step in the dependency's number.
 - **After it is released, the next version continues**: a new next version opens on the release, as
   today. The catalog's history only moves forward.
-- **Long-term work is released only as a pre-release**: `X.Y.Z-<label>.<n>`, where `X.Y.Z` is the
-  number its changes would need against the latest release and `<label>` derives from its name
-  (`2.0.0-redesign-2027.1`). SemVer ranges such as `^1.4.0` never match a pre-release, and the
-  eventual `2.0.0` sorts above it, so a pre-release can be deployed to a test environment without
-  any request selecting it by accident. A pre-release pins its dependencies like any release.
+- **Long-term work is not released.** It is tried by pointing a non-production environment at it,
+  an environment override (see "Trying work: environment overrides" below), and released once it is
+  promoted to the next version. Releasing it is refused (`catalog-draft-kind`). *(Revised
+  2026-10-18: an earlier version of this amendment released it as a pre-release,
+  `X.Y.Z-<label>.<n>`. A pre-release had to be deployed, kept out of every version range and out of
+  every exchange, and numbered by a rule of its own, only so the work could be tried; an override
+  tries the draft itself, with none of that.)*
 - **Long-term work becomes the next version** when it is ready ("promote"). It must first contain
   every release published since its base, or acknowledge those it leaves out, as a behind draft does
   today. The draft that was the next version is then discarded, or kept as long-term work: the author
   chooses. After promotion it is released like any next version.
+
+### Trying work: environment overrides (decided 2026-10-18)
+
+Long-term work and the next version are tried where they are authored, by pointing an environment at
+them, not by releasing them:
+
+- An environment can **override** which version of a catalog it uses as its latest: one of the
+  releases it serves (a rollback, without undeploying anything), or a **draft** of the catalog, the
+  next version or long-term work, rendered live with no release. There is at most one override per
+  catalog per environment, and setting one is a deployment change (the same permission, recorded in
+  the deployment history).
+- A generation or preview request through that environment that names **no version, or a version
+  range**, gets the override. A request naming an **exact release** still gets that release, so an
+  integration pinned to a release is not moved.
+- An environment marked **production** uses only published versions: an override there may name a
+  release, never a draft, and an environment that follows a draft cannot be marked production.
+- A document rendered from a draft records the draft's id and its name at render time ("Next version"
+  for the next version), and its PDF carries a preview watermark.
+- An override ends with what it names: undeploying the release it names ends it, and so does
+  discarding the draft it follows. Promoting long-term work moves environments following the next
+  version to the new next version; an environment following the promoted work keeps following it.
+
+This replaces the pre-release this amendment first proposed: the work is tried as it is, under its
+own name, and the catalog's numbers stay those of real releases.
 
 ### Releasing takes along what it uses
 
@@ -168,7 +193,7 @@ another catalog's long-term work cannot be released until that work is promoted,
 | `renameCatalogDraft` | `PATCH …/drafts/{draftId}` `{name}` | |
 | `deleteCatalogDraft` | `DELETE …/drafts/{draftId}` | Not the next version, unless another is promoted first |
 | `promoteCatalogDraft` | `POST …/drafts/{draftId}/promote` `{previous: discard \| keep, acknowledgedBehind?}` | Makes it the next version |
-| `releaseCatalogDraft` | `POST …/drafts/{draftId}/release` `{notes?, version?, alsoRelease?, acknowledgedBehind?}` | The next version releases a version, long-term work a pre-release; returns the release |
+| `releaseCatalogDraft` | `POST …/drafts/{draftId}/release` `{notes?, version?, alsoRelease?, acknowledgedBehind?}` | The next version only; long-term work is refused (`catalog-draft-kind`). Returns the release |
 
 - `next` is accepted wherever a `draftId` is: `…/versions/next/templates/invoice` is the next
   version's Invoice. Scripts and the UI rarely need another id.
@@ -180,25 +205,22 @@ another catalog's long-term work cannot be released until that work is promoted,
   paths: `createCatalogDraft` and `listCatalogVersions` on `…/versions`, `getCatalogVersion`,
   `renameCatalogDraft` and `deleteCatalogDraft` on `…/versions/{catalogVersion}`,
   `previewCatalogDraftRelease` on `…/versions/{catalogVersion}/release-preview` (the number it would
-  be released as, and why), `releaseCatalogDraft` on `…/versions/{catalogVersion}/release` (a release
-  for the next version, a pre-release for long-term work), and `promoteCatalogDraft` on
+  be released as, and why), `releaseCatalogDraft` on `…/versions/{catalogVersion}/release` (the next
+  version only), and `promoteCatalogDraft` on
   `…/versions/{catalogVersion}/promote` (`{keepPreviousAs?, acknowledgedBehind?}`). Promotion leaves
   the work on the latest release, behind nothing, since what it was behind is acknowledged.
-- A release number in an address may be a pre-release (`…/versions/2.0.0-redesign-2027.1`), and so may
-  `from` when starting long-term work.
 - Preview names a draft by `next` or its `draftId` in place of `draftVersion`.
 
 ### Decided (2026-10-18)
 
 - **The next version has no name of its own**: it is always "Next version". Only long-term work is
-  named; its name is shown wherever it is, and gives its pre-releases their label.
-- **A pre-release is never published to an exchange.** An exchange carries what other installations
-  build on, and a pre-release is work in progress. It moves between installations as an export,
-  imported where it is to be tried (for example an acceptance installation reviewing it), and is
-  selected only where it is deployed by its full number: no version selector matches it.
+  named; its name is shown wherever it is.
+- **Work in progress is never published to an exchange.** An exchange carries what other
+  installations build on, which is releases. Long-term work and the next version are tried where
+  they are authored, through an environment override.
 - **Exports can carry what a release uses** ([catalog bundle](../catalog-bundle.md)): one file with
   the release and the releases it pins, transitively, installed dependencies first. It is how a
-  catalog, or a pre-release, moves to an installation that does not reach an exchange.
+  catalog moves to an installation that does not reach an exchange.
 
 ## Decision (proposed)
 

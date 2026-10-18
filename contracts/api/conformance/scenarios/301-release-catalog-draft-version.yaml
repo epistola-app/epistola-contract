@@ -32,7 +32,6 @@ script:
         version: 2.0.0
         draftId: null
         isNext: false
-        preRelease: false
         name: null
         status: released
         base: 1.4.0
@@ -61,5 +60,4 @@ expect:
     status: released
     draftId: 'null'
     isNext: 'false'
-    preRelease: 'false'
     draftsBehind: ""

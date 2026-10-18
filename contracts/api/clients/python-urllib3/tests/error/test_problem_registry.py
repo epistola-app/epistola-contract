@@ -27,6 +27,7 @@ EXPECTED_SLUGS = {
     "NOT_FOUND": "not-found",
     "CONFLICT": "conflict",
     "RELEASE_DEPENDENCIES_MISSING": "release-dependencies-missing",
+    "CATALOG_DRAFT_KIND": "catalog-draft-kind",
     "DATA_MODEL_VALIDATION_ERROR": "data-model-validation-error",
     "RATE_LIMITED": "rate-limited",
 }

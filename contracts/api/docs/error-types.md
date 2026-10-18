@@ -31,6 +31,7 @@ Clients must ignore members they do not recognize.
 | `https://epistola.app/errors/not-found` | `not-found` | 404 | `ProblemDetail` | the addressed resource (tenant, catalog, template, …) does not exist |
 | `https://epistola.app/errors/conflict` | `conflict` | 409 | `ProblemDetail` | the request conflicts with the current state of the resource (e.g. publishing a backwards-incompatible data-model change without confirmation) |
 | `https://epistola.app/errors/release-dependencies-missing` | `release-dependencies-missing` | 409 | `ProblemDetail` + `missingDependencies` | a release cannot be deployed because the environment does not serve the releases of other catalogs it renders with; the `missingDependencies` member lists each one with its `reason`. Deploying with `includeDependencies=true` deploys them along instead |
+| `https://epistola.app/errors/catalog-draft-kind` | `catalog-draft-kind` | 409 | `ProblemDetail` | the operation does not apply to this kind of draft: releasing long-term work, which is released only after `promoteCatalogDraft` makes it the next version |
 | `https://epistola.app/errors/data-model-validation-error` | `data-model-validation-error` | 422 | `ProblemDetail` + `validationErrors` | the request is well-formed but semantically invalid: supplied data examples do not validate against the data model; the `validationErrors` member maps each example name to its failures |
 | `https://epistola.app/errors/rate-limited` | `rate-limited` | 429 | `ProblemDetail` | too many requests; a `Retry-After` header indicates how long to wait |
 

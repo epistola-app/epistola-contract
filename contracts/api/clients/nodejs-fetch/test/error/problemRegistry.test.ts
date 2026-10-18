@@ -26,6 +26,7 @@ const EXPECTED_SLUGS: Record<string, string> = {
   DATA_MODEL_VALIDATION_ERROR: 'data-model-validation-error',
   RATE_LIMITED: 'rate-limited',
   RELEASE_DEPENDENCIES_MISSING: 'release-dependencies-missing',
+  CATALOG_DRAFT_KIND: 'catalog-draft-kind',
 }
 
 test('the hand-written type base matches the generated one', () => {

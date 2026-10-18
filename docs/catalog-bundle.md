@@ -55,6 +55,3 @@ A reader installs the dependencies first, then the bundled catalog:
 
 A reader refuses a bundle whose `bundleVersion` it does not know, an entry the index does not list or
 a path outside `catalogs/`, and applies the same size limits as to a single archive.
-
-A pre-release (ADR 0002, amendment 2) travels in a bundle like any release; it is never published to
-an exchange, so a bundle or a single export is how it moves between installations.
