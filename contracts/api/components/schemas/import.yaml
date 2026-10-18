@@ -317,3 +317,17 @@ ImportCatalogResponse:
         resources are permanent for this import and the catalog moved
         forward. Always `false` for AUTHORED imports (merge/replace).
       example: false
+    installedDependencies:
+      type: array
+      description: |
+        For a catalog bundle: the catalogs it uses that the import installed, as `catalogKey vVERSION`,
+        in the order it installed them. Empty for a single archive.
+      items:
+        type: string
+      example: ["shared v1.0.0"]
+    presentDependencies:
+      type: array
+      description: For a catalog bundle, the catalogs it uses this tenant had already at the bundled release.
+      items:
+        type: string
+      example: []
