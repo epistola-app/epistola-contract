@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: release-catalog-draft-pre-release
+title: Releasing long-term work posts to its draft id and reads back a pre-release
+why: >
+  Long-term work is released as a pre-release, to try it where it is deployed (ADR 0002,
+  amendment 2). The request goes to the work's own address, `…/versions/{draftId}/release`, not to
+  `next`: a client that rewrites the address releases the everyday work instead. No `version` was
+  given, so the server numbers it as its changes need, labelled after the work's name and counted,
+  and the client sends none; there are no notes and nothing to acknowledge either.
+
+  The answer is the pre-release `2.0.0-redesign-2027.1`, with `preRelease` true. It does not move
+  the catalog's released version, so no work falls behind it and `draftsBehind` is empty. A client
+  that cannot read a pre-release number, or drops `preRelease`, shows the author a 2.0.0 that is
+  not the catalog's latest release.
+
+action:
+  name: release-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      catalogVersion:
+        version: 2.0.0-redesign-2027.1
+        draftId: null
+        isNext: false
+        preRelease: true
+        name: null
+        status: released
+        base: 1.4.0
+        createdFrom: null
+        behind: []
+        releasedAt: "2026-10-17T12:00:00Z"
+        notes: null
+        fingerprint: v5:3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c
+        contentRetained: true
+        dependencies: []
+        deployedTo: []
+      unchangedContent: false
+      draftsBehind: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-8a10-7d2e-8b3c-4d5e6f708192/release
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+      body:
+        jsonAbsent: [version, notes, acknowledgedBehind]
+        # The body is required: an empty object, not no body and not `null`.
+        matches: '^\s*\{\s*\}\s*$'
+  report:
+    version: 2.0.0-redesign-2027.1
+    status: released
+    draftId: 'null'
+    isNext: 'false'
+    preRelease: 'true'
+    draftsBehind: ""

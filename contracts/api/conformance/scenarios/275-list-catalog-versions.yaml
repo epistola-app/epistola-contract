@@ -34,8 +34,8 @@ script:
     contentType: application/vnd.epistola.v1+json
     body:
       items:
-        - { version: null, draftId: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b, isNext: true, name: null, status: draft, base: 1.5.0, createdFrom: null, behind: [], dependencies: [], deployedTo: [] }
-        - { version: null, draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192, isNext: false, name: Redesign 2027, status: draft, base: 1.4.0, createdFrom: next, behind: [{ version: 1.5.0, changes: [{ type: template, key: invoice, change: modified }] }], dependencies: [], deployedTo: [] }
+        - { version: null, draftId: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b, isNext: true, preRelease: false, name: null, status: draft, base: 1.5.0, createdFrom: null, behind: [], dependencies: [], deployedTo: [] }
+        - { version: null, draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192, isNext: false, preRelease: false, name: Redesign 2027, status: draft, base: 1.4.0, createdFrom: next, behind: [{ version: 1.5.0, changes: [{ type: template, key: invoice, change: modified }] }], dependencies: [], deployedTo: [] }
       page: { number: 0, size: 20, totalElements: 2, totalPages: 1 }
 
 expect:

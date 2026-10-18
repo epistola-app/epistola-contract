@@ -5,12 +5,12 @@
 id: release-catalog-draft
 title: Releasing the next version lets the server number it, and names the long-term work now behind it
 why: >
-  Only the next version is released, and a draft has no number until then (ADR 0002, amendment 2),
-  so the request goes to `…/versions/next/release`. Without a `version` the server numbers it as
+  Only the next version is released as a release, and a draft has no number until then (ADR 0002,
+  amendment 2), so the request goes to `…/versions/next/release`. Without a `version` the server numbers it as
   its changes need against the latest release, so a client must leave `version` out rather than
   send one it was not given; it carries only the notes. The answer is the release, under its new
   number, no longer a draft: its `draftId` is null and it is not the next version, which continues
-  as a draft on it.
+  as a draft on it. It is a release, not a pre-release, so `preRelease` is false.
 
   Nothing is merged into other drafts, so what the author needs next is in the answer: the
   long-term work now behind this release (`draftsBehind`), by name, which will not contain its
@@ -38,6 +38,7 @@ script:
         version: 1.5.0
         draftId: null
         isNext: false
+        preRelease: false
         name: null
         status: released
         base: 1.4.0
@@ -66,5 +67,6 @@ expect:
     status: released
     draftId: 'null'
     isNext: 'false'
+    preRelease: 'false'
     # Names are free text, so they are joined with `|`.
     draftsBehind: Redesign 2027|Accessibility pass

@@ -22,6 +22,7 @@ import app.epistola.client.model.CatalogDependencyDto
 import app.epistola.client.model.CatalogDependencyRequirement
 import app.epistola.client.model.CatalogVersionStatus
 import app.epistola.client.model.CreateCatalogDraftRequest
+import app.epistola.client.model.PromoteCatalogDraftRequest
 import app.epistola.client.model.ReleaseCatalogDraftRequest
 import app.epistola.client.model.RenameCatalogDraftRequest
 import app.epistola.client.model.GenerateDocumentRequest
@@ -91,6 +92,7 @@ object Driver {
                 "preview-catalog-draft-release" -> previewCatalogDraftRelease(baseUrl, config)
                 "delete-catalog-draft" -> deleteCatalogDraft(baseUrl, config)
                 "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config)
+                "promote-catalog-draft" -> promoteCatalogDraft(baseUrl, config)
                 "deploy-release" -> deployRelease(baseUrl, config)
                 "undeploy-release" -> undeployRelease(baseUrl, config)
                 else -> error("unknown action $action")
@@ -488,6 +490,7 @@ object Driver {
                 "version" to (version.version ?: "null"),
                 "draftId" to (version.draftId?.toString() ?: "null"),
                 "isNext" to version.isNext.toString(),
+                "preRelease" to version.preRelease.toString(),
                 "name" to (version.name ?: "null"),
                 "status" to version.status.value,
                 "releasedAt" to timestamp(version.releasedAt),
@@ -556,7 +559,7 @@ object Driver {
         )
     }
 
-    /** Releases the next version; each member is sent only when configured. */
+    /** Releases a draft (long-term work as a pre-release); each member is sent only when configured. */
     private fun releaseCatalogDraft(baseUrl: String, config: ObjectNode) {
         val response = CatalogsApi(restClient(baseUrl, config)).releaseCatalogDraft(
             config["tenantKey"].asText(),
@@ -577,7 +580,36 @@ object Driver {
                 "status" to response.catalogVersion.status.value,
                 "draftId" to (response.catalogVersion.draftId?.toString() ?: "null"),
                 "isNext" to response.catalogVersion.isNext.toString(),
+                "preRelease" to response.catalogVersion.preRelease.toString(),
                 "draftsBehind" to response.draftsBehind.joinToString("|"),
+            ),
+        )
+    }
+
+    /** Makes long-term work the next version; each member is sent only when configured. */
+    private fun promoteCatalogDraft(baseUrl: String, config: ObjectNode) {
+        val version = CatalogsApi(restClient(baseUrl, config)).promoteCatalogDraft(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+            PromoteCatalogDraftRequest(
+                keepPreviousAs = config.optionalText("keepPreviousAs"),
+                acknowledgedBehind = config.get("acknowledgedBehind")?.takeUnless { it.isNull }?.map { it.asText() },
+            ),
+        )
+        report(
+            baseUrl,
+            mapOf(
+                "version" to (version.version ?: "null"),
+                "draftId" to (version.draftId?.toString() ?: "null"),
+                "isNext" to version.isNext.toString(),
+                "preRelease" to version.preRelease.toString(),
+                "name" to (version.name ?: "null"),
+                "status" to version.status.value,
+                "base" to (version.base ?: "null"),
+                "behind" to version.behind.size.toString(),
             ),
         )
     }

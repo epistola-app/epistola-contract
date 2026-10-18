@@ -1,0 +1,72 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: promote-catalog-draft
+title: Promoting long-term work keeps the old next version under a name and acknowledges what it leaves out
+why: >
+  When long-term work is ready to go out with everyday work, `promoteCatalogDraft` makes it the
+  catalog's next version (ADR 0002, amendment 2). It is a POST to the work's own address,
+  `…/versions/{draftId}/promote`. The work started from `1.4.0` and `1.5.0` was released since, so
+  the server refuses the promotion unless `acknowledgedBehind` names it: the author's confirmation
+  that its changes were applied by hand or left out on purpose. The draft that was the next version
+  would be discarded with its changes; `keepPreviousAs` keeps it as long-term work under that name.
+
+  Both travel in the JSON body, the list as an array of version strings. The answer is the work, now
+  the next version: still addressed by its `draftId`, `isNext` true, no longer named, continuing on
+  the latest release and behind nothing. It is a draft, so it is no pre-release.
+
+action:
+  name: promote-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+    keepPreviousAs: Before the redesign
+    acknowledgedBehind: [1.5.0]
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      version: null
+      draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+      isNext: true
+      preRelease: false
+      name: null
+      status: draft
+      base: 1.5.0
+      createdFrom: null
+      createdAt: "2026-09-01T09:00:00Z"
+      behind: []
+      releasedAt: null
+      notes: null
+      fingerprint: null
+      contentRetained: null
+      dependencies: []
+      deployedTo: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-8a10-7d2e-8b3c-4d5e6f708192/promote
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+      body:
+        json:
+          keepPreviousAs: Before the redesign
+          acknowledgedBehind: [1.5.0]
+  report:
+    version: 'null'
+    draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+    isNext: 'true'
+    preRelease: 'false'
+    name: 'null'
+    status: draft
+    base: 1.5.0
+    behind: '0'
