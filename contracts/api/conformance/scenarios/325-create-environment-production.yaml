@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: create-environment-production
+title: Creating a production environment sends the mark, and reads it back
+why: >
+  An environment marked production uses only published versions: it can never follow a draft
+  (ADR 0002, amendment 2). The mark is sent on creation as `production`, a JSON boolean, not a
+  string; omitted, it is false. The answer carries it, always, so a client must read it.
+
+action:
+  name: create-environment
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    key: production
+    name: Production
+    production: true
+
+script:
+  - status: 201
+    contentType: application/vnd.epistola.v1+json
+    body:
+      key: production
+      tenantKey: acme-corp
+      name: Production
+      production: true
+      createdAt: "2026-10-18T09:00:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/environments
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+      body:
+        json:
+          key: production
+          name: Production
+          production: true
+        matches: '"production"\s*:\s*true'
+  report:
+    key: production
+    name: Production
+    production: 'true'

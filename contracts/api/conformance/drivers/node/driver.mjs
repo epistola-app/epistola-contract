@@ -58,6 +58,11 @@ const ACTIONS = {
   'promote-catalog-draft': promoteCatalogDraft,
   'deploy-release': deployRelease,
   'undeploy-release': undeployRelease,
+  'set-environment-override': setEnvironmentOverride,
+  'list-environment-overrides': listEnvironmentOverrides,
+  'clear-environment-override': clearEnvironmentOverride,
+  'create-environment': createEnvironment,
+  'update-environment': updateEnvironment,
 }
 
 process.exit(await main())
@@ -540,6 +545,92 @@ async function undeployRelease(baseUrl, config) {
     catalogKey: config.catalogKey,
     releaseVersion: config.releaseVersion,
   })
+}
+
+/**
+ * Overrides the version of a catalog an environment uses; `releaseVersion` and `catalogVersion` go
+ * out only when the scenario sets them. A refusal is reported by its problem.
+ */
+async function setEnvironmentOverride(baseUrl, config) {
+  const body = {}
+  if (config.releaseVersion !== undefined) body.releaseVersion = config.releaseVersion
+  if (config.catalogVersion !== undefined) body.catalogVersion = config.catalogVersion
+  let override
+  try {
+    override = await new EnvironmentsApi(client(baseUrl, config)).setEnvironmentOverride({
+      tenantKey: config.tenantKey,
+      environmentKey: config.environmentKey,
+      registry: config.registry,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      setEnvironmentOverrideRequest: body,
+    })
+  } catch (error) {
+    if (!(error instanceof ProblemDetailException)) throw error
+    await report(baseUrl, { problemTypeSlug: error.typeSlug ?? '<null>', problemStatus: error.statusCode })
+    return
+  }
+  await report(baseUrl, {
+    environmentKey: show(override.environmentKey),
+    registry: show(override.registry),
+    namespace: show(override.namespace),
+    catalogKey: show(override.catalogKey),
+    releaseVersion: show(override.releaseVersion),
+    draftId: show(override.draftId),
+    draftLabel: show(override.draftLabel),
+    setAt: showInstant(override.setAt),
+  })
+}
+
+async function listEnvironmentOverrides(baseUrl, config) {
+  const { items } = await new EnvironmentsApi(client(baseUrl, config)).listEnvironmentOverrides({
+    tenantKey: config.tenantKey,
+    environmentKey: config.environmentKey,
+  })
+  await report(baseUrl, {
+    catalogKeys: items.map((o) => show(o.catalogKey)).join(','),
+    releaseVersions: items.map((o) => show(o.releaseVersion)).join(','),
+    draftIds: items.map((o) => show(o.draftId)).join(','),
+    draftLabels: items.map((o) => show(o.draftLabel)).join('|'),
+  })
+}
+
+async function clearEnvironmentOverride(baseUrl, config) {
+  await new EnvironmentsApi(client(baseUrl, config)).clearEnvironmentOverride({
+    tenantKey: config.tenantKey,
+    environmentKey: config.environmentKey,
+    registry: config.registry,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+  })
+}
+
+/** Creates an environment; `production` goes out only when the scenario sets it. */
+async function createEnvironment(baseUrl, config) {
+  const body = { key: config.key, name: config.name }
+  if (config.production !== undefined) body.production = config.production
+  const environment = await new EnvironmentsApi(client(baseUrl, config)).createEnvironment({
+    tenantKey: config.tenantKey,
+    createEnvironmentRequest: body,
+  })
+  await reportEnvironment(baseUrl, environment)
+}
+
+/** A partial update: each member goes out only when the scenario sets it. */
+async function updateEnvironment(baseUrl, config) {
+  const body = {}
+  if (config.name !== undefined) body.name = config.name
+  if (config.production !== undefined) body.production = config.production
+  const environment = await new EnvironmentsApi(client(baseUrl, config)).updateEnvironment({
+    tenantKey: config.tenantKey,
+    environmentKey: config.environmentKey,
+    updateEnvironmentRequest: body,
+  })
+  await reportEnvironment(baseUrl, environment)
+}
+
+async function reportEnvironment(baseUrl, environment) {
+  await report(baseUrl, { key: show(environment.key), name: show(environment.name), production: show(environment.production) })
 }
 
 async function reportBytes(baseUrl, blob) {

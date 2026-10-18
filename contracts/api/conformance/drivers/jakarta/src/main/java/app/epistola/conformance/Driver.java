@@ -25,7 +25,12 @@ import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
 import app.epistola.client.jakarta.model.CatalogVersionDto;
 import app.epistola.client.jakarta.model.CatalogVersionStatus;
 import app.epistola.client.jakarta.model.CreateCatalogDraftRequest;
+import app.epistola.client.jakarta.model.CreateEnvironmentRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
+import app.epistola.client.jakarta.model.EnvironmentDto;
+import app.epistola.client.jakarta.model.EnvironmentOverrideDto;
+import app.epistola.client.jakarta.model.SetEnvironmentOverrideRequest;
+import app.epistola.client.jakarta.model.UpdateEnvironmentRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.ImageDto;
@@ -110,6 +115,11 @@ public final class Driver {
                 case "promote-catalog-draft" -> promoteCatalogDraft(baseUrl, config);
                 case "deploy-release" -> deployRelease(baseUrl, config);
                 case "undeploy-release" -> undeployRelease(baseUrl, config);
+                case "set-environment-override" -> setEnvironmentOverride(baseUrl, config);
+                case "list-environment-overrides" -> listEnvironmentOverrides(baseUrl, config);
+                case "clear-environment-override" -> clearEnvironmentOverride(baseUrl, config);
+                case "create-environment" -> createEnvironment(baseUrl, config);
+                case "update-environment" -> updateEnvironment(baseUrl, config);
                 default -> throw new IllegalArgumentException("unknown action " + instruction.getString("action"));
             }
             done(baseUrl, null);
@@ -734,6 +744,122 @@ public final class Driver {
     }
 
     /** A string the scenario may leave out; absent stays null, so the request leaves it off the wire. */
+    /**
+     * Overrides the version of a catalog an environment uses; {@code releaseVersion} and
+     * {@code catalogVersion} are sent only when the scenario names them. A refusal is reported by
+     * its problem.
+     */
+    private static void setEnvironmentOverride(String baseUrl, JsonObject config) {
+        EnvironmentOverrideDto override;
+        try {
+            override = clients(baseUrl, config)
+                    .api(EnvironmentsApi.class)
+                    .setEnvironmentOverride(
+                            config.getString("tenantKey"),
+                            config.getString("environmentKey"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            new SetEnvironmentOverrideRequest()
+                                    .releaseVersion(optional(config, "releaseVersion"))
+                                    .catalogVersion(optional(config, "catalogVersion")));
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode()));
+            return;
+        }
+        report(
+                baseUrl,
+                Map.of(
+                        "environmentKey", String.valueOf(override.getEnvironmentKey()),
+                        "registry", String.valueOf(override.getRegistry()),
+                        "namespace", String.valueOf(override.getNamespace()),
+                        "catalogKey", String.valueOf(override.getCatalogKey()),
+                        "releaseVersion", String.valueOf(override.getReleaseVersion()),
+                        "draftId", String.valueOf(override.getDraftId()),
+                        "draftLabel", String.valueOf(override.getDraftLabel()),
+                        "setAt", instant(override.getSetAt())));
+    }
+
+    private static void listEnvironmentOverrides(String baseUrl, JsonObject config) {
+        List<EnvironmentOverrideDto> overrides = clients(baseUrl, config)
+                .api(EnvironmentsApi.class)
+                .listEnvironmentOverrides(config.getString("tenantKey"), config.getString("environmentKey"))
+                .getItems();
+        report(
+                baseUrl,
+                Map.of(
+                        "catalogKeys",
+                                overrides.stream()
+                                        .map(o -> String.valueOf(o.getCatalogKey()))
+                                        .collect(Collectors.joining(",")),
+                        "releaseVersions",
+                                overrides.stream()
+                                        .map(o -> String.valueOf(o.getReleaseVersion()))
+                                        .collect(Collectors.joining(",")),
+                        "draftIds",
+                                overrides.stream()
+                                        .map(o -> String.valueOf(o.getDraftId()))
+                                        .collect(Collectors.joining(",")),
+                        "draftLabels",
+                                overrides.stream()
+                                        .map(o -> String.valueOf(o.getDraftLabel()))
+                                        .collect(Collectors.joining("|"))));
+    }
+
+    private static void clearEnvironmentOverride(String baseUrl, JsonObject config) {
+        clients(baseUrl, config)
+                .api(EnvironmentsApi.class)
+                .clearEnvironmentOverride(
+                        config.getString("tenantKey"),
+                        config.getString("environmentKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"));
+    }
+
+    /** Creates an environment; {@code production} is sent only when the scenario names it. */
+    private static void createEnvironment(String baseUrl, JsonObject config) {
+        EnvironmentDto environment = clients(baseUrl, config)
+                .api(EnvironmentsApi.class)
+                .createEnvironment(
+                        config.getString("tenantKey"),
+                        new CreateEnvironmentRequest()
+                                .key(config.getString("key"))
+                                .name(config.getString("name"))
+                                .production(optionalBoolean(config, "production")));
+        reportEnvironment(baseUrl, environment);
+    }
+
+    /** A partial update: each member is sent only when the scenario names it. */
+    private static void updateEnvironment(String baseUrl, JsonObject config) {
+        EnvironmentDto environment = clients(baseUrl, config)
+                .api(EnvironmentsApi.class)
+                .updateEnvironment(
+                        config.getString("tenantKey"),
+                        config.getString("environmentKey"),
+                        new UpdateEnvironmentRequest()
+                                .name(optional(config, "name"))
+                                .production(optionalBoolean(config, "production")));
+        reportEnvironment(baseUrl, environment);
+    }
+
+    private static void reportEnvironment(String baseUrl, EnvironmentDto environment) {
+        report(
+                baseUrl,
+                Map.of(
+                        "key", String.valueOf(environment.getKey()),
+                        "name", String.valueOf(environment.getName()),
+                        "production", String.valueOf(environment.getProduction())));
+    }
+
+    private static Boolean optionalBoolean(JsonObject config, String key) {
+        return config.containsKey(key) && !config.isNull(key) ? config.getBoolean(key) : null;
+    }
+
     private static String optional(JsonObject config, String key) {
         return config.containsKey(key) && !config.isNull(key) ? config.getString(key) : null;
     }

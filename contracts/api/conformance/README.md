@@ -86,6 +86,11 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | `promote-catalog-draft` | `POST …/versions/{catalogVersion}/promote` with `config.keepPreviousAs` and `config.acknowledgedBehind` (an array) when present, each left out otherwise, reporting the `version`, `draftId`, `isNext`, `name`, `status` and `base` it parsed, and `behind` (how many releases it is behind) |
 | `deploy-release` | `PUT …/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}`, with `includeDependencies` from `config` when present and unset otherwise, reporting the `registry`, `namespace`, `catalogKey` and `releaseVersion` it parsed. When the server answers with a problem, report `problemTypeSlug`, `problemStatus` and `problemMissingDependencies` (`registry/namespace/catalogKey@releaseVersion:reason`, comma-joined, in order) instead |
 | `undeploy-release` | `DELETE …/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}` |
+| `set-environment-override` | `PUT …/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}` with `config.releaseVersion` and `config.catalogVersion` in the body when present, each left out otherwise, reporting the `environmentKey`, `registry`, `namespace`, `catalogKey`, `releaseVersion`, `draftId`, `draftLabel` and `setAt` it parsed. When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
+| `list-environment-overrides` | `GET …/environments/{environmentKey}/overrides`, reporting the `catalogKeys`, `releaseVersions` and `draftIds` it parsed (comma-joined) and `draftLabels` (joined with `\|`), in order |
+| `clear-environment-override` | `DELETE …/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}` |
+| `create-environment` | `POST …/environments` with `config.key`, `config.name`, and `config.production` when present, reporting the `key`, `name` and `production` it parsed |
+| `update-environment` | `PATCH …/environments/{environmentKey}` with `config.name` and `config.production` each only when present, reporting the `key`, `name` and `production` it parsed |
 
 Catalog-scoped actions take the catalog as `config.registry`, `config.namespace` and
 `config.catalogKey`, and actions on a catalog version (templates, images, dependencies, and the
