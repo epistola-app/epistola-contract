@@ -550,7 +550,7 @@ catalog-version-release:
       Releases the next version of an AUTHORED catalog (ADR 0002, amendment 2), numbering it: as
       `version`, or, when that is omitted, as its changes need against the latest release
       (`previewCatalogDraftRelease`). A given number must be above every release and no lower than
-      the changes need, or the release is refused with 409. A release contains the whole draft: it is
+      the changes need, or the request is refused with 400. A release contains the whole draft: it is
       refused while any resource is `new` or `modified`.
 
       Only the next version is released: the catalog's history moves forward. Releasing long-term

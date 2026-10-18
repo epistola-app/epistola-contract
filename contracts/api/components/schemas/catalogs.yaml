@@ -765,7 +765,7 @@ ReleaseCatalogDraftRequest:
       maxLength: 50
       description: |
         The number to release it as: above every release, and no lower than its changes need
-        (`previewCatalogDraftRelease`), or the release is refused with 409. Omitted: the number its
+        (`previewCatalogDraftRelease`), or the request is refused with 400. Omitted: the number its
         changes need.
       example: null
     notes:
