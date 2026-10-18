@@ -81,14 +81,15 @@ PreviewDocumentRequest:
         the template's catalog that the environment serves: the highest one, or the highest that
         satisfies `version`. The request is refused when the environment serves no such release.
       example: null
-    draftVersion:
+    draft:
       type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      pattern: '^(next|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$'
+      maxLength: 36
       description: |
-        Render a draft of the template's catalog, named by its exact version, including changes not
-        yet released (mutually exclusive with version and environmentKey). Preview only: generated
-        documents always render a release, and a version selector never matches a draft.
+        Render a draft of the template's catalog, including changes not yet released: `next` for its
+        next version, or long-term work by its `draftId` (mutually exclusive with version and
+        environmentKey). Preview only: generated documents always render a release, and a version
+        selector never matches a draft.
       example: null
     data:
       type: object

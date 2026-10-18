@@ -6,7 +6,7 @@ CatalogDto:
     - catalogKey
     - name
     - type
-    - draftVersions
+    - drafts
   properties:
     registry:
       type: string
@@ -48,14 +48,13 @@ CatalogDto:
         The catalog's highest released version. For AUTHORED catalogs null until
         first released. For SUBSCRIBED catalogs the highest installed release.
       example: "1.4.0"
-    draftVersions:
+    drafts:
       type: array
       description: >-
-        The version numbers of the catalog's open drafts, lowest first. Empty for a
-        SUBSCRIBED catalog.
+        The catalog's open drafts: its next version first, then long-term work, oldest first. A draft
+        has no number until it is released. Empty for a SUBSCRIBED catalog.
       items:
-        type: string
-      example: ["1.4.1", "2.0.0"]
+        $ref: '#/CatalogDraftSummary'
     fingerprint:
       type: [string, "null"]
       pattern: '^(v[1-9][0-9]*:)?[0-9a-f]{64}$'
@@ -464,42 +463,86 @@ CatalogVersionStatus:
     - released
   description: |
     - `draft`: editable. Never rendered by generation, deployed, exported or published.
-    - `released`: immutable. Releasing a draft changes its status, not its number or address.
+    - `released`: immutable, and numbered. A draft is numbered when it is released; the next
+      version then continues, as a draft on that release.
   example: draft
+
+CatalogDraftSummary:
+  type: object
+  description: An open draft of a catalog, as `CatalogDto` lists it
+  required:
+    - draftId
+    - isNext
+  properties:
+    draftId:
+      type: string
+      format: uuid
+      description: The draft's id, which addresses it; the next version is also addressed as `next`
+      example: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+    isNext:
+      type: boolean
+      description: The catalog's next version, where everyday work goes
+      example: true
+    name:
+      type: [string, "null"]
+      maxLength: 100
+      description: Long-term work's name; null for the next version
+      example: null
 
 CatalogVersionDto:
   type: object
   description: |
-    One version of a catalog. A version is opened as a draft, edited, and released, after which it
-    is immutable. Several drafts can be open at once; each is an independent copy, and nothing is
+    One version of a catalog: a draft or a released version (ADR 0002, amendment 2). A draft is
+    numbered when it is released. Every AUTHORED catalog has one **next version** (`isNext`), the
+    draft everyday work goes into and the only one that is released; any other draft is **long-term
+    work**, named, kept apart until it is ready. Each draft is an independent copy, and nothing is
     merged between them.
   required:
     - version
     - status
+    - isNext
     - dependencies
     - deployedTo
     - behind
   properties:
     version:
-      type: string
+      type: [string, "null"]
       maxLength: 50
-      description: The version's SemVer number, unique in its catalog
+      description: A released version's SemVer number, unique in its catalog. Null for a draft.
       example: "2.0.0"
+    draftId:
+      type: [string, "null"]
+      format: uuid
+      description: |
+        A draft's id, which addresses it (`…/versions/{draftId}`) for as long as it is open; the next
+        version is also addressed as `next`. Null for a released version.
+      example: null
+    isNext:
+      type: boolean
+      description: The catalog's next version. False for long-term work and released versions.
+      example: false
+    name:
+      type: [string, "null"]
+      maxLength: 100
+      description: Long-term work's name. Null for the next version, which is always "Next version", and for a released version.
+      example: null
     status:
       $ref: '#/CatalogVersionStatus'
     base:
       type: [string, "null"]
       maxLength: 50
       description: |
-        The released version this one started from, which its changes are measured against: the
-        version it was opened from (or that version's base, when it was a draft), otherwise the
-        highest released version below its number when it was opened. It does not move when other
-        versions are released or a draft is renumbered. Null when there is none.
+        The released version this one started from, which its changes are measured against: for the
+        next version, the release it continues on; for long-term work, the release it was started
+        from (or the next version's base, when it was started from the next version). It does not
+        move when other versions are released. Null when there is none.
       example: "1.4.0"
     createdFrom:
       type: [string, "null"]
       maxLength: 50
-      description: The version this one was opened from; null when it was opened from its base
+      description: |
+        The released version a draft was copied from when that is not its base, or `next` when it was
+        copied from the next version, unreleased changes included; null otherwise
       example: null
     createdAt:
       type: [string, "null"]
@@ -509,10 +552,12 @@ CatalogVersionDto:
     behind:
       type: array
       description: |
-        For a draft, the released versions numbered above its base and below its own number, lowest
-        first. The draft does not contain their changes unless an author applied them by hand, which
-        the server cannot tell; releasing it must acknowledge them (`acknowledgedBehind`). Empty when
-        there are none, and for a released version.
+        For a draft, the released versions above its base, lowest first. The draft does not contain
+        their changes unless an author applied them by hand, which the server cannot tell. The next
+        version continues on each release, so it is behind none in the ordinary course; long-term work
+        is behind every release published since it started. Releasing a draft that is behind must
+        acknowledge them (`acknowledgedBehind`). Empty when there are none, and for a released
+        version.
       items:
         $ref: '#/BehindReleaseDto'
       example: []
@@ -618,115 +663,89 @@ CatalogVersionListResponse:
     page:
       $ref: './common.yaml#/PageMeta'
 
-CreateCatalogVersionRequest:
+CreateCatalogDraftRequest:
   type: object
   required:
-    - version
+    - name
   properties:
-    version:
+    name:
       type: string
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
-      description: The draft's version number, not yet in use in the catalog
-      example: "2.0.0"
+      minLength: 1
+      maxLength: 100
+      description: |
+        What people call the work, e.g. "Redesign 2027": unique among the catalog's drafts, ignoring
+        case, and not "Next version" or `next`.
+      example: Redesign 2027
     from:
       type: [string, "null"]
       pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: |
-        The version, a draft or released, to start from. Omitted: the draft's base.
+        A released version to start from, which becomes its base. Omitted: a copy of the next
+        version, unreleased changes included, on the next version's base.
       example: null
 
-RenumberCatalogVersionRequest:
+RenameCatalogDraftRequest:
   type: object
   required:
-    - version
+    - name
   properties:
-    version:
+    name:
       type: string
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
-      description: The draft's new version number, not yet in use in the catalog
-      example: "1.5.0"
-    acknowledgeWarnings:
-      type: boolean
-      default: false
-      description: |
-        Renumber even when the renumber has warnings (see `previewCatalogVersionRenumber`). Without
-        it, a renumber with warnings is refused with 409.
-      example: false
-
-CatalogVersionRenumberPreview:
-  type: object
-  required:
-    - from
-    - to
-    - warnings
-  properties:
-    from:
-      type: string
-      maxLength: 50
-      description: The draft's current number
-      example: "1.5.0"
-    to:
-      type: string
-      maxLength: 50
-      description: The number it would get
-      example: "1.7.0"
-    warnings:
-      type: array
-      description: What the renumber would change beyond the number. Empty when nothing.
-      items:
-        $ref: '#/RenumberWarningDto'
-
-RenumberWarningDto:
-  type: object
-  required:
-    - kind
-    - message
-  properties:
-    kind:
-      type: string
+      minLength: 1
       maxLength: 100
-      description: |
-        What the warning is about. Known kinds, which may grow; a client shows a kind it does not
-        know by its `message`:
+      description: The work's new name, under the same rules as when it was started
+      example: Redesign 2028
 
-        - `falls-behind`: the draft moves up past released versions it does not contain, so it
-          becomes behind them (see `CatalogVersionDto.behind`).
-        - `contains-later-releases`: the draft moves down past released versions, and keeps their
-          changes, so it will release what those releases did.
-        - `passes-draft`: the draft moves past another open draft of the catalog.
-        - `breaking-changes-in-patch`: the new number is a patch of the base, while the draft has
-          changes that are breaking against it (ADR 0001's rule); they need a major.
-        - `breaking-changes-in-minor`: the new number is a minor of the base, while the draft has
-          breaking changes; they need a major.
-        - `additions-in-patch`: the new number is a patch of the base, while the draft adds to it
-          (a resource, a variant, a value, a widened data contract); additions need a minor.
-      example: falls-behind
-    message:
-      type: string
-      description: The warning, written for the author
-      example: This draft does not contain release 1.6.0; it will be behind it.
-    versions:
-      type: array
-      description: The versions the warning is about, released or draft
-      items:
-        type: string
-      example: ["1.6.0"]
+CatalogDraftReleasePreview:
+  type: object
+  description: |
+    The number a draft would be released as (ADR 0002, amendment 2): from the kind of change it holds
+    against the latest release, by ADR 0001's rule of what breaks. A release may be numbered higher,
+    never lower.
+  required:
+    - reasons
+    - suggested
+  properties:
+    latest:
+      type: [string, "null"]
+      maxLength: 50
+      description: The latest release the draft is measured against; null when the catalog was never released
+      example: "1.4.0"
+    changeKind:
+      type: [string, "null"]
+      enum: [none, additive, breaking, null]
+      description: |
+        - `none`: fixes only, a patch.
+        - `additive`: something added (a resource, a variant, a value, a widened data contract), a minor.
+        - `breaking`: something removed or narrowed, a major.
+        Null when there is nothing to compare with: never released, or the latest release kept no
+        content.
+      example: additive
     reasons:
       type: array
-      description: |
-        For a warning about the kind of change (`breaking-changes-in-patch`,
-        `breaking-changes-in-minor`, `additions-in-patch`): each change that makes the number too
-        low, naming the resource, e.g. `template 'invoice': removed`. Empty for other kinds.
+      description: Each change that makes it more than a fix, naming the resource, breaking first. Empty for a fix.
       items:
         type: string
-      example: ["template 'invoice': removed"]
+      example: ["template 'reminder': added"]
+    suggested:
+      type: string
+      maxLength: 50
+      description: The lowest number that fits, which releasing without a `version` uses
+      example: "1.5.0"
 
-ReleaseCatalogVersionRequest:
+ReleaseCatalogDraftRequest:
   type: object
   properties:
+    version:
+      type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      maxLength: 50
+      description: |
+        The number to release it as: above every release, and no lower than its changes need
+        (`previewCatalogDraftRelease`), or the release is refused with 409. Omitted: the number its
+        changes need.
+      example: null
     notes:
       type: [string, "null"]
       maxLength: 4000
@@ -742,7 +761,7 @@ ReleaseCatalogVersionRequest:
         maxLength: 50
       example: ["1.5.0"]
 
-ReleaseCatalogVersionResponse:
+ReleaseCatalogDraftResponse:
   type: object
   required:
     - catalogVersion
@@ -758,14 +777,9 @@ ReleaseCatalogVersionResponse:
     draftsBehind:
       type: array
       description: |
-        The open drafts with a higher number that are now behind this release: its changes do not
-        reach them. Empty when none.
+        The long-term work now behind this release, by name: its changes do not reach it. Empty when
+        none. The next version continues on the release.
       items:
         type: string
-        maxLength: 50
-      example: ["2.0.0"]
-    openedDraft:
-      type: [string, "null"]
-      maxLength: 50
-      description: The draft opened, as a copy of this release, because none was open above it; null otherwise
-      example: "1.4.1"
+        maxLength: 100
+      example: ["Redesign 2027"]

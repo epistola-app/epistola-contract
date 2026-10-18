@@ -9,6 +9,24 @@ libraries.
 
 ## [Unreleased]
 
+### Changed
+
+- **A draft is numbered when it is released** (ADR 0002, amendment 2). Every AUTHORED catalog has
+  one next version, addressed as `next`, where everyday work goes and the only draft that is
+  released; any other draft is long-term work, named and addressed by its `draftId`. A released
+  version is still addressed by its number: `{catalogVersion}` accepts `next`, a draft id or a
+  SemVer number. `CatalogVersionDto` gains `draftId`, `isNext` and `name`, and a draft's `version`
+  is null. `CatalogDto.draftVersions` becomes `drafts` (`CatalogDraftSummary`).
+  `createCatalogVersion` becomes `createCatalogDraft` (`{name, from?}`: long-term work, from the
+  next version or a release), `renumberCatalogVersion` becomes `renameCatalogDraft`,
+  `deleteCatalogVersion` becomes `deleteCatalogDraft` (discarding the next version starts it again
+  on the latest release), `previewCatalogVersionRenumber` becomes `previewCatalogDraftRelease` (the
+  number it would be released as, from the kind of change against the latest release, and why),
+  and `releaseCatalogVersion` becomes `releaseCatalogDraft`, which numbers the next version (as
+  `version`, never lower than its changes need, or as they need) and continues it on the release;
+  it no longer returns `openedDraft`, and `draftsBehind` names long-term work. `RenumberWarningDto`
+  is gone. Preview names a draft as `draft` (`next` or a draft id) in place of `draftVersion`.
+
 ### Added
 
 - **Renumber warnings name the changes that make a number too low.** `RenumberWarningDto` gains
