@@ -166,12 +166,19 @@ another catalog's long-term work cannot be released until that work is promoted,
 | `promoteCatalogDraft` | `POST …/drafts/{draftId}/promote` `{previous: discard \| keep, acknowledgedBehind?}` | Makes it the next version |
 | `releaseCatalogDraft` | `POST …/drafts/{draftId}/release` `{notes?, version?, alsoRelease?, acknowledgedBehind?}` | The next version releases a version, long-term work a pre-release; returns the release |
 
-- `next` is accepted wherever a `draftId` is: `…/drafts/next/templates/invoice` is the next
+- `next` is accepted wherever a `draftId` is: `…/versions/next/templates/invoice` is the next
   version's Invoice. Scripts and the UI rarely need another id.
-- Draft resources live under `…/drafts/{draftId}/…`; released versions stay under
-  `…/versions/{version}/…`, read-only. `getCatalogChanges`, `markCatalogReady` and the dependency
-  operations move under the draft.
-- Preview names a draft by `draftId` in place of `draftVersion`.
+- **Addresses keep the one version segment** (decided 2026-10-18, superseding the `…/drafts/{draftId}`
+  paths proposed above): `…/versions/{catalogVersion}/…` names a draft as `next` or by its
+  `draftId`, and a released version by its number, read-only. A UUID, `next` and a SemVer number
+  never collide, and every resource path stays where it is, so moving them all under a second
+  segment would change every client for nothing. The draft operations above live on the same
+  paths: `createCatalogDraft` and `listCatalogVersions` on `…/versions`, `getCatalogVersion`,
+  `renameCatalogDraft` and `deleteCatalogDraft` on `…/versions/{catalogVersion}`,
+  `previewCatalogDraftRelease` on `…/versions/{catalogVersion}/release-preview` (the number it would
+  be released as, and why), and `releaseCatalogDraft` on `…/versions/{catalogVersion}/release`.
+  `promoteCatalogDraft` follows with long-term work's release as a pre-release.
+- Preview names a draft by `next` or its `draftId` in place of `draftVersion`.
 
 ### Decided (2026-10-18)
 

@@ -10,24 +10,27 @@ info:
 
     ## Catalog versions
     A catalog is versioned as a whole, never resource by resource. It consists of **versions**,
-    each identified by its SemVer number and addressed as
-    `/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}`, with the catalog's resources
-    below it.
+    addressed as `/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}`, with the
+    catalog's resources below it (ADR 0002, amendment 2).
 
-    A version is opened as a **draft**, edited, its changed resources marked ready, and
-    **released**, after which it is immutable: every write to it is refused with 409. Releasing
-    changes a version's status, not its number or address. Several drafts can be open at once, and
-    a draft can be renumbered or discarded while it is one.
+    A **draft** is edited, its changed resources marked ready, and **released**, after which it is
+    immutable: every write to it is refused with 409. A draft has no number until it is released; it
+    is addressed as `next` or by its `draftId`, and a released version by its SemVer number.
 
+    - Every AUTHORED catalog has one **next version** (`next`): the draft everyday work goes into, and
+      the only one that is released. Releasing numbers it from the kind of change against the latest
+      release (`previewCatalogDraftRelease`), and it then continues, as a draft on that release.
+    - **Long-term work** is any other draft: named, started from the next version or a release, and
+      kept apart until it is ready. It is not released.
     - A draft's **base** is the released version it started from, which its changes are measured
-      against. It does not move when other versions are released or the draft is renumbered.
+      against. It does not move when other versions are released.
     - Drafts are independent copies: releasing one does not change another, and nothing is merged.
-      A draft is **behind** the releases numbered between its base and its own number; it does not
-      contain their changes unless an author applied them by hand. `getCatalogVersion` lists them,
-      and releasing a draft that is behind must be acknowledged.
+      A draft is **behind** every release above its base; it does not contain their changes unless an
+      author applied them by hand. `getCatalogVersion` lists them, and releasing a draft that is
+      behind must be acknowledged.
 
     Documents are always rendered from a released version; version selectors never match a draft.
-    Only preview renders a draft, named by its exact number.
+    Only preview renders a draft, named by `next` or its id.
 
     ## Catalog identity
     A catalog is identified by three parts together, never by its key alone: two publishers can
@@ -465,8 +468,8 @@ paths:
     $ref: './paths/catalogs.yaml#/catalog-versions'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}:
     $ref: './paths/catalogs.yaml#/catalog-version'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/renumber-preview:
-    $ref: './paths/catalogs.yaml#/catalog-version-renumber-preview'
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/release-preview:
+    $ref: './paths/catalogs.yaml#/catalog-version-release-preview'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/release:
     $ref: './paths/catalogs.yaml#/catalog-version-release'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/dependencies:
@@ -631,24 +634,24 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CatalogVersionStatus'
     CatalogVersionDto:
       $ref: './components/schemas/catalogs.yaml#/CatalogVersionDto'
+    CatalogDraftSummary:
+      $ref: './components/schemas/catalogs.yaml#/CatalogDraftSummary'
     BehindReleaseDto:
       $ref: './components/schemas/catalogs.yaml#/BehindReleaseDto'
     ReleasedChangeDto:
       $ref: './components/schemas/catalogs.yaml#/ReleasedChangeDto'
     CatalogVersionListResponse:
       $ref: './components/schemas/catalogs.yaml#/CatalogVersionListResponse'
-    CreateCatalogVersionRequest:
-      $ref: './components/schemas/catalogs.yaml#/CreateCatalogVersionRequest'
-    RenumberCatalogVersionRequest:
-      $ref: './components/schemas/catalogs.yaml#/RenumberCatalogVersionRequest'
-    CatalogVersionRenumberPreview:
-      $ref: './components/schemas/catalogs.yaml#/CatalogVersionRenumberPreview'
-    RenumberWarningDto:
-      $ref: './components/schemas/catalogs.yaml#/RenumberWarningDto'
-    ReleaseCatalogVersionRequest:
-      $ref: './components/schemas/catalogs.yaml#/ReleaseCatalogVersionRequest'
-    ReleaseCatalogVersionResponse:
-      $ref: './components/schemas/catalogs.yaml#/ReleaseCatalogVersionResponse'
+    CreateCatalogDraftRequest:
+      $ref: './components/schemas/catalogs.yaml#/CreateCatalogDraftRequest'
+    RenameCatalogDraftRequest:
+      $ref: './components/schemas/catalogs.yaml#/RenameCatalogDraftRequest'
+    CatalogDraftReleasePreview:
+      $ref: './components/schemas/catalogs.yaml#/CatalogDraftReleasePreview'
+    ReleaseCatalogDraftRequest:
+      $ref: './components/schemas/catalogs.yaml#/ReleaseCatalogDraftRequest'
+    ReleaseCatalogDraftResponse:
+      $ref: './components/schemas/catalogs.yaml#/ReleaseCatalogDraftResponse'
 
     # Code list schemas
     CodeListDto:
