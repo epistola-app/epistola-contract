@@ -34,6 +34,11 @@ test('a catalog version is addressed as next, by a draft id or by its number, an
   assert.equal(findOperation('DELETE', `${base}/${draftId}`)!.operationId, 'deleteCatalogDraft')
   assert.equal(findOperation('GET', `${base}/next/release-preview`)!.operationId, 'previewCatalogDraftRelease')
   assert.equal(findOperation('POST', `${base}/next/release`)!.operationId, 'releaseCatalogDraft')
+  // Long-term work is released as a pre-release, which is addressed by its full number, and
+  // promoted to the next version at its own address (ADR 0002, amendment 2).
+  assert.equal(findOperation('POST', `${base}/${draftId}/release`)!.operationId, 'releaseCatalogDraft')
+  assert.equal(findOperation('GET', `${base}/2.0.0-redesign-2027.1`)!.operationId, 'getCatalogVersion')
+  assert.equal(findOperation('POST', `${base}/${draftId}/promote`)!.operationId, 'promoteCatalogDraft')
   assert.equal(findOperation('GET', `${base}/next/templates`)!.operationId, 'listTemplates')
   // A draft is numbered when it is released, so there is nothing to renumber.
   assert.equal(findOperation('GET', `${base}/next/renumber-preview`), undefined)

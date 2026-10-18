@@ -313,6 +313,13 @@ class GeneratedApiContractTest {
         assertOperation("deleteCatalogDraft", DELETE.class, void.class, version);
         assertOperation("previewCatalogDraftRelease", GET.class, CatalogDraftReleasePreview.class, version);
         assertOperation("releaseCatalogDraft", POST.class, ReleaseCatalogDraftResponse.class, version);
+        assertOperation("promoteCatalogDraft", POST.class, CatalogVersionDto.class, version);
+        assertTrue(
+                method(CatalogsApi.class, "promoteCatalogDraft")
+                        .getAnnotation(Path.class)
+                        .value()
+                        .endsWith("/versions/{catalogVersion}/promote"),
+                "promoteCatalogDraft is a promote below the version");
         assertTrue(
                 method(CatalogsApi.class, "previewCatalogDraftRelease")
                         .getAnnotation(Path.class)
@@ -324,7 +331,8 @@ class GeneratedApiContractTest {
                         .noneMatch(parameter -> parameter.isAnnotationPresent(QueryParam.class)),
                 "previewCatalogDraftRelease takes no query parameters");
 
-        for (String withBody : List.of("createCatalogDraft", "renameCatalogDraft", "releaseCatalogDraft")) {
+        for (String withBody :
+                List.of("createCatalogDraft", "renameCatalogDraft", "releaseCatalogDraft", "promoteCatalogDraft")) {
             assertEquals(
                     List.of(VENDOR_JSON),
                     List.of(method(CatalogsApi.class, withBody).getAnnotation(Consumes.class).value()),
