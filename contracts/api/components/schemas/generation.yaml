@@ -67,9 +67,11 @@ PreviewDocumentRequest:
       description: |
         Which release of the template's catalog to render, as a version selector (see "Version
         selectors" in the API description); the highest release that satisfies it is rendered.
-        With `environmentKey`, only the releases that environment serves are considered. Omitted:
-        the highest release (that the environment serves, with `environmentKey`). Unreleased
-        changes are never rendered.
+        With `environmentKey`, only the releases that environment serves are considered, and when
+        the environment overrides the catalog (see "Environment overrides"), a request with no
+        version or with a range gets the override, which may be a draft rendered live; an exact
+        release is still that release. Omitted: the highest release (that the environment serves,
+        or its override, with `environmentKey`).
       example: null
     environmentKey:
       type: [string, "null"]
@@ -79,7 +81,11 @@ PreviewDocumentRequest:
       description: |
         Key of an environment. The release rendered is chosen among the releases of
         the template's catalog that the environment serves: the highest one, or the highest that
-        satisfies `version`. The request is refused when the environment serves no such release.
+        satisfies `version`. When the environment overrides the catalog (`setEnvironmentOverride`),
+        a request with no `version` or a range gets the override instead: one of those releases, or
+        a draft rendered live (the document then carries `draftId` and `draftLabel`); an exact
+        release is still that release. The request is refused when the environment serves no such
+        release and has no override.
       example: null
     draft:
       type: [string, "null"]
@@ -88,8 +94,8 @@ PreviewDocumentRequest:
       description: |
         Render a draft of the template's catalog, including changes not yet released: `next` for its
         next version, or long-term work by its `draftId` (mutually exclusive with version and
-        environmentKey). Preview only: generated documents always render a release, and a version
-        selector never matches a draft.
+        environmentKey). A version selector never matches a draft; a generated document renders one
+        only through an environment that follows it (`setEnvironmentOverride`).
       example: null
     data:
       type: object
@@ -240,9 +246,11 @@ GenerateDocumentRequest:
       description: |
         Which release of the template's catalog to render, as a version selector (see "Version
         selectors" in the API description); the highest release that satisfies it is rendered.
-        With `environmentKey`, only the releases that environment serves are considered. Omitted:
-        the highest release (that the environment serves, with `environmentKey`). Unreleased
-        changes are never rendered.
+        With `environmentKey`, only the releases that environment serves are considered, and when
+        the environment overrides the catalog (see "Environment overrides"), a request with no
+        version or with a range gets the override, which may be a draft rendered live; an exact
+        release is still that release. Omitted: the highest release (that the environment serves,
+        or its override, with `environmentKey`).
       example: null
     environmentKey:
       type: [string, "null"]
@@ -252,7 +260,11 @@ GenerateDocumentRequest:
       description: |
         Key of an environment. The release rendered is chosen among the releases of
         the template's catalog that the environment serves: the highest one, or the highest that
-        satisfies `version`. The request is refused when the environment serves no such release.
+        satisfies `version`. When the environment overrides the catalog (`setEnvironmentOverride`),
+        a request with no `version` or a range gets the override instead: one of those releases, or
+        a draft rendered live (the document then carries `draftId` and `draftLabel`); an exact
+        release is still that release. The request is refused when the environment serves no such
+        release and has no override.
       example: null
     data:
       type: object
@@ -371,9 +383,11 @@ BatchGenerationItem:
       description: |
         Which release of the template's catalog to render, as a version selector (see "Version
         selectors" in the API description); the highest release that satisfies it is rendered.
-        With `environmentKey`, only the releases that environment serves are considered. Omitted:
-        the highest release (that the environment serves, with `environmentKey`). Unreleased
-        changes are never rendered.
+        With `environmentKey`, only the releases that environment serves are considered, and when
+        the environment overrides the catalog (see "Environment overrides"), a request with no
+        version or with a range gets the override, which may be a draft rendered live; an exact
+        release is still that release. Omitted: the highest release (that the environment serves,
+        or its override, with `environmentKey`).
       example: null
     environmentKey:
       type: [string, "null"]
@@ -383,7 +397,11 @@ BatchGenerationItem:
       description: |
         Key of an environment. The release rendered is chosen among the releases of
         the template's catalog that the environment serves: the highest one, or the highest that
-        satisfies `version`. The request is refused when the environment serves no such release.
+        satisfies `version`. When the environment overrides the catalog (`setEnvironmentOverride`),
+        a request with no `version` or a range gets the override instead: one of those releases, or
+        a draft rendered live (the document then carries `draftId` and `draftLabel`); an exact
+        release is still that release. The request is refused when the environment serves no such
+        release and has no override.
       example: null
     data:
       type: object
@@ -563,8 +581,23 @@ DocumentGenerationItemDto:
       maxLength: 50
       description: |
         Release of the template's catalog this item renders, bound when the request was accepted.
-        Null for an item accepted before contract 2.0, which rendered a template version.
+        Null for an item accepted before contract 2.0, which rendered a template version, and for
+        one that renders a draft (`draftId`).
       example: "1.4.0"
+    draftId:
+      type: [string, "null"]
+      format: uuid
+      description: |
+        The draft this item renders, live, through an environment that follows it
+        (`setEnvironmentOverride`); `releaseVersion` is then null. Null when rendered from a release.
+      example: null
+    draftLabel:
+      type: [string, "null"]
+      maxLength: 100
+      description: |
+        The name of that draft at render time: "Next version" for the next version, else the work's
+        name. Null when rendered from a release.
+      example: null
     environmentKey:
       type: [string, "null"]
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
@@ -930,8 +963,23 @@ DocumentDto:
       maxLength: 50
       description: |
         Release of the template's catalog this document was generated from. Null for a document
-        generated before contract 2.0, which rendered a template version.
+        generated before contract 2.0, which rendered a template version, and for one rendered from
+        a draft (`draftId`).
       example: "1.4.0"
+    draftId:
+      type: [string, "null"]
+      format: uuid
+      description: |
+        The draft this document was rendered from, live, through an environment that follows it
+        (`setEnvironmentOverride`); `releaseVersion` is then null. Null when rendered from a release.
+      example: null
+    draftLabel:
+      type: [string, "null"]
+      maxLength: 100
+      description: |
+        The name of that draft at render time: "Next version" for the next version, else the work's
+        name. Null when rendered from a release.
+      example: null
     filename:
       type: string
       description: Filename of the document

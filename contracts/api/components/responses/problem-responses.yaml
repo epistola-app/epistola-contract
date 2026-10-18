@@ -92,6 +92,22 @@ CatalogDraftKindError:
         status: 409
         detail: "Redesign 2027 is long-term work: make it the next version to release it"
 
+EnvironmentOverrideRefusedError:
+  description: >-
+    The request conflicts with the current state of the resource. When an environment override
+    cannot be set (a draft on a production environment, or a release the environment does not
+    serve), or an environment that follows a draft is marked production, the problem is
+    `environment-override-refused`. Other conflicts use `conflict`.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ProblemDetail'
+      example:
+        type: https://epistola.app/errors/environment-override-refused
+        title: Environment Override Refused
+        status: 409
+        detail: "production uses only published versions: it cannot follow a draft of letters"
+
 TemplateDataInvalidError:
   description: >-
     The request failed validation. When the template data breaks the template's data contract, the

@@ -28,6 +28,7 @@ EXPECTED_SLUGS = {
     "CONFLICT": "conflict",
     "RELEASE_DEPENDENCIES_MISSING": "release-dependencies-missing",
     "CATALOG_DRAFT_KIND": "catalog-draft-kind",
+    "ENVIRONMENT_OVERRIDE_REFUSED": "environment-override-refused",
     "DATA_MODEL_VALIDATION_ERROR": "data-model-validation-error",
     "RATE_LIMITED": "rate-limited",
 }

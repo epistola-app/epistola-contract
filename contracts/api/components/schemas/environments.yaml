@@ -5,6 +5,7 @@ EnvironmentDto:
     - key
     - tenantKey
     - name
+    - production
     - createdAt
   properties:
     key:
@@ -26,6 +27,12 @@ EnvironmentDto:
       type: string
       description: Name of the environment (e.g., staging, production)
       example: Production
+    production:
+      type: boolean
+      description: |
+        A production environment uses only published versions: an override there may name one of
+        the releases it serves, never a draft (see `setEnvironmentOverride`).
+      example: true
     createdAt:
       type: string
       format: date-time
@@ -35,6 +42,7 @@ EnvironmentDto:
     key: production
     tenantKey: acme-corp
     name: Production
+    production: true
     createdAt: "2026-01-16T10:00:00Z"
 
 CreateEnvironmentRequest:
@@ -57,6 +65,13 @@ CreateEnvironmentRequest:
       maxLength: 100
       description: Name of the environment to create
       example: Production
+    production:
+      type: boolean
+      default: false
+      description: |
+        Whether the environment is a production environment, which uses only published versions.
+        Omitted: false.
+      example: true
 
 UpdateEnvironmentRequest:
   type: object
@@ -68,6 +83,13 @@ UpdateEnvironmentRequest:
       maxLength: 100
       description: New name for the environment
       example: Production (EU)
+    production:
+      type: [boolean, "null"]
+      description: |
+        Mark the environment as production, which uses only published versions, or unmark it.
+        Omitted or null: unchanged. Marking it while it follows a draft of any catalog is refused with 409
+        (`environment-override-refused`); clear that override first.
+      example: true
 
 EnvironmentListResponse:
   description: List of environments
@@ -88,10 +110,12 @@ EnvironmentListResponse:
       - key: production
         tenantKey: acme-corp
         name: Production
+        production: true
         createdAt: "2026-01-16T10:00:00Z"
       - key: staging
         tenantKey: acme-corp
         name: Staging
+        production: false
         createdAt: "2026-01-16T10:30:00Z"
     page:
       number: 0
@@ -243,15 +267,32 @@ DeploymentEventDto:
       example: letters
     action:
       type: string
+      description: |
+        - `deployed`, `undeployed`: the environment started or stopped serving `releaseVersion`.
+        - `override-set`: the environment overrode the catalog with `releaseVersion`, or, when that
+          is null, with the draft `draftLabel` names (`setEnvironmentOverride`).
+        - `override-cleared`: the override ended: cleared (`clearEnvironmentOverride`), or ended by
+          undeploying the release it named or discarding the draft it followed.
       enum:
         - deployed
         - undeployed
+        - override-set
+        - override-cleared
       example: deployed
     releaseVersion:
-      type: string
+      type: [string, "null"]
       maxLength: 50
-      description: The release deployed or undeployed
+      description: |
+        The release deployed or undeployed, or the release an override named. Null for an override
+        that named a draft.
       example: "1.4.1"
+    draftLabel:
+      type: [string, "null"]
+      maxLength: 100
+      description: |
+        For an override that named a draft, the draft's name at the time: "Next version" for the
+        next version, else the work's name. Null otherwise.
+      example: null
     changedAt:
       type: string
       format: date-time
@@ -273,3 +314,106 @@ DeploymentHistoryResponse:
         $ref: '#/DeploymentEventDto'
     page:
       $ref: './common.yaml#/PageMeta'
+
+EnvironmentOverrideDto:
+  type: object
+  description: |
+    Which version of a catalog an environment uses as its latest, in place of the highest release it
+    serves: one of those releases (`releaseVersion`), or a draft of the catalog (`draftId`), rendered
+    live with no release. A generation or preview request through the environment that names no
+    version, or a version range, gets it; one naming an exact release still gets that release.
+  required:
+    - environmentKey
+    - registry
+    - namespace
+    - catalogKey
+    - setAt
+  properties:
+    environmentKey:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 30
+      description: Key of the environment
+      example: acceptance
+    registry:
+      type: string
+      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+      maxLength: 253
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 63
+      description: Namespace of the catalog, within its registry
+      example: acme-corp
+    catalogKey:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Key of the catalog, unique within its registry and namespace
+      example: letters
+    releaseVersion:
+      type: [string, "null"]
+      maxLength: 50
+      description: The release the environment uses, one it serves. Null when it follows a draft.
+      example: null
+    draftId:
+      type: [string, "null"]
+      format: uuid
+      description: |
+        The draft the environment follows, rendered live: for the next version, the id the next
+        version has now. Null when it uses a release.
+      example: "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"
+    draftLabel:
+      type: [string, "null"]
+      maxLength: 100
+      description: |
+        The draft's name: "Next version" for the next version, else the work's name. Null when it
+        uses a release.
+      example: Redesign 2027
+    setAt:
+      type: string
+      format: date-time
+      description: When the override was set
+      example: "2026-10-18T09:00:00Z"
+
+EnvironmentOverrideListResponse:
+  type: object
+  description: Every override an environment has, at most one per catalog
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/EnvironmentOverrideDto'
+
+SetEnvironmentOverrideRequest:
+  type: object
+  description: |
+    What the environment uses for the catalog: exactly one of `releaseVersion` (a release) and
+    `catalogVersion` (a draft). Neither, or both, is refused with 400.
+  properties:
+    releaseVersion:
+      type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      maxLength: 50
+      description: |
+        An exact release the environment serves, such as an earlier one to roll back to. A release
+        it does not serve is refused with 409 (`environment-override-refused`).
+      example: null
+    catalogVersion:
+      type: [string, "null"]
+      pattern: '^(next|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$'
+      maxLength: 36
+      description: |
+        A draft of the catalog, rendered live with no release: `next` for its next version, or
+        long-term work by its `draftId`. Refused with 409 (`environment-override-refused`) on a
+        production environment.
+      example: next
