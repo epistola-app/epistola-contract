@@ -163,19 +163,16 @@ class ModelValidationTest {
     // --- Catalog drafts and release numbers ---
 
     @Test
-    void a_release_number_is_a_semver_number_or_pre_release() {
-        // Long-term work is released as a pre-release (ADR 0002, amendment 2).
-        for (String version : List.of(
-                "0.1.0", "1.4.0", "10.20.30", "1.4.0-rc.1", "2.0.0-beta.1", "2.0.0-redesign-2027.1", "2.0.0-x-y.z-1")) {
+    void a_release_number_is_a_plain_semver_number() {
+        for (String version : List.of("0.1.0", "1.4.0", "10.20.30")) {
             ReleaseCatalogDraftRequest request = new ReleaseCatalogDraftRequest().version(version);
             assertSame(request, ModelValidation.validate(request), "expected '" + version + "' to be valid");
         }
         // Omitted, the server numbers the release from its changes.
         ModelValidation.validate(new ReleaseCatalogDraftRequest());
 
-        for (String version : List.of(
-                "1.4", "v1.4.0", "01.4.0", "1.4.0+build", "1.4.0-rc.1+build", "1.4.0-", "1.4.0-rc..1", "1.4.0-rc_1",
-                "^1.4.0", "next")) {
+        for (String version :
+                List.of("1.4", "v1.4.0", "01.4.0", "1.4.0-rc.1", "2.0.0-redesign-2027.1", "1.4.0+build", "^1.4.0", "next")) {
             assertThrows(
                     IllegalArgumentException.class,
                     () -> ModelValidation.validate(new ReleaseCatalogDraftRequest().version(version)),
@@ -187,7 +184,6 @@ class ModelValidationTest {
     void long_term_work_is_named_and_starts_from_the_next_version_or_a_release() {
         ModelValidation.validate(new CreateCatalogDraftRequest().name("Redesign 2027"));
         ModelValidation.validate(new CreateCatalogDraftRequest().name("Redesign 2027").from("1.4.0"));
-        ModelValidation.validate(new CreateCatalogDraftRequest().name("Follow-up").from("2.0.0-redesign-2027.1"));
         ModelValidation.validate(new RenameCatalogDraftRequest().name("Redesign 2028"));
 
         assertTrue(assertThrows(
