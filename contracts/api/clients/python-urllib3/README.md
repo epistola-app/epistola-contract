@@ -57,10 +57,12 @@ template = templates.get_template("acme", "~", "acme", "invoices", "1.4.0", "inv
 ```
 
 Everything in a catalog is addressed through one of its versions: a draft as `next` (the catalog's
-next version) or by its draft id (long-term work), a release by its exact SemVer number. A draft is
-numbered when it is released. `CatalogsApi` lists and reads those versions, starts, renames and
-discards long-term work, and previews and releases the next version (`create_catalog_draft`,
-`preview_catalog_draft_release`, `release_catalog_draft`, …).
+next version) or by its draft id (long-term work), a release by its exact SemVer number, a
+pre-release's included (`2.0.0-redesign-2027.1`). A draft is numbered when it is released.
+`CatalogsApi` lists and reads those versions, starts, renames and discards long-term work, previews
+and releases the next version, releases long-term work as a pre-release (`pre_release` is true), and
+promotes it to the next version (`create_catalog_draft`, `preview_catalog_draft_release`,
+`release_catalog_draft`, `promote_catalog_draft`, …).
 
 `.api_key(...)` sends `Authorization: ApiKey <key>`. The legacy `X-API-Key` header remains
 supported for existing integrations, but is deprecated. Some Epistola Suite deployments may disable
