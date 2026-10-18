@@ -16,7 +16,6 @@ def _version(fingerprint):
     return {
         "version": "1.4.0",
         "isNext": False,
-        "preRelease": False,
         "status": "released",
         "createdAt": "2026-01-01T00:00:00Z",
         "behind": [],

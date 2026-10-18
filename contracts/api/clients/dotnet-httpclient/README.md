@@ -171,8 +171,7 @@ the backoff when a result is expected soon. Partition helpers: `PartitionFor`, `
 
 A catalog consists of versions, each a `draft` or `released`. A draft has no number until it is
 released: the catalog's next version, where everyday work goes, is addressed as `next`, and
-long-term work by its `DraftId`; a release by its SemVer number, a pre-release's included
-(`2.0.0-redesign-2027.1`). Every
+long-term work by its `DraftId`; a release by its SemVer number. Every
 catalog-content operation (templates, variants, stencils, themes, images, dependencies, …) takes the
 version after the catalog key; template data validation (`ValidateTemplateData`) does not. The
 versions themselves are managed through `CatalogsApi`:
@@ -201,13 +200,9 @@ var released = catalogs.ReleaseCatalogDraft("my-tenant", "~", "acme-corp", "defa
 foreach (var behind in released.DraftsBehind)
     Console.WriteLine($"{behind} does not contain {released.CatalogVersion.VarVersion}");
 
-// Long-term work is released as a pre-release (`PreRelease` is true), to try it where it is deployed.
-var preRelease = catalogs.ReleaseCatalogDraft("my-tenant", "~", "acme-corp", "default", work.DraftId.ToString(),
-    new ReleaseCatalogDraftRequest());
-Console.WriteLine($"{preRelease.CatalogVersion.VarVersion} is a pre-release: {preRelease.CatalogVersion.PreRelease}");
-
-// When it is ready, it becomes the next version; `keepPreviousAs` keeps the old next version as
-// long-term work, and `acknowledgedBehind` names the releases it leaves out.
+// Long-term work is not released. When it is ready, it becomes the next version; `keepPreviousAs`
+// keeps the old next version as long-term work, and `acknowledgedBehind` names the releases it
+// leaves out.
 var promoted = catalogs.PromoteCatalogDraft("my-tenant", "~", "acme-corp", "default", work.DraftId.ToString(),
     new PromoteCatalogDraftRequest(
         keepPreviousAs: "Before the redesign",

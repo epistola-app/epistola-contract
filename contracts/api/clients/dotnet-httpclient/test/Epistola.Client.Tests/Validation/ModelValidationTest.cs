@@ -128,16 +128,14 @@ public class ModelValidationTest
         Assert.Same(request, request.Validate());
     }
 
-    // Long-term work is released as a pre-release, which a release number may name (ADR 0002, amendment 2).
-    [Theory]
-    [InlineData("1.4.0")]
-    [InlineData("2.0.0-beta.1")]
-    [InlineData("2.0.0-redesign-2027.1")]
-    public void ReleaseNumberAcceptsAReleaseOrPreRelease(string version)
+    // A release number is a plain MAJOR.MINOR.PATCH (ADR 0002, amendment 2): long-term work is not
+    // released, so there are no pre-release numbers.
+    [Fact]
+    public void ReleaseNumberAcceptsAPlainSemVerNumber()
     {
-        var release = new ReleaseCatalogDraftRequest(varVersion: version);
+        var release = new ReleaseCatalogDraftRequest(varVersion: "1.4.0");
         Assert.Same(release, release.Validate());
-        var draft = new CreateCatalogDraftRequest(name: "Follow-up", from: version);
+        var draft = new CreateCatalogDraftRequest(name: "Follow-up", from: "1.4.0");
         Assert.Same(draft, draft.Validate());
     }
 
@@ -145,8 +143,8 @@ public class ModelValidationTest
     [InlineData("1.4")]
     [InlineData("v1.4.0")]
     [InlineData("1.4.0+build")]
-    [InlineData("1.4.0-")]
-    [InlineData("1.4.0-rc..1")]
+    [InlineData("2.0.0-beta.1")]
+    [InlineData("2.0.0-redesign-2027.1")]
     [InlineData("next")]
     public void ReleaseNumberRejectsAnythingElse(string version)
     {
