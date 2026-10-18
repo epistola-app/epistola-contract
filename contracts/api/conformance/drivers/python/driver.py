@@ -27,6 +27,7 @@ from epistola_client import (
     ClientIdentity,
     ConsumersApi,
     CreateCatalogDraftRequest,
+    CreateEnvironmentRequest,
     EnvironmentsApi,
     EpistolaClientBuilder,
     GenerateDocumentRequest,
@@ -38,6 +39,7 @@ from epistola_client import (
     PromoteCatalogDraftRequest,
     ReleaseCatalogDraftRequest,
     RenameCatalogDraftRequest,
+    SetEnvironmentOverrideRequest,
     ResultCollector,
     SystemApi,
     TemplateDataValidationError,
@@ -45,6 +47,7 @@ from epistola_client import (
     TemplatesApi,
     UpdateCatalogDependenciesRequest,
     UpdateConsumerRequest,
+    UpdateEnvironmentRequest,
 )
 
 
@@ -83,6 +86,11 @@ def main() -> int:
         "promote-catalog-draft": _promote_catalog_draft,
         "deploy-release": _deploy_release,
         "undeploy-release": _undeploy_release,
+        "set-environment-override": _set_environment_override,
+        "list-environment-overrides": _list_environment_overrides,
+        "clear-environment-override": _clear_environment_override,
+        "create-environment": _create_environment,
+        "update-environment": _update_environment,
     }
 
     try:
@@ -596,6 +604,97 @@ def _undeploy_release(base_url: str, config: dict) -> None:
         config["namespace"],
         config["catalogKey"],
         config["releaseVersion"],
+    )
+
+
+def _set_environment_override(base_url: str, config: dict) -> None:
+    """Overrides the version of a catalog an environment uses; ``releaseVersion`` and
+    ``catalogVersion`` go out only when the scenario sets them. A refusal is reported by its
+    problem."""
+    optional = {name: config[name] for name in ("releaseVersion", "catalogVersion") if name in config}
+    try:
+        override = EnvironmentsApi(_client(base_url, config)).set_environment_override(
+            config["tenantKey"],
+            config["environmentKey"],
+            config["registry"],
+            config["namespace"],
+            config["catalogKey"],
+            SetEnvironmentOverrideRequest(**optional),
+        )
+    except ProblemDetailException as exc:
+        _report(base_url, {"problemTypeSlug": exc.type_slug or "<null>", "problemStatus": exc.status_code})
+        return
+    _report(
+        base_url,
+        {
+            "environmentKey": _show(override.environment_key),
+            "registry": _show(override.registry),
+            "namespace": _show(override.namespace),
+            "catalogKey": _show(override.catalog_key),
+            "releaseVersion": _show(override.release_version),
+            "draftId": _show(override.draft_id),
+            "draftLabel": _show(override.draft_label),
+            "setAt": _show_instant(override.set_at),
+        },
+    )
+
+
+def _list_environment_overrides(base_url: str, config: dict) -> None:
+    overrides = (
+        EnvironmentsApi(_client(base_url, config))
+        .list_environment_overrides(config["tenantKey"], config["environmentKey"])
+        .items
+    )
+    _report(
+        base_url,
+        {
+            "catalogKeys": ",".join(_show(o.catalog_key) for o in overrides),
+            "releaseVersions": ",".join(_show(o.release_version) for o in overrides),
+            "draftIds": ",".join(_show(o.draft_id) for o in overrides),
+            "draftLabels": "|".join(_show(o.draft_label) for o in overrides),
+        },
+    )
+
+
+def _clear_environment_override(base_url: str, config: dict) -> None:
+    EnvironmentsApi(_client(base_url, config)).clear_environment_override(
+        config["tenantKey"],
+        config["environmentKey"],
+        config["registry"],
+        config["namespace"],
+        config["catalogKey"],
+    )
+
+
+def _create_environment(base_url: str, config: dict) -> None:
+    """Creates an environment; ``production`` goes out only when the scenario sets it."""
+    optional = {"production": config["production"]} if "production" in config else {}
+    environment = EnvironmentsApi(_client(base_url, config)).create_environment(
+        config["tenantKey"],
+        CreateEnvironmentRequest(key=config["key"], name=config["name"], **optional),
+    )
+    _report_environment(base_url, environment)
+
+
+def _update_environment(base_url: str, config: dict) -> None:
+    """A partial update: each member goes out only when the scenario sets it."""
+    optional = {name: config[name] for name in ("name", "production") if name in config}
+    environment = EnvironmentsApi(_client(base_url, config)).update_environment(
+        config["tenantKey"],
+        config["environmentKey"],
+        UpdateEnvironmentRequest(**optional),
+    )
+    _report_environment(base_url, environment)
+
+
+def _report_environment(base_url: str, environment) -> None:
+    _report(
+        base_url,
+        {
+            "key": _show(environment.key),
+            "name": _show(environment.name),
+            "production": _show_bool(environment.production),
+        },
     )
 
 

@@ -22,6 +22,10 @@ import app.epistola.client.model.CatalogDependencyDto
 import app.epistola.client.model.CatalogDependencyRequirement
 import app.epistola.client.model.CatalogVersionStatus
 import app.epistola.client.model.CreateCatalogDraftRequest
+import app.epistola.client.model.CreateEnvironmentRequest
+import app.epistola.client.model.EnvironmentDto
+import app.epistola.client.model.SetEnvironmentOverrideRequest
+import app.epistola.client.model.UpdateEnvironmentRequest
 import app.epistola.client.model.PromoteCatalogDraftRequest
 import app.epistola.client.model.ReleaseCatalogDraftRequest
 import app.epistola.client.model.RenameCatalogDraftRequest
@@ -95,6 +99,11 @@ object Driver {
                 "promote-catalog-draft" -> promoteCatalogDraft(baseUrl, config)
                 "deploy-release" -> deployRelease(baseUrl, config)
                 "undeploy-release" -> undeployRelease(baseUrl, config)
+                "set-environment-override" -> setEnvironmentOverride(baseUrl, config)
+                "list-environment-overrides" -> listEnvironmentOverrides(baseUrl, config)
+                "clear-environment-override" -> clearEnvironmentOverride(baseUrl, config)
+                "create-environment" -> createEnvironment(baseUrl, config)
+                "update-environment" -> updateEnvironment(baseUrl, config)
                 else -> error("unknown action $action")
             }
             done(baseUrl, null)
@@ -664,6 +673,98 @@ object Driver {
             config["releaseVersion"].asText(),
         )
     }
+
+    /**
+     * Overrides the version of a catalog an environment uses: `releaseVersion` and `catalogVersion`
+     * go into the body only when configured. A refusal is reported by its problem.
+     */
+    private fun setEnvironmentOverride(baseUrl: String, config: ObjectNode) {
+        val override = try {
+            EnvironmentsApi(restClient(baseUrl, config)).setEnvironmentOverride(
+                config["tenantKey"].asText(),
+                config["environmentKey"].asText(),
+                config["registry"].asText(),
+                config["namespace"].asText(),
+                config["catalogKey"].asText(),
+                SetEnvironmentOverrideRequest(
+                    releaseVersion = config.optionalText("releaseVersion"),
+                    catalogVersion = config.optionalText("catalogVersion"),
+                ),
+            )
+        } catch (e: ProblemDetailException) {
+            report(baseUrl, mapOf("problemTypeSlug" to (e.typeSlug ?: "<null>"), "problemStatus" to e.statusCode.value()))
+            return
+        }
+        report(
+            baseUrl,
+            mapOf(
+                "environmentKey" to override.environmentKey,
+                "registry" to override.registry,
+                "namespace" to override.namespace,
+                "catalogKey" to override.catalogKey,
+                "releaseVersion" to (override.releaseVersion ?: "null"),
+                "draftId" to (override.draftId?.toString() ?: "null"),
+                "draftLabel" to (override.draftLabel ?: "null"),
+                "setAt" to timestamp(override.setAt),
+            ),
+        )
+    }
+
+    private fun listEnvironmentOverrides(baseUrl: String, config: ObjectNode) {
+        val overrides = EnvironmentsApi(restClient(baseUrl, config))
+            .listEnvironmentOverrides(config["tenantKey"].asText(), config["environmentKey"].asText())
+            .items
+        report(
+            baseUrl,
+            mapOf(
+                "catalogKeys" to overrides.joinToString(",") { it.catalogKey },
+                "releaseVersions" to overrides.joinToString(",") { it.releaseVersion ?: "null" },
+                "draftIds" to overrides.joinToString(",") { it.draftId?.toString() ?: "null" },
+                "draftLabels" to overrides.joinToString("|") { it.draftLabel ?: "null" },
+            ),
+        )
+    }
+
+    private fun clearEnvironmentOverride(baseUrl: String, config: ObjectNode) {
+        EnvironmentsApi(restClient(baseUrl, config)).clearEnvironmentOverride(
+            config["tenantKey"].asText(),
+            config["environmentKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+        )
+    }
+
+    /** Creates an environment; `production` is sent only when configured. */
+    private fun createEnvironment(baseUrl: String, config: ObjectNode) {
+        val environment = EnvironmentsApi(restClient(baseUrl, config)).createEnvironment(
+            config["tenantKey"].asText(),
+            CreateEnvironmentRequest(
+                key = config["key"].asText(),
+                name = config["name"].asText(),
+                production = config.get("production")?.takeUnless { it.isNull }?.asBoolean(),
+            ),
+        )
+        reportEnvironment(baseUrl, environment)
+    }
+
+    /** A partial update: each member is sent only when configured. */
+    private fun updateEnvironment(baseUrl: String, config: ObjectNode) {
+        val environment = EnvironmentsApi(restClient(baseUrl, config)).updateEnvironment(
+            config["tenantKey"].asText(),
+            config["environmentKey"].asText(),
+            UpdateEnvironmentRequest(
+                name = config.optionalText("name"),
+                production = config.get("production")?.takeUnless { it.isNull }?.asBoolean(),
+            ),
+        )
+        reportEnvironment(baseUrl, environment)
+    }
+
+    private fun reportEnvironment(baseUrl: String, environment: EnvironmentDto) = report(
+        baseUrl,
+        mapOf("key" to environment.key, "name" to environment.name, "production" to environment.production.toString()),
+    )
 
     /** An optional value from `config`: absent or null stays null, so the request omits it. */
     private fun JsonNode.optionalText(name: String): String? = get(name)?.takeUnless { it.isNull }?.asText()

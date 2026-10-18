@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: clear-environment-override
+title: Clearing an override addresses the catalog, and its empty answer is a success
+why: >
+  Clearing an override puts the environment back on the highest release it serves (ADR 0002,
+  amendment 2). It is addressed by the catalog, like setting one, and has no body. It is
+  idempotent: clearing a catalog the environment does not override succeeds too.
+
+  The answer is a 204 with no body and no content type, which a client must treat as success
+  rather than fail to deserialize.
+
+action:
+  name: clear-environment-override
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    environmentKey: acceptance
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+
+script:
+  - status: 204
+
+expect:
+  requestCount: 1
+  requests:
+    - method: DELETE
+      path: /api/tenants/acme-corp/environments/acceptance/overrides/~/acme-corp/letters

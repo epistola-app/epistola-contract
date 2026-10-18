@@ -68,6 +68,11 @@ public static class Driver
                 case "promote-catalog-draft": PromoteCatalogDraft(baseUrl, config); break;
                 case "deploy-release": DeployRelease(baseUrl, config); break;
                 case "undeploy-release": UndeployRelease(baseUrl, config); break;
+                case "set-environment-override": SetEnvironmentOverride(baseUrl, config); break;
+                case "list-environment-overrides": ListEnvironmentOverrides(baseUrl, config); break;
+                case "clear-environment-override": ClearEnvironmentOverride(baseUrl, config); break;
+                case "create-environment": CreateEnvironment(baseUrl, config); break;
+                case "update-environment": UpdateEnvironment(baseUrl, config); break;
                 default: throw new ArgumentException($"unknown action {instruction.GetProperty("action")}");
             }
 
@@ -693,6 +698,102 @@ public static class Driver
             error == null ? "{}" : JsonSerializer.Serialize(new Dictionary<string, string> { ["error"] = error }));
 
     // --- Config helpers ---
+
+    /// <summary>
+    /// Overrides the version of a catalog an environment uses; <c>releaseVersion</c> and
+    /// <c>catalogVersion</c> are left unset when the scenario does not name them. A refusal is
+    /// reported by its problem.
+    /// </summary>
+    private static void SetEnvironmentOverride(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        EnvironmentOverrideDto environmentOverride;
+        try
+        {
+            environmentOverride = new EnvironmentsApi(http, apiBase).SetEnvironmentOverride(
+                Str(config, "tenantKey"), Str(config, "environmentKey"),
+                Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
+                new SetEnvironmentOverrideRequest(
+                    releaseVersion: OptStr(config, "releaseVersion")!,
+                    catalogVersion: OptStr(config, "catalogVersion")!));
+        }
+        catch (ProblemDetailException e)
+        {
+            Report(baseUrl, new Dictionary<string, object>
+            {
+                ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
+                ["problemStatus"] = (int)e.StatusCode,
+            });
+            return;
+        }
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["environmentKey"] = Show(environmentOverride.EnvironmentKey),
+            ["registry"] = Show(environmentOverride.Registry),
+            ["namespace"] = Show(environmentOverride.Namespace),
+            ["catalogKey"] = Show(environmentOverride.CatalogKey),
+            ["releaseVersion"] = Show(environmentOverride.ReleaseVersion),
+            ["draftId"] = Show(environmentOverride.DraftId),
+            ["draftLabel"] = Show(environmentOverride.DraftLabel),
+            ["setAt"] = Show(Iso(environmentOverride.SetAt)),
+        });
+    }
+
+    private static void ListEnvironmentOverrides(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var overrides = new EnvironmentsApi(http, apiBase)
+            .ListEnvironmentOverrides(Str(config, "tenantKey"), Str(config, "environmentKey")).Items;
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["catalogKeys"] = string.Join(",", overrides.Select(o => Show(o.CatalogKey))),
+            ["releaseVersions"] = string.Join(",", overrides.Select(o => Show(o.ReleaseVersion))),
+            ["draftIds"] = string.Join(",", overrides.Select(o => Show(o.DraftId))),
+            ["draftLabels"] = string.Join("|", overrides.Select(o => Show(o.DraftLabel))),
+        });
+    }
+
+    private static void ClearEnvironmentOverride(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        new EnvironmentsApi(http, apiBase).ClearEnvironmentOverride(
+            Str(config, "tenantKey"), Str(config, "environmentKey"),
+            Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"));
+    }
+
+    /// <summary>Creates an environment; <c>production</c> keeps its default when the scenario does not name it.</summary>
+    private static void CreateEnvironment(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var environment = new EnvironmentsApi(http, apiBase).CreateEnvironment(
+            Str(config, "tenantKey"),
+            new CreateEnvironmentRequest(
+                key: Str(config, "key"),
+                name: Str(config, "name"),
+                production: OptBool(config, "production") ?? false));
+        ReportEnvironment(baseUrl, environment);
+    }
+
+    /// <summary>A partial update: each member is left unset when the scenario does not name it.</summary>
+    private static void UpdateEnvironment(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var environment = new EnvironmentsApi(http, apiBase).UpdateEnvironment(
+            Str(config, "tenantKey"), Str(config, "environmentKey"),
+            new UpdateEnvironmentRequest(
+                name: OptStr(config, "name")!,
+                production: OptBool(config, "production")));
+        ReportEnvironment(baseUrl, environment);
+    }
+
+    private static void ReportEnvironment(string baseUrl, EnvironmentDto environment) =>
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["key"] = Show(environment.Key),
+            ["name"] = Show(environment.Name),
+            ["production"] = Bool(environment.Production),
+        });
 
     private static string Str(JsonElement config, string name, string? fallback = null) =>
         config.TryGetProperty(name, out var value) ? value.GetString()! : fallback

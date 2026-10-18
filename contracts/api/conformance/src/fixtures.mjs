@@ -52,6 +52,17 @@ const ACTION_OPERATIONS = {
     method: 'delete',
     path: '/tenants/{tenantKey}/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}',
   },
+  'set-environment-override': {
+    method: 'put',
+    path: '/tenants/{tenantKey}/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}',
+  },
+  'clear-environment-override': {
+    method: 'delete',
+    path: '/tenants/{tenantKey}/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}',
+  },
+  'list-environment-overrides': { method: 'get', path: '/tenants/{tenantKey}/environments/{environmentKey}/overrides' },
+  'create-environment': { method: 'post', path: '/tenants/{tenantKey}/environments' },
+  'update-environment': { method: 'patch', path: '/tenants/{tenantKey}/environments/{environmentKey}' },
   'create-catalog-draft': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions' },
   'list-catalog-versions': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions' },
   'get-catalog-version': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}' },

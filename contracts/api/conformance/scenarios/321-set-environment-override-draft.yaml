@@ -1,0 +1,63 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: set-environment-override-draft
+title: Overriding an environment with a draft sends the draft alone, and reads back its id and name
+why: >
+  Long-term work and the next version are tried by pointing a non-production environment at them:
+  the environment then renders the draft live, with no release (ADR 0002, amendment 2). The draft
+  goes in the body as `catalogVersion`, `next` or a draft id, exactly as given; `releaseVersion` is
+  left out. A client that sent `"releaseVersion": null` would send a request naming both.
+
+  The answer has no release: `releaseVersion` is null, and the draft is named by the id the next
+  version has now and by its label, "Next version". A client that requires `releaseVersion` cannot
+  read an environment that follows a draft.
+
+action:
+  name: set-environment-override
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    environmentKey: acceptance
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: next
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      environmentKey: acceptance
+      registry: exchange.epistola.app
+      namespace: acme-corp
+      catalogKey: letters
+      releaseVersion: null
+      draftId: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+      draftLabel: Next version
+      setAt: "2026-10-18T09:00:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PUT
+      path: /api/tenants/acme-corp/environments/acceptance/overrides/~/acme-corp/letters
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+      body:
+        json:
+          catalogVersion: next
+        jsonAbsent: [releaseVersion]
+        matches: '^\s*\{\s*"catalogVersion"\s*:\s*"next"\s*\}\s*$'
+  report:
+    environmentKey: acceptance
+    registry: exchange.epistola.app
+    namespace: acme-corp
+    catalogKey: letters
+    releaseVersion: 'null'
+    draftId: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+    # Names are free text, so a driver reports them as given.
+    draftLabel: Next version
+    setAt: "2026-10-18T09:00:00Z"

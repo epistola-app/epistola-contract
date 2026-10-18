@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: update-environment-production
+title: Changing whether an environment is production sends only that, leaving its name alone
+why: >
+  `updateEnvironment` is a partial update: an omitted member is unchanged. Unmarking an environment
+  as production (ADR 0002, amendment 2) sends `production: false` and nothing else: false is a
+  value, not an absent member, so a client must not drop it. A client that sends `"name": null`
+  with it asks to clear the name, which the caller never did.
+
+action:
+  name: update-environment
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    environmentKey: staging
+    production: false
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v1+json
+    body:
+      key: staging
+      tenantKey: acme-corp
+      name: Staging
+      production: false
+      createdAt: "2026-10-01T09:00:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PATCH
+      path: /api/tenants/acme-corp/environments/staging
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+      body:
+        json:
+          production: false
+        jsonAbsent: [name]
+        matches: '^\s*\{\s*"production"\s*:\s*false\s*\}\s*$'
+  report:
+    key: staging
+    name: Staging
+    production: 'false'
