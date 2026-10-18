@@ -446,7 +446,6 @@ def _get_catalog_version(base_url: str, config: dict) -> None:
             "version": _show(version.version),
             "draftId": _show(version.draft_id),
             "isNext": _show_bool(version.is_next),
-            "preRelease": _show_bool(version.pre_release),
             "name": _show(version.name),
             "status": _show(_enum(version.status)),
             "releasedAt": _show_instant(version.released_at),
@@ -517,7 +516,6 @@ def _release_catalog_draft(base_url: str, config: dict) -> None:
             "status": _show(_enum(response.catalog_version.status)),
             "draftId": _show(response.catalog_version.draft_id),
             "isNext": _show_bool(response.catalog_version.is_next),
-            "preRelease": _show_bool(response.catalog_version.pre_release),
             "draftsBehind": "|".join(response.drafts_behind),
         },
     )
@@ -537,7 +535,6 @@ def _promote_catalog_draft(base_url: str, config: dict) -> None:
             "version": _show(version.version),
             "draftId": _show(version.draft_id),
             "isNext": _show_bool(version.is_next),
-            "preRelease": _show_bool(version.pre_release),
             "name": _show(version.name),
             "status": _show(_enum(version.status)),
             "base": _show(version.base),

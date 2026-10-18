@@ -490,7 +490,6 @@ object Driver {
                 "version" to (version.version ?: "null"),
                 "draftId" to (version.draftId?.toString() ?: "null"),
                 "isNext" to version.isNext.toString(),
-                "preRelease" to version.preRelease.toString(),
                 "name" to (version.name ?: "null"),
                 "status" to version.status.value,
                 "releasedAt" to timestamp(version.releasedAt),
@@ -559,7 +558,7 @@ object Driver {
         )
     }
 
-    /** Releases a draft (long-term work as a pre-release); each member is sent only when configured. */
+    /** Releases the next version; each member is sent only when configured. */
     private fun releaseCatalogDraft(baseUrl: String, config: ObjectNode) {
         val response = CatalogsApi(restClient(baseUrl, config)).releaseCatalogDraft(
             config["tenantKey"].asText(),
@@ -580,7 +579,6 @@ object Driver {
                 "status" to response.catalogVersion.status.value,
                 "draftId" to (response.catalogVersion.draftId?.toString() ?: "null"),
                 "isNext" to response.catalogVersion.isNext.toString(),
-                "preRelease" to response.catalogVersion.preRelease.toString(),
                 "draftsBehind" to response.draftsBehind.joinToString("|"),
             ),
         )
@@ -605,7 +603,6 @@ object Driver {
                 "version" to (version.version ?: "null"),
                 "draftId" to (version.draftId?.toString() ?: "null"),
                 "isNext" to version.isNext.toString(),
-                "preRelease" to version.preRelease.toString(),
                 "name" to (version.name ?: "null"),
                 "status" to version.status.value,
                 "base" to (version.base ?: "null"),

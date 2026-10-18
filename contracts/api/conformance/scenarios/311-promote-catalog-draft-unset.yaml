@@ -29,7 +29,6 @@ script:
       version: null
       draftId: 0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
       isNext: true
-      preRelease: false
       name: null
       status: draft
       base: 1.5.0
@@ -53,5 +52,4 @@ expect:
   report:
     draftId: 0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
     isNext: 'true'
-    preRelease: 'false'
     behind: '0'

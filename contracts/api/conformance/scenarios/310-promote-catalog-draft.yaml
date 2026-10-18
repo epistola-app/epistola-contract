@@ -14,7 +14,7 @@ why: >
 
   Both travel in the JSON body, the list as an array of version strings. The answer is the work, now
   the next version: still addressed by its `draftId`, `isNext` true, no longer named, continuing on
-  the latest release and behind nothing. It is a draft, so it is no pre-release.
+  the latest release and behind nothing.
 
 action:
   name: promote-catalog-draft
@@ -35,7 +35,6 @@ script:
       version: null
       draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
       isNext: true
-      preRelease: false
       name: null
       status: draft
       base: 1.5.0
@@ -65,7 +64,6 @@ expect:
     version: 'null'
     draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
     isNext: 'true'
-    preRelease: 'false'
     name: 'null'
     status: draft
     base: 1.5.0
