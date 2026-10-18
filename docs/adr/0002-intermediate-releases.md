@@ -102,7 +102,11 @@ and stay as ADR 0001 describes; they will be fitted to this model separately.
   (the highest that is not a pre-release): corrections raise the patch, additions the minor,
   breaking changes the major, by the rules `markStencilReady` and the release impact already use. The
   author may raise the number (to mark a major on purpose), never lower it below what the changes
-  need, and it must be above every release of the catalog.
+  need, and it must be above every release of the catalog. Only what others rely on counts, so a
+  catalog's dependencies do not make a release breaking by themselves: a dependency added is an
+  addition (an installation brings it along), one removed or its range changed no change, and moving
+  to another release of a dependency is breaking only when that release breaks a resource this
+  catalog uses (the per-use check below), whatever the step in the dependency's number.
 - **After it is released, the next version continues**: a new next version opens on the release, as
   today. The catalog's history only moves forward.
 - **Long-term work is released only as a pre-release**: `X.Y.Z-<label>.<n>`, where `X.Y.Z` is the
