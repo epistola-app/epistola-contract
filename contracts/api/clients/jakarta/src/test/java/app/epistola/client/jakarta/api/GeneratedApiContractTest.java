@@ -38,6 +38,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.EntityPart;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -368,8 +369,10 @@ class GeneratedApiContractTest {
 
     /**
      * Deploying names the release entirely in the path, so the PUT carries no body; a stale
-     * generator output that still expects {@code DeployReleaseRequest} would fail here. Its one
-     * extra argument is the optional {@code includeDependencies} query parameter.
+     * generator output that still expects {@code DeployReleaseRequest} would fail here. Its two
+     * extra arguments are the optional {@code includeDependencies} and {@code replace} query
+     * parameters, in that order. The deployment carries its usage: {@code lastUsedAt} (null until a
+     * request uses it) and {@code documentsRequested}, a count that needs 64 bits.
      */
     @Test
     void a_release_is_deployed_and_undeployed_by_its_path_alone() {
@@ -379,11 +382,17 @@ class GeneratedApiContractTest {
         assertNotNull(deploy.getAnnotation(PUT.class), "deployRelease should be a PUT");
         assertEquals(DeploymentDto.class, deploy.getReturnType());
         assertEquals(releasePath, pathParams(deploy));
-        assertEquals(releasePath.size() + 1, deploy.getParameterCount(), "deployRelease should take no request body");
+        assertEquals(releasePath.size() + 2, deploy.getParameterCount(), "deployRelease should take no request body");
         Parameter includeDependencies = deploy.getParameters()[releasePath.size()];
         assertEquals(Boolean.class, includeDependencies.getType());
         assertEquals("includeDependencies", includeDependencies.getAnnotation(QueryParam.class).value());
         assertEquals("false", includeDependencies.getAnnotation(DefaultValue.class).value());
+        Parameter replace = deploy.getParameters()[releasePath.size() + 1];
+        assertEquals(Boolean.class, replace.getType());
+        assertEquals("replace", replace.getAnnotation(QueryParam.class).value());
+        assertEquals("false", replace.getAnnotation(DefaultValue.class).value());
+        assertEquals(OffsetDateTime.class, method(DeploymentDto.class, "getLastUsedAt").getReturnType());
+        assertEquals(Long.class, method(DeploymentDto.class, "getDocumentsRequested").getReturnType());
 
         Method undeploy = method(EnvironmentsApi.class, "undeployRelease");
         assertNotNull(undeploy.getAnnotation(DELETE.class), "undeployRelease should be a DELETE");
