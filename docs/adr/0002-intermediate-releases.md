@@ -1,6 +1,7 @@
 # ADR 0002: Working on several catalog versions at once
 
-- **Status:** Accepted, amended 2026-10-16: drafts do not merge (see "Amendment")
+- **Status:** Accepted, amended 2026-10-16: drafts do not merge (see "Amendment"); amendment 2 proposed
+  2026-10-18: a draft gets its number when it is released (see "Amendment 2")
 - **Date:** 2026-10-15
 - **Scope:** API contract (`contracts/api`), contract 2.0
 - **Related:** [ADR 0001](0001-hotfixing-a-released-catalog.md) (hotfixing a release that production runs)
@@ -73,6 +74,92 @@ merge is not part of contract 2.0.0, so neither is that rule. Instead:
   proposed separately in [ADR 0005](0005-merging-catalog-versions.md), outside 2.0.0.
 
 The sections below are updated to this model.
+
+## Amendment 2 (2026-10-18, proposed): a draft is numbered when it is released
+
+The model below numbers a draft when it is created (`2.0.0`), renumbers it as the work becomes
+known, and addresses it by that number. In practice the number is the last thing an author knows:
+it follows from what changed, which is clear only when the work is done. Authors in Epistola Suite
+never chose a number at creation; Suite already picked one at release from the kind of change,
+renumbering under the hood. This amendment makes that the model. **Hotfixes are out of scope** here
+and stay as ADR 0001 describes; they will be fitted to this model separately.
+
+### A draft has a purpose and a name, not a number
+
+- A **draft** is identified by an opaque `draftId`, and has a `name` people see. It has no version
+  number until it is released.
+- Every authored catalog has exactly **one next version**: the draft everyday work goes into. It is
+  an explicit pointer on the catalog, not "the highest draft". A catalog with no released version
+  has a next version too; its first release is its first version.
+- **Long-term work** is any other draft: a large change that is not ready ("Redesign 2027"), kept
+  apart from the next version. It is named when it is created, from the next version or from a
+  released version.
+- A draft's **base** stays what it is today: the released version it started from, fixed.
+
+### Releasing: forward, numbered from what changed
+
+- **Releasing the next version** numbers it from the kind of change against the **latest release**
+  (the highest that is not a pre-release): corrections raise the patch, additions the minor,
+  breaking changes the major, by the rules `markStencilReady` and the release impact already use. The
+  author may raise the number (to mark a major on purpose), never lower it below what the changes
+  need, and it must be above every release of the catalog.
+- **After it is released, the next version continues**: a new next version opens on the release, as
+  today. The catalog's history only moves forward.
+- **Long-term work is released only as a pre-release**: `X.Y.Z-<label>.<n>`, where `X.Y.Z` is the
+  number its changes would need against the latest release and `<label>` derives from its name
+  (`2.0.0-redesign-2027.1`). SemVer ranges such as `^1.4.0` never match a pre-release, and the
+  eventual `2.0.0` sorts above it, so a pre-release can be deployed to a test environment without
+  any request selecting it by accident. A pre-release pins its dependencies like any release.
+- **Long-term work becomes the next version** when it is ready ("promote"). It must first contain
+  every release published since its base, or acknowledge those it leaves out, as a behind draft does
+  today. The draft that was the next version is then discarded, or kept as long-term work: the author
+  chooses. After promotion it is released like any next version.
+
+### Releasing takes along what it uses
+
+A release pins exact releases of the catalogs it uses (ADR 0003). A draft that uses changes only in
+another catalog's **draft** cannot be released alone: releasing it releases that catalog's next
+version too, in the same transaction, all or nothing, and pins the new release. A draft that uses
+another catalog's long-term work cannot be released until that work is promoted, or the use removed.
+
+### Installing and deploying (unchanged, restated)
+
+- Installing a release requires the releases it pins to be present. Installing from an exchange
+  installs them first (ADR 0003).
+- Deploying a release uses the releases it pins implicitly, without deploying them (ADR 0003).
+
+### What goes
+
+- Choosing a number when creating a draft, and **renumbering** (`previewCatalogVersionRenumber`,
+  `renumberCatalogVersion`, the renumber warnings). A draft has no number to change.
+- "A version number is unique across drafts and releases": only releases have numbers.
+- The automatic patch draft after a release is replaced by "the next version continues".
+- `behind` stays, but only long-term work can be behind; the next version never is, since only it
+  releases forward.
+
+### API (proposed)
+
+| Operation | Request | Notes |
+| --- | --- | --- |
+| `listCatalogDrafts` | `GET …/drafts` | The next version first, then long-term work |
+| `createCatalogDraft` | `POST …/drafts` `{name, from?}` | Long-term work, from the next version (default) or a released version |
+| `getCatalogDraft` | `GET …/drafts/{draftId}` | Name, base, whether it is the next version, the number it would be released as, what it is behind |
+| `renameCatalogDraft` | `PATCH …/drafts/{draftId}` `{name}` | |
+| `deleteCatalogDraft` | `DELETE …/drafts/{draftId}` | Not the next version, unless another is promoted first |
+| `promoteCatalogDraft` | `POST …/drafts/{draftId}/promote` `{previous: discard \| keep, acknowledgedBehind?}` | Makes it the next version |
+| `releaseCatalogDraft` | `POST …/drafts/{draftId}/release` `{notes?, version?, alsoRelease?, acknowledgedBehind?}` | The next version releases a version, long-term work a pre-release; returns the release |
+
+- `next` is accepted wherever a `draftId` is: `…/drafts/next/templates/invoice` is the next
+  version's Invoice. Scripts and the UI rarely need another id.
+- Draft resources live under `…/drafts/{draftId}/…`; released versions stay under
+  `…/versions/{version}/…`, read-only. `getCatalogChanges`, `markCatalogReady` and the dependency
+  operations move under the draft.
+- Preview names a draft by `draftId` in place of `draftVersion`.
+
+### Open questions
+
+- Does the next version's name show anywhere, or is it always "Next version"?
+- Should a pre-release be publishable to an exchange, or local only?
 
 ## Decision (proposed)
 
