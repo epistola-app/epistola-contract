@@ -169,7 +169,9 @@ the backoff when a result is expected soon. Partition helpers: `PartitionFor`, `
 
 ## Catalog versions
 
-A catalog consists of versions, each a `draft` or `released`, addressed by SemVer number. Every
+A catalog consists of versions, each a `draft` or `released`. A draft has no number until it is
+released: the catalog's next version, where everyday work goes, is addressed as `next`, and
+long-term work by its `DraftId`; a release by its SemVer number. Every
 catalog-content operation (templates, variants, stencils, themes, images, dependencies, …) takes the
 version after the catalog key; template data validation (`ValidateTemplateData`) does not. The
 versions themselves are managed through `CatalogsApi`:
@@ -177,26 +179,31 @@ versions themselves are managed through `CatalogsApi`:
 ```csharp
 var catalogs = new CatalogsApi(http, "https://epistola.example.com/api");
 
-// Open a draft, from the highest release or (with `from`) from another version.
-catalogs.CreateCatalogVersion("my-tenant", "~", "acme-corp", "default",
-    new CreateCatalogVersionRequest(varVersion: "1.5.0"));
+// Start long-term work, named, as a copy of the next version or (with `from`) of a release.
+var work = catalogs.CreateCatalogDraft("my-tenant", "~", "acme-corp", "default",
+    new CreateCatalogDraftRequest(name: "Redesign 2027"));
+Console.WriteLine($"{work.Name} is addressed as {work.DraftId}");
 
-// A draft is an independent copy: releases numbered between its base and its own number are listed
-// in `Behind`, and releasing it must acknowledge each of them.
-var draft = catalogs.GetCatalogVersion("my-tenant", "~", "acme-corp", "default", "1.5.0");
-var released = catalogs.ReleaseCatalogVersion("my-tenant", "~", "acme-corp", "default", "1.5.0",
-    new ReleaseCatalogVersionRequest(
+// The number releasing the next version would give it, from its changes against the latest release.
+var preview = catalogs.PreviewCatalogDraftRelease("my-tenant", "~", "acme-corp", "default", "next");
+Console.WriteLine($"{preview.Suggested}: {string.Join("; ", preview.Reasons)}");
+
+// A draft is an independent copy: releases it does not contain are listed in `Behind`, and
+// releasing it must acknowledge each of them. Leave `varVersion` out to release it as suggested.
+var next = catalogs.GetCatalogVersion("my-tenant", "~", "acme-corp", "default", "next");
+var released = catalogs.ReleaseCatalogDraft("my-tenant", "~", "acme-corp", "default", "next",
+    new ReleaseCatalogDraftRequest(
         notes: "Spring update",
-        acknowledgedBehind: draft.Behind.Select(b => b.VarVersion).ToList()));
+        acknowledgedBehind: next.Behind.Select(b => b.VarVersion).ToList()));
 
-// Releasing never changes another draft; the answer names the drafts that are now behind it.
+// Releasing never changes long-term work; the answer names the work that is now behind it.
 foreach (var behind in released.DraftsBehind)
     Console.WriteLine($"{behind} does not contain {released.CatalogVersion.VarVersion}");
 ```
 
 The generator names a `version` member `VarVersion` (constructor argument `varVersion`), and
-`base` `Base` (`varBase`), because both collide with C# names. A renumber warning's `Kind` is a
-plain string: the set of kinds may grow.
+`base` `Base` (`varBase`), because both collide with C# names. A draft's `VarVersion` is null, and
+a preview's `ChangeKind` is null when there is no release to compare with.
 
 ## Uploading files
 
@@ -208,7 +215,7 @@ using Epistola.Client.Client;
 
 using var content = File.OpenRead("logo.png");
 var image = new ImagesApi(http, "https://epistola.example.com/api").UploadImage(
-    "acme-corp", "acme-corp", "main", "2.0.0", new FileParameter("logo.png", "image/png", content), name: "Logo");
+    "acme-corp", "~", "acme-corp", "main", "next", new FileParameter("logo.png", "image/png", content), name: "Logo");
 ```
 
 A `FileParameter` built from a bare stream is sent as `no_name_provided`, with type

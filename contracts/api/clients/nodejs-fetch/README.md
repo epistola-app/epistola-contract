@@ -107,7 +107,7 @@ carries a name and a type:
 import { readFile } from 'node:fs/promises'
 
 const file = new File([await readFile('logo.png')], 'logo.png', { type: 'image/png' })
-const image = await new ImagesApi(client).uploadImage({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', catalogVersion: '1.5.0', file, name: 'Logo' })
+const image = await new ImagesApi(client).uploadImage({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', catalogVersion: 'next', file, name: 'Logo' })
 ```
 
 A plain `Blob` is always sent with the filename `blob`, and as `application/octet-stream` unless it
