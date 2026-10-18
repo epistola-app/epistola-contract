@@ -17,6 +17,9 @@ import app.epistola.client.jakarta.model.CatalogVersionDto;
 import app.epistola.client.jakarta.model.CatalogVersionListResponse;
 import app.epistola.client.jakarta.model.CreateTenantRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
+import app.epistola.client.jakarta.model.EnvironmentOverrideDto;
+import app.epistola.client.jakarta.model.EnvironmentOverrideListResponse;
+import app.epistola.client.jakarta.model.SetEnvironmentOverrideRequest;
 import app.epistola.client.jakarta.model.ReleaseCatalogDraftResponse;
 import app.epistola.client.jakarta.model.TenantDto;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
@@ -387,6 +390,42 @@ class GeneratedApiContractTest {
         assertEquals(void.class, undeploy.getReturnType());
         assertEquals(releasePath, pathParams(undeploy));
         assertEquals(releasePath.size(), undeploy.getParameterCount(), "undeployRelease should take no request body");
+    }
+
+    /**
+     * An environment override is addressed by the catalog, like a deployment but without a release:
+     * one override per catalog. Setting one takes the release or the draft in the body.
+     */
+    @Test
+    void an_environment_override_is_set_listed_and_cleared_by_its_catalog() {
+        List<String> catalogPath = List.of("tenantKey", "environmentKey", "registry", "namespace", "catalogKey");
+
+        Method list = method(EnvironmentsApi.class, "listEnvironmentOverrides");
+        assertNotNull(list.getAnnotation(GET.class), "listEnvironmentOverrides should be a GET");
+        assertEquals(EnvironmentOverrideListResponse.class, list.getReturnType());
+        assertEquals(List.of("tenantKey", "environmentKey"), pathParams(list));
+        assertTrue(
+                list.getAnnotation(Path.class).value().equals("/{environmentKey}/overrides"),
+                "listEnvironmentOverrides lists below the environment");
+
+        Method set = method(EnvironmentsApi.class, "setEnvironmentOverride");
+        assertNotNull(set.getAnnotation(PUT.class), "setEnvironmentOverride should be a PUT");
+        assertEquals(EnvironmentOverrideDto.class, set.getReturnType());
+        assertEquals(catalogPath, pathParams(set));
+        assertEquals(catalogPath.size() + 1, set.getParameterCount(), "setEnvironmentOverride takes one body");
+        assertEquals(SetEnvironmentOverrideRequest.class, set.getParameterTypes()[catalogPath.size()]);
+        assertEquals(List.of(VENDOR_JSON), List.of(set.getAnnotation(Consumes.class).value()));
+        assertTrue(
+                set.getAnnotation(Path.class)
+                        .value()
+                        .endsWith("/overrides/{registry}/{namespace}/{catalogKey}"),
+                "setEnvironmentOverride is addressed by the catalog");
+
+        Method clear = method(EnvironmentsApi.class, "clearEnvironmentOverride");
+        assertNotNull(clear.getAnnotation(DELETE.class), "clearEnvironmentOverride should be a DELETE");
+        assertEquals(void.class, clear.getReturnType());
+        assertEquals(catalogPath, pathParams(clear));
+        assertEquals(catalogPath.size(), clear.getParameterCount(), "clearEnvironmentOverride takes no request body");
     }
 
     @Test

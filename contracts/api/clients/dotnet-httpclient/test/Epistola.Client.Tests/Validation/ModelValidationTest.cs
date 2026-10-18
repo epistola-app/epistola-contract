@@ -161,6 +161,36 @@ public class ModelValidationTest
         Assert.Throws<ArgumentException>(() => new PromoteCatalogDraftRequest(keepPreviousAs: new string('x', 101)).Validate());
     }
 
+    // An environment override names an exact release or a draft (ADR 0002, amendment 2).
+    [Fact]
+    public void SetEnvironmentOverrideRequestTakesAnExactReleaseOrADraft()
+    {
+        new SetEnvironmentOverrideRequest(releaseVersion: "1.3.0").Validate();
+        new SetEnvironmentOverrideRequest(catalogVersion: "next").Validate();
+        new SetEnvironmentOverrideRequest(catalogVersion: "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192").Validate();
+    }
+
+    [Theory]
+    [InlineData("^1.3.0")]
+    [InlineData("1.3")]
+    [InlineData("2.0.0-beta.1")]
+    [InlineData("next")]
+    public void SetEnvironmentOverrideRequestRejectsAnyOtherRelease(string release)
+    {
+        var ex = Assert.Throws<ArgumentException>(() => new SetEnvironmentOverrideRequest(releaseVersion: release).Validate());
+        Assert.Contains("releaseVersion", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("1.3.0")]
+    [InlineData("Next")]
+    [InlineData("draft-1")]
+    public void SetEnvironmentOverrideRequestRejectsAnyOtherDraft(string draft)
+    {
+        var ex = Assert.Throws<ArgumentException>(() => new SetEnvironmentOverrideRequest(catalogVersion: draft).Validate());
+        Assert.Contains("catalogVersion", ex.Message);
+    }
+
     [Fact]
     public void ValidateReturnsSameInstanceForFluentChaining()
     {

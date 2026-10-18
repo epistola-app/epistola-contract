@@ -14,6 +14,7 @@ import app.epistola.client.model.GenerateBatchRequest
 import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.Node
 import app.epistola.client.model.ResourceStatus
+import app.epistola.client.model.SetEnvironmentOverrideRequest
 import app.epistola.client.model.Slot
 import app.epistola.client.model.TemplateDocument
 import app.epistola.client.model.ThemeRef
@@ -142,6 +143,28 @@ class ModelValidationTest {
             CreateEnvironmentRequest(key = "a".repeat(31), name = "Env").validate()
         }
         assertEquals("key: length must be between 3 and 30", ex.message)
+    }
+
+    // --- An environment override names a release or a draft (ADR 0002, amendment 2) ---
+
+    @Test
+    fun `SetEnvironmentOverrideRequest takes an exact release or a draft`() {
+        SetEnvironmentOverrideRequest(releaseVersion = "1.3.0").validate()
+        SetEnvironmentOverrideRequest(catalogVersion = "next").validate()
+        SetEnvironmentOverrideRequest(catalogVersion = "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192").validate()
+
+        for (release in listOf("^1.3.0", "1.3", "2.0.0-beta.1", "next")) {
+            val ex = assertFailsWith<IllegalArgumentException>("expected release '$release' to fail") {
+                SetEnvironmentOverrideRequest(releaseVersion = release).validate()
+            }
+            assertEquals(true, ex.message?.startsWith("releaseVersion: "), ex.message)
+        }
+        for (draft in listOf("1.3.0", "Next", "draft-1")) {
+            val ex = assertFailsWith<IllegalArgumentException>("expected draft '$draft' to fail") {
+                SetEnvironmentOverrideRequest(catalogVersion = draft).validate()
+            }
+            assertEquals(true, ex.message?.startsWith("catalogVersion: "), ex.message)
+        }
     }
 
     // --- Integer range: FontVariantDto.weight is bounded 1-1000 ---
