@@ -248,13 +248,14 @@ environment-deployment-release:
     summary: Deploy a catalog release to an environment
     description: |
       The environment serves this release of the catalog from now on, beside any other releases of
-      it that it already serves. Generation naming the environment renders the highest release it
-      serves, or the highest that satisfies the request's `version`; so deploying a higher release
-      moves such requests to it, and undeploying it moves them back. Requests already accepted keep
+      it that it already serves (unless `replace=true`, below). Generation naming the environment
+      renders the highest release it serves, or the highest that satisfies the request's `version`;
+      so deploying a higher release moves such requests to it, and undeploying it moves them back. Requests already accepted keep
       the release they were bound to. An environment override of the catalog
       (`setEnvironmentOverride`) takes precedence for requests naming no version or a range. Only a
       release that kept its content can be deployed.
-      Deploying a release the environment already serves changes nothing.
+      Deploying a release the environment already serves changes nothing, apart from what
+      `replace=true` stops.
 
       A release renders with the releases of other catalogs it was cut with (its `dependencies`,
       direct and through other dependencies), from the tenant's copy whatever the environment
@@ -269,6 +270,10 @@ environment-deployment-release:
       With `includeDependencies=true`, the dependency releases the environment does not serve are
       also deployed explicitly, in the same transaction, all or nothing.
 
+      With `replace=true`, the environment also stops serving the catalog's other releases, in the
+      same transaction: each is undeployed, and logged as undeployed in the deployment history, just
+      as `undeployRelease` would. Without it, the release is added beside the others.
+
       Epistola Suite may not implement installing missing dependency releases yet.
     tags:
       - Environments
@@ -280,6 +285,16 @@ environment-deployment-release:
         description: |
           Also deploy, explicitly, the dependency releases the environment does not serve. When
           false or omitted, the environment uses them implicitly, without deploying them.
+        schema:
+          type: boolean
+          default: false
+      - name: replace
+        in: query
+        required: false
+        description: |
+          Also stop serving the catalog's other releases in this environment, each undeployed (and
+          logged as undeployed). When false or omitted, the release is added beside the others the
+          environment serves.
         schema:
           type: boolean
           default: false

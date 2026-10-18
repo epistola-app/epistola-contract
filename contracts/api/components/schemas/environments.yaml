@@ -132,6 +132,8 @@ DeploymentDto:
     - catalogKey
     - releaseVersion
     - deployedAt
+    - lastUsedAt
+    - documentsRequested
   properties:
     registry:
       type: string
@@ -163,6 +165,27 @@ DeploymentDto:
       type: string
       format: date-time
       example: "2026-10-02T07:30:00Z"
+    lastUsedAt:
+      type: [string, "null"]
+      format: date-time
+      description: |
+        When a generation request through this environment was last accepted for this release; null
+        when none has been since it was deployed.
+
+        A request is counted when it names this environment and is accepted and rendered with this
+        deployed release. Requests naming no environment, and requests through an environment that
+        follows a draft of the catalog, are not counted. Updated within about a minute of the
+        request, and reset when the release is undeployed. Together with `documentsRequested` it
+        shows which deployed releases nobody uses any more, before undeploying them.
+      example: "2026-10-17T14:05:00Z"
+    documentsRequested:
+      type: integer
+      format: int64
+      minimum: 0
+      description: |
+        How many generation requests through this environment were accepted for this release since
+        it was deployed. Counted, updated and reset as `lastUsedAt` describes.
+      example: 1284
 
 MissingReleaseDependency:
   type: object

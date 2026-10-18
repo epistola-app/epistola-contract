@@ -40,6 +40,18 @@ libraries.
   release and the releases it pins, transitively. `importCatalog` accepts one, installs the catalogs
   it uses first and reports them (`installedDependencies`, `presentDependencies`); a catalog the
   tenant has at another release refuses the import with 409.
+- **Deployments report how much they are used**, so an operator can see which deployed releases
+  nobody uses any more before undeploying them. `DeploymentDto` (from `listEnvironmentDeployments`
+  and `deployRelease`) gains the required `lastUsedAt` (nullable `date-time`: null when no request
+  has used the release since it was deployed) and `documentsRequested` (`int64`, at least 0). A
+  generation request is counted when it names the environment and is accepted and rendered with
+  that deployed release; requests naming no environment, and requests through an environment that
+  follows a draft, are not. Both are updated within about a minute and reset when the release is
+  undeployed.
+- **`deployRelease` can replace what an environment serves of a catalog.** The optional query
+  parameter `replace` (default false) also stops serving the catalog's other releases in that
+  environment, in the same transaction, each logged as undeployed. Without it, the release is
+  still added beside the others.
 
 ### Changed
 
