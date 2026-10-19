@@ -40,7 +40,7 @@ stencils:
       '200':
         description: List of stencils
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/StencilListResponse'
       '400':
@@ -64,14 +64,14 @@ stencils:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/stencils.yaml#/CreateStencilRequest'
     responses:
       '201':
         description: Stencil created successfully
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/StencilDto'
       '400':
@@ -124,7 +124,7 @@ stencils-id:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/StencilDto'
       '401':
@@ -149,7 +149,7 @@ stencils-id:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/stencils.yaml#/UpdateStencilRequest'
     responses:
@@ -159,7 +159,7 @@ stencils-id:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/StencilDto'
       '400':
@@ -235,7 +235,7 @@ stencil-content:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/StencilContentDto'
       '401':
@@ -261,7 +261,7 @@ stencil-content:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/stencils.yaml#/UpdateStencilContentRequest'
     responses:
@@ -271,7 +271,7 @@ stencil-content:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/StencilContentDto'
       '400':
@@ -326,7 +326,7 @@ stencil-mark-ready:
       '200':
         description: The stencil, and the instances that do not fit it
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/MarkStencilReadyResponse'
       '401':
@@ -377,7 +377,7 @@ stencil-usage:
       '200':
         description: The template variants using the stencil
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/StencilUsageListResponse'
       '401':

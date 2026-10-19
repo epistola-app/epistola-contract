@@ -51,13 +51,13 @@ import org.junit.jupiter.api.Test;
  * generator upgrade could quietly take away.
  *
  * <p>The vendor media type is the one to watch: the API is versioned by
- * {@code application/vnd.epistola.v1+json}, and media types other than {@code application/json}
+ * {@code application/vnd.epistola.v2+json}, and media types other than {@code application/json}
  * are a well-known generator blind spot. A client that silently sends {@code application/json}
  * would be talking to the wrong API version.
  */
 class GeneratedApiContractTest {
 
-    private static final String VENDOR_JSON = "application/vnd.epistola.v1+json";
+    private static final String VENDOR_JSON = "application/vnd.epistola.v2+json";
 
     private static final String MULTIPART = "multipart/form-data";
 

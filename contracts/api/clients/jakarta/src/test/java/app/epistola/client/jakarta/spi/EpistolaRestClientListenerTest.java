@@ -121,7 +121,7 @@ class EpistolaRestClientListenerTest {
 
         properties.forEach(System::setProperty);
         try (StubServer stub = StubServer.start(
-                request -> StubServer.StubResponse.of(200, "application/vnd.epistola.v1+json", PONG))) {
+                request -> StubServer.StubResponse.of(200, "application/vnd.epistola.v2+json", PONG))) {
             setUp.accept(stub);
             buildClient.accept(stub.baseUri(), api -> api.ping(new PingRequest()));
             assertions.accept(stub.onlyRequest());

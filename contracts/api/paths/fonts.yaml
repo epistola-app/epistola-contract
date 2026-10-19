@@ -35,7 +35,7 @@ fonts:
       '200':
         description: List of font families.
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/fonts.yaml#/FontListResponse'
       '400':
@@ -80,7 +80,7 @@ fonts-key:
       '200':
         description: Font family.
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/fonts.yaml#/FontDto'
       '401':

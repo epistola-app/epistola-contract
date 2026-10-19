@@ -12,8 +12,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # Media types the API is allowed to use.
 allowed=$(cat <<'EOF'
-application/vnd.epistola.v1+json
-application/vnd.epistola.v1+ndjson
+application/vnd.epistola.v2+json
+application/vnd.epistola.v2+ndjson
 application/problem+json
 application/octet-stream
 application/pdf

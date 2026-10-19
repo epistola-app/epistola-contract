@@ -97,7 +97,7 @@ import-catalog:
       '200':
         description: Catalog imported successfully
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/import.yaml#/ImportCatalogResponse'
       '400':

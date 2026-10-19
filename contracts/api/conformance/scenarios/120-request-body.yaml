@@ -52,7 +52,7 @@ action:
 
 script:
   - status: 202
-    contentType: application/vnd.epistola.v1+json
+    contentType: application/vnd.epistola.v2+json
     body:
       requestId: 88888888-8888-4888-8888-000000000001
       status: PENDING
@@ -67,7 +67,7 @@ expect:
       path: /api/tenants/acme-corp/documents/generate
       headers:
         Content-Type:
-          matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
       body:
         json:
           registry: exchange.example.org

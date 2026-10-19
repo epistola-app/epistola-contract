@@ -20,6 +20,9 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
+- **BREAKING:** the HTTP client and the result collector send `application/vnd.epistola.v2+json` and
+  `application/vnd.epistola.v2+ndjson`, the contract 2.x media types. A 2.x server refuses the 1.x
+  ones.
 - **BREAKING:** a resource's address is its `key`, following the contract's rename of `id`/`slug`
   to `key` (#84). The hand-written library follows:
   - `TemplateDataValidator.validate`, `ServerTemplateDataValidator.validate` and

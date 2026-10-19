@@ -28,7 +28,7 @@ preview-document:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/generation.yaml#/PreviewDocumentRequest'
     responses:
@@ -71,14 +71,14 @@ generate-document:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/generation.yaml#/GenerateDocumentRequest'
     responses:
       '202':
         description: Generation request accepted
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/generation.yaml#/GenerationJobResponse'
       '400':
@@ -109,14 +109,14 @@ generate-batch:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/generation.yaml#/GenerateBatchRequest'
     responses:
       '202':
         description: Batch generation request accepted
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/generation.yaml#/GenerationJobResponse'
       '400':
@@ -156,7 +156,7 @@ jobs:
       '200':
         description: List of generation jobs
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/generation.yaml#/GenerationJobListResponse'
       '400':
@@ -196,7 +196,7 @@ job-detail:
       '200':
         description: Job status with items
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/generation.yaml#/GenerationJobDetail'
       '401':
@@ -263,7 +263,7 @@ documents:
       '200':
         description: List of documents
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/generation.yaml#/DocumentListResponse'
       '400':

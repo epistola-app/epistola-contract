@@ -31,7 +31,7 @@ action:
 
 script:
   - status: 200
-    contentType: application/vnd.epistola.v1+json
+    contentType: application/vnd.epistola.v2+json
     body:
       items:
         - { version: null, draftId: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b, isNext: true, name: null, status: draft, base: 1.5.0, createdFrom: null, behind: [], dependencies: [], deployedTo: [] }

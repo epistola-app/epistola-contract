@@ -11,7 +11,7 @@ Tenant API keys are static credentials issued by a tenant manager. Each key belo
 ```bash
 curl https://api.example.com/api/tenants/acme-corp/templates \
   -H "Authorization: ApiKey epk_..." \
-  -H "Accept: application/vnd.epistola.v1+json"
+  -H "Accept: application/vnd.epistola.v2+json"
 ```
 
 The legacy `X-API-Key` header remains supported for existing integrations, but is deprecated. Only the header is deprecated, not API keys themselves:
@@ -19,7 +19,7 @@ The legacy `X-API-Key` header remains supported for existing integrations, but i
 ```bash
 curl https://api.example.com/api/tenants/acme-corp/templates \
   -H "X-API-Key: epk_..." \
-  -H "Accept: application/vnd.epistola.v1+json"
+  -H "Accept: application/vnd.epistola.v2+json"
 ```
 
 The `ApiKey` authorization scheme name is case-insensitive as defined by HTTP authentication rules; examples use `ApiKey` for readability.
@@ -53,7 +53,7 @@ curl -X POST https://your-idp.example.com/realms/epistola/protocol/openid-connec
 ```bash
 curl https://api.example.com/api/tenants/acme-corp/templates \
   -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." \
-  -H "Accept: application/vnd.epistola.v1+json"
+  -H "Accept: application/vnd.epistola.v2+json"
 ```
 
 #### How it works
@@ -88,7 +88,7 @@ openssl rsa -in private.pem -pubout -out public.pem
 
 ```bash
 curl -X POST https://api.example.com/api/tenants/acme-corp/consumers/register \
-  -H "Content-Type: application/vnd.epistola.v1+json" \
+  -H "Content-Type: application/vnd.epistola.v2+json" \
   -d '{
     "id": "invoice-service",
     "name": "Invoice Service",
@@ -120,7 +120,7 @@ curl -X POST https://api.example.com/api/tenants/acme-corp/consumers/register \
 ```bash
 curl https://api.example.com/api/tenants/acme-corp/templates \
   -H "Authorization: Bearer <self-signed-jwt>" \
-  -H "Accept: application/vnd.epistola.v1+json"
+  -H "Accept: application/vnd.epistola.v2+json"
 ```
 
 #### Key Rotation
@@ -130,7 +130,7 @@ Rotate your public key while authenticated with the current key:
 ```bash
 curl -X PUT https://api.example.com/api/tenants/acme-corp/consumers/invoice-service/public-key \
   -H "Authorization: Bearer <jwt-signed-with-current-key>" \
-  -H "Content-Type: application/vnd.epistola.v1+json" \
+  -H "Content-Type: application/vnd.epistola.v2+json" \
   -d '{ "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBI..." }'
 ```
 

@@ -26,7 +26,7 @@ catalogs:
       '200':
         description: List of catalogs
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogListResponse'
       '400':
@@ -71,7 +71,7 @@ catalog-upgrade-preview:
       '200':
         description: The upgrade diff.
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogUpgradeDiff'
       '401':
@@ -115,7 +115,7 @@ catalog-upgrade:
       '200':
         description: Upgrade result.
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/UpgradeCatalogResponse'
       '400':
@@ -159,7 +159,7 @@ catalog-changes:
       '200':
         description: The version's changes
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogChangesDto'
       '401':
@@ -198,7 +198,7 @@ catalog-mark-ready:
       '200':
         description: The draft's changes after marking ready
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogChangesDto'
       '401':
@@ -239,7 +239,7 @@ catalog-dependencies:
       '200':
         description: The declared dependencies
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogDependencyListResponse'
       '401':
@@ -265,14 +265,14 @@ catalog-dependencies:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/catalogs.yaml#/UpdateCatalogDependenciesRequest'
     responses:
       '200':
         description: The declared dependencies after the change
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogDependencyListResponse'
       '400':
@@ -324,7 +324,7 @@ catalog-versions:
       '200':
         description: The catalog's versions
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogVersionListResponse'
       '400':
@@ -358,7 +358,7 @@ catalog-versions:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/catalogs.yaml#/CreateCatalogDraftRequest'
     responses:
@@ -370,7 +370,7 @@ catalog-versions:
             schema:
               type: string
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogVersionDto'
       '400':
@@ -414,7 +414,7 @@ catalog-version:
       '200':
         description: The version
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogVersionDto'
       '401':
@@ -437,14 +437,14 @@ catalog-version:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/catalogs.yaml#/RenameCatalogDraftRequest'
     responses:
       '200':
         description: The draft, under its new name
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogVersionDto'
       '400':
@@ -515,7 +515,7 @@ catalog-version-release-preview:
       '200':
         description: The number, and why
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogDraftReleasePreview'
       '401':
@@ -576,14 +576,14 @@ catalog-version-release:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/catalogs.yaml#/ReleaseCatalogDraftRequest'
     responses:
       '200':
         description: The next version is released
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/ReleaseCatalogDraftResponse'
       '400':
@@ -633,14 +633,14 @@ catalog-version-promote:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/catalogs.yaml#/PromoteCatalogDraftRequest'
     responses:
       '200':
         description: The work, now the next version
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/CatalogVersionDto'
       '400':

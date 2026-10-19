@@ -215,10 +215,10 @@ GET /tenants/{tenantKey}/events
   &templateKey=invoice          # filter
   &limit=100                   # max events per batch (1-1000, default 100)
 
-Accept: application/vnd.epistola.v1+json
+Accept: application/vnd.epistola.v2+json
 
 200 OK
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "events": [ ... ],
@@ -338,7 +338,7 @@ The `id` field is set to the sequence number, enabling the browser/client to sen
 - **Breaks the generated server** — SSE cannot be expressed as a return type in OpenAPI-generated Spring interfaces. The server implementation must work around generated stubs.
 - Cross-instance fan-out adds infrastructure complexity (pub/sub layer).
 - Load balancers, proxies, and firewalls can interfere with long-lived connections.
-- Content type is `text/event-stream`, not `application/vnd.epistola.v1+json` — inconsistent with the rest of the API.
+- Content type is `text/event-stream`, not `application/vnd.epistola.v2+json` — inconsistent with the rest of the API.
 
 ---
 
@@ -354,7 +354,7 @@ Consumers register a callback URL with the Epistola API. When events occur, the 
 
 ```
 POST /tenants/{tenantKey}/event-subscriptions
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "callbackUrl": "https://my-app.example.com/epistola/events",
@@ -382,7 +382,7 @@ Content-Type: application/vnd.epistola.v1+json
 
 ```
 POST https://my-app.example.com/epistola/events
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 X-Epistola-Signature: sha256=...
 X-Epistola-Delivery-Id: dlv-12345
 
@@ -462,10 +462,10 @@ GET /tenants/{tenantKey}/events
   &templateKey=invoice          # filter
   &limit=100                   # max events per batch (1-1000, default 100)
 
-Accept: application/vnd.epistola.v1+json
+Accept: application/vnd.epistola.v2+json
 
 200 OK
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "events": [ ... ],
@@ -505,7 +505,7 @@ When `hasMore` is `true`, the client should immediately request the next page. W
 - Simplest to implement on both client and server.
 - Full compatibility with OpenAPI code generation — no special handling needed.
 - Stateless server: trivial horizontal scaling, no connection management.
-- Uses `application/vnd.epistola.v1+json` content type like every other endpoint.
+- Uses `application/vnd.epistola.v2+json` content type like every other endpoint.
 - Cursor-based catch-up works across restarts and outages.
 - Easy to test, debug, and monitor (standard HTTP request/response).
 
@@ -541,10 +541,10 @@ GET /tenants/{tenantKey}/events
   &resourceType=version
   &limit=100
 
-Accept: application/vnd.epistola.v1+json
+Accept: application/vnd.epistola.v2+json
 
 200 OK
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "events": [ ... ],
@@ -676,7 +676,7 @@ Notifications carry only three pieces of information: which tenant changed, the 
 | **Event ordering** | Guaranteed | Guaranteed | Per-batch | Guaranteed | Guaranteed (via REST) |
 | **Firewall friendly** | Yes | Mostly | Requires inbound | **Yes** | Mostly (gRPC needs HTTP/2) |
 | **Infrastructure needs** | Database | Database + pub/sub | Database + workers + queues | **Database only** | Database + pub/sub + gRPC server + HTTP/2 LB |
-| **Content type** | `vnd.epistola.v1` | `text/event-stream` | `vnd.epistola.v1` | `vnd.epistola.v1` | `vnd.epistola.v1` (REST) + protobuf (gRPC) |
+| **Content type** | `vnd.epistola.v2` | `text/event-stream` | `vnd.epistola.v2` | `vnd.epistola.v2` | `vnd.epistola.v2` (REST) + protobuf (gRPC) |
 | **Catchup from outage** | Built-in (cursor) | Built-in (Last-Event-ID) | Replay from dead letter | Built-in (cursor) | Built-in (cursor via REST) |
 | **Observability** | Standard HTTP metrics | Custom SSE metrics | Delivery status tracking | **Standard HTTP metrics** | HTTP metrics (REST) + gRPC metrics |
 | **Consumer liveness** | No | No | No | No | **Yes** (heartbeat-based) |
@@ -820,7 +820,7 @@ The protobuf contract contains **no domain models**. It defines only the signali
 
 The OpenAPI spec and protobuf contract are versioned independently:
 
-- **OpenAPI**: Versioned via `info.version` in `openapi.yaml` and the `application/vnd.epistola.v1+json` media type. Follows the existing release process.
+- **OpenAPI**: Versioned via `info.version` in `openapi.yaml` and the `application/vnd.epistola.v2+json` media type. Follows the existing release process.
 - **Protobuf**: Versioned via the package name (`epistola.notifications.v1`). New versions introduce a new package (`v2`) rather than modifying the existing one.
 
 Because the protobuf contract is small and stable (only signaling messages), it is expected to change rarely compared to the OpenAPI spec.

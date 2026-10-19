@@ -39,7 +39,7 @@ import org.junit.jupiter.api.Test;
  */
 class ResultCollectorTest {
 
-    private static final String NDJSON = "application/vnd.epistola.v1+ndjson";
+    private static final String NDJSON = "application/vnd.epistola.v2+ndjson";
 
     private static String result(long sequence, String status, String correlationId) {
         return "{\"sequence\":" + sequence
@@ -186,7 +186,7 @@ class ResultCollectorTest {
             StubServer.RecordedRequest request = stub.onlyRequest();
             assertEquals("POST", request.method());
             assertEquals("/api/tenants/acme-corp/generation/collect", request.path());
-            assertEquals("application/vnd.epistola.v1+json", request.header("Content-Type"));
+            assertEquals("application/vnd.epistola.v2+json", request.header("Content-Type"));
             assertTrue(request.header("Accept").contains(NDJSON), request.header("Accept"));
             assertTrue(
                     request.header("Accept-Encoding").contains("gzip"),

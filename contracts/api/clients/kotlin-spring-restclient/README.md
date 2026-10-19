@@ -214,7 +214,7 @@ openssl rsa -in private.pem -pubout -out public.pem
 
 # Register with Epistola (the consumer starts in 'pending' status)
 curl -X POST https://epistola.example.com/api/tenants/acme-corp/consumers/register \
-  -H "Content-Type: application/vnd.epistola.v1+json" \
+  -H "Content-Type: application/vnd.epistola.v2+json" \
   -d '{
     "id": "invoice-service",
     "name": "Invoice Service",

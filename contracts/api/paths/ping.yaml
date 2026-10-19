@@ -35,13 +35,13 @@ ping:
     requestBody:
       required: false
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/ping.yaml#/PingRequest'
     responses:
       '200':
         description: Server health status and optional metadata
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/ping.yaml#/PongResponse'

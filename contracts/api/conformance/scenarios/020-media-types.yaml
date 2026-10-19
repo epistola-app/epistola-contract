@@ -18,7 +18,7 @@ action:
 
 script:
   - status: 200
-    contentType: application/vnd.epistola.v1+json
+    contentType: application/vnd.epistola.v2+json
     body:
       status: UP
       timestamp: "2026-04-21T10:30:00Z"
@@ -31,6 +31,6 @@ expect:
       headers:
         # A charset parameter is allowed; plain application/json is not.
         Content-Type:
-          matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
         Accept:
-          contains: application/vnd.epistola.v1+json
+          contains: application/vnd.epistola.v2+json

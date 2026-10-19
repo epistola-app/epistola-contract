@@ -86,7 +86,7 @@ widgets:
       '200':
         description: List of widgets
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/widgets.yaml#/WidgetListResponse'
 
@@ -98,20 +98,20 @@ widgets:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/widgets.yaml#/CreateWidgetRequest'
     responses:
       '201':
         description: Widget created successfully
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/widgets.yaml#/WidgetDto'
       '400':
         description: Invalid request
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
 ```
@@ -293,7 +293,7 @@ Use existing patterns from `contracts/api/components/responses/errors.yaml`:
 '404':
   description: Widget not found
   content:
-    application/vnd.epistola.v1+json:
+    application/vnd.epistola.v2+json:
       schema:
         $ref: '../components/responses/errors.yaml#/ErrorResponse'
 
@@ -301,7 +301,7 @@ Use existing patterns from `contracts/api/components/responses/errors.yaml`:
 '400':
   description: Invalid request
   content:
-    application/vnd.epistola.v1+json:
+    application/vnd.epistola.v2+json:
       schema:
         $ref: '../components/responses/errors.yaml#/ValidationErrorResponse'
 ```
@@ -311,7 +311,7 @@ Use existing patterns from `contracts/api/components/responses/errors.yaml`:
 This API uses header-based versioning:
 
 ```
-Accept: application/vnd.epistola.v1+json
+Accept: application/vnd.epistola.v2+json
 ```
 
 ### When to bump versions

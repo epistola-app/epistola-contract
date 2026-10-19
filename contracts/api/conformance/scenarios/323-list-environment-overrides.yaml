@@ -19,7 +19,7 @@ action:
 
 script:
   - status: 200
-    contentType: application/vnd.epistola.v1+json
+    contentType: application/vnd.epistola.v2+json
     body:
       items:
         - { environmentKey: acceptance, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: letters, releaseVersion: null, draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192, draftLabel: Redesign 2027, setAt: "2026-10-18T09:00:00Z" }

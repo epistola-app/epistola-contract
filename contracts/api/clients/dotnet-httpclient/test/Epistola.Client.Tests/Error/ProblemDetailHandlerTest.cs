@@ -67,7 +67,7 @@ public class ProblemDetailHandlerTest
     [Fact]
     public async Task DoesNotTouchSuccessResponses()
     {
-        var client = ClientReturning(HttpStatusCode.OK, "application/vnd.epistola.v1+json", "{\"ok\":true}");
+        var client = ClientReturning(HttpStatusCode.OK, "application/vnd.epistola.v2+json", "{\"ok\":true}");
         var response = await client.GetAsync("thing");
         Assert.True(response.IsSuccessStatusCode);
         Assert.Equal("{\"ok\":true}", await response.Content.ReadAsStringAsync());

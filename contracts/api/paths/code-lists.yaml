@@ -32,7 +32,7 @@ code-lists:
       '200':
         description: List of code lists.
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/code-lists.yaml#/CodeListListResponse'
       '400':
@@ -55,14 +55,14 @@ code-lists:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/code-lists.yaml#/CreateCodeListRequest'
     responses:
       '201':
         description: Code list created.
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/code-lists.yaml#/CodeListDto'
       '400':
@@ -112,7 +112,7 @@ code-lists-key:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/code-lists.yaml#/CodeListDto'
       '401':
@@ -137,7 +137,7 @@ code-lists-key:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/code-lists.yaml#/UpdateCodeListRequest'
     responses:
@@ -147,7 +147,7 @@ code-lists-key:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/code-lists.yaml#/CodeListDto'
       '400':
@@ -218,7 +218,7 @@ code-list-refresh:
       '200':
         description: Refresh succeeded; returns the updated code list.
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/code-lists.yaml#/CodeListDto'
       '400':
@@ -272,7 +272,7 @@ code-list-entries:
       '200':
         description: List of entries.
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/code-lists.yaml#/CodeListEntriesResponse'
       '401':
@@ -325,14 +325,14 @@ code-list-entry-hidden:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/code-lists.yaml#/UpdateCodeListEntryHiddenRequest'
     responses:
       '200':
         description: Updated entry.
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/code-lists.yaml#/CodeListEntryDto'
       '400':

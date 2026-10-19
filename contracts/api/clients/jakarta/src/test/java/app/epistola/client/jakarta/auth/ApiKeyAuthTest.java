@@ -21,7 +21,7 @@ class ApiKeyAuthTest {
     @Test
     void the_key_is_sent_as_an_authorization_scheme_not_the_legacy_header() {
         try (StubServer stub = StubServer.start(
-                request -> StubServer.StubResponse.of(200, "application/vnd.epistola.v1+json", PONG))) {
+                request -> StubServer.StubResponse.of(200, "application/vnd.epistola.v2+json", PONG))) {
 
             EpistolaRestClients.builder()
                     .baseUri(stub.baseUri())
@@ -39,7 +39,7 @@ class ApiKeyAuthTest {
     @Test
     void surrounding_whitespace_is_trimmed_so_a_pasted_secret_still_works() {
         try (StubServer stub = StubServer.start(
-                request -> StubServer.StubResponse.of(200, "application/vnd.epistola.v1+json", PONG))) {
+                request -> StubServer.StubResponse.of(200, "application/vnd.epistola.v2+json", PONG))) {
 
             EpistolaRestClients.builder()
                     .baseUri(stub.baseUri())

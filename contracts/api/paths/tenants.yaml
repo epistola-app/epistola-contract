@@ -20,7 +20,7 @@ tenants:
       '200':
         description: List of tenants
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/tenants.yaml#/TenantListResponse'
       '400':
@@ -40,14 +40,14 @@ tenants:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/tenants.yaml#/CreateTenantRequest'
     responses:
       '201':
         description: Tenant created successfully
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/tenants.yaml#/TenantDto'
       '400':
@@ -80,7 +80,7 @@ tenants-id:
       '200':
         description: Tenant details
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/tenants.yaml#/TenantDto'
       '401':
@@ -100,14 +100,14 @@ tenants-id:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/tenants.yaml#/UpdateTenantRequest'
     responses:
       '200':
         description: Tenant updated successfully
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/tenants.yaml#/TenantDto'
       '400':

@@ -9,7 +9,7 @@ import { CONTRACT_OPERATIONS, findOperation, operationPath } from '../../src/ind
 test('a listing operation asks for the success type and the problem document, in that order', () => {
   const operation = findOperation('GET', '/tenants/acme-corp/catalogs/~/acme-corp/main/versions/1.0.0/templates')!
   assert.equal(operation.operationId, 'listTemplates')
-  assert.equal(operation.accept, 'application/vnd.epistola.v1+json, application/problem+json')
+  assert.equal(operation.accept, 'application/vnd.epistola.v2+json, application/problem+json')
   assert.equal(operation.contentType, undefined)
 })
 
@@ -23,7 +23,7 @@ test('a catalog is addressed by registry, namespace and key, the default registr
   assert.equal(findOperation('GET', '/tenants/acme/environments/acceptance/overrides')!.operationId, 'listEnvironmentOverrides')
   assert.equal(findOperation('PUT', '/tenants/acme/environments/acceptance/overrides/~/acme-corp/letters')!.operationId, 'setEnvironmentOverride')
   assert.equal(findOperation('DELETE', '/tenants/acme/environments/acceptance/overrides/acme.com/acme/letters')!.operationId, 'clearEnvironmentOverride')
-  assert.equal(findOperation('PUT', '/tenants/acme/environments/acceptance/overrides/~/acme-corp/letters')!.contentType, 'application/vnd.epistola.v1+json')
+  assert.equal(findOperation('PUT', '/tenants/acme/environments/acceptance/overrides/~/acme-corp/letters')!.contentType, 'application/vnd.epistola.v2+json')
   // Without the registry segment a catalog path addresses nothing.
   assert.equal(findOperation('GET', '/tenants/acme/catalogs/team-a/letters/versions/1.4.1/dependencies'), undefined)
 })
@@ -55,7 +55,7 @@ test('a catalog version is addressed as next, by a draft id or by its number, an
 })
 
 test('ping declares no error responses, so only the success type is asked for', () => {
-  assert.equal(findOperation('POST', '/ping')!.accept, 'application/vnd.epistola.v1+json')
+  assert.equal(findOperation('POST', '/ping')!.accept, 'application/vnd.epistola.v2+json')
 })
 
 test('a literal segment beats a parameter where both templates match', () => {

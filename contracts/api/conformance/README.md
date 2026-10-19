@@ -150,7 +150,7 @@ action:
 
 script:              # responses, in order; the last entry repeats
   - status: 200
-    contentType: application/vnd.epistola.v1+ndjson
+    contentType: application/vnd.epistola.v2+ndjson
     ndjson: [ { sequence: 1, ... }, { _meta: true, hasMore: true } ]
 
 expect:

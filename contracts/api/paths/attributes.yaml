@@ -31,7 +31,7 @@ attributes:
       '200':
         description: List of attribute definitions
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/attributes.yaml#/AttributeListResponse'
       '400':
@@ -52,14 +52,14 @@ attributes:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/attributes.yaml#/CreateAttributeRequest'
     responses:
       '201':
         description: Attribute definition created successfully
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/attributes.yaml#/AttributeDto'
       '400':
@@ -111,7 +111,7 @@ attributes-key:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/attributes.yaml#/AttributeDto'
       '401':
@@ -135,7 +135,7 @@ attributes-key:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/attributes.yaml#/UpdateAttributeRequest'
     responses:
@@ -145,7 +145,7 @@ attributes-key:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/attributes.yaml#/AttributeDto'
       '400':

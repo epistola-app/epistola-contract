@@ -33,7 +33,7 @@ action:
 
 script:
   - status: 200
-    contentType: application/vnd.epistola.v1+json
+    contentType: application/vnd.epistola.v2+json
     body:
       catalogVersion:
         version: 2.0.0

@@ -28,7 +28,7 @@ public class EpistolaUnsetPropertyHandlerTest
     private static async Task<string> Send(string body)
     {
         var (http, _, captured) = Build();
-        await http.PatchAsync("thing", new StringContent(body, Encoding.UTF8, "application/vnd.epistola.v1+json"));
+        await http.PatchAsync("thing", new StringContent(body, Encoding.UTF8, "application/vnd.epistola.v2+json"));
         return await captured[0]!.Content!.ReadAsStringAsync();
     }
 

@@ -35,7 +35,7 @@ templates:
       '200':
         description: List of templates
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/templates.yaml#/TemplateListResponse'
       '400':
@@ -57,14 +57,14 @@ templates:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/templates.yaml#/CreateTemplateRequest'
     responses:
       '201':
         description: Template created successfully
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/templates.yaml#/TemplateDto'
       '400':
@@ -117,7 +117,7 @@ templates-id:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/templates.yaml#/TemplateDto'
       '401':
@@ -144,7 +144,7 @@ templates-id:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/templates.yaml#/UpdateTemplateRequest'
     responses:
@@ -154,7 +154,7 @@ templates-id:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/templates.yaml#/TemplateDto'
       '400':
@@ -234,14 +234,14 @@ template-validate:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/validation.yaml#/ValidateTemplateDataRequest'
     responses:
       '200':
         description: Validation completed (check the 'valid' field for result)
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/validation.yaml#/TemplateDataValidationResult'
       '400':
@@ -291,7 +291,7 @@ template-mark-ready:
       '200':
         description: The template, with each variant's status
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/templates.yaml#/TemplateDto'
       '401':

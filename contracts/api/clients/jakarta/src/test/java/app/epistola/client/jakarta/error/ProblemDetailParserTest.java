@@ -228,7 +228,7 @@ class ProblemDetailParserTest {
 
         assertFalse(ProblemDetailParser.isProblemJson(null));
         assertFalse(ProblemDetailParser.isProblemJson(MediaType.APPLICATION_JSON_TYPE));
-        assertFalse(ProblemDetailParser.isProblemJson(MediaType.valueOf("application/vnd.epistola.v1+json")));
+        assertFalse(ProblemDetailParser.isProblemJson(MediaType.valueOf("application/vnd.epistola.v2+json")));
         assertFalse(ProblemDetailParser.isProblemJson(MediaType.TEXT_PLAIN_TYPE));
     }
 }

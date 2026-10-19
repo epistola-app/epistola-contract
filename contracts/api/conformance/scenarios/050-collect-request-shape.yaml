@@ -27,14 +27,14 @@ action:
 script:
   # First poll: two results, then the meta line that ends the batch.
   - status: 200
-    contentType: application/vnd.epistola.v1+ndjson
+    contentType: application/vnd.epistola.v2+ndjson
     ndjson:
       - { sequence: 501, requestId: 11111111-1111-4111-8111-000000000501, templateKey: invoice, status: COMPLETED, documentId: 22222222-2222-4222-8222-000000000501, correlationId: inv-1, completedAt: "2026-02-01T08:05:00Z" }
       - { sequence: 502, requestId: 11111111-1111-4111-8111-000000000502, templateKey: invoice, status: FAILED, error: template render failed, correlationId: inv-2, completedAt: "2026-02-01T08:05:00Z" }
       - { _meta: true, hasMore: false, lastSequence: 502, count: 2, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
   # Every later poll: nothing to collect.
   - status: 200
-    contentType: application/vnd.epistola.v1+ndjson
+    contentType: application/vnd.epistola.v2+ndjson
     ndjson:
       - { _meta: true, hasMore: false, lastSequence: 502, count: 0, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
 
@@ -45,9 +45,9 @@ expect:
     path: /api/tenants/acme-corp/generation/collect
     headers:
       Content-Type:
-        matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+        matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
       Accept:
-        contains: application/vnd.epistola.v1+ndjson
+        contains: application/vnd.epistola.v2+ndjson
       # Offer only what this classpath can actually decode; gzip is always available.
       Accept-Encoding:
         contains: gzip

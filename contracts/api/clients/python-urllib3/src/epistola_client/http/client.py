@@ -21,7 +21,7 @@ Mirrors the Kotlin client's ``RestClient.Builder`` wiring and the .NET
     templates = TemplatesApi(http)
 
 Unlike the .NET client, no media-type handler is needed: the Python generator already
-emits the versioned ``application/vnd.epistola.v1+json`` content type on request bodies.
+emits the versioned ``application/vnd.epistola.v2+json`` content type on request bodies.
 """
 
 from __future__ import annotations

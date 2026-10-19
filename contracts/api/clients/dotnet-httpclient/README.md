@@ -47,7 +47,7 @@ var template = templates.GetTemplate("my-tenant", "~", "acme-corp", "default", "
 
 The builder always installs two corrections the C# generator gives no way to configure on the model:
 a handler that rewrites the request `Content-Type` to the versioned Epistola media type
-`application/vnd.epistola.v1+json`, and one that **drops top-level properties you never set** from
+`application/vnd.epistola.v2+json`, and one that **drops top-level properties you never set** from
 request bodies instead of sending them as `null`.
 
 The second is not cosmetic. The generated models are plain nullable properties with no way to

@@ -47,7 +47,7 @@ action:
 
 script:
   - status: 201
-    contentType: application/vnd.epistola.v1+json
+    contentType: application/vnd.epistola.v2+json
     body:
       key: municipality-mark
       tenantKey: acme-corp
