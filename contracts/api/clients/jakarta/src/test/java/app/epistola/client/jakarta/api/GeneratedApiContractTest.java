@@ -19,10 +19,8 @@ import app.epistola.client.jakarta.model.CatalogVersionDto;
 import app.epistola.client.jakarta.model.CatalogVersionListResponse;
 import app.epistola.client.jakarta.model.CreateTenantRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
-import app.epistola.client.jakarta.model.EnvironmentOverrideDto;
-import app.epistola.client.jakarta.model.EnvironmentOverrideListResponse;
+import app.epistola.client.jakarta.model.DeploymentKind;
 import app.epistola.client.jakarta.model.InstallCatalogReleaseResponse;
-import app.epistola.client.jakarta.model.SetEnvironmentOverrideRequest;
 import app.epistola.client.jakarta.model.ReleaseCatalogDraftResponse;
 import app.epistola.client.jakarta.model.TenantDto;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
@@ -405,73 +403,43 @@ class GeneratedApiContractTest {
     }
 
     /**
-     * Deploying names the release entirely in the path, so the PUT carries no body; a stale
-     * generator output that still expects {@code DeployReleaseRequest} would fail here. Its two
-     * extra arguments are the optional {@code includeDependencies} and {@code replace} query
-     * parameters, in that order. The deployment carries its usage: {@code lastUsedAt} (null until a
-     * request uses it) and {@code documentsRequested}, a count that needs 64 bits.
+     * Deploying names the catalog version, a release by its number or a draft by its
+     * {@code versionId}, entirely in the path, so the PUT carries no body; a stale generator output
+     * that still expects a request body would fail here. Its two extra arguments are the optional
+     * {@code includeDependencies} and {@code replace} query parameters, in that order. The
+     * deployment says what it serves ({@code kind}, {@code versionId}, a {@code releaseVersion} that
+     * is null for a draft) and carries its usage: {@code lastUsedAt} (null until a request uses it)
+     * and {@code documentsRequested}, a count that needs 64 bits.
      */
     @Test
-    void a_release_is_deployed_and_undeployed_by_its_path_alone() {
-        List<String> releasePath = List.of("tenantKey", "environmentKey", "registry", "namespace", "catalogKey", "releaseVersion");
+    void a_catalog_version_is_deployed_and_undeployed_by_its_path_alone() {
+        List<String> versionPath =
+                List.of("tenantKey", "environmentKey", "registry", "namespace", "catalogKey", "catalogVersion");
 
-        Method deploy = method(EnvironmentsApi.class, "deployRelease");
-        assertNotNull(deploy.getAnnotation(PUT.class), "deployRelease should be a PUT");
+        Method deploy = method(EnvironmentsApi.class, "deployCatalogVersion");
+        assertNotNull(deploy.getAnnotation(PUT.class), "deployCatalogVersion should be a PUT");
         assertEquals(DeploymentDto.class, deploy.getReturnType());
-        assertEquals(releasePath, pathParams(deploy));
-        assertEquals(releasePath.size() + 2, deploy.getParameterCount(), "deployRelease should take no request body");
-        Parameter includeDependencies = deploy.getParameters()[releasePath.size()];
+        assertEquals(versionPath, pathParams(deploy));
+        assertEquals(versionPath.size() + 2, deploy.getParameterCount(), "deployCatalogVersion should take no request body");
+        Parameter includeDependencies = deploy.getParameters()[versionPath.size()];
         assertEquals(Boolean.class, includeDependencies.getType());
         assertEquals("includeDependencies", includeDependencies.getAnnotation(QueryParam.class).value());
         assertEquals("false", includeDependencies.getAnnotation(DefaultValue.class).value());
-        Parameter replace = deploy.getParameters()[releasePath.size() + 1];
+        Parameter replace = deploy.getParameters()[versionPath.size() + 1];
         assertEquals(Boolean.class, replace.getType());
         assertEquals("replace", replace.getAnnotation(QueryParam.class).value());
         assertEquals("false", replace.getAnnotation(DefaultValue.class).value());
+        assertEquals(DeploymentKind.class, method(DeploymentDto.class, "getKind").getReturnType());
+        assertEquals(String.class, method(DeploymentDto.class, "getVersionId").getReturnType());
+        assertEquals(String.class, method(DeploymentDto.class, "getDraftName").getReturnType());
         assertEquals(OffsetDateTime.class, method(DeploymentDto.class, "getLastUsedAt").getReturnType());
         assertEquals(Long.class, method(DeploymentDto.class, "getDocumentsRequested").getReturnType());
 
-        Method undeploy = method(EnvironmentsApi.class, "undeployRelease");
-        assertNotNull(undeploy.getAnnotation(DELETE.class), "undeployRelease should be a DELETE");
+        Method undeploy = method(EnvironmentsApi.class, "undeployCatalogVersion");
+        assertNotNull(undeploy.getAnnotation(DELETE.class), "undeployCatalogVersion should be a DELETE");
         assertEquals(void.class, undeploy.getReturnType());
-        assertEquals(releasePath, pathParams(undeploy));
-        assertEquals(releasePath.size(), undeploy.getParameterCount(), "undeployRelease should take no request body");
-    }
-
-    /**
-     * An environment override is addressed by the catalog, like a deployment but without a release:
-     * one override per catalog. Setting one takes the release or the draft in the body.
-     */
-    @Test
-    void an_environment_override_is_set_listed_and_cleared_by_its_catalog() {
-        List<String> catalogPath = List.of("tenantKey", "environmentKey", "registry", "namespace", "catalogKey");
-
-        Method list = method(EnvironmentsApi.class, "listEnvironmentOverrides");
-        assertNotNull(list.getAnnotation(GET.class), "listEnvironmentOverrides should be a GET");
-        assertEquals(EnvironmentOverrideListResponse.class, list.getReturnType());
-        assertEquals(List.of("tenantKey", "environmentKey"), pathParams(list));
-        assertTrue(
-                list.getAnnotation(Path.class).value().equals("/{environmentKey}/overrides"),
-                "listEnvironmentOverrides lists below the environment");
-
-        Method set = method(EnvironmentsApi.class, "setEnvironmentOverride");
-        assertNotNull(set.getAnnotation(PUT.class), "setEnvironmentOverride should be a PUT");
-        assertEquals(EnvironmentOverrideDto.class, set.getReturnType());
-        assertEquals(catalogPath, pathParams(set));
-        assertEquals(catalogPath.size() + 1, set.getParameterCount(), "setEnvironmentOverride takes one body");
-        assertEquals(SetEnvironmentOverrideRequest.class, set.getParameterTypes()[catalogPath.size()]);
-        assertEquals(List.of(VENDOR_JSON), List.of(set.getAnnotation(Consumes.class).value()));
-        assertTrue(
-                set.getAnnotation(Path.class)
-                        .value()
-                        .endsWith("/overrides/{registry}/{namespace}/{catalogKey}"),
-                "setEnvironmentOverride is addressed by the catalog");
-
-        Method clear = method(EnvironmentsApi.class, "clearEnvironmentOverride");
-        assertNotNull(clear.getAnnotation(DELETE.class), "clearEnvironmentOverride should be a DELETE");
-        assertEquals(void.class, clear.getReturnType());
-        assertEquals(catalogPath, pathParams(clear));
-        assertEquals(catalogPath.size(), clear.getParameterCount(), "clearEnvironmentOverride takes no request body");
+        assertEquals(versionPath, pathParams(undeploy));
+        assertEquals(versionPath.size(), undeploy.getParameterCount(), "undeployCatalogVersion should take no request body");
     }
 
     @Test

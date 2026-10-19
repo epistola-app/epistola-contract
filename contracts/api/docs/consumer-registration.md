@@ -732,14 +732,14 @@ TemplateDependentListResponse:
 In 2.0, deleting or changing a template does not reach a consumer when it happens. Templates are
 edited in a draft catalog version, which generation does not render; the change reaches consumers
 when the draft is released and an environment serves the release. (A non-production environment
-that follows a draft through an override renders it live; this proposal does not warn about that.)
+a draft is deployed to renders it live; this proposal does not warn about that.)
 
 So the warnings belong on the operations that change what consumers render:
 
 | Operation | Conflict condition |
 |---|---|
 | `releaseCatalogDraft` | The release removes a template or a variant an active consumer depends on (`ResourceChangeDto.change: removed`), and the consumer's `version` selector, if any, matches the new release |
-| `undeployRelease`, and `deployRelease` with `replace=true` | An active consumer depends on a template of the catalog through this environment (`environmentKeys` empty or containing it), and the environment would no longer serve a release that matches the consumer's `version` |
+| `undeployCatalogVersion`, and `deployCatalogVersion` with `replace=true` | An active consumer depends on a template of the catalog through this environment (`environmentKeys` empty or containing it), and the environment would no longer serve a version that matches the consumer's `version` |
 
 The response is **409 Conflict** instead of proceeding, as an RFC 9457 problem. The problem type
 `has-dependents` and its `dependents` member are **proposed**: neither is in `x-problem-types`.
@@ -782,7 +782,7 @@ a known risk by naming it:
 
 - `releaseCatalogDraft`: a **proposed** `acknowledgedDependents` member, an array of consumer IDs.
   The release proceeds when it names every dependent; naming others changes nothing.
-- `undeployRelease` and `deployRelease` have no request body: a **proposed** query parameter
+- `undeployCatalogVersion` and `deployCatalogVersion` have no request body: a **proposed** query parameter
   `acknowledgeDependents=true`.
 
 Proceeding does not remove the dependency records: they still describe what the consumer expects,
@@ -1013,10 +1013,10 @@ acknowledging it.
 - Add the impact query endpoint under
   `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/templates/{templateKey}/dependents`
 - Register the `has-dependents` problem type with `HasDependentsProblemDetail`
-- Return 409 from `releaseCatalogDraft`, `undeployRelease` and `deployRelease` (`replace=true`)
+- Return 409 from `releaseCatalogDraft`, `undeployCatalogVersion` and `deployCatalogVersion` (`replace=true`)
   when dependents would be affected
 - Add `acknowledgedDependents` to `ReleaseCatalogDraftRequest` and `acknowledgeDependents` to
-  `undeployRelease` and `deployRelease`
+  `undeployCatalogVersion` and `deployCatalogVersion`
 - Add `Consumer Dependencies` tag
 
 **Effort**: Medium — the dependency model is simple, but the 409 Conflict integration touches
@@ -1048,7 +1048,7 @@ scoped further, to a catalog version.
 |---|---|---|---|
 | Tenants | Platform | `/tenants` | `TENANT_MANAGER` platform role (create, delete); `TENANT_SETTINGS` (update) |
 | Consumers | Tenant | `/tenants/{tenantKey}/consumers` | `TENANT_USERS` |
-| Environments | Tenant | `/tenants/{tenantKey}/environments` | `TENANT_SETTINGS`; `ENVIRONMENT_DEPLOY` to deploy, undeploy and override |
+| Environments | Tenant | `/tenants/{tenantKey}/environments` | `TENANT_SETTINGS`; `ENVIRONMENT_DEPLOY` to deploy and undeploy |
 | Catalog versions | Catalog | `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions` | `TEMPLATE_EDIT` (drafts); `CATALOG_RELEASE` (release, discard) |
 | Templates | Catalog version | `…/versions/{catalogVersion}/templates` | `TEMPLATE_EDIT` |
 | Themes | Catalog version | `…/versions/{catalogVersion}/themes` | `THEME_EDIT` |

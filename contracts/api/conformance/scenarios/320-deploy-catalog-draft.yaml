@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: deploy-catalog-draft
+title: Deploying a draft addresses it by its versionId, and reads back a deployment with no release
+why: >
+  A draft is tried by deploying it to a non-production environment, which then renders it live
+  with no release (ADR 0003, "Deploying"). It has no number, so the path ends in its `versionId`,
+  exactly as given; the request has no body, and no query string when no flag is set.
+
+  The answer is a deployment of kind `draft`: `releaseVersion` is null and `draftName` names the
+  draft. A client that requires `releaseVersion`, or reads `kind` into a closed type that does not
+  know `draft`, cannot read what an environment serves.
+
+action:
+  name: deploy-catalog-version
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    environmentKey: acceptance
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: k7m2x9qa
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      registry: exchange.epistola.app
+      namespace: acme-corp
+      catalogKey: letters
+      versionId: k7m2x9qa
+      kind: draft
+      releaseVersion: null
+      draftName: Spring fixes
+      deployedAt: "2026-10-18T09:00:00Z"
+      lastUsedAt: null
+      documentsRequested: 0
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PUT
+      path: /api/tenants/acme-corp/environments/acceptance/deployments/~/acme-corp/letters/k7m2x9qa
+      query: ""
+  report:
+    registry: exchange.epistola.app
+    namespace: acme-corp
+    catalogKey: letters
+    versionId: k7m2x9qa
+    kind: draft
+    releaseVersion: 'null'
+    # Names are free text, so a driver reports them as given.
+    draftName: Spring fixes
+    lastUsedAt: 'null'
+    documentsRequested: "0"

@@ -45,23 +45,14 @@ const ACTION_OPERATIONS = {
   'delete-image': { method: 'delete', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/images/{imageKey}' },
   'list-catalog-dependencies': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/dependencies' },
   'update-catalog-dependencies': { method: 'put', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/dependencies' },
-  'deploy-release': {
+  'deploy-catalog-version': {
     method: 'put',
-    path: '/tenants/{tenantKey}/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}',
+    path: '/tenants/{tenantKey}/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{catalogVersion}',
   },
-  'undeploy-release': {
+  'undeploy-catalog-version': {
     method: 'delete',
-    path: '/tenants/{tenantKey}/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}',
+    path: '/tenants/{tenantKey}/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{catalogVersion}',
   },
-  'set-environment-override': {
-    method: 'put',
-    path: '/tenants/{tenantKey}/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}',
-  },
-  'clear-environment-override': {
-    method: 'delete',
-    path: '/tenants/{tenantKey}/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}',
-  },
-  'list-environment-overrides': { method: 'get', path: '/tenants/{tenantKey}/environments/{environmentKey}/overrides' },
   'create-environment': { method: 'post', path: '/tenants/{tenantKey}/environments' },
   'update-environment': { method: 'patch', path: '/tenants/{tenantKey}/environments/{environmentKey}' },
   'update-variant-content': {

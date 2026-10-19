@@ -17,13 +17,11 @@ test('a catalog is addressed by registry, namespace and key, the default registr
   assert.equal(findOperation('GET', '/tenants/acme/catalogs/exchange.example.org/team-a/letters/versions/1.4.1/dependencies')!.operationId, 'listCatalogDependencies')
   assert.equal(findOperation('PUT', '/tenants/acme/catalogs/~/acme/letters/versions/k7m2x9qa/dependencies')!.operationId, 'updateCatalogDependencies')
   assert.equal(findOperation('PUT', '/tenants/acme/catalogs/%7E/acme/letters/versions/k7m2x9qa/dependencies')!.operationId, 'updateCatalogDependencies')
-  assert.equal(findOperation('PUT', '/tenants/acme/environments/production/deployments/~/acme-corp/letters/1.4.0')!.operationId, 'deployRelease')
-  assert.equal(findOperation('DELETE', '/tenants/acme/environments/production/deployments/acme.com/acme/letters/1.4.0')!.operationId, 'undeployRelease')
-  // An override is addressed by the catalog alone: one per catalog, with no release segment.
-  assert.equal(findOperation('GET', '/tenants/acme/environments/acceptance/overrides')!.operationId, 'listEnvironmentOverrides')
-  assert.equal(findOperation('PUT', '/tenants/acme/environments/acceptance/overrides/~/acme-corp/letters')!.operationId, 'setEnvironmentOverride')
-  assert.equal(findOperation('DELETE', '/tenants/acme/environments/acceptance/overrides/acme.com/acme/letters')!.operationId, 'clearEnvironmentOverride')
-  assert.equal(findOperation('PUT', '/tenants/acme/environments/acceptance/overrides/~/acme-corp/letters')!.contentType, 'application/vnd.epistola.v2+json')
+  // A deployment is addressed by the catalog version: a release by its number, a draft by its id.
+  assert.equal(findOperation('PUT', '/tenants/acme/environments/production/deployments/~/acme-corp/letters/1.4.0')!.operationId, 'deployCatalogVersion')
+  assert.equal(findOperation('PUT', '/tenants/acme/environments/acceptance/deployments/~/acme-corp/letters/k7m2x9qa')!.operationId, 'deployCatalogVersion')
+  assert.equal(findOperation('DELETE', '/tenants/acme/environments/production/deployments/acme.com/acme/letters/1.4.0')!.operationId, 'undeployCatalogVersion')
+  assert.equal(findOperation('DELETE', '/tenants/acme/environments/acceptance/deployments/acme.com/acme/letters/k7m2x9qa')!.operationId, 'undeployCatalogVersion')
   // Without the registry segment a catalog path addresses nothing.
   assert.equal(findOperation('GET', '/tenants/acme/catalogs/team-a/letters/versions/1.4.1/dependencies'), undefined)
 })

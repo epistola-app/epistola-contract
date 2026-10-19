@@ -12,7 +12,7 @@ records contract changes; this file records changes to the hand-written library 
 ### Added
 
 - `ProblemDetailException.missingDependencies` lists the releases a `release-dependencies-missing`
-  problem (409, from `deployRelease`) reports cannot be had, each a `MissingDependency`
+  problem (409, from `deployCatalogVersion`) reports cannot be had, each a `MissingDependency`
   (`registry`, `namespace`, `catalogKey`, `releaseVersion`, `reason`). `reason` is kept as the
   string the server sent, so a reason added later is not lost; entries missing a member are
   dropped, and the list is empty for any other problem. `isReleaseDependenciesMissingProblem` is

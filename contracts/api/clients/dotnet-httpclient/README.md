@@ -123,7 +123,7 @@ with `Reason` kept as the string the server sent (compare against `MissingDepend
 ```csharp
 try
 {
-    environments.DeployRelease("my-tenant", "production", "~", "acme-corp", "letters", "1.4.0",
+    environments.DeployCatalogVersion("my-tenant", "production", "~", "acme-corp", "letters", "1.4.0",
         includeDependencies: false);
 }
 catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING)

@@ -139,10 +139,10 @@ object ProblemDetails {
         const val RELEASE_DEPENDENCIES_UNRELEASED: String = KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED
 
         /**
-         * 409 — an environment override cannot be set (a draft on a production environment, a
-         * release the environment does not serve), or a following environment marked production.
+         * 409 — a production environment serves only releases: a draft deployed to it, or an
+         * environment that serves a draft marked production.
          */
-        const val ENVIRONMENT_OVERRIDE_REFUSED: String = KnownProblemSlugs.ENVIRONMENT_OVERRIDE_REFUSED
+        const val ENVIRONMENT_DEPLOYMENT_REFUSED: String = KnownProblemSlugs.ENVIRONMENT_DEPLOYMENT_REFUSED
 
         /**
          * 412 — an update's `If-Match` names a revision that is no longer current: the resource

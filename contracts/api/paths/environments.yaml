@@ -43,7 +43,7 @@ environments:
     summary: Create a new environment
     description: |
       Create a new environment for the specified tenant. `production` marks it as a production
-      environment, which uses only published versions.
+      environment, which serves only releases.
     tags:
       - Environments
     x-required-permissions: [TENANT_SETTINGS]
@@ -118,8 +118,9 @@ environments-id:
     summary: Update an environment
     description: |
       Update an existing environment's name, or whether it is a production environment. Marking it
-      production while it follows a draft of any catalog is refused with 409
-      (`environment-override-refused`): a production environment uses only published versions.
+      production while it serves a draft of any catalog is refused with 409
+      (`environment-deployment-refused`): a production environment serves only releases. Undeploy
+      the draft first.
     tags:
       - Environments
     x-required-permissions: [TENANT_SETTINGS]
@@ -145,12 +146,12 @@ environments-id:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/EnvironmentOverrideRefusedError'
+        $ref: '../components/responses/problem-responses.yaml#/EnvironmentDeploymentRefusedError'
 
   delete:
     operationId: deleteEnvironment
     summary: Delete an environment
-    description: Delete an environment. Refused while it serves any catalog release; undeploy them first.
+    description: Delete an environment. Refused while it serves any catalog version; undeploy them first.
     tags:
       - Environments
     x-required-permissions: [TENANT_SETTINGS]
@@ -191,9 +192,10 @@ environment-deployments:
     operationId: listEnvironmentDeployments
     summary: List what an environment serves
     description: |
-      Every catalog release the environment serves; one catalog can have several. Generation naming
-      the environment renders the highest of them, or the highest that satisfies the request's
-      `version`, unless the environment overrides the catalog (`listEnvironmentOverrides`).
+      Every catalog version the environment serves: releases, several of one catalog possibly, and
+      at most one draft per catalog. Generation naming the environment renders the catalog's
+      deployed draft when the request names no `version`, and otherwise the highest served release
+      (that satisfies `version`); see `deployCatalogVersion`.
     tags:
       - Environments
     x-required-permissions: [TEMPLATE_VIEW]
@@ -211,7 +213,7 @@ environment-deployments:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
-environment-deployment-release:
+environment-deployment-version:
   parameters:
     - name: tenantKey
       in: path
@@ -234,44 +236,63 @@ environment-deployment-release:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - name: releaseVersion
-      in: path
-      required: true
-      description: The release of the catalog
-      schema:
-        $ref: '../components/schemas/catalogs.yaml#/ReleaseVersion'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
 
   put:
-    operationId: deployRelease
-    summary: Deploy a catalog release to an environment
+    operationId: deployCatalogVersion
+    summary: Deploy a catalog version, a release or a draft, to an environment
     description: |
-      The environment serves this release of the catalog from now on, beside any other releases of
-      it that it already serves (unless `replace=true`, below). Generation naming the environment
-      renders the highest release it serves, or the highest that satisfies the request's `version`;
-      so deploying a higher release moves such requests to it, and undeploying it moves them back. Requests already accepted keep
-      the release they were bound to. An environment override of the catalog
-      (`setEnvironmentOverride`) takes precedence for requests naming no version or a range.
-      Deploying a release the environment already serves changes nothing, apart from what
-      `replace=true` stops.
+      The environment serves this version of the catalog from now on: a **release**, by its number
+      or its `versionId`, beside any other releases of it the environment already serves (unless
+      `replace=true`, below); or a **draft**, by its `versionId`, rendered live with no release.
 
-      A release renders with the releases of other catalogs it was cut with (its `dependencies`,
-      direct and through other dependencies), from the tenant's copy whatever the environment
-      serves. Deploying it makes the environment use them implicitly: they are not deployed, and
-      nothing else the environment serves changes. A dependency release the tenant does not have yet
-      is installed first: fetched from its registry, through the registry's configured mirrors, and
-      checked against the fingerprint it was recorded with. When one cannot be had
-      (`UNAVAILABLE`), the deployment is refused with
-      `release-dependencies-missing` (409), whose `missingDependencies` lists those. Nothing is
-      deployed.
+      A generation or preview request through the environment (`environmentKey`) renders:
+
+      - when it names **no `version`**: the catalog's deployed draft if there is one, else the
+        highest release the environment serves;
+      - when it names a **range or an exact number**: the highest served release that satisfies it.
+        A draft never matches a range or a number, as a SemVer pre-release does not, so a breaking
+        draft based on `1.2.0` is never served to `^1.2.0`.
+
+      So deploying a higher release moves such requests to it, and undeploying it moves them back:
+      rollback is undeploying the newer release, and holding one back is not deploying it. Requests
+      already accepted keep the version they were bound to. Deploying a version the environment
+      already serves changes nothing, apart from what `replace=true` stops.
+
+      **A draft.** An environment serves at most one draft of a catalog: deploying a draft replaces
+      the one it served, which is logged as undeployed. A **production** environment serves only
+      releases: deploying a draft there is refused with 409 (`environment-deployment-refused`). A
+      document rendered from a draft carries the draft's id and its name at render time
+      (`versionId`, `draftLabel`, with a null `releaseVersion`), and its PDF a preview watermark.
+      The deployment follows the draft's lifecycle:
+
+      - when the draft is released (`releaseCatalogDraft`), the release keeps its `versionId`, so the
+        deployment becomes an explicit deployment of that release, logged as `released`;
+      - when the draft is discarded (`deleteCatalogDraft`), the deployment ends, logged as
+        `undeployed`.
+
+      **Dependencies.** A release renders with the releases of other catalogs it was cut with (its
+      `dependencies`, direct and through other dependencies), from the tenant's copy whatever the
+      environment serves; so does a draft with the releases its declarations pin. Deploying it makes
+      the environment use them implicitly: they are not deployed, and nothing else the environment
+      serves changes. A declaration in a draft that names a draft of another catalog renders that
+      draft live. A dependency release the tenant does not have yet is installed first: fetched
+      from its registry, through the registry's configured mirrors, and checked against the
+      fingerprint it was recorded with. When one cannot be had (`UNAVAILABLE`), the deployment is
+      refused with `release-dependencies-missing` (409), whose `missingDependencies` lists those.
+      Nothing is deployed.
 
       With `includeDependencies=true`, the dependency releases the environment does not serve are
-      also deployed explicitly, in the same transaction, all or nothing.
+      also deployed explicitly, in the same transaction, all or nothing. Drafts a declaration names
+      are never deployed along.
 
-      With `replace=true`, the environment also stops serving the catalog's other releases, in the
-      same transaction: each is undeployed, and logged as undeployed in the deployment history, just
-      as `undeployRelease` would. Without it, the release is added beside the others.
+      With `replace=true`, the environment also stops serving the catalog's other versions, its
+      deployed draft included, in the same transaction: each is undeployed, and logged as undeployed
+      in the deployment history, just as `undeployCatalogVersion` would. Without it, a release is
+      added beside the others.
 
-      Epistola Suite may not implement installing missing dependency releases yet.
+      Epistola Suite may not implement deploying a draft, or installing missing dependency releases,
+      yet.
     tags:
       - Environments
     x-required-permissions: [ENVIRONMENT_DEPLOY]
@@ -280,8 +301,9 @@ environment-deployment-release:
         in: query
         required: false
         description: |
-          Also deploy, explicitly, the dependency releases the environment does not serve. When
-          false or omitted, the environment uses them implicitly, without deploying them.
+          Also deploy, explicitly, the dependency releases the environment does not serve (never a
+          draft a declaration names). When false or omitted, the environment uses them implicitly,
+          without deploying them.
         schema:
           type: boolean
           default: false
@@ -289,9 +311,9 @@ environment-deployment-release:
         in: query
         required: false
         description: |
-          Also stop serving the catalog's other releases in this environment, each undeployed (and
-          logged as undeployed). When false or omitted, the release is added beside the others the
-          environment serves.
+          Also stop serving the catalog's other versions in this environment, its deployed draft
+          included, each undeployed (and logged as undeployed). When false or omitted, a release is
+          added beside the others the environment serves.
         schema:
           type: boolean
           default: false
@@ -309,169 +331,30 @@ environment-deployment-release:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ReleaseDependenciesMissingError'
+        $ref: '../components/responses/problem-responses.yaml#/EnvironmentDeploymentConflictError'
 
   delete:
-    operationId: undeployRelease
-    summary: Stop an environment serving a catalog release
+    operationId: undeployCatalogVersion
+    summary: Stop an environment serving a catalog version
     description: |
-      Removes an explicit deployment: the environment stops serving this release. Generation naming
-      the environment then renders the highest release of the catalog it still serves, and fails for
-      the catalog's templates when it serves none. An override naming this release
-      (`setEnvironmentOverride`) ends with it.
+      Removes an explicit deployment: the environment stops serving this version, a release or a
+      draft, addressed by its number or its `versionId`. Generation naming the environment then
+      renders the highest release of the catalog it still serves, and fails for the catalog's
+      templates when it serves none.
 
-      It is never refused because another release the environment serves renders with this one. That
-      release is pinned to it and renders it from the tenant's copy, so it keeps rendering it: the
-      release stays in use implicitly. Only the environment no longer serves this catalog's own
+      It is never refused because another version the environment serves renders with this one.
+      That version is pinned to it and renders it from the tenant's copy, so it keeps rendering it:
+      the release stays in use implicitly. Only the environment no longer serves this catalog's own
       templates through it.
 
-      A release the environment uses only implicitly, as a dependency of a release it serves, is not
-      deployed and cannot be undeployed: 404, as for a release the environment does not use at all.
+      A release the environment uses only implicitly, as a dependency of a version it serves, is not
+      deployed and cannot be undeployed: 404, as for a version the environment does not use at all.
     tags:
       - Environments
     x-required-permissions: [ENVIRONMENT_DEPLOY]
     responses:
       '204':
-        description: The environment no longer serves the release
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
-environment-overrides:
-  parameters:
-    - name: tenantKey
-      in: path
-      required: true
-      description: Unique key of the tenant
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: environmentKey
-      in: path
-      required: true
-      description: Key of the environment
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 30
-
-  get:
-    operationId: listEnvironmentOverrides
-    summary: List an environment's overrides
-    description: |
-      Every catalog the environment overrides, at most one override per catalog: the release it uses
-      in place of the highest it serves, or the draft it follows. See `setEnvironmentOverride`.
-    tags:
-      - Environments
-    x-required-permissions: [TEMPLATE_VIEW]
-    responses:
-      '200':
-        description: The environment's overrides
-        content:
-          application/vnd.epistola.v2+json:
-            schema:
-              $ref: '../components/schemas/environments.yaml#/EnvironmentOverrideListResponse'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-
-environment-override:
-  parameters:
-    - name: tenantKey
-      in: path
-      required: true
-      description: Unique key of the tenant
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - name: environmentKey
-      in: path
-      required: true
-      description: Key of the environment
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 30
-    - $ref: '../components/parameters/catalog.yaml#/Registry'
-    - $ref: '../components/parameters/catalog.yaml#/Namespace'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-
-  put:
-    operationId: setEnvironmentOverride
-    summary: Override which version of a catalog an environment uses
-    description: |
-      Sets which version of the catalog the environment uses as its latest, replacing any override
-      it had for the catalog:
-
-      - **a release** it serves (`releaseVersion`), such as an earlier one to roll back to without
-        undeploying anything; or
-      - **a draft** of the catalog (`versionId`), rendered live with no release,
-        to try it before it is released.
-
-      A generation or preview request through the environment (`environmentKey`) that names no
-      `version`, or a version range, gets the override; one naming an exact release still gets that
-      release. A document rendered from a draft carries the draft's id and its name at render time
-      (`versionId`, `draftLabel`), and its PDF a preview watermark.
-
-      A **production** environment uses only published versions: a draft there is refused with 409
-      (`environment-override-refused`), and so is a release the environment does not serve.
-      Neither or both of `releaseVersion` and `versionId` is refused with 400.
-
-      The override ends when the release it names is undeployed (`undeployRelease`), or the draft it
-      follows is released (`releaseCatalogDraft`) or discarded (`deleteCatalogDraft`). Every change
-      is recorded in the deployment history (`override-set`, `override-cleared`).
-    tags:
-      - Environments
-    x-required-permissions: [ENVIRONMENT_DEPLOY]
-    requestBody:
-      required: true
-      content:
-        application/vnd.epistola.v2+json:
-          schema:
-            $ref: '../components/schemas/environments.yaml#/SetEnvironmentOverrideRequest'
-    responses:
-      '200':
-        description: The override
-        content:
-          application/vnd.epistola.v2+json:
-            schema:
-              $ref: '../components/schemas/environments.yaml#/EnvironmentOverrideDto'
-      '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-      '409':
-        $ref: '../components/responses/problem-responses.yaml#/EnvironmentOverrideRefusedError'
-
-  delete:
-    operationId: clearEnvironmentOverride
-    summary: Clear an environment's override of a catalog
-    description: |
-      The environment uses the highest release of the catalog it serves again (or the highest that
-      satisfies a request's `version`). Clearing a catalog the environment does not override changes
-      nothing and succeeds.
-    tags:
-      - Environments
-    x-required-permissions: [ENVIRONMENT_DEPLOY]
-    responses:
-      '204':
-        description: The environment no longer overrides the catalog
+        description: The environment no longer serves the version
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -503,7 +386,9 @@ environment-deployment-history:
   get:
     operationId: listDeploymentHistory
     summary: List what an environment served over time
-    description: Every deploy, undeploy and override change on the environment, newest first.
+    description: |
+      Every change to what the environment serves, newest first: each deployment and undeployment,
+      and each deployed draft that was released.
     tags:
       - Environments
     x-required-permissions: [TEMPLATE_VIEW]

@@ -179,9 +179,10 @@ The Epistola API manages:
 1. **Tenants** - Multi-tenant isolation
 2. **Templates** - Document templates with JSON Schema for input validation
 3. **Themes** - Reusable style collections
-4. **Environments** - Deployment contexts (staging, production); each serves catalog releases, possibly
-   several per catalog, and can override which version of a catalog it uses: a release it serves, or
-   a draft rendered live (never a draft in an environment marked `production`)
+4. **Environments** - Deployment contexts (staging, production); each serves catalog versions it deploys:
+   releases, possibly several per catalog, and at most one draft per catalog, rendered live (never in
+   an environment marked `production`). A request naming no version gets the deployed draft, else the
+   highest release; a range or number matches releases only. Rollback is undeploying the newer release
 5. **Variants** - Language/brand variations of templates, edited in a draft catalog version
 6. **Catalog versions** - A draft (editable, no number) or released (immutable, numbered). Every
    version has a `versionId`, kept when it is released; a released version is addressed by either.
@@ -198,7 +199,7 @@ The Epistola API manages:
    cannot be used is 503/502 `catalog-source-unavailable`. The import that creates a catalog names its type
    (AUTHORED or SUBSCRIBED, no default); an import never changes it (ADR 0003)
 7. **Generation** - Async document generation with batch support, from a release, or from a draft
-   when an environment override follows one
+   deployed to the environment the request names
 
 ### Template Hierarchy
 
@@ -210,8 +211,8 @@ Tenant
 │       │     ──release (numbered from what changed against the base)──▶ released (immutable)
 │       └── Template (with data contract) → Variant, Stencil, Theme, …
 │           each new / modified / ready / released against the version's base
-└── Environment ─ deploys ─▶ Releases of each Catalog (renders the highest that matches)
-    └── Override per Catalog ─▶ one release it serves, or a draft (not in production)
+└── Environment ─ deploys ─▶ Versions of each Catalog: releases (the highest that matches) and at
+                                most one draft (rendered when a request names no version; not in production)
 ```
 
 ## Build System

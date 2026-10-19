@@ -110,7 +110,7 @@ except ProblemDetailException as e:
                 for f in failures:
                     log.warning("%s %s: %s", example, f.path, f.message)
         case KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING:
-            for d in e.missing_dependencies:   # 409 from deploy_release
+            for d in e.missing_dependencies:   # 409 from deploy_catalog_version
                 log.warning("%s/%s/%s@%s: %s", d.registry, d.namespace,
                             d.catalog_key, d.release_version, d.reason)
         case KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED:

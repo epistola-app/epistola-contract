@@ -21,7 +21,6 @@ import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.PreviewDocumentRequest;
 import app.epistola.client.jakarta.model.ReleaseCatalogDraftRequest;
 import app.epistola.client.jakarta.model.RenameCatalogDraftRequest;
-import app.epistola.client.jakarta.model.SetEnvironmentOverrideRequest;
 import app.epistola.client.jakarta.model.UpdateTenantRequest;
 import app.epistola.client.jakarta.model.ResourceStatus;
 import app.epistola.client.jakarta.model.VariantContentDto;
@@ -110,29 +109,6 @@ class ModelValidationTest {
                                 () -> ModelValidation.validate(
                                         new CreateEnvironmentRequest().key("a".repeat(31)).name("Env")))
                         .getMessage());
-    }
-
-    @Test
-    void an_environment_override_takes_an_exact_release_or_a_draft() {
-        ModelValidation.validate(new SetEnvironmentOverrideRequest().releaseVersion("1.3.0"));
-        ModelValidation.validate(new SetEnvironmentOverrideRequest().versionId("r4t8w2nc"));
-
-        for (String release : List.of("^1.3.0", "1.3", "2.0.0-beta.1", "next")) {
-            assertTrue(assertThrows(
-                            IllegalArgumentException.class,
-                            () -> ModelValidation.validate(new SetEnvironmentOverrideRequest().releaseVersion(release)),
-                            "expected an override to release '" + release + "' to fail")
-                    .getMessage()
-                    .startsWith("releaseVersion: "));
-        }
-        for (String draft : List.of("1.3.0", "Draft-1", "abc", "k7m2--x9")) {
-            assertTrue(assertThrows(
-                            IllegalArgumentException.class,
-                            () -> ModelValidation.validate(new SetEnvironmentOverrideRequest().versionId(draft)),
-                            "expected an override to draft '" + draft + "' to fail")
-                    .getMessage()
-                    .startsWith("versionId: "));
-        }
     }
 
     // --- Optional fields ---

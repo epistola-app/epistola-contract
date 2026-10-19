@@ -116,21 +116,54 @@ ReleaseDependenciesUnreleasedError:
             versionId: r4t8w2nc
             draftName: House style 2027
 
-EnvironmentOverrideRefusedError:
+EnvironmentDeploymentRefusedError:
   description: >-
-    The request conflicts with the current state of the resource. When an environment override
-    cannot be set (a draft on a production environment, or a release the environment does not
-    serve), or an environment that follows a draft is marked production, the problem is
-    `environment-override-refused`. Other conflicts use `conflict`.
+    The request conflicts with the current state of the resource. When the environment is marked
+    production while it serves a draft of a catalog, the problem is `environment-deployment-refused`:
+    a production environment serves only releases. Other conflicts use `conflict`.
   content:
     application/problem+json:
       schema:
         $ref: './errors.yaml#/ProblemDetail'
       example:
-        type: https://epistola.app/errors/environment-override-refused
-        title: Environment Override Refused
+        type: https://epistola.app/errors/environment-deployment-refused
+        title: Environment Deployment Refused
         status: 409
-        detail: "production uses only published versions: it cannot follow a draft of letters"
+        detail: "production serves only releases: it serves the draft Spring fixes of letters"
+
+EnvironmentDeploymentConflictError:
+  description: >-
+    The request conflicts with the current state of the resource. When the version cannot be
+    deployed to this environment, a draft to a production environment, the problem is
+    `environment-deployment-refused`. When the version renders with releases of other catalogs that
+    the tenant does not have and that cannot be fetched, the problem is
+    `release-dependencies-missing` and `missingDependencies` lists each one and why. Other conflicts
+    use `conflict`.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ReleaseDependenciesMissingProblemDetail'
+      examples:
+        draftOnProduction:
+          summary: A draft deployed to a production environment
+          value:
+            type: https://epistola.app/errors/environment-deployment-refused
+            title: Environment Deployment Refused
+            status: 409
+            detail: "production serves only releases: it cannot serve a draft of letters"
+        dependenciesMissing:
+          summary: Dependency releases that cannot be had
+          value:
+            type: https://epistola.app/errors/release-dependencies-missing
+            title: Release Dependencies Missing
+            status: 409
+            detail: "letters 1.4.0 renders with releases that cannot be had: exchange.epistola.app/epistola/system@3.2.0"
+            missingDependencies:
+              - registry: exchange.epistola.app
+                namespace: epistola
+                catalogKey: system
+                releaseVersion: 3.2.0
+                reason: UNAVAILABLE
 
 TemplateDataInvalidError:
   description: >-

@@ -54,8 +54,8 @@ next release can collide with or silently revert it. **Rejected.**
 ### C. Unversioned override in production
 
 The environment holds a local layer of changes on top of the release it serves, identified by a
-revision rather than a version. (This is not ADR 0002's environment override, which chooses one of
-the catalog's existing versions and changes no content.)
+revision rather than a version. (This is not deploying a draft (ADR 0003, "Deploying"), which
+serves one of the catalog's existing versions and changes no content.)
 
 - It fixes what production runs, for any catalog, without minting anything in another namespace.
 - But an override is not a release:
@@ -149,15 +149,15 @@ Anything else needs a real release (`1.0.2`, `1.1.0`, `2.0.0`) through the norma
   by the server.
 - **Version selectors:** "highest" breaks ties between hotfixes of one version by hotfix number. A
   selector without a suffix matches every hotfix of the versions it matches.
-- **`+` in URL paths.** `getCatalogVersion`, `deployRelease` and `undeployRelease` carry the version
-  in the path. In a path, `+` is a literal character, but some stacks decode it as a space, as in a
-  query string. The contract states that `+` is sent as `%2B` or literally and means `+`, and a
+- **`+` in URL paths.** `getCatalogVersion`, `deployCatalogVersion` and `undeployCatalogVersion`
+  carry the version in the path. In a path, `+` is a literal character, but some stacks decode it
+  as a space, as in a query string. The contract states that `+` is sent as `%2B` or literally and means `+`, and a
   conformance scenario holds every client to it.
 - **API:**
   - Hotfix lifecycle: the catalog version operations of ADR 0002, with a way to start a hotfix
     draft from an installed release of a subscribed catalog, which has no drafts today.
   - Validation of the hotfix on release that reports every breaking change it finds.
-  - `deployRelease` reports dropped hotfix fixes and needs a confirmation flag to proceed.
+  - `deployCatalogVersion` reports dropped hotfix fixes and needs a confirmation flag to proceed.
   - Export of a single release, and refusal of a conflicting import.
   - A permission for cutting hotfixes, separate from authoring and from deploying.
 - **Catalog module:**

@@ -16,7 +16,7 @@ why: >
   written and the reason as sent, including one it reached only through another dependency.
 
 action:
-  name: deploy-release
+  name: deploy-catalog-version
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
@@ -24,7 +24,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    releaseVersion: 1.4.0
+    catalogVersion: 1.4.0
 
 script:
   - status: 409

@@ -60,11 +60,8 @@ const ACTIONS = {
   'preview-catalog-draft-release': previewCatalogDraftRelease,
   'delete-catalog-draft': deleteCatalogDraft,
   'release-catalog-draft': releaseCatalogDraft,
-  'deploy-release': deployRelease,
-  'undeploy-release': undeployRelease,
-  'set-environment-override': setEnvironmentOverride,
-  'list-environment-overrides': listEnvironmentOverrides,
-  'clear-environment-override': clearEnvironmentOverride,
+  'deploy-catalog-version': deployCatalogVersion,
+  'undeploy-catalog-version': undeployCatalogVersion,
   'create-environment': createEnvironment,
   'update-environment': updateEnvironment,
   'update-variant-content': updateVariantContent,
@@ -609,22 +606,25 @@ async function releaseCatalogDraft(baseUrl, config) {
   })
 }
 
-/** Deploys one release; the path carries everything and there is no body. */
-async function deployRelease(baseUrl, config) {
+/**
+ * Deploys one catalog version, a release by its number or a draft by its `versionId`; the path
+ * carries everything and there is no body.
+ */
+async function deployCatalogVersion(baseUrl, config) {
   const request = {
     tenantKey: config.tenantKey,
     environmentKey: config.environmentKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    releaseVersion: config.releaseVersion,
+    catalogVersion: config.catalogVersion,
   }
   // Sent only when the scenario sets it, false included; otherwise the query parameter stays off.
   if (config.includeDependencies !== undefined) request.includeDependencies = config.includeDependencies
   if (config.replace !== undefined) request.replace = config.replace
   let deployment
   try {
-    deployment = await new EnvironmentsApi(client(baseUrl, config)).deployRelease(request)
+    deployment = await new EnvironmentsApi(client(baseUrl, config)).deployCatalogVersion(request)
   } catch (error) {
     if (!(error instanceof ProblemDetailException)) throw error
     await report(baseUrl, {
@@ -640,56 +640,24 @@ async function deployRelease(baseUrl, config) {
     registry: show(deployment.registry),
     namespace: show(deployment.namespace),
     catalogKey: show(deployment.catalogKey),
+    versionId: show(deployment.versionId),
+    kind: show(deployment.kind),
     releaseVersion: show(deployment.releaseVersion),
+    draftName: show(deployment.draftName),
     lastUsedAt: showInstant(deployment.lastUsedAt),
     documentsRequested: show(deployment.documentsRequested),
   })
 }
 
-/** Undeploys one release; the 204 has no body to parse. */
-async function undeployRelease(baseUrl, config) {
-  await new EnvironmentsApi(client(baseUrl, config)).undeployRelease({
+/** Undeploys one catalog version; the 204 has no body to parse. */
+async function undeployCatalogVersion(baseUrl, config) {
+  await new EnvironmentsApi(client(baseUrl, config)).undeployCatalogVersion({
     tenantKey: config.tenantKey,
     environmentKey: config.environmentKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    releaseVersion: config.releaseVersion,
-  })
-}
-
-/**
- * Overrides the version of a catalog an environment uses; `releaseVersion` and `versionId` go
- * out only when the scenario sets them. A refusal is reported by its problem.
- */
-async function setEnvironmentOverride(baseUrl, config) {
-  const body = {}
-  if (config.releaseVersion !== undefined) body.releaseVersion = config.releaseVersion
-  if (config.versionId !== undefined) body.versionId = config.versionId
-  let override
-  try {
-    override = await new EnvironmentsApi(client(baseUrl, config)).setEnvironmentOverride({
-      tenantKey: config.tenantKey,
-      environmentKey: config.environmentKey,
-      registry: config.registry,
-      namespace: config.namespace,
-      catalogKey: config.catalogKey,
-      setEnvironmentOverrideRequest: body,
-    })
-  } catch (error) {
-    if (!(error instanceof ProblemDetailException)) throw error
-    await report(baseUrl, { problemTypeSlug: error.typeSlug ?? '<null>', problemStatus: error.statusCode })
-    return
-  }
-  await report(baseUrl, {
-    environmentKey: show(override.environmentKey),
-    registry: show(override.registry),
-    namespace: show(override.namespace),
-    catalogKey: show(override.catalogKey),
-    releaseVersion: show(override.releaseVersion),
-    versionId: show(override.versionId),
-    draftLabel: show(override.draftLabel),
-    setAt: showInstant(override.setAt),
+    catalogVersion: config.catalogVersion,
   })
 }
 
@@ -884,7 +852,10 @@ async function listEnvironmentDeployments(baseUrl, config) {
   await report(baseUrl, {
     registries: items.map((d) => show(d.registry)).join(','),
     catalogKeys: items.map((d) => show(d.catalogKey)).join(','),
+    versionIds: items.map((d) => show(d.versionId)).join(','),
+    kinds: items.map((d) => show(d.kind)).join(','),
     releaseVersions: items.map((d) => show(d.releaseVersion)).join(','),
+    draftNames: items.map((d) => show(d.draftName)).join('|'),
     deployedAt: items.map((d) => showInstant(d.deployedAt)).join(','),
     lastUsedAt: items.map((d) => showInstant(d.lastUsedAt)).join(','),
     documentsRequested: items.map((d) => show(d.documentsRequested)).join(','),
@@ -902,8 +873,10 @@ async function listDeploymentHistory(baseUrl, config) {
   await report(baseUrl, {
     catalogKeys: items.map((e) => show(e.catalogKey)).join(','),
     actions: items.map((e) => show(e.action)).join(','),
+    versionIds: items.map((e) => show(e.versionId)).join(','),
+    kinds: items.map((e) => show(e.kind)).join(','),
     releaseVersions: items.map((e) => show(e.releaseVersion)).join(','),
-    draftLabels: items.map((e) => show(e.draftLabel)).join('|'),
+    draftNames: items.map((e) => show(e.draftName)).join('|'),
     changedAt: items.map((e) => showInstant(e.changedAt)).join(','),
     changedBy: items.map((e) => show(e.changedBy)).join('|'),
     totalElements: show(response.page.totalElements),
@@ -921,29 +894,6 @@ function oneNodeModel() {
   }
 }
 
-async function listEnvironmentOverrides(baseUrl, config) {
-  const { items } = await new EnvironmentsApi(client(baseUrl, config)).listEnvironmentOverrides({
-    tenantKey: config.tenantKey,
-    environmentKey: config.environmentKey,
-  })
-  await report(baseUrl, {
-    catalogKeys: items.map((o) => show(o.catalogKey)).join(','),
-    releaseVersions: items.map((o) => show(o.releaseVersion)).join(','),
-    versionIds: items.map((o) => show(o.versionId)).join(','),
-    draftLabels: items.map((o) => show(o.draftLabel)).join('|'),
-  })
-}
-
-async function clearEnvironmentOverride(baseUrl, config) {
-  await new EnvironmentsApi(client(baseUrl, config)).clearEnvironmentOverride({
-    tenantKey: config.tenantKey,
-    environmentKey: config.environmentKey,
-    registry: config.registry,
-    namespace: config.namespace,
-    catalogKey: config.catalogKey,
-  })
-}
-
 /** Creates an environment; `production` goes out only when the scenario sets it. */
 async function createEnvironment(baseUrl, config) {
   const body = { key: config.key, name: config.name }
@@ -955,16 +905,23 @@ async function createEnvironment(baseUrl, config) {
   await reportEnvironment(baseUrl, environment)
 }
 
-/** A partial update: each member goes out only when the scenario sets it. */
+/** A partial update: each member goes out only when the scenario sets it. A refusal is reported by its problem. */
 async function updateEnvironment(baseUrl, config) {
   const body = {}
   if (config.name !== undefined) body.name = config.name
   if (config.production !== undefined) body.production = config.production
-  const environment = await new EnvironmentsApi(client(baseUrl, config)).updateEnvironment({
-    tenantKey: config.tenantKey,
-    environmentKey: config.environmentKey,
-    updateEnvironmentRequest: body,
-  })
+  let environment
+  try {
+    environment = await new EnvironmentsApi(client(baseUrl, config)).updateEnvironment({
+      tenantKey: config.tenantKey,
+      environmentKey: config.environmentKey,
+      updateEnvironmentRequest: body,
+    })
+  } catch (error) {
+    if (!(error instanceof ProblemDetailException)) throw error
+    await report(baseUrl, { problemTypeSlug: error.typeSlug ?? '<null>', problemStatus: error.statusCode })
+    return
+  }
   await reportEnvironment(baseUrl, environment)
 }
 

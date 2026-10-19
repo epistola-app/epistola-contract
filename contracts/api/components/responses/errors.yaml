@@ -91,7 +91,7 @@ ReleaseDependenciesMissingProblemDetail:
         missingDependencies:
           type: array
           description: >-
-            Each release of another catalog the deployed release renders with, directly or through
+            Each release of another catalog the deployed version renders with, directly or through
             another dependency, that cannot be had, in the order the release lists its
             dependencies.
           items:

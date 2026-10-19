@@ -126,7 +126,7 @@ catalog-available-release-install:
       with the releases of the catalog the tenant has, whether it is numbered above them or below.
       Nothing is updated in place and nothing is removed: the releases installed before stay, and
       every draft, deployment and catalog that uses them keeps doing so. Which release an
-      environment serves is decided by deploying it (`deployRelease`).
+      environment serves is decided by deploying it (`deployCatalogVersion`).
       `GET .../available-releases` lists the releases the source offers that the tenant lacks.
 
       - **A release the tenant does not have** is installed (`newlyInstalled: true`).
@@ -519,8 +519,8 @@ catalog-version:
     operationId: deleteCatalogDraft
     summary: Discard a draft
     description: |
-      Discards a draft and everything changed in it; its `versionId` then addresses nothing. Environment
-      overrides that follow the draft end (`setEnvironmentOverride`, recorded as `override-cleared`).
+      Discards a draft and everything changed in it; its `versionId` then addresses nothing. Where
+      the draft is deployed (`deployCatalogVersion`), the deployment ends, recorded as `undeployed`.
 
       Refused with 409 for a released version, while a dependency declaration in a draft of another
       catalog names this draft, and while the draft alone holds a resource something outside it
@@ -633,8 +633,9 @@ catalog-version-release:
 
       The draft becomes the released version at that number, immutable. Its `versionId` stays and
       addresses the release, as the number does; writes through either are refused with 409.
-      Environment overrides that followed the draft end (`override-cleared`). Other
-      drafts are untouched; the response names those the release puts behind (`draftsBehind`).
+      Where the draft, or a draft released along with it, is deployed, the environment now serves
+      the release, an explicit deployment of it recorded as `released` in the deployment history.
+      Other drafts are untouched; the response names those the release puts behind (`draftsBehind`).
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_RELEASE]

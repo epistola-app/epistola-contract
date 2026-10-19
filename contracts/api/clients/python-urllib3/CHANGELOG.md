@@ -12,7 +12,7 @@ records contract changes; this file records changes to the hand-written library 
 ### Added
 
 - `ProblemDetailException.missing_dependencies` and `is_release_dependencies_missing_problem`
-  surface a `release-dependencies-missing` problem (409 from `deploy_release`): each dependency
+  surface a `release-dependencies-missing` problem (409 from `deploy_catalog_version`): each dependency
   release that cannot be had, as a `MissingDependency(registry, namespace,
   catalog_key, release_version, reason)`. `reason` is the wire string, so a reason a later
   contract adds is kept rather than failing the parse. The member is `[]` when absent or

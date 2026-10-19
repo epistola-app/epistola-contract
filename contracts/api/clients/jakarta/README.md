@@ -189,7 +189,7 @@ try {
     } else if (KnownProblemSlugs.API_KEY_AUTH_DISABLED.equals(slug)) {
         log.error("this deployment requires JWT authentication");
     } else if (KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING.equals(slug)) {
-        // from deployRelease: each release the environment would also have to serve, and why
+        // from deployCatalogVersion: each release the environment would also have to serve, and why
         e.getMissingDependencies().forEach(dep -> log.warn("{}/{}/{}@{}: {}",
                 dep.getRegistry(), dep.getNamespace(), dep.getCatalogKey(),
                 dep.getReleaseVersion(), dep.getReason()));

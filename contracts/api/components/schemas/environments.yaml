@@ -1,6 +1,6 @@
 EnvironmentDto:
   type: object
-  description: A deployment stage (e.g., staging, production) that serves catalog releases, possibly several of one catalog
+  description: A deployment stage (e.g., staging, production) that serves catalog versions, possibly several releases of one catalog and a draft
   required:
     - key
     - tenantKey
@@ -30,8 +30,8 @@ EnvironmentDto:
     production:
       type: boolean
       description: |
-        A production environment uses only published versions: an override there may name one of
-        the releases it serves, never a draft (see `setEnvironmentOverride`).
+        A production environment serves only releases: deploying a draft there is refused (see
+        `deployCatalogVersion`).
       example: true
     createdAt:
       type: string
@@ -69,7 +69,7 @@ CreateEnvironmentRequest:
       type: boolean
       default: false
       description: |
-        Whether the environment is a production environment, which uses only published versions.
+        Whether the environment is a production environment, which serves only releases.
         Omitted: false.
       example: true
 
@@ -86,9 +86,9 @@ UpdateEnvironmentRequest:
     production:
       type: [boolean, "null"]
       description: |
-        Mark the environment as production, which uses only published versions, or unmark it.
-        Omitted or null: unchanged. Marking it while it follows a draft of any catalog is refused with 409
-        (`environment-override-refused`); clear that override first.
+        Mark the environment as production, which serves only releases, or unmark it. Omitted or
+        null: unchanged. Marking it while it serves a draft of any catalog is refused with 409
+        (`environment-deployment-refused`); undeploy the draft first.
       example: true
 
 EnvironmentListResponse:
@@ -125,12 +125,17 @@ EnvironmentListResponse:
 
 DeploymentDto:
   type: object
-  description: One catalog release an environment serves
+  description: |
+    One catalog version an environment serves: a release, or a draft rendered live. An environment
+    serves at most one draft of a catalog.
   required:
     - registry
     - namespace
     - catalogKey
+    - versionId
+    - kind
     - releaseVersion
+    - draftName
     - deployedAt
     - lastUsedAt
     - documentsRequested
@@ -157,9 +162,24 @@ DeploymentDto:
       maxLength: 50
       description: Key of the catalog, unique within its registry and namespace
       example: letters
+    versionId:
+      $ref: './catalogs.yaml#/CatalogVersionId'
+      description: |
+        The version the environment serves, by its `versionId`. A draft keeps it when it is
+        released, so a deployed draft that is released is a deployment of that release.
+    kind:
+      $ref: '#/DeploymentKind'
     releaseVersion:
-      $ref: './catalogs.yaml#/ReleaseVersion'
-      description: The release the environment serves
+      type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      maxLength: 50
+      description: The release the environment serves. Null for a draft.
+      example: "1.4.0"
+    draftName:
+      type: [string, "null"]
+      maxLength: 100
+      description: The name of the draft the environment serves. Null for a release.
+      example: null
     deployedAt:
       type: string
       format: date-time
@@ -168,23 +188,34 @@ DeploymentDto:
       type: [string, "null"]
       format: date-time
       description: |
-        When a generation request through this environment was last accepted for this release; null
+        When a generation request through this environment was last accepted for this version; null
         when none has been since it was deployed.
 
         A request is counted when it names this environment and is accepted and rendered with this
-        deployed release. Requests naming no environment, and requests through an environment that
-        follows a draft of the catalog, are not counted. Updated within about a minute of the
-        request, and reset when the release is undeployed. Together with `documentsRequested` it
-        shows which deployed releases nobody uses any more, before undeploying them.
+        deployed version. Requests naming no environment are not counted. Updated within about a
+        minute of the request, and reset when the version is undeployed; a deployed draft that is
+        released keeps its counts, as the same deployment. Together with `documentsRequested` it
+        shows which deployed versions nobody uses any more, before undeploying them.
       example: "2026-10-17T14:05:00Z"
     documentsRequested:
       type: integer
       format: int64
       minimum: 0
       description: |
-        How many generation requests through this environment were accepted for this release since
+        How many generation requests through this environment were accepted for this version since
         it was deployed. Counted, updated and reset as `lastUsedAt` describes.
       example: 1284
+
+DeploymentKind:
+  type: string
+  description: |
+    - `release`: a released version, served at its number (`releaseVersion`).
+    - `draft`: a draft, rendered live with no release (`draftName`). Never in a production
+      environment.
+  enum:
+    - release
+    - draft
+  example: release
 
 MissingReleaseDependency:
   type: object
@@ -220,7 +251,7 @@ MissingReleaseDependency:
       example: system
     releaseVersion:
       $ref: './catalogs.yaml#/ReleaseVersion'
-      description: The release of the catalog depended on that the deployed release renders with
+      description: The release of the catalog depended on that the deployed version renders with
     reason:
       $ref: '#/MissingReleaseDependencyReason'
 
@@ -252,7 +283,10 @@ DeploymentEventDto:
     - registry
     - namespace
     - catalogKey
+    - versionId
+    - kind
     - releaseVersion
+    - draftName
     - action
     - changedAt
   properties:
@@ -281,30 +315,39 @@ DeploymentEventDto:
     action:
       type: string
       description: |
-        - `deployed`, `undeployed`: the environment started or stopped serving `releaseVersion`.
-        - `override-set`: the environment overrode the catalog with `releaseVersion`, or, when that
-          is null, with the draft `draftLabel` names (`setEnvironmentOverride`).
-        - `override-cleared`: the override ended: cleared (`clearEnvironmentOverride`), or ended by
-          undeploying the release it named, or releasing or discarding the draft it followed.
+        - `deployed`, `undeployed`: the environment started or stopped serving the version. A
+          draft replaced by deploying another, and a deployed draft that was discarded, are
+          `undeployed`.
+        - `released`: the deployed draft was released; the environment now serves the release it
+          became, at `releaseVersion`, with the same `versionId`. `draftName` is the draft's name
+          at the time.
       enum:
         - deployed
         - undeployed
-        - override-set
-        - override-cleared
+        - released
       example: deployed
+    versionId:
+      $ref: './catalogs.yaml#/CatalogVersionId'
+      description: The version deployed, undeployed or released, by its `versionId`
+    kind:
+      $ref: '#/DeploymentKind'
+      description: |
+        What the version was after the change: `draft` for a draft deployed or undeployed,
+        `release` for a release, and for a draft that was `released`.
     releaseVersion:
       type: [string, "null"]
       pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: |
-        The release deployed or undeployed, or the release an override named. Null for an override
-        that named a draft.
+        The release deployed or undeployed, or the release a deployed draft became. Null for a
+        draft deployed or undeployed.
       example: "1.4.1"
-    draftLabel:
+    draftName:
       type: [string, "null"]
       maxLength: 100
       description: |
-        For an override that named a draft, the draft's name at the time. Null otherwise.
+        The draft's name at the time: for a draft deployed or undeployed, and for one `released`.
+        Null for a release deployed or undeployed.
       example: null
     changedAt:
       type: string
@@ -327,110 +370,3 @@ DeploymentHistoryResponse:
         $ref: '#/DeploymentEventDto'
     page:
       $ref: './common.yaml#/PageMeta'
-
-EnvironmentOverrideDto:
-  type: object
-  description: |
-    Which version of a catalog an environment uses as its latest, in place of the highest release it
-    serves: one of those releases (`releaseVersion`), or a draft of the catalog (`versionId`), rendered
-    live with no release. A generation or preview request through the environment that names no
-    version, or a version range, gets it; one naming an exact release still gets that release.
-  required:
-    - environmentKey
-    - registry
-    - namespace
-    - catalogKey
-    - setAt
-  properties:
-    environmentKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
-      description: Key of the environment
-      example: acceptance
-    registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
-      description: |
-        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
-        full, the default registry by its name, never `~`.
-      example: exchange.epistola.app
-    namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
-      description: Namespace of the catalog, within its registry
-      example: acme-corp
-    catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
-      description: Key of the catalog, unique within its registry and namespace
-      example: letters
-    releaseVersion:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
-      description: The release the environment uses, one it serves. Null when it follows a draft.
-      example: null
-    versionId:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 4
-      maxLength: 36
-      description: |
-        The draft the environment follows, rendered live, by its `versionId` (a
-        `CatalogVersionId`). Null when it uses a release.
-      example: k7m2x9qa
-    draftLabel:
-      type: [string, "null"]
-      maxLength: 100
-      description: |
-        The draft's name. Null when it uses a release.
-      example: Redesign 2027
-    setAt:
-      type: string
-      format: date-time
-      description: When the override was set
-      example: "2026-10-18T09:00:00Z"
-
-EnvironmentOverrideListResponse:
-  type: object
-  description: Every override an environment has, at most one per catalog
-  required:
-    - items
-  properties:
-    items:
-      type: array
-      items:
-        $ref: '#/EnvironmentOverrideDto'
-
-SetEnvironmentOverrideRequest:
-  type: object
-  description: |
-    What the environment uses for the catalog: exactly one of `releaseVersion` (a release) and
-    `versionId` (a draft). Neither, or both, is refused with 400.
-  properties:
-    releaseVersion:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
-      description: |
-        An exact release the environment serves, such as an earlier one to roll back to. A release
-        it does not serve is refused with 409 (`environment-override-refused`).
-      example: null
-    versionId:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 4
-      maxLength: 36
-      description: |
-        A draft of the catalog, by its `versionId` (a `CatalogVersionId`), rendered live with no
-        release. Refused with 409 (`environment-override-refused`) on a production environment. The
-        `versionId` of a released version names that release, exactly as its `releaseVersion`
-        would.
-      example: k7m2x9qa

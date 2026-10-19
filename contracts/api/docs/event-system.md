@@ -18,7 +18,7 @@ Epistola currently provides no mechanism for API consumers to learn about change
 This leaves several important use-cases unserved:
 
 - **Cache invalidation** — Consumers that cache template metadata, variant lists, or which releases an environment serves have no way to know when that data becomes stale. They must choose between aggressive polling (wasteful) or long TTLs (stale data).
-- **Workflow orchestration** — When a catalog version is released, a release is deployed to an environment, or an environment override changes, downstream systems (preview renderers, CDN warmers, audit loggers) need to react. Today, this requires out-of-band coordination.
+- **Workflow orchestration** — When a catalog version is released, or a release or a draft is deployed to an environment, downstream systems (preview renderers, CDN warmers, audit loggers) need to react. Today, this requires out-of-band coordination.
 - **Multi-instance coordination** — When multiple server instances exist behind a load balancer, an action on one instance (e.g., releasing a catalog version or deploying a release) is invisible to consumers connected to other instances unless they re-fetch.
 - **Audit and compliance** — Tracking who changed what and when requires either querying each resource individually or building a custom audit trail outside the API contract. The deployment history (`listDeploymentHistory`) covers what environments serve, and nothing else.
 
@@ -44,7 +44,7 @@ Regardless of delivery mechanism, the event schema and semantics are the same.
 
 ### 2.1 Event Types
 
-Events correspond to state changes in the domain model. Every mutating API operation produces exactly one event, with one exception: an operation that changes what an environment serves produces one event per entry it writes to the environment's deployment history (`listDeploymentHistory`), so the event stream and the history agree. `deployRelease` with `replace=true` or `includeDependencies=true` writes several entries, and `undeployRelease` and `deleteCatalogDraft` can end an environment override as well.
+Events correspond to state changes in the domain model. Every mutating API operation produces exactly one event, with one exception: an operation that changes what an environment serves produces one event per entry it writes to the environment's deployment history (`listDeploymentHistory`), so the event stream and the history agree. `deployCatalogVersion` with `replace=true` or `includeDependencies=true`, or deploying a draft where the environment served another, writes several entries; `releaseCatalogDraft` and `deleteCatalogDraft` write one per environment the draft is deployed to.
 
 An event type is `{resourceType}.{action}`, both in kebab-case. The triggers below are operation IDs in the 2.0 contract. Resources inside a catalog (templates, variants, stencils, themes, attributes, code lists, images) are addressed as `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/…`, and are only ever changed in a draft: a released version is immutable.
 
@@ -86,10 +86,9 @@ An event type is `{resourceType}.{action}`, both in kebab-case. The triggers bel
 | Event Type | Trigger |
 |---|---|
 | `environment.created`, `environment.updated`, `environment.deleted` | `createEnvironment`, `updateEnvironment`, `deleteEnvironment` |
-| `environment.deployed` | `deployRelease`: the environment starts serving a release (deployment history `deployed`) |
-| `environment.undeployed` | `undeployRelease`, or `deployRelease` with `replace=true` (deployment history `undeployed`) |
-| `environment.override-set` | `setEnvironmentOverride` (deployment history `override-set`) |
-| `environment.override-cleared` | `clearEnvironmentOverride`, or an override ended by `undeployRelease` or `deleteCatalogDraft` (deployment history `override-cleared`) |
+| `environment.deployed` | `deployCatalogVersion`: the environment starts serving a release or a draft (deployment history `deployed`) |
+| `environment.undeployed` | `undeployCatalogVersion`; `deployCatalogVersion` with `replace=true`, or deploying a draft in place of the one the environment served; `deleteCatalogDraft` of a deployed draft (deployment history `undeployed`) |
+| `environment.released` | `releaseCatalogDraft` of a deployed draft: the environment now serves the release it became (deployment history `released`) |
 
 **Generation**
 
@@ -101,7 +100,7 @@ An event type is `{resourceType}.{action}`, both in kebab-case. The triggers bel
 | `generation.failed` | Job transitions to `FAILED` |
 | `generation.cancelled` | `cancelGenerationJob` (job transitions to `CANCELLED`) |
 
-Most events about resources inside a catalog happen in a draft, which generation never renders, with two exceptions: preview, and an environment that follows a draft through an override (`setEnvironmentOverride`, never on a production environment). A consumer that caches what it renders therefore mostly needs `catalog-version.released` and the `environment.*` events; editors and environments following a draft need the rest.
+Most events about resources inside a catalog happen in a draft, which generation never renders, with two exceptions: preview, and an environment a draft is deployed to (`deployCatalogVersion`, never a production environment). A consumer that caches what it renders therefore mostly needs `catalog-version.released` and the `environment.*` events; editors and environments serving a draft need the rest.
 
 ### 2.2 Event Envelope
 
@@ -170,8 +169,8 @@ EventEnvelope:
           type: object
           description: >
             The catalog the resource belongs to, or the catalog an
-            environment event is about (the release deployed, the
-            override set). Absent for events outside a catalog.
+            environment event is about (the version deployed or
+            undeployed). Absent for events outside a catalog.
             The registry is written in full, never `~`.
           required: [registry, namespace, catalogKey]
           properties:
@@ -871,7 +870,7 @@ Until those requirements emerge, Option A covers the latency needs with dramatic
 
 #### Latency is acceptable
 
-For Epistola's current use-cases (cache invalidation, workflow orchestration, audit), a 5-10 second delay is entirely acceptable. Releases, deployments and environment override changes are human-initiated operations that happen at most a few times per hour. When sub-second latency becomes a requirement, the long-polling upgrade (Path D → A) addresses it without breaking existing consumers. If true real-time needs emerge beyond that, the gRPC upgrade (Path D → E) is available.
+For Epistola's current use-cases (cache invalidation, workflow orchestration, audit), a 5-10 second delay is entirely acceptable. Releases and deployments are human-initiated operations that happen at most a few times per hour. When sub-second latency becomes a requirement, the long-polling upgrade (Path D → A) addresses it without breaking existing consumers. If true real-time needs emerge beyond that, the gRPC upgrade (Path D → E) is available.
 
 ### Implementation outline (not part of this design — for future planning)
 

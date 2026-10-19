@@ -27,7 +27,6 @@ import app.epistola.client.model.CatalogVersionStatus
 import app.epistola.client.model.CreateCatalogDraftRequest
 import app.epistola.client.model.CreateEnvironmentRequest
 import app.epistola.client.model.EnvironmentDto
-import app.epistola.client.model.SetEnvironmentOverrideRequest
 import app.epistola.client.model.UpdateEnvironmentRequest
 import app.epistola.client.model.ReleaseCatalogDraftRequest
 import app.epistola.client.model.RenameCatalogDraftRequest
@@ -106,11 +105,8 @@ object Driver {
                 "preview-catalog-draft-release" -> previewCatalogDraftRelease(baseUrl, config)
                 "delete-catalog-draft" -> deleteCatalogDraft(baseUrl, config)
                 "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config)
-                "deploy-release" -> deployRelease(baseUrl, config)
-                "undeploy-release" -> undeployRelease(baseUrl, config)
-                "set-environment-override" -> setEnvironmentOverride(baseUrl, config)
-                "list-environment-overrides" -> listEnvironmentOverrides(baseUrl, config)
-                "clear-environment-override" -> clearEnvironmentOverride(baseUrl, config)
+                "deploy-catalog-version" -> deployCatalogVersion(baseUrl, config)
+                "undeploy-catalog-version" -> undeployCatalogVersion(baseUrl, config)
                 "create-environment" -> createEnvironment(baseUrl, config)
                 "update-environment" -> updateEnvironment(baseUrl, config)
                 "update-variant-content" -> updateVariantContent(baseUrl, config)
@@ -752,19 +748,20 @@ object Driver {
     private fun timestamp(value: OffsetDateTime?): String = value?.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME) ?: "null"
 
     /**
-     * Deploys one release; the registry and namespace go into the path as given, and
-     * `includeDependencies` and `replace` are passed only when configured, so an unset one sends
-     * nothing. A refusal is reported by its problem, with each missing dependency release and why.
+     * Deploys one catalog version, a release by its number or a draft by its `versionId`; the
+     * registry, namespace and version go into the path as given, and `includeDependencies` and
+     * `replace` are passed only when configured, so an unset one sends nothing. A refusal is
+     * reported by its problem, with each missing dependency release and why.
      */
-    private fun deployRelease(baseUrl: String, config: ObjectNode) {
+    private fun deployCatalogVersion(baseUrl: String, config: ObjectNode) {
         val deployment = try {
-            EnvironmentsApi(restClient(baseUrl, config)).deployRelease(
+            EnvironmentsApi(restClient(baseUrl, config)).deployCatalogVersion(
                 config["tenantKey"].asText(),
                 config["environmentKey"].asText(),
                 config["registry"].asText(),
                 config["namespace"].asText(),
                 config["catalogKey"].asText(),
-                config["releaseVersion"].asText(),
+                config["catalogVersion"].asText(),
                 config.get("includeDependencies")?.takeUnless { it.isNull }?.asBoolean(),
                 config.get("replace")?.takeUnless { it.isNull }?.asBoolean(),
             )
@@ -787,82 +784,24 @@ object Driver {
                 "registry" to deployment.registry,
                 "namespace" to deployment.namespace,
                 "catalogKey" to deployment.catalogKey,
-                "releaseVersion" to deployment.releaseVersion,
+                "versionId" to deployment.versionId,
+                "kind" to deployment.kind.value,
+                "releaseVersion" to (deployment.releaseVersion ?: "null"),
+                "draftName" to (deployment.draftName ?: "null"),
                 "lastUsedAt" to timestamp(deployment.lastUsedAt),
                 "documentsRequested" to deployment.documentsRequested.toString(),
             ),
         )
     }
 
-    private fun undeployRelease(baseUrl: String, config: ObjectNode) {
-        EnvironmentsApi(restClient(baseUrl, config)).undeployRelease(
+    private fun undeployCatalogVersion(baseUrl: String, config: ObjectNode) {
+        EnvironmentsApi(restClient(baseUrl, config)).undeployCatalogVersion(
             config["tenantKey"].asText(),
             config["environmentKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["releaseVersion"].asText(),
-        )
-    }
-
-    /**
-     * Overrides the version of a catalog an environment uses: `releaseVersion` and `catalogVersion`
-     * go into the body only when configured. A refusal is reported by its problem.
-     */
-    private fun setEnvironmentOverride(baseUrl: String, config: ObjectNode) {
-        val override = try {
-            EnvironmentsApi(restClient(baseUrl, config)).setEnvironmentOverride(
-                config["tenantKey"].asText(),
-                config["environmentKey"].asText(),
-                config["registry"].asText(),
-                config["namespace"].asText(),
-                config["catalogKey"].asText(),
-                SetEnvironmentOverrideRequest(
-                    releaseVersion = config.optionalText("releaseVersion"),
-                    versionId = config.optionalText("versionId"),
-                ),
-            )
-        } catch (e: ProblemDetailException) {
-            report(baseUrl, mapOf("problemTypeSlug" to (e.typeSlug ?: "<null>"), "problemStatus" to e.statusCode.value()))
-            return
-        }
-        report(
-            baseUrl,
-            mapOf(
-                "environmentKey" to override.environmentKey,
-                "registry" to override.registry,
-                "namespace" to override.namespace,
-                "catalogKey" to override.catalogKey,
-                "releaseVersion" to (override.releaseVersion ?: "null"),
-                "versionId" to (override.versionId ?: "null"),
-                "draftLabel" to (override.draftLabel ?: "null"),
-                "setAt" to timestamp(override.setAt),
-            ),
-        )
-    }
-
-    private fun listEnvironmentOverrides(baseUrl: String, config: ObjectNode) {
-        val overrides = EnvironmentsApi(restClient(baseUrl, config))
-            .listEnvironmentOverrides(config["tenantKey"].asText(), config["environmentKey"].asText())
-            .items
-        report(
-            baseUrl,
-            mapOf(
-                "catalogKeys" to overrides.joinToString(",") { it.catalogKey },
-                "releaseVersions" to overrides.joinToString(",") { it.releaseVersion ?: "null" },
-                "versionIds" to overrides.joinToString(",") { it.versionId ?: "null" },
-                "draftLabels" to overrides.joinToString("|") { it.draftLabel ?: "null" },
-            ),
-        )
-    }
-
-    private fun clearEnvironmentOverride(baseUrl: String, config: ObjectNode) {
-        EnvironmentsApi(restClient(baseUrl, config)).clearEnvironmentOverride(
-            config["tenantKey"].asText(),
-            config["environmentKey"].asText(),
-            config["registry"].asText(),
-            config["namespace"].asText(),
-            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
         )
     }
 
@@ -1123,7 +1062,10 @@ object Driver {
             mapOf(
                 "registries" to deployments.joinToString(",") { it.registry },
                 "catalogKeys" to deployments.joinToString(",") { it.catalogKey },
-                "releaseVersions" to deployments.joinToString(",") { it.releaseVersion },
+                "versionIds" to deployments.joinToString(",") { it.versionId },
+                "kinds" to deployments.joinToString(",") { it.kind.value },
+                "releaseVersions" to deployments.joinToString(",") { it.releaseVersion ?: "null" },
+                "draftNames" to deployments.joinToString("|") { it.draftName ?: "null" },
                 "deployedAt" to deployments.joinToString(",") { timestamp(it.deployedAt) },
                 "lastUsedAt" to deployments.joinToString(",") { timestamp(it.lastUsedAt) },
                 "documentsRequested" to deployments.joinToString(",") { it.documentsRequested.toString() },
@@ -1144,8 +1086,10 @@ object Driver {
             mapOf(
                 "catalogKeys" to events.joinToString(",") { it.catalogKey },
                 "actions" to events.joinToString(",") { it.action.value },
+                "versionIds" to events.joinToString(",") { it.versionId },
+                "kinds" to events.joinToString(",") { it.kind.value },
                 "releaseVersions" to events.joinToString(",") { it.releaseVersion ?: "null" },
-                "draftLabels" to events.joinToString("|") { it.draftLabel ?: "null" },
+                "draftNames" to events.joinToString("|") { it.draftName ?: "null" },
                 "changedAt" to events.joinToString(",") { timestamp(it.changedAt) },
                 "changedBy" to events.joinToString("|") { it.changedBy ?: "null" },
                 "totalElements" to response.page.totalElements.toString(),
@@ -1168,14 +1112,19 @@ object Driver {
 
     /** A partial update: each member is sent only when configured. */
     private fun updateEnvironment(baseUrl: String, config: ObjectNode) {
-        val environment = EnvironmentsApi(restClient(baseUrl, config)).updateEnvironment(
-            config["tenantKey"].asText(),
-            config["environmentKey"].asText(),
-            UpdateEnvironmentRequest(
-                name = config.optionalText("name"),
-                production = config.get("production")?.takeUnless { it.isNull }?.asBoolean(),
-            ),
-        )
+        val environment = try {
+            EnvironmentsApi(restClient(baseUrl, config)).updateEnvironment(
+                config["tenantKey"].asText(),
+                config["environmentKey"].asText(),
+                UpdateEnvironmentRequest(
+                    name = config.optionalText("name"),
+                    production = config.get("production")?.takeUnless { it.isNull }?.asBoolean(),
+                ),
+            )
+        } catch (e: ProblemDetailException) {
+            report(baseUrl, mapOf("problemTypeSlug" to (e.typeSlug ?: "<null>"), "problemStatus" to e.statusCode.value()))
+            return
+        }
         reportEnvironment(baseUrl, environment)
     }
 

@@ -3,15 +3,17 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: list-deployment-history
-title: An environment's history reads every event kind, an override of a draft included
+title: An environment's history reads every event kind, a draft released into a release included
 why: >
-  The history lists every deploy, undeploy and override change on an environment, newest first.
-  `action` is an enum whose values carry a hyphen (`override-set`, `override-cleared`), which is
-  where generated enums go wrong: a client must report the wire value, not a constant name.
+  The history lists every change to what an environment serves, newest first (ADR 0003,
+  "Deploying"). `action` is an enum read as the wire value, not a constant name; `released`
+  records a deployed draft that was released, which the environment then serves as that release.
 
-  An override that named a draft has no release: `releaseVersion` is null, and `draftLabel` names
-  the draft as it was called at the time. A system change has no `changedBy`. Optional members are
-  sent as null on some entries and left out on others, and a client must read both as missing.
+  Every entry names the version by `versionId`, and `kind` says what it was after the change. A
+  draft deployed or undeployed has no release: `releaseVersion` is null, and `draftName` names the
+  draft as it was called at the time. A `released` entry carries both, the draft's name and the
+  release it became, under the same `versionId`. A system change has no `changedBy`: it is sent as
+  null on some entries and left out on others, and a client must read both as missing.
 
   The page is the caller's: `page` and `size` go out as given.
 
@@ -32,30 +34,40 @@ script:
         - registry: exchange.epistola.app
           namespace: acme-corp
           catalogKey: letters
-          action: override-set
-          releaseVersion: null
-          draftLabel: Redesign 2027
+          action: released
+          versionId: k7m2x9qa
+          kind: release
+          releaseVersion: 1.5.0
+          draftName: Spring fixes
           changedAt: "2026-10-18T09:00:00Z"
           changedBy: Jane Smith
         - registry: exchange.epistola.app
           namespace: acme-corp
           catalogKey: letters
-          action: override-cleared
-          releaseVersion: 1.3.2
-          draftLabel: null
+          action: undeployed
+          versionId: r4t8w2nc
+          kind: draft
+          releaseVersion: null
+          draftName: Redesign 2027
           changedAt: "2026-10-17T16:00:00Z"
         - registry: exchange.epistola.app
           namespace: acme-corp
           catalogKey: letters
-          action: undeployed
-          releaseVersion: 1.3.2
+          action: deployed
+          versionId: k7m2x9qa
+          kind: draft
+          releaseVersion: null
+          draftName: Spring fixes
           changedAt: "2026-10-17T16:00:00Z"
           changedBy: Jane Smith
         - registry: exchange.epistola.app
           namespace: acme-corp
           catalogKey: letters
           action: deployed
+          versionId: m3q8v5tw
+          kind: release
           releaseVersion: 1.4.0
+          draftName: null
           changedAt: "2026-10-02T07:30:00Z"
           changedBy: null
       page: { number: 0, size: 50, totalElements: 4, totalPages: 1 }
@@ -73,10 +85,12 @@ expect:
           contains: application/vnd.epistola.v2+json
   report:
     catalogKeys: letters,letters,letters,letters
-    actions: override-set,override-cleared,undeployed,deployed
-    releaseVersions: null,1.3.2,1.3.2,1.4.0
+    actions: released,undeployed,deployed,deployed
+    versionIds: k7m2x9qa,r4t8w2nc,k7m2x9qa,m3q8v5tw
+    kinds: release,draft,draft,release
+    releaseVersions: 1.5.0,null,null,1.4.0
     # Names are free text, so they are joined with `|`.
-    draftLabels: Redesign 2027|null|null|null
+    draftNames: Spring fixes|Redesign 2027|Spring fixes|null
     changedAt: 2026-10-18T09:00:00Z,2026-10-17T16:00:00Z,2026-10-17T16:00:00Z,2026-10-02T07:30:00Z
     changedBy: Jane Smith|null|Jane Smith|null
     totalElements: "4"
