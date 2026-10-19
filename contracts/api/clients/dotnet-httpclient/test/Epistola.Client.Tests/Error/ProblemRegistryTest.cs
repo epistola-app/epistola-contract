@@ -36,5 +36,6 @@ public class ProblemRegistryTest
         Assert.Equal("release-dependencies-unreleased", KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED);
         Assert.Equal("environment-override-refused", KnownProblemSlugs.ENVIRONMENT_OVERRIDE_REFUSED);
         Assert.Equal("resource-modified", KnownProblemSlugs.RESOURCE_MODIFIED);
+        Assert.Equal("catalog-source-unavailable", KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE);
     }
 }

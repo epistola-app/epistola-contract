@@ -102,6 +102,23 @@ class ApiExceptionMapperTest {
     }
 
     @Test
+    void a_catalog_source_problem_is_typed_whether_it_comes_as_a_503_or_a_502() {
+        for (int status : List.of(503, 502)) {
+            ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                    StubServer.StubResponse.of(status, PROBLEM_JSON,
+                            """
+                            {"type":"https://epistola.app/errors/catalog-source-unavailable",
+                             "title":"Catalog Source Unavailable","status":%d,
+                             "detail":"registry.gemeente-x.nl could not be used"}
+                            """.formatted(status))));
+
+            assertEquals(KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE, e.getTypeSlug());
+            assertEquals(status, e.getStatusCode());
+            assertEquals(status, e.getProblemStatus());
+        }
+    }
+
+    @Test
     void an_error_that_is_not_problem_json_stays_a_plain_api_exception() {
         ApiException e = assertThrows(ApiException.class, () ->
                 callGetTenant(request -> StubServer.StubResponse.of(503, "text/plain", "upstream is down")));

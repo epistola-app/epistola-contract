@@ -104,8 +104,8 @@ import-catalog:
                 description: |
                   Type of the catalog the import creates when the tenant does not have it: AUTHORED
                   allows drafts to be started from its releases (`createCatalogDraft`); SUBSCRIBED
-                  only installs releases, and installs newer ones from its source
-                  (`upgradeCatalog`). Required when the import creates the catalog: there is no
+                  only installs releases, and installs those its source offers
+                  (`installCatalogRelease`). Required when the import creates the catalog: there is no
                   default, and an import that creates a catalog without it is refused with 400
                   `bad-request`. For a catalog the tenant has it may be omitted; given, it must be
                   the catalog's type, or the import is refused with 409 `conflict`. An import never

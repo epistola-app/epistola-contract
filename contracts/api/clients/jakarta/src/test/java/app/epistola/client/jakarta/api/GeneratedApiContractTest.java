@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import app.epistola.client.jakarta.EpistolaRestClients;
 import app.epistola.client.jakarta.StubServer;
 import app.epistola.client.jakarta.error.ProblemDetailException;
+import app.epistola.client.jakarta.model.AvailableCatalogReleases;
 import app.epistola.client.jakarta.model.CatalogDependencyListResponse;
 import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
 import app.epistola.client.jakarta.model.CatalogVersionDto;
@@ -20,6 +21,7 @@ import app.epistola.client.jakarta.model.CreateTenantRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
 import app.epistola.client.jakarta.model.EnvironmentOverrideDto;
 import app.epistola.client.jakarta.model.EnvironmentOverrideListResponse;
+import app.epistola.client.jakarta.model.InstallCatalogReleaseResponse;
 import app.epistola.client.jakarta.model.SetEnvironmentOverrideRequest;
 import app.epistola.client.jakarta.model.ReleaseCatalogDraftResponse;
 import app.epistola.client.jakarta.model.TenantDto;
@@ -256,7 +258,11 @@ class GeneratedApiContractTest {
      */
     @Test
     void catalog_content_is_addressed_through_a_catalog_version() {
-        List<String> catalogLevel = List.of("/versions", "/versions/{catalogVersion}", "/upgrade", "/upgrade-preview");
+        List<String> catalogLevel = List.of(
+                "/versions",
+                "/versions/{catalogVersion}",
+                "/available-releases",
+                "/available-releases/{releaseVersion}/install");
         int versionScoped = 0;
 
         for (Class<?> api : GENERATED_APIS) {
@@ -341,6 +347,38 @@ class GeneratedApiContractTest {
                     List.of(method(CatalogsApi.class, withBody).getAnnotation(Consumes.class).value()),
                     withBody + " should send the vendor media type");
         }
+    }
+
+    /**
+     * Nothing is upgraded in contract 2.0: a subscribed catalog's source offers releases, which are
+     * listed and installed beside the others. The release to install is part of the path, so the
+     * POST takes neither a query parameter nor a body.
+     */
+    @Test
+    void a_subscribed_catalog_lists_and_installs_the_releases_its_source_offers() {
+        for (String removed : List.of("upgradeCatalog", "previewCatalogUpgrade")) {
+            assertTrue(
+                    Arrays.stream(CatalogsApi.class.getMethods()).noneMatch(method -> method.getName().equals(removed)),
+                    "CatalogsApi still has the removed " + removed);
+        }
+
+        List<String> catalog = List.of("tenantKey", "registry", "namespace", "catalogKey");
+        List<String> release = List.of("tenantKey", "registry", "namespace", "catalogKey", "releaseVersion");
+
+        assertOperation("listAvailableCatalogReleases", GET.class, AvailableCatalogReleases.class, catalog);
+        assertOperation("installCatalogRelease", POST.class, InstallCatalogReleaseResponse.class, release);
+
+        Method install = method(CatalogsApi.class, "installCatalogRelease");
+        assertTrue(
+                install.getAnnotation(Path.class).value().endsWith("/available-releases/{releaseVersion}/install"),
+                "installCatalogRelease is addressed below the available release");
+        assertEquals(release.size(), install.getParameterCount(), "installCatalogRelease takes no query and no body");
+        assertTrue(
+                method(CatalogsApi.class, "listAvailableCatalogReleases")
+                        .getAnnotation(Path.class)
+                        .value()
+                        .endsWith("/available-releases"),
+                "listAvailableCatalogReleases lists below the catalog");
     }
 
     private static void assertOperation(

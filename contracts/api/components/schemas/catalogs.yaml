@@ -82,17 +82,16 @@ CatalogListResponse:
     page:
       $ref: './common.yaml#/PageMeta'
 
-CatalogUpgradePreview:
+AvailableCatalogReleases:
   type: object
   description: |
-    What the source of a SUBSCRIBED catalog offers beyond the releases the tenant has: the releases
-    numbered above the highest installed one, each with what it changed against that release and
+    The releases the source of a SUBSCRIBED catalog offers that the tenant has not installed, older
+    lines included, each with what it changed against the closest installed release below it and
     whether the releases it pins are present. Nothing is installed by reading it.
   required:
     - registry
     - namespace
     - catalogKey
-    - installedVersion
     - available
   properties:
     registry:
@@ -117,14 +116,12 @@ CatalogUpgradePreview:
       maxLength: 50
       description: Key of the catalog, unique within its registry and namespace
       example: letters
-    installedVersion:
-      $ref: '#/ReleaseVersion'
-      description: The highest release of the catalog the tenant has, which `available` is compared against
     available:
       type: array
       description: |
-        The releases the source offers numbered above `installedVersion`, lowest first. Empty when
-        the tenant has the highest release the source offers.
+        Every release the source offers that the tenant has not installed, lowest first: not only
+        those above the highest installed release, so a fix to an older line (`1.4.1`) is listed
+        while the tenant has `2.0.0`. Empty when the tenant has every release the source offers.
       items:
         $ref: '#/AvailableReleaseDto'
 
@@ -133,25 +130,34 @@ AvailableReleaseDto:
   description: A release the source of a SUBSCRIBED catalog offers, which the tenant does not have
   required:
     - version
+    - comparedTo
     - changes
     - dependencies
   properties:
     version:
       $ref: '#/ReleaseVersion'
       description: The release's number
+    comparedTo:
+      type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      maxLength: 50
+      description: |
+        The release `changes` is measured against: the closest release the tenant has installed
+        numbered below this one. Null when the tenant has no release numbered below it.
+      example: "1.4.0"
     changes:
       type: array
       description: |
-        The resources the release added, modified or removed against the highest installed release
-        (`CatalogUpgradePreview.installedVersion`), not against the release before it
+        The resources the release added, modified or removed against `comparedTo`, not against the
+        release before it; every resource it has, as added, when `comparedTo` is null
       items:
         $ref: '#/ReleasedChangeDto'
     dependencies:
       type: array
       description: |
         The releases of other catalogs the release pins (`catalogDependencies`), each with whether
-        the tenant has it. Upgrading installs those it does not have first, fetched from their
-        registries. Empty when the release pins none.
+        the tenant has it. Installing the release (`installCatalogRelease`) installs those it does
+        not have first, fetched from their registries. Empty when the release pins none.
       items:
         $ref: '#/AvailableReleaseDependencyDto'
 
@@ -193,15 +199,19 @@ AvailableReleaseDependencyDto:
     present:
       type: boolean
       description: |
-        True when the tenant has the release; false when upgrading would have to fetch it, and is
-        refused with `release-dependencies-missing` when it cannot
+        True when the tenant has the release; false when installing the available release would have
+        to fetch it, and is refused with `release-dependencies-missing` when it cannot
       example: true
 
-UpgradeCatalogResponse:
+InstallCatalogReleaseResponse:
   type: object
   description: |
-    Result of upgrading a SUBSCRIBED catalog: the release it installed, or found already present,
-    reported as `ImportCatalogResponse` reports an import. Nothing was updated in place or removed.
+    Result of installing a release of a SUBSCRIBED catalog from its source: the release it
+    installed, or found already present, reported as `ImportCatalogResponse` reports an import.
+    Nothing was updated in place or removed. A schema of its own rather than
+    `ImportCatalogResponse`: it carries no `catalogName` (the catalog exists already), and its
+    dependency lists name the releases fetched from their sources rather than those an archive
+    carries.
   required:
     - registry
     - namespace
@@ -234,11 +244,11 @@ UpgradeCatalogResponse:
       example: letters
     releaseVersion:
       $ref: '#/ReleaseVersion'
-      description: The release the upgrade installed, which the tenant now has
+      description: The release installed, which the tenant now has
     newlyInstalled:
       type: boolean
       description: |
-        `true` when this upgrade installed the release; `false` when the tenant already had it, with
+        `true` when this request installed the release; `false` when the tenant already had it, with
         the same fingerprint, and nothing changed.
       example: true
     total:
@@ -248,7 +258,7 @@ UpgradeCatalogResponse:
     installedDependencies:
       type: array
       description: |
-        The releases the release pins, directly or through other pins, that the upgrade fetched and
+        The releases the release pins, directly or through other pins, that were fetched and
         installed, as `catalogKey vVERSION`, in the order it installed them. Empty when it installed
         none.
       items:
@@ -517,7 +527,7 @@ CatalogVersionId:
   description: |
     The id of one catalog version (ADR 0002), opaque and assigned by the server, unique within its
     catalog. A version gets it when it is started as a draft and keeps it when it is released; a
-    release installed by import, upgrade or from an exchange gets one when it is installed. It
+    release installed by import or from its source gets one when it is installed. It
     addresses the version (`…/versions/{versionId}`) for as long as the version exists, as a draft
     and as a release alike: a released version is addressed by its `versionId` or by its number,
     interchangeably.
@@ -689,7 +699,7 @@ ReleasedChangeDto:
   type: object
   description: |
     A resource a release added, modified or removed against another release: its base, for a release
-    a draft is behind; the highest installed release, for a release an upgrade preview offers
+    a draft is behind; `comparedTo`, for a release the source of a SUBSCRIBED catalog offers
   required:
     - type
     - key

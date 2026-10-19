@@ -2,26 +2,24 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: upgrade-catalog-latest
-title: Upgrading without a release installs the highest the source offers, and says when it was present
+id: install-catalog-release-already-present
+title: Installing a release the tenant already has changes nothing, and says so
 why: >
-  `releaseVersion` is not set, so no query string is sent: the server installs the highest release
-  the catalog's source offers. A client that fills in a value of its own chooses the release for
-  the caller.
-
-  The tenant already has that release, with the same fingerprint, so nothing changes and the
-  response says so with `newlyInstalled: false`. A client that drops a false boolean tells its
-  caller a release was installed when nothing happened. The response carries no dependency lists;
-  a client must surface them as empty, not fail on them.
+  The catalog is in a registry of its own, written in the path as it is. The tenant already has
+  release `1.4.2`, with the same fingerprint, so nothing changes and the response says so with
+  `newlyInstalled: false`. A client that drops a false boolean tells its caller a release was
+  installed when nothing happened. The response carries no dependency lists; a client must surface
+  them as empty, not fail on them.
 
 action:
-  name: upgrade-catalog
+  name: install-catalog-release
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
     registry: registry.gemeente-x.nl
     namespace: huisstijl
     catalogKey: branding
+    releaseVersion: 1.4.2
 
 script:
   - status: 200
@@ -38,7 +36,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/registry.gemeente-x.nl/huisstijl/branding/upgrade
+      path: /api/tenants/acme-corp/catalogs/registry.gemeente-x.nl/huisstijl/branding/available-releases/1.4.2/install
       query: ""
   report:
     registry: registry.gemeente-x.nl

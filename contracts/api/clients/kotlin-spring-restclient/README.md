@@ -317,6 +317,10 @@ try {
             e.unreleasedDependencies.forEach {
                 println("${it.registry}/${it.namespace}/${it.catalogKey}: draft ${it.draftName} (${it.versionId})")
             }
+        KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE ->  // installCatalogRelease, listAvailableCatalogReleases
+            // 503: the source could not be reached (Retry-After may say when to try again);
+            // 502: it answered badly. Nothing was installed.
+            log.warn("catalog source unavailable (${e.problemStatus}): ${e.detail}")
         else                                          -> throw e   // unknown / framework error
     }
 }

@@ -191,3 +191,39 @@ RateLimitedError:
         title: Too Many Requests
         status: 429
         detail: Rate limit exceeded
+
+CatalogSourceBadGatewayError:
+  description: >-
+    The catalog's source, its registry or the mirrors configured for it (ADR 0003), answered with an
+    error or with something that is not a valid answer, so the request could not be carried out and
+    nothing was installed. The problem is `catalog-source-unavailable`.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ProblemDetail'
+      example:
+        type: https://epistola.app/errors/catalog-source-unavailable
+        title: Catalog Source Unavailable
+        status: 502
+        detail: "registry.gemeente-x.nl answered 500 for huisstijl/branding"
+
+CatalogSourceUnavailableError:
+  description: >-
+    The catalog's source, its registry or the mirrors configured for it (ADR 0003), could not be
+    reached or did not answer in time, so the request could not be carried out and nothing was
+    installed. The problem is `catalog-source-unavailable`. `Retry-After`, when present, says how
+    long to wait before trying again.
+  headers:
+    Retry-After:
+      description: Seconds to wait before retrying, when the server can tell
+      schema:
+        type: integer
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ProblemDetail'
+      example:
+        type: https://epistola.app/errors/catalog-source-unavailable
+        title: Catalog Source Unavailable
+        status: 503
+        detail: "registry.gemeente-x.nl could not be reached"

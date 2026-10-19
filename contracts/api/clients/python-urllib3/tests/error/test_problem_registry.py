@@ -32,6 +32,7 @@ EXPECTED_SLUGS = {
     "RESOURCE_MODIFIED": "resource-modified",
     "DATA_MODEL_VALIDATION_ERROR": "data-model-validation-error",
     "RATE_LIMITED": "rate-limited",
+    "CATALOG_SOURCE_UNAVAILABLE": "catalog-source-unavailable",
 }
 
 

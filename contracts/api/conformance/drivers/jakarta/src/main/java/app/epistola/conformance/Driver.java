@@ -21,13 +21,13 @@ import app.epistola.client.jakarta.error.MissingDependency;
 import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.identity.ClientIdentity;
 import app.epistola.client.jakarta.model.AvailableReleaseDependencyDto;
+import app.epistola.client.jakarta.model.AvailableCatalogReleases;
 import app.epistola.client.jakarta.model.AvailableReleaseDto;
 import app.epistola.client.jakarta.model.BehindReleaseDto;
 import app.epistola.client.jakarta.model.CatalogChangesDto;
 import app.epistola.client.jakarta.model.CatalogDependencyDto;
 import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
 import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
-import app.epistola.client.jakarta.model.CatalogUpgradePreview;
 import app.epistola.client.jakarta.model.CatalogVersionDto;
 import app.epistola.client.jakarta.model.CatalogVersionStatus;
 import app.epistola.client.jakarta.model.CreateCatalogDraftRequest;
@@ -43,6 +43,7 @@ import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.ImageDto;
 import app.epistola.client.jakarta.model.ImportCatalogResponse;
+import app.epistola.client.jakarta.model.InstallCatalogReleaseResponse;
 import app.epistola.client.jakarta.model.MarkStencilReadyResponse;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
@@ -60,7 +61,6 @@ import app.epistola.client.jakarta.model.TemplateListResponse;
 import app.epistola.client.jakarta.model.TemplateSummaryDto;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
 import app.epistola.client.jakarta.model.UpdateConsumerRequest;
-import app.epistola.client.jakarta.model.UpgradeCatalogResponse;
 import app.epistola.client.jakarta.model.Node;
 import app.epistola.client.jakarta.model.TemplateDocument;
 import app.epistola.client.jakarta.model.ThemeRef;
@@ -125,8 +125,8 @@ public final class Driver {
                 case "list-images" -> listImages(baseUrl, config);
                 case "upload-image" -> uploadImage(baseUrl, config);
                 case "import-catalog" -> importCatalog(baseUrl, config);
-                case "upgrade-catalog" -> upgradeCatalog(baseUrl, config);
-                case "preview-catalog-upgrade" -> previewCatalogUpgrade(baseUrl, config);
+                case "install-catalog-release" -> installCatalogRelease(baseUrl, config);
+                case "list-available-catalog-releases" -> listAvailableCatalogReleases(baseUrl, config);
                 case "download-image" -> downloadImage(baseUrl, config);
                 case "delete-image" -> deleteImage(baseUrl, config);
                 case "list-catalog-dependencies" -> listCatalogDependencies(baseUrl, config);
@@ -486,20 +486,20 @@ public final class Driver {
     }
 
     /**
-     * Upgrades a subscribed catalog. {@code releaseVersion} goes out, as a query parameter, only when
-     * the scenario names it. A refusal is reported by its problem, missing dependencies included.
+     * Installs a release a subscribed catalog's source offers, named in the path. A refusal or a
+     * failing source is reported by its problem, missing dependencies included.
      */
-    private static void upgradeCatalog(String baseUrl, JsonObject config) {
-        UpgradeCatalogResponse upgraded;
+    private static void installCatalogRelease(String baseUrl, JsonObject config) {
+        InstallCatalogReleaseResponse installed;
         try {
-            upgraded = clients(baseUrl, config)
+            installed = clients(baseUrl, config)
                     .api(CatalogsApi.class)
-                    .upgradeCatalog(
+                    .installCatalogRelease(
                             config.getString("tenantKey"),
                             config.getString("registry"),
                             config.getString("namespace"),
                             config.getString("catalogKey"),
-                            optional(config, "releaseVersion"));
+                            config.getString("releaseVersion"));
         } catch (ProblemDetailException e) {
             report(
                     baseUrl,
@@ -518,35 +518,51 @@ public final class Driver {
         report(
                 baseUrl,
                 Map.of(
-                        "registry", String.valueOf(upgraded.getRegistry()),
-                        "namespace", String.valueOf(upgraded.getNamespace()),
-                        "catalogKey", String.valueOf(upgraded.getCatalogKey()),
-                        "releaseVersion", String.valueOf(upgraded.getReleaseVersion()),
-                        "newlyInstalled", String.valueOf(upgraded.getNewlyInstalled()),
-                        "total", String.valueOf(upgraded.getTotal()),
+                        "registry", String.valueOf(installed.getRegistry()),
+                        "namespace", String.valueOf(installed.getNamespace()),
+                        "catalogKey", String.valueOf(installed.getCatalogKey()),
+                        "releaseVersion", String.valueOf(installed.getReleaseVersion()),
+                        "newlyInstalled", String.valueOf(installed.getNewlyInstalled()),
+                        "total", String.valueOf(installed.getTotal()),
                         "installedDependencies",
-                                joined(orEmpty(upgraded.getInstalledDependencies()), String::valueOf),
+                                joined(orEmpty(installed.getInstalledDependencies()), String::valueOf),
                         "presentDependencies",
-                                joined(orEmpty(upgraded.getPresentDependencies()), String::valueOf)));
+                                joined(orEmpty(installed.getPresentDependencies()), String::valueOf)));
     }
 
-    /** Previews a subscribed catalog's upgrade, reporting every available release in order. */
-    private static void previewCatalogUpgrade(String baseUrl, JsonObject config) {
-        CatalogUpgradePreview preview = clients(baseUrl, config)
-                .api(CatalogsApi.class)
-                .previewCatalogUpgrade(
-                        config.getString("tenantKey"),
-                        config.getString("registry"),
-                        config.getString("namespace"),
-                        config.getString("catalogKey"));
-        List<AvailableReleaseDto> available = orEmpty(preview.getAvailable());
+    /**
+     * Lists the releases a subscribed catalog's source offers that the tenant lacks, reporting every
+     * one in order. A failing source is reported by its problem.
+     */
+    private static void listAvailableCatalogReleases(String baseUrl, JsonObject config) {
+        AvailableCatalogReleases releases;
+        try {
+            releases = clients(baseUrl, config)
+                    .api(CatalogsApi.class)
+                    .listAvailableCatalogReleases(
+                            config.getString("tenantKey"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"));
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode()));
+            return;
+        }
+        List<AvailableReleaseDto> available = orEmpty(releases.getAvailable());
         report(
                 baseUrl,
                 Map.of(
-                        "registry", String.valueOf(preview.getRegistry()),
-                        "namespace", String.valueOf(preview.getNamespace()),
-                        "catalogKey", String.valueOf(preview.getCatalogKey()),
-                        "installedVersion", String.valueOf(preview.getInstalledVersion()),
+                        "registry", String.valueOf(releases.getRegistry()),
+                        "namespace", String.valueOf(releases.getNamespace()),
+                        "catalogKey", String.valueOf(releases.getCatalogKey()),
+                        "availableComparedTo",
+                                available.stream()
+                                        .map(release -> release.getVersion() + "=" + release.getComparedTo())
+                                        .collect(Collectors.joining(";")),
                         "availableChanges",
                                 available.stream()
                                         .map(release -> release.getVersion() + "="

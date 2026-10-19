@@ -47,8 +47,8 @@ const ACTIONS = {
   'list-images': listImages,
   'upload-image': uploadImage,
   'import-catalog': importCatalog,
-  'upgrade-catalog': upgradeCatalog,
-  'preview-catalog-upgrade': previewCatalogUpgrade,
+  'install-catalog-release': installCatalogRelease,
+  'list-available-catalog-releases': listAvailableCatalogReleases,
   'download-image': downloadImage,
   'delete-image': deleteImage,
   'list-catalog-dependencies': listCatalogDependencies,
@@ -316,20 +316,19 @@ async function importCatalog(baseUrl, config) {
 }
 
 /**
- * Upgrades a subscribed catalog. `releaseVersion` goes out, as a query parameter, only when the
- * scenario sets it. A refusal is reported by its problem, missing dependencies included.
+ * Installs a release a subscribed catalog's source offers, named in the path. A refusal or a
+ * failing source is reported by its problem, missing dependencies included.
  */
-async function upgradeCatalog(baseUrl, config) {
-  const request = {
-    tenantKey: config.tenantKey,
-    registry: config.registry,
-    namespace: config.namespace,
-    catalogKey: config.catalogKey,
-  }
-  if (config.releaseVersion !== undefined) request.releaseVersion = config.releaseVersion
-  let upgraded
+async function installCatalogRelease(baseUrl, config) {
+  let installed
   try {
-    upgraded = await new CatalogsApi(client(baseUrl, config)).upgradeCatalog(request)
+    installed = await new CatalogsApi(client(baseUrl, config)).installCatalogRelease({
+      tenantKey: config.tenantKey,
+      registry: config.registry,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      releaseVersion: config.releaseVersion,
+    })
   } catch (error) {
     if (!(error instanceof ProblemDetailException)) throw error
     await report(baseUrl, {
@@ -342,34 +341,44 @@ async function upgradeCatalog(baseUrl, config) {
     return
   }
   await report(baseUrl, {
-    registry: show(upgraded.registry),
-    namespace: show(upgraded.namespace),
-    catalogKey: show(upgraded.catalogKey),
-    releaseVersion: show(upgraded.releaseVersion),
-    newlyInstalled: show(upgraded.newlyInstalled),
-    total: show(upgraded.total),
-    installedDependencies: (upgraded.installedDependencies ?? []).map(show).join(','),
-    presentDependencies: (upgraded.presentDependencies ?? []).map(show).join(','),
+    registry: show(installed.registry),
+    namespace: show(installed.namespace),
+    catalogKey: show(installed.catalogKey),
+    releaseVersion: show(installed.releaseVersion),
+    newlyInstalled: show(installed.newlyInstalled),
+    total: show(installed.total),
+    installedDependencies: (installed.installedDependencies ?? []).map(show).join(','),
+    presentDependencies: (installed.presentDependencies ?? []).map(show).join(','),
   })
 }
 
-/** Previews a subscribed catalog's upgrade, reporting every available release in order. */
-async function previewCatalogUpgrade(baseUrl, config) {
-  const preview = await new CatalogsApi(client(baseUrl, config)).previewCatalogUpgrade({
-    tenantKey: config.tenantKey,
-    registry: config.registry,
-    namespace: config.namespace,
-    catalogKey: config.catalogKey,
-  })
+/**
+ * Lists the releases a subscribed catalog's source offers that the tenant lacks, reporting every one
+ * in order. A failing source is reported by its problem.
+ */
+async function listAvailableCatalogReleases(baseUrl, config) {
+  let releases
+  try {
+    releases = await new CatalogsApi(client(baseUrl, config)).listAvailableCatalogReleases({
+      tenantKey: config.tenantKey,
+      registry: config.registry,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+    })
+  } catch (error) {
+    if (!(error instanceof ProblemDetailException)) throw error
+    await report(baseUrl, { problemTypeSlug: error.typeSlug ?? '<null>', problemStatus: error.statusCode })
+    return
+  }
   await report(baseUrl, {
-    registry: show(preview.registry),
-    namespace: show(preview.namespace),
-    catalogKey: show(preview.catalogKey),
-    installedVersion: show(preview.installedVersion),
-    availableChanges: preview.available
+    registry: show(releases.registry),
+    namespace: show(releases.namespace),
+    catalogKey: show(releases.catalogKey),
+    availableComparedTo: releases.available.map((r) => `${show(r.version)}=${show(r.comparedTo)}`).join(';'),
+    availableChanges: releases.available
       .map((r) => `${show(r.version)}=${r.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join('+')}`)
       .join(';'),
-    availableDependencies: preview.available
+    availableDependencies: releases.available
       .map(
         (r) =>
           `${show(r.version)}=${r.dependencies

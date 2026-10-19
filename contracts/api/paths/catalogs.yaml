@@ -38,7 +38,7 @@ catalogs:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
-catalog-upgrade-preview:
+catalog-available-releases:
   parameters:
     - name: tenantKey
       in: path
@@ -54,28 +54,35 @@ catalog-upgrade-preview:
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
 
   get:
-    operationId: previewCatalogUpgrade
-    summary: Preview the releases a subscribed catalog can be upgraded to
+    operationId: listAvailableCatalogReleases
+    summary: List the releases a subscribed catalog's source offers that the tenant has not installed
     description: |
-      Read-only. Shows what the source of a SUBSCRIBED catalog offers beyond the releases the
-      tenant has: every release of the catalog that its registry (through its mirrors, when
-      configured; ADR 0003) offers numbered above the highest installed release
-      (`installedVersion`), lowest first. For each, what it changed against `installedVersion`
-      (resources added, modified and removed), and the releases of other catalogs it pins, each
-      with whether the tenant has it already.
+      Read-only. Lists every release of a SUBSCRIBED catalog that its source, the catalog's registry
+      (through its mirrors, when configured; ADR 0003), offers and the tenant has not installed,
+      lowest first. Not only those above the highest installed release: a fix to an older line
+      (`1.4.1`) is listed while the tenant has `2.0.0`.
 
-      Nothing is installed: `POST .../upgrade` installs one of them. A catalog that is not
-      SUBSCRIBED has no source to upgrade from and is refused with 409 `conflict`.
+      For each, the release it is compared to (`comparedTo`): the closest installed release numbered
+      below it, or null when the tenant has none below it. What it added, modified and removed
+      against `comparedTo` (everything added when `comparedTo` is null), and the releases of other
+      catalogs it pins, each with whether the tenant has it already.
+
+      Nothing is installed: `POST .../available-releases/{releaseVersion}/install` installs one of
+      them, beside the others. A catalog that is not SUBSCRIBED has no source and is refused with
+      409 `conflict`. When the source cannot be reached, or answers with an error or with something
+      that is not a valid answer, the request fails with `catalog-source-unavailable`: 503 when it
+      could not be reached or did not answer in time, possibly with `Retry-After`, and 502 when it
+      answered badly.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
     responses:
       '200':
-        description: The releases the source offers beyond the highest installed one
+        description: The releases the source offers that the tenant has not installed
         content:
           application/vnd.epistola.v2+json:
             schema:
-              $ref: '../components/schemas/catalogs.yaml#/CatalogUpgradePreview'
+              $ref: '../components/schemas/catalogs.yaml#/AvailableCatalogReleases'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -84,8 +91,12 @@ catalog-upgrade-preview:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+      '502':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogSourceBadGatewayError'
+      '503':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogSourceUnavailableError'
 
-catalog-upgrade:
+catalog-available-release-install:
   parameters:
     - name: tenantKey
       in: path
@@ -99,56 +110,57 @@ catalog-upgrade:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - name: releaseVersion
+      in: path
+      required: true
+      description: The release of the catalog to install, one its source offers
+      schema:
+        $ref: '../components/schemas/catalogs.yaml#/ReleaseVersion'
   post:
-    operationId: upgradeCatalog
-    summary: Install a newer release of a subscribed catalog from its source
+    operationId: installCatalogRelease
+    summary: Install a release of a subscribed catalog from its source
     description: |
       Install a release of a SUBSCRIBED catalog fetched from its source, exactly as `importCatalog`
-      installs the release an archive carries: `releaseVersion` when given, otherwise the highest
-      release the source offers. It is fetched from the catalog's registry, through its mirrors
-      when configured (ADR 0003), and installed as an immutable release, side by side with the
-      releases of the catalog the tenant has. Nothing is updated in place and nothing is removed:
-      the releases installed before stay, and every draft, deployment and catalog that uses them
-      keeps doing so. Which release an environment serves is decided by deploying it
-      (`deployRelease`). `GET .../upgrade-preview` lists the releases the source offers.
+      installs the release an archive carries. It is fetched from the catalog's registry, through
+      its mirrors when configured (ADR 0003), and installed as an immutable release, side by side
+      with the releases of the catalog the tenant has, whether it is numbered above them or below.
+      Nothing is updated in place and nothing is removed: the releases installed before stay, and
+      every draft, deployment and catalog that uses them keeps doing so. Which release an
+      environment serves is decided by deploying it (`deployRelease`).
+      `GET .../available-releases` lists the releases the source offers that the tenant lacks.
 
       - **A release the tenant does not have** is installed (`newlyInstalled: true`).
       - **The same number with the same fingerprint** is the release the tenant has already: nothing
         changes (`newlyInstalled: false`).
       - **The same number with a different fingerprint** is different content under one name: the
-        upgrade is refused with 409 `conflict`, and nothing changes.
+        install is refused with 409 `conflict`, and nothing changes.
 
       The releases of other catalogs the release pins (`catalogDependencies`), directly or through
       other pins, are installed first, each before every release that pins it, as an import
       installs the releases an archive carries: those the tenant lacks are fetched and installed
       (`installedDependencies`), each in a SUBSCRIBED catalog when the tenant does not have that
       catalog; those it has with the same fingerprint are left alone (`presentDependencies`). One
-      the tenant has under the same number with a different fingerprint refuses the upgrade with
+      the tenant has under the same number with a different fingerprint refuses the install with
       409 `conflict`; one that cannot be fetched, or does not match its pin's
       `releaseFingerprint`, refuses it with 409 `release-dependencies-missing`, listing each
       (`UNAVAILABLE`). Installing is all or nothing, in one transaction.
 
-      A catalog that is not SUBSCRIBED has no source to upgrade from and is refused with 409
-      `conflict`. A `releaseVersion` the source does not offer is refused with 404 `not-found`.
+      A catalog that is not SUBSCRIBED has no source and is refused with 409 `conflict`. A
+      `releaseVersion` the source does not offer is refused with 404 `not-found`. When the
+      catalog's source cannot be reached, or answers with an error or with something that is not a
+      valid answer, the request fails with `catalog-source-unavailable` and nothing is installed:
+      503 when it could not be reached or did not answer in time, possibly with `Retry-After`, and
+      502 when it answered badly.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_MANAGE]
-    parameters:
-      - name: releaseVersion
-        in: query
-        required: false
-        description: |
-          The release of the catalog to install, one its source offers. Omitted: the highest
-          release the source offers.
-        schema:
-          $ref: '../components/schemas/catalogs.yaml#/ReleaseVersion'
     responses:
       '200':
         description: The release is installed, or was already present
         content:
           application/vnd.epistola.v2+json:
             schema:
-              $ref: '../components/schemas/catalogs.yaml#/UpgradeCatalogResponse'
+              $ref: '../components/schemas/catalogs.yaml#/InstallCatalogReleaseResponse'
       '400':
         $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
@@ -159,6 +171,10 @@ catalog-upgrade:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ReleaseDependenciesMissingError'
+      '502':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogSourceBadGatewayError'
+      '503':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogSourceUnavailableError'
 
 catalog-changes:
   parameters:

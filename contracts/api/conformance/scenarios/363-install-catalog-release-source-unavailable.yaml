@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: install-catalog-release-source-unavailable
+title: An install whose catalog source cannot be reached fails with a 503 the client surfaces as a problem
+why: >
+  Installing a release fetches it from the catalog's source, its registry through the mirrors
+  configured for it. When that source cannot be reached, the server answers 503 with
+  `catalog-source-unavailable` and installs nothing, possibly saying when to try again with
+  `Retry-After`. That is the first server error, rather than client error, a contract problem type
+  is sent with: a client must parse a 5xx `application/problem+json` body as it parses a 4xx one,
+  and surface the slug and the status, rather than a bare server error a caller cannot tell from
+  a failing Epistola. It must not retry on its own either: the request is sent once.
+
+action:
+  name: install-catalog-release
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: registry.gemeente-x.nl
+    namespace: huisstijl
+    catalogKey: branding
+    releaseVersion: 1.5.0
+
+script:
+  - status: 503
+    contentType: application/problem+json
+    headers:
+      Retry-After: '120'
+    body:
+      type: https://epistola.app/errors/catalog-source-unavailable
+      title: Catalog Source Unavailable
+      status: 503
+      detail: registry.gemeente-x.nl could not be reached
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/registry.gemeente-x.nl/huisstijl/branding/available-releases/1.5.0/install
+      query: ""
+  report:
+    problemTypeSlug: catalog-source-unavailable
+    problemStatus: 503
+    problemMissingDependencies: ''

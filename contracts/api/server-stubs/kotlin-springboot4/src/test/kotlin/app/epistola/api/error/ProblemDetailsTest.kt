@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus
 import java.net.URI
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class ProblemDetailsTest {
 
@@ -94,5 +95,20 @@ class ProblemDetailsTest {
         assertEquals(URI.create("https://epistola.app/errors/release-dependencies-unreleased"), problem.type)
         assertEquals(409, problem.status)
         assertEquals(unreleased, problem.properties?.get("unreleasedDependencies"))
+    }
+
+    @Test
+    fun `catalogSourceUnavailable is one type sent as a 503 or a 502`() {
+        val unreachable = ProblemDetails.catalogSourceUnavailable(HttpStatus.SERVICE_UNAVAILABLE, detail = "registry.gemeente-x.nl could not be reached")
+        assertEquals(URI.create("https://epistola.app/errors/catalog-source-unavailable"), unreachable.type)
+        assertEquals(503, unreachable.status)
+
+        val badAnswer = ProblemDetails.catalogSourceUnavailable(HttpStatus.BAD_GATEWAY)
+        assertEquals(URI.create("https://epistola.app/errors/catalog-source-unavailable"), badAnswer.type)
+        assertEquals(502, badAnswer.status)
+
+        assertFailsWith<IllegalArgumentException> {
+            ProblemDetails.catalogSourceUnavailable(HttpStatus.CONFLICT)
+        }
     }
 }

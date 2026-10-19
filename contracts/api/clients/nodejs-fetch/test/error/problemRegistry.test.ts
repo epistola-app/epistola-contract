@@ -29,6 +29,7 @@ const EXPECTED_SLUGS: Record<string, string> = {
   RELEASE_DEPENDENCIES_UNRELEASED: 'release-dependencies-unreleased',
   ENVIRONMENT_OVERRIDE_REFUSED: 'environment-override-refused',
   RESOURCE_MODIFIED: 'resource-modified',
+  CATALOG_SOURCE_UNAVAILABLE: 'catalog-source-unavailable',
 }
 
 test('the hand-written type base matches the generated one', () => {

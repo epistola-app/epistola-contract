@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: list-available-catalog-releases-source-unavailable
+title: A catalog source that answers badly fails the listing with a 502 the client surfaces as a problem
+why: >
+  Listing the available releases asks the catalog's source, its registry through the mirrors
+  configured for it. When the source answers with an error or with something that is not a valid
+  answer, the server answers 502 with `catalog-source-unavailable`: the same problem type as an
+  unreachable source (503), told apart by the status. A client must parse the 5xx
+  `application/problem+json` body and surface both the slug and the 502, so a caller can tell a
+  source to fix from one to wait for.
+
+action:
+  name: list-available-catalog-releases
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: registry.gemeente-x.nl
+    namespace: huisstijl
+    catalogKey: branding
+
+script:
+  - status: 502
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/catalog-source-unavailable
+      title: Catalog Source Unavailable
+      status: 502
+      detail: registry.gemeente-x.nl answered 500 for huisstijl/branding
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/registry.gemeente-x.nl/huisstijl/branding/available-releases
+      query: ""
+  report:
+    problemTypeSlug: catalog-source-unavailable
+    problemStatus: 502

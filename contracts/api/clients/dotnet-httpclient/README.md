@@ -146,6 +146,22 @@ catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.RELEASE_D
 }
 ```
 
+Listing or installing the releases a subscribed catalog's source offers fails with
+`catalog-source-unavailable` when that source cannot be used: 503 when it could not be reached or
+timed out (a `Retry-After` header may say when to try again), 502 when it answered badly. Nothing
+is installed:
+
+```csharp
+try
+{
+    catalogs.InstallCatalogRelease("my-tenant", "~", "acme-corp", "letters", "1.5.0");
+}
+catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE)
+{
+    Console.WriteLine($"catalog source unavailable ({e.ProblemStatus}): {e.Detail}");
+}
+```
+
 `ProblemDetailException` extends the generated `ApiException`, so existing `catch (ApiException)`
 sites keep working. Non-problem errors fall through to the generated `ApiException`.
 

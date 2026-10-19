@@ -112,8 +112,8 @@ libraries.
   the same version. Every version has a `versionId` (`CatalogVersionId`: opaque, server-assigned,
   unique in its catalog, `^[a-z0-9]+(-[a-z0-9]+)*$`, 4–36 characters, never a dot, so never mistaken
   for a number; a short random id such as `k7m2x9qa` is recommended, a UUID fits), assigned when it
-  is started as a draft and kept when it is released; a release installed by import or upgrade gets
-  one too. An AUTHORED catalog has any number of drafts, all alike: each has a `name` unique among
+  is started as a draft and kept when it is released; a release installed by import or from its
+  source gets one too. An AUTHORED catalog has any number of drafts, all alike: each has a `name` unique among
   the catalog's drafts and a fixed `base`, the release it started from (null when there was none). A
   draft has no number until it is released. `listCatalogVersions`, `createCatalogDraft`
   (`{name, from?}`: from a release number or another version's `versionId`, by default the highest
@@ -382,31 +382,52 @@ libraries.
   reports the release, `releaseVersion` (required), and `newlyInstalled` (required, false when it
   was already present), and loses `catalogVersion`, the per-resource counts `installed`, `updated`
   and `failed`, and `aborted`: installing a release is all or nothing. `total` stays. The operation
-  requires `CATALOG_MANAGE`, as `upgradeCatalog` does, instead of `TEMPLATE_EDIT`: installing a
-  release is not editing templates.
+  requires `CATALOG_MANAGE`, as `installCatalogRelease` does, instead of `TEMPLATE_EDIT`: installing
+  a release is not editing templates.
 
-- **BREAKING: upgrading a subscribed catalog installs a release; the 1.x reconciliation is gone.**
-  Releases are immutable and installed side by side (ADR 0003), so `upgradeCatalog` installs a
-  release fetched from the catalog's source exactly as `importCatalog` installs the one an archive
-  carries: the release named by the new optional `releaseVersion` query parameter, or the highest
-  the source offers, with the releases it pins installed first. Nothing is updated in place and
-  nothing is removed; deploying decides which release an environment serves. The same number with
-  the same fingerprint is already present (`newlyInstalled: false`); with a different fingerprint
-  the upgrade is refused with 409 `conflict`; a pin that cannot be had refuses it with 409
-  `release-dependencies-missing`; a catalog that is not SUBSCRIBED is refused with 409 `conflict`,
-  and a `releaseVersion` the source does not offer with 404. `UpgradeCatalogResponse` reports the
-  release as `ImportCatalogResponse` does: `registry`, `namespace`, `catalogKey`, `releaseVersion`,
-  `newlyInstalled`, `total`, `installedDependencies` and `presentDependencies`; it loses
-  `previousVersion`, `newVersion`, `installResults`, `removedResources` and `aborted`.
-  `previewCatalogUpgrade` returns `CatalogUpgradePreview` instead of `CatalogUpgradeDiff`: the
-  highest installed release (`installedVersion`) and the releases the source offers above it
-  (`available`, `AvailableReleaseDto`), each with the resources it added, modified or removed
-  against `installedVersion` (`ReleasedChangeDto`) and the releases it pins, each with whether the
-  tenant has it (`AvailableReleaseDependencyDto.present`). `CatalogUpgradeDiff` goes, with
-  `previousVersion`, `newVersion`, `upgradeAvailable`, the `added` / `removed` / `changed` /
-  `unchanged` buckets, `conflicts` and `blockedByConflicts`. A catalog that is not SUBSCRIBED is
-  refused with 409 here too. The permissions are unchanged (`CATALOG_MANAGE` to upgrade,
-  `CATALOG_VIEW` to preview).
+- **BREAKING: nothing is upgraded; a subscribed catalog lists and installs the releases its source
+  offers, and the 1.x reconciliation is gone.** Releases are immutable and installed side by side
+  (ADR 0003), and deployments choose which is used, so the upgrade operations are replaced by what
+  they do:
+  - `upgradeCatalog` (`POST …/{catalogKey}/upgrade`, with an `UpgradeCatalogRequest` body) becomes
+    `installCatalogRelease`, `POST
+    …/catalogs/{registry}/{namespace}/{catalogKey}/available-releases/{releaseVersion}/install`, with
+    no query and no body. It installs the release named in the path, fetched from the catalog's
+    source, exactly as `importCatalog` installs the one an archive carries, with the releases it pins
+    installed first; there is no "highest" default. Nothing is updated in place and nothing is
+    removed; deploying decides which release an environment serves. The same number with the same
+    fingerprint is already present (`newlyInstalled: false`); with a different fingerprint the
+    install is refused with 409 `conflict`; a pin that cannot be had refuses it with 409
+    `release-dependencies-missing`; a catalog that is not SUBSCRIBED is refused with 409 `conflict`,
+    and a number the source does not offer with 404. `UpgradeCatalogResponse` becomes
+    `InstallCatalogReleaseResponse` and reports the release as `ImportCatalogResponse` does:
+    `registry`, `namespace`, `catalogKey`, `releaseVersion`, `newlyInstalled`, `total`,
+    `installedDependencies` and `presentDependencies`; it loses `previousVersion`, `newVersion`,
+    `installResults`, `removedResources` and `aborted`. It stays a schema of its own: it has no
+    `catalogName`, and its dependency lists name releases fetched from their sources.
+  - `previewCatalogUpgrade` (`GET …/{catalogKey}/upgrade-preview`, `CatalogUpgradeDiff`) becomes
+    `listAvailableCatalogReleases`, `GET …/catalogs/{registry}/{namespace}/{catalogKey}/available-releases`,
+    returning `AvailableCatalogReleases`: every release the source offers that the tenant has not
+    installed, lowest first, not only those above the highest installed, so a fix `1.4.1` is listed
+    while `2.0.0` is installed (`available`, `AvailableReleaseDto`). Each names the release it is
+    compared to (`comparedTo`, required and nullable: the closest installed release numbered below
+    it, null when there is none), the resources it added, modified or removed against `comparedTo`
+    (`ReleasedChangeDto`; all added when `comparedTo` is null), and the releases it pins, each with
+    whether the tenant has it (`AvailableReleaseDependencyDto.present`). `CatalogUpgradeDiff` goes,
+    with `previousVersion`, `newVersion`, `upgradeAvailable`, the `added` / `removed` / `changed` /
+    `unchanged` buckets, `conflicts` and `blockedByConflicts`. A catalog that is not SUBSCRIBED is
+    refused with 409 here too.
+  - Both need the catalog's source (its registry, through its mirrors). When it cannot be used they
+    fail with `catalog-source-unavailable` (a new problem type, registered as 503) and install
+    nothing: **503** (`CatalogSourceUnavailableError`, possibly with `Retry-After`) when the source
+    could not be reached or did not answer in time, **502** (`CatalogSourceBadGatewayError`) when it
+    answered with an error or with something that is not a valid answer. Every client surfaces it
+    as a problem, 502 or 503, like any other (`KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE`); the
+    server stubs add `ProblemDetails.catalogSourceUnavailable`.
+  - The permissions are unchanged: `CATALOG_MANAGE` to install, `CATALOG_VIEW` to list. Conformance
+    scenarios `install-catalog-release`, `install-catalog-release-already-present`,
+    `install-catalog-release-dependencies-missing`, `install-catalog-release-source-unavailable`,
+    `list-available-catalog-releases` and `list-available-catalog-releases-source-unavailable`.
 
 - **BREAKING: a catalog is identified by its registry, its namespace and its key** (ADR 0003).
   Every catalog-scoped path is `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/…`
@@ -416,8 +437,8 @@ libraries.
   within the registry. Requests may omit the registry (the default); responses always name it in
   full. Every DTO that named a catalog (`catalogId`, `catalog`, or a catalog's `slug`)
   now carries `registry`, `namespace` and `catalogKey`: the generation, preview and batch requests,
-  `VariantSelectionAttribute`, `CatalogDto`, `ReleaseDependencyDto`, `CatalogUpgradePreview`,
-  `UpgradeCatalogResponse`,
+  `VariantSelectionAttribute`, `CatalogDto`, `ReleaseDependencyDto`, `AvailableCatalogReleases`,
+  `InstallCatalogReleaseResponse`,
   `DeploymentDto`, `DeploymentEventDto`, `AttributeDto` (and its `codeListBinding`), `CodeListDto`,
   `FontDto`, `ImageDto` and `ImportCatalogResponse`. Generated documents, generation items and
   collected results add nullable `registry`, `namespace` and `catalogKey` next to `releaseVersion`.
@@ -432,9 +453,9 @@ libraries.
   member that names a release (`CatalogDto.releasedVersion`, `CatalogVersionDto.version` and
   `base`, `CatalogDraftSummary.base`, `BehindReleaseDto.version`, `CatalogChangesDto.base`,
   `CatalogDraftReleasePreview.base`, `needed` and `suggested`, `ReleasedDependencyDto`,
-  `ReleaseDependencyDto`, `CatalogDependencyDto`, `CatalogUpgradePreview.installedVersion`,
-  `AvailableReleaseDto.version`, `AvailableReleaseDependencyDto.releaseVersion`,
-  `UpgradeCatalogResponse.releaseVersion` and the `upgradeCatalog` `releaseVersion` parameter, deployments, overrides, deployment history, missing
+  `ReleaseDependencyDto`, `CatalogDependencyDto`, `AvailableReleaseDto.version` and `comparedTo`,
+  `AvailableReleaseDependencyDto.releaseVersion`, `InstallCatalogReleaseResponse.releaseVersion` and
+  the `installCatalogRelease` `releaseVersion` path parameter, deployments, overrides, deployment history, missing
   dependencies, jobs, documents and collected results, `ImportCatalogResponse.releaseVersion`).
   `CreateCatalogDraftRequest.from` takes the same number or a `versionId`. Version selectors are not release numbers and keep their own schema.
   Every client still sees these members as plain strings, and each client's generated model
@@ -519,8 +540,9 @@ libraries.
 
 ### Removed
 
-- **BREAKING: the 1.x reconciliation of a subscribed catalog's upgrade** (see "upgrading a
-  subscribed catalog installs a release" under Changed): `CatalogUpgradeDiff`,
+- **BREAKING: `upgradeCatalog`, `previewCatalogUpgrade` and the 1.x reconciliation of a subscribed
+  catalog** (see "nothing is upgraded" under Changed; `installCatalogRelease` and
+  `listAvailableCatalogReleases` replace them): `CatalogUpgradeDiff`,
   `CatalogInstallResultDto` (with its `INSTALLED` / `UPDATED` / `SKIPPED` / `FAILED` status),
   `RemovedCatalogResourceDto`, and `UpgradeCatalogResponse`'s `installResults`, `removedResources`
   and `aborted`.
@@ -531,8 +553,8 @@ libraries.
   model for it. Importing is `importCatalog`.
 - **BREAKING: the deprecated `id` and `slug` halves of each resource address.** `key` is now the
   only address on every read model, and is required (#84; see "a resource's address is its `key`"
-  under Changed). `upgradeCatalog` takes no request body: its only field, the ignored
-  `includeNewSlugs`, is gone with `UpgradeCatalogRequest`, as is the empty `Assets` tag. The
+  under Changed). `UpgradeCatalogRequest`, whose only field was the ignored `includeNewSlugs`, is
+  gone with `upgradeCatalog`, as is the empty `Assets` tag. The
   `older-server-response` conformance scenario, which proved a 1.x client could read a server from
   before 1.3.0, is replaced by `template-listing-by-key`.
 

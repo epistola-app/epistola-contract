@@ -88,7 +88,7 @@ Adopt **option C**.
 - A **draft** is editable. A **released** version is immutable: every write to it is refused with
   `409`.
 - Every version has an opaque **`versionId`**, assigned by the server when it is started as a draft
-  and kept when it is released; a release installed by import or upgrade gets one when it is
+  and kept when it is released; a release installed by import or from its source gets one when it is
   installed. A draft has no number yet, so it is identified by its `versionId` alone. A released
   version is identified by its `versionId` or by its SemVer number, `MAJOR.MINOR.PATCH`, unique in
   its catalog, interchangeably: both address the same version.

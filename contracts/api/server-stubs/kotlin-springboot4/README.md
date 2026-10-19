@@ -105,6 +105,14 @@ ProblemDetails.releaseDependenciesUnreleased(
     ),
     detail = "letters uses drafts of other catalogs",
 )
+
+// 503 or 502 catalog-source-unavailable: listAvailableCatalogReleases and installCatalogRelease,
+// when the subscribed catalog's source cannot be used. 503 when it could not be reached or timed
+// out (set Retry-After on the response when you can tell), 502 when it answered badly.
+ProblemDetails.catalogSourceUnavailable(
+    status = HttpStatus.SERVICE_UNAVAILABLE,
+    detail = "registry.gemeente-x.nl could not be reached",
+)
 ```
 
 ### Reference `@RestControllerAdvice`
