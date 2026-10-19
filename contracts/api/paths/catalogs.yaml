@@ -55,31 +55,35 @@ catalog-upgrade-preview:
 
   get:
     operationId: previewCatalogUpgrade
-    summary: Preview a catalog upgrade
+    summary: Preview the releases a subscribed catalog can be upgraded to
     description: |
-      Preview what upgrading a SUBSCRIBED catalog to its source's latest
-      release would do, **without applying it**. Re-fetches the source
-      manifest and diffs it against the installed release (source-vs-source):
-      added / removed / changed / unchanged resources (each `type/key`), plus
-      any cross-catalog conflicts that would block removals.
+      Read-only. Shows what the source of a SUBSCRIBED catalog offers beyond the releases the
+      tenant has: every release of the catalog that its registry (through its mirrors, when
+      configured; ADR 0003) offers numbered above the highest installed release
+      (`installedVersion`), lowest first. For each, what it changed against `installedVersion`
+      (resources added, modified and removed), and the releases of other catalogs it pins, each
+      with whether the tenant has it already.
 
-      Read-only. Apply the returned change set with `POST .../upgrade`.
+      Nothing is installed: `POST .../upgrade` installs one of them. A catalog that is not
+      SUBSCRIBED has no source to upgrade from and is refused with 409 `conflict`.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
     responses:
       '200':
-        description: The upgrade diff.
+        description: The releases the source offers beyond the highest installed one
         content:
           application/vnd.epistola.v2+json:
             schema:
-              $ref: '../components/schemas/catalogs.yaml#/CatalogUpgradeDiff'
+              $ref: '../components/schemas/catalogs.yaml#/CatalogUpgradePreview'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 catalog-upgrade:
   parameters:
@@ -97,23 +101,50 @@ catalog-upgrade:
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
   post:
     operationId: upgradeCatalog
-    summary: Upgrade a subscribed catalog
+    summary: Install a newer release of a subscribed catalog from its source
     description: |
-      Re-fetch the source catalog and install its latest release in an existing SUBSCRIBED
-      catalog. The releases installed before stay: catalogs whose dependencies resolve to one of
-      them, and environments that serve one, keep rendering it.
+      Install a release of a SUBSCRIBED catalog fetched from its source, exactly as `importCatalog`
+      installs the release an archive carries: `releaseVersion` when given, otherwise the highest
+      release the source offers. It is fetched from the catalog's registry, through its mirrors
+      when configured (ADR 0003), and installed as an immutable release, side by side with the
+      releases of the catalog the tenant has. Nothing is updated in place and nothing is removed:
+      the releases installed before stay, and every draft, deployment and catalog that uses them
+      keeps doing so. Which release an environment serves is decided by deploying it
+      (`deployRelease`). `GET .../upgrade-preview` lists the releases the source offers.
 
-      The whole manifest is reconciled: resources added since the installed release are
-      installed, changed ones are updated in place, and resources the publisher no longer
-      publishes are removed — the last only when nothing outside the catalog still references
-      them, otherwise the upgrade is rejected and nothing changes. Use
-      `GET .../upgrade-preview` to see all three before applying.
+      - **A release the tenant does not have** is installed (`newlyInstalled: true`).
+      - **The same number with the same fingerprint** is the release the tenant has already: nothing
+        changes (`newlyInstalled: false`).
+      - **The same number with a different fingerprint** is different content under one name: the
+        upgrade is refused with 409 `conflict`, and nothing changes.
+
+      The releases of other catalogs the release pins (`catalogDependencies`), directly or through
+      other pins, are installed first, each before every release that pins it, as an import
+      installs the releases an archive carries: those the tenant lacks are fetched and installed
+      (`installedDependencies`), each in a SUBSCRIBED catalog when the tenant does not have that
+      catalog; those it has with the same fingerprint are left alone (`presentDependencies`). One
+      the tenant has under the same number with a different fingerprint refuses the upgrade with
+      409 `conflict`; one that cannot be fetched, or does not match its pin's
+      `releaseFingerprint`, refuses it with 409 `release-dependencies-missing`, listing each
+      (`UNAVAILABLE`). Installing is all or nothing, in one transaction.
+
+      A catalog that is not SUBSCRIBED has no source to upgrade from and is refused with 409
+      `conflict`. A `releaseVersion` the source does not offer is refused with 404 `not-found`.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_MANAGE]
+    parameters:
+      - name: releaseVersion
+        in: query
+        required: false
+        description: |
+          The release of the catalog to install, one its source offers. Omitted: the highest
+          release the source offers.
+        schema:
+          $ref: '../components/schemas/catalogs.yaml#/ReleaseVersion'
     responses:
       '200':
-        description: Upgrade result.
+        description: The release is installed, or was already present
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -127,7 +158,7 @@ catalog-upgrade:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/ReleaseDependenciesMissingError'
 
 catalog-changes:
   parameters:

@@ -55,6 +55,8 @@ public static class Driver
                 case "list-images": ListImages(baseUrl, config); break;
                 case "upload-image": UploadImage(baseUrl, config); break;
                 case "import-catalog": ImportCatalog(baseUrl, config); break;
+                case "upgrade-catalog": UpgradeCatalog(baseUrl, config); break;
+                case "preview-catalog-upgrade": PreviewCatalogUpgrade(baseUrl, config); break;
                 case "download-image": DownloadImage(baseUrl, config); break;
                 case "delete-image": DeleteImage(baseUrl, config); break;
                 case "list-catalog-dependencies": ListCatalogDependencies(baseUrl, config); break;
@@ -394,6 +396,69 @@ public static class Driver
             ["releaseVersion"] = Show(imported.ReleaseVersion),
             ["newlyInstalled"] = Bool(imported.NewlyInstalled),
             ["total"] = Show(imported.Total),
+        });
+    }
+
+    /// <summary>
+    /// Upgrades a subscribed catalog. <c>releaseVersion</c> goes out, as a query parameter, only
+    /// when the scenario sets it. A refusal is reported by its problem, missing dependencies
+    /// included.
+    /// </summary>
+    private static void UpgradeCatalog(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        UpgradeCatalogResponse upgraded;
+        try
+        {
+            upgraded = new CatalogsApi(http, apiBase).UpgradeCatalog(
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
+                releaseVersion: OptStr(config, "releaseVersion"));
+        }
+        catch (ProblemDetailException e)
+        {
+            Report(baseUrl, new Dictionary<string, object>
+            {
+                ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
+                ["problemStatus"] = (int)e.StatusCode,
+                ["problemMissingDependencies"] = string.Join(",", e.MissingDependencies.Select(d =>
+                    $"{d.Registry}/{d.Namespace}/{d.CatalogKey}@{d.ReleaseVersion}:{d.Reason}")),
+            });
+            return;
+        }
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["registry"] = Show(upgraded.Registry),
+            ["namespace"] = Show(upgraded.Namespace),
+            ["catalogKey"] = Show(upgraded.CatalogKey),
+            ["releaseVersion"] = Show(upgraded.ReleaseVersion),
+            ["newlyInstalled"] = Bool(upgraded.NewlyInstalled),
+            ["total"] = Show(upgraded.Total),
+            ["installedDependencies"] = string.Join(",", upgraded.InstalledDependencies ?? new List<string>()),
+            ["presentDependencies"] = string.Join(",", upgraded.PresentDependencies ?? new List<string>()),
+        });
+    }
+
+    /// <summary>Previews a subscribed catalog's upgrade, reporting every available release in order.</summary>
+    private static void PreviewCatalogUpgrade(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var preview = new CatalogsApi(http, apiBase).PreviewCatalogUpgrade(
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"));
+        var available = preview.Available ?? new List<AvailableReleaseDto>();
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["registry"] = Show(preview.Registry),
+            ["namespace"] = Show(preview.Namespace),
+            ["catalogKey"] = Show(preview.CatalogKey),
+            ["installedVersion"] = Show(preview.InstalledVersion),
+            ["availableChanges"] = string.Join(";", available
+                .Select(r => $"{Show(r.VarVersion)}=" + string.Join("+", (r.Changes ?? new List<ReleasedChangeDto>())
+                    .Select(c => $"{Show(c.Type)}/{Show(c.Key)}:{Wire(c.Change)}")))),
+            ["availableDependencies"] = string.Join(";", available
+                .Select(r => $"{Show(r.VarVersion)}=" + string.Join("+", (r.Dependencies ?? new List<AvailableReleaseDependencyDto>())
+                    .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.ReleaseVersion)}:{Bool(d.Present)}")))),
         });
     }
 

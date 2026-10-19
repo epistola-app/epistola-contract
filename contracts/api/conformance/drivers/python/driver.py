@@ -76,6 +76,8 @@ def main() -> int:
         "list-images": _list_images,
         "upload-image": _upload_image,
         "import-catalog": _import_catalog,
+        "upgrade-catalog": _upgrade_catalog,
+        "preview-catalog-upgrade": _preview_catalog_upgrade,
         "download-image": _download_image,
         "delete-image": _delete_image,
         "list-catalog-dependencies": _list_catalog_dependencies,
@@ -365,6 +367,81 @@ def _import_catalog(base_url: str, config: dict) -> None:
             "releaseVersion": _show(imported.release_version),
             "newlyInstalled": _show_bool(imported.newly_installed),
             "total": _show(imported.total),
+        },
+    )
+
+
+def _upgrade_catalog(base_url: str, config: dict) -> None:
+    """Upgrades a subscribed catalog. ``releaseVersion`` goes out, as a query parameter, only when
+    the scenario sets it. A refusal is reported by its problem, missing dependencies included."""
+    optional = {}
+    if "releaseVersion" in config:
+        optional["release_version"] = config["releaseVersion"]
+    try:
+        upgraded = CatalogsApi(_client(base_url, config)).upgrade_catalog(
+            config["tenantKey"],
+            config["registry"],
+            config["namespace"],
+            config["catalogKey"],
+            **optional,
+        )
+    except ProblemDetailException as exc:
+        _report(
+            base_url,
+            {
+                "problemTypeSlug": exc.type_slug or "<null>",
+                "problemStatus": exc.status_code,
+                "problemMissingDependencies": ",".join(
+                    f"{d.registry}/{d.namespace}/{d.catalog_key}@{d.release_version}:{d.reason}"
+                    for d in exc.missing_dependencies
+                ),
+            },
+        )
+        return
+    _report(
+        base_url,
+        {
+            "registry": _show(upgraded.registry),
+            "namespace": _show(upgraded.namespace),
+            "catalogKey": _show(upgraded.catalog_key),
+            "releaseVersion": _show(upgraded.release_version),
+            "newlyInstalled": _show_bool(upgraded.newly_installed),
+            "total": _show(upgraded.total),
+            "installedDependencies": ",".join(upgraded.installed_dependencies or []),
+            "presentDependencies": ",".join(upgraded.present_dependencies or []),
+        },
+    )
+
+
+def _preview_catalog_upgrade(base_url: str, config: dict) -> None:
+    """Previews a subscribed catalog's upgrade, reporting every available release in order."""
+    preview = CatalogsApi(_client(base_url, config)).preview_catalog_upgrade(
+        config["tenantKey"],
+        config["registry"],
+        config["namespace"],
+        config["catalogKey"],
+    )
+    _report(
+        base_url,
+        {
+            "registry": _show(preview.registry),
+            "namespace": _show(preview.namespace),
+            "catalogKey": _show(preview.catalog_key),
+            "installedVersion": _show(preview.installed_version),
+            "availableChanges": ";".join(
+                f"{_show(r.version)}="
+                + "+".join(f"{_show(c.type)}/{_show(c.key)}:{_show(_enum(c.change))}" for c in r.changes)
+                for r in preview.available
+            ),
+            "availableDependencies": ";".join(
+                f"{_show(r.version)}="
+                + "+".join(
+                    f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}"
+                    f"@{_show(d.release_version)}:{_show_bool(d.present)}"
+                    for d in r.dependencies
+                )
+                for r in preview.available
+            ),
         },
     )
 

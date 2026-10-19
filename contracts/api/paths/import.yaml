@@ -31,8 +31,15 @@ import-catalog:
       - **The same number with a different fingerprint** is different content under one name: the
         import is refused with 409 `conflict`, and nothing changes.
       - **A new catalog** is created by the import, of type `catalogType`, holding that release and
-        no draft. To edit it, an author starts a draft from the release
-        (`createCatalogDraft` with `from`), which only an AUTHORED catalog allows.
+        no draft. The import that creates a catalog must give `catalogType`: there is no default,
+        and without it the import is refused with 400 `bad-request`. To edit the catalog, an author
+        starts a draft from the release (`createCatalogDraft` with `from`), which only an AUTHORED
+        catalog allows.
+      - **A catalog the tenant has** keeps its type: an import never changes it. `catalogType` may
+        be omitted, or given as the catalog's type; given as the other type, the import is refused
+        with 409 `conflict` and nothing is installed. Importing into an AUTHORED catalog adds the
+        release beside its others, which is how an author moves the catalog's own releases from one
+        installation to another. Changing a catalog's type is not an operation of contract 2.0.
 
       The fingerprint compared is the release's `release.fingerprint`, or the fingerprint of its
       content when the archive records none. Every catalog wire version requires `release.version`,
@@ -55,7 +62,8 @@ import-catalog:
       changes. A pin the archive does not carry is resolved from what the tenant has or the server
       can fetch (ADR 0003); one that cannot be had refuses the import with 409
       `release-dependencies-missing`, listing each (`UNAVAILABLE`). The
-      archive's own release is then installed as above, all in one transaction.
+      archive's own release is then installed as above, all in one transaction. `catalogType`
+      applies to the archive's own catalog only; a dependency's existing catalog keeps its type.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_MANAGE]
@@ -93,12 +101,15 @@ import-catalog:
               catalogType:
                 type: string
                 enum: [AUTHORED, SUBSCRIBED]
-                default: AUTHORED
                 description: |
                   Type of the catalog the import creates when the tenant does not have it: AUTHORED
                   allows drafts to be started from its releases (`createCatalogDraft`); SUBSCRIBED
-                  only installs releases and is upgraded from its source (`upgradeCatalog`).
-                  Ignored for a catalog the tenant has, whose type does not change.
+                  only installs releases, and installs newer ones from its source
+                  (`upgradeCatalog`). Required when the import creates the catalog: there is no
+                  default, and an import that creates a catalog without it is refused with 400
+                  `bad-request`. For a catalog the tenant has it may be omitted; given, it must be
+                  the catalog's type, or the import is refused with 409 `conflict`. An import never
+                  changes a catalog's type.
     responses:
       '200':
         description: The release is installed, or was already present

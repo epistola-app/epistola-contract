@@ -20,11 +20,14 @@ import app.epistola.client.jakarta.collect.ResultCollector;
 import app.epistola.client.jakarta.error.MissingDependency;
 import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.identity.ClientIdentity;
+import app.epistola.client.jakarta.model.AvailableReleaseDependencyDto;
+import app.epistola.client.jakarta.model.AvailableReleaseDto;
 import app.epistola.client.jakarta.model.BehindReleaseDto;
 import app.epistola.client.jakarta.model.CatalogChangesDto;
 import app.epistola.client.jakarta.model.CatalogDependencyDto;
 import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
 import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
+import app.epistola.client.jakarta.model.CatalogUpgradePreview;
 import app.epistola.client.jakarta.model.CatalogVersionDto;
 import app.epistola.client.jakarta.model.CatalogVersionStatus;
 import app.epistola.client.jakarta.model.CreateCatalogDraftRequest;
@@ -57,6 +60,7 @@ import app.epistola.client.jakarta.model.TemplateListResponse;
 import app.epistola.client.jakarta.model.TemplateSummaryDto;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
 import app.epistola.client.jakarta.model.UpdateConsumerRequest;
+import app.epistola.client.jakarta.model.UpgradeCatalogResponse;
 import app.epistola.client.jakarta.model.Node;
 import app.epistola.client.jakarta.model.TemplateDocument;
 import app.epistola.client.jakarta.model.ThemeRef;
@@ -121,6 +125,8 @@ public final class Driver {
                 case "list-images" -> listImages(baseUrl, config);
                 case "upload-image" -> uploadImage(baseUrl, config);
                 case "import-catalog" -> importCatalog(baseUrl, config);
+                case "upgrade-catalog" -> upgradeCatalog(baseUrl, config);
+                case "preview-catalog-upgrade" -> previewCatalogUpgrade(baseUrl, config);
                 case "download-image" -> downloadImage(baseUrl, config);
                 case "delete-image" -> deleteImage(baseUrl, config);
                 case "list-catalog-dependencies" -> listCatalogDependencies(baseUrl, config);
@@ -477,6 +483,94 @@ public final class Driver {
             Files.deleteIfExists(file.toPath());
             Files.deleteIfExists(directory);
         }
+    }
+
+    /**
+     * Upgrades a subscribed catalog. {@code releaseVersion} goes out, as a query parameter, only when
+     * the scenario names it. A refusal is reported by its problem, missing dependencies included.
+     */
+    private static void upgradeCatalog(String baseUrl, JsonObject config) {
+        UpgradeCatalogResponse upgraded;
+        try {
+            upgraded = clients(baseUrl, config)
+                    .api(CatalogsApi.class)
+                    .upgradeCatalog(
+                            config.getString("tenantKey"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            optional(config, "releaseVersion"));
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode(),
+                            "problemMissingDependencies",
+                                    joined(
+                                            e.getMissingDependencies(),
+                                            (MissingDependency dependency) -> dependency.getRegistry() + "/"
+                                                    + dependency.getNamespace() + "/" + dependency.getCatalogKey()
+                                                    + "@" + dependency.getReleaseVersion() + ":"
+                                                    + dependency.getReason())));
+            return;
+        }
+        report(
+                baseUrl,
+                Map.of(
+                        "registry", String.valueOf(upgraded.getRegistry()),
+                        "namespace", String.valueOf(upgraded.getNamespace()),
+                        "catalogKey", String.valueOf(upgraded.getCatalogKey()),
+                        "releaseVersion", String.valueOf(upgraded.getReleaseVersion()),
+                        "newlyInstalled", String.valueOf(upgraded.getNewlyInstalled()),
+                        "total", String.valueOf(upgraded.getTotal()),
+                        "installedDependencies",
+                                joined(orEmpty(upgraded.getInstalledDependencies()), String::valueOf),
+                        "presentDependencies",
+                                joined(orEmpty(upgraded.getPresentDependencies()), String::valueOf)));
+    }
+
+    /** Previews a subscribed catalog's upgrade, reporting every available release in order. */
+    private static void previewCatalogUpgrade(String baseUrl, JsonObject config) {
+        CatalogUpgradePreview preview = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .previewCatalogUpgrade(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"));
+        List<AvailableReleaseDto> available = orEmpty(preview.getAvailable());
+        report(
+                baseUrl,
+                Map.of(
+                        "registry", String.valueOf(preview.getRegistry()),
+                        "namespace", String.valueOf(preview.getNamespace()),
+                        "catalogKey", String.valueOf(preview.getCatalogKey()),
+                        "installedVersion", String.valueOf(preview.getInstalledVersion()),
+                        "availableChanges",
+                                available.stream()
+                                        .map(release -> release.getVersion() + "="
+                                                + orEmpty(release.getChanges()).stream()
+                                                        .map(change -> change.getType() + "/" + change.getKey() + ":"
+                                                                + change.getChange())
+                                                        .collect(Collectors.joining("+")))
+                                        .collect(Collectors.joining(";")),
+                        "availableDependencies",
+                                available.stream()
+                                        .map(release -> release.getVersion() + "="
+                                                + orEmpty(release.getDependencies()).stream()
+                                                        .map((AvailableReleaseDependencyDto dependency) ->
+                                                                dependency.getRegistry() + "/"
+                                                                        + dependency.getNamespace() + "/"
+                                                                        + dependency.getCatalogKey() + "@"
+                                                                        + dependency.getReleaseVersion() + ":"
+                                                                        + dependency.getPresent())
+                                                        .collect(Collectors.joining("+")))
+                                        .collect(Collectors.joining(";"))));
+    }
+
+    private static <T> List<T> orEmpty(List<T> items) {
+        return items == null ? List.of() : items;
     }
 
     private static void downloadImage(String baseUrl, JsonObject config) throws Exception {
