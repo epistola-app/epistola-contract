@@ -45,13 +45,16 @@ Nothing else. The index:
 
 ## Installing
 
-A reader installs the dependencies first, then the bundled catalog:
+A reader installs the dependencies first, then the bundled catalog. A catalog's releases are
+immutable and stay installed side by side (ADR 0003), so installing a bundle only adds the releases
+the installation lacks:
 
-- a catalog the installation has at the bundled release is left as it is;
-- a catalog it lacks is installed (subscribed) from its archive;
-- a catalog it has at **another** release, or under another registry or namespace, is a conflict:
-  installing the bundled release would move that catalog for everything else using it. The whole
-  bundle is refused, naming each conflict, before anything changes.
+- a release the installation has (the same catalog, by registry, namespace and key, and the same
+  number and fingerprint) is left as it is;
+- a release it lacks is installed (subscribed) from its archive, next to any other releases of that
+  catalog it has, which are left as they are: everything that renders with them keeps doing so;
+- a release it has with the same number but a **different fingerprint** is different content under
+  one name: the whole bundle is refused, naming each, before anything changes.
 
 A reader refuses a bundle whose `bundleVersion` it does not know, an entry the index does not list or
 a path outside `catalogs/`, and applies the same size limits as to a single archive.

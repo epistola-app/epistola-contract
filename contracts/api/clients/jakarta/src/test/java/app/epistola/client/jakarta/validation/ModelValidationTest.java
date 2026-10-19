@@ -19,7 +19,6 @@ import app.epistola.client.jakarta.model.CreateTenantRequest;
 import app.epistola.client.jakarta.model.GenerateBatchRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.PreviewDocumentRequest;
-import app.epistola.client.jakarta.model.PromoteCatalogDraftRequest;
 import app.epistola.client.jakarta.model.ReleaseCatalogDraftRequest;
 import app.epistola.client.jakarta.model.RenameCatalogDraftRequest;
 import app.epistola.client.jakarta.model.SetEnvironmentOverrideRequest;
@@ -116,7 +115,6 @@ class ModelValidationTest {
     @Test
     void an_environment_override_takes_an_exact_release_or_a_draft() {
         ModelValidation.validate(new SetEnvironmentOverrideRequest().releaseVersion("1.3.0"));
-        ModelValidation.validate(new SetEnvironmentOverrideRequest().catalogVersion("next"));
         ModelValidation.validate(new SetEnvironmentOverrideRequest().catalogVersion("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"));
 
         for (String release : List.of("^1.3.0", "1.3", "2.0.0-beta.1", "next")) {
@@ -127,7 +125,7 @@ class ModelValidationTest {
                     .getMessage()
                     .startsWith("releaseVersion: "));
         }
-        for (String draft : List.of("1.3.0", "Next", "draft-1")) {
+        for (String draft : List.of("1.3.0", "next", "draft-1")) {
             assertTrue(assertThrows(
                             IllegalArgumentException.class,
                             () -> ModelValidation.validate(new SetEnvironmentOverrideRequest().catalogVersion(draft)),
@@ -205,6 +203,15 @@ class ModelValidationTest {
     }
 
     @Test
+    void a_dependency_declaration_in_a_draft_may_name_a_draft_instead() {
+        CatalogDependencyRequirement onDraft = new CatalogDependencyRequirement()
+                .namespace("acme-corp")
+                .catalogKey("branding")
+                .draftId(java.util.UUID.fromString("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"));
+        assertSame(onDraft, ModelValidation.validate(onDraft));
+    }
+
+    @Test
     void a_release_number_is_a_plain_semver_number() {
         for (String version : List.of("0.1.0", "1.4.0", "10.20.30")) {
             ReleaseCatalogDraftRequest request = new ReleaseCatalogDraftRequest().version(version);
@@ -223,15 +230,23 @@ class ModelValidationTest {
     }
 
     @Test
-    void long_term_work_is_named_and_starts_from_the_next_version_or_a_release() {
+    void a_draft_is_named_and_starts_from_a_release_or_another_draft() {
         ModelValidation.validate(new CreateCatalogDraftRequest().name("Redesign 2027"));
-        ModelValidation.validate(new CreateCatalogDraftRequest().name("Redesign 2027").from("1.4.0"));
+        ModelValidation.validate(new CreateCatalogDraftRequest().name("Fixes 1.4").from("1.4.0"));
+        ModelValidation.validate(
+                new CreateCatalogDraftRequest().name("Redesign 2027").from("0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b"));
         ModelValidation.validate(new RenameCatalogDraftRequest().name("Redesign 2028"));
 
         assertTrue(assertThrows(
                         IllegalArgumentException.class,
                         () -> ModelValidation.validate(
                                 new CreateCatalogDraftRequest().name("Redesign 2027").from("latest")))
+                .getMessage()
+                .startsWith("from: must match pattern"));
+        assertTrue(assertThrows(
+                        IllegalArgumentException.class,
+                        () -> ModelValidation.validate(
+                                new CreateCatalogDraftRequest().name("Redesign 2027").from("next")))
                 .getMessage()
                 .startsWith("from: must match pattern"));
         for (String name : List.of("", "x".repeat(101))) {
@@ -247,28 +262,9 @@ class ModelValidationTest {
     }
 
     @Test
-    void promoting_work_may_keep_the_previous_next_version_under_a_name() {
-        ModelValidation.validate(new PromoteCatalogDraftRequest());
-        ModelValidation.validate(new PromoteCatalogDraftRequest()
-                .keepPreviousAs("Before the redesign")
-                .acknowledgedBehind(List.of("1.5.0")));
-
-        for (String name : List.of("", "x".repeat(101))) {
-            assertTrue(assertThrows(
-                            IllegalArgumentException.class,
-                            () -> ModelValidation.validate(new PromoteCatalogDraftRequest().keepPreviousAs(name)),
-                            "expected keeping the previous next version as '" + name + "' to fail")
-                    .getMessage()
-                    .startsWith("keepPreviousAs: "));
-        }
-    }
-
-    @Test
-    void a_preview_names_a_draft_as_next_or_by_its_id_never_by_a_number() {
-        for (String draft : List.of("next", "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192")) {
-            ModelValidation.validate(previewOf(draft));
-        }
-        for (String draft : List.of("1.4.0", "NEXT", "0193A6B2-8A10-7D2E-8B3C-4D5E6F708192", "draft")) {
+    void a_preview_names_a_draft_by_its_id_never_by_a_number() {
+        ModelValidation.validate(previewOf("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"));
+        for (String draft : List.of("1.4.0", "next", "0193A6B2-8A10-7D2E-8B3C-4D5E6F708192", "draft")) {
             assertTrue(assertThrows(
                             IllegalArgumentException.class,
                             () -> ModelValidation.validate(previewOf(draft)),

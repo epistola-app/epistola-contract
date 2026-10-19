@@ -53,8 +53,8 @@ CatalogDto:
     drafts:
       type: array
       description: >-
-        The catalog's open drafts: its next version first, then long-term work, oldest first. A draft
-        has no number until it is released. Empty for a SUBSCRIBED catalog.
+        The catalog's open drafts, oldest first. A draft has no number until it is released. Empty
+        for a SUBSCRIBED catalog, and for an AUTHORED catalog with no draft open.
       items:
         $ref: '#/CatalogDraftSummary'
     fingerprint:
@@ -300,14 +300,17 @@ CatalogChangesDto:
       type: [string, "null"]
       pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
-      description: The highest released version below this one; null when there is none
+      description: |
+        The release the draft started from (for a released version, the base of the draft it was);
+        null when there is none
       example: "1.4.0"
     releasable:
       type: boolean
       description: |
         True when the version is a draft, no resource is `new` or `modified`, every stencil instance
-        fits its stencil, every catalog a resource references is a declared dependency whose pinned
-        release the tenant has, and something changed
+        fits its stencil, every catalog a resource references is a declared dependency that pins a
+        release the tenant has or names a draft (released along with it, `releaseDependencies`),
+        and something changed
       example: false
     dependenciesChanged:
       type: boolean
@@ -351,12 +354,13 @@ CatalogDependencyRequirement:
   type: object
   description: |
     Another catalog this catalog's resources may reference, and the exact release of it they render
-    with. A catalog declares each catalog it depends on once: every reference into that catalog
-    resolves through this one declaration, so a release renders with exactly the release it pins.
+    with, or, in a draft, a draft of it. A catalog declares each catalog it depends on once: every
+    reference into that catalog resolves through this one declaration, so a release renders with
+    exactly the release it pins. Exactly one of `releaseVersion` and `draftId` is given (omitted and
+    null are not given); neither, or both, is refused with 400.
   required:
     - namespace
     - catalogKey
-    - releaseVersion
   properties:
     registry:
       type: [string, "null"]
@@ -382,19 +386,35 @@ CatalogDependencyRequirement:
       description: Key of the catalog depended on, unique within its registry and namespace
       example: system
     releaseVersion:
-      $ref: '#/ReleaseVersion'
+      type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      maxLength: 50
       description: |
         The exact release of the catalog depended on that this catalog renders with, not a range.
         Ranges (such as `^1.0.0`) may come in a later 2.x, as an addition.
+      example: "1.3.0"
+    draftId:
+      type: [string, "null"]
+      format: uuid
+      description: |
+        A draft of the catalog depended on, an AUTHORED catalog of this tenant, that this draft
+        renders with live, unreleased changes included. A release never pins a draft: releasing
+        this draft is refused (`release-dependencies-unreleased`) unless the request releases the
+        named draft along with it (`releaseDependencies`). Released on its own, the draft becomes a
+        release, and the declaration then names that release.
+      example: null
 
 CatalogDependencyDto:
   type: object
-  description: A declared dependency and the exact release it pins
+  description: |
+    A declared dependency and the exact release it pins, or, in a draft, the draft of it the draft
+    uses
   required:
     - registry
     - namespace
     - catalogKey
     - releaseVersion
+    - draftId
   properties:
     registry:
       type: string
@@ -424,9 +444,18 @@ CatalogDependencyDto:
       maxLength: 50
       description: |
         The exact release of the catalog depended on that this catalog version renders with, as
-        declared. Null only for a declaration that came from a catalog archive migrated from wire
-        v7 or earlier, which pins no release: releasing the draft is refused until one is declared.
+        declared. Null when the declaration names a draft (`draftId`), and for a declaration that
+        came from a catalog archive migrated from wire v7 or earlier, which pins no release:
+        releasing the draft is refused until one is declared.
       example: "1.3.0"
+    draftId:
+      type: [string, "null"]
+      format: uuid
+      description: |
+        The draft of the catalog depended on that this draft renders with, as declared. Null when
+        the declaration pins a release, and always for a released version: a release never pins a
+        draft.
+      example: null
 
 CatalogDependencyListResponse:
   type: object
@@ -447,7 +476,8 @@ UpdateCatalogDependenciesRequest:
     dependencies:
       type: array
       description: |
-        Each catalog depended on, at most once. The catalog cannot depend on itself.
+        Each catalog depended on, at most once. The catalog cannot depend on itself, and a draft
+        named must be a draft of the catalog the entry names.
       items:
         $ref: '#/CatalogDependencyRequirement'
 
@@ -467,8 +497,8 @@ CatalogVersionStatus:
     - released
   description: |
     - `draft`: editable. Never rendered by generation, deployed, exported or published.
-    - `released`: immutable, and numbered. A draft is numbered when it is released; the next
-      version then continues, as a draft on that release.
+    - `released`: immutable, and numbered. A draft is numbered when it is released, and is then
+      the released version at that number.
   example: draft
 
 CatalogDraftSummary:
@@ -476,35 +506,34 @@ CatalogDraftSummary:
   description: An open draft of a catalog, as `CatalogDto` lists it
   required:
     - draftId
-    - isNext
+    - name
   properties:
     draftId:
       type: string
       format: uuid
-      description: The draft's id, which addresses it; the next version is also addressed as `next`
+      description: The draft's id, which addresses it
       example: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
-    isNext:
-      type: boolean
-      description: The catalog's next version, where everyday work goes
-      example: true
     name:
-      type: [string, "null"]
+      type: string
       maxLength: 100
-      description: Long-term work's name; null for the next version
-      example: null
+      description: The draft's name, unique among the catalog's drafts
+      example: Redesign 2027
+    base:
+      type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      maxLength: 50
+      description: The release the draft started from; null when the catalog had no release then
+      example: "1.4.0"
 
 CatalogVersionDto:
   type: object
   description: |
-    One version of a catalog: a draft or a released version (ADR 0002). A draft is
-    numbered when it is released. Every AUTHORED catalog has one **next version** (`isNext`), the
-    draft everyday work goes into and the only one that is released; any other draft is **long-term
-    work**, named, kept apart until it is ready. Each draft is an independent copy, and nothing is
-    merged between them.
+    One version of a catalog: a draft or a released version (ADR 0002). A catalog has any number of
+    drafts, each named, each on a fixed base, and each released on its own; a draft is numbered when
+    it is released. Each draft is an independent copy, and nothing is merged between them.
   required:
     - version
     - status
-    - isNext
     - dependencies
     - deployedTo
     - behind
@@ -519,17 +548,14 @@ CatalogVersionDto:
       type: [string, "null"]
       format: uuid
       description: |
-        A draft's id, which addresses it (`…/versions/{draftId}`) for as long as it is open; the next
-        version is also addressed as `next`. Null for a released version.
+        A draft's id, which addresses it (`…/versions/{draftId}`) for as long as it is a draft.
+        Once the draft is released the id addresses nothing (404); the release is addressed by its
+        number. Null for a released version.
       example: null
-    isNext:
-      type: boolean
-      description: The catalog's next version. False for long-term work and released versions.
-      example: false
     name:
       type: [string, "null"]
       maxLength: 100
-      description: Long-term work's name. Null for the next version, which is always "Next version", and for a released version.
+      description: A draft's name, unique among the catalog's drafts. Null for a released version.
       example: null
     status:
       $ref: '#/CatalogVersionStatus'
@@ -538,33 +564,34 @@ CatalogVersionDto:
       pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: |
-        The released version this one started from, which its changes are measured against: for the
-        next version, the release it continues on; for long-term work, the release it was started
-        from (or the next version's base, when it was started from the next version). It does not
-        move when other versions are released. Null when there is none.
+        The release a draft started from, which its changes are measured against and its number
+        follows from; for a released version, the base of the draft it was. It is fixed: it does
+        not move when other versions are released. Null when the catalog had no release when the
+        draft was started.
       example: "1.4.0"
     createdFrom:
       type: [string, "null"]
-      pattern: '^(next|(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$'
-      maxLength: 50
+      format: uuid
       description: |
-        The released version a draft was copied from when that is not its base, or `next` when it was
-        copied from the next version, unreleased changes included; null otherwise
+        The id of the draft this draft was copied from, unreleased changes included, when it was
+        started from another draft (it then has that draft's base); null when it was started from a
+        release, its base, or from nothing
       example: null
     createdAt:
       type: [string, "null"]
       format: date-time
-      description: When the version was opened; null for a release installed from elsewhere
+      description: When the draft was started; null for a release installed from elsewhere
       example: "2026-10-01T09:00:00Z"
     behind:
       type: array
       description: |
-        For a draft, the released versions above its base, lowest first. The draft does not contain
-        their changes unless an author applied them by hand, which the server cannot tell. The next
-        version continues on each release, so it is behind none in the ordinary course; long-term work
-        is behind every release published since it started. Releasing a draft that is behind must
-        acknowledge them (`acknowledgedBehind`). Empty when there are none, and for a released
-        version.
+        For a draft, the releases it is behind, lowest first: relative to the number releasing it
+        now would give it (`previewCatalogDraftRelease`), each release that is numbered above its
+        base and below that number, and each release published after the draft was started that is
+        numbered below that number (other than its base). The draft does not contain their changes
+        unless an author applied them by hand, which the server cannot tell. Releasing a draft that
+        is behind must acknowledge them (`acknowledgedBehind`); releasing it as another number
+        recomputes them for that number. Empty when there are none, and for a released version.
       items:
         $ref: '#/BehindReleaseDto'
       example: []
@@ -671,38 +698,19 @@ CreateCatalogDraftRequest:
       minLength: 1
       maxLength: 100
       description: |
-        What people call the work, e.g. "Redesign 2027": unique among the catalog's drafts, ignoring
-        case, and not "Next version" or `next`.
+        What people call the draft, e.g. "Redesign 2027" or "Fixes 1.4": unique among the catalog's
+        drafts, ignoring case.
       example: Redesign 2027
     from:
       type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      pattern: '^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$'
       maxLength: 50
       description: |
-        A released version to start from, which becomes its base. Omitted: a copy of the next
-        version, unreleased changes included, on the next version's base.
-      example: null
-
-PromoteCatalogDraftRequest:
-  type: object
-  properties:
-    keepPreviousAs:
-      type: [string, "null"]
-      minLength: 1
-      maxLength: 100
-      description: |
-        Keep the draft that was the next version as long-term work under this name. Omitted: it is
-        discarded with its changes.
-      example: null
-    acknowledgedBehind:
-      type: array
-      description: |
-        The releases published since the work started that the caller confirms it may leave out
-        (their changes applied by hand, or left out on purpose). Promoting work that is behind
-        releases is refused with 409 unless this names every one.
-      items:
-        $ref: '#/ReleaseVersion'
-      example: ["1.4.1"]
+        What the draft starts as a copy of: a released version, by its number, which becomes its
+        base; or another draft, by its `draftId`, unreleased changes included, on that draft's base.
+        Omitted: the catalog's highest release, or nothing (an empty draft with no base) when the
+        catalog has no release.
+      example: "1.4.0"
 
 RenameCatalogDraftRequest:
   type: object
@@ -713,24 +721,24 @@ RenameCatalogDraftRequest:
       type: string
       minLength: 1
       maxLength: 100
-      description: The work's new name, under the same rules as when it was started
+      description: The draft's new name, under the same rules as when it was started
       example: Redesign 2028
 
 CatalogDraftReleasePreview:
   type: object
   description: |
-    The number a draft would be released as (ADR 0002): from the kind of change it holds
-    against the latest release, by ADR 0001's rule of what breaks. A release may be numbered higher,
-    never lower.
+    The number a draft would be released as (ADR 0002): from the kind of change it holds against
+    its base, by ADR 0001's rule of what breaks. A release may be numbered higher, never lower.
   required:
     - reasons
+    - needed
     - suggested
   properties:
-    latest:
+    base:
       type: [string, "null"]
       pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
-      description: The latest release the draft is measured against; null when the catalog was never released
+      description: The draft's base, which it is measured against; null when it has none
       example: "1.4.0"
     changeKind:
       type: [string, "null"]
@@ -739,8 +747,7 @@ CatalogDraftReleasePreview:
         - `none`: fixes only, a patch.
         - `additive`: something added (a resource, a variant, a value, a widened data contract), a minor.
         - `breaking`: something removed or narrowed, a major.
-        Null when there is nothing to compare with: never released, or the latest release kept no
-        content.
+        Null when there is nothing to compare with: no base, or the base kept no content.
       example: additive
     reasons:
       type: array
@@ -748,9 +755,18 @@ CatalogDraftReleasePreview:
       items:
         type: string
       example: ["template 'reminder': added"]
+    needed:
+      $ref: '#/ReleaseVersion'
+      description: |
+        The number the changes need: the base raised by the kind of change (its patch, minor or
+        major), or `1.0.0` without a base. Equal to `suggested` unless another release already has it.
     suggested:
       $ref: '#/ReleaseVersion'
-      description: The lowest number that fits, which releasing without a `version` uses
+      description: |
+        The number releasing without a `version` gives: `needed`, or, when another release already
+        has it, the next free number of the same kind (from `1.4.0`, a fix is `1.4.1`, or `1.4.2`
+        when `1.4.1` exists; a breaking change is `2.0.0`, or `3.0.0` when `2.0.0` exists). The
+        draft's `behind` is computed against it.
 
 ReleaseCatalogDraftRequest:
   type: object
@@ -760,9 +776,9 @@ ReleaseCatalogDraftRequest:
       pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: |
-        The number to release it as: above every release, and no lower than its changes need
-        (`previewCatalogDraftRelease`), or the request is refused with 400. Omitted: the number its
-        changes need.
+        The number to release it as: one no release of the catalog has, above its base, and no
+        lower than its changes need (`needed` in `previewCatalogDraftRelease`), or the request is
+        refused with 400. Omitted: `suggested`.
       example: null
     notes:
       type: [string, "null"]
@@ -773,10 +789,23 @@ ReleaseCatalogDraftRequest:
       description: |
         The released versions the author confirms this draft may be behind: their changes were
         applied by hand, or left out on purpose. Releasing a draft that is behind is refused with
-        409 unless this names every version in its `behind`; naming others changes nothing.
+        409 unless this names every version it is behind for the number it is released as; naming
+        others changes nothing.
       items:
         $ref: '#/ReleaseVersion'
       example: ["1.5.0"]
+    releaseDependencies:
+      type: boolean
+      default: false
+      description: |
+        Release the drafts of other catalogs that this draft's dependency declarations name
+        (`draftId`), along with it. Each is released first, recursively (a draft it names in turn
+        before it), numbered as its changes need with no notes, in the same transaction: all or
+        nothing. Each is refused as releasing it alone would be (it is behind, it is not
+        releasable, …), and then nothing is released. The new release pins the releases they
+        became. False or omitted: a draft whose declarations name a draft is refused with 409
+        (`release-dependencies-unreleased`).
+      example: false
 
 ReleaseCatalogDraftResponse:
   type: object
@@ -784,6 +813,7 @@ ReleaseCatalogDraftResponse:
     - catalogVersion
     - unchangedContent
     - draftsBehind
+    - releasedDependencies
   properties:
     catalogVersion:
       $ref: '#/CatalogVersionDto'
@@ -794,9 +824,104 @@ ReleaseCatalogDraftResponse:
     draftsBehind:
       type: array
       description: |
-        The long-term work now behind this release, by name: its changes do not reach it. Empty when
-        none. The next version continues on the release.
+        The catalog's drafts this release puts behind, by name: its number is below the number
+        each of them would be released as, so its changes do not reach them unless an author
+        applies them by hand. Empty when none.
       items:
         type: string
         maxLength: 100
       example: ["Redesign 2027"]
+    releasedDependencies:
+      type: array
+      description: |
+        The drafts of other catalogs released along with this one (`releaseDependencies`), each as
+        the release it became, in the order they were released: every catalog's dependencies
+        before it. Empty when none.
+      items:
+        $ref: '#/ReleasedDependencyDto'
+
+ReleasedDependencyDto:
+  type: object
+  description: A draft of another catalog released along with a release, and the release it became
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - draftId
+    - releaseVersion
+  properties:
+    registry:
+      type: string
+      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+      maxLength: 253
+      description: |
+        Registry of the catalog: the exchange or domain its namespace lives in. Always written in
+        full, the default registry by its name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 63
+      description: Namespace of the catalog, within its registry
+      example: acme-corp
+    catalogKey:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Key of the catalog, unique within its registry and namespace
+      example: branding
+    draftId:
+      type: string
+      format: uuid
+      description: The draft that was released, which no longer addresses anything
+      example: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+    releaseVersion:
+      $ref: '#/ReleaseVersion'
+      description: The release it became, which the new release pins
+
+UnreleasedCatalogDependency:
+  type: object
+  description: |
+    A draft of another catalog that a dependency declaration names, which must be released before
+    a release can pin it
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - draftId
+    - draftName
+  properties:
+    registry:
+      type: string
+      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+      maxLength: 253
+      description: |
+        Registry of the catalog depended on. Always written in full, the default registry by its
+        name, never `~`.
+      example: exchange.epistola.app
+    namespace:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 63
+      description: Namespace of the catalog depended on, within its registry
+      example: acme-corp
+    catalogKey:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Key of the catalog depended on, unique within its registry and namespace
+      example: branding
+    draftId:
+      type: string
+      format: uuid
+      description: The draft the declaration names
+      example: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+    draftName:
+      type: string
+      maxLength: 100
+      description: The draft's name
+      example: House style 2027

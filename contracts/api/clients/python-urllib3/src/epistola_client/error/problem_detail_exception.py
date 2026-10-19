@@ -43,6 +43,27 @@ class MissingDependency:
     reason: str
 
 
+@dataclass(frozen=True)
+class UnreleasedDependency:
+    """A draft of another catalog that the draft being released declares as a dependency (one
+    entry of a ``release-dependencies-unreleased`` problem's ``unreleasedDependencies`` member).
+
+    A release pins only releases, so the draft must be released first, or along with it
+    (``releaseDependencies``).
+    """
+
+    #: Registry of the catalog depended on, written in full.
+    registry: str
+    #: Namespace of the catalog depended on, within its registry.
+    namespace: str
+    #: Key of the catalog depended on.
+    catalog_key: str
+    #: The draft the declaration names.
+    draft_id: str
+    #: The draft's name.
+    draft_name: str
+
+
 class ProblemDetailException(ApiException):
     """An :class:`ApiException` carrying a parsed `RFC 9457 <https://www.rfc-editor.org/rfc/rfc9457>`_
     :class:`ProblemDetail` (``application/problem+json``) body.
@@ -59,7 +80,8 @@ class ProblemDetailException(ApiException):
     via :attr:`validation_errors`; and a ``template-data-invalid`` problem's field-by-field
     account of template data via :attr:`missing_fields` and :attr:`invalid_fields`; and a
     ``release-dependencies-missing`` problem's unservable dependency releases via
-    :attr:`missing_dependencies`.
+    :attr:`missing_dependencies`; and a ``release-dependencies-unreleased`` problem's dependency
+    drafts via :attr:`unreleased_dependencies`.
     """
 
     def __init__(
@@ -73,6 +95,7 @@ class ProblemDetailException(ApiException):
         missing_fields: Optional[List[MissingDataField]] = None,
         invalid_fields: Optional[List[InvalidDataField]] = None,
         missing_dependencies: Optional[List[MissingDependency]] = None,
+        unreleased_dependencies: Optional[List[UnreleasedDependency]] = None,
     ) -> None:
         super().__init__(
             status=status_code,
@@ -99,6 +122,10 @@ class ProblemDetailException(ApiException):
         #: ``ReleaseDependenciesMissingProblemDetail`` (``release-dependencies-missing``), else
         #: ``[]``.
         self.missing_dependencies = missing_dependencies or []
+        #: The drafts of other catalogs the draft's dependency declarations name when the body was a
+        #: ``ReleaseDependenciesUnreleasedProblemDetail`` (``release-dependencies-unreleased``), else
+        #: ``[]``.
+        self.unreleased_dependencies = unreleased_dependencies or []
         #: The HTTP status of the error response.
         self.status_code = status_code
 
@@ -144,6 +171,11 @@ class ProblemDetailException(ApiException):
     def is_release_dependencies_missing_problem(self) -> bool:
         """True when this problem listed dependency releases that could not be served."""
         return len(self.missing_dependencies) > 0
+
+    @property
+    def is_release_dependencies_unreleased_problem(self) -> bool:
+        """True when this problem listed dependency drafts that must be released first."""
+        return len(self.unreleased_dependencies) > 0
 
     @property
     def is_data_model_validation_problem(self) -> bool:

@@ -90,6 +90,21 @@ ProblemDetails.releaseDependenciesMissing(
     ),
     detail = "letters 1.4.0 renders with releases that cannot be had",
 )
+
+// 409 release-dependencies-unreleased: releaseCatalogDraft, when the draft's dependency
+// declarations name drafts of other catalogs and the request does not release them along
+ProblemDetails.releaseDependenciesUnreleased(
+    unreleasedDependencies = listOf(
+        UnreleasedCatalogDependency(
+            registry = "exchange.epistola.app",
+            namespace = "acme-corp",
+            catalogKey = "branding",
+            draftId = UUID.fromString("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"),
+            draftName = "House style 2027",
+        ),
+    ),
+    detail = "letters uses drafts of other catalogs",
+)
 ```
 
 ### Reference `@RestControllerAdvice`

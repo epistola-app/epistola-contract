@@ -133,6 +133,23 @@ class ProblemDetailException(
     val isReleaseDependenciesMissingProblem: Boolean get() = missingDependencies.isNotEmpty()
 
     /**
+     * The drafts of other catalogs a `release-dependencies-unreleased` problem (409, from
+     * `releaseCatalogDraft`) reports the released draft's dependency declarations name, in the
+     * order the server listed them; empty for any other problem. Release them first, or along with
+     * the draft (`releaseDependencies`).
+     *
+     * An entry missing one of its five members, or carrying one that is not a string, is skipped.
+     */
+    val unreleasedDependencies: List<UnreleasedCatalogDependency>
+        get() {
+            val raw = extensions[ProblemExtensionMembers.UNRELEASED_DEPENDENCIES] as? List<*> ?: return emptyList()
+            return raw.mapNotNull { UnreleasedCatalogDependency.fromMember(it) }
+        }
+
+    /** True when this problem listed dependency drafts a release would have to release first. */
+    val isReleaseDependenciesUnreleasedProblem: Boolean get() = unreleasedDependencies.isNotEmpty()
+
+    /**
      * One extension member's array of objects, converted to [T]. An entry of an unexpected shape
      * yields nothing rather than a guess: a malformed problem body should not become a confident
      * claim about a particular field, nor hide the problem it decorates.

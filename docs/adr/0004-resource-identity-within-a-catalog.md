@@ -68,10 +68,10 @@ exchange.epistola.app/epistola/letters@1.4.0/templates/invoice/variants/english
 - The registry is always written in full, never `~`: the name must mean the same resource in every
   installation (ADR 0003).
 - `@{catalogVersion}` may be left out to name the resource in the catalog without a version, as a
-  reference inside content does; which release it means is then decided by the catalog dependency
-  that declares it.
+  reference inside content does; which release (or, in a draft, which draft) it means is then
+  decided by the catalog dependency that declares it.
 - The name is unambiguous without escaping: a registry is a DNS name, a namespace and a key are
-  lowercase letters, digits and hyphens, and a version is a SemVer number, `next` or a draft id
+  lowercase letters, digits and hyphens, and a version is a SemVer number or a draft id
   (ADR 0002), none of which contains `/` or `@`.
 - The tenant is not part of the name. It is local to an installation; the REST path puts
   `/tenants/{tenantKey}` in front.

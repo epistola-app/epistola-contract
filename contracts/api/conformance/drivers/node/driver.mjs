@@ -57,7 +57,6 @@ const ACTIONS = {
   'preview-catalog-draft-release': previewCatalogDraftRelease,
   'delete-catalog-draft': deleteCatalogDraft,
   'release-catalog-draft': releaseCatalogDraft,
-  'promote-catalog-draft': promoteCatalogDraft,
   'deploy-release': deployRelease,
   'undeploy-release': undeployRelease,
   'set-environment-override': setEnvironmentOverride,
@@ -321,10 +320,11 @@ async function listCatalogDependencies(baseUrl, config) {
 }
 
 /**
- * Declares a catalog's dependencies, each pinning an exact release. An entry's `registry` goes out
- * only when the scenario gives one: omitted means the server's default registry. The response
- * writes every registry in full, and a declaration that pins no release (migrated from wire v7)
- * with a null `releaseVersion`; both are reported exactly as parsed.
+ * Declares a catalog's dependencies, each pinning an exact release or, in a draft, naming a draft
+ * (`draftId`). An entry's `registry`, `releaseVersion` and `draftId` go out only when the scenario
+ * gives them: omitted `registry` means the server's default registry. The response writes every
+ * registry in full, and a null `releaseVersion` or `draftId` as null; both are reported exactly as
+ * parsed.
  */
 async function updateCatalogDependencies(baseUrl, config) {
   const response = await new CatalogsApi(client(baseUrl, config)).updateCatalogDependencies({
@@ -333,8 +333,8 @@ async function updateCatalogDependencies(baseUrl, config) {
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
-    // Each entry as given: a `registry` the scenario leaves out stays undefined, which the
-    // generated serializer keeps off the wire.
+    // Each entry as given: a `registry`, `releaseVersion` or `draftId` the scenario leaves out stays
+    // undefined, which the generated serializer keeps off the wire.
     updateCatalogDependenciesRequest: { dependencies: config.dependencies },
   })
   await reportDependencies(baseUrl, response.items)
@@ -346,10 +346,11 @@ function reportDependencies(baseUrl, items) {
     namespaces: items.map((d) => show(d.namespace)).join(','),
     catalogKeys: items.map((d) => show(d.catalogKey)).join(','),
     releaseVersions: items.map((d) => show(d.releaseVersion)).join(','),
+    draftIds: items.map((d) => show(d.draftId)).join(','),
   })
 }
 
-/** Starts long-term work; `from` goes out only when the scenario names one. */
+/** Starts a draft; `from` (a release number or a draft id) goes out only when the scenario names one. */
 async function createCatalogDraft(baseUrl, config) {
   const request = { name: config.name }
   if (config.from !== undefined) request.from = config.from
@@ -363,7 +364,6 @@ async function createCatalogDraft(baseUrl, config) {
   await report(baseUrl, {
     version: show(version.version),
     draftId: show(version.draftId),
-    isNext: show(version.isNext),
     name: show(version.name),
     status: show(version.status),
     base: show(version.base),
@@ -380,7 +380,6 @@ async function listCatalogVersions(baseUrl, config) {
   await report(baseUrl, {
     versions: items.map((v) => show(v.version)).join(','),
     draftIds: items.map((v) => show(v.draftId)).join(','),
-    isNext: items.map((v) => show(v.isNext)).join(','),
     names: items.map((v) => show(v.name)).join('|'),
     statuses: items.map((v) => show(v.status)).join(','),
     bases: items.map((v) => show(v.base)).join(','),
@@ -401,7 +400,6 @@ async function getCatalogVersion(baseUrl, config) {
   await report(baseUrl, {
     version: show(version.version),
     draftId: show(version.draftId),
-    isNext: show(version.isNext),
     name: show(version.name),
     status: show(version.status),
     releasedAt: showInstant(version.releasedAt),
@@ -414,7 +412,7 @@ async function getCatalogVersion(baseUrl, config) {
   })
 }
 
-/** Renames long-term work; only the name goes out, to its unchanged address. */
+/** Renames a draft; only the name goes out, to its unchanged address. */
 async function renameCatalogDraft(baseUrl, config) {
   const version = await new CatalogsApi(client(baseUrl, config)).renameCatalogDraft({
     tenantKey: config.tenantKey,
@@ -427,7 +425,6 @@ async function renameCatalogDraft(baseUrl, config) {
   await report(baseUrl, {
     version: show(version.version),
     draftId: show(version.draftId),
-    isNext: show(version.isNext),
     name: show(version.name),
     status: show(version.status),
     base: show(version.base),
@@ -444,9 +441,10 @@ async function previewCatalogDraftRelease(baseUrl, config) {
     catalogVersion: config.catalogVersion,
   })
   await report(baseUrl, {
-    latest: show(preview.latest),
+    base: show(preview.base),
     changeKind: show(preview.changeKind),
     reasons: preview.reasons.map(show).join('|'),
+    needed: show(preview.needed),
     suggested: show(preview.suggested),
   })
 }
@@ -463,55 +461,45 @@ async function deleteCatalogDraft(baseUrl, config) {
 }
 
 /**
- * Releases the next version; `version`, `notes` and `acknowledgedBehind` go out only when the
- * scenario sets them.
+ * Releases a draft; `version`, `notes`, `acknowledgedBehind` and `releaseDependencies` go out only
+ * when the scenario sets them. A problem answer is reported by its slug, status and the dependency
+ * drafts it lists.
  */
 async function releaseCatalogDraft(baseUrl, config) {
   const request = {}
   if (config.version !== undefined) request.version = config.version
   if (config.notes !== undefined) request.notes = config.notes
   if (config.acknowledgedBehind !== undefined) request.acknowledgedBehind = config.acknowledgedBehind
-  const response = await new CatalogsApi(client(baseUrl, config)).releaseCatalogDraft({
-    tenantKey: config.tenantKey,
-    registry: config.registry,
-    namespace: config.namespace,
-    catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
-    releaseCatalogDraftRequest: request,
-  })
+  if (config.releaseDependencies !== undefined) request.releaseDependencies = config.releaseDependencies
+  let response
+  try {
+    response = await new CatalogsApi(client(baseUrl, config)).releaseCatalogDraft({
+      tenantKey: config.tenantKey,
+      registry: config.registry,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      catalogVersion: config.catalogVersion,
+      releaseCatalogDraftRequest: request,
+    })
+  } catch (error) {
+    if (!(error instanceof ProblemDetailException)) throw error
+    await report(baseUrl, {
+      problemTypeSlug: error.typeSlug ?? '<null>',
+      problemStatus: error.statusCode,
+      problemUnreleasedDependencies: error.unreleasedDependencies
+        .map((d) => `${d.registry}/${d.namespace}/${d.catalogKey}#${d.draftId}=${d.draftName}`)
+        .join('|'),
+    })
+    return
+  }
   await report(baseUrl, {
     version: show(response.catalogVersion.version),
     status: show(response.catalogVersion.status),
     draftId: show(response.catalogVersion.draftId),
-    isNext: show(response.catalogVersion.isNext),
     draftsBehind: response.draftsBehind.map(show).join('|'),
-  })
-}
-
-/**
- * Makes long-term work the next version; `keepPreviousAs` and `acknowledgedBehind` go out only when
- * the scenario sets them.
- */
-async function promoteCatalogDraft(baseUrl, config) {
-  const request = {}
-  if (config.keepPreviousAs !== undefined) request.keepPreviousAs = config.keepPreviousAs
-  if (config.acknowledgedBehind !== undefined) request.acknowledgedBehind = config.acknowledgedBehind
-  const version = await new CatalogsApi(client(baseUrl, config)).promoteCatalogDraft({
-    tenantKey: config.tenantKey,
-    registry: config.registry,
-    namespace: config.namespace,
-    catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
-    promoteCatalogDraftRequest: request,
-  })
-  await report(baseUrl, {
-    version: show(version.version),
-    draftId: show(version.draftId),
-    isNext: show(version.isNext),
-    name: show(version.name),
-    status: show(version.status),
-    base: show(version.base),
-    behind: show(version.behind.length),
+    releasedDependencies: response.releasedDependencies
+      .map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.releaseVersion)}`)
+      .join(','),
   })
 }
 

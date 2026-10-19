@@ -9,9 +9,10 @@
 ## Context
 
 In contract 2.0.0 a draft is an independent copy of the release it started from (ADR 0002). Nothing
-is merged. A draft is **behind** every release above its base, and releasing or promoting it
-requires acknowledging them. Porting a change released in `1.5.0` into long-term work ("Redesign
-2027") is the author's work: they apply it again by hand.
+is merged. A draft is **behind** releases made from other drafts that are numbered below the number
+it would be released as (above its base, or published after it started), and releasing it requires
+acknowledging them. Porting a change released in `1.5.0` into another draft ("Redesign 2027") is the
+author's work: they apply it again by hand.
 
 That is safe but laborious, and an author porting by hand can get it subtly wrong. A merge would
 bring a release's changes into a draft for them. This ADR records how that should work, so that the
@@ -32,10 +33,12 @@ preferred because:
   release;
 - it fits the existing `behind` list: each entry gets an "update from this release" action.
 
-After a successful update the draft's base becomes that release, and the release drops off `behind`.
+After a successful update from a release above the draft's base, the draft's base becomes that
+release, and the release drops off `behind`. An update from a release below the base (a fix to an
+older line) leaves the base as it is and only drops that release off `behind`.
 
 The same operation can bring in changes from any other version, not only releases, which covers
-"take the finished templates from Redesign 2027 into the next version":
+"take the finished templates from Redesign 2027 into Spring fixes":
 `POST …/versions/{catalogVersion}/merge` `{from, resources?}`.
 
 ### A three-way merge, first per resource

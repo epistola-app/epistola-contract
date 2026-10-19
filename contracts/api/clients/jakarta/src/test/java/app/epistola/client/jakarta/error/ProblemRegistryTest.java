@@ -34,7 +34,7 @@ class ProblemRegistryTest {
         assertEquals("data-model-validation-error", KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR);
         assertEquals("rate-limited", KnownProblemSlugs.RATE_LIMITED);
         assertEquals("release-dependencies-missing", KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING);
-        assertEquals("catalog-draft-kind", KnownProblemSlugs.CATALOG_DRAFT_KIND);
+        assertEquals("release-dependencies-unreleased", KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED);
         assertEquals("environment-override-refused", KnownProblemSlugs.ENVIRONMENT_OVERRIDE_REFUSED);
         assertEquals("resource-modified", KnownProblemSlugs.RESOURCE_MODIFIED);
     }

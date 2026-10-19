@@ -298,13 +298,16 @@ class GeneratedApiContractTest {
                 "getCatalogRelease",
                 "listIncomingChanges",
                 "resolveIncomingChange",
-                // A draft is numbered when it is released (ADR 0002, amendment 2): the operations
+                // A draft is numbered when it is released (ADR 0002): the operations
                 // that numbered it up front are gone.
                 "createCatalogVersion",
                 "renumberCatalogVersion",
                 "deleteCatalogVersion",
                 "previewCatalogVersionRenumber",
-                "releaseCatalogVersion")) {
+                "releaseCatalogVersion",
+                // Every draft is released on its own (ADR 0002): there is no next version to
+                // promote long-term work to.
+                "promoteCatalogDraft")) {
             assertTrue(
                     Arrays.stream(CatalogsApi.class.getMethods()).noneMatch(method -> method.getName().equals(removed)),
                     "CatalogsApi still has the removed " + removed);
@@ -320,13 +323,6 @@ class GeneratedApiContractTest {
         assertOperation("deleteCatalogDraft", DELETE.class, void.class, version);
         assertOperation("previewCatalogDraftRelease", GET.class, CatalogDraftReleasePreview.class, version);
         assertOperation("releaseCatalogDraft", POST.class, ReleaseCatalogDraftResponse.class, version);
-        assertOperation("promoteCatalogDraft", POST.class, CatalogVersionDto.class, version);
-        assertTrue(
-                method(CatalogsApi.class, "promoteCatalogDraft")
-                        .getAnnotation(Path.class)
-                        .value()
-                        .endsWith("/versions/{catalogVersion}/promote"),
-                "promoteCatalogDraft is a promote below the version");
         assertTrue(
                 method(CatalogsApi.class, "previewCatalogDraftRelease")
                         .getAnnotation(Path.class)
@@ -339,7 +335,7 @@ class GeneratedApiContractTest {
                 "previewCatalogDraftRelease takes no query parameters");
 
         for (String withBody :
-                List.of("createCatalogDraft", "renameCatalogDraft", "releaseCatalogDraft", "promoteCatalogDraft")) {
+                List.of("createCatalogDraft", "renameCatalogDraft", "releaseCatalogDraft")) {
             assertEquals(
                     List.of(VENDOR_JSON),
                     List.of(method(CatalogsApi.class, withBody).getAnnotation(Consumes.class).value()),
@@ -522,7 +518,7 @@ class GeneratedApiContractTest {
             VariantsApi variants = EpistolaRestClients.builder().baseUri(stub.baseUri()).build().api(VariantsApi.class);
 
             try (Response response = variants.getVariantContentWithHttpInfo(
-                    "acme-corp", "~", "acme-corp", "letters", "next", "invoice", "english")) {
+                    "acme-corp", "~", "acme-corp", "letters", "0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b", "invoice", "english")) {
                 assertEquals("\"7\"", response.getHeaderString("ETag"));
                 assertEquals("english", response.readEntity(VariantContentDto.class).getVariantKey());
             }
@@ -540,7 +536,7 @@ class GeneratedApiContractTest {
             ProblemDetailException thrown = org.junit.jupiter.api.Assertions.assertThrows(
                     ProblemDetailException.class,
                     () -> variants.getVariantContentWithHttpInfo(
-                            "acme-corp", "~", "acme-corp", "letters", "next", "invoice", "english"));
+                            "acme-corp", "~", "acme-corp", "letters", "0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b", "invoice", "english"));
             assertEquals("not-found", thrown.getTypeSlug());
         }
     }

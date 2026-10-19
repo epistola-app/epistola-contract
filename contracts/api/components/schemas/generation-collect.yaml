@@ -137,8 +137,7 @@ GenerationResult:
       type: [string, "null"]
       maxLength: 100
       description: |
-        The name of that draft at render time: "Next version" for the next version, else the work's
-        name. Null when rendered from a release.
+        The name of that draft at render time. Null when rendered from a release.
       example: null
     filename:
       type: ['string', 'null']

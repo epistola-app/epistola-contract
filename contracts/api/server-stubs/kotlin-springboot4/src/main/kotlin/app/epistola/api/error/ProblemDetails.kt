@@ -6,6 +6,7 @@ package app.epistola.api.error
 
 import app.epistola.api.model.DataModelValidationError
 import app.epistola.api.model.MissingReleaseDependency
+import app.epistola.api.model.UnreleasedCatalogDependency
 import app.epistola.api.model.ValidationError
 import app.epistola.protocol.ProblemTypeUris
 import org.springframework.http.HttpStatusCode
@@ -69,6 +70,13 @@ object ProblemDetails {
      */
     const val MISSING_DEPENDENCIES_PROPERTY: String = ProblemExtensionMembers.MISSING_DEPENDENCIES
 
+    /**
+     * Extension member listing the drafts of other catalogs a release would need released first.
+     * Generated from the `ReleaseDependenciesUnreleasedProblemDetail` schema, so it stays the name
+     * the clients read.
+     */
+    const val UNRELEASED_DEPENDENCIES_PROPERTY: String = ProblemExtensionMembers.UNRELEASED_DEPENDENCIES
+
     // The mapping is shared with the clients, which use it in the other direction.
     private val uris = ProblemTypeUris.of(TYPE_BASE)
 
@@ -123,8 +131,12 @@ object ProblemDetails {
          */
         const val RELEASE_DEPENDENCIES_MISSING: String = KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
 
-        /** 409 — the operation does not apply to this kind of draft: releasing long-term work. */
-        const val CATALOG_DRAFT_KIND: String = KnownProblemSlugs.CATALOG_DRAFT_KIND
+        /**
+         * 409 — a draft cannot be released because its dependency declarations name drafts of
+         * other catalogs, and the request does not release them along
+         * (use [releaseDependenciesUnreleased]).
+         */
+        const val RELEASE_DEPENDENCIES_UNRELEASED: String = KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED
 
         /**
          * 409 — an environment override cannot be set (a draft on a production environment, a
@@ -208,6 +220,22 @@ object ProblemDetails {
     ): ProblemDetail {
         val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING), detail, instance)
         problem.setProperty(MISSING_DEPENDENCIES_PROPERTY, missingDependencies)
+        return problem
+    }
+
+    /**
+     * Builds a `release-dependencies-unreleased` [ProblemDetail] (409): like [of] plus the
+     * [unreleasedDependencies] extension member, each draft of another catalog the released
+     * draft's dependency declarations name (the `ReleaseDependenciesUnreleasedProblemDetail` shape
+     * from the contract).
+     */
+    fun releaseDependenciesUnreleased(
+        unreleasedDependencies: List<UnreleasedCatalogDependency>,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED), detail, instance)
+        problem.setProperty(UNRELEASED_DEPENDENCIES_PROPERTY, unreleasedDependencies)
         return problem
     }
 }

@@ -92,20 +92,28 @@ ReleaseDependenciesMissingError:
             releaseVersion: 3.2.0
             reason: UNAVAILABLE
 
-CatalogDraftKindError:
+ReleaseDependenciesUnreleasedError:
   description: >-
-    The request conflicts with the current state of the resource. When the draft is long-term work,
-    which is not released (it is released after `promoteCatalogDraft` makes it the next version), the
-    problem is `catalog-draft-kind`. Other conflicts use `conflict`.
+    The request conflicts with the current state of the resource. When the draft's dependency
+    declarations name drafts of other catalogs and the request does not release them along
+    (`releaseDependencies`), the problem is `release-dependencies-unreleased` and
+    `unreleasedDependencies` lists each such draft. Other conflicts (a draft that is behind releases
+    not acknowledged, a draft taken along that cannot be released) use `conflict`.
   content:
     application/problem+json:
       schema:
-        $ref: './errors.yaml#/ProblemDetail'
+        $ref: './errors.yaml#/ReleaseDependenciesUnreleasedProblemDetail'
       example:
-        type: https://epistola.app/errors/catalog-draft-kind
-        title: Catalog Draft Kind
+        type: https://epistola.app/errors/release-dependencies-unreleased
+        title: Release Dependencies Unreleased
         status: 409
-        detail: "Redesign 2027 is long-term work: make it the next version to release it"
+        detail: "letters uses drafts of other catalogs: acme-corp/branding (House style 2027)"
+        unreleasedDependencies:
+          - registry: exchange.epistola.app
+            namespace: acme-corp
+            catalogKey: branding
+            draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+            draftName: House style 2027
 
 EnvironmentOverrideRefusedError:
   description: >-

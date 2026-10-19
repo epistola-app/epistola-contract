@@ -21,6 +21,7 @@ import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogNamespaces
+import app.epistola.catalog.protocol.CatalogReleaseVersions
 import app.epistola.catalog.protocol.CatalogResource
 import app.epistola.catalog.protocol.CatalogVariantMetadata
 import app.epistola.catalog.protocol.CodeListResource
@@ -156,7 +157,10 @@ object CatalogValidationCodes {
     /** A catalog dependency, or a resource dependency, names the catalog itself. */
     const val DEPENDENCY_CATALOG_SELF = "CATALOG_DEPENDENCY_CATALOG_SELF"
 
-    /** A catalog dependency's pinned release (`releaseVersion`) is not SemVer. */
+    /**
+     * A catalog dependency's pinned release (`releaseVersion`) is not a release number
+     * ([CatalogReleaseVersions]: `MAJOR.MINOR.PATCH`).
+     */
     const val DEPENDENCY_CATALOG_VERSION_INVALID = "CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID"
 
     /**
@@ -165,6 +169,8 @@ object CatalogValidationCodes {
      * algorithm (`v5:<lowercase SHA-256 hex>`).
      */
     const val DEPENDENCY_CATALOG_FINGERPRINT_INVALID = "CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID"
+
+    /** `release.version` is not a release number ([CatalogReleaseVersions]: `MAJOR.MINOR.PATCH`). */
     const val RELEASE_VERSION_INVALID = "CATALOG_RELEASE_VERSION_INVALID"
     const val RELEASE_TIMESTAMP_INVALID = "CATALOG_RELEASE_TIMESTAMP_INVALID"
     const val RELEASE_FINGERPRINT_INVALID = "CATALOG_RELEASE_FINGERPRINT_INVALID"
@@ -986,8 +992,12 @@ object CatalogValidator {
         findings: MutableList<CatalogValidationFinding>,
     ) {
         val release = catalog.manifest.release
-        if (!SEMVER.matches(release.version)) {
-            findings.error(CatalogValidationCodes.RELEASE_VERSION_INVALID, "catalog.json.release.version", "release version must be SemVer")
+        if (!CatalogReleaseVersions.isValid(release.version)) {
+            findings.error(
+                CatalogValidationCodes.RELEASE_VERSION_INVALID,
+                "catalog.json.release.version",
+                "release version must be MAJOR.MINOR.PATCH, without a pre-release or build part",
+            )
         }
         release.releasedAt?.let {
             if (runCatching { OffsetDateTime.parse(it) }.isFailure) {
@@ -1200,8 +1210,12 @@ object CatalogValidator {
                 )
             }
             dependency.releaseVersion?.let { release ->
-                if (!SEMVER.matches(release)) {
-                    findings.error(CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID, "$path.releaseVersion", "releaseVersion must be SemVer")
+                if (!CatalogReleaseVersions.isValid(release)) {
+                    findings.error(
+                        CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID,
+                        "$path.releaseVersion",
+                        "releaseVersion must be MAJOR.MINOR.PATCH, without a pre-release or build part",
+                    )
                 }
             }
             val fingerprintFinding = when {
@@ -1306,9 +1320,6 @@ object CatalogValidator {
         }
     }
 
-    private val SEMVER = Regex(
-        "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$",
-    )
     private val SHA256 = Regex("^[0-9a-f]{64}$")
 
     /** Wire version from which a catalog must carry a V4 fingerprint. */

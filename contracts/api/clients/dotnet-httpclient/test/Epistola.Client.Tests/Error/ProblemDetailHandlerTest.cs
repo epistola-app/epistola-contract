@@ -243,4 +243,78 @@ public class ProblemDetailHandlerTest
         Assert.NotNull(parsed);
         Assert.Empty(parsed!.MissingDependencies);
     }
+
+    [Fact]
+    public async Task ThrowsWithTheDraftsOfAReleaseDependenciesUnreleasedProblem()
+    {
+        const string body = """
+            {
+              "type": "https://epistola.app/errors/release-dependencies-unreleased",
+              "title": "Release dependencies unreleased",
+              "status": 409,
+              "detail": "letters uses drafts of other catalogs",
+              "unreleasedDependencies": [
+                {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "branding",
+                 "draftId": "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", "draftName": "House style 2027"},
+                {"registry": "registry.gemeente-x.nl", "namespace": "huisstijl", "catalogKey": "fonts",
+                 "draftId": "0193a6b2-9c21-7e3f-8c4d-5e6f708192a3", "draftName": "New typefaces, round 2"}
+              ]
+            }
+            """;
+        var client = ClientReturning(HttpStatusCode.Conflict, "application/problem+json", body);
+
+        var ex = await Assert.ThrowsAsync<ProblemDetailException>(() => client.PostAsync("release", null));
+        Assert.Equal(KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED, ex.TypeSlug);
+        Assert.Equal(409, ex.ProblemStatus);
+        Assert.True(ex.IsReleaseDependenciesUnreleasedProblem);
+        Assert.Empty(ex.MissingDependencies);
+        Assert.Equal(2, ex.UnreleasedDependencies.Count);
+        var first = ex.UnreleasedDependencies[0];
+        Assert.Equal("exchange.epistola.app", first.Registry);
+        Assert.Equal("acme-corp", first.Namespace);
+        Assert.Equal("branding", first.CatalogKey);
+        Assert.Equal("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", first.DraftId);
+        Assert.Equal("House style 2027", first.DraftName);
+        Assert.Equal(
+            "registry.gemeente-x.nl/huisstijl/fonts#0193a6b2-9c21-7e3f-8c4d-5e6f708192a3=New typefaces, round 2",
+            ex.UnreleasedDependencies[1].ToString());
+    }
+
+    [Fact]
+    public void ParseProblemSkipsMalformedUnreleasedDependencyEntriesOneByOne()
+    {
+        var parsed = ProblemDetailHandler.ParseProblem("""
+            {
+              "type": "https://epistola.app/errors/release-dependencies-unreleased",
+              "title": "Release dependencies unreleased",
+              "status": 409,
+              "unreleasedDependencies": [
+                "not an object",
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "draftId": "d"},
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "draftId": 1, "draftName": "x"},
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "draftId": "d2", "draftName": "Kept"}
+              ]
+            }
+            """);
+
+        Assert.NotNull(parsed);
+        Assert.Single(parsed!.UnreleasedDependencies);
+        Assert.Equal("Kept", parsed.UnreleasedDependencies[0].DraftName);
+    }
+
+    [Fact]
+    public void ParseProblemReportsNoUnreleasedDependenciesWhenTheMemberIsNotAnArray()
+    {
+        var parsed = ProblemDetailHandler.ParseProblem("""
+            {
+              "type": "https://epistola.app/errors/release-dependencies-unreleased",
+              "title": "Release dependencies unreleased",
+              "status": 409,
+              "unreleasedDependencies": {"registry": "r.example"}
+            }
+            """);
+
+        Assert.NotNull(parsed);
+        Assert.Empty(parsed!.UnreleasedDependencies);
+    }
 }

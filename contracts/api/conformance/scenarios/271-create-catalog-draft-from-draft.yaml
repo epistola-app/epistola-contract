@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: create-catalog-draft-from-draft
+title: Starting a draft from another draft sends that draft's id, and reads back where it came from
+why: >
+  A draft can start as a copy of another draft, unreleased changes included (ADR 0002): `from`
+  then carries that draft's id instead of a release number, in the same member. The new draft takes
+  the other draft's base, and `createdFrom` names the draft it was copied from. A client that only
+  accepts a release number in `from`, or reads `createdFrom` as one, cannot copy a draft.
+
+action:
+  name: create-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    name: Redesign 2027
+    from: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+
+script:
+  - status: 201
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      Location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+    body:
+      version: null
+      draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+      name: Redesign 2027
+      status: draft
+      base: 1.5.0
+      createdFrom: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+      createdAt: "2026-10-15T09:00:00Z"
+      behind: []
+      releasedAt: null
+      notes: null
+      fingerprint: null
+      dependencies: []
+      deployedTo: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
+      body:
+        json:
+          name: Redesign 2027
+          from: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+        jsonAbsent: [version, var_from]
+  report:
+    version: 'null'
+    draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+    name: Redesign 2027
+    status: draft
+    base: 1.5.0
+    createdFrom: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+    releasedAt: 'null'

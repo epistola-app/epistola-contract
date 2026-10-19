@@ -3,17 +3,18 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: get-draft-behind
-title: Long-term work, addressed by its id, says which releases it is behind, and what they changed
+title: A draft, addressed by its id, says which releases it is behind, and what they changed
 why: >
-  A draft has no number until it is released, so long-term work is addressed by its `draftId`, a
-  UUID, in the same path segment that takes `next` and a release's number (ADR 0002, amendment 2).
-  A client must send the id as given, lowercase and with its hyphens.
+  A draft has no number until it is released, so it is addressed by its `draftId`, a UUID, in the
+  same path segment that takes a release's number (ADR 0002). A client must send the id as given,
+  lowercase and with its hyphens.
 
   Drafts are independent copies; nothing is merged between them. "Redesign 2027" was started from
-  `1.4.0`, and does not get the changes of `1.5.0` and `1.6.0`, released from the next version since,
-  so it is **behind** them. The server cannot tell whether an author applied those changes by hand,
-  so it lists every release the draft is behind with the resources each one changed. That list is
-  what lets an author port a fix into the work before it becomes the next version.
+  `1.4.0` and holds breaking changes, so it would be released as `2.0.0`. It does not get the
+  changes of `1.5.0` and `1.6.0`, released from other drafts since and numbered between its base
+  and `2.0.0`, so it is **behind** them. The server cannot tell whether an author applied those
+  changes by hand, so it lists every release the draft is behind with the resources each one
+  changed. That list is what lets an author port a fix into the draft before it is released.
 
   A client must surface every release, in order, with every change and its kind, and the draft's
   null `version` as null.
@@ -34,7 +35,6 @@ script:
     body:
       version: null
       draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
-      isNext: false
       name: Redesign 2027
       status: draft
       base: 1.4.0
@@ -62,7 +62,6 @@ expect:
   report:
     version: 'null'
     draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
-    isNext: 'false'
     name: Redesign 2027
     status: draft
     behind: 1.5.0=template/invoice:modified+theme/corporate:added;1.6.0=stencil/letter-shell:removed

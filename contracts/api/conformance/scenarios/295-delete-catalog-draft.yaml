@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: delete-catalog-draft
-title: Discarding long-term work addresses it by its id, and its empty answer is a success
+title: Discarding a draft addresses it by its id, and its empty answer is a success
 why: >
-  A draft has no number, so discarding long-term work is a DELETE on the address its `draftId`
-  gives it (ADR 0002, amendment 2). The answer is a 204 with no body and no content type, which a
+  A draft has no number, so discarding it is a DELETE on the address its `draftId` gives it
+  (ADR 0002). The answer is a 204 with no body and no content type, which a
   client must treat as success rather than fail to deserialize.
 
 action:

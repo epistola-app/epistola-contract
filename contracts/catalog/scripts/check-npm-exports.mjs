@@ -54,6 +54,27 @@ assert.equal(
   'npm and schema release.fingerprint patterns must agree',
 );
 
+// One release number rule, the API's ReleaseVersion, wherever wire v8 names a release.
+for (const [where, property] of [
+  ['release.version', manifestSchema.$defs.ReleaseInfo.properties.version],
+  ['catalog dependency releaseVersion', manifestSchema.$defs.CatalogDependency.properties.releaseVersion],
+]) {
+  assert.equal(catalog.CATALOG_RELEASE_VERSION_PATTERN, property.pattern, `npm and schema ${where} patterns must agree`);
+  assert.equal(catalog.MAX_CATALOG_RELEASE_VERSION_LENGTH, property.maxLength, `npm and schema ${where} maximum lengths must agree`);
+}
+const apiCatalogSchemas = await readFile(new URL('../../api/components/schemas/catalogs.yaml', import.meta.url), 'utf8');
+const apiReleaseVersion = apiCatalogSchemas.slice(apiCatalogSchemas.indexOf('\nReleaseVersion:\n'));
+assert.equal(
+  apiReleaseVersion.match(/\n  pattern: '([^']+)'/)?.[1],
+  catalog.CATALOG_RELEASE_VERSION_PATTERN,
+  "npm release number pattern and the API's ReleaseVersion must agree",
+);
+assert.equal(
+  Number(apiReleaseVersion.match(/\n  maxLength: (\d+)/)?.[1]),
+  catalog.MAX_CATALOG_RELEASE_VERSION_LENGTH,
+  "npm release number limit and the API's ReleaseVersion must agree",
+);
+
 const detailSchema = JSON.parse(
   await readFile(new URL('../schemas/resource-detail-v8.schema.json', import.meta.url), 'utf8'),
 );

@@ -89,12 +89,11 @@ PreviewDocumentRequest:
       example: null
     draft:
       type: [string, "null"]
-      pattern: '^(next|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$'
+      pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
       maxLength: 36
       description: |
-        Render a draft of the template's catalog, including changes not yet released: `next` for its
-        next version, or long-term work by its `draftId` (mutually exclusive with version and
-        environmentKey). A version selector never matches a draft; a generated document renders one
+        Render a draft of the template's catalog, including changes not yet released, by its
+        `draftId` (mutually exclusive with version and environmentKey). A version selector never matches a draft; a generated document renders one
         only through an environment that follows it (`setEnvironmentOverride`).
       example: null
     data:
@@ -596,8 +595,7 @@ DocumentGenerationItemDto:
       type: [string, "null"]
       maxLength: 100
       description: |
-        The name of that draft at render time: "Next version" for the next version, else the work's
-        name. Null when rendered from a release.
+        The name of that draft at render time. Null when rendered from a release.
       example: null
     environmentKey:
       type: [string, "null"]
@@ -979,8 +977,7 @@ DocumentDto:
       type: [string, "null"]
       maxLength: 100
       description: |
-        The name of that draft at render time: "Next version" for the next version, else the work's
-        name. Null when rendered from a release.
+        The name of that draft at render time. Null when rendered from a release.
       example: null
     filename:
       type: string

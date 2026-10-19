@@ -56,12 +56,11 @@ templates = TemplatesApi(http)
 template = templates.get_template("acme", "~", "acme", "invoices", "1.4.0", "invoice")
 ```
 
-Everything in a catalog is addressed through one of its versions: a draft as `next` (the catalog's
-next version) or by its draft id (long-term work), a release by its exact SemVer number. A draft is
-numbered when it is released. `CatalogsApi` lists and reads those versions, starts, renames and
-discards long-term work, promotes it to the next version, and previews and releases the next version
-(`create_catalog_draft`, `promote_catalog_draft`, `preview_catalog_draft_release`,
-`release_catalog_draft`, …).
+Everything in a catalog is addressed through one of its versions: a draft by its draft id, a
+release by its exact SemVer number. A catalog can have any number of drafts, and a draft is numbered
+when it is released. `CatalogsApi` lists and reads those versions, starts drafts (from a release or
+another draft), renames and discards them, and previews and releases any of them
+(`create_catalog_draft`, `preview_catalog_draft_release`, `release_catalog_draft`, …).
 
 `.api_key(...)` sends `Authorization: ApiKey <key>`. The legacy `X-API-Key` header remains
 supported for existing integrations, but is deprecated. Some Epistola Suite deployments may disable
@@ -114,6 +113,10 @@ except ProblemDetailException as e:
             for d in e.missing_dependencies:   # 409 from deploy_release
                 log.warning("%s/%s/%s@%s: %s", d.registry, d.namespace,
                             d.catalog_key, d.release_version, d.reason)
+        case KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED:
+            for d in e.unreleased_dependencies:  # 409 from release_catalog_draft
+                log.warning("%s/%s/%s uses draft %s (%s)", d.registry, d.namespace,
+                            d.catalog_key, d.draft_name, d.draft_id)
         case _:
             raise                              # unknown / framework error — fall back to status
 ```
@@ -121,10 +124,13 @@ except ProblemDetailException as e:
 `ProblemDetailException` extends the generated `ApiException`, so existing
 `except ApiException` sites keep working. It exposes `type`, `type_slug`, `title`,
 `problem_status`, `detail`, `errors`, `validation_errors`, `missing_fields`, `invalid_fields`,
-`missing_dependencies`, `is_validation_problem`, `is_data_model_validation_problem`,
-`is_template_data_problem`, and `is_release_dependencies_missing_problem`. Each
+`missing_dependencies`, `unreleased_dependencies`, `is_validation_problem`,
+`is_data_model_validation_problem`, `is_template_data_problem`,
+`is_release_dependencies_missing_problem` and `is_release_dependencies_unreleased_problem`. Each
 `missing_dependencies` entry is a `MissingDependency` whose `reason` is the wire string, so a
-reason a later contract adds is reported rather than lost.
+reason a later contract adds is reported rather than lost. Each `unreleased_dependencies` entry is
+an `UnreleasedDependency(registry, namespace, catalog_key, draft_id, draft_name)`: a draft of
+another catalog to release first, or along with the release (`releaseDependencies`).
 
 ## Result collection
 
@@ -156,13 +162,14 @@ from epistola_client import ImagesApi
 
 with open("logo.png", "rb") as f:
     image = ImagesApi(http).upload_image(
-        "acme-corp", "~", "acme-corp", "main", "next", ("logo.png", f.read()), name="Logo"
+        "acme-corp", "~", "acme-corp", "main", "0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b",
+        ("logo.png", f.read()), name="Logo"
     )
 ```
 
 A catalog is addressed by its registry, namespace and key — here the server's default registry
 `~`, namespace `acme-corp`, key `main` — and an image belongs to one of its versions, here the
-draft `2.0.0`. A registry other than the default is named in full (`exchange.example.org`,
+draft with that id. A registry other than the default is named in full (`exchange.example.org`,
 `acme.com`). In a request body, leave `registry` unset for the default registry; responses always
 name it in full.
 

@@ -5,14 +5,14 @@
 id: set-environment-override-draft
 title: Overriding an environment with a draft sends the draft alone, and reads back its id and name
 why: >
-  Long-term work and the next version are tried by pointing a non-production environment at them:
-  the environment then renders the draft live, with no release (ADR 0002, amendment 2). The draft
-  goes in the body as `catalogVersion`, `next` or a draft id, exactly as given; `releaseVersion` is
-  left out. A client that sent `"releaseVersion": null` would send a request naming both.
+  A draft is tried by pointing a non-production environment at it: the environment then renders
+  the draft live, with no release (ADR 0002). The draft goes in the body as `catalogVersion`, its
+  id, exactly as given; `releaseVersion` is left out. A client that sent `"releaseVersion": null`
+  would send a request naming both.
 
-  The answer has no release: `releaseVersion` is null, and the draft is named by the id the next
-  version has now and by its label, "Next version". A client that requires `releaseVersion` cannot
-  read an environment that follows a draft.
+  The answer has no release: `releaseVersion` is null, and the draft is named by its id and by its
+  name at the time. A client that requires `releaseVersion` cannot read an environment that follows
+  a draft.
 
 action:
   name: set-environment-override
@@ -23,7 +23,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: next
+    catalogVersion: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
 
 script:
   - status: 200
@@ -35,7 +35,7 @@ script:
       catalogKey: letters
       releaseVersion: null
       draftId: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
-      draftLabel: Next version
+      draftLabel: Spring fixes
       setAt: "2026-10-18T09:00:00Z"
 
 expect:
@@ -48,9 +48,9 @@ expect:
           matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
       body:
         json:
-          catalogVersion: next
+          catalogVersion: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
         jsonAbsent: [releaseVersion]
-        matches: '^\s*\{\s*"catalogVersion"\s*:\s*"next"\s*\}\s*$'
+        matches: '^\s*\{\s*"catalogVersion"\s*:\s*"0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b"\s*\}\s*$'
   report:
     environmentKey: acceptance
     registry: exchange.epistola.app
@@ -59,5 +59,5 @@ expect:
     releaseVersion: 'null'
     draftId: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
     # Names are free text, so a driver reports them as given.
-    draftLabel: Next version
+    draftLabel: Spring fixes
     setAt: "2026-10-18T09:00:00Z"

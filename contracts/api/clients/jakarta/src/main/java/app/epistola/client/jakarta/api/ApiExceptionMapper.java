@@ -50,6 +50,7 @@ public class ApiExceptionMapper implements ResponseExceptionMapper<ApiException>
                 parsed.missingFields(),
                 parsed.invalidFields(),
                 parsed.missingDependencies(),
+                parsed.unreleasedDependencies(),
                 body);
     }
 

@@ -7,3 +7,4 @@
 # code doesn't ship in the artifact.
 src/main/kotlin/app/epistola/api/model/DataModelValidationProblemDetail.kt
 src/main/kotlin/app/epistola/api/model/ReleaseDependenciesMissingProblemDetail.kt
+src/main/kotlin/app/epistola/api/model/ReleaseDependenciesUnreleasedProblemDetail.kt

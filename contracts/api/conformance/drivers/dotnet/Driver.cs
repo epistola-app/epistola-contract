@@ -65,7 +65,6 @@ public static class Driver
                 case "preview-catalog-draft-release": PreviewCatalogDraftRelease(baseUrl, config); break;
                 case "delete-catalog-draft": DeleteCatalogDraft(baseUrl, config); break;
                 case "release-catalog-draft": ReleaseCatalogDraft(baseUrl, config); break;
-                case "promote-catalog-draft": PromoteCatalogDraft(baseUrl, config); break;
                 case "deploy-release": DeployRelease(baseUrl, config); break;
                 case "undeploy-release": UndeployRelease(baseUrl, config); break;
                 case "set-environment-override": SetEnvironmentOverride(baseUrl, config); break;
@@ -381,9 +380,10 @@ public static class Driver
 
     /// <summary>
     /// Declares the catalog's dependencies as the scenario lists them, each pinning an exact
-    /// release, and reports what came back. A declaration that pins no release (migrated from wire
-    /// v7) has a null <c>releaseVersion</c>, which blocks a release, so it is reported as
-    /// <c>null</c> rather than lost.
+    /// release or naming a draft, and reports what came back. <c>releaseVersion</c> and
+    /// <c>draftId</c> are set only when the entry names them, so the other stays off the wire. A
+    /// declaration that names a draft, or pins no release (migrated from wire v7), has a null
+    /// <c>releaseVersion</c>, reported as <c>null</c> rather than lost.
     /// </summary>
     private static void UpdateCatalogDependencies(string baseUrl, JsonElement config)
     {
@@ -394,7 +394,8 @@ public static class Driver
                 registry: OptStr(d, "registry")!,
                 varNamespace: Str(d, "namespace"),
                 catalogKey: Str(d, "catalogKey"),
-                releaseVersion: Str(d, "releaseVersion")))
+                releaseVersion: OptStr(d, "releaseVersion")!,
+                draftId: OptStr(d, "draftId") is { } draftId ? Guid.Parse(draftId) : null))
             .ToList();
         ReportDependencies(baseUrl, new CatalogsApi(http, apiBase).UpdateCatalogDependencies(
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
@@ -410,13 +411,14 @@ public static class Driver
             ["namespaces"] = string.Join(",", items.Select(d => Show(d.Namespace))),
             ["catalogKeys"] = string.Join(",", items.Select(d => Show(d.CatalogKey))),
             ["releaseVersions"] = string.Join(",", items.Select(d => Show(d.ReleaseVersion))),
+            ["draftIds"] = string.Join(",", items.Select(d => Show(d.DraftId))),
         });
     }
 
     // --- Catalog versions ---
 
     /// <summary>
-    /// Starts long-term work. <c>from</c> is optional and left unset when the scenario does not name
+    /// Starts a draft, from a release number or another draft's id. <c>from</c> is optional and left unset when the scenario does not name
     /// it, so it stays off the wire rather than going out as null.
     /// </summary>
     private static void CreateCatalogDraft(string baseUrl, JsonElement config)
@@ -430,7 +432,6 @@ public static class Driver
         {
             ["version"] = Show(version.VarVersion),
             ["draftId"] = Show(version.DraftId),
-            ["isNext"] = Bool(version.IsNext),
             ["name"] = Show(version.Name),
             ["status"] = Show(Wire(version.Status)),
             ["base"] = Show(version.Base),
@@ -451,7 +452,6 @@ public static class Driver
         {
             ["versions"] = string.Join(",", items.Select(v => Show(v.VarVersion))),
             ["draftIds"] = string.Join(",", items.Select(v => Show(v.DraftId))),
-            ["isNext"] = string.Join(",", items.Select(v => Bool(v.IsNext))),
             ["names"] = string.Join("|", items.Select(v => Show(v.Name))),
             ["statuses"] = string.Join(",", items.Select(v => Show(Wire(v.Status)))),
             ["bases"] = string.Join(",", items.Select(v => Show(v.Base))),
@@ -470,7 +470,6 @@ public static class Driver
         {
             ["version"] = Show(version.VarVersion),
             ["draftId"] = Show(version.DraftId),
-            ["isNext"] = Bool(version.IsNext),
             ["name"] = Show(version.Name),
             ["status"] = Show(Wire(version.Status)),
             ["releasedAt"] = Show(Iso(version.ReleasedAt)),
@@ -484,7 +483,7 @@ public static class Driver
         });
     }
 
-    /// <summary>Renames long-term work; only the name is sent, to its unchanged address.</summary>
+    /// <summary>Renames a draft; only the name is sent, to its unchanged address.</summary>
     private static void RenameCatalogDraft(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
@@ -496,7 +495,6 @@ public static class Driver
         {
             ["version"] = Show(version.VarVersion),
             ["draftId"] = Show(version.DraftId),
-            ["isNext"] = Bool(version.IsNext),
             ["name"] = Show(version.Name),
             ["status"] = Show(Wire(version.Status)),
             ["base"] = Show(version.Base),
@@ -512,9 +510,10 @@ public static class Driver
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["latest"] = Show(preview.Latest),
+            ["base"] = Show(preview.Base),
             ["changeKind"] = preview.ChangeKind is { } kind ? Wire(kind) : "null",
             ["reasons"] = string.Join("|", preview.Reasons ?? new List<string>()),
+            ["needed"] = Show(preview.Needed),
             ["suggested"] = Show(preview.Suggested),
         });
     }
@@ -526,46 +525,46 @@ public static class Driver
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
     }
 
-    /// <summary>Releases the next version; each member is left unset when the scenario does not name it.</summary>
+    /// <summary>
+    /// Releases a draft; each member is left unset when the scenario does not name it. A refusal is
+    /// reported as its problem and the dependency drafts it lists.
+    /// </summary>
     private static void ReleaseCatalogDraft(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        var response = new CatalogsApi(http, apiBase).ReleaseCatalogDraft(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
-            new ReleaseCatalogDraftRequest(
-                varVersion: OptStr(config, "version")!,
-                notes: OptStr(config, "notes")!,
-                acknowledgedBehind: OptStrList(config, "acknowledgedBehind")!));
+        ReleaseCatalogDraftResponse response;
+        try
+        {
+            response = new CatalogsApi(http, apiBase).ReleaseCatalogDraft(
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+                new ReleaseCatalogDraftRequest(
+                    varVersion: OptStr(config, "version")!,
+                    notes: OptStr(config, "notes")!,
+                    acknowledgedBehind: OptStrList(config, "acknowledgedBehind")!,
+                    // The generated model has a plain bool with the contract's default, false, and
+                    // writes it: an unset flag goes out as `false`, which means the same.
+                    releaseDependencies: OptBool(config, "releaseDependencies") ?? false));
+        }
+        catch (ProblemDetailException e)
+        {
+            Report(baseUrl, new Dictionary<string, object>
+            {
+                ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
+                ["problemStatus"] = (int)e.StatusCode,
+                ["problemUnreleasedDependencies"] = string.Join("|", e.UnreleasedDependencies.Select(d =>
+                    $"{d.Registry}/{d.Namespace}/{d.CatalogKey}#{d.DraftId}={d.DraftName}")),
+            });
+            return;
+        }
 
         Report(baseUrl, new Dictionary<string, object>
         {
             ["version"] = Show(response.CatalogVersion?.VarVersion),
             ["status"] = Show(response.CatalogVersion == null ? null : Wire(response.CatalogVersion.Status)),
             ["draftId"] = Show(response.CatalogVersion?.DraftId),
-            ["isNext"] = response.CatalogVersion == null ? "null" : Bool(response.CatalogVersion.IsNext),
             ["draftsBehind"] = string.Join("|", response.DraftsBehind ?? new List<string>()),
-        });
-    }
-
-    /// <summary>Makes long-term work the next version; each member is left unset when the scenario does not name it.</summary>
-    private static void PromoteCatalogDraft(string baseUrl, JsonElement config)
-    {
-        var (http, apiBase) = Client(baseUrl, config);
-        var version = new CatalogsApi(http, apiBase).PromoteCatalogDraft(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
-            new PromoteCatalogDraftRequest(
-                keepPreviousAs: OptStr(config, "keepPreviousAs")!,
-                acknowledgedBehind: OptStrList(config, "acknowledgedBehind")!));
-
-        Report(baseUrl, new Dictionary<string, object>
-        {
-            ["version"] = Show(version.VarVersion),
-            ["draftId"] = Show(version.DraftId),
-            ["isNext"] = Bool(version.IsNext),
-            ["name"] = Show(version.Name),
-            ["status"] = Show(Wire(version.Status)),
-            ["base"] = Show(version.Base),
-            ["behind"] = (version.Behind ?? new List<BehindReleaseDto>()).Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["releasedDependencies"] = string.Join(",", (response.ReleasedDependencies ?? new List<ReleasedDependencyDto>())
+                .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.ReleaseVersion)}")),
         });
     }
 

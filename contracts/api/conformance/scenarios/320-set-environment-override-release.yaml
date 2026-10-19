@@ -6,7 +6,7 @@ id: set-environment-override-release
 title: Overriding an environment with a release sends that release alone, and reads back the override
 why: >
   An environment can use one of the releases it serves as its latest in place of the highest one, a
-  rollback without undeploying anything (ADR 0002, amendment 2). The override is addressed by the
+  rollback without undeploying anything (ADR 0002). The override is addressed by the
   catalog, like a deployment: `…/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}`,
   with `~` for the default registry, and the release goes in the body as `releaseVersion`.
 

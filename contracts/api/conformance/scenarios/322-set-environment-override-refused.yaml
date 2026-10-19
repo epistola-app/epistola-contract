@@ -6,7 +6,7 @@ id: set-environment-override-refused
 title: A production environment refuses to follow a draft, and the client surfaces the problem type
 why: >
   A production environment uses only published versions, so an override there may name a release,
-  never a draft (ADR 0002, amendment 2). The server refuses with 409
+  never a draft (ADR 0002). The server refuses with 409
   `environment-override-refused`. A client must surface that slug, which says the request can never
   succeed against this environment, rather than a bare conflict an integration would retry.
 

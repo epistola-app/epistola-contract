@@ -36,7 +36,6 @@ from epistola_client import (
     JwtSigner,
     PingRequest,
     ProblemDetailException,
-    PromoteCatalogDraftRequest,
     ReleaseCatalogDraftRequest,
     RenameCatalogDraftRequest,
     SetEnvironmentOverrideRequest,
@@ -87,7 +86,6 @@ def main() -> int:
         "preview-catalog-draft-release": _preview_catalog_draft_release,
         "delete-catalog-draft": _delete_catalog_draft,
         "release-catalog-draft": _release_catalog_draft,
-        "promote-catalog-draft": _promote_catalog_draft,
         "deploy-release": _deploy_release,
         "undeploy-release": _undeploy_release,
         "set-environment-override": _set_environment_override,
@@ -384,7 +382,8 @@ def _update_catalog_dependencies(base_url: str, config: dict) -> None:
                     **({"registry": dependency["registry"]} if "registry" in dependency else {}),
                     namespace=dependency["namespace"],
                     catalogKey=dependency["catalogKey"],
-                    releaseVersion=dependency["releaseVersion"],
+                    # Exactly one of these names what the declaration uses: only the one given.
+                    **{name: dependency[name] for name in ("releaseVersion", "draftId") if name in dependency},
                 )
                 for dependency in config["dependencies"]
             ]
@@ -402,6 +401,7 @@ def _report_dependencies(base_url: str, dependencies) -> None:
             "catalogKeys": ",".join(_show(d.catalog_key) for d in dependencies),
             # A declaration that pins no release (migrated from wire v7) reports ``null``.
             "releaseVersions": ",".join(_show(d.release_version) for d in dependencies),
+            "draftIds": ",".join(_show(d.draft_id) for d in dependencies),
         },
     )
 
@@ -411,7 +411,7 @@ def _catalog_version_address(config: dict) -> tuple:
 
 
 def _create_catalog_draft(base_url: str, config: dict) -> None:
-    """Starts long-term work. ``from`` is a Python keyword, so the generated model names the member
+    """Starts a draft. ``from`` is a Python keyword, so the generated model names the member
     ``var_from``; it is passed by its alias, and only when the scenario sets it."""
     optional = {"from": config["from"]} if "from" in config else {}
     created = CatalogsApi(_client(base_url, config)).create_catalog_draft(
@@ -426,7 +426,6 @@ def _create_catalog_draft(base_url: str, config: dict) -> None:
         {
             "version": _show(created.version),
             "draftId": _show(created.draft_id),
-            "isNext": _show_bool(created.is_next),
             "name": _show(created.name),
             "status": _show(_enum(created.status)),
             "base": _show(created.base),
@@ -450,7 +449,6 @@ def _list_catalog_versions(base_url: str, config: dict) -> None:
         {
             "versions": ",".join(_show(v.version) for v in versions),
             "draftIds": ",".join(_show(v.draft_id) for v in versions),
-            "isNext": ",".join(_show_bool(v.is_next) for v in versions),
             "names": "|".join(_show(v.name) for v in versions),
             "statuses": ",".join(_show(_enum(v.status)) for v in versions),
             "bases": ",".join(_show(v.base) for v in versions),
@@ -469,7 +467,6 @@ def _get_catalog_version(base_url: str, config: dict) -> None:
         {
             "version": _show(version.version),
             "draftId": _show(version.draft_id),
-            "isNext": _show_bool(version.is_next),
             "name": _show(version.name),
             "status": _show(_enum(version.status)),
             "releasedAt": _show_instant(version.released_at),
@@ -498,7 +495,6 @@ def _rename_catalog_draft(base_url: str, config: dict) -> None:
         {
             "version": _show(version.version),
             "draftId": _show(version.draft_id),
-            "isNext": _show_bool(version.is_next),
             "name": _show(version.name),
             "status": _show(_enum(version.status)),
             "base": _show(version.base),
@@ -513,9 +509,10 @@ def _preview_catalog_draft_release(base_url: str, config: dict) -> None:
     _report(
         base_url,
         {
-            "latest": _show(preview.latest),
+            "base": _show(preview.base),
             "changeKind": _show(_enum(preview.change_kind)),
             "reasons": "|".join(preview.reasons),
+            "needed": _show(preview.needed),
             "suggested": _show(preview.suggested),
         },
     )
@@ -526,43 +523,42 @@ def _delete_catalog_draft(base_url: str, config: dict) -> None:
 
 
 def _release_catalog_draft(base_url: str, config: dict) -> None:
+    """Releases a draft; each optional member goes out only when the scenario sets it. A refusal is
+    reported by its problem, with the dependency drafts it names."""
     optional = {
-        name: config[name] for name in ("version", "notes", "acknowledgedBehind") if name in config
+        name: config[name]
+        for name in ("version", "notes", "acknowledgedBehind", "releaseDependencies")
+        if name in config
     }
-    response = CatalogsApi(_client(base_url, config)).release_catalog_draft(
-        *_catalog_version_address(config),
-        ReleaseCatalogDraftRequest(**optional),
-    )
+    try:
+        response = CatalogsApi(_client(base_url, config)).release_catalog_draft(
+            *_catalog_version_address(config),
+            ReleaseCatalogDraftRequest(**optional),
+        )
+    except ProblemDetailException as exc:
+        _report(
+            base_url,
+            {
+                "problemTypeSlug": exc.type_slug or "<null>",
+                "problemStatus": exc.status_code,
+                "problemUnreleasedDependencies": "|".join(
+                    f"{d.registry}/{d.namespace}/{d.catalog_key}#{d.draft_id}={d.draft_name}"
+                    for d in exc.unreleased_dependencies
+                ),
+            },
+        )
+        return
     _report(
         base_url,
         {
             "version": _show(response.catalog_version.version),
             "status": _show(_enum(response.catalog_version.status)),
             "draftId": _show(response.catalog_version.draft_id),
-            "isNext": _show_bool(response.catalog_version.is_next),
             "draftsBehind": "|".join(response.drafts_behind),
-        },
-    )
-
-
-def _promote_catalog_draft(base_url: str, config: dict) -> None:
-    """Makes long-term work the next version; ``keepPreviousAs`` and ``acknowledgedBehind`` go out
-    only when the scenario sets them."""
-    optional = {name: config[name] for name in ("keepPreviousAs", "acknowledgedBehind") if name in config}
-    version = CatalogsApi(_client(base_url, config)).promote_catalog_draft(
-        *_catalog_version_address(config),
-        PromoteCatalogDraftRequest(**optional),
-    )
-    _report(
-        base_url,
-        {
-            "version": _show(version.version),
-            "draftId": _show(version.draft_id),
-            "isNext": _show_bool(version.is_next),
-            "name": _show(version.name),
-            "status": _show(_enum(version.status)),
-            "base": _show(version.base),
-            "behind": str(len(version.behind)),
+            "releasedDependencies": ",".join(
+                f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}@{_show(d.release_version)}"
+                for d in response.released_dependencies
+            ),
         },
     )
 

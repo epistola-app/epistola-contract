@@ -97,6 +97,20 @@ ReleaseDependenciesMissingProblemDetail:
           items:
             $ref: '../schemas/environments.yaml#/MissingReleaseDependency'
 
+ReleaseDependenciesUnreleasedProblemDetail:
+  allOf:
+    - $ref: '#/ProblemDetail'
+    - type: object
+      properties:
+        unreleasedDependencies:
+          type: array
+          description: >-
+            Each draft of another catalog that the released draft's dependency declarations name,
+            directly or through the declarations of such a draft, in the order the declarations list
+            them, each before the drafts it names in turn.
+          items:
+            $ref: '../schemas/catalogs.yaml#/UnreleasedCatalogDependency'
+
 DataModelValidationError:
   type: object
   description: A single data-example validation failure against the data model

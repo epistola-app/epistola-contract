@@ -6,7 +6,7 @@
 
 import json
 
-from epistola_client import KnownProblemSlugs, MissingDependency
+from epistola_client import KnownProblemSlugs, MissingDependency, UnreleasedDependency
 from epistola_client.error.problem_detail_handler import parse_problem
 
 
@@ -252,3 +252,91 @@ def test_a_malformed_missing_dependencies_member_yields_nothing_rather_than_a_gu
     assert incomplete_entry is not None
     assert incomplete_entry.type_slug == KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
     assert incomplete_entry.missing_dependencies == []
+
+
+def _release_dependencies_unreleased(unreleased_dependencies) -> str:
+    body = {
+        "type": "https://epistola.app/errors/release-dependencies-unreleased",
+        "title": "Release dependencies unreleased",
+        "status": 409,
+        "detail": "letters uses drafts of other catalogs",
+    }
+    if unreleased_dependencies is not None:
+        body["unreleasedDependencies"] = unreleased_dependencies
+    return json.dumps(body)
+
+
+def test_parses_release_dependencies_unreleased_problem_in_order():
+    body = _release_dependencies_unreleased(
+        [
+            {
+                "registry": "exchange.epistola.app",
+                "namespace": "acme-corp",
+                "catalogKey": "branding",
+                "draftId": "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192",
+                "draftName": "House style 2027",
+            },
+            {
+                "registry": "registry.gemeente-x.nl",
+                "namespace": "huisstijl",
+                "catalogKey": "fonts",
+                "draftId": "0193a6b2-9c21-7e3f-8c4d-5e6f708192a3",
+                "draftName": "New typefaces, round 2",
+            },
+        ]
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.type_slug == KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED
+    assert exc.is_release_dependencies_unreleased_problem
+    assert not exc.is_release_dependencies_missing_problem
+    assert exc.unreleased_dependencies == [
+        UnreleasedDependency(
+            "exchange.epistola.app",
+            "acme-corp",
+            "branding",
+            "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192",
+            "House style 2027",
+        ),
+        UnreleasedDependency(
+            "registry.gemeente-x.nl",
+            "huisstijl",
+            "fonts",
+            "0193a6b2-9c21-7e3f-8c4d-5e6f708192a3",
+            "New typefaces, round 2",
+        ),
+    ]
+    assert exc.unreleased_dependencies[0].draft_id == "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"
+    assert exc.unreleased_dependencies[1].draft_name == "New typefaces, round 2"
+
+
+def test_another_problem_reports_no_unreleased_dependencies():
+    exc = parse_problem(_release_dependencies_missing(None), 409)
+    assert exc is not None
+    assert exc.unreleased_dependencies == []
+    assert not exc.is_release_dependencies_unreleased_problem
+
+
+def test_a_malformed_unreleased_dependencies_member_yields_nothing_rather_than_a_guess():
+    not_an_array = parse_problem(_release_dependencies_unreleased("not an array"), 409)
+    assert not_an_array is not None
+    assert not_an_array.type_slug == KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED
+    assert not_an_array.unreleased_dependencies == []
+
+    incomplete_entry = parse_problem(
+        _release_dependencies_unreleased(
+            [
+                {
+                    "registry": "exchange.epistola.app",
+                    "namespace": "acme-corp",
+                    "catalogKey": "branding",
+                    "draftId": "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192",
+                    "draftName": "House style 2027",
+                },
+                {"registry": "exchange.epistola.app", "draftId": 42},
+            ]
+        ),
+        409,
+    )
+    assert incomplete_entry is not None
+    assert incomplete_entry.unreleased_dependencies == []

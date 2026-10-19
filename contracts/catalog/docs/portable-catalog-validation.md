@@ -133,8 +133,14 @@ resource dependency and `catalogDependencies` entry (`CATALOG_REGISTRY_INVALID`,
 `CATALOG_NAMESPACE_INVALID`, also raised by the migrator's wire check).
 `catalogDependencies` declares each catalog at most once (`CATALOG_DEPENDENCY_CATALOG_DUPLICATE`),
 never the catalog itself (`CATALOG_DEPENDENCY_CATALOG_SELF`, which also applies to a resource
-dependency naming the catalog itself), pinning, unless migrated from wire v7, an exact SemVer
+dependency naming the catalog itself), pinning, unless migrated from wire v7, an exact
 `releaseVersion`, never a range (`CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`).
+From wire v8 every release number, `release.version` and a pinned `releaseVersion`, is
+`MAJOR.MINOR.PATCH` without leading zeros, pre-release or build part, at most 50 characters: the
+API's `ReleaseVersion` (`CatalogReleaseVersions`; `CATALOG_RELEASE_VERSION_INVALID` and
+`CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`, also raised by the migrator's wire check). Earlier
+wire versions accepted full SemVer; migrating a release numbered `1.0.0-beta.1` or `1.0.0+5` to
+v8 is a finding (`CATALOG_RELEASE_VERSION_INVALID`), never a silent strip.
 A recorded `releaseVersion` comes with the `releaseFingerprint` of that release, naming a known
 algorithm (`v5:<lowercase SHA-256 hex>`), and an unrecorded one with a null fingerprint
 (`CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`, also raised by the migrator's wire check).

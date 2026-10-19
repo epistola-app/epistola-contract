@@ -21,7 +21,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: next
+    catalogVersion: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
     stencilKey: corporate-header
     page: 1
     size: 2
@@ -49,7 +49,7 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/next/stencils/corporate-header/usage
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b/stencils/corporate-header/usage
       queryParams:
         page: "1"
         size: "2"

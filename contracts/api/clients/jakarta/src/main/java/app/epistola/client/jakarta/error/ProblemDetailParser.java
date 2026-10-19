@@ -49,6 +49,7 @@ public final class ProblemDetailParser {
         private final List<MissingDataField> missingFields;
         private final List<InvalidDataField> invalidFields;
         private final List<MissingDependency> missingDependencies;
+        private final List<UnreleasedDependency> unreleasedDependencies;
 
         ParsedProblem(
                 ProblemDetail problem,
@@ -56,13 +57,15 @@ public final class ProblemDetailParser {
                 Map<String, List<DataModelValidationError>> validationErrors,
                 List<MissingDataField> missingFields,
                 List<InvalidDataField> invalidFields,
-                List<MissingDependency> missingDependencies) {
+                List<MissingDependency> missingDependencies,
+                List<UnreleasedDependency> unreleasedDependencies) {
             this.problem = problem;
             this.errors = errors;
             this.validationErrors = validationErrors;
             this.missingFields = missingFields;
             this.invalidFields = invalidFields;
             this.missingDependencies = missingDependencies;
+            this.unreleasedDependencies = unreleasedDependencies;
         }
 
         public ProblemDetail problem() {
@@ -102,6 +105,14 @@ public final class ProblemDetailParser {
          */
         public List<MissingDependency> missingDependencies() {
             return missingDependencies;
+        }
+
+        /**
+         * The drafts a {@code release-dependencies-unreleased} problem lists, in the order sent;
+         * empty when absent.
+         */
+        public List<UnreleasedDependency> unreleasedDependencies() {
+            return unreleasedDependencies;
         }
     }
 
@@ -145,7 +156,8 @@ public final class ProblemDetailParser {
                     readValidationErrors(root),
                     readArray(root, ProblemExtensionMembers.MISSING_FIELDS, MissingDataField[].class),
                     readArray(root, ProblemExtensionMembers.INVALID_FIELDS, InvalidDataField[].class),
-                    readMissingDependencies(root));
+                    readMissingDependencies(root),
+                    readUnreleasedDependencies(root));
         } catch (RuntimeException e) {
             return null;
         }
@@ -190,6 +202,32 @@ public final class ProblemDetailParser {
                     stringMember(dependency, "catalogKey"),
                     stringMember(dependency, "releaseVersion"),
                     stringMember(dependency, "reason")));
+        }
+        return dependencies;
+    }
+
+    /**
+     * Read with JSON-P, as {@link #readMissingDependencies} is, so one malformed entry does not
+     * cost the whole problem. An entry that is not an object is skipped; a member that is not a
+     * string reads as {@code null}.
+     */
+    private static List<UnreleasedDependency> readUnreleasedDependencies(JsonObject root) {
+        JsonValue value = root.get(ProblemExtensionMembers.UNRELEASED_DEPENDENCIES);
+        if (value == null || value.getValueType() != JsonValue.ValueType.ARRAY) {
+            return Collections.emptyList();
+        }
+        List<UnreleasedDependency> dependencies = new ArrayList<>();
+        for (JsonValue entry : value.asJsonArray()) {
+            if (entry.getValueType() != JsonValue.ValueType.OBJECT) {
+                continue;
+            }
+            JsonObject dependency = entry.asJsonObject();
+            dependencies.add(new UnreleasedDependency(
+                    stringMember(dependency, "registry"),
+                    stringMember(dependency, "namespace"),
+                    stringMember(dependency, "catalogKey"),
+                    stringMember(dependency, "draftId"),
+                    stringMember(dependency, "draftName")));
         }
         return dependencies;
     }

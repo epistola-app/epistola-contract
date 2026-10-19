@@ -193,6 +193,12 @@ try {
         e.getMissingDependencies().forEach(dep -> log.warn("{}/{}/{}@{}: {}",
                 dep.getRegistry(), dep.getNamespace(), dep.getCatalogKey(),
                 dep.getReleaseVersion(), dep.getReason()));
+    } else if (KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED.equals(slug)) {
+        // from releaseCatalogDraft: drafts of other catalogs the draft uses, which a release
+        // cannot pin; release them first, or along with it (releaseDependencies)
+        e.getUnreleasedDependencies().forEach(dep -> log.warn("{}/{}/{}: draft {} ({})",
+                dep.getRegistry(), dep.getNamespace(), dep.getCatalogKey(),
+                dep.getDraftId(), dep.getDraftName()));
     } else {                                // always keep a fallback: the API can add problem
         log.error("{} {}", e.getProblemStatus(), e.getTitle());   // types without a client release
     }
@@ -223,13 +229,13 @@ header from it and the body with `readEntity`, and close it when done. An error 
 String etag;
 VariantContentDto content;
 try (Response response = variantsApi.getVariantContentWithHttpInfo(
-        "acme-corp", "~", "acme-corp", "letters", "next", "invoice", "english")) {
+        "acme-corp", "~", "acme-corp", "letters", draftId, "invoice", "english")) {
     etag = response.getHeaderString("ETag");            // e.g. "7", quotes included
     content = response.readEntity(VariantContentDto.class);
 }
 
 try {
-    variantsApi.updateVariantContent("acme-corp", "~", "acme-corp", "letters", "next", "invoice", "english",
+    variantsApi.updateVariantContent("acme-corp", "~", "acme-corp", "letters", draftId, "invoice", "english",
             new UpdateVariantContentRequest().templateModel(edited(content)), etag);
 } catch (ProblemDetailException e) {
     if (KnownProblemSlugs.RESOURCE_MODIFIED.equals(e.getTypeSlug())) {
@@ -246,7 +252,7 @@ the last write wins.
 `uploadImage` and `importCatalog` send `multipart/form-data`. Pass a `File` and the part gets its
 filename, and the media type that filename implies. An image belongs to a catalog version, so the
 upload names the tenant, the catalog's registry (`~` for the server's default registry), namespace and
-key, and the draft it goes into (`next` for the next version, or long-term work by its id):
+key, and the draft it goes into, by its id:
 
 ```java
 @Inject
@@ -254,14 +260,14 @@ key, and the draft it goes into (`next` for the next version, or long-term work 
 ImagesApi imagesApi;
 
 ImageDto image = imagesApi.uploadImage(
-        "acme-corp", "~", "acme-corp", "main", "next", new File("logo.png"), "Logo", null, null);
+        "acme-corp", "~", "acme-corp", "main", draftId, new File("logo.png"), "Logo", null, null);
 ```
 
 For content that is not a file on disk, or a media type the filename does not imply, build the parts
 and call the overload that takes them:
 
 ```java
-ImageDto image = imagesApi.uploadImage("acme-corp", "~", "acme-corp", "main", "next", MultipartForm.create()
+ImageDto image = imagesApi.uploadImage("acme-corp", "~", "acme-corp", "main", draftId, MultipartForm.create()
         .file("file", "logo.png", "image/png", bytes)
         .field("name", "Logo")
         .build());

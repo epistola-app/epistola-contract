@@ -7,9 +7,11 @@ package app.epistola.api.error
 import app.epistola.api.model.DataModelValidationError
 import app.epistola.api.model.MissingReleaseDependency
 import app.epistola.api.model.MissingReleaseDependencyReason
+import app.epistola.api.model.UnreleasedCatalogDependency
 import app.epistola.api.model.ValidationError
 import org.springframework.http.HttpStatus
 import java.net.URI
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -76,5 +78,22 @@ class ProblemDetailsTest {
         assertEquals(URI.create("https://epistola.app/errors/release-dependencies-missing"), problem.type)
         assertEquals(409, problem.status)
         assertEquals(missing, problem.properties?.get("missingDependencies"))
+    }
+
+    @Test
+    fun `releaseDependenciesUnreleased lists each unreleased draft as a 409`() {
+        val unreleased = listOf(
+            UnreleasedCatalogDependency(
+                registry = "exchange.epistola.app",
+                namespace = "acme-corp",
+                catalogKey = "branding",
+                draftId = UUID.fromString("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"),
+                draftName = "House style 2027",
+            ),
+        )
+        val problem = ProblemDetails.releaseDependenciesUnreleased(unreleased, detail = "letters uses drafts of other catalogs")
+        assertEquals(URI.create("https://epistola.app/errors/release-dependencies-unreleased"), problem.type)
+        assertEquals(409, problem.status)
+        assertEquals(unreleased, problem.properties?.get("unreleasedDependencies"))
     }
 }

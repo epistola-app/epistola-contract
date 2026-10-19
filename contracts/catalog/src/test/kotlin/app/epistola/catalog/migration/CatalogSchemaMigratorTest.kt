@@ -370,6 +370,51 @@ class CatalogSchemaMigratorTest {
     }
 
     @Test
+    fun `a v8 manifest numbers its release and every pinned release MAJOR_MINOR_PATCH`() {
+        fun findings(edit: (ObjectNode) -> Unit): List<Pair<String, String>> {
+            val tree = resource("wire-v8/catalog.json").use(mapper::readTree) as ObjectNode
+            edit(tree)
+            return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(mapper.writeValueAsBytes(tree)), OPTIONS)
+                .findings.map { it.code to it.path }
+        }
+        val release = listOf(CatalogMigrationCodes.RELEASE_VERSION_INVALID to "catalog.json.release.version")
+        val pinned = listOf(CatalogMigrationCodes.DEPENDENCY_CATALOG_VERSION_INVALID to "catalog.json.catalogDependencies[0].releaseVersion")
+        fun dependency(tree: ObjectNode) = tree["catalogDependencies"][0] as ObjectNode
+
+        assertEquals(emptyList(), findings { (it["release"] as ObjectNode).put("version", "10.20.30") })
+        listOf("1.0.0-beta.1", "1.0.0+5", "1.01.0", "v1.0.0", "1.0", "1.0.${"1".repeat(47)}").forEach { version ->
+            assertEquals(release, findings { (it["release"] as ObjectNode).put("version", version) }, version)
+        }
+        listOf("1.4.0-rc.1", "^1.4.0", "1.4").forEach { version ->
+            assertEquals(pinned, findings { dependency(it).put("releaseVersion", version) }, version)
+        }
+        assertEquals(pinned, findings { dependency(it).put("releaseVersion", 1) })
+    }
+
+    @Test
+    fun `a pre-release or build version from before wire v8 is a migration finding, never stripped`() {
+        fun findings(fixture: String, version: String): List<CatalogMigrationFinding> {
+            val tree = resource(fixture).use(mapper::readTree) as ObjectNode
+            (tree["release"] as ObjectNode).put("version", version)
+            val result = CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(mapper.writeValueAsBytes(tree)), OPTIONS_ACME)
+            assertNull(result.value)
+            return result.findings
+        }
+
+        listOf("migrations/v7-to-v8/manifest-input.json", "wire-v6/catalog.json").forEach { fixture ->
+            listOf("1.0.0-beta.1", "1.0.0+build.5").forEach { version ->
+                val found = findings(fixture, version)
+                assertEquals(listOf(CatalogMigrationCodes.RELEASE_VERSION_INVALID to "catalog.json.release.version"), found.map { it.code to it.path }, "$fixture $version")
+                assertTrue(version in found.single().message, found.single().message)
+            }
+        }
+        val input = resource("migrations/v7-to-v8/manifest-input.json").use(mapper::readTree) as ObjectNode
+        (input["release"] as ObjectNode).put("version", "2.0.0-rc.1")
+        CatalogV7ToV8Migration().migrateManifest(input, OPTIONS_ACME)
+        assertEquals("2.0.0-rc.1", input["release"]["version"].asString())
+    }
+
+    @Test
     fun `v7 golden stencil loses its version and every stencil reference version with notices`() {
         val manifest = assertNotNull(CatalogSchemaMigrator.migrateManifest(resource("migrations/v7-to-v8/manifest-input.json"), OPTIONS_ACME).value)
         val path = "resources/stencil/letter.json"

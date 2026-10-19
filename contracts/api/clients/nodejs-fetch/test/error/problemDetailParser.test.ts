@@ -106,6 +106,42 @@ test('malformed missingDependencies entries are dropped and an unknown reason is
   assert.deepEqual(notAnArray.missingDependencies, [])
 })
 
+test('parses a release-dependencies-unreleased problem with its unreleasedDependencies list', () => {
+  const problem = parse({
+    type: 'https://epistola.app/errors/release-dependencies-unreleased',
+    title: 'Release dependencies unreleased',
+    status: 409,
+    unreleasedDependencies: [
+      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'branding', draftId: '0193a6b2-8a10-7d2e-8b3c-4d5e6f708192', draftName: 'House style 2027' },
+      { registry: 'registry.gemeente-x.nl', namespace: 'huisstijl', catalogKey: 'fonts', draftId: '0193a6b2-9c21-7e3f-8c4d-5e6f708192a3', draftName: 'New typefaces, round 2' },
+    ],
+  }, 409)!
+  assert.equal(problem.typeSlug, KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED)
+  assert.ok(problem.isReleaseDependenciesUnreleasedProblem)
+  assert.equal(problem.isReleaseDependenciesMissingProblem, false)
+  assert.deepEqual(problem.unreleasedDependencies.map((d) => `${d.catalogKey}#${d.draftId}=${d.draftName}`), [
+    'branding#0193a6b2-8a10-7d2e-8b3c-4d5e6f708192=House style 2027',
+    'fonts#0193a6b2-9c21-7e3f-8c4d-5e6f708192a3=New typefaces, round 2',
+  ])
+})
+
+test('malformed unreleasedDependencies entries are dropped, and other problems report none', () => {
+  const problem = parse({
+    type: 'https://epistola.app/errors/release-dependencies-unreleased',
+    title: 'Conflict',
+    status: 409,
+    unreleasedDependencies: [
+      'not-an-object',
+      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'branding', draftId: '0193a6b2-8a10-7d2e-8b3c-4d5e6f708192' },
+      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'fonts', draftId: '0193a6b2-9c21-7e3f-8c4d-5e6f708192a3', draftName: 'Typefaces' },
+    ],
+  }, 409)!
+  assert.deepEqual(problem.unreleasedDependencies.map((d) => d.catalogKey), ['fonts'])
+  const other = parse({ type: 'https://epistola.app/errors/conflict', title: 'Conflict', status: 409 }, 409)!
+  assert.deepEqual(other.unreleasedDependencies, [])
+  assert.equal(other.isReleaseDependenciesUnreleasedProblem, false)
+})
+
 test('keeps extension members the contract does not name', () => {
   const problem = parse({ type: 'https://epistola.app/errors/catalog-schema-too-old', title: 'Too old', status: 409, version: 4, baselineVersion: 6 }, 409)!
   assert.equal(problem.typeSlug, 'catalog-schema-too-old')

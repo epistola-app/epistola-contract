@@ -128,8 +128,7 @@ public class ModelValidationTest
         Assert.Same(request, request.Validate());
     }
 
-    // A release number is a plain MAJOR.MINOR.PATCH (ADR 0002, amendment 2): long-term work is not
-    // released, so there are no pre-release numbers.
+    // A release number is a plain MAJOR.MINOR.PATCH (ADR 0002): there are no pre-release numbers.
     [Fact]
     public void ReleaseNumberAcceptsAPlainSemVerNumber()
     {
@@ -152,6 +151,14 @@ public class ModelValidationTest
         Assert.Throws<ArgumentException>(() => new CreateCatalogDraftRequest(name: "Follow-up", from: version).Validate());
     }
 
+    // A draft starts from a release number or from another draft's id; `next` is not an alias.
+    [Fact]
+    public void CreateCatalogDraftRequestStartsFromADraftId()
+    {
+        var draft = new CreateCatalogDraftRequest(name: "Redesign 2027", from: "0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b");
+        Assert.Same(draft, draft.Validate());
+    }
+
     [Fact]
     public void DependencyDeclarationPinsAnExactRelease()
     {
@@ -164,21 +171,20 @@ public class ModelValidationTest
         }
     }
 
+    // In a draft a dependency declaration may name another catalog's draft instead of a release.
     [Fact]
-    public void PromoteRequestNamesThePreviousNextVersionWithinBounds()
+    public void DependencyDeclarationMayNameADraft()
     {
-        new PromoteCatalogDraftRequest().Validate();
-        new PromoteCatalogDraftRequest(keepPreviousAs: "Before the redesign", acknowledgedBehind: new List<string> { "1.5.0" }).Validate();
-        Assert.Throws<ArgumentException>(() => new PromoteCatalogDraftRequest(keepPreviousAs: "").Validate());
-        Assert.Throws<ArgumentException>(() => new PromoteCatalogDraftRequest(keepPreviousAs: new string('x', 101)).Validate());
+        var onDraft = new CatalogDependencyRequirement(varNamespace: "acme-corp", catalogKey: "branding",
+            draftId: Guid.Parse("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"));
+        Assert.Same(onDraft, onDraft.Validate());
     }
 
-    // An environment override names an exact release or a draft (ADR 0002, amendment 2).
+    // An environment override names an exact release or a draft (ADR 0002).
     [Fact]
     public void SetEnvironmentOverrideRequestTakesAnExactReleaseOrADraft()
     {
         new SetEnvironmentOverrideRequest(releaseVersion: "1.3.0").Validate();
-        new SetEnvironmentOverrideRequest(catalogVersion: "next").Validate();
         new SetEnvironmentOverrideRequest(catalogVersion: "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192").Validate();
     }
 
@@ -195,7 +201,7 @@ public class ModelValidationTest
 
     [Theory]
     [InlineData("1.3.0")]
-    [InlineData("Next")]
+    [InlineData("next")]
     [InlineData("draft-1")]
     public void SetEnvironmentOverrideRequestRejectsAnyOtherDraft(string draft)
     {

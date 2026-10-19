@@ -9,6 +9,7 @@ import type {
   MissingReleaseDependency,
   MissingReleaseDependencyReason,
   ProblemDetail,
+  UnreleasedCatalogDependency,
   ValidationError,
 } from '../generated/api/models/index.js'
 import { ResponseError } from '../generated/api/runtime.js'
@@ -28,7 +29,9 @@ import { BLANK_TYPE, slugFor } from './problemTypes.js'
  * Field-level validation errors (the `ValidationProblemDetail` shape) are surfaced via
  * {@link errors}; per-example data-model validation failures (the `DataModelValidationProblemDetail`
  * shape, `data-model-validation-error`) via {@link validationErrors}; the releases a deployment lacks
- * (`release-dependencies-missing`) via {@link missingDependencies}. Any *other* member a problem
+ * (`release-dependencies-missing`) via {@link missingDependencies}; the drafts of other catalogs a
+ * release would need released first (`release-dependencies-unreleased`) via
+ * {@link unreleasedDependencies}. Any *other* member a problem
  * body carries — one the contract does not name, such as `catalog-schema-too-old`'s `version` /
  * `baselineVersion` — is in {@link extensions}.
  */
@@ -147,6 +150,23 @@ export class ProblemDetailException extends ResponseError {
   get isReleaseDependenciesMissingProblem(): boolean {
     return this.missingDependencies.length > 0
   }
+
+  /**
+   * The drafts of other catalogs a `release-dependencies-unreleased` problem (409, from
+   * `releaseCatalogDraft`) reports the released draft's dependency declarations name, directly or
+   * through another such draft, in the order the server listed them; empty for any other problem.
+   *
+   * Release them first, or along with the draft (`releaseDependencies`). An entry that does not
+   * carry all five members as strings is dropped rather than guessed at.
+   */
+  get unreleasedDependencies(): readonly UnreleasedDependency[] {
+    return objectsAt(this.extensions, ProblemExtensionMembers.UNRELEASED_DEPENDENCIES).filter(isUnreleasedDependency)
+  }
+
+  /** True when this problem listed dependency drafts a release would need released first. */
+  get isReleaseDependenciesUnreleasedProblem(): boolean {
+    return this.unreleasedDependencies.length > 0
+  }
 }
 
 /**
@@ -164,6 +184,19 @@ const MISSING_DEPENDENCY_MEMBERS = ['registry', 'namespace', 'catalogKey', 'rele
 function isMissingDependency(entry: object): entry is MissingDependency {
   const record = entry as Record<string, unknown>
   return MISSING_DEPENDENCY_MEMBERS.every((member) => typeof record[member] === 'string')
+}
+
+/**
+ * One draft a `release-dependencies-unreleased` problem reports, as listed in its
+ * `unreleasedDependencies` member: the generated `UnreleasedCatalogDependency`.
+ */
+export type UnreleasedDependency = Readonly<UnreleasedCatalogDependency>
+
+const UNRELEASED_DEPENDENCY_MEMBERS = ['registry', 'namespace', 'catalogKey', 'draftId', 'draftName'] as const
+
+function isUnreleasedDependency(entry: object): entry is UnreleasedDependency {
+  const record = entry as Record<string, unknown>
+  return UNRELEASED_DEPENDENCY_MEMBERS.every((member) => typeof record[member] === 'string')
 }
 
 /**

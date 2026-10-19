@@ -107,7 +107,7 @@ carries a name and a type:
 import { readFile } from 'node:fs/promises'
 
 const file = new File([await readFile('logo.png')], 'logo.png', { type: 'image/png' })
-const image = await new ImagesApi(client).uploadImage({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', catalogVersion: 'next', file, name: 'Logo' })
+const image = await new ImagesApi(client).uploadImage({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', catalogVersion: '0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b', file, name: 'Logo' })
 ```
 
 A plain `Blob` is always sent with the filename `blob`, and as `application/octet-stream` unless it
@@ -145,6 +145,11 @@ try {
           log.warn(`${d.registry}/${d.namespace}/${d.catalogKey}@${d.releaseVersion}: ${d.reason}`)
         }
         break
+      case KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED:
+        for (const d of e.unreleasedDependencies) {                              // 409 from releaseCatalogDraft
+          log.warn(`${d.registry}/${d.namespace}/${d.catalogKey}: draft ${d.draftName} (${d.draftId})`)
+        }
+        break
       default:
         throw e                                                                  // unknown / framework error — fall back to e.statusCode
     }
@@ -157,9 +162,16 @@ try {
 `ProblemDetailException` extends the generated `ResponseError`, so existing `instanceof
 ResponseError` sites keep working. It exposes `type`, `typeSlug`, `title`, `problemStatus`,
 `detail`, `instance`, `errors`, `validationErrors`, `missingFields`, `invalidFields`,
-`missingDependencies`, `extensions` (every member outside the RFC 9457 base five), `statusCode`,
-`rawBody`, `isValidationProblem`, `isDataModelValidationProblem`, `isTemplateDataProblem`, and
-`isReleaseDependenciesMissingProblem`.
+`missingDependencies`, `unreleasedDependencies`, `extensions` (every member outside the RFC 9457
+base five), `statusCode`, `rawBody`, `isValidationProblem`, `isDataModelValidationProblem`,
+`isTemplateDataProblem`, `isReleaseDependenciesMissingProblem`, and
+`isReleaseDependenciesUnreleasedProblem`.
+
+A `release-dependencies-unreleased` problem (409) means `releaseCatalogDraft` was refused because
+the draft's dependency declarations name drafts of other catalogs, and a release pins only
+releases. `unreleasedDependencies` lists each such draft (`registry`, `namespace`, `catalogKey`,
+`draftId`, `draftName`); release them first, or send `releaseDependencies: true` to release them
+along with the draft.
 
 A `release-dependencies-missing` problem (409) means `deployRelease` was refused because releases
 of other catalogs the release pins cannot be had: the tenant does not have them and they could not

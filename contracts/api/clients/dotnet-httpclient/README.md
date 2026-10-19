@@ -134,6 +134,18 @@ catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.RELEASE_D
 }
 ```
 
+Releasing a draft whose dependency declarations name drafts of other catalogs, without
+`releaseDependencies`, is a `release-dependencies-unreleased` problem. `UnreleasedDependencies` lists
+each such draft:
+
+```csharp
+catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED)
+{
+    foreach (var d in e.UnreleasedDependencies)
+        Console.WriteLine($"{d.Registry}/{d.Namespace}/{d.CatalogKey}: draft {d.DraftName} ({d.DraftId})");
+}
+```
+
 `ProblemDetailException` extends the generated `ApiException`, so existing `catch (ApiException)`
 sites keep working. Non-problem errors fall through to the generated `ApiException`.
 
@@ -169,49 +181,50 @@ the backoff when a result is expected soon. Partition helpers: `PartitionFor`, `
 
 ## Catalog versions
 
-A catalog consists of versions, each a `draft` or `released`. A draft has no number until it is
-released: the catalog's next version, where everyday work goes, is addressed as `next`, and
-long-term work by its `DraftId`; a release by its SemVer number. Every
-catalog-content operation (templates, variants, stencils, themes, images, dependencies, …) takes the
-version after the catalog key; template data validation (`ValidateTemplateData`) does not. The
-versions themselves are managed through `CatalogsApi`:
+A catalog consists of versions, each a `draft` or `released`. A catalog has any number of drafts,
+each named, on a fixed base (the release it started from), and each released on its own. A draft
+has no number until it is released and is addressed by its `DraftId`; a release by its SemVer
+number. Every catalog-content operation (templates, variants, stencils, themes, images,
+dependencies, …) takes the version after the catalog key; template data validation
+(`ValidateTemplateData`) does not. The versions themselves are managed through `CatalogsApi`:
 
 ```csharp
 var catalogs = new CatalogsApi(http, "https://epistola.example.com/api");
 
-// Start long-term work, named, as a copy of the next version or (with `from`) of a release.
-var work = catalogs.CreateCatalogDraft("my-tenant", "~", "acme-corp", "default",
-    new CreateCatalogDraftRequest(name: "Redesign 2027"));
-Console.WriteLine($"{work.Name} is addressed as {work.DraftId}");
+// Start a draft, named, as a copy of a release (`from`, which becomes its base), of another draft
+// (`from` its id), or, without `from`, of the highest release. A fix to an older line is a draft
+// from a release of that line.
+var draft = catalogs.CreateCatalogDraft("my-tenant", "~", "acme-corp", "default",
+    new CreateCatalogDraftRequest(name: "Fixes 1.4", from: "1.4.0"));
+var id = draft.DraftId.ToString();
 
-// The number releasing the next version would give it, from its changes against the latest release.
-var preview = catalogs.PreviewCatalogDraftRelease("my-tenant", "~", "acme-corp", "default", "next");
-Console.WriteLine($"{preview.Suggested}: {string.Join("; ", preview.Reasons)}");
+// The number releasing it would give it, from its changes against its base: `Needed`, or the next
+// free number of the same kind when another release already has it (`Suggested`).
+var preview = catalogs.PreviewCatalogDraftRelease("my-tenant", "~", "acme-corp", "default", id);
+Console.WriteLine($"{preview.Suggested} (needs {preview.Needed}): {string.Join("; ", preview.Reasons)}");
 
 // A draft is an independent copy: releases it does not contain are listed in `Behind`, and
 // releasing it must acknowledge each of them. Leave `varVersion` out to release it as suggested.
-var next = catalogs.GetCatalogVersion("my-tenant", "~", "acme-corp", "default", "next");
-var released = catalogs.ReleaseCatalogDraft("my-tenant", "~", "acme-corp", "default", "next",
+// `releaseDependencies` releases the drafts of other catalogs its dependency declarations name
+// along with it, in one transaction.
+var current = catalogs.GetCatalogVersion("my-tenant", "~", "acme-corp", "default", id);
+var released = catalogs.ReleaseCatalogDraft("my-tenant", "~", "acme-corp", "default", id,
     new ReleaseCatalogDraftRequest(
         notes: "Spring update",
-        acknowledgedBehind: next.Behind.Select(b => b.VarVersion).ToList()));
+        acknowledgedBehind: current.Behind.Select(b => b.VarVersion).ToList(),
+        releaseDependencies: true));
 
-// Releasing never changes long-term work; the answer names the work that is now behind it.
+// Releasing never changes other drafts; the answer names those now behind it, and the releases
+// made along with it.
 foreach (var behind in released.DraftsBehind)
     Console.WriteLine($"{behind} does not contain {released.CatalogVersion.VarVersion}");
-
-// Long-term work is not released. When it is ready, it becomes the next version; `keepPreviousAs`
-// keeps the old next version as long-term work, and `acknowledgedBehind` names the releases it
-// leaves out.
-var promoted = catalogs.PromoteCatalogDraft("my-tenant", "~", "acme-corp", "default", work.DraftId.ToString(),
-    new PromoteCatalogDraftRequest(
-        keepPreviousAs: "Before the redesign",
-        acknowledgedBehind: work.Behind.Select(b => b.VarVersion).ToList()));
+foreach (var dependency in released.ReleasedDependencies)
+    Console.WriteLine($"also released {dependency.CatalogKey} {dependency.ReleaseVersion}");
 ```
 
 The generator names a `version` member `VarVersion` (constructor argument `varVersion`), and
 `base` `Base` (`varBase`), because both collide with C# names. A draft's `VarVersion` is null, and
-a preview's `ChangeKind` is null when there is no release to compare with.
+a preview's `ChangeKind` is null when the draft has no base to compare with.
 
 ## Uploading files
 
