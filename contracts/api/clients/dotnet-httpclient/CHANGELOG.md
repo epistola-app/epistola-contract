@@ -60,8 +60,8 @@ records contract changes; this file records changes to the hand-written library 
   `test/Epistola.Client.Tests/Validation/Schema/Local/`, takes the catalog version whose template
   schema it holds data to, because a template is now read from a catalog version. The shipped
   validators are unchanged: `validateTemplateData` is not addressed by version.
-- **BREAKING:** `ServerTemplateDataValidator`'s `releaseVersion` parameter is now `version`, a
-  version selector sent as the request's `version`; it may be combined with `environmentId`.
+- **BREAKING:** `ServerTemplateDataValidator`'s `releaseVersion` parameter is now `versionRange`,
+  a version range sent as the request's `versionRange`; it may be combined with `environmentKey`.
 - The result collector's `GenerationResult` gained `Namespace` and `CatalogKey` (null for results
   from before contract 2.0), next to `ReleaseVersion`. `GenerationResult` is a positional record, so
   code constructing it positionally must add the two arguments.

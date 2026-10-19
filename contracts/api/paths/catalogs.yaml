@@ -609,10 +609,10 @@ catalog-version-release:
 
       **The number** follows from the kind of change against the draft's base: corrections raise
       the patch, additions the minor, breaking changes the major (`previewCatalogDraftRelease`).
-      Omitted `version`: that number, or the next free one of the same kind when another release
-      already has it (`suggested`). A given `version` must be one no release of the catalog has,
-      above the base and no lower than the changes need (`needed`), or the request is refused with
-      400. From `1.4.0`, while `1.5.0` and `2.0.0` exist, a fix becomes `1.4.1`, and a breaking
+      Omitted `releaseVersion`: that number, or the next free one of the same kind when another
+      release already has it (`suggested`). A given `releaseVersion` must be one no release of the
+      catalog has, above the base and no lower than the changes need (`needed`), or the request is
+      refused with 400. From `1.4.0`, while `1.5.0` and `2.0.0` exist, a fix becomes `1.4.1`, and a breaking
       redesign `3.0.0`.
 
       A release contains the whole draft: it is refused while any resource is `new` or `modified`.

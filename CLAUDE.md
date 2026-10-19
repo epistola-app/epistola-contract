@@ -161,6 +161,9 @@ All endpoints use versioned media type: `application/vnd.epistola.v2+json`
 - **Keys, not IDs**: a `key` is a resource's public address within its parent; an `id` is a
   generated identifier (`documentId`, `requestId`, …). A catalog version's `versionId` is the
   exception: server-assigned, yet it addresses the version, like its number once released
+- **Version, release, range**: a catalog *version* is the object (draft or release, by `versionId`);
+  a release's number is always `releaseVersion`, a range always `versionRange`; no API member is
+  called plain `version`
 - **Catalog resource keys** (template, variant, stencil, theme, attribute, code list, font, image,
   data example): `^[a-z0-9]+(-[a-z0-9]+)*$`, 3–50 characters, a leading digit allowed, the same in
   the API and in catalog wire v8
@@ -181,10 +184,10 @@ The Epistola API manages:
 3. **Themes** - Reusable style collections
 4. **Environments** - Deployment contexts (staging, production); each serves catalog versions it deploys:
    releases, possibly several per catalog, and at most one draft per catalog, rendered live (never in
-   an environment marked `production`). A request naming no version gets the deployed draft, else the
+   an environment marked `production`). A request naming no `versionRange` gets the deployed draft, else the
    highest release; a range or number matches releases only. Rollback is undeploying the newer release
 5. **Variants** - Language/brand variations of templates, edited in a draft catalog version
-6. **Catalog versions** - A draft (editable, no number) or released (immutable, numbered). Every
+6. **Catalog versions** - A draft (editable, no number) or released (immutable, numbered `releaseVersion`). Every
    version has a `versionId`, kept when it is released; a released version is addressed by either.
    An authored catalog has any number of drafts, all alike: each named, started from a release (its fixed **base**) or another draft, and released on its
    own, numbered from what it changed against its base (a fix to an older line is `1.4.1` after
@@ -212,7 +215,7 @@ Tenant
 │       └── Template (with data contract) → Variant, Stencil, Theme, …
 │           each new / modified / ready / released against the version's base
 └── Environment ─ deploys ─▶ Versions of each Catalog: releases (the highest that matches) and at
-                                most one draft (rendered when a request names no version; not in production)
+                                most one draft (rendered when a request names no `versionRange`; not in production)
 ```
 
 ## Build System

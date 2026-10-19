@@ -21,7 +21,7 @@ VERSION_ID = "r4t8w2nc"
 
 @pytest.mark.parametrize("version", ["0.1.0", "1.4.0", "10.20.30"])
 def test_a_release_number_is_accepted(version):
-    assert ReleaseCatalogDraftRequest(version=version).version == version
+    assert ReleaseCatalogDraftRequest(releaseVersion=version).release_version == version
     assert CreateCatalogDraftRequest(name="Follow-up", **{"from": version}).var_from == version
 
 
@@ -32,8 +32,8 @@ def test_a_draft_starts_from_another_draft_by_its_id():
 
 @pytest.mark.parametrize("version", ["1.4", "v1.4.0", "1.4.0+build", "2.0.0-beta.1", "2.0.0-redesign-2027.1", "Next"])
 def test_anything_else_is_refused(version):
-    with pytest.raises(ValueError, match="version"):
-        ReleaseCatalogDraftRequest(version=version)
+    with pytest.raises(ValueError, match="releaseVersion"):
+        ReleaseCatalogDraftRequest(releaseVersion=version)
     with pytest.raises(ValueError):
         CreateCatalogDraftRequest(name="Follow-up", **{"from": version})
 

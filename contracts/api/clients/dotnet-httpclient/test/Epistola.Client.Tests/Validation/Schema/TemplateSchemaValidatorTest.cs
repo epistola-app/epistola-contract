@@ -134,15 +134,15 @@ public class TemplateSchemaValidatorTest
     }
 
     [Fact]
-    public void TheVersionSelectorsArePassedThroughWhenConfigured()
+    public void TheVersionRangeIsPassedThroughWhenConfigured()
     {
         var api = ApiAnswering(Result(valid: true));
 
-        new TemplateSchemaValidator(new ServerTemplateDataValidator(api, variantKey: "nl-nl", version: "^1.4.0", environmentKey: "production"))
+        new TemplateSchemaValidator(new ServerTemplateDataValidator(api, variantKey: "nl-nl", versionRange: "^1.4.0", environmentKey: "production"))
             .Validate("acme", "~", "acme-corp", "default", "person", new Dictionary<string, object>());
 
         api.Received(1).ValidateTemplateData("acme", "~", "acme-corp", "default", "person",
-            Arg.Is<ValidateTemplateDataRequest>(r => r.VariantKey == "nl-nl" && r.VarVersion == "^1.4.0" && r.EnvironmentKey == "production"));
+            Arg.Is<ValidateTemplateDataRequest>(r => r.VariantKey == "nl-nl" && r.VersionRange == "^1.4.0" && r.EnvironmentKey == "production"));
     }
 
     [Fact]

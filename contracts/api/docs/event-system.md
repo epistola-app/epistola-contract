@@ -240,7 +240,7 @@ EventEnvelope:
   },
   "data": {
     "catalogVersion": {
-      "version": "1.4.0",
+      "releaseVersion": "1.4.0",
       "status": "released",
       "base": "1.3.2",
       "releasedAt": "2026-10-12T14:30:00Z",

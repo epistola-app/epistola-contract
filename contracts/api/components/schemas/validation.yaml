@@ -4,9 +4,9 @@ ValidateTemplateDataRequest:
     Request body for validating template input data against the template's JSON Schema.
 
     The data is checked against the contract of the release that preview and generation would
-    render for the same selection: the highest release that satisfies `version`, among the releases
-    `environmentKey` serves when it is set, and without either the catalog's highest release. Absent
-    optional fields that release's template reads are reported too.
+    render for the same selection: the highest release that satisfies `versionRange`, among the
+    releases `environmentKey` serves when it is set, and without either the catalog's highest
+    release. Absent optional fields that release's template reads are reported too.
   required:
     - data
   properties:
@@ -17,13 +17,13 @@ ValidateTemplateDataRequest:
       maxLength: 50
       description: Key of the variant to check against. If omitted, the default variant of the template in the resolved release is used.
       example: null
-    version:
+    versionRange:
       type: [string, "null"]
       minLength: 1
       maxLength: 100
       description: |
-        Version selector for the release of the template's catalog to check against (see "Version
-        selectors" in the API description). Combines with `environmentKey`.
+        Version range for the release of the template's catalog to check against (see "Version
+        ranges" in the API description). Combines with `environmentKey`.
       example: null
     environmentKey:
       type: [string, "null"]

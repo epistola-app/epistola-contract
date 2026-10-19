@@ -228,7 +228,7 @@ A dependency states: "Consumer X depends on template Y of catalog C." A catalog 
 registry, namespace and key, never its key alone, so the template's key alone does not identify it.
 
 A dependency names the template, not a catalog version: templates are versioned with their catalog,
-and a consumer renders whichever release its requests select (by `version` and `environmentKey`).
+and a consumer renders whichever release its requests select (by `versionRange` and `environmentKey`).
 
 ### 4.2 Structure
 
@@ -282,12 +282,12 @@ TemplateDependencyDto:
         Environments the consumer generates through (its requests'
         environmentKey). Empty array means all environments.
       example: ["production"]
-    version:
+    versionRange:
       type: [string, "null"]
       description: >
-        The version selector the consumer's requests name, if any
-        (see "Version selectors" in the API description). A release
-        that the selector does not match does not affect the consumer.
+        The version range the consumer's requests name, if any
+        (see "Version ranges" in the API description). A release
+        that the range does not match does not affect the consumer.
       example: "^1.4.0"
     purpose:
       type: [string, "null"]
@@ -533,7 +533,7 @@ Content-Type: application/vnd.epistola.v2+json
 {
   "variantKeys": ["english", "dutch"],
   "environmentKeys": ["production"],
-  "version": "^1.4.0",
+  "versionRange": "^1.4.0",
   "purpose": "Generates monthly PDF invoices for B2B customers"
 }
 
@@ -548,7 +548,7 @@ Content-Type: application/vnd.epistola.v2+json
   "templateKey": "invoice",
   "variantKeys": ["english", "dutch"],
   "environmentKeys": ["production"],
-  "version": "^1.4.0",
+  "versionRange": "^1.4.0",
   "purpose": "Generates monthly PDF invoices for B2B customers",
   "createdAt": "2026-10-17T10:30:00Z",
   "updatedAt": null
@@ -574,10 +574,10 @@ DeclareTemplateDependencyRequest:
         type: string
       description: Environments the consumer generates through (empty = all)
       example: ["production"]
-    version:
+    versionRange:
       type: [string, "null"]
       maxLength: 100
-      description: The version selector the consumer's requests name, if any
+      description: The version range the consumer's requests name, if any
       example: "^1.4.0"
     purpose:
       type: string
@@ -608,7 +608,7 @@ Content-Type: application/vnd.epistola.v2+json
       "templateKey": "invoice",
       "variantKeys": ["english", "dutch"],
       "environmentKeys": ["production"],
-      "version": "^1.4.0",
+      "versionRange": "^1.4.0",
       "purpose": "Generates monthly PDF invoices for B2B customers",
       "createdAt": "2026-10-17T10:30:00Z",
       "updatedAt": null
@@ -621,7 +621,7 @@ Content-Type: application/vnd.epistola.v2+json
       "templateKey": "credit-note",
       "variantKeys": [],
       "environmentKeys": ["production"],
-      "version": null,
+      "versionRange": null,
       "purpose": "Generates credit notes when invoices are reversed",
       "createdAt": "2026-10-17T10:35:00Z",
       "updatedAt": null
@@ -684,7 +684,7 @@ Content-Type: application/vnd.epistola.v2+json
       "templateKey": "invoice",
       "variantKeys": ["english", "dutch"],
       "environmentKeys": ["production"],
-      "version": "^1.4.0",
+      "versionRange": "^1.4.0",
       "purpose": "Generates monthly PDF invoices for B2B customers",
       "createdAt": "2026-10-17T10:30:00Z",
       "updatedAt": null
@@ -697,7 +697,7 @@ Content-Type: application/vnd.epistola.v2+json
       "templateKey": "invoice",
       "variantKeys": [],
       "environmentKeys": [],
-      "version": null,
+      "versionRange": null,
       "purpose": "Generates monthly summary reports including invoice copies",
       "createdAt": "2026-10-18T09:00:00Z",
       "updatedAt": null
@@ -738,8 +738,8 @@ So the warnings belong on the operations that change what consumers render:
 
 | Operation | Conflict condition |
 |---|---|
-| `releaseCatalogDraft` | The release removes a template or a variant an active consumer depends on (`ResourceChangeDto.change: removed`), and the consumer's `version` selector, if any, matches the new release |
-| `undeployCatalogVersion`, and `deployCatalogVersion` with `replace=true` | An active consumer depends on a template of the catalog through this environment (`environmentKeys` empty or containing it), and the environment would no longer serve a version that matches the consumer's `version` |
+| `releaseCatalogDraft` | The release removes a template or a variant an active consumer depends on (`ResourceChangeDto.change: removed`), and the consumer's `versionRange`, if any, matches the new release |
+| `undeployCatalogVersion`, and `deployCatalogVersion` with `replace=true` | An active consumer depends on a template of the catalog through this environment (`environmentKeys` empty or containing it), and the environment would no longer serve a version that matches the consumer's `versionRange` |
 
 The response is **409 Conflict** instead of proceeding, as an RFC 9457 problem. The problem type
 `has-dependents` and its `dependents` member are **proposed**: neither is in `x-problem-types`.
@@ -1093,7 +1093,7 @@ automatically.
 | Aspect | Explicit Declaration | Auto-Detection |
 |---|---|---|
 | **Accuracy** | Declared by the consumer — may be incomplete or stale | Based on actual usage — always up to date |
-| **Intent** | Captures purpose and scope (variants, environments, version selector) | Only captures observed usage patterns |
+| **Intent** | Captures purpose and scope (variants, environments, version range) | Only captures observed usage patterns |
 | **Forward-looking** | Can declare dependencies before first use | Only reflects past behavior |
 | **Server complexity** | Low — simple CRUD | High — requires tracking every API call per consumer |
 | **Privacy** | Consumer controls what it declares | Server tracks all activity |

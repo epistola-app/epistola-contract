@@ -150,7 +150,7 @@ class TemplateSchemaValidatorTest {
     }
 
     @Test
-    void the_version_selectors_are_passed_through_when_configured() {
+    void the_version_range_is_passed_through_when_configured() {
         TemplatesApi api = answering(valid());
 
         new TemplateSchemaValidator(new ServerTemplateDataValidator(api, "nl-nl", "^1.4.0", "production"))
@@ -158,7 +158,7 @@ class TemplateSchemaValidatorTest {
 
         assertEquals(List.of("acme-corp", "exchange.example.org", "team-a", "letters", "invoice"), paths.get(0));
         assertEquals("nl-nl", sent.get(0).getVariantKey());
-        assertEquals("^1.4.0", sent.get(0).getVersion());
+        assertEquals("^1.4.0", sent.get(0).getVersionRange());
         assertEquals("production", sent.get(0).getEnvironmentKey());
     }
 

@@ -188,17 +188,17 @@ test('an invalid result with nothing to report still throws', async () => {
   assert.equal(thrown.errors[0]?.path, '')
 })
 
-test('the version selectors are passed through when configured', async () => {
+test('the version range is passed through when configured', async () => {
   const api = new StubTemplatesApi({ valid: true })
 
   await new TemplateSchemaValidator(
-    new ServerTemplateDataValidator(api, { variantKey: 'nl-nl', version: '^1.4.0', environmentKey: 'production' }),
+    new ServerTemplateDataValidator(api, { variantKey: 'nl-nl', versionRange: '^1.4.0', environmentKey: 'production' }),
   ).validate('acme-corp', '~', 'acme-corp', 'default', 'invoice', {})
 
-  const sent = api.sent[0] as { variantKey?: string; version?: string; environmentKey?: string }
+  const sent = api.sent[0] as { variantKey?: string; versionRange?: string; environmentKey?: string }
   assert.equal(sent.variantKey, 'nl-nl')
-  // version and environmentKey narrow the release together; neither displaces the other.
-  assert.equal(sent.version, '^1.4.0')
+  // versionRange and environmentKey narrow the release together; neither displaces the other.
+  assert.equal(sent.versionRange, '^1.4.0')
   assert.equal(sent.environmentKey, 'production')
 })
 

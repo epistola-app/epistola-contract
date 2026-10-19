@@ -34,12 +34,12 @@ script:
       namespace: acme-corp
       catalogKey: letters
       available:
-        - version: 0.9.0
+        - releaseVersion: 0.9.0
           comparedTo: null
           changes:
             - { type: template, key: invoice, change: added }
           dependencies: []
-        - version: 1.4.1
+        - releaseVersion: 1.4.1
           comparedTo: 1.4.0
           changes:
             - { type: template, key: invoice, change: modified }
@@ -49,7 +49,7 @@ script:
               catalogKey: system
               releaseVersion: 3.2.0
               present: true
-        - version: 2.1.0
+        - releaseVersion: 2.1.0
           comparedTo: 2.0.0
           changes:
             - { type: theme, key: corporate, change: added }

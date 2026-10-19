@@ -225,7 +225,7 @@ async function generateDocument(baseUrl, config) {
   // Only what the scenario sets: an unset optional must stay off the wire, not go out as null. An
   // unset registry means the server's default, which only the server knows.
   if (config.registry !== undefined) request.registry = config.registry
-  if (config.version !== undefined) request.version = config.version
+  if (config.versionRange !== undefined) request.versionRange = config.versionRange
   if (config.environmentKey !== undefined) request.environmentKey = config.environmentKey
   await new GenerationApi(client(baseUrl, config)).generateDocument({
     tenantKey: config.tenantKey,
@@ -371,14 +371,14 @@ async function listAvailableCatalogReleases(baseUrl, config) {
     registry: show(releases.registry),
     namespace: show(releases.namespace),
     catalogKey: show(releases.catalogKey),
-    availableComparedTo: releases.available.map((r) => `${show(r.version)}=${show(r.comparedTo)}`).join(';'),
+    availableComparedTo: releases.available.map((r) => `${show(r.releaseVersion)}=${show(r.comparedTo)}`).join(';'),
     availableChanges: releases.available
-      .map((r) => `${show(r.version)}=${r.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join('+')}`)
+      .map((r) => `${show(r.releaseVersion)}=${r.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join('+')}`)
       .join(';'),
     availableDependencies: releases.available
       .map(
         (r) =>
-          `${show(r.version)}=${r.dependencies
+          `${show(r.releaseVersion)}=${r.dependencies
             .map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.releaseVersion)}:${show(d.present)}`)
             .join('+')}`,
       )
@@ -465,7 +465,7 @@ async function createCatalogDraft(baseUrl, config) {
     createCatalogDraftRequest: request,
   })
   await report(baseUrl, {
-    version: show(version.version),
+    releaseVersion: show(version.releaseVersion),
     versionId: show(version.versionId),
     name: show(version.name),
     status: show(version.status),
@@ -481,7 +481,7 @@ async function listCatalogVersions(baseUrl, config) {
   if (config.status !== undefined) request.status = config.status
   const { items } = await new CatalogsApi(client(baseUrl, config)).listCatalogVersions(request)
   await report(baseUrl, {
-    versions: items.map((v) => show(v.version)).join(','),
+    releaseVersions: items.map((v) => show(v.releaseVersion)).join(','),
     versionIds: items.map((v) => show(v.versionId)).join(','),
     names: items.map((v) => show(v.name)).join('|'),
     statuses: items.map((v) => show(v.status)).join(','),
@@ -501,7 +501,7 @@ async function getCatalogVersion(baseUrl, config) {
     catalogVersion: config.catalogVersion,
   })
   await report(baseUrl, {
-    version: show(version.version),
+    releaseVersion: show(version.releaseVersion),
     versionId: show(version.versionId),
     name: show(version.name),
     status: show(version.status),
@@ -510,7 +510,7 @@ async function getCatalogVersion(baseUrl, config) {
     dependencies: (version.dependencies ?? []).map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.releaseVersion)}`).join(','),
     deployedTo: (version.deployedTo ?? []).map(show).join(','),
     behind: version.behind
-      .map((r) => `${show(r.version)}=${r.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join('+')}`)
+      .map((r) => `${show(r.releaseVersion)}=${r.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join('+')}`)
       .join(';'),
   })
 }
@@ -526,7 +526,7 @@ async function renameCatalogDraft(baseUrl, config) {
     renameCatalogDraftRequest: { name: config.name },
   })
   await report(baseUrl, {
-    version: show(version.version),
+    releaseVersion: show(version.releaseVersion),
     versionId: show(version.versionId),
     name: show(version.name),
     status: show(version.status),
@@ -564,13 +564,13 @@ async function deleteCatalogDraft(baseUrl, config) {
 }
 
 /**
- * Releases a draft; `version`, `notes`, `acknowledgedBehind` and `releaseDependencies` go out only
+ * Releases a draft; `releaseVersion`, `notes`, `acknowledgedBehind` and `releaseDependencies` go out only
  * when the scenario sets them. A problem answer is reported by its slug, status and the dependency
  * drafts it lists.
  */
 async function releaseCatalogDraft(baseUrl, config) {
   const request = {}
-  if (config.version !== undefined) request.version = config.version
+  if (config.releaseVersion !== undefined) request.releaseVersion = config.releaseVersion
   if (config.notes !== undefined) request.notes = config.notes
   if (config.acknowledgedBehind !== undefined) request.acknowledgedBehind = config.acknowledgedBehind
   if (config.releaseDependencies !== undefined) request.releaseDependencies = config.releaseDependencies
@@ -596,7 +596,7 @@ async function releaseCatalogDraft(baseUrl, config) {
     return
   }
   await report(baseUrl, {
-    version: show(response.catalogVersion.version),
+    releaseVersion: show(response.catalogVersion.releaseVersion),
     status: show(response.catalogVersion.status),
     versionId: show(response.catalogVersion.versionId),
     draftsBehind: response.draftsBehind.map(show).join('|'),

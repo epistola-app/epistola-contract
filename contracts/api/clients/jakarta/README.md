@@ -90,7 +90,7 @@ public class InvoiceService {
                                                   // for a catalog in another registry)
                 .templateKey("monthly-invoice")
                 .variantKey("english")
-                .version("^1.4.0")                // optional: a version selector for the release
+                .versionRange("^1.4.0")           // optional: a version range for the release
                 .correlationId("order-7890")
                 .data(data);
 

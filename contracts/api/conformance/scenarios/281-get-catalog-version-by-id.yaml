@@ -8,7 +8,7 @@ why: >
   A version keeps its `versionId` when it is released, and the id keeps addressing it: a released
   version is addressed by its `versionId` or by its number, interchangeably (ADR 0002). A client
   must send the id as the `{catalogVersion}` path segment exactly as given, and read back a released
-  version whose `versionId` is that id and whose `version` is its number.
+  version whose `versionId` is that id and whose `releaseVersion` is its number.
 
   A `versionId` is opaque and never contains a dot, so it is never mistaken for a release number; a
   client that validated the segment as a SemVer number, or as a UUID, could not address it.
@@ -27,7 +27,7 @@ script:
   - status: 200
     contentType: application/vnd.epistola.v2+json
     body:
-      version: 1.4.0
+      releaseVersion: 1.4.0
       versionId: m3q8v5tk
       name: null
       status: released
@@ -48,7 +48,7 @@ expect:
     - method: GET
       path: /api/tenants/acme-corp/catalogs/exchange.example.org/team-a/letters/versions/m3q8v5tk
   report:
-    version: 1.4.0
+    releaseVersion: 1.4.0
     versionId: m3q8v5tk
     name: 'null'
     status: released

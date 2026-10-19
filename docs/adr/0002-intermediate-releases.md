@@ -92,7 +92,7 @@ Adopt **option C**.
   installed. A draft has no number yet, so it is identified by its `versionId` alone. A released
   version is identified by its `versionId` or by its SemVer number, `MAJOR.MINOR.PATCH`, unique in
   its catalog, interchangeably: both address the same version.
-- Only released versions are exported or published, and version selectors (`^1.4.0`) never match a
+- Only released versions are exported or published, and version ranges (`^1.4.0`) never match a
   draft. A draft is rendered only by preview and by an environment it is deployed to (see "Trying
   work: deploying a draft").
 
@@ -202,7 +202,7 @@ on another catalog's work that is not released yet:
 - A release pins **exact** releases of the catalogs it uses (ADR 0003), and renders with exactly
   those wherever it is installed. A dependency declaration names an exact release, not a range.
   Ranges in declarations (such as `^1.0.0`, any non-breaking 1.x) may come in a later 2.x, as an
-  addition. Version selectors remain only where a request picks a release to render or check:
+  addition. Version ranges (`versionRange`) remain only where a request picks a release to render or check:
   generation, preview and validation.
 - Moving to a newer release of a catalog it uses is decided while authoring, and **checked per use**,
   not by the version number. The newer release is compared with the pinned one resource by resource,
@@ -272,7 +272,7 @@ Deployments (ADR 0003, "Deploying"):
   version. Writes and ready marks work on drafts only, and are refused with `409` on a released
   version.
 - `CatalogDto.drafts` lists the open drafts (`CatalogDraftSummary`: `versionId`, name, base).
-  `CatalogVersionDto` carries `versionId` for every version and `version`, its number, once
+  `CatalogVersionDto` carries `versionId` for every version and `releaseVersion`, its number, once
   released.
 - `CatalogDependencyRequirement` and `CatalogDependencyDto` carry `releaseVersion` or, in a draft,
   `versionId`.
@@ -281,7 +281,7 @@ Deployments (ADR 0003, "Deploying"):
   where they mean one. A deployment names a version by `versionId` or number, with its `kind`
   (`release` or `draft`), and a null `releaseVersion` for a draft. A document rendered from a draft
   carries `versionId` and `draftLabel` with a null `releaseVersion`. `validateTemplateData` stays on the catalog, because
-  it selects a release by version selector and environment, as generation does.
+  it selects a release by version range and environment, as generation does.
 - Preview renders a draft named by its `versionId`.
 - `importCatalog` never touches a draft. It installs the release the archive carries, at its number,
   next to the catalog's other releases (ADR 0003): already present with the same fingerprint, nothing

@@ -42,12 +42,12 @@ CatalogDto:
       enum: [AUTHORED, SUBSCRIBED]
       description: Catalog type
       example: AUTHORED
-    releasedVersion:
+    highestReleaseVersion:
       type: [string, "null"]
       pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: >-
-        The catalog's highest released version. For AUTHORED catalogs null until
+        The number of the catalog's highest release. For AUTHORED catalogs null until
         first released. For SUBSCRIBED catalogs the highest installed release.
       example: "1.4.0"
     drafts:
@@ -62,7 +62,7 @@ CatalogDto:
       pattern: '^(v[1-9][0-9]*:)?[0-9a-f]{64}$'
       description: |
         The canonical fingerprint of the latest release's content (deterministic, excludes volatile
-        fields), which identifies content independently of the version label. It names the
+        fields), which identifies content independently of the release number. It names the
         algorithm that computed it, as the catalog archive does: `v5:` and lowercase SHA-256 hex.
         A bare hex value is a fingerprint recorded before contract 2.0 whose algorithm was not
         recorded; it cannot be checked against content. Null when never released or produced before
@@ -129,12 +129,12 @@ AvailableReleaseDto:
   type: object
   description: A release the source of a SUBSCRIBED catalog offers, which the tenant does not have
   required:
-    - version
+    - releaseVersion
     - comparedTo
     - changes
     - dependencies
   properties:
-    version:
+    releaseVersion:
       $ref: '#/ReleaseVersion'
       description: The release's number
     comparedTo:
@@ -516,7 +516,7 @@ ReleaseVersion:
   maxLength: 50
   description: |
     The number of one released catalog version: a SemVer core version, `MAJOR.MINOR.PATCH` without
-    leading zeros, unique in its catalog. Not a version selector.
+    leading zeros, unique in its catalog. Not a version range.
   example: "1.4.0"
 
 CatalogVersionId:
@@ -544,7 +544,7 @@ CatalogVersionStatus:
     - draft
     - released
   description: |
-    - `draft`: editable. Never exported or published, and never matched by a version selector;
+    - `draft`: editable. Never exported or published, and never matched by a version range;
       rendered only by preview and by an environment it is deployed to.
     - `released`: immutable, and numbered. A draft is numbered when it is released, and is then
       the released version at that number.
@@ -581,13 +581,13 @@ CatalogVersionDto:
     merged between them.
   required:
     - versionId
-    - version
+    - releaseVersion
     - status
     - dependencies
     - deployedTo
     - behind
   properties:
-    version:
+    releaseVersion:
       type: [string, "null"]
       pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
@@ -597,7 +597,7 @@ CatalogVersionDto:
       $ref: '#/CatalogVersionId'
       description: |
         The version's id, which addresses it (`…/versions/{versionId}`), as a draft and, once
-        released, as the release, which its `version` number addresses too.
+        released, as the release, which its `releaseVersion` number addresses too.
     name:
       type: [string, "null"]
       maxLength: 100
@@ -684,12 +684,12 @@ BehindReleaseDto:
   type: object
   description: A released version a draft is behind, and what that release changed
   required:
-    - version
+    - releaseVersion
     - changes
   properties:
-    version:
+    releaseVersion:
       $ref: '#/ReleaseVersion'
-      description: The released version
+      description: The released version's number
     changes:
       type: array
       description: |
@@ -817,7 +817,7 @@ CatalogDraftReleasePreview:
     suggested:
       $ref: '#/ReleaseVersion'
       description: |
-        The number releasing without a `version` gives: `needed`, or, when another release already
+        The number releasing without a `releaseVersion` gives: `needed`, or, when another release already
         has it, the next free number of the same kind (from `1.4.0`, a fix is `1.4.1`, or `1.4.2`
         when `1.4.1` exists; a breaking change is `2.0.0`, or `3.0.0` when `2.0.0` exists). The
         draft's `behind` is computed against it.
@@ -825,7 +825,7 @@ CatalogDraftReleasePreview:
 ReleaseCatalogDraftRequest:
   type: object
   properties:
-    version:
+    releaseVersion:
       type: [string, "null"]
       pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50

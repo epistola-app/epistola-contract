@@ -377,7 +377,7 @@ val job = api.generateDocument("acme-corp", GenerateDocumentRequest(
     catalogKey = "default",            // …and the catalog's key within that namespace
     templateKey = "invoice",
     data = mapOf("customer" to "Jane Smith", "amount" to 99.99),
-    version = "^1.4.0",                // optional: the highest release satisfying this selector
+    versionRange = "^1.4.0",           // optional: the highest release satisfying this range
     correlationId = "order-123",
     routingKey = "order-123",          // controls which node collects the result
 ))

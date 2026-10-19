@@ -26,7 +26,7 @@ import app.epistola.client.model.ValidateTemplateDataRequest
  *
  * @param templatesApi The generated [TemplatesApi].
  * @param variantKey Optional variant to check against; without it, the default variant.
- * @param version Optional version selector for the template's catalog release to check against,
+ * @param versionRange Optional version range for the template's catalog release to check against,
  *   such as `1.4.0` or `^1.4.0`. It may be combined with [environmentKey], which then narrows the
  *   choice to the releases deployed there. Without either, the catalog's latest release is used —
  *   the release preview and generation would render for the same selection.
@@ -35,7 +35,7 @@ import app.epistola.client.model.ValidateTemplateDataRequest
 class ServerTemplateDataValidator @JvmOverloads constructor(
     private val templatesApi: TemplatesApi,
     private val variantKey: String? = null,
-    private val version: String? = null,
+    private val versionRange: String? = null,
     private val environmentKey: String? = null,
 ) : TemplateDataValidator {
 
@@ -56,7 +56,7 @@ class ServerTemplateDataValidator @JvmOverloads constructor(
             ValidateTemplateDataRequest(
                 data = data,
                 variantKey = variantKey,
-                version = version,
+                versionRange = versionRange,
                 environmentKey = environmentKey,
             ),
         )

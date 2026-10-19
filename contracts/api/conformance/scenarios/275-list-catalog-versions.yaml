@@ -9,8 +9,8 @@ why: >
   parameter with an enum value; a client that sends it in another case, or drops it, lists the
   wrong versions.
 
-  A draft has no number until it is released (ADR 0002), so every `version` here is null, and a
-  draft is told apart by its `versionId` and named. A client that cannot read a null `version` cannot
+  A draft has no number until it is released (ADR 0002), so every `releaseVersion` here is null, and a
+  draft is told apart by its `versionId` and named. A client that cannot read a null `releaseVersion` cannot
   list a catalog's drafts at all.
 
   "Spring fixes" was started from release 1.5.0, its base, and is behind nothing. "Redesign 2027"
@@ -33,8 +33,8 @@ script:
     contentType: application/vnd.epistola.v2+json
     body:
       items:
-        - { version: null, versionId: k7m2x9qa, name: Spring fixes, status: draft, base: 1.5.0, createdFrom: null, behind: [], dependencies: [], deployedTo: [] }
-        - { version: null, versionId: r4t8w2nc, name: Redesign 2027, status: draft, base: 1.4.0, createdFrom: w6n4c8ze, behind: [{ version: 1.5.0, changes: [{ type: template, key: invoice, change: modified }] }], dependencies: [], deployedTo: [] }
+        - { releaseVersion: null, versionId: k7m2x9qa, name: Spring fixes, status: draft, base: 1.5.0, createdFrom: null, behind: [], dependencies: [], deployedTo: [] }
+        - { releaseVersion: null, versionId: r4t8w2nc, name: Redesign 2027, status: draft, base: 1.4.0, createdFrom: w6n4c8ze, behind: [{ releaseVersion: 1.5.0, changes: [{ type: template, key: invoice, change: modified }] }], dependencies: [], deployedTo: [] }
       page: { number: 0, size: 20, totalElements: 2, totalPages: 1 }
 
 expect:
@@ -47,7 +47,7 @@ expect:
         page: { whenPresent: '0' }
         size: { whenPresent: '20' }
   report:
-    versions: null,null
+    releaseVersions: null,null
     versionIds: k7m2x9qa,r4t8w2nc
     # Names are free text, so they are joined with `|`.
     names: Spring fixes|Redesign 2027

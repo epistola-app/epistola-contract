@@ -190,7 +190,7 @@ class ModelValidationTest {
     @Test
     void a_release_number_is_a_plain_semver_number() {
         for (String version : List.of("0.1.0", "1.4.0", "10.20.30")) {
-            ReleaseCatalogDraftRequest request = new ReleaseCatalogDraftRequest().version(version);
+            ReleaseCatalogDraftRequest request = new ReleaseCatalogDraftRequest().releaseVersion(version);
             assertSame(request, ModelValidation.validate(request), "expected '" + version + "' to be valid");
         }
         // Omitted, the server numbers the release from its changes.
@@ -200,7 +200,7 @@ class ModelValidationTest {
                 List.of("1.4", "v1.4.0", "01.4.0", "1.4.0-rc.1", "2.0.0-redesign-2027.1", "1.4.0+build", "^1.4.0", "next")) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> ModelValidation.validate(new ReleaseCatalogDraftRequest().version(version)),
+                    () -> ModelValidation.validate(new ReleaseCatalogDraftRequest().releaseVersion(version)),
                     "expected a release as '" + version + "' to fail");
         }
     }
@@ -268,7 +268,7 @@ class ModelValidationTest {
                 .catalogKey("default")
                 .templateKey("monthly-invoice")
                 .variantKey("english")
-                .version("^1.4.0")
+                .versionRange("^1.4.0")
                 .filename("invoice-2026-001.pdf")
                 .correlationId("order-7890")
                 .data(Map.of(
@@ -281,10 +281,10 @@ class ModelValidationTest {
 
     @Test
     void each_optional_field_of_a_generation_request_is_checked_independently() {
-        ModelValidation.validate(baseGenerationRequest().version(null));
+        ModelValidation.validate(baseGenerationRequest().versionRange(null));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ModelValidation.validate(baseGenerationRequest().version("")));
+                () -> ModelValidation.validate(baseGenerationRequest().versionRange("")));
 
         ModelValidation.validate(baseGenerationRequest().environmentKey(null));
         assertThrows(

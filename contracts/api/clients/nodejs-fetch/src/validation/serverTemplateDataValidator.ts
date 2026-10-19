@@ -15,7 +15,7 @@ export interface TemplateDataValidationSource {
       namespace: string
       catalogKey: string
       templateKey: string
-      validateTemplateDataRequest: { data: object; variantKey?: string | null; version?: string | null; environmentKey?: string | null }
+      validateTemplateDataRequest: { data: object; variantKey?: string | null; versionRange?: string | null; environmentKey?: string | null }
     },
     initOverrides?: RequestInit | InitOverrideFunction,
   ): Promise<TemplateDataValidationResult>
@@ -26,12 +26,12 @@ export interface ServerValidationTarget {
   /** Variant to check against; without it, the default variant of the template in the resolved release. */
   readonly variantKey?: string
   /**
-   * Version selector for the release of the template's catalog, in the npm range grammar the server
-   * accepts in full (`1.4.0`, or a range such as `^1.4.0`). Sent as the request's `version`. Combined with
+   * Version range for the release of the template's catalog, in the npm range grammar the server
+   * accepts in full (`1.4.0`, or a range such as `^1.4.0`). Sent as the request's `versionRange`. Combined with
    * `environmentKey`, it narrows to the highest release that environment serves which satisfies it.
    */
-  readonly version?: string
-  /** Environment whose deployed releases to check against; may be combined with `version`. */
+  readonly versionRange?: string
+  /** Environment whose deployed releases to check against; may be combined with `versionRange`. */
   readonly environmentKey?: string
 }
 
@@ -72,7 +72,7 @@ export class ServerTemplateDataValidator implements TemplateDataValidator {
       validateTemplateDataRequest: {
         data: (data ?? {}) as object,
         variantKey: this.target.variantKey,
-        version: this.target.version,
+        versionRange: this.target.versionRange,
         environmentKey: this.target.environmentKey,
       },
     })

@@ -40,7 +40,7 @@ info:
       unless an author applied them by hand. `getCatalogVersion` lists them, and releasing a draft
       that is behind must be acknowledged.
 
-    Documents are rendered from a released version, and version selectors never match a draft. Two
+    Documents are rendered from a released version, and version ranges never match a draft. Two
     things render a draft: preview, naming it by its `versionId`, and an environment it is deployed
     to (see "Deploying").
 
@@ -105,13 +105,13 @@ info:
     (`1.4.0`), at most 50 characters (`ReleaseVersion`). Wherever the contract names one exact
     release, in a path, a request or a response, it has that form.
 
-    ## Version selectors
+    ## Version ranges
     Wherever a request selects a release to render or check (generation, preview, validation), it
-    takes a **version selector** in the npm SemVer range grammar: an exact version (`1.4.0`), a
-    caret (`^1.4.0`), a tilde (`~1.4.0`), comparators (`>=1.0.0 <2.0.0`), a hyphen range
-    (`1.0.0 - 2.0.0`), or a `||` union of these. A server accepts the whole grammar. The highest
-    release that satisfies the selector is chosen; responses always name the exact release used.
-    Catalog dependencies take no selector: they pin an exact release.
+    takes a **version range** (`versionRange`) in the npm SemVer range grammar: an exact version
+    (`1.4.0`), a caret (`^1.4.0`), a tilde (`~1.4.0`), comparators (`>=1.0.0 <2.0.0`), a hyphen
+    range (`1.0.0 - 2.0.0`), or a `||` union of these. A server accepts the whole grammar. The highest
+    release that satisfies the range is chosen; responses always name the exact release used
+    (`releaseVersion`). Catalog dependencies take no range: they pin an exact release.
 
     ## Deploying
     An environment serves catalog versions (`deployCatalogVersion`), each named by its `versionId`
@@ -119,8 +119,8 @@ info:
     catalog, rendered live with no release. Deploying a draft is how it is tried before it is
     released. A request through the environment (`environmentKey`) renders:
 
-    - when it names **no version**: the catalog's deployed draft if there is one, else the highest
-      release the environment serves;
+    - when it names **no `versionRange`**: the catalog's deployed draft if there is one, else the
+      highest release the environment serves;
     - when it names a **range or an exact number**: the highest served release that satisfies it. A
       draft never matches a range or a number, as a SemVer pre-release does not.
 

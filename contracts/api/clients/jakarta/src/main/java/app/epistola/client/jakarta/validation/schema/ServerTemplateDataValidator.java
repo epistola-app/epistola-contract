@@ -30,7 +30,7 @@ public class ServerTemplateDataValidator implements TemplateDataValidator {
 
     private final TemplatesApi templatesApi;
     private final String variantKey;
-    private final String version;
+    private final String versionRange;
     private final String environmentKey;
 
     public ServerTemplateDataValidator(TemplatesApi templatesApi) {
@@ -40,17 +40,17 @@ public class ServerTemplateDataValidator implements TemplateDataValidator {
     /**
      * @param templatesApi  the generated API used to reach {@code validateTemplateData}
      * @param variantKey     optional variant to check against; without it, the default variant
-     * @param version        optional version selector for the release of the template's catalog to
+     * @param versionRange   optional version range for the release of the template's catalog to
      *                       check against ({@code 1.4.0}, {@code ^1.4.0}); without it, the highest
      *                       release, as preview and generation would render
      * @param environmentKey optional environment whose deployed releases to choose from; combines
-     *                       with {@code version}
+     *                       with {@code versionRange}
      */
     public ServerTemplateDataValidator(
-            TemplatesApi templatesApi, String variantKey, String version, String environmentKey) {
+            TemplatesApi templatesApi, String variantKey, String versionRange, String environmentKey) {
         this.templatesApi = templatesApi;
         this.variantKey = variantKey;
-        this.version = version;
+        this.versionRange = versionRange;
         this.environmentKey = environmentKey;
     }
 
@@ -61,7 +61,7 @@ public class ServerTemplateDataValidator implements TemplateDataValidator {
         ValidateTemplateDataRequest request = new ValidateTemplateDataRequest();
         request.setData(data);
         request.setVariantKey(variantKey);
-        request.setVersion(version);
+        request.setVersionRange(versionRange);
         request.setEnvironmentKey(environmentKey);
 
         TemplateDataValidationResult result =

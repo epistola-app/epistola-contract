@@ -268,7 +268,7 @@ object Driver {
                 catalogKey = config["catalogKey"].asText(),
                 templateKey = config["templateKey"].asText(),
                 data = mapper.convertValue(config["data"], Map::class.java),
-                version = config.optionalText("version"),
+                versionRange = config.optionalText("versionRange"),
                 environmentKey = config.optionalText("environmentKey"),
                 correlationId = config.optionalText("correlationId"),
                 routingKey = config.optionalText("routingKey"),
@@ -483,12 +483,12 @@ object Driver {
                 "registry" to releases.registry,
                 "namespace" to releases.namespace,
                 "catalogKey" to releases.catalogKey,
-                "availableComparedTo" to releases.available.joinToString(";") { "${it.version}=${it.comparedTo ?: "null"}" },
+                "availableComparedTo" to releases.available.joinToString(";") { "${it.releaseVersion}=${it.comparedTo ?: "null"}" },
                 "availableChanges" to releases.available.joinToString(";") { release ->
-                    "${release.version}=" + release.changes.joinToString("+") { "${it.type}/${it.key}:${it.change.value}" }
+                    "${release.releaseVersion}=" + release.changes.joinToString("+") { "${it.type}/${it.key}:${it.change.value}" }
                 },
                 "availableDependencies" to releases.available.joinToString(";") { release ->
-                    "${release.version}=" + release.dependencies.joinToString("+") {
+                    "${release.releaseVersion}=" + release.dependencies.joinToString("+") {
                         "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}:${it.present}"
                     }
                 },
@@ -583,7 +583,7 @@ object Driver {
         report(
             baseUrl,
             mapOf(
-                "version" to (version.version ?: "null"),
+                "releaseVersion" to (version.releaseVersion ?: "null"),
                 "versionId" to version.versionId,
                 "name" to (version.name ?: "null"),
                 "status" to version.status.value,
@@ -605,7 +605,7 @@ object Driver {
         report(
             baseUrl,
             mapOf(
-                "versions" to versions.joinToString(",") { it.version ?: "null" },
+                "releaseVersions" to versions.joinToString(",") { it.releaseVersion ?: "null" },
                 "versionIds" to versions.joinToString(",") { it.versionId },
                 "names" to versions.joinToString("|") { it.name ?: "null" },
                 "statuses" to versions.joinToString(",") { it.status.value },
@@ -628,7 +628,7 @@ object Driver {
         report(
             baseUrl,
             mapOf(
-                "version" to (version.version ?: "null"),
+                "releaseVersion" to (version.releaseVersion ?: "null"),
                 "versionId" to version.versionId,
                 "name" to (version.name ?: "null"),
                 "status" to version.status.value,
@@ -639,7 +639,7 @@ object Driver {
                 },
                 "deployedTo" to version.deployedTo.joinToString(","),
                 "behind" to version.behind.joinToString(";") { release ->
-                    "${release.version}=" + release.changes.joinToString("+") { "${it.type}/${it.key}:${it.change.value}" }
+                    "${release.releaseVersion}=" + release.changes.joinToString("+") { "${it.type}/${it.key}:${it.change.value}" }
                 },
             ),
         )
@@ -658,7 +658,7 @@ object Driver {
         report(
             baseUrl,
             mapOf(
-                "version" to (version.version ?: "null"),
+                "releaseVersion" to (version.releaseVersion ?: "null"),
                 "versionId" to version.versionId,
                 "name" to (version.name ?: "null"),
                 "status" to version.status.value,
@@ -711,7 +711,7 @@ object Driver {
                 config["catalogKey"].asText(),
                 config["catalogVersion"].asText(),
                 ReleaseCatalogDraftRequest(
-                    version = config.optionalText("version"),
+                    releaseVersion = config.optionalText("releaseVersion"),
                     notes = config.optionalText("notes"),
                     acknowledgedBehind = config.get("acknowledgedBehind")?.takeUnless { it.isNull }?.map { it.asText() },
                     releaseDependencies = config.get("releaseDependencies")?.takeUnless { it.isNull }?.asBoolean(),
@@ -733,7 +733,7 @@ object Driver {
         report(
             baseUrl,
             mapOf(
-                "version" to (response.catalogVersion.version ?: "null"),
+                "releaseVersion" to (response.catalogVersion.releaseVersion ?: "null"),
                 "status" to response.catalogVersion.status.value,
                 "versionId" to response.catalogVersion.versionId,
                 "draftsBehind" to response.draftsBehind.joinToString("|"),

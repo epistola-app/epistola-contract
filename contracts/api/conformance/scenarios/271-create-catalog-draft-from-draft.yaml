@@ -27,7 +27,7 @@ script:
     headers:
       Location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/r4t8w2nc
     body:
-      version: null
+      releaseVersion: null
       versionId: r4t8w2nc
       name: Redesign 2027
       status: draft
@@ -55,7 +55,7 @@ expect:
           from: k7m2x9qa
         jsonAbsent: [version, var_from]
   report:
-    version: 'null'
+    releaseVersion: 'null'
     versionId: r4t8w2nc
     name: Redesign 2027
     status: draft

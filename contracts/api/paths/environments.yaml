@@ -194,8 +194,8 @@ environment-deployments:
     description: |
       Every catalog version the environment serves: releases, several of one catalog possibly, and
       at most one draft per catalog. Generation naming the environment renders the catalog's
-      deployed draft when the request names no `version`, and otherwise the highest served release
-      (that satisfies `version`); see `deployCatalogVersion`.
+      deployed draft when the request names no `versionRange`, and otherwise the highest served
+      release (that satisfies `versionRange`); see `deployCatalogVersion`.
     tags:
       - Environments
     x-required-permissions: [TEMPLATE_VIEW]
@@ -248,7 +248,7 @@ environment-deployment-version:
 
       A generation or preview request through the environment (`environmentKey`) renders:
 
-      - when it names **no `version`**: the catalog's deployed draft if there is one, else the
+      - when it names **no `versionRange`**: the catalog's deployed draft if there is one, else the
         highest release the environment serves;
       - when it names a **range or an exact number**: the highest served release that satisfies it.
         A draft never matches a range or a number, as a SemVer pre-release does not, so a breaking

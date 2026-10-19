@@ -220,27 +220,27 @@ var preview = catalogs.PreviewCatalogDraftRelease("my-tenant", "~", "acme-corp",
 Console.WriteLine($"{preview.Suggested} (needs {preview.Needed}): {string.Join("; ", preview.Reasons)}");
 
 // A draft is an independent copy: releases it does not contain are listed in `Behind`, and
-// releasing it must acknowledge each of them. Leave `varVersion` out to release it as suggested.
+// releasing it must acknowledge each of them. Leave `releaseVersion` out to release it as suggested.
 // `releaseDependencies` releases the drafts of other catalogs its dependency declarations name
 // along with it, in one transaction.
 var current = catalogs.GetCatalogVersion("my-tenant", "~", "acme-corp", "default", id);
 var released = catalogs.ReleaseCatalogDraft("my-tenant", "~", "acme-corp", "default", id,
     new ReleaseCatalogDraftRequest(
         notes: "Spring update",
-        acknowledgedBehind: current.Behind.Select(b => b.VarVersion).ToList(),
+        acknowledgedBehind: current.Behind.Select(b => b.ReleaseVersion).ToList(),
         releaseDependencies: true));
 
 // Releasing never changes other drafts; the answer names those now behind it, and the releases
 // made along with it.
 foreach (var behind in released.DraftsBehind)
-    Console.WriteLine($"{behind} does not contain {released.CatalogVersion.VarVersion}");
+    Console.WriteLine($"{behind} does not contain {released.CatalogVersion.ReleaseVersion}");
 foreach (var dependency in released.ReleasedDependencies)
     Console.WriteLine($"also released {dependency.CatalogKey} {dependency.ReleaseVersion}");
 ```
 
-The generator names a `version` member `VarVersion` (constructor argument `varVersion`), and
-`base` `Base` (`varBase`), because both collide with C# names. A draft's `VarVersion` is null, and
-a preview's `ChangeKind` is null when the draft has no base to compare with.
+The generator names a `base` member `Base` (constructor argument `varBase`), because it collides
+with a C# name. A draft's `ReleaseVersion` is null, and a preview's `ChangeKind` is null when the
+draft has no base to compare with.
 
 ## Uploading files
 

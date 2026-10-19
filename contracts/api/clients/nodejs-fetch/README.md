@@ -226,9 +226,9 @@ const validator = new TemplateSchemaValidator(templatesApi)
 // tenant, catalog registry (`~` for the server's default, or in full: 'acme.com'), namespace, catalog key, template
 await validator.validate('acme', '~', 'acme', 'invoices', 'invoice', data)   // throws TemplateDataValidationException
 
-// Against a particular release: a version selector, an environment, or both together
+// Against a particular release: a version range, an environment, or both together
 const pinned = new TemplateSchemaValidator(
-  new ServerTemplateDataValidator(templatesApi, { version: '^1.4.0', environmentKey: 'production' }),
+  new ServerTemplateDataValidator(templatesApi, { versionRange: '^1.4.0', environmentKey: 'production' }),
 )
 
 // Or around generation, which turns the server's `template-data-invalid` problem into the same error:

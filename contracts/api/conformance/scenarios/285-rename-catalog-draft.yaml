@@ -30,7 +30,7 @@ script:
   - status: 200
     contentType: application/vnd.epistola.v2+json
     body:
-      version: null
+      releaseVersion: null
       versionId: h3v9p6db
       name: Redesign 2028
       status: draft
@@ -53,7 +53,7 @@ expect:
           name: Redesign 2028
         jsonAbsent: [version, acknowledgeWarnings]
   report:
-    version: 'null'
+    releaseVersion: 'null'
     versionId: h3v9p6db
     name: Redesign 2028
     status: draft
