@@ -166,8 +166,6 @@ Two installed catalogs that need different releases of the same catalog get both
 releases already stay installed side by side, and each catalog renders with the release its own
 declaration pins. There is no single winning version and therefore no conflict to resolve.
 
-Upgrading a subscribed catalog follows the same steps for the new release's dependencies.
-
 An installation that reaches no registry receives a release as a file instead: a catalog archive,
 which may carry the releases it pins, transitively, each an ordinary catalog archive at
 `dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip`, found from the pin alone
@@ -179,6 +177,39 @@ same number with the same fingerprint is already present and changes nothing, th
 a different fingerprint is refused (409), and a catalog the import creates holds the release and no
 draft. A pin the archive does not carry is resolved as above, from what the installation has or can
 fetch.
+
+### Upgrading installs a release
+
+Upgrading a subscribed catalog (`upgradeCatalog`) installs a newer release of it, fetched from its
+source, exactly as installing does: the release given, or the highest the source offers, with the
+releases it pins installed first by the steps above. It is installed side by side with the
+catalog's other releases. Nothing is updated in place and nothing is removed; the releases installed
+before stay, and every deployment, draft and catalog that uses one keeps using it. Which release an
+environment serves is decided by deploying it. The same number with the same fingerprint is
+already present and changes nothing; the same number with a different fingerprint is refused (409).
+
+This replaces the reconciliation of contract 1.x, which updated a subscribed catalog's resources in
+place, removed the ones the publisher no longer published unless something still referenced them,
+and reported conflicts and per-resource results. Releases are immutable and kept side by side, so
+there is nothing to reconcile: a resource a newer release removed is still in the older release,
+and everything that renders the older release still has it.
+
+The preview (`previewCatalogUpgrade`) lists the releases the source offers above the highest
+installed one, each with the resources it added, modified or removed against that release and
+whether the releases it pins are present.
+
+### A catalog's type is chosen once
+
+A catalog is AUTHORED (drafts can be started from its releases) or SUBSCRIBED (it only installs
+releases, and is upgraded from its source). The import that creates a catalog must name its type:
+there is no default, because guessing wrong either lets an installation author a catalog someone
+else publishes, or stops it from authoring its own. A catalog keeps its type: an import into a
+catalog the tenant has may omit the type or repeat it, and naming the other type is refused (409)
+with nothing installed. An import into an AUTHORED catalog adds the release beside its others, which
+is how an author moves the catalog's own releases between installations. A dependency installed for
+another release goes into a SUBSCRIBED catalog when the tenant does not have that catalog.
+
+Changing a catalog's type is not part of contract 2.0. It could be an operation of its own later.
 
 ### Deploying uses dependencies implicitly; deploying them too is a choice
 
@@ -245,6 +276,8 @@ The registry should be the one the municipality will publish from:
   algorithm (`v5:<hex>`).
 - Deploying can fail on dependencies: when a dependency release cannot be had, the deployment is
   refused with `release-dependencies-missing`. Undeploying never fails on them.
+- Upgrading a subscribed catalog is installing a release: no in-place updates, removals, conflicts
+  or per-resource results. A catalog's type is fixed when an import creates it.
 
 ## Hotfix releases
 
@@ -260,3 +293,4 @@ hotfix, so no other installation could install the dependency. ADR 0001 states t
 - **Publishing one catalog as an original in several registries** (option B), if the landscape ever
   needs it.
 - **Moving a catalog** to another registry.
+- **Changing a catalog's type** (AUTHORED to SUBSCRIBED or back), as an operation of its own.

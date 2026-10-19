@@ -47,6 +47,8 @@ const ACTIONS = {
   'list-images': listImages,
   'upload-image': uploadImage,
   'import-catalog': importCatalog,
+  'upgrade-catalog': upgradeCatalog,
+  'preview-catalog-upgrade': previewCatalogUpgrade,
   'download-image': downloadImage,
   'delete-image': deleteImage,
   'list-catalog-dependencies': listCatalogDependencies,
@@ -310,6 +312,71 @@ async function importCatalog(baseUrl, config) {
     releaseVersion: show(imported.releaseVersion),
     newlyInstalled: show(imported.newlyInstalled),
     total: show(imported.total),
+  })
+}
+
+/**
+ * Upgrades a subscribed catalog. `releaseVersion` goes out, as a query parameter, only when the
+ * scenario sets it. A refusal is reported by its problem, missing dependencies included.
+ */
+async function upgradeCatalog(baseUrl, config) {
+  const request = {
+    tenantKey: config.tenantKey,
+    registry: config.registry,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+  }
+  if (config.releaseVersion !== undefined) request.releaseVersion = config.releaseVersion
+  let upgraded
+  try {
+    upgraded = await new CatalogsApi(client(baseUrl, config)).upgradeCatalog(request)
+  } catch (error) {
+    if (!(error instanceof ProblemDetailException)) throw error
+    await report(baseUrl, {
+      problemTypeSlug: error.typeSlug ?? '<null>',
+      problemStatus: error.statusCode,
+      problemMissingDependencies: error.missingDependencies
+        .map((d) => `${d.registry}/${d.namespace}/${d.catalogKey}@${d.releaseVersion}:${d.reason}`)
+        .join(','),
+    })
+    return
+  }
+  await report(baseUrl, {
+    registry: show(upgraded.registry),
+    namespace: show(upgraded.namespace),
+    catalogKey: show(upgraded.catalogKey),
+    releaseVersion: show(upgraded.releaseVersion),
+    newlyInstalled: show(upgraded.newlyInstalled),
+    total: show(upgraded.total),
+    installedDependencies: (upgraded.installedDependencies ?? []).map(show).join(','),
+    presentDependencies: (upgraded.presentDependencies ?? []).map(show).join(','),
+  })
+}
+
+/** Previews a subscribed catalog's upgrade, reporting every available release in order. */
+async function previewCatalogUpgrade(baseUrl, config) {
+  const preview = await new CatalogsApi(client(baseUrl, config)).previewCatalogUpgrade({
+    tenantKey: config.tenantKey,
+    registry: config.registry,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+  })
+  await report(baseUrl, {
+    registry: show(preview.registry),
+    namespace: show(preview.namespace),
+    catalogKey: show(preview.catalogKey),
+    installedVersion: show(preview.installedVersion),
+    availableChanges: preview.available
+      .map((r) => `${show(r.version)}=${r.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join('+')}`)
+      .join(';'),
+    availableDependencies: preview.available
+      .map(
+        (r) =>
+          `${show(r.version)}=${r.dependencies
+            .map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.releaseVersion)}:${show(d.present)}`)
+            .join('+')}`,
+      )
+      .join(';'),
   })
 }
 

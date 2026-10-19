@@ -11,7 +11,8 @@ why: >
   and a server that reads them would merge the archive into a draft it was never meant to touch.
 
   `file` must be a file part with its filename and the archive's content type, byte for byte, as
-  for an image upload. `catalogType` is set here, so it must be sent; `registry` and `namespace`
+  for an image upload. `catalogType` is set here, so it must be sent: the import that creates a
+  catalog must name its type, which has no default (contract 2.0); `registry` and `namespace`
   were not set, so they must not be sent: omitted means the registry and namespace the archive
   names, which only the server reads. A client that fills them in, or sends `null`, imports the
   release into another catalog.

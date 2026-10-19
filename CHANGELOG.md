@@ -373,12 +373,40 @@ libraries.
   release is not a valid archive at any wire version (`release.version` is required) and is refused
   with 400 `bad-request`. A catalog the import creates holds the release and no draft; an author
   starts one with `createCatalogDraft` `from` the release. The request loses `catalogVersion` and
-  `authoredMode` (`catalogType` stays, for a catalog the import creates). `ImportCatalogResponse`
+  `authoredMode`. `catalogType` loses its default (AUTHORED): the import that creates a catalog must
+  give it, or is refused with 400 `bad-request`. A catalog the tenant has keeps its type, and an
+  import never changes it: `catalogType` may be omitted or given as the catalog's type, and given as
+  the other type the import is refused with 409 `conflict`, installing nothing. An import into an
+  AUTHORED catalog adds the release beside its others. Changing a catalog's type is not part of 2.0
+  (ADR 0003). `ImportCatalogResponse`
   reports the release, `releaseVersion` (required), and `newlyInstalled` (required, false when it
   was already present), and loses `catalogVersion`, the per-resource counts `installed`, `updated`
   and `failed`, and `aborted`: installing a release is all or nothing. `total` stays. The operation
   requires `CATALOG_MANAGE`, as `upgradeCatalog` does, instead of `TEMPLATE_EDIT`: installing a
   release is not editing templates.
+
+- **BREAKING: upgrading a subscribed catalog installs a release; the 1.x reconciliation is gone.**
+  Releases are immutable and installed side by side (ADR 0003), so `upgradeCatalog` installs a
+  release fetched from the catalog's source exactly as `importCatalog` installs the one an archive
+  carries: the release named by the new optional `releaseVersion` query parameter, or the highest
+  the source offers, with the releases it pins installed first. Nothing is updated in place and
+  nothing is removed; deploying decides which release an environment serves. The same number with
+  the same fingerprint is already present (`newlyInstalled: false`); with a different fingerprint
+  the upgrade is refused with 409 `conflict`; a pin that cannot be had refuses it with 409
+  `release-dependencies-missing`; a catalog that is not SUBSCRIBED is refused with 409 `conflict`,
+  and a `releaseVersion` the source does not offer with 404. `UpgradeCatalogResponse` reports the
+  release as `ImportCatalogResponse` does: `registry`, `namespace`, `catalogKey`, `releaseVersion`,
+  `newlyInstalled`, `total`, `installedDependencies` and `presentDependencies`; it loses
+  `previousVersion`, `newVersion`, `installResults`, `removedResources` and `aborted`.
+  `previewCatalogUpgrade` returns `CatalogUpgradePreview` instead of `CatalogUpgradeDiff`: the
+  highest installed release (`installedVersion`) and the releases the source offers above it
+  (`available`, `AvailableReleaseDto`), each with the resources it added, modified or removed
+  against `installedVersion` (`ReleasedChangeDto`) and the releases it pins, each with whether the
+  tenant has it (`AvailableReleaseDependencyDto.present`). `CatalogUpgradeDiff` goes, with
+  `previousVersion`, `newVersion`, `upgradeAvailable`, the `added` / `removed` / `changed` /
+  `unchanged` buckets, `conflicts` and `blockedByConflicts`. A catalog that is not SUBSCRIBED is
+  refused with 409 here too. The permissions are unchanged (`CATALOG_MANAGE` to upgrade,
+  `CATALOG_VIEW` to preview).
 
 - **BREAKING: a catalog is identified by its registry, its namespace and its key** (ADR 0003).
   Every catalog-scoped path is `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/…`
@@ -388,7 +416,8 @@ libraries.
   within the registry. Requests may omit the registry (the default); responses always name it in
   full. Every DTO that named a catalog (`catalogId`, `catalog`, or a catalog's `slug`)
   now carries `registry`, `namespace` and `catalogKey`: the generation, preview and batch requests,
-  `VariantSelectionAttribute`, `CatalogDto`, `ReleaseDependencyDto`, `CatalogUpgradeDiff`,
+  `VariantSelectionAttribute`, `CatalogDto`, `ReleaseDependencyDto`, `CatalogUpgradePreview`,
+  `UpgradeCatalogResponse`,
   `DeploymentDto`, `DeploymentEventDto`, `AttributeDto` (and its `codeListBinding`), `CodeListDto`,
   `FontDto`, `ImageDto` and `ImportCatalogResponse`. Generated documents, generation items and
   collected results add nullable `registry`, `namespace` and `catalogKey` next to `releaseVersion`.
@@ -403,8 +432,9 @@ libraries.
   member that names a release (`CatalogDto.releasedVersion`, `CatalogVersionDto.version` and
   `base`, `CatalogDraftSummary.base`, `BehindReleaseDto.version`, `CatalogChangesDto.base`,
   `CatalogDraftReleasePreview.base`, `needed` and `suggested`, `ReleasedDependencyDto`,
-  `ReleaseDependencyDto`, `CatalogDependencyDto`, `CatalogUpgradeDiff` / `UpgradeCatalogResponse`
-  `previousVersion` and `newVersion`, deployments, overrides, deployment history, missing
+  `ReleaseDependencyDto`, `CatalogDependencyDto`, `CatalogUpgradePreview.installedVersion`,
+  `AvailableReleaseDto.version`, `AvailableReleaseDependencyDto.releaseVersion`,
+  `UpgradeCatalogResponse.releaseVersion` and the `upgradeCatalog` `releaseVersion` parameter, deployments, overrides, deployment history, missing
   dependencies, jobs, documents and collected results, `ImportCatalogResponse.releaseVersion`).
   `CreateCatalogDraftRequest.from` takes the same number or a `versionId`. Version selectors are not release numbers and keep their own schema.
   Every client still sees these members as plain strings, and each client's generated model
@@ -489,6 +519,11 @@ libraries.
 
 ### Removed
 
+- **BREAKING: the 1.x reconciliation of a subscribed catalog's upgrade** (see "upgrading a
+  subscribed catalog installs a release" under Changed): `CatalogUpgradeDiff`,
+  `CatalogInstallResultDto` (with its `INSTALLED` / `UPDATED` / `SKIPPED` / `FAILED` status),
+  `RemovedCatalogResourceDto`, and `UpgradeCatalogResponse`'s `installResults`, `removedResources`
+  and `aborted`.
 - **The schemas left from the bulk template import.** `ImportTemplatesRequest`,
   `ImportTemplateDto`, `ImportVariantDto`, `ImportTemplatesResponse` and `ImportTemplateResultDto`
   belonged to an operation removed before 1.0 and no operation referenced them;

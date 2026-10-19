@@ -93,6 +93,8 @@ object Driver {
                 "list-images" -> listImages(baseUrl, config)
                 "upload-image" -> uploadImage(baseUrl, config)
                 "import-catalog" -> importCatalog(baseUrl, config)
+                "upgrade-catalog" -> upgradeCatalog(baseUrl, config)
+                "preview-catalog-upgrade" -> previewCatalogUpgrade(baseUrl, config)
                 "download-image" -> downloadImage(baseUrl, config)
                 "delete-image" -> deleteImage(baseUrl, config)
                 "list-catalog-dependencies" -> listCatalogDependencies(baseUrl, config)
@@ -388,9 +390,9 @@ object Driver {
 
     /**
      * Imports a catalog archive from bytes, as a Resource that reports a filename, like an image
-     * upload. `registry`, `namespace` and `catalogType` go out only when configured: the generated
-     * method defaults `catalogType` to AUTHORED, so an unconfigured one is passed as null. A refusal
-     * is reported by its problem.
+     * upload. `registry`, `namespace` and `catalogType` go out only when configured: `catalogType`
+     * has no default, so an unconfigured one is passed as null and stays off the wire. A refusal is
+     * reported by its problem.
      */
     private fun importCatalog(baseUrl: String, config: ObjectNode) {
         val filename = config["filename"].asText()
@@ -418,6 +420,74 @@ object Driver {
                 "releaseVersion" to imported.releaseVersion,
                 "newlyInstalled" to imported.newlyInstalled.toString(),
                 "total" to imported.total.toString(),
+            ),
+        )
+    }
+
+    /**
+     * Upgrades a subscribed catalog. `releaseVersion` goes out, as a query parameter, only when
+     * configured. A refusal is reported by its problem, missing dependencies included.
+     */
+    private fun upgradeCatalog(baseUrl: String, config: ObjectNode) {
+        val upgraded = try {
+            CatalogsApi(restClient(baseUrl, config)).upgradeCatalog(
+                config["tenantKey"].asText(),
+                config["registry"].asText(),
+                config["namespace"].asText(),
+                config["catalogKey"].asText(),
+                releaseVersion = config.optionalText("releaseVersion"),
+            )
+        } catch (e: ProblemDetailException) {
+            report(
+                baseUrl,
+                mapOf(
+                    "problemTypeSlug" to (e.typeSlug ?: "<null>"),
+                    "problemStatus" to e.statusCode.value(),
+                    "problemMissingDependencies" to e.missingDependencies.joinToString(",") {
+                        "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}:${it.reason}"
+                    },
+                ),
+            )
+            return
+        }
+        report(
+            baseUrl,
+            mapOf(
+                "registry" to upgraded.registry,
+                "namespace" to upgraded.namespace,
+                "catalogKey" to upgraded.catalogKey,
+                "releaseVersion" to upgraded.releaseVersion,
+                "newlyInstalled" to upgraded.newlyInstalled.toString(),
+                "total" to upgraded.total.toString(),
+                "installedDependencies" to upgraded.installedDependencies.orEmpty().joinToString(","),
+                "presentDependencies" to upgraded.presentDependencies.orEmpty().joinToString(","),
+            ),
+        )
+    }
+
+    /** Previews a subscribed catalog's upgrade, reporting every available release in order. */
+    private fun previewCatalogUpgrade(baseUrl: String, config: ObjectNode) {
+        val preview = CatalogsApi(restClient(baseUrl, config)).previewCatalogUpgrade(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+        )
+        report(
+            baseUrl,
+            mapOf(
+                "registry" to preview.registry,
+                "namespace" to preview.namespace,
+                "catalogKey" to preview.catalogKey,
+                "installedVersion" to preview.installedVersion,
+                "availableChanges" to preview.available.joinToString(";") { release ->
+                    "${release.version}=" + release.changes.joinToString("+") { "${it.type}/${it.key}:${it.change.value}" }
+                },
+                "availableDependencies" to preview.available.joinToString(";") { release ->
+                    "${release.version}=" + release.dependencies.joinToString("+") {
+                        "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}:${it.present}"
+                    }
+                },
             ),
         )
     }

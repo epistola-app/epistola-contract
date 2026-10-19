@@ -148,7 +148,13 @@ plain form field to a multipart parser expecting a file — override it:
 val archive = object : ByteArrayResource(bytes) {
     override fun getFilename() = "catalog.zip"
 }
-catalogsApi.importCatalog(tenantKey, archive)
+// The import that creates a catalog names its type; there is no default. For a catalog the tenant
+// has, leave it out: an import never changes a catalog's type.
+catalogsApi.importCatalog(
+    tenantKey,
+    archive,
+    catalogType = CatalogsApi.CatalogTypeImportCatalog.SUBSCRIBED,
+)
 ```
 
 `FileSystemResource(file)` needs no such override — a real file always has a name.

@@ -191,7 +191,10 @@ The Epistola API manages:
    numbered below the number it would get (above its base, or published after it started). In a
    draft, a dependency may name another catalog's draft; releasing takes such drafts along
    (`releaseDependencies`) or is refused (ADR 0002). Importing an archive (`importCatalog`) installs
-   the release it carries next to the catalog's other releases, never into a draft
+   the release it carries next to the catalog's other releases, never into a draft; upgrading a
+   subscribed catalog (`upgradeCatalog`) installs a release fetched from its source the same way,
+   with nothing updated in place or removed. The import that creates a catalog names its type
+   (AUTHORED or SUBSCRIBED, no default); an import never changes it (ADR 0003)
 7. **Generation** - Async document generation with batch support, from a release, or from a draft
    when an environment override follows one
 

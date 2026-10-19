@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: upgrade-catalog-dependencies-missing
+title: An upgrade whose pinned releases cannot be had is refused, naming each
+why: >
+  Upgrading installs the releases the new release pins first, fetched from their registries. When
+  one cannot be had, the whole upgrade is refused with `release-dependencies-missing`, nothing is
+  installed, and `missingDependencies` names each release and why. A client's problem parser must
+  surface that member on this operation as it does for a deployment, so a caller knows which
+  registry or mirror to fix.
+
+action:
+  name: upgrade-catalog
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    releaseVersion: 2.0.0
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/release-dependencies-missing
+      title: Release dependencies missing
+      status: 409
+      detail: letters 2.0.0 pins releases that cannot be had
+      missingDependencies:
+        - registry: exchange.epistola.app
+          namespace: epistola
+          catalogKey: system
+          releaseVersion: 4.0.0
+          reason: UNAVAILABLE
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/upgrade
+      query: releaseVersion=2.0.0
+  report:
+    problemTypeSlug: release-dependencies-missing
+    problemStatus: 409
+    problemMissingDependencies: exchange.epistola.app/epistola/system@4.0.0:UNAVAILABLE

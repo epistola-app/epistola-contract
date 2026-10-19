@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: import-catalog-type-conflict
+title: An import that names another type than the catalog has is refused with 409, and installs nothing
+why: >
+  A catalog's type is chosen by the import that creates it, and an import never changes it
+  (contract 2.0). For a catalog the tenant has, `catalogType` may be left out or repeated; naming
+  the other type is refused with 409 `conflict`, and nothing is installed. Here the tenant
+  subscribes to `letters` and the import names it AUTHORED: had the server accepted it, an
+  installation could start drafts of a catalog someone else publishes.
+
+  `catalogType` is set here, so it must be sent as given. The client must surface the refusal as a
+  problem with its slug and status, so a caller can tell it from a failed upload and does not
+  retry it with the same type.
+
+action:
+  name: import-catalog
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    catalogType: AUTHORED
+    filename: letters-1.3.0.zip
+    fileContentType: application/zip
+    fileBase64: UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA==
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/conflict
+      title: Conflict
+      status: 409
+      detail: >-
+        exchange.epistola.app/acme-corp/letters is SUBSCRIBED; an import does not change a
+        catalog's type
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/import
+      body:
+        multipart:
+          file:
+            filename: letters-1.3.0.zip
+            byteLength: 22
+          catalogType:
+            value: AUTHORED
+          registry:
+            absent: true
+          namespace:
+            absent: true
+  report:
+    problemTypeSlug: conflict
+    problemStatus: 409

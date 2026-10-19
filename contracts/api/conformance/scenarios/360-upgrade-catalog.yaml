@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: upgrade-catalog
+title: Upgrading a subscribed catalog installs the release asked for, beside the others, with its pins
+why: >
+  Upgrading a SUBSCRIBED catalog installs a release fetched from its source, as an import installs
+  the release an archive carries (contract 2.0): beside the releases the tenant has, nothing
+  updated in place, nothing removed. The caller may name the release, here `1.5.0` rather than the
+  newer `2.0.0` the source also offers, as the `releaseVersion` query parameter; the request has no
+  body. A client that sends the number in a body, or drops it, installs the highest release, which
+  may be a major the caller did not ask for.
+
+  The catalog is in the default registry, addressed as `~`; the response names it in full.
+
+  The response reports the release as an import does: `newlyInstalled` as a boolean, and the
+  releases the upgrade installed first because the release pins them (`installedDependencies`) and
+  those the tenant had (`presentDependencies`), in order. The 1.x reconciliation members
+  (`installResults`, `removedResources`, `aborted`) are gone.
+
+action:
+  name: upgrade-catalog
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    releaseVersion: 1.5.0
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      registry: exchange.epistola.app
+      namespace: acme-corp
+      catalogKey: letters
+      releaseVersion: 1.5.0
+      newlyInstalled: true
+      total: 9
+      installedDependencies: ["shared v1.1.0", "system v3.2.0"]
+      presentDependencies: ["branding v1.4.2"]
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/upgrade
+      query: releaseVersion=1.5.0
+  report:
+    registry: exchange.epistola.app
+    namespace: acme-corp
+    catalogKey: letters
+    releaseVersion: 1.5.0
+    newlyInstalled: 'true'
+    total: '9'
+    installedDependencies: shared v1.1.0,system v3.2.0
+    presentDependencies: branding v1.4.2
