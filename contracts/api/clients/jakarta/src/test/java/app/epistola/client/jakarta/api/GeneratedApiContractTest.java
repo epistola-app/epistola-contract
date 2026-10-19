@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import app.epistola.client.jakarta.EpistolaRestClients;
 import app.epistola.client.jakarta.StubServer;
+import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.model.CatalogDependencyListResponse;
 import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
 import app.epistola.client.jakarta.model.CatalogVersionDto;
@@ -23,6 +24,7 @@ import app.epistola.client.jakarta.model.SetEnvironmentOverrideRequest;
 import app.epistola.client.jakarta.model.ReleaseCatalogDraftResponse;
 import app.epistola.client.jakarta.model.TenantDto;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
+import app.epistola.client.jakarta.model.VariantContentDto;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.DefaultValue;
@@ -36,6 +38,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.EntityPart;
+import jakarta.ws.rs.core.Response;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.time.OffsetDateTime;
@@ -464,6 +467,81 @@ class GeneratedApiContractTest {
             assertTrue(
                     request.header("Accept").contains(VENDOR_JSON),
                     "Accept should ask for the versioned media type, was: " + request.header("Accept"));
+        }
+    }
+
+    /**
+     * Optimistic locking needs the {@code ETag} a read answers with, and a MicroProfile Rest Client
+     * method returns its body alone. The build gives every operation that answers with an
+     * {@code ETag} a {@code WithHttpInfo} sibling returning the {@link Response}; this fails if one
+     * goes missing or stops matching its operation.
+     */
+    @Test
+    void every_operation_answering_with_an_etag_has_a_response_returning_sibling() {
+        List<String> operations = List.of(
+                "AttributesApi.getAttribute", "AttributesApi.updateAttribute",
+                "CodeListsApi.getCodeList", "CodeListsApi.updateCodeList",
+                "StencilsApi.getStencil", "StencilsApi.updateStencil",
+                "StencilsApi.getStencilContent", "StencilsApi.updateStencilContent",
+                "TemplatesApi.getTemplate", "TemplatesApi.updateTemplate",
+                "ThemesApi.getTheme", "ThemesApi.updateTheme",
+                "VariantsApi.getVariant", "VariantsApi.updateVariant", "VariantsApi.setDefaultVariant",
+                "VariantsApi.getVariantContent", "VariantsApi.updateVariantContent");
+        for (String qualified : operations) {
+            Class<?> api = GENERATED_APIS.stream()
+                    .filter(candidate -> qualified.startsWith(candidate.getSimpleName() + "."))
+                    .findFirst()
+                    .orElseThrow();
+            Method operation = method(api, qualified.substring(qualified.indexOf('.') + 1));
+            Method sibling = method(api, operation.getName() + "WithHttpInfo");
+            assertEquals(Response.class, sibling.getReturnType(), qualified + "WithHttpInfo should return the Response");
+            assertEquals(
+                    List.of(operation.getParameterTypes()),
+                    List.of(sibling.getParameterTypes()),
+                    qualified + "WithHttpInfo should take the operation's parameters");
+            assertEquals(pathParams(operation), pathParams(sibling), qualified + "WithHttpInfo has other path parameters");
+            for (Class<? extends java.lang.annotation.Annotation> annotation :
+                    List.of(GET.class, PUT.class, PATCH.class, POST.class, Path.class, Consumes.class, Produces.class)) {
+                assertEquals(
+                        String.valueOf(operation.getAnnotation(annotation)),
+                        String.valueOf(sibling.getAnnotation(annotation)),
+                        qualified + "WithHttpInfo differs from it in @" + annotation.getSimpleName());
+            }
+        }
+    }
+
+    @Test
+    void the_etag_of_a_read_is_readable_exactly_as_sent() {
+        String content = "{\"variantKey\":\"english\",\"templateModel\":{\"modelVersion\":1,\"root\":\"root\","
+                + "\"nodes\":{\"root\":{\"id\":\"root\",\"type\":\"root\",\"slots\":[]}},\"slots\":{},"
+                + "\"themeRef\":{\"type\":\"inherit\"}},\"status\":\"modified\","
+                + "\"lastModified\":\"2026-10-18T09:15:00Z\",\"readyAt\":null}";
+        try (StubServer stub = StubServer.start(request ->
+                StubServer.StubResponse.of(200, VENDOR_JSON, content).header("ETag", "\"7\""))) {
+
+            VariantsApi variants = EpistolaRestClients.builder().baseUri(stub.baseUri()).build().api(VariantsApi.class);
+
+            try (Response response = variants.getVariantContentWithHttpInfo(
+                    "acme-corp", "~", "acme-corp", "letters", "next", "invoice", "english")) {
+                assertEquals("\"7\"", response.getHeaderString("ETag"));
+                assertEquals("english", response.readEntity(VariantContentDto.class).getVariantKey());
+            }
+        }
+    }
+
+    @Test
+    void an_error_from_a_response_returning_sibling_still_arrives_as_a_problem() {
+        String problem = "{\"type\":\"https://epistola.app/errors/not-found\",\"title\":\"Not Found\",\"status\":404}";
+        try (StubServer stub = StubServer.start(request ->
+                StubServer.StubResponse.of(404, "application/problem+json", problem))) {
+
+            VariantsApi variants = EpistolaRestClients.builder().baseUri(stub.baseUri()).build().api(VariantsApi.class);
+
+            ProblemDetailException thrown = org.junit.jupiter.api.Assertions.assertThrows(
+                    ProblemDetailException.class,
+                    () -> variants.getVariantContentWithHttpInfo(
+                            "acme-corp", "~", "acme-corp", "letters", "next", "invoice", "english"));
+            assertEquals("not-found", thrown.getTypeSlug());
         }
     }
 

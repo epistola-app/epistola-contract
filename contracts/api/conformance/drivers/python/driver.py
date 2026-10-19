@@ -41,6 +41,7 @@ from epistola_client import (
     RenameCatalogDraftRequest,
     SetEnvironmentOverrideRequest,
     ResultCollector,
+    StencilsApi,
     SystemApi,
     TemplateDataValidationError,
     TemplateSchemaValidator,
@@ -48,6 +49,7 @@ from epistola_client import (
     UpdateCatalogDependenciesRequest,
     UpdateConsumerRequest,
     UpdateEnvironmentRequest,
+    UpdateStencilContentRequest,
     UpdateVariantContentRequest,
     VariantsApi,
 )
@@ -94,6 +96,17 @@ def main() -> int:
         "create-environment": _create_environment,
         "update-environment": _update_environment,
         "update-variant-content": _update_variant_content,
+        "get-variant-content": _get_variant_content,
+        "mark-variant-ready": _mark_variant_ready,
+        "mark-template-ready": _mark_template_ready,
+        "get-stencil-content": _get_stencil_content,
+        "update-stencil-content": _update_stencil_content,
+        "mark-stencil-ready": _mark_stencil_ready,
+        "list-stencil-usage": _list_stencil_usage,
+        "get-catalog-changes": _get_catalog_changes,
+        "mark-catalog-ready": _mark_catalog_ready,
+        "list-environment-deployments": _list_environment_deployments,
+        "list-deployment-history": _list_deployment_history,
     }
 
     try:
@@ -642,6 +655,210 @@ def _update_variant_content(base_url: str, config: dict) -> None:
         _report(base_url, {"problemTypeSlug": exc.type_slug or "<null>", "problemStatus": exc.status_code})
         return
     _report(base_url, {"variantKey": content.variant_key})
+
+
+# --- Content, ready marks and changes ---
+
+_ONE_NODE_MODEL = {
+    "modelVersion": 1,
+    "root": "root",
+    "nodes": {"root": {"id": "root", "type": "root", "slots": []}},
+    "slots": {},
+    "themeRef": {"type": "inherit"},
+}
+
+
+def _get_variant_content(base_url: str, config: dict) -> None:
+    """Reads a variant's content through ``*_with_http_info``, which is how a caller reaches the
+    response headers: the ``ETag`` is reported exactly as received, quotes included."""
+    response = VariantsApi(_client(base_url, config)).get_variant_content_with_http_info(
+        *_catalog_version_address(config), config["templateKey"], config["variantKey"]
+    )
+    content = response.data
+    _report(
+        base_url,
+        {
+            "variantKey": _show(content.variant_key),
+            "templateModelRoot": _show(content.template_model.root),
+            "status": _show(_enum(content.status)),
+            "lastModified": _show_instant(content.last_modified),
+            "readyAt": _show_instant(content.ready_at),
+            "etag": _show((response.headers or {}).get("ETag")),
+        },
+    )
+
+
+def _mark_variant_ready(base_url: str, config: dict) -> None:
+    content = VariantsApi(_client(base_url, config)).mark_variant_ready(
+        *_catalog_version_address(config), config["templateKey"], config["variantKey"]
+    )
+    _report(
+        base_url,
+        {
+            "variantKey": _show(content.variant_key),
+            "status": _show(_enum(content.status)),
+            "lastModified": _show_instant(content.last_modified),
+            "readyAt": _show_instant(content.ready_at),
+        },
+    )
+
+
+def _mark_template_ready(base_url: str, config: dict) -> None:
+    template = TemplatesApi(_client(base_url, config)).mark_template_ready(
+        *_catalog_version_address(config), config["templateKey"]
+    )
+    _report(
+        base_url,
+        {
+            "key": _show(template.key),
+            "name": _show(template.name),
+            "variantKeys": ",".join(_show(v.key) for v in template.variants),
+            "variantStatuses": ",".join(_show(_enum(v.status)) for v in template.variants),
+        },
+    )
+
+
+def _schema_type(schema) -> str:
+    return _show(schema.get("type") if schema is not None else None)
+
+
+def _get_stencil_content(base_url: str, config: dict) -> None:
+    """Reads a stencil's content through ``*_with_http_info``, reporting the ``ETag`` as received."""
+    response = StencilsApi(_client(base_url, config)).get_stencil_content_with_http_info(
+        *_catalog_version_address(config), config["stencilKey"]
+    )
+    content = response.data
+    _report(
+        base_url,
+        {
+            "stencilKey": _show(content.stencil_key),
+            "contentRoot": _show(content.content.root),
+            "parameterSchemaType": _schema_type(content.parameter_schema),
+            "status": _show(_enum(content.status)),
+            "lastModified": _show_instant(content.last_modified),
+            "readyAt": _show_instant(content.ready_at),
+            "etag": _show((response.headers or {}).get("ETag")),
+        },
+    )
+
+
+def _update_stencil_content(base_url: str, config: dict) -> None:
+    """Replaces a stencil's content with a one-node template model and ``parameterSchema``, sending
+    ``ifMatch`` as ``If-Match``, and reports the new ``ETag`` the update answered with."""
+    request = UpdateStencilContentRequest.from_dict(
+        {"content": _ONE_NODE_MODEL, "parameterSchema": config["parameterSchema"]}
+    )
+    response = StencilsApi(_client(base_url, config)).update_stencil_content_with_http_info(
+        *_catalog_version_address(config),
+        config["stencilKey"],
+        request,
+        if_match=config.get("ifMatch"),
+    )
+    content = response.data
+    _report(
+        base_url,
+        {
+            "stencilKey": _show(content.stencil_key),
+            "status": _show(_enum(content.status)),
+            "readyAt": _show_instant(content.ready_at),
+            "etag": _show((response.headers or {}).get("ETag")),
+        },
+    )
+
+
+def _mark_stencil_ready(base_url: str, config: dict) -> None:
+    response = StencilsApi(_client(base_url, config)).mark_stencil_ready(
+        *_catalog_version_address(config), config["stencilKey"]
+    )
+    _report(
+        base_url,
+        {
+            "stencilKey": _show(response.stencil.stencil_key),
+            "status": _show(_enum(response.stencil.status)),
+            "readyAt": _show_instant(response.stencil.ready_at),
+            "parameterSchemaType": _schema_type(response.stencil.parameter_schema),
+            "notFitting": ",".join(
+                f"{_show(u.template_key)}/{_show(u.variant_key)}:{_show_bool(u.fits)}" for u in response.not_fitting
+            ),
+            "notFittingProblems": ";".join("|".join(u.problems) for u in response.not_fitting),
+        },
+    )
+
+
+def _list_stencil_usage(base_url: str, config: dict) -> None:
+    response = StencilsApi(_client(base_url, config)).list_stencil_usage(
+        *_catalog_version_address(config), config["stencilKey"], page=config["page"], size=config["size"]
+    )
+    _report(
+        base_url,
+        {
+            "templateKeys": ",".join(_show(u.template_key) for u in response.items),
+            "templateNames": "|".join(_show(u.template_name) for u in response.items),
+            "variantKeys": ",".join(_show(u.variant_key) for u in response.items),
+            "fits": ",".join(_show_bool(u.fits) for u in response.items),
+            "problems": ";".join("|".join(u.problems) for u in response.items),
+            "pageNumber": _show(response.page.number),
+            "totalElements": _show(response.page.total_elements),
+        },
+    )
+
+
+def _get_catalog_changes(base_url: str, config: dict) -> None:
+    _report_changes(base_url, CatalogsApi(_client(base_url, config)).get_catalog_changes(*_catalog_version_address(config)))
+
+
+def _mark_catalog_ready(base_url: str, config: dict) -> None:
+    _report_changes(base_url, CatalogsApi(_client(base_url, config)).mark_catalog_ready(*_catalog_version_address(config)))
+
+
+def _report_changes(base_url: str, changes) -> None:
+    _report(
+        base_url,
+        {
+            "base": _show(changes.base),
+            "releasable": _show_bool(changes.releasable),
+            "dependenciesChanged": _show_bool(changes.dependencies_changed),
+            "changes": ",".join(f"{_show(c.type)}/{_show(c.key)}:{_show(_enum(c.change))}" for c in changes.changes),
+        },
+    )
+
+
+def _list_environment_deployments(base_url: str, config: dict) -> None:
+    items = (
+        EnvironmentsApi(_client(base_url, config))
+        .list_environment_deployments(config["tenantKey"], config["environmentKey"])
+        .items
+    )
+    _report(
+        base_url,
+        {
+            "registries": ",".join(_show(d.registry) for d in items),
+            "catalogKeys": ",".join(_show(d.catalog_key) for d in items),
+            "releaseVersions": ",".join(_show(d.release_version) for d in items),
+            "deployedAt": ",".join(_show_instant(d.deployed_at) for d in items),
+            "lastUsedAt": ",".join(_show_instant(d.last_used_at) for d in items),
+            "documentsRequested": ",".join(_show(d.documents_requested) for d in items),
+        },
+    )
+
+
+def _list_deployment_history(base_url: str, config: dict) -> None:
+    response = EnvironmentsApi(_client(base_url, config)).list_deployment_history(
+        config["tenantKey"], config["environmentKey"], page=config["page"], size=config["size"]
+    )
+    items = response.items
+    _report(
+        base_url,
+        {
+            "catalogKeys": ",".join(_show(e.catalog_key) for e in items),
+            "actions": ",".join(_show(_enum(e.action)) for e in items),
+            "releaseVersions": ",".join(_show(e.release_version) for e in items),
+            "draftLabels": "|".join(_show(e.draft_label) for e in items),
+            "changedAt": ",".join(_show_instant(e.changed_at) for e in items),
+            "changedBy": "|".join(_show(e.changed_by) for e in items),
+            "totalElements": _show(response.page.total_elements),
+        },
+    )
 
 
 def _set_environment_override(base_url: str, config: dict) -> None:

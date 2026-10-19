@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: get-catalog-changes
+title: A draft's changes read every change kind, in order, and whether it is releasable
+why: >
+  The changes are what an author reviews before releasing: every resource of the draft that is
+  `new`, `modified` or `ready`, and every resource of the base that is `removed`. `change` is an
+  enum with all four values in this answer, so a client that knows only the three it shares with
+  ResourceStatus fails on the fourth. `releasable` is false here, because resources are still new
+  and modified; a client that misreads it offers a release the server will refuse.
+
+action:
+  name: get-catalog-changes
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: next
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      base: 1.4.0
+      releasable: false
+      dependenciesChanged: true
+      changes:
+        - { type: template, key: invoice, change: modified }
+        - { type: stencil, key: corporate-header, change: ready }
+        - { type: theme, key: house-style, change: new }
+        - { type: theme, key: legacy, change: removed }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/next/changes
+      query: ""
+      headers:
+        Accept:
+          contains: application/vnd.epistola.v2+json
+  report:
+    base: 1.4.0
+    releasable: "false"
+    dependenciesChanged: "true"
+    # One entry per change, as type/key:change.
+    changes: template/invoice:modified,stencil/corporate-header:ready,theme/house-style:new,theme/legacy:removed

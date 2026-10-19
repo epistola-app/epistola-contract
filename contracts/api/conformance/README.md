@@ -92,6 +92,17 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | `create-environment` | `POST …/environments` with `config.key`, `config.name`, and `config.production` when present, reporting the `key`, `name` and `production` it parsed |
 | `update-environment` | `PATCH …/environments/{environmentKey}` with `config.name` and `config.production` each only when present, reporting the `key`, `name` and `production` it parsed |
 | `update-variant-content` | `PUT …/templates/{templateKey}/variants/{variantKey}/content` with a one-node template model, sending `config.ifMatch` as `If-Match` when present and no `If-Match` otherwise, reporting the `variantKey` it parsed. When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
+| `get-variant-content` | `GET …/templates/{templateKey}/variants/{variantKey}/content` through the operation that exposes the response headers, reporting the `variantKey`, `templateModelRoot`, `status`, `lastModified` and `readyAt` it parsed, and the `etag` response header exactly as received |
+| `mark-variant-ready` | `POST …/templates/{templateKey}/variants/{variantKey}/mark-ready`, reporting the `variantKey`, `status`, `lastModified` and `readyAt` it parsed |
+| `mark-template-ready` | `POST …/templates/{templateKey}/mark-ready`, reporting the `key` and `name` it parsed, and its variants' `variantKeys` and `variantStatuses`, in order |
+| `get-stencil-content` | `GET …/stencils/{stencilKey}/content` through the operation that exposes the response headers, reporting the `stencilKey`, `contentRoot`, `parameterSchemaType` (the schema's `type` member), `status`, `lastModified` and `readyAt` it parsed, and the `etag` response header exactly as received |
+| `update-stencil-content` | `PUT …/stencils/{stencilKey}/content` with a one-node template model as `content` and `config.parameterSchema`, sending `config.ifMatch` as `If-Match`, through the operation that exposes the response headers, reporting the `stencilKey`, `status` and `readyAt` it parsed and the `etag` response header exactly as received |
+| `mark-stencil-ready` | `POST …/stencils/{stencilKey}/mark-ready`, reporting the stencil's `stencilKey`, `status`, `readyAt` and `parameterSchemaType`, `notFitting` as `templateKey/variantKey:fits` (comma-joined) and `notFittingProblems` (each instance's problems joined with `\|`, the instances with `;`) |
+| `list-stencil-usage` | `GET …/stencils/{stencilKey}/usage` with `config.page` and `config.size`, reporting the `templateKeys`, `templateNames` (joined with `\|`), `variantKeys` and `fits` it parsed, `problems` (each entry's joined with `\|`, the entries with `;`), and the page's `pageNumber` and `totalElements` |
+| `get-catalog-changes` | `GET …/versions/{catalogVersion}/changes`, reporting the `base`, `releasable` and `dependenciesChanged` it parsed, and `changes` as `type/key:change` (comma-joined, in order) |
+| `mark-catalog-ready` | `POST …/versions/{catalogVersion}/mark-ready`, reporting what `get-catalog-changes` does |
+| `list-environment-deployments` | `GET …/environments/{environmentKey}/deployments`, reporting the `registries`, `catalogKeys`, `releaseVersions`, `deployedAt`, `lastUsedAt` and `documentsRequested` it parsed (comma-joined, in order) |
+| `list-deployment-history` | `GET …/environments/{environmentKey}/deployment-history` with `config.page` and `config.size`, reporting the `catalogKeys`, `actions`, `releaseVersions` and `changedAt` it parsed (comma-joined), `draftLabels` and `changedBy` (joined with `\|`), in order, and the page's `totalElements` |
 
 Catalog-scoped actions take the catalog as `config.registry`, `config.namespace` and
 `config.catalogKey`, and actions on a catalog version (templates, images, dependencies, and the
@@ -260,3 +271,9 @@ test suites — which is the argument for the suite existing:
   `older-server-response` scenario played one until 2.0.0 removed `id` and required `slug`; its
   successor, `template-listing-by-key`, holds every client to reading the address from `key`
   alone, the name 2.0.0 gives it (#84).
+- **The Jakarta client could not read an `ETag`.** Contract 2.0.0 made updates conditional on the
+  `ETag` a read answers with, sent back as `If-Match`. A MicroProfile Rest Client method returns its
+  body alone, and the generator offers no way to return the response as well, so a caller could send
+  `If-Match` but had no tag to send: optimistic locking was unusable from this client. Every scenario
+  so far had only checked that `If-Match` goes out; `get-variant-content` was the first to ask for
+  the tag back. The other four expose response headers on every operation (`…WithHttpInfo`, `…Raw`).

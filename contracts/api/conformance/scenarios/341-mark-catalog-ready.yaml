@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: mark-catalog-ready
+title: Marking a draft ready posts to the draft's address, and reads back the changes that remain
+why: >
+  Marking a catalog ready marks every new and modified resource of the draft in one action. The
+  draft is addressed as given, here long-term work by its id rather than `next`. The answer is the
+  draft's changes afterwards: every resource is `ready` and the draft is now releasable.
+
+  This draft has never been released, so it has no base: `base` is null. A client must read that as
+  a missing value, not refuse the response or report an empty string.
+
+action:
+  name: mark-catalog-ready
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      base: null
+      releasable: true
+      dependenciesChanged: false
+      changes:
+        - { type: template, key: invoice, change: ready }
+        - { type: theme, key: house-style, change: ready }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-8a10-7d2e-8b3c-4d5e6f708192/mark-ready
+      query: ""
+      headers:
+        Accept:
+          contains: application/vnd.epistola.v2+json
+  report:
+    base: "null"
+    releasable: "true"
+    dependenciesChanged: "false"
+    changes: template/invoice:ready,theme/house-style:ready

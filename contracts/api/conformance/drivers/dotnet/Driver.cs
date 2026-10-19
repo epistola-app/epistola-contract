@@ -74,6 +74,17 @@ public static class Driver
                 case "create-environment": CreateEnvironment(baseUrl, config); break;
                 case "update-environment": UpdateEnvironment(baseUrl, config); break;
                 case "update-variant-content": UpdateVariantContent(baseUrl, config); break;
+                case "get-variant-content": GetVariantContent(baseUrl, config); break;
+                case "mark-variant-ready": MarkVariantReady(baseUrl, config); break;
+                case "mark-template-ready": MarkTemplateReady(baseUrl, config); break;
+                case "get-stencil-content": GetStencilContent(baseUrl, config); break;
+                case "update-stencil-content": UpdateStencilContent(baseUrl, config); break;
+                case "mark-stencil-ready": MarkStencilReady(baseUrl, config); break;
+                case "list-stencil-usage": ListStencilUsage(baseUrl, config); break;
+                case "get-catalog-changes": GetCatalogChanges(baseUrl, config); break;
+                case "mark-catalog-ready": MarkCatalogReady(baseUrl, config); break;
+                case "list-environment-deployments": ListEnvironmentDeployments(baseUrl, config); break;
+                case "list-deployment-history": ListDeploymentHistory(baseUrl, config); break;
                 default: throw new ArgumentException($"unknown action {instruction.GetProperty("action")}");
             }
 
@@ -800,6 +811,230 @@ public static class Driver
         }
 
         Report(baseUrl, new Dictionary<string, object> { ["variantKey"] = Show(content.VariantKey) });
+    }
+
+    // --- Content, ready marks and changes ---
+
+    private static TemplateDocument OneNodeModel() => new(
+        modelVersion: TemplateDocument.ModelVersionEnum.NUMBER_1,
+        root: "root",
+        nodes: new Dictionary<string, Node> { ["root"] = new Node(id: "root", type: "root", slots: new List<string>()) },
+        slots: new Dictionary<string, Slot>(),
+        themeRef: new ThemeRef(type: ThemeRef.TypeEnum.Inherit));
+
+    /// <summary>The <c>type</c> member of a free-form JSON Schema object, which the generated models read as a JObject.</summary>
+    private static string SchemaType(object? schema) =>
+        schema is Newtonsoft.Json.Linq.JObject json ? Show(json["type"]?.ToString()) : "null";
+
+    /// <summary>A response header as received, the first value when there are several.</summary>
+    private static string Header<T>(ApiResponse<T> response, string name) =>
+        response.Headers.TryGetValue(name, out var values) && values.Count > 0 ? values[0] : "null";
+
+    /// <summary>
+    /// Reads a variant's content through <c>…WithHttpInfo</c>, which is how a caller reaches the
+    /// response headers: the <c>ETag</c> is reported exactly as received, quotes included.
+    /// </summary>
+    private static void GetVariantContent(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var response = new VariantsApi(http, apiBase).GetVariantContentWithHttpInfo(
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "templateKey"), Str(config, "variantKey"));
+        var content = response.Data;
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["variantKey"] = Show(content.VariantKey),
+            ["templateModelRoot"] = Show(content.TemplateModel?.Root),
+            ["status"] = Wire(content.Status),
+            ["lastModified"] = Show(Iso(content.LastModified)),
+            ["readyAt"] = Show(Iso(content.ReadyAt)),
+            ["etag"] = Header(response, "ETag"),
+        });
+    }
+
+    private static void MarkVariantReady(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var content = new VariantsApi(http, apiBase).MarkVariantReady(
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "templateKey"), Str(config, "variantKey"));
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["variantKey"] = Show(content.VariantKey),
+            ["status"] = Wire(content.Status),
+            ["lastModified"] = Show(Iso(content.LastModified)),
+            ["readyAt"] = Show(Iso(content.ReadyAt)),
+        });
+    }
+
+    private static void MarkTemplateReady(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var template = new TemplatesApi(http, apiBase).MarkTemplateReady(
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "templateKey"));
+        var variants = template.Variants ?? new List<VariantSummaryDto>();
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["key"] = Show(template.Key),
+            ["name"] = Show(template.Name),
+            ["variantKeys"] = string.Join(",", variants.Select(v => Show(v.Key))),
+            ["variantStatuses"] = string.Join(",", variants.Select(v => Wire(v.Status))),
+        });
+    }
+
+    /// <summary>Reads a stencil's content through <c>…WithHttpInfo</c>, reporting the <c>ETag</c> exactly as received.</summary>
+    private static void GetStencilContent(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var response = new StencilsApi(http, apiBase).GetStencilContentWithHttpInfo(
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "stencilKey"));
+        var content = response.Data;
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["stencilKey"] = Show(content.StencilKey),
+            ["contentRoot"] = Show(content.Content?.Root),
+            ["parameterSchemaType"] = SchemaType(content.ParameterSchema),
+            ["status"] = Wire(content.Status),
+            ["lastModified"] = Show(Iso(content.LastModified)),
+            ["readyAt"] = Show(Iso(content.ReadyAt)),
+            ["etag"] = Header(response, "ETag"),
+        });
+    }
+
+    /// <summary>
+    /// Replaces a stencil's content with a one-node template model and <c>config.parameterSchema</c>,
+    /// sending <c>config.ifMatch</c> as <c>If-Match</c>, and reports the new <c>ETag</c> the update
+    /// answered with.
+    /// </summary>
+    private static void UpdateStencilContent(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var response = new StencilsApi(http, apiBase).UpdateStencilContentWithHttpInfo(
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "stencilKey"),
+            new UpdateStencilContentRequest(
+                content: OneNodeModel(),
+                // Parsed with Newtonsoft, which the generated models serialize through (see GenerateDocument).
+                parameterSchema: Newtonsoft.Json.JsonConvert.DeserializeObject(config.GetProperty("parameterSchema").GetRawText())!),
+            ifMatch: OptStr(config, "ifMatch"));
+        var content = response.Data;
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["stencilKey"] = Show(content.StencilKey),
+            ["status"] = Wire(content.Status),
+            ["readyAt"] = Show(Iso(content.ReadyAt)),
+            ["etag"] = Header(response, "ETag"),
+        });
+    }
+
+    private static void MarkStencilReady(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var response = new StencilsApi(http, apiBase).MarkStencilReady(
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "stencilKey"));
+        var notFitting = response.NotFitting ?? new List<StencilUsageDto>();
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["stencilKey"] = Show(response.Stencil?.StencilKey),
+            ["status"] = response.Stencil == null ? "null" : Wire(response.Stencil.Status),
+            ["readyAt"] = Show(Iso(response.Stencil?.ReadyAt)),
+            ["parameterSchemaType"] = SchemaType(response.Stencil?.ParameterSchema),
+            ["notFitting"] = string.Join(",", notFitting.Select(u => $"{Show(u.TemplateKey)}/{Show(u.VariantKey)}:{Bool(u.Fits)}")),
+            ["notFittingProblems"] = string.Join(";", notFitting.Select(u => string.Join("|", u.Problems ?? new List<string>()))),
+        });
+    }
+
+    private static void ListStencilUsage(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var response = new StencilsApi(http, apiBase).ListStencilUsage(
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "stencilKey"),
+            page: Int(config, "page"),
+            size: Int(config, "size"));
+        var items = response.Items ?? new List<StencilUsageDto>();
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["templateKeys"] = string.Join(",", items.Select(u => Show(u.TemplateKey))),
+            ["templateNames"] = string.Join("|", items.Select(u => Show(u.TemplateName))),
+            ["variantKeys"] = string.Join(",", items.Select(u => Show(u.VariantKey))),
+            ["fits"] = string.Join(",", items.Select(u => Bool(u.Fits))),
+            ["problems"] = string.Join(";", items.Select(u => string.Join("|", u.Problems ?? new List<string>()))),
+            ["pageNumber"] = Show(response.Page?.Number),
+            ["totalElements"] = Show(response.Page?.TotalElements),
+        });
+    }
+
+    private static void GetCatalogChanges(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        ReportChanges(baseUrl, new CatalogsApi(http, apiBase).GetCatalogChanges(
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion")));
+    }
+
+    private static void MarkCatalogReady(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        ReportChanges(baseUrl, new CatalogsApi(http, apiBase).MarkCatalogReady(
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion")));
+    }
+
+    private static void ReportChanges(string baseUrl, CatalogChangesDto changes) =>
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["base"] = Show(changes.Base),
+            ["releasable"] = Bool(changes.Releasable),
+            ["dependenciesChanged"] = Bool(changes.DependenciesChanged),
+            ["changes"] = string.Join(",", (changes.Changes ?? new List<ResourceChangeDto>())
+                .Select(c => $"{Show(c.Type)}/{Show(c.Key)}:{Wire(c.Change)}")),
+        });
+
+    private static void ListEnvironmentDeployments(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var items = new EnvironmentsApi(http, apiBase)
+            .ListEnvironmentDeployments(Str(config, "tenantKey"), Str(config, "environmentKey")).Items ?? new List<DeploymentDto>();
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["registries"] = string.Join(",", items.Select(d => Show(d.Registry))),
+            ["catalogKeys"] = string.Join(",", items.Select(d => Show(d.CatalogKey))),
+            ["releaseVersions"] = string.Join(",", items.Select(d => Show(d.ReleaseVersion))),
+            ["deployedAt"] = string.Join(",", items.Select(d => Show(Iso(d.DeployedAt)))),
+            ["lastUsedAt"] = string.Join(",", items.Select(d => Show(Iso(d.LastUsedAt)))),
+            ["documentsRequested"] = string.Join(",", items.Select(d => d.DocumentsRequested.ToString(System.Globalization.CultureInfo.InvariantCulture))),
+        });
+    }
+
+    private static void ListDeploymentHistory(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var response = new EnvironmentsApi(http, apiBase).ListDeploymentHistory(
+            Str(config, "tenantKey"), Str(config, "environmentKey"),
+            page: Int(config, "page"),
+            size: Int(config, "size"));
+        var items = response.Items ?? new List<DeploymentEventDto>();
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["catalogKeys"] = string.Join(",", items.Select(e => Show(e.CatalogKey))),
+            ["actions"] = string.Join(",", items.Select(e => Wire(e.Action))),
+            ["releaseVersions"] = string.Join(",", items.Select(e => Show(e.ReleaseVersion))),
+            ["draftLabels"] = string.Join("|", items.Select(e => Show(e.DraftLabel))),
+            ["changedAt"] = string.Join(",", items.Select(e => Show(Iso(e.ChangedAt)))),
+            ["changedBy"] = string.Join("|", items.Select(e => Show(e.ChangedBy))),
+            ["totalElements"] = Show(response.Page?.TotalElements),
+        });
     }
 
     /// <summary>Creates an environment; <c>production</c> keeps its default when the scenario does not name it.</summary>
