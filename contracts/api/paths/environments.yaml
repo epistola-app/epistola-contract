@@ -252,8 +252,7 @@ environment-deployment-release:
       renders the highest release it serves, or the highest that satisfies the request's `version`;
       so deploying a higher release moves such requests to it, and undeploying it moves them back. Requests already accepted keep
       the release they were bound to. An environment override of the catalog
-      (`setEnvironmentOverride`) takes precedence for requests naming no version or a range. Only a
-      release that kept its content can be deployed.
+      (`setEnvironmentOverride`) takes precedence for requests naming no version or a range.
       Deploying a release the environment already serves changes nothing, apart from what
       `replace=true` stops.
 
@@ -263,7 +262,7 @@ environment-deployment-release:
       nothing else the environment serves changes. A dependency release the tenant does not have yet
       is installed first: fetched from its registry, through the registry's configured mirrors, and
       checked against the fingerprint it was recorded with. When one cannot be had
-      (`UNAVAILABLE`) or kept no content (`CONTENT_NOT_RETAINED`), the deployment is refused with
+      (`UNAVAILABLE`), the deployment is refused with
       `release-dependencies-missing` (409), whose `missingDependencies` lists those. Nothing is
       deployed.
 
