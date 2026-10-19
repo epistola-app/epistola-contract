@@ -28,6 +28,22 @@ def test_parses_base_problem_and_exposes_type_slug():
     assert not exc.is_data_model_validation_problem
 
 
+def test_parses_catalog_source_unavailable_as_a_503_and_as_a_502():
+    for status in (503, 502):
+        body = json.dumps(
+            {
+                "type": "https://epistola.app/errors/catalog-source-unavailable",
+                "title": "Catalog Source Unavailable",
+                "status": status,
+                "detail": "registry.gemeente-x.nl could not be used",
+            }
+        )
+        exc = parse_problem(body, status)
+        assert exc is not None
+        assert exc.type_slug == KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE
+        assert exc.problem_status == status
+
+
 def test_parses_validation_problem_with_errors_array():
     body = json.dumps(
         {

@@ -199,6 +199,10 @@ try {
         e.getUnreleasedDependencies().forEach(dep -> log.warn("{}/{}/{}: draft {} ({})",
                 dep.getRegistry(), dep.getNamespace(), dep.getCatalogKey(),
                 dep.getVersionId(), dep.getDraftName()));
+    } else if (KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE.equals(slug)) {
+        // from installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source
+        // could not be reached (Retry-After may say when to retry), 502 when it answered badly
+        log.warn("catalog source unavailable ({}): {}", e.getProblemStatus(), e.getDetail());
     } else {                                // always keep a fallback: the API can add problem
         log.error("{} {}", e.getProblemStatus(), e.getTitle());   // types without a client release
     }

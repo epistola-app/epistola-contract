@@ -20,7 +20,7 @@ info:
     A **draft** is edited, its changed resources marked ready, and **released**, after which it is
     immutable: every write to it is refused with 409. Every version has a **`versionId`**, assigned
     when it is started as a draft and kept when it is released (a release installed by import or
-    upgrade gets one too). A draft has no number until it is released, so it is addressed by its
+    from a catalog's source gets one too). A draft has no number until it is released, so it is addressed by its
     `versionId`; a released version by its `versionId` or its SemVer number, interchangeably: both
     address the same version, and a write through either is refused with 409.
 
@@ -46,11 +46,12 @@ info:
 
     Importing a catalog archive (`importCatalog`) never fills or creates a draft: it installs the
     release the archive carries, at its number, next to the releases the tenant already has. To edit
-    it, an author starts a draft from that release. Upgrading a SUBSCRIBED catalog
-    (`upgradeCatalog`) is the same install, of a release fetched from the catalog's source: nothing
-    is updated in place or removed, and deploying decides which release an environment serves. An
-    import or upgrade never changes a catalog's type (AUTHORED or SUBSCRIBED); the import that
-    creates a catalog names it.
+    it, an author starts a draft from that release. Installing a release of a SUBSCRIBED catalog
+    from its source (`installCatalogRelease`) is the same install, of a release fetched from the
+    catalog's source; `listAvailableCatalogReleases` lists those the source offers that the tenant
+    has not installed, older lines included. Nothing is upgraded: nothing is updated in place or
+    removed, and deploying decides which release an environment serves. Installing never changes a
+    catalog's type (AUTHORED or SUBSCRIBED); the import that creates a catalog names it.
 
     ## Catalog identity
     A catalog is identified by three parts together, never by its key alone: two publishers can
@@ -339,6 +340,16 @@ x-problem-types:
       description: >-
         Too many requests; the `Retry-After` header indicates how long to
         wait.
+    - slug: catalog-source-unavailable
+      status: 503
+      schema: ProblemDetail
+      description: >-
+        A subscribed catalog's source (its registry, through the mirrors
+        configured for it) could not be used, so its releases could not be
+        listed or installed and nothing was installed: 503 when it could not
+        be reached or did not answer in time, possibly with `Retry-After`;
+        502 when it answered with an error or with something that is not a
+        valid answer.
 
 tags:
   - name: System
@@ -573,10 +584,10 @@ paths:
     $ref: './paths/catalogs.yaml#/catalog-changes'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/mark-ready:
     $ref: './paths/catalogs.yaml#/catalog-mark-ready'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/upgrade-preview:
-    $ref: './paths/catalogs.yaml#/catalog-upgrade-preview'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/upgrade:
-    $ref: './paths/catalogs.yaml#/catalog-upgrade'
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/available-releases:
+    $ref: './paths/catalogs.yaml#/catalog-available-releases'
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/available-releases/{releaseVersion}/install:
+    $ref: './paths/catalogs.yaml#/catalog-available-release-install'
 
   # Catalog Import
   /tenants/{tenantKey}/catalogs/import:
@@ -715,14 +726,14 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CatalogDto'
     CatalogListResponse:
       $ref: './components/schemas/catalogs.yaml#/CatalogListResponse'
-    CatalogUpgradePreview:
-      $ref: './components/schemas/catalogs.yaml#/CatalogUpgradePreview'
+    AvailableCatalogReleases:
+      $ref: './components/schemas/catalogs.yaml#/AvailableCatalogReleases'
     AvailableReleaseDto:
       $ref: './components/schemas/catalogs.yaml#/AvailableReleaseDto'
     AvailableReleaseDependencyDto:
       $ref: './components/schemas/catalogs.yaml#/AvailableReleaseDependencyDto'
-    UpgradeCatalogResponse:
-      $ref: './components/schemas/catalogs.yaml#/UpgradeCatalogResponse'
+    InstallCatalogReleaseResponse:
+      $ref: './components/schemas/catalogs.yaml#/InstallCatalogReleaseResponse'
     ReleaseDependencyDto:
       $ref: './components/schemas/catalogs.yaml#/ReleaseDependencyDto'
     CatalogDependencyRequirement:

@@ -28,6 +28,20 @@ test('parses a base problem and exposes the type slug', () => {
   assert.deepEqual(problem.extensions, {})
 })
 
+test('parses catalog-source-unavailable as a 503 and as a 502', () => {
+  for (const status of [503, 502]) {
+    const problem = parse({
+      type: 'https://epistola.app/errors/catalog-source-unavailable',
+      title: 'Catalog Source Unavailable',
+      status,
+      detail: 'registry.gemeente-x.nl could not be used',
+    }, status)!
+    assert.equal(problem.typeSlug, KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE)
+    assert.equal(problem.problemStatus, status)
+    assert.equal(problem.statusCode, status)
+  }
+})
+
 test('parses a validation problem with its errors array', () => {
   const problem = parse({
     type: 'https://epistola.app/errors/validation-error',

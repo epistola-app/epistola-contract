@@ -37,6 +37,7 @@ class ProblemRegistryTest {
         assertEquals("release-dependencies-unreleased", KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED);
         assertEquals("environment-override-refused", KnownProblemSlugs.ENVIRONMENT_OVERRIDE_REFUSED);
         assertEquals("resource-modified", KnownProblemSlugs.RESOURCE_MODIFIED);
+        assertEquals("catalog-source-unavailable", KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE);
     }
 
     @Test

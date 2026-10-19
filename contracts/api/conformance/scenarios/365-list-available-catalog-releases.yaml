@@ -1,0 +1,81 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: list-available-catalog-releases
+title: The available releases are every release the source offers that the tenant lacks, each against the closest one below
+why: >
+  Releases are immutable and installed side by side (contract 2.0), so nothing is upgraded: the
+  source of a SUBSCRIBED catalog offers releases, and the tenant installs the ones it wants. The
+  list is every release the source offers that the tenant has not installed, lowest first, not only
+  those above the highest installed: here the tenant has `1.4.0` and `2.0.0`, and the fix `1.4.1`
+  is offered alongside `2.1.0`, and `0.9.0`, below anything installed.
+
+  Each release is compared to the closest installed release below it (`comparedTo`): `1.4.1` to
+  `1.4.0`, `2.1.0` to `2.0.0`, and `0.9.0` to nothing, so `comparedTo` is null and everything in it
+  is added. A client must surface the null as null, not as an empty string or a missing release.
+  Each release carries its changes with their kind, and its pins with the registry as written and
+  `present` as a boolean, including `false`; a release without pins as an empty list.
+
+action:
+  name: list-available-catalog-releases
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      registry: exchange.epistola.app
+      namespace: acme-corp
+      catalogKey: letters
+      available:
+        - version: 0.9.0
+          comparedTo: null
+          changes:
+            - { type: template, key: invoice, change: added }
+          dependencies: []
+        - version: 1.4.1
+          comparedTo: 1.4.0
+          changes:
+            - { type: template, key: invoice, change: modified }
+          dependencies:
+            - registry: exchange.epistola.app
+              namespace: epistola
+              catalogKey: system
+              releaseVersion: 3.2.0
+              present: true
+        - version: 2.1.0
+          comparedTo: 2.0.0
+          changes:
+            - { type: theme, key: corporate, change: added }
+            - { type: stencil, key: letter-shell, change: removed }
+          dependencies:
+            - registry: exchange.epistola.app
+              namespace: epistola
+              catalogKey: system
+              releaseVersion: 4.0.0
+              present: true
+            - registry: registry.gemeente-x.nl
+              namespace: huisstijl
+              catalogKey: branding
+              releaseVersion: 1.5.0
+              present: false
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/available-releases
+      query: ""
+  report:
+    registry: exchange.epistola.app
+    namespace: acme-corp
+    catalogKey: letters
+    availableComparedTo: 0.9.0=null;1.4.1=1.4.0;2.1.0=2.0.0
+    availableChanges: 0.9.0=template/invoice:added;1.4.1=template/invoice:modified;2.1.0=theme/corporate:added+stencil/letter-shell:removed
+    availableDependencies: 0.9.0=;1.4.1=exchange.epistola.app/epistola/system@3.2.0:true;2.1.0=exchange.epistola.app/epistola/system@4.0.0:true+registry.gemeente-x.nl/huisstijl/branding@1.5.0:false

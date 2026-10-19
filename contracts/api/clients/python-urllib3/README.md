@@ -117,6 +117,10 @@ except ProblemDetailException as e:
             for d in e.unreleased_dependencies:  # 409 from release_catalog_draft
                 log.warning("%s/%s/%s uses draft %s (%s)", d.registry, d.namespace,
                             d.catalog_key, d.draft_name, d.version_id)
+        case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
+            # install_catalog_release / list_available_catalog_releases: 503 when the catalog's
+            # source could not be reached (Retry-After may say when), 502 when it answered badly
+            log.warning("catalog source unavailable (%s): %s", e.problem_status, e.detail)
         case _:
             raise                              # unknown / framework error — fall back to status
 ```

@@ -107,8 +107,11 @@ const ACTION_OPERATIONS = {
   'preview-catalog-draft-release': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/release-preview' },
   'delete-catalog-draft': { method: 'delete', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}' },
   'release-catalog-draft': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/release' },
-  'upgrade-catalog': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/upgrade' },
-  'preview-catalog-upgrade': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/upgrade-preview' },
+  'install-catalog-release': {
+    method: 'post',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/available-releases/{releaseVersion}/install',
+  },
+  'list-available-catalog-releases': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/available-releases' },
   collect: { method: 'post', path: '/tenants/{tenantKey}/generation/collect' },
   routing: { method: 'post', path: '/tenants/{tenantKey}/generation/collect' },
 }

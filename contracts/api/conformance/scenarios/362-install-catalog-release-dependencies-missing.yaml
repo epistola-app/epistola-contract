@@ -2,17 +2,18 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: upgrade-catalog-dependencies-missing
-title: An upgrade whose pinned releases cannot be had is refused, naming each
+id: install-catalog-release-dependencies-missing
+title: Installing a release whose pinned releases cannot be had is refused, naming each
 why: >
-  Upgrading installs the releases the new release pins first, fetched from their registries. When
-  one cannot be had, the whole upgrade is refused with `release-dependencies-missing`, nothing is
-  installed, and `missingDependencies` names each release and why. A client's problem parser must
+  Installing a release from a catalog's source installs the releases it pins first, fetched from
+  their registries. When one cannot be had, the whole install is refused with
+  `release-dependencies-missing`, nothing is installed, and `missingDependencies` names each
+  release and why. A client's problem parser must
   surface that member on this operation as it does for a deployment, so a caller knows which
   registry or mirror to fix.
 
 action:
-  name: upgrade-catalog
+  name: install-catalog-release
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
@@ -40,8 +41,8 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/upgrade
-      query: releaseVersion=2.0.0
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/available-releases/2.0.0/install
+      query: ""
   report:
     problemTypeSlug: release-dependencies-missing
     problemStatus: 409

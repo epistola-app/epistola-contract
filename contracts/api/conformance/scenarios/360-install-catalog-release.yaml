@@ -2,25 +2,24 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: upgrade-catalog
-title: Upgrading a subscribed catalog installs the release asked for, beside the others, with its pins
+id: install-catalog-release
+title: Installing a release a subscribed catalog's source offers puts it beside the others, with its pins
 why: >
-  Upgrading a SUBSCRIBED catalog installs a release fetched from its source, as an import installs
-  the release an archive carries (contract 2.0): beside the releases the tenant has, nothing
-  updated in place, nothing removed. The caller may name the release, here `1.5.0` rather than the
-  newer `2.0.0` the source also offers, as the `releaseVersion` query parameter; the request has no
-  body. A client that sends the number in a body, or drops it, installs the highest release, which
-  may be a major the caller did not ask for.
+  Nothing is upgraded in contract 2.0: installing a release of a SUBSCRIBED catalog fetches it from
+  the catalog's source and installs it as an import installs the release an archive carries, beside
+  the releases the tenant has, nothing updated in place, nothing removed. The release is named in
+  the path, `…/available-releases/1.5.0/install`, here rather than the newer `2.0.0` the source also
+  offers; the request has no query and no body. A client that sends the number anywhere else, or
+  drops it, installs something the caller did not ask for.
 
   The catalog is in the default registry, addressed as `~`; the response names it in full.
 
   The response reports the release as an import does: `newlyInstalled` as a boolean, and the
-  releases the upgrade installed first because the release pins them (`installedDependencies`) and
-  those the tenant had (`presentDependencies`), in order. The 1.x reconciliation members
-  (`installResults`, `removedResources`, `aborted`) are gone.
+  releases installed first because the release pins them (`installedDependencies`) and those the
+  tenant had (`presentDependencies`), in order.
 
 action:
-  name: upgrade-catalog
+  name: install-catalog-release
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
@@ -46,8 +45,8 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/upgrade
-      query: releaseVersion=1.5.0
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/available-releases/1.5.0/install
+      query: ""
   report:
     registry: exchange.epistola.app
     namespace: acme-corp

@@ -42,6 +42,21 @@ public class ProblemDetailHandlerTest
         Assert.Equal("gone", ex.Detail);
     }
 
+    [Theory]
+    [InlineData(503)]
+    [InlineData(502)]
+    public async Task ThrowsTypedExceptionForACatalogSourceProblemAsA503OrA502(int status)
+    {
+        var body = "{\"type\":\"https://epistola.app/errors/catalog-source-unavailable\"," +
+                   "\"title\":\"Catalog Source Unavailable\",\"status\":" + status + "," +
+                   "\"detail\":\"registry.gemeente-x.nl could not be used\"}";
+        var client = ClientReturning((HttpStatusCode)status, "application/problem+json", body);
+
+        var ex = await Assert.ThrowsAsync<ProblemDetailException>(() => client.GetAsync("thing"));
+        Assert.Equal(KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE, ex.TypeSlug);
+        Assert.Equal(status, ex.ProblemStatus);
+    }
+
     [Fact]
     public async Task ParsesValidationErrorsArray()
     {

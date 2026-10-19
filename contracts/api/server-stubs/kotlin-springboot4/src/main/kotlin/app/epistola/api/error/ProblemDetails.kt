@@ -155,6 +155,12 @@ object ProblemDetails {
 
         /** 429 — too many requests; the client is being rate limited. */
         const val RATE_LIMITED: String = KnownProblemSlugs.RATE_LIMITED
+
+        /**
+         * 503 or 502 — a subscribed catalog's source could not be used, so its releases could not
+         * be listed or installed (use [catalogSourceUnavailable]).
+         */
+        const val CATALOG_SOURCE_UNAVAILABLE: String = KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE
     }
 
     /**
@@ -237,5 +243,27 @@ object ProblemDetails {
         val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED), detail, instance)
         problem.setProperty(UNRELEASED_DEPENDENCIES_PROPERTY, unreleasedDependencies)
         return problem
+    }
+
+    /**
+     * Builds a `catalog-source-unavailable` [ProblemDetail]: a SUBSCRIBED catalog's source (its
+     * registry, through its mirrors) could not be used by `listAvailableCatalogReleases` or
+     * `installCatalogRelease`, and nothing was installed. The one problem type is sent with either
+     * of two statuses: 503 when the source could not be reached or did not answer in time, 502
+     * when it answered with an error or with something that is not a valid answer. Any other
+     * status is refused.
+     *
+     * A 503 may tell the caller when to retry with a `Retry-After` response header, which the
+     * application sets on the response; it is not part of the problem body.
+     */
+    fun catalogSourceUnavailable(
+        status: HttpStatusCode,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        require(status.value() == 502 || status.value() == 503) {
+            "catalog-source-unavailable is sent as 502 or 503, not ${status.value()}"
+        }
+        return of(status, typeFor(KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE), detail, instance)
     }
 }

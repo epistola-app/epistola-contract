@@ -73,7 +73,7 @@ An event type is `{resourceType}.{action}`, both in kebab-case. The triggers bel
 | Event Type | Trigger |
 |---|---|
 | `catalog.imported` | `importCatalog` |
-| `catalog.upgraded` | `upgradeCatalog` |
+| `catalog.release-installed` | `installCatalogRelease` |
 | `catalog.dependencies-updated` | `updateCatalogDependencies` |
 | `catalog-version.draft-created` | `createCatalogDraft` |
 | `catalog-version.draft-renamed` | `renameCatalogDraft` |

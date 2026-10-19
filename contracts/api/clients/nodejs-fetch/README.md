@@ -150,6 +150,11 @@ try {
           log.warn(`${d.registry}/${d.namespace}/${d.catalogKey}: draft ${d.draftName} (${d.versionId})`)
         }
         break
+      case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
+        // installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source could
+        // not be reached (Retry-After may say when), 502 when it answered badly
+        log.warn(`catalog source unavailable (${e.problemStatus}): ${e.detail}`)
+        break
       default:
         throw e                                                                  // unknown / framework error — fall back to e.statusCode
     }

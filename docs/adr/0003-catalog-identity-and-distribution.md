@@ -156,9 +156,9 @@ subscribed catalogs:
 1. For each declared dependency, the pinned release (`releaseVersion`) is used when the tenant
    already has it.
 2. Otherwise the installation fetches it: it is the release the publisher tested with, so the
-   result is reproducible. Newer releases arrive through an upgrade. It fetches from the
-   dependency's registry, through that registry's mirrors when configured, and checks the copy
-   against `releaseFingerprint`.
+   result is reproducible. Other releases are installed when someone chooses to install them. It
+   fetches from the dependency's registry, through that registry's mirrors when configured, and
+   checks the copy against `releaseFingerprint`.
 3. The install is all or nothing. A release that cannot be fetched stops it, with the list of what
    is missing.
 
@@ -178,30 +178,40 @@ a different fingerprint is refused (409), and a catalog the import creates holds
 draft. A pin the archive does not carry is resolved as above, from what the installation has or can
 fetch.
 
-### Upgrading installs a release
+### Nothing is upgraded: a subscribed catalog installs the releases its source offers
 
-Upgrading a subscribed catalog (`upgradeCatalog`) installs a newer release of it, fetched from its
-source, exactly as installing does: the release given, or the highest the source offers, with the
-releases it pins installed first by the steps above. It is installed side by side with the
-catalog's other releases. Nothing is updated in place and nothing is removed; the releases installed
-before stay, and every deployment, draft and catalog that uses one keeps using it. Which release an
+Nothing is upgraded in contract 2.0. A subscribed catalog's source offers releases, and installing
+one (`installCatalogRelease`, `POST …/available-releases/{releaseVersion}/install`) fetches that
+release from the source and installs it exactly as installing does, with the releases it
+pins installed first by the steps above. The release is named in the path: there is no "the
+highest" default. It is installed side by side with the catalog's other releases, numbered above
+them or below. Nothing is updated in place and nothing is removed; the releases installed before
+stay, and every deployment, draft and catalog that uses one keeps using it. Which release an
 environment serves is decided by deploying it. The same number with the same fingerprint is
-already present and changes nothing; the same number with a different fingerprint is refused (409).
+already present and changes nothing; the same number with a different fingerprint is refused (409),
+and a number the source does not offer with 404.
 
-This replaces the reconciliation of contract 1.x, which updated a subscribed catalog's resources in
-place, removed the ones the publisher no longer published unless something still referenced them,
+This replaces contract 1.x's `upgradeCatalog` and `previewCatalogUpgrade` and their reconciliation,
+which updated a subscribed catalog's resources in place, removed the ones the publisher no longer published unless something still referenced them,
 and reported conflicts and per-resource results. Releases are immutable and kept side by side, so
 there is nothing to reconcile: a resource a newer release removed is still in the older release,
 and everything that renders the older release still has it.
 
-The preview (`previewCatalogUpgrade`) lists the releases the source offers above the highest
-installed one, each with the resources it added, modified or removed against that release and
-whether the releases it pins are present.
+The listing (`listAvailableCatalogReleases`, `GET …/available-releases`) shows every release the
+source offers that the tenant has not installed, lowest first, not only those above the highest
+installed: a fix `1.4.1` is listed while `2.0.0` is installed. Each is compared to the closest
+installed release numbered below it (`comparedTo`, null when there is none, and then everything in
+it is added), with the resources it added, modified or removed against that release and whether
+the releases it pins are present.
+
+Both need the source. When it cannot be reached or does not answer in time, the request fails with
+503 `catalog-source-unavailable`, possibly with `Retry-After`; when it answers with an error or
+with something that is not a valid answer, with 502 and the same problem type. Nothing is installed.
 
 ### A catalog's type is chosen once
 
 A catalog is AUTHORED (drafts can be started from its releases) or SUBSCRIBED (it only installs
-releases, and is upgraded from its source). The import that creates a catalog must name its type:
+releases, those its source offers among them). The import that creates a catalog must name its type:
 there is no default, because guessing wrong either lets an installation author a catalog someone
 else publishes, or stops it from authoring its own. A catalog keeps its type: an import into a
 catalog the tenant has may omit the type or repeat it, and naming the other type is refused (409)

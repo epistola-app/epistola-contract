@@ -49,6 +49,24 @@ class ProblemDetailErrorHandlerTest {
     }
 
     @Test
+    fun `parses catalog-source-unavailable as a 503 and as a 502`() {
+        for (status in listOf(HttpStatus.SERVICE_UNAVAILABLE, HttpStatus.BAD_GATEWAY)) {
+            val body = """
+                {"type":"https://epistola.app/errors/catalog-source-unavailable",
+                 "title":"Catalog Source Unavailable","status":${status.value()},
+                 "detail":"registry.gemeente-x.nl could not be used"}
+            """.trimIndent()
+
+            val ex = assertFailsWith<ProblemDetailException> {
+                handleErrorResponse(response(status, body))
+            }
+            assertEquals(KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE, ex.typeSlug)
+            assertEquals(status.value(), ex.problemStatus)
+            assertEquals(status, ex.statusCode)
+        }
+    }
+
+    @Test
     fun `populates validation errors for a validation problem`() {
         val body = """
             {"type":"https://epistola.app/errors/validation-error","title":"Bad Request",

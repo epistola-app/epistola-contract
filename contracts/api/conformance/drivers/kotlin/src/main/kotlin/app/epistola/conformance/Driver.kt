@@ -93,8 +93,8 @@ object Driver {
                 "list-images" -> listImages(baseUrl, config)
                 "upload-image" -> uploadImage(baseUrl, config)
                 "import-catalog" -> importCatalog(baseUrl, config)
-                "upgrade-catalog" -> upgradeCatalog(baseUrl, config)
-                "preview-catalog-upgrade" -> previewCatalogUpgrade(baseUrl, config)
+                "install-catalog-release" -> installCatalogRelease(baseUrl, config)
+                "list-available-catalog-releases" -> listAvailableCatalogReleases(baseUrl, config)
                 "download-image" -> downloadImage(baseUrl, config)
                 "delete-image" -> deleteImage(baseUrl, config)
                 "list-catalog-dependencies" -> listCatalogDependencies(baseUrl, config)
@@ -425,17 +425,17 @@ object Driver {
     }
 
     /**
-     * Upgrades a subscribed catalog. `releaseVersion` goes out, as a query parameter, only when
-     * configured. A refusal is reported by its problem, missing dependencies included.
+     * Installs a release a subscribed catalog's source offers, named in the path. A refusal or a
+     * failing source is reported by its problem, missing dependencies included.
      */
-    private fun upgradeCatalog(baseUrl: String, config: ObjectNode) {
-        val upgraded = try {
-            CatalogsApi(restClient(baseUrl, config)).upgradeCatalog(
+    private fun installCatalogRelease(baseUrl: String, config: ObjectNode) {
+        val installed = try {
+            CatalogsApi(restClient(baseUrl, config)).installCatalogRelease(
                 config["tenantKey"].asText(),
                 config["registry"].asText(),
                 config["namespace"].asText(),
                 config["catalogKey"].asText(),
-                releaseVersion = config.optionalText("releaseVersion"),
+                config["releaseVersion"].asText(),
             )
         } catch (e: ProblemDetailException) {
             report(
@@ -453,37 +453,45 @@ object Driver {
         report(
             baseUrl,
             mapOf(
-                "registry" to upgraded.registry,
-                "namespace" to upgraded.namespace,
-                "catalogKey" to upgraded.catalogKey,
-                "releaseVersion" to upgraded.releaseVersion,
-                "newlyInstalled" to upgraded.newlyInstalled.toString(),
-                "total" to upgraded.total.toString(),
-                "installedDependencies" to upgraded.installedDependencies.orEmpty().joinToString(","),
-                "presentDependencies" to upgraded.presentDependencies.orEmpty().joinToString(","),
+                "registry" to installed.registry,
+                "namespace" to installed.namespace,
+                "catalogKey" to installed.catalogKey,
+                "releaseVersion" to installed.releaseVersion,
+                "newlyInstalled" to installed.newlyInstalled.toString(),
+                "total" to installed.total.toString(),
+                "installedDependencies" to installed.installedDependencies.orEmpty().joinToString(","),
+                "presentDependencies" to installed.presentDependencies.orEmpty().joinToString(","),
             ),
         )
     }
 
-    /** Previews a subscribed catalog's upgrade, reporting every available release in order. */
-    private fun previewCatalogUpgrade(baseUrl: String, config: ObjectNode) {
-        val preview = CatalogsApi(restClient(baseUrl, config)).previewCatalogUpgrade(
-            config["tenantKey"].asText(),
-            config["registry"].asText(),
-            config["namespace"].asText(),
-            config["catalogKey"].asText(),
-        )
+    /**
+     * Lists the releases a subscribed catalog's source offers that the tenant lacks, reporting
+     * every one in order. A failing source is reported by its problem.
+     */
+    private fun listAvailableCatalogReleases(baseUrl: String, config: ObjectNode) {
+        val releases = try {
+            CatalogsApi(restClient(baseUrl, config)).listAvailableCatalogReleases(
+                config["tenantKey"].asText(),
+                config["registry"].asText(),
+                config["namespace"].asText(),
+                config["catalogKey"].asText(),
+            )
+        } catch (e: ProblemDetailException) {
+            report(baseUrl, mapOf("problemTypeSlug" to (e.typeSlug ?: "<null>"), "problemStatus" to e.statusCode.value()))
+            return
+        }
         report(
             baseUrl,
             mapOf(
-                "registry" to preview.registry,
-                "namespace" to preview.namespace,
-                "catalogKey" to preview.catalogKey,
-                "installedVersion" to preview.installedVersion,
-                "availableChanges" to preview.available.joinToString(";") { release ->
+                "registry" to releases.registry,
+                "namespace" to releases.namespace,
+                "catalogKey" to releases.catalogKey,
+                "availableComparedTo" to releases.available.joinToString(";") { "${it.version}=${it.comparedTo ?: "null"}" },
+                "availableChanges" to releases.available.joinToString(";") { release ->
                     "${release.version}=" + release.changes.joinToString("+") { "${it.type}/${it.key}:${it.change.value}" }
                 },
-                "availableDependencies" to preview.available.joinToString(";") { release ->
+                "availableDependencies" to releases.available.joinToString(";") { release ->
                     "${release.version}=" + release.dependencies.joinToString("+") {
                         "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}:${it.present}"
                     }
