@@ -63,6 +63,10 @@ const ACTION_OPERATIONS = {
   'list-environment-overrides': { method: 'get', path: '/tenants/{tenantKey}/environments/{environmentKey}/overrides' },
   'create-environment': { method: 'post', path: '/tenants/{tenantKey}/environments' },
   'update-environment': { method: 'patch', path: '/tenants/{tenantKey}/environments/{environmentKey}' },
+  'update-variant-content': {
+    method: 'put',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateKey}/variants/{variantKey}/content',
+  },
   'create-catalog-draft': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions' },
   'list-catalog-versions': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions' },
   'get-catalog-version': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}' },

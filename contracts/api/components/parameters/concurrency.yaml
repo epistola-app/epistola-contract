@@ -1,0 +1,20 @@
+# Shared request headers for optimistic locking.
+#
+# An editable resource's representation carries a revision, which the server returns as a strong
+# `ETag` (see ../headers/concurrency.yaml). An update that sends it back as `If-Match` is applied only
+# if the resource has not changed since; otherwise it is refused with 412 `resource-modified`.
+
+IfMatch:
+  name: If-Match
+  in: header
+  required: false
+  description: |
+    The `ETag` of the resource as you last read it, as the server returned it (a quoted revision,
+    e.g. `"7"`). When given and the resource has changed since, the update is refused with 412
+    `resource-modified` and nothing changes. When left out, the update is applied regardless of
+    concurrent changes: the last write wins.
+  schema:
+    type: string
+    minLength: 1
+    maxLength: 64
+  example: '"7"'

@@ -132,6 +132,12 @@ object ProblemDetails {
          */
         const val ENVIRONMENT_OVERRIDE_REFUSED: String = KnownProblemSlugs.ENVIRONMENT_OVERRIDE_REFUSED
 
+        /**
+         * 412 — an update's `If-Match` names a revision that is no longer current: the resource
+         * changed since it was read, and nothing changed.
+         */
+        const val RESOURCE_MODIFIED: String = KnownProblemSlugs.RESOURCE_MODIFIED
+
         /** 422 — data examples do not validate against the data model (use [dataModelValidation]). */
         const val DATA_MODEL_VALIDATION_ERROR: String = KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR
 

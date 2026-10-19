@@ -108,6 +108,9 @@ code-lists-key:
     responses:
       '200':
         description: Code list.
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -124,9 +127,13 @@ code-lists-key:
     description: |
       Patch a code list. All fields optional. Providing `entries` replaces them
       atomically. Updates to a SUBSCRIBED-catalog code list return 409.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - CodeLists
     x-required-permissions: [REFERENCE_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
       required: true
       content:
@@ -136,6 +143,9 @@ code-lists-key:
     responses:
       '200':
         description: Code list updated.
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -150,6 +160,8 @@ code-lists-key:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
   delete:
     operationId: deleteCodeList
     summary: Delete a code list

@@ -113,6 +113,9 @@ templates-id:
     responses:
       '200':
         description: Template details
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -131,9 +134,13 @@ templates-id:
       Update an existing document template's properties, data model or data examples in the working
       copy. The data contract is part of the template: an edit clears the template's ready mark, and
       a change that breaks callers is reported when the catalog is released, not here.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - Templates
     x-required-permissions: [TEMPLATE_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
       required: true
       content:
@@ -143,6 +150,9 @@ templates-id:
     responses:
       '200':
         description: Template updated successfully
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -157,6 +167,8 @@ templates-id:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
       '422':
         $ref: '../components/responses/problem-responses.yaml#/UnprocessableEntityError'
 

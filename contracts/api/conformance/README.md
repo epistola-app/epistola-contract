@@ -91,6 +91,7 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | `clear-environment-override` | `DELETE …/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}` |
 | `create-environment` | `POST …/environments` with `config.key`, `config.name`, and `config.production` when present, reporting the `key`, `name` and `production` it parsed |
 | `update-environment` | `PATCH …/environments/{environmentKey}` with `config.name` and `config.production` each only when present, reporting the `key`, `name` and `production` it parsed |
+| `update-variant-content` | `PUT …/templates/{templateKey}/variants/{variantKey}/content` with a one-node template model, sending `config.ifMatch` as `If-Match` when present and no `If-Match` otherwise, reporting the `variantKey` it parsed. When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
 
 Catalog-scoped actions take the catalog as `config.registry`, `config.namespace` and
 `config.catalogKey`, and actions on a catalog version (templates, images, dependencies, and the

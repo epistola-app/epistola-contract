@@ -126,6 +126,9 @@ variants-id:
     responses:
       '200':
         description: Variant details
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -140,10 +143,15 @@ variants-id:
   patch:
     operationId: updateVariant
     summary: Update a variant
-    description: Update a variant's tags.
+    description: |
+      Update a variant's tags.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
       required: true
       content:
@@ -153,6 +161,9 @@ variants-id:
     responses:
       '200':
         description: Variant updated successfully
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -167,6 +178,8 @@ variants-id:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
 
   delete:
     operationId: deleteVariant
@@ -224,13 +237,21 @@ variant-set-default:
   post:
     operationId: setDefaultVariant
     summary: Set default variant
-    description: Set a variant as the default for its template. The previous default is cleared.
+    description: |
+      Set a variant as the default for its template. The previous default is cleared.
+      Send the `ETag` of the variant being made default as `If-Match` to have this refused with 412
+      `resource-modified` if that variant changed since; without it, the last write wins.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     responses:
       '200':
         description: Default variant set successfully
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -243,6 +264,8 @@ variant-set-default:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
 
 variant-content:
   parameters:
@@ -290,6 +313,9 @@ variant-content:
     responses:
       '200':
         description: The variant's content
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -307,9 +333,13 @@ variant-content:
     description: |
       Replaces the variant's template model in the draft. An edit clears the ready mark, so
       the variant has to be marked ready again before the catalog can be released.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
       required: true
       content:
@@ -319,6 +349,9 @@ variant-content:
     responses:
       '200':
         description: The updated content
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -333,6 +366,8 @@ variant-content:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
 
 variant-mark-ready:
   parameters:

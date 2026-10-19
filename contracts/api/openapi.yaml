@@ -156,6 +156,21 @@ info:
     [`docs/error-types.md`](docs/error-types.md); the machine-readable
     registry is this document's top-level `x-problem-types` extension.
 
+    ## Concurrency
+    Templates, variants, themes, stencils, code lists and attributes carry a
+    revision. Reading one, or updating it, returns the revision as a strong `ETag`
+    response header: a quoted decimal integer such as `"7"`. Send it back as
+    `If-Match` on an update to make the update conditional: if the resource changed
+    since you read it, the server refuses with 412 `resource-modified` and changes
+    nothing. Read the resource again, reapply your change and retry with the new
+    `ETag`. Without `If-Match` an update is applied unconditionally, and the last
+    write wins.
+
+    A template's `ETag` covers its own properties (name, theme, data contract); a
+    variant's covers its title, attributes and template model, so `getVariant` and
+    `getVariantContent` return the same `ETag` for a variant, and either can be sent
+    to `updateVariant` or `updateVariantContent`.
+
     ## Authorization
     Access is controlled via Suite permissions such as `TEMPLATE_VIEW`,
     `TEMPLATE_EDIT`, `DOCUMENT_GENERATE`, and `CATALOG_MANAGE`. Tenant permissions
@@ -272,6 +287,13 @@ x-problem-types:
         An environment override cannot be set: a draft on a production
         environment, or a release the environment does not serve; or an
         environment that follows a draft cannot be marked production.
+    - slug: resource-modified
+      status: 412
+      schema: ProblemDetail
+      description: >-
+        An update sent `If-Match` with an `ETag` that is no longer current: the
+        resource changed since it was read. Nothing changed; read it again and
+        reapply the change.
     - slug: data-model-validation-error
       status: 422
       schema: DataModelValidationProblemDetail
@@ -850,6 +872,13 @@ components:
       $ref: './components/parameters/sorting.yaml#/Sort'
     Direction:
       $ref: './components/parameters/sorting.yaml#/Direction'
+    # Optimistic locking: an update sends back the ETag it read (see "Concurrency" above).
+    IfMatch:
+      $ref: './components/parameters/concurrency.yaml#/IfMatch'
+
+  headers:
+    ETag:
+      $ref: './components/headers/concurrency.yaml#/ETag'
 
   securitySchemes:
     bearerAuth:

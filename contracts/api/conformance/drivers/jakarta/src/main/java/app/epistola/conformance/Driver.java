@@ -12,6 +12,7 @@ import app.epistola.client.jakarta.api.GenerationApi;
 import app.epistola.client.jakarta.api.ImagesApi;
 import app.epistola.client.jakarta.api.SystemApi;
 import app.epistola.client.jakarta.api.TemplatesApi;
+import app.epistola.client.jakarta.api.VariantsApi;
 import app.epistola.client.jakarta.auth.JwtSigner;
 import app.epistola.client.jakarta.collect.GenerationCollectApi;
 import app.epistola.client.jakarta.collect.ResultCollector;
@@ -46,6 +47,11 @@ import app.epistola.client.jakarta.model.TemplateListResponse;
 import app.epistola.client.jakarta.model.TemplateSummaryDto;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
 import app.epistola.client.jakarta.model.UpdateConsumerRequest;
+import app.epistola.client.jakarta.model.Node;
+import app.epistola.client.jakarta.model.TemplateDocument;
+import app.epistola.client.jakarta.model.ThemeRef;
+import app.epistola.client.jakarta.model.UpdateVariantContentRequest;
+import app.epistola.client.jakarta.model.VariantContentDto;
 import app.epistola.client.jakarta.validation.schema.TemplateDataValidationException;
 import app.epistola.client.jakarta.validation.schema.TemplateSchemaValidator;
 import jakarta.json.Json;
@@ -120,6 +126,7 @@ public final class Driver {
                 case "clear-environment-override" -> clearEnvironmentOverride(baseUrl, config);
                 case "create-environment" -> createEnvironment(baseUrl, config);
                 case "update-environment" -> updateEnvironment(baseUrl, config);
+                case "update-variant-content" -> updateVariantContent(baseUrl, config);
                 default -> throw new IllegalArgumentException("unknown action " + instruction.getString("action"));
             }
             done(baseUrl, null);
@@ -826,6 +833,42 @@ public final class Driver {
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"));
+    }
+
+    /**
+     * Replaces a variant's content with a one-node template model, sending {@code config.ifMatch}
+     * as {@code If-Match} when present and no {@code If-Match} otherwise.
+     */
+    private static void updateVariantContent(String baseUrl, JsonObject config) {
+        VariantContentDto content;
+        try {
+            content = clients(baseUrl, config)
+                    .api(VariantsApi.class)
+                    .updateVariantContent(
+                            config.getString("tenantKey"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            config.getString("catalogVersion"),
+                            config.getString("templateKey"),
+                            config.getString("variantKey"),
+                            new UpdateVariantContentRequest()
+                                    .templateModel(new TemplateDocument()
+                                            .modelVersion(TemplateDocument.ModelVersionEnum.NUMBER_1)
+                                            .root("root")
+                                            .nodes(Map.of("root", new Node().id("root").type("root").slots(List.of())))
+                                            .slots(Map.of())
+                                            .themeRef(new ThemeRef().type(ThemeRef.TypeEnum.INHERIT))),
+                            optional(config, "ifMatch"));
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode()));
+            return;
+        }
+        report(baseUrl, Map.of("variantKey", String.valueOf(content.getVariantKey())));
     }
 
     /** Creates an environment; {@code production} is sent only when the scenario names it. */
