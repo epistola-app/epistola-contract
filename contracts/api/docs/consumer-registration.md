@@ -2,54 +2,84 @@
 
 > **Status**: Draft
 > **Date**: 2026-02-17
+> **Updated**: 2026-10-19, for contract 2.0
 > **Audience**: Epistola contributors and API consumers
+
+Part of this design is in the contract and part is not:
+
+- **In the spec**: consumer registration and lifecycle, tenant-scoped, under the `Consumers` tag
+  (`contracts/api/paths/consumers.yaml`, `contracts/api/components/schemas/consumers.yaml`). Every
+  operation is **experimental** (`x-experimental: true`): Epistola Suite may not implement it yet,
+  and it may still change. Sections 3 and 5.1–5.2 describe it as the spec has it; the spec wins
+  where they differ.
+- **Proposed**: dependency declaration, impact queries, impact warnings, document attribution and
+  the event integration (sections 4, 5.3–5.5 and 6). None of it is in the spec. Every operation,
+  schema, member and problem type these sections name is marked **proposed**.
 
 ---
 
 ## 1. Problem Statement
 
-Epistola currently has no visibility into which systems consume its API. While authentication (JWT/API keys) identifies callers, the domain model does not track consumers, their dependencies, or their activity. This creates several concrete problems:
+Epistola has little visibility into which systems consume its API. Authentication (API keys,
+experimentally JWTs) identifies callers, and the Consumers API records each consuming application per
+tenant, but nothing records what a consumer depends on. This creates several concrete problems:
 
-- **No consumer visibility** — There is no registry of which systems connect to Epistola. When operational issues arise, there is no way to determine which downstream systems are affected or who to contact.
-- **No dependency tracking** — Deleting or changing a template has unknown blast radius. A template might be actively used by five services across three tenants, but Epistola has no way to surface this information before the delete proceeds.
-- **No attribution** — The `DocumentDto.createdBy` field exists but is always `null`. Generated documents cannot be traced back to the system that requested them.
-- **No impact analysis for breaking changes** — When a template's JSON Schema changes, a variant is removed, or a theme is deleted, there is no mechanism to warn operators about dependent consumers before the change takes effect.
+- **No dependency tracking** — Releasing a catalog version that removes or changes a template, or
+  undeploying a release from an environment, has unknown blast radius. A template might be used by
+  five consumers, but Epistola has no way to surface this before the release or undeploy proceeds.
+- **No attribution** — The `DocumentDto.createdBy` field exists but is always `null`. Generated
+  documents cannot be traced back to the system that requested them.
+- **No impact analysis for breaking changes** — When a release changes a template's data contract,
+  removes a variant, or an environment stops serving a release, there is no mechanism to warn
+  operators about dependent consumers before the change takes effect.
+
+The registry itself, which systems connect to a tenant and who to contact about them, is what the
+Consumers API provides.
 
 ### Goals
 
-1. Provide a registry of consumer systems that connect to Epistola.
-2. Enable consumers to declare which templates they depend on, per tenant.
-3. Surface dependency information when destructive operations (delete, breaking changes) are attempted.
+1. Provide a registry of consumer systems that connect to a tenant. (In the spec.)
+2. Enable consumers to declare which templates, in which catalogs, they depend on.
+3. Surface dependency information when an operation that can break a consumer (releasing a catalog
+   version, undeploying a release) is attempted.
 4. Populate the `DocumentDto.createdBy` field with the consumer that requested generation.
 
 ### Non-goals
 
-- **Request-level logging** — Tracking individual API calls per consumer (which endpoints, how often) is a server-side observability concern, not an API contract concern.
-- **Usage analytics and dashboards** — Aggregated metrics, rate trends, and consumption reports are operational tools built on top of request logging.
-- **Audit trail** — The future event system (see `event-system.md`) will provide an audit trail via the `actor` field on events. Consumer registration enriches that field but does not replace it.
-- **Access control enforcement** — Dependencies are informational. They do not gate which templates a consumer can access. Authorization is handled by the existing role and tenant permission model.
+- **Request-level logging** — Tracking individual API calls per consumer (which endpoints, how
+  often) is a server-side observability concern, not an API contract concern.
+- **Usage analytics and dashboards** — Aggregated metrics, rate trends, and consumption reports are
+  operational tools built on top of request logging. The contract carries coarse signals only:
+  `ConsumerDto.lastSeenAt` and `ConsumerNodeDto.lastSeenAt` per consumer, and
+  `DeploymentDto.lastUsedAt` and `documentsRequested` per deployed release.
+- **Audit trail** — The future event system (see `event-system.md`) will provide an audit trail via
+  the `actor` field on events. Consumer registration enriches that field but does not replace it.
+- **Access control enforcement** — Dependencies are informational. They do not gate which templates
+  a consumer can access. Authorization is handled by the consumer's granted permissions
+  (`ConsumerPermissions`) and, for API keys and users, by Suite roles.
 
 ---
 
 ## 2. Scope: Contract vs Server-Side
 
-This design covers what belongs in the **API contract** (OpenAPI spec). Server-side implementation details are explicitly out of scope.
+This design covers what belongs in the **API contract** (OpenAPI spec). Server-side implementation
+details are explicitly out of scope.
 
 ### In scope (contract-level)
 
-| Capability | Description |
-|---|---|
-| Consumer CRUD | Register, list, get, update, and delete consumer records |
-| Dependency declaration | Consumers declare which templates they depend on, per tenant |
-| Impact queries | Query which consumers depend on a given template |
-| Impact warnings | Destructive operations return 409 Conflict when dependents exist |
-| Attribution | `DocumentDto.createdBy` populated with consumer ID |
+| Capability | Description | Status |
+|---|---|---|
+| Consumer registration and lifecycle | Register, approve, reject, list, get, update, delete consumers, and rotate a public key | In the spec (experimental) |
+| Dependency declaration | Consumers declare which templates they depend on | Proposed |
+| Impact queries | Query which consumers depend on a given template | Proposed |
+| Impact warnings | Releasing or undeploying returns 409 Conflict when dependents would be affected | Proposed |
+| Attribution | `DocumentDto.createdBy` populated with the consumer ID | Proposed (the field exists) |
 
 ### Out of scope (server-side only)
 
 | Capability | Why out of scope |
 |---|---|
-| Auth identity mapping | Mapping JWT `client_id` or API key ID to a consumer is a server configuration concern. The API contract remains auth-agnostic. |
+| API-key identity mapping | API-key consumers are provisioned out of band by a tenant manager and appear directly as `active`; which key belongs to which consumer is server configuration. |
 | Request logging per consumer | Observability infrastructure, not an API contract |
 | Usage analytics | Built on top of request logs, not exposed as API endpoints |
 | Audit trail enrichment | Covered by the event system's `actor` field (Section 2.2 of `event-system.md`) |
@@ -60,114 +90,157 @@ This design covers what belongs in the **API contract** (OpenAPI spec). Server-s
 
 ### 3.1 Identity
 
-Consumers use the same slug-based ID pattern as all other Epistola resources:
+A consumer is identified by `id` in `ConsumerDto`, and by the `consumerId` path parameter:
 
 - **Pattern**: `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`
 - **Length**: 3-63 characters
+- **Unique**: within the tenant
 - **Examples**: `invoice-service`, `crm-backend`, `report-generator`
 
-The consumer ID is client-provided at registration time (like tenant IDs), not server-generated. This ensures consumers can use meaningful, stable identifiers.
+How the ID is chosen depends on how the consumer authenticates (`authMethod`):
 
-### 3.2 Scope: Platform-level
+- **Self-signed JWT**: the consumer chooses it at registration (`RegisterConsumerRequest.id`) and
+  uses it as the `iss` claim of the JWTs it signs.
+- **OAuth**: derived from the JWT `client_id` claim when the consumer is auto-registered on its
+  first authenticated request to the tenant.
+- **API key**: set when a tenant manager provisions the consumer, out of band.
 
-Consumers are registered at the **platform level**, not per tenant. This is a deliberate departure from all existing Epistola resources, which are tenant-scoped.
+### 3.2 Scope: Tenant-level
 
-**Justification**: A consuming system (e.g., `invoice-service`) typically spans multiple tenants. It generates invoices for `acme-corp` and `globex-inc` alike. Registering the same consumer once per tenant would create duplication and make cross-tenant impact analysis impossible.
+Consumers are registered **per tenant**, under `/tenants/{tenantKey}/consumers`, like every other
+Epistola resource except tenants themselves.
 
-The platform-level consumer registry is comparable to how tenants themselves are managed — both exist above the tenant boundary. Consumer CRUD uses the same `tenant_control` role already required for tenant management.
+**Justification**: each tenant independently manages which applications can access its resources.
+A consuming system that serves several tenants (an `invoice-service` generating invoices for
+`acme-corp` and `globex-inc`) registers in each, with separate approvals, separate granted
+permissions and separate expiry.
+
+The trade-off is that the same application is a separate consumer in each tenant. The API offers
+no cross-tenant view of one application, and so no cross-tenant impact analysis.
 
 ### 3.3 Metadata
 
-```yaml
-ConsumerDto:
-  type: object
-  required:
-    - id
-    - name
-    - status
-    - createdAt
-  properties:
-    id:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
-      description: Unique slug identifier of the consumer
-      example: invoice-service
-    name:
-      type: string
-      description: Human-readable name of the consuming system
-      example: Invoice Service
-    description:
-      type: [string, "null"]
-      description: What this consumer does and why it uses Epistola
-      example: Generates PDF invoices for the billing pipeline
-    contact:
-      type: [string, "null"]
-      description: Team or individual responsible for this consumer (email, Slack channel, etc.)
-      example: billing-team@acme-corp.com
-    status:
-      type: string
-      enum: [active, inactive]
-      description: >
-        Whether this consumer is actively using the API.
-        Inactive consumers are retained for historical reference
-        but excluded from impact analysis by default.
-      example: active
-    tags:
-      type: array
-      items:
-        type: string
-      description: Freeform tags for categorization and filtering
-      example: ["billing", "production"]
-    createdAt:
-      type: string
-      format: date-time
-      description: When the consumer was registered
-      example: "2026-02-17T10:00:00Z"
-    updatedAt:
-      type: [string, "null"]
-      format: date-time
-      description: When the consumer was last updated
-      example: "2026-02-17T10:00:00Z"
-```
+`ConsumerDto` has these members (required ones in bold):
+
+| Member | Type | Description |
+|---|---|---|
+| **`id`** | string (slug, 3-63) | Unique within the tenant; see 3.1 |
+| **`tenantKey`** | string | Tenant the consumer is registered in |
+| **`name`** | string | Human-readable name of the consuming application |
+| `description` | string or null | What the application does and why it uses Epistola |
+| `contact` | string or null | Team or individual responsible for the application |
+| **`status`** | `pending`, `active`, `rejected`, `expired`, `inactive` | Lifecycle status; see 3.5 |
+| **`authMethod`** | `oauth`, `self-signed-jwt`, `api-key` | How the consumer authenticates; see 3.4 |
+| **`requestedPermissions`** | `ConsumerPermissions` | What the consumer asked for; see 3.6 |
+| **`grantedPermissions`** | `ConsumerPermissions` | What a tenant manager granted |
+| `publicKey` | string or null | PEM public key; null unless `authMethod` is `self-signed-jwt` |
+| `expiresAt` | date-time or null | When the approval expires; null means no expiry |
+| `rejectionReason` | string or null | Reason given when the registration was rejected |
+| **`nodes`** | array of `ConsumerNodeDto` | Known instances of the application |
+| `totalPartitions` | integer or null | Partitions for generation result collection; null until the consumer has polled `collectGenerationResults` |
+| **`createdAt`** | date-time | When the consumer was registered |
+| `lastSeenAt` | date-time or null | When the server last received a request from the consumer |
+| `updatedAt` | date-time or null | When the consumer record was last modified |
+
+`ConsumerNodeDto` describes one instance of the application:
+
+| Member | Type | Description |
+|---|---|---|
+| **`nodeId`** | string | From the `X-EP-Node-Id` header |
+| `userAgent` | string or null | Last seen `User-Agent` header from this node |
+| `partitions` | array of integer | Partitions assigned to this node for result collection |
+| **`lastSeenAt`** | date-time | When the server last received a request from this node |
 
 ### 3.4 Auth Linkage
 
-The API contract intentionally does **not** expose auth identity mapping. How a consumer is identified at runtime is a server-side configuration concern:
+The contract records how a consumer authenticates (`authMethod`), and the server identifies the
+consumer from its credentials:
 
-- The server may map JWT `client_id` claims to consumer IDs.
-- The server may map API key identifiers to consumer IDs.
-- The server may accept an optional `X-Consumer-Id` header for explicit identification.
+- **`oauth`** (experimental): JWTs issued by an external identity provider. The `client_id` claim
+  identifies the consumer.
+- **`self-signed-jwt`** (experimental): short-lived JWTs (60 seconds) signed with the consumer's
+  private key. The `iss` claim is the consumer ID, and the server verifies the signature with the
+  registered `publicKey`.
+- **`api-key`**: a long-lived key provisioned by a tenant manager, sent as
+  `Authorization: ApiKey <key>` (or the deprecated `X-API-Key` header). This is the supported
+  method. Which key belongs to which consumer is server configuration.
 
-This keeps the API auth-agnostic — the same design works regardless of whether the deployment uses JWT, API keys, or some other authentication mechanism.
+In every case the credential proves identity only. What the consumer may do is its
+`grantedPermissions`, set by a tenant manager.
+
+**Proposed, not in the spec**: an optional `X-Consumer-Id` header for explicit identification, for
+shared credentials or development environments. The spec has no such header.
 
 ### 3.5 Lifecycle
 
-Consumers have two statuses:
+| Status | Meaning | Reached by |
+|---|---|---|
+| `pending` | Registered, awaiting a tenant manager's approval | `registerConsumer` (self-signed JWT), or the first authenticated request of an OAuth consumer |
+| `active` | Approved and operational | `approveConsumer`; `updateConsumer` with `status: active` to reactivate; API-key consumers start here |
+| `rejected` | A tenant manager rejected the registration | `rejectConsumer`, optionally with a `reason` (`rejectionReason`) |
+| `expired` | The approval's `expiresAt` passed | Time |
+| `inactive` | Deactivated by a tenant manager | `updateConsumer` with `status: inactive` |
 
-- **`active`** — The consumer is in use. It appears in impact analysis results by default.
-- **`inactive`** — The consumer is no longer actively using the API. It is retained for historical context (document attribution, audit trail) but excluded from impact analysis unless explicitly requested.
+`updateConsumer` can only move between `active` and `inactive`; approval and rejection have their
+own operations.
 
-Deletion permanently removes the consumer record. Dependencies referencing the deleted consumer are also removed. Documents previously attributed to the consumer retain the `createdBy` value (orphaned reference).
+`deleteConsumer` permanently removes the consumer from the tenant. Partitions assigned to its nodes
+are released. Uncollected generation results stay in the system but are no longer deliverable
+through `collectGenerationResults`; the documents can still be read with `downloadDocument`.
+Documents keep the consumer ID in `createdBy` (an orphaned reference).
+
+**Proposed**: deleting a consumer also removes its dependency declarations (section 4).
+
+### 3.6 Permissions
+
+A consumer requests permissions at registration (`requestedPermissions`), or, for OAuth, through
+its JWT scopes. A tenant manager grants equal or fewer on approval (`grantedPermissions`), and can
+change them later with `updateConsumer`. `ConsumerPermissions` has one level per resource type.
+Higher levels imply lower ones, and every level defaults to `none`:
+
+| Resource | Levels | Meaning |
+|---|---|---|
+| `templates` | `none`, `read`, `write` | read: list and get templates, their variants' working copies and data contracts. write: create, update and delete templates, edit working copies, mark ready |
+| `variants` | `none`, `read`, `write` | read: list and get variants. write: create, update, delete |
+| `themes` | `none`, `read`, `write` | read: list and get themes. write: create, update, delete |
+| `environments` | `none`, `read`, `write`, `deploy` | read: list and get environments, what they serve and their deployment history. write: create, update, delete environments. deploy: deploy and undeploy catalog releases |
+| `stencils` | `none`, `read`, `write` | read: list and get stencils and their usage. write: create, update, edit working copies, mark ready |
+| `catalogs` | `none`, `read`, `write`, `release` | read: list catalogs, their releases and working-copy changes. write: import catalogs. release: cut catalog releases |
+| `generation` | `none`, `read`, `write` | read: view jobs and documents, and collect results through `collectGenerationResults`. write: submit generation and preview |
+| `consumers` | `none`, `read`, `manage` | read: list and view consumers. manage: approve, reject, update and delete consumers |
+
+For OAuth consumers, requested permissions are derived from JWT scopes of the form
+`epistola:{resource}:{level}`, for example `epistola:generation:write`,
+`epistola:catalogs:release` or `epistola:environments:deploy`.
 
 ---
 
-## 4. Dependency Model
+## 4. Dependency Model (proposed)
+
+Nothing in this section is in the spec.
 
 ### 4.1 Scope: Tenant-Level
 
-While consumers are platform-level, dependencies are **tenant-scoped** because the resources they reference (templates, variants, environments) are tenant-scoped.
+Dependencies are **tenant-scoped**, like the consumers that declare them and the catalogs,
+templates and environments they reference.
 
-A dependency states: "Consumer X depends on template Y in tenant Z."
+A dependency states: "Consumer X depends on template Y of catalog C." A catalog is named by its
+registry, namespace and key, never its key alone, so the template's key alone does not identify it.
+
+A dependency names the template, not a catalog version: templates are versioned with their catalog,
+and a consumer renders whichever release its requests select (by `version` and `environmentKey`).
 
 ### 4.2 Structure
 
 ```yaml
+# Proposed, not in the spec
 TemplateDependencyDto:
   type: object
   required:
     - consumerId
+    - registry
+    - namespace
+    - catalogKey
     - templateKey
     - createdAt
   properties:
@@ -175,11 +248,25 @@ TemplateDependencyDto:
       type: string
       description: ID of the consumer that declared this dependency
       example: invoice-service
+    registry:
+      type: string
+      description: >
+        Registry of the template's catalog, written in full (the
+        default registry by its name, never `~`)
+      example: exchange.epistola.app
+    namespace:
+      type: string
+      description: Namespace of the template's catalog
+      example: acme-corp
+    catalogKey:
+      type: string
+      description: Key of the template's catalog
+      example: letters
     templateKey:
       type: string
       description: Template this consumer depends on
       example: invoice
-    variantIds:
+    variantKeys:
       type: array
       items:
         type: string
@@ -187,14 +274,21 @@ TemplateDependencyDto:
         Specific variants the consumer uses. Empty array means all
         variants (or the consumer doesn't track variant-level dependencies).
       example: ["english", "dutch"]
-    environmentIds:
+    environmentKeys:
       type: array
       items:
         type: string
       description: >
-        Environments where this dependency is active. Empty array
-        means all environments.
+        Environments the consumer generates through (its requests'
+        environmentKey). Empty array means all environments.
       example: ["production"]
+    version:
+      type: [string, "null"]
+      description: >
+        The version selector the consumer's requests name, if any
+        (see "Version selectors" in the API description). A release
+        that the selector does not match does not affect the consumer.
+      example: "^1.4.0"
     purpose:
       type: [string, "null"]
       description: Why this consumer depends on this template
@@ -203,7 +297,7 @@ TemplateDependencyDto:
       type: string
       format: date-time
       description: When this dependency was declared
-      example: "2026-02-17T10:00:00Z"
+      example: "2026-10-17T10:00:00Z"
     updatedAt:
       type: [string, "null"]
       format: date-time
@@ -213,37 +307,51 @@ TemplateDependencyDto:
 
 ### 4.3 Declaration Model
 
-Dependencies are declared **explicitly** via the API, not auto-detected from usage patterns. This is deliberate:
+Dependencies are declared **explicitly** via the API, not auto-detected from usage patterns. This
+is deliberate:
 
-- Auto-detection would require tracking every generation request per consumer, which is a server-side observability concern.
-- Explicit declaration is more reliable — a consumer knows which templates it uses better than usage logs do (a template might be used only monthly).
-- Explicit dependencies can include intent (the `purpose` field) and forward-looking declarations (declaring a dependency before the consumer starts using the template in production).
+- Auto-detection would require tracking every generation request per consumer, which is a
+  server-side observability concern.
+- Explicit declaration is more reliable — a consumer knows which templates it uses better than
+  usage logs do (a template might be used only monthly).
+- Explicit dependencies can include intent (the `purpose` field) and forward-looking declarations
+  (declaring a dependency before the consumer starts using the template in production).
 
 ### 4.4 Authorization
 
 | Operation | Who can perform it |
 |---|---|
-| Declare/update a dependency | Any role with tenant access (the consumer system itself, identified via auth) |
-| Remove a dependency | Any role with tenant access |
-| List dependencies for a consumer | Any role with tenant access |
-| List dependents for a template | Any role with tenant access |
+| Declare/update a dependency | The consumer itself, for its own record; or a caller allowed to update consumers (`TENANT_USERS`, or `consumers: manage`) |
+| Remove a dependency | The same |
+| List dependencies for a consumer | The consumer itself; or a caller allowed to view consumers (`TENANT_USERS`, or `consumers: read`) |
+| List dependents for a template | A caller allowed to view consumers |
 
-The intent is that consumers manage their own dependencies as part of their deployment pipeline. Tenant managers can view all dependencies in their tenant for operational awareness.
+The intent is that consumers manage their own dependencies as part of their deployment pipeline.
+Tenant managers can view all dependencies in their tenant for operational awareness.
 
 ---
 
 ## 5. API Design
 
-### 5.1 Consumer CRUD (Platform-Level)
+### 5.1 Consumer Registration and Lifecycle (in the spec, experimental)
 
-Consumer management endpoints live at the platform level, outside any tenant scope. This follows the same pattern as tenant management itself.
+The operations live under the tenant, at `/tenants/{tenantKey}/consumers`. All are experimental.
+Every request and response body uses `application/vnd.epistola.v2+json`.
 
-**Authorization**: `tenant_control` role required for all consumer CRUD operations.
+**Authorization**: `listConsumers`, `getConsumer`, `updateConsumer`, `deleteConsumer`,
+`approveConsumer` and `rejectConsumer` require the Suite permission `TENANT_USERS`
+(`x-required-permissions`). `registerConsumer` requires no authentication (`security: []`): the
+public key in the request establishes the consumer's identity. `rotatePublicKey` must be
+authenticated with a JWT signed by the current key.
 
 #### Register a consumer
 
+Self-service registration for self-signed JWT consumers. OAuth consumers are auto-registered as
+`pending` on their first authenticated request instead, and API-key consumers are provisioned by a
+tenant manager and start as `active`.
+
 ```
-POST /consumers
+POST /tenants/{tenantKey}/consumers/register
 Content-Type: application/vnd.epistola.v2+json
 
 {
@@ -251,7 +359,11 @@ Content-Type: application/vnd.epistola.v2+json
   "name": "Invoice Service",
   "description": "Generates PDF invoices for the billing pipeline",
   "contact": "billing-team@acme-corp.com",
-  "tags": ["billing", "production"]
+  "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
+  "requestedPermissions": {
+    "generation": "write",
+    "catalogs": "read"
+  }
 }
 
 201 Created
@@ -259,70 +371,95 @@ Content-Type: application/vnd.epistola.v2+json
 
 {
   "id": "invoice-service",
+  "tenantKey": "acme-corp",
   "name": "Invoice Service",
   "description": "Generates PDF invoices for the billing pipeline",
   "contact": "billing-team@acme-corp.com",
-  "status": "active",
-  "tags": ["billing", "production"],
-  "createdAt": "2026-02-17T10:00:00Z",
+  "status": "pending",
+  "authMethod": "self-signed-jwt",
+  "requestedPermissions": {
+    "templates": "none", "variants": "none", "themes": "none", "environments": "none",
+    "stencils": "none", "catalogs": "read", "generation": "write", "consumers": "none"
+  },
+  "grantedPermissions": {
+    "templates": "none", "variants": "none", "themes": "none", "environments": "none",
+    "stencils": "none", "catalogs": "none", "generation": "none", "consumers": "none"
+  },
+  "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
+  "expiresAt": null,
+  "rejectionReason": null,
+  "nodes": [],
+  "totalPartitions": null,
+  "createdAt": "2026-10-17T10:00:00Z",
+  "lastSeenAt": null,
   "updatedAt": null
 }
 ```
+
+Responses: 201, 400 (`validation-error`), 404 and 409.
+
+#### Approve or reject a consumer
+
+```
+POST /tenants/{tenantKey}/consumers/{consumerId}/approve
+Content-Type: application/vnd.epistola.v2+json
+
+{
+  "grantedPermissions": { "generation": "write" },
+  "expiresAt": "2027-10-17T00:00:00Z"
+}
+
+200 OK   (ConsumerDto, status = active)
+```
+
+```
+POST /tenants/{tenantKey}/consumers/{consumerId}/reject
+Content-Type: application/vnd.epistola.v2+json
+
+{
+  "reason": "Unknown application — contact the platform team for onboarding"
+}
+
+200 OK   (ConsumerDto, status = rejected)
+```
+
+The reject body is optional.
 
 #### List consumers
 
 ```
-GET /consumers?q=invoice&status=active&page=0&size=20
+GET /tenants/{tenantKey}/consumers?q=invoice&status=active&page=0&size=20
 Accept: application/vnd.epistola.v2+json
 
 200 OK
 Content-Type: application/vnd.epistola.v2+json
 
 {
-  "items": [
-    {
-      "id": "invoice-service",
-      "name": "Invoice Service",
-      "description": "Generates PDF invoices for the billing pipeline",
-      "contact": "billing-team@acme-corp.com",
-      "status": "active",
-      "tags": ["billing", "production"],
-      "createdAt": "2026-02-17T10:00:00Z",
-      "updatedAt": null
-    }
-  ],
-  "page": 0,
-  "size": 20,
-  "totalElements": 1,
-  "totalPages": 1
+  "items": [ { ...ConsumerDto... } ],
+  "page": {
+    "number": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  }
 }
 ```
+
+`q` searches name and ID; `status` takes one of the five statuses.
 
 #### Get consumer
 
 ```
-GET /consumers/{consumerId}
+GET /tenants/{tenantKey}/consumers/{consumerId}
 Accept: application/vnd.epistola.v2+json
 
-200 OK
-Content-Type: application/vnd.epistola.v2+json
-
-{
-  "id": "invoice-service",
-  "name": "Invoice Service",
-  "description": "Generates PDF invoices for the billing pipeline",
-  "contact": "billing-team@acme-corp.com",
-  "status": "active",
-  "tags": ["billing", "production"],
-  "createdAt": "2026-02-17T10:00:00Z",
-  "updatedAt": null
-}
+200 OK   (ConsumerDto)
 ```
 
 #### Update consumer
 
 ```
-PATCH /consumers/{consumerId}
+PATCH /tenants/{tenantKey}/consumers/{consumerId}
 Content-Type: application/vnd.epistola.v2+json
 
 {
@@ -330,153 +467,73 @@ Content-Type: application/vnd.epistola.v2+json
   "status": "inactive"
 }
 
-200 OK
+200 OK   (ConsumerDto)
+```
+
+Every member is optional: `name`, `description` and `contact` (null clears the last two), `status`
+(`active` or `inactive` only), `grantedPermissions`, and `expiresAt` (null removes the expiry).
+
+#### Rotate public key
+
+```
+PUT /tenants/{tenantKey}/consumers/{consumerId}/public-key
+Authorization: Bearer <JWT signed with the current key>
 Content-Type: application/vnd.epistola.v2+json
 
 {
-  "id": "invoice-service",
-  "name": "Invoice Service",
-  "description": "Generates PDF and HTML invoices for the billing pipeline",
-  "contact": "billing-team@acme-corp.com",
-  "status": "inactive",
-  "tags": ["billing", "production"],
-  "createdAt": "2026-02-17T10:00:00Z",
-  "updatedAt": "2026-02-17T14:30:00Z"
+  "publicKey": "-----BEGIN PUBLIC KEY-----\n..."
 }
+
+200 OK   (ConsumerDto)
 ```
+
+The old key is invalidated immediately. API-key consumers cannot rotate this way; a tenant manager
+issues a new key and revokes the old one out of band.
 
 #### Delete consumer
 
 ```
-DELETE /consumers/{consumerId}
+DELETE /tenants/{tenantKey}/consumers/{consumerId}
 
 204 No Content
 ```
 
-Deleting a consumer also removes all its dependencies across all tenants.
+See 3.5 for the effect on partitions, results and documents.
 
 ### 5.2 Request and Response Schemas
 
-Following the existing Epistola pattern (see `tenants.yaml`):
+All in `contracts/api/components/schemas/consumers.yaml`:
 
-```yaml
-CreateConsumerRequest:
-  type: object
-  required:
-    - id
-    - name
-  properties:
-    id:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
-      description: >
-        Client-provided unique slug identifier for the consumer.
-        Must be 3-63 characters, start with a letter, contain only
-        lowercase letters, numbers, and non-consecutive hyphens.
-      example: invoice-service
-    name:
-      type: string
-      minLength: 1
-      maxLength: 255
-      description: Human-readable name of the consuming system
-      example: Invoice Service
-    description:
-      type: string
-      maxLength: 1000
-      description: What this consumer does and why it uses Epistola
-      example: Generates PDF invoices for the billing pipeline
-    contact:
-      type: string
-      maxLength: 255
-      description: Team or individual responsible for this consumer
-      example: billing-team@acme-corp.com
-    tags:
-      type: array
-      maxItems: 20
-      items:
-        type: string
-        maxLength: 50
-      description: Freeform tags for categorization
-      example: ["billing", "production"]
+| Schema | Members (required in bold) |
+|---|---|
+| `RegisterConsumerRequest` | **`id`** (slug, 3-63), **`name`** (1-255), `description` (max 1000), `contact` (max 255), **`publicKey`** (PEM, RSA 2048+ or Ed25519, max 8192), **`requestedPermissions`** |
+| `ApproveConsumerRequest` | **`grantedPermissions`**, `expiresAt` (nullable) |
+| `RejectConsumerRequest` | `reason` (max 1000) |
+| `UpdateConsumerRequest` | `name` (1-255), `description` (nullable, max 1000), `contact` (nullable, max 255), `status` (`active`, `inactive`), `grantedPermissions`, `expiresAt` (nullable) |
+| `RotatePublicKeyRequest` | **`publicKey`** (max 8192) |
+| `ConsumerListResponse` | **`items`** (`ConsumerDto`), **`page`** (`PageMeta`) |
+| `ConsumerDto` | See 3.3 |
+| `ConsumerNodeDto` | See 3.3 |
+| `ConsumerPermissions` | See 3.6 |
 
-UpdateConsumerRequest:
-  type: object
-  properties:
-    name:
-      type: string
-      minLength: 1
-      maxLength: 255
-      description: New name for the consumer
-      example: Invoice Service v2
-    description:
-      type: [string, "null"]
-      maxLength: 1000
-      description: Updated description (null to clear)
-    contact:
-      type: [string, "null"]
-      maxLength: 255
-      description: Updated contact (null to clear)
-    status:
-      type: string
-      enum: [active, inactive]
-      description: Updated status
-    tags:
-      type: array
-      maxItems: 20
-      items:
-        type: string
-        maxLength: 50
-      description: Replacement tags (replaces entire array)
+### 5.3 Dependency Management (proposed)
 
-ConsumerListResponse:
-  type: object
-  required:
-    - items
-    - page
-    - size
-    - totalElements
-    - totalPages
-  properties:
-    items:
-      type: array
-      items:
-        $ref: '#/ConsumerDto'
-    page:
-      type: integer
-      description: Current page number (0-based)
-      example: 0
-    size:
-      type: integer
-      description: Number of items per page
-      example: 20
-    totalElements:
-      type: integer
-      format: int64
-      description: Total number of consumers
-      example: 1
-    totalPages:
-      type: integer
-      description: Total number of pages
-      example: 1
-```
-
-### 5.3 Dependency Management (Tenant-Scoped)
-
-Dependencies are managed under the tenant scope because the templates they reference are tenant-scoped. The consumer ID in the path identifies which consumer is declaring the dependency.
+Dependencies are managed under the consumer that declares them. The path names the template by its
+catalog's three parts and its key; as everywhere in a path, `~` means the default registry.
 
 #### Declare or update a dependency
 
-Uses `PUT` for idempotent upsert — the consumer either creates or replaces its dependency declaration for a given template.
+Uses `PUT` for idempotent upsert — the consumer either creates or replaces its dependency
+declaration for a given template.
 
 ```
-PUT /tenants/{tenantKey}/consumers/{consumerId}/dependencies/{templateKey}
+PUT /tenants/{tenantKey}/consumers/{consumerId}/dependencies/{registry}/{namespace}/{catalogKey}/{templateKey}
 Content-Type: application/vnd.epistola.v2+json
 
 {
-  "variantIds": ["english", "dutch"],
-  "environmentIds": ["production"],
+  "variantKeys": ["english", "dutch"],
+  "environmentKeys": ["production"],
+  "version": "^1.4.0",
   "purpose": "Generates monthly PDF invoices for B2B customers"
 }
 
@@ -485,11 +542,15 @@ Content-Type: application/vnd.epistola.v2+json
 
 {
   "consumerId": "invoice-service",
+  "registry": "exchange.epistola.app",
+  "namespace": "acme-corp",
+  "catalogKey": "letters",
   "templateKey": "invoice",
-  "variantIds": ["english", "dutch"],
-  "environmentIds": ["production"],
+  "variantKeys": ["english", "dutch"],
+  "environmentKeys": ["production"],
+  "version": "^1.4.0",
   "purpose": "Generates monthly PDF invoices for B2B customers",
-  "createdAt": "2026-02-17T10:30:00Z",
+  "createdAt": "2026-10-17T10:30:00Z",
   "updatedAt": null
 }
 ```
@@ -497,21 +558,27 @@ Content-Type: application/vnd.epistola.v2+json
 Request schema:
 
 ```yaml
+# Proposed, not in the spec
 DeclareTemplateDependencyRequest:
   type: object
   properties:
-    variantIds:
+    variantKeys:
       type: array
       items:
         type: string
       description: Specific variants the consumer uses (empty = all)
       example: ["english", "dutch"]
-    environmentIds:
+    environmentKeys:
       type: array
       items:
         type: string
-      description: Environments where this dependency is active (empty = all)
+      description: Environments the consumer generates through (empty = all)
       example: ["production"]
+    version:
+      type: [string, "null"]
+      maxLength: 100
+      description: The version selector the consumer's requests name, if any
+      example: "^1.4.0"
     purpose:
       type: string
       maxLength: 500
@@ -519,7 +586,10 @@ DeclareTemplateDependencyRequest:
       example: Generates monthly PDF invoices for B2B customers
 ```
 
-#### List dependencies for a consumer in a tenant
+The template need not exist in any version of the catalog yet: a consumer may declare a dependency
+before the template is released.
+
+#### List dependencies for a consumer
 
 ```
 GET /tenants/{tenantKey}/consumers/{consumerId}/dependencies
@@ -532,31 +602,41 @@ Content-Type: application/vnd.epistola.v2+json
   "items": [
     {
       "consumerId": "invoice-service",
+      "registry": "exchange.epistola.app",
+      "namespace": "acme-corp",
+      "catalogKey": "letters",
       "templateKey": "invoice",
-      "variantIds": ["english", "dutch"],
-      "environmentIds": ["production"],
+      "variantKeys": ["english", "dutch"],
+      "environmentKeys": ["production"],
+      "version": "^1.4.0",
       "purpose": "Generates monthly PDF invoices for B2B customers",
-      "createdAt": "2026-02-17T10:30:00Z",
+      "createdAt": "2026-10-17T10:30:00Z",
       "updatedAt": null
     },
     {
       "consumerId": "invoice-service",
+      "registry": "exchange.epistola.app",
+      "namespace": "acme-corp",
+      "catalogKey": "letters",
       "templateKey": "credit-note",
-      "variantIds": [],
-      "environmentIds": ["production"],
+      "variantKeys": [],
+      "environmentKeys": ["production"],
+      "version": null,
       "purpose": "Generates credit notes when invoices are reversed",
-      "createdAt": "2026-02-17T10:35:00Z",
+      "createdAt": "2026-10-17T10:35:00Z",
       "updatedAt": null
     }
   ]
 }
 ```
 
-The dependency list is not paginated — the number of templates a single consumer depends on within a single tenant is expected to be small (tens, not thousands).
+The dependency list is not paginated — the number of templates a single consumer depends on is
+expected to be small (tens, not thousands).
 
 Response schema:
 
 ```yaml
+# Proposed, not in the spec
 TemplateDependencyListResponse:
   type: object
   required:
@@ -571,19 +651,24 @@ TemplateDependencyListResponse:
 #### Remove a dependency
 
 ```
-DELETE /tenants/{tenantKey}/consumers/{consumerId}/dependencies/{templateKey}
+DELETE /tenants/{tenantKey}/consumers/{consumerId}/dependencies/{registry}/{namespace}/{catalogKey}/{templateKey}
 
 204 No Content
 ```
 
-### 5.4 Impact Query (Tenant-Scoped)
+### 5.4 Impact Query (proposed)
 
-Allows querying which consumers depend on a given template. This is the read side of dependency tracking — useful for impact analysis before making changes.
+Allows querying which consumers depend on a given template. This is the read side of dependency
+tracking — useful for impact analysis before releasing or undeploying.
+
+The path follows `validateTemplateData`, which also addresses a template in a catalog without a
+version (`/catalogs/{registry}/{namespace}/{catalogKey}/templates/{templateKey}/validate`): a
+dependency is on the template, whatever release a consumer renders.
 
 #### List dependents for a template
 
 ```
-GET /tenants/{tenantKey}/templates/{templateKey}/dependents?status=active
+GET /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/templates/{templateKey}/dependents?status=active
 Accept: application/vnd.epistola.v2+json
 
 200 OK
@@ -593,20 +678,28 @@ Content-Type: application/vnd.epistola.v2+json
   "items": [
     {
       "consumerId": "invoice-service",
+      "registry": "exchange.epistola.app",
+      "namespace": "acme-corp",
+      "catalogKey": "letters",
       "templateKey": "invoice",
-      "variantIds": ["english", "dutch"],
-      "environmentIds": ["production"],
+      "variantKeys": ["english", "dutch"],
+      "environmentKeys": ["production"],
+      "version": "^1.4.0",
       "purpose": "Generates monthly PDF invoices for B2B customers",
-      "createdAt": "2026-02-17T10:30:00Z",
+      "createdAt": "2026-10-17T10:30:00Z",
       "updatedAt": null
     },
     {
       "consumerId": "report-generator",
+      "registry": "exchange.epistola.app",
+      "namespace": "acme-corp",
+      "catalogKey": "letters",
       "templateKey": "invoice",
-      "variantIds": [],
-      "environmentIds": [],
+      "variantKeys": [],
+      "environmentKeys": [],
+      "version": null,
       "purpose": "Generates monthly summary reports including invoice copies",
-      "createdAt": "2026-02-18T09:00:00Z",
+      "createdAt": "2026-10-18T09:00:00Z",
       "updatedAt": null
     }
   ]
@@ -617,11 +710,12 @@ Query parameters:
 
 | Parameter | Type | Description |
 |---|---|---|
-| `status` | string | Filter by consumer status: `active` (default), `inactive`, or `all` |
+| `status` | string | Filter by consumer status: `active` (default), any other `ConsumerDto.status`, or `all` |
 
 Response schema:
 
 ```yaml
+# Proposed, not in the spec
 TemplateDependentListResponse:
   type: object
   required:
@@ -633,131 +727,156 @@ TemplateDependentListResponse:
         $ref: '#/TemplateDependencyDto'
 ```
 
-### 5.5 Impact Warnings on Delete
+### 5.5 Impact Warnings (proposed)
 
-When a delete operation targets a resource that has dependent consumers, the API returns **409 Conflict** instead of proceeding with the delete. The response body lists the affected consumers so the operator can assess impact and notify downstream teams.
+In 2.0, deleting or changing a template does not reach a consumer when it happens. Templates are
+edited in a draft catalog version, which generation does not render; the change reaches consumers
+when the draft is released and an environment serves the release. (A non-production environment
+that follows a draft through an override renders it live; this proposal does not warn about that.)
 
-#### Template delete with dependents
+So the warnings belong on the operations that change what consumers render:
+
+| Operation | Conflict condition |
+|---|---|
+| `releaseCatalogDraft` | The release removes a template or a variant an active consumer depends on (`ResourceChangeDto.change: removed`), and the consumer's `version` selector, if any, matches the new release |
+| `undeployRelease`, and `deployRelease` with `replace=true` | An active consumer depends on a template of the catalog through this environment (`environmentKeys` empty or containing it), and the environment would no longer serve a release that matches the consumer's `version` |
+
+The response is **409 Conflict** instead of proceeding, as an RFC 9457 problem. The problem type
+`has-dependents` and its `dependents` member are **proposed**: neither is in `x-problem-types`.
 
 ```
-DELETE /tenants/{tenantKey}/templates/{templateKey}
+POST /tenants/{tenantKey}/catalogs/~/acme-corp/letters/versions/next/release
 
 409 Conflict
-Content-Type: application/vnd.epistola.v2+json
+Content-Type: application/problem+json
 
 {
-  "code": "HAS_DEPENDENTS",
-  "message": "Cannot delete template 'invoice': 2 active consumers depend on it",
+  "type": "https://epistola.app/errors/has-dependents",
+  "title": "Consumers depend on this",
+  "status": 409,
+  "detail": "Releasing removes template 'invoice': 2 active consumers depend on it",
   "dependents": [
     {
       "consumerId": "invoice-service",
       "name": "Invoice Service",
-      "contact": "billing-team@acme-corp.com"
+      "contact": "billing-team@acme-corp.com",
+      "templateKey": "invoice"
     },
     {
       "consumerId": "report-generator",
       "name": "Report Generator",
-      "contact": "analytics-team@acme-corp.com"
+      "contact": "analytics-team@acme-corp.com",
+      "templateKey": "invoice"
     }
   ]
 }
 ```
 
-The `dependents` array includes consumer name and contact so operators can immediately reach out to affected teams.
+The `dependents` array includes consumer name and contact so operators can immediately reach out to
+affected teams.
 
-#### Force delete
+#### Proceeding anyway
 
-To proceed despite dependents, add `?force=true`:
+The opt-in follows `acknowledgedBehind` on `ReleaseCatalogDraftRequest`, which already acknowledges
+a known risk by naming it:
 
-```
-DELETE /tenants/{tenantKey}/templates/{templateKey}?force=true
+- `releaseCatalogDraft`: a **proposed** `acknowledgedDependents` member, an array of consumer IDs.
+  The release proceeds when it names every dependent; naming others changes nothing.
+- `undeployRelease` and `deployRelease` have no request body: a **proposed** query parameter
+  `acknowledgeDependents=true`.
 
-204 No Content
-```
+Proceeding does not remove the dependency records: they still describe what the consumer expects,
+and the next impact query shows them.
 
-Force delete removes the template and all associated dependency records. This is an explicit opt-in to acknowledge the blast radius.
-
-#### Same pattern for variant and theme deletes
-
-The 409 Conflict pattern applies to:
-
-| Operation | Conflict condition |
-|---|---|
-| `DELETE /tenants/{tenantKey}/templates/{templateKey}` | Any consumer has a dependency on this template |
-| `DELETE /tenants/{tenantKey}/templates/{templateKey}/variants/{variantKey}` | Any consumer's dependency references this specific variant |
-| `DELETE /tenants/{tenantKey}/themes/{themeKey}` | Any consumer's dependency references a template using this theme |
-
-All support `?force=true` to override.
-
-Response schema for the conflict response. This extends the base `ErrorResponse` pattern (same `code` + `message` fields) with an additional `dependents` array, following the precedent set by `ValidationErrorResponse`:
+Response schema for the conflict:
 
 ```yaml
-DependentConflictResponse:
-  type: object
-  required:
-    - code
-    - message
-    - dependents
-  properties:
-    code:
-      type: string
-      description: Machine-readable error code
-      example: HAS_DEPENDENTS
-    message:
-      type: string
-      description: Human-readable description of the conflict
-      example: "Cannot delete template 'invoice': 2 active consumers depend on it"
-    dependents:
-      type: array
-      items:
-        type: object
-        required:
-          - consumerId
-          - name
-        properties:
-          consumerId:
-            type: string
-            description: ID of the dependent consumer
-            example: invoice-service
-          name:
-            type: string
-            description: Name of the dependent consumer
-            example: Invoice Service
-          contact:
-            type: [string, "null"]
-            description: Contact for the dependent consumer
-            example: billing-team@acme-corp.com
+# Proposed, not in the spec
+HasDependentsProblemDetail:
+  allOf:
+    - $ref: '#/ProblemDetail'
+    - type: object
+      required:
+        - dependents
+      properties:
+        dependents:
+          type: array
+          items:
+            type: object
+            required:
+              - consumerId
+              - name
+              - templateKey
+            properties:
+              consumerId:
+                type: string
+                description: ID of the dependent consumer
+                example: invoice-service
+              name:
+                type: string
+                description: Name of the dependent consumer
+                example: Invoice Service
+              contact:
+                type: [string, "null"]
+                description: Contact for the dependent consumer
+                example: billing-team@acme-corp.com
+              templateKey:
+                type: string
+                description: The template the consumer depends on
+                example: invoice
 ```
+
+A new problem type touches every client's problem parser and the server stubs; see "The
+problem-type registry and code that follows it" in the repository's `CLAUDE.md`.
 
 ### 5.6 Endpoint Summary
 
-| Method | Path | Operation | Tag | Role |
+In the spec (experimental):
+
+| Method | Path | Operation | Tag | Permission |
 |---|---|---|---|---|
-| `POST` | `/consumers` | `createConsumer` | Consumers | `tenant_control` |
-| `GET` | `/consumers` | `listConsumers` | Consumers | `tenant_control` |
-| `GET` | `/consumers/{consumerId}` | `getConsumer` | Consumers | `tenant_control` |
-| `PATCH` | `/consumers/{consumerId}` | `updateConsumer` | Consumers | `tenant_control` |
-| `DELETE` | `/consumers/{consumerId}` | `deleteConsumer` | Consumers | `tenant_control` |
-| `PUT` | `/tenants/{tenantKey}/consumers/{consumerId}/dependencies/{templateKey}` | `declareTemplateDependency` | Consumer Dependencies | `reader, editor, generator, manager` |
-| `GET` | `/tenants/{tenantKey}/consumers/{consumerId}/dependencies` | `listConsumerDependencies` | Consumer Dependencies | `reader, editor, generator, manager` |
-| `DELETE` | `/tenants/{tenantKey}/consumers/{consumerId}/dependencies/{templateKey}` | `deleteTemplateDependency` | Consumer Dependencies | `reader, editor, generator, manager` |
-| `GET` | `/tenants/{tenantKey}/templates/{templateKey}/dependents` | `listTemplateDependents` | Consumer Dependencies | `reader, editor, generator, manager` |
+| `POST` | `/tenants/{tenantKey}/consumers/register` | `registerConsumer` | Consumers | none (unauthenticated) |
+| `GET` | `/tenants/{tenantKey}/consumers` | `listConsumers` | Consumers | `TENANT_USERS` |
+| `GET` | `/tenants/{tenantKey}/consumers/{consumerId}` | `getConsumer` | Consumers | `TENANT_USERS` |
+| `PATCH` | `/tenants/{tenantKey}/consumers/{consumerId}` | `updateConsumer` | Consumers | `TENANT_USERS` |
+| `DELETE` | `/tenants/{tenantKey}/consumers/{consumerId}` | `deleteConsumer` | Consumers | `TENANT_USERS` |
+| `POST` | `/tenants/{tenantKey}/consumers/{consumerId}/approve` | `approveConsumer` | Consumers | `TENANT_USERS` |
+| `POST` | `/tenants/{tenantKey}/consumers/{consumerId}/reject` | `rejectConsumer` | Consumers | `TENANT_USERS` |
+| `PUT` | `/tenants/{tenantKey}/consumers/{consumerId}/public-key` | `rotatePublicKey` | Consumers | JWT signed with the current key |
+
+Proposed:
+
+| Method | Path | Operation | Tag | Permission |
+|---|---|---|---|---|
+| `PUT` | `/tenants/{tenantKey}/consumers/{consumerId}/dependencies/{registry}/{namespace}/{catalogKey}/{templateKey}` | `declareTemplateDependency` | Consumer Dependencies | see 4.4 |
+| `GET` | `/tenants/{tenantKey}/consumers/{consumerId}/dependencies` | `listConsumerDependencies` | Consumer Dependencies | see 4.4 |
+| `DELETE` | `/tenants/{tenantKey}/consumers/{consumerId}/dependencies/{registry}/{namespace}/{catalogKey}/{templateKey}` | `deleteTemplateDependency` | Consumer Dependencies | see 4.4 |
+| `GET` | `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/templates/{templateKey}/dependents` | `listTemplateDependents` | Consumer Dependencies | see 4.4 |
 
 ### 5.7 Path Design
 
-**Consumer CRUD** is placed at `/consumers` (no tenant prefix) because consumers are platform-level resources. This is consistent with the pattern that platform-level resources (tenants at `/tenants`) do not have a tenant prefix.
+**Consumer registration and lifecycle** is placed at `/tenants/{tenantKey}/consumers` because
+consumers are tenant-scoped (3.2). `register`, `approve`, `reject` and `public-key` are
+sub-resources because each is a distinct action with its own authorization.
 
-**Dependency management** is placed under `/tenants/{tenantKey}/consumers/{consumerId}/dependencies/...` because dependencies reference tenant-scoped resources. The consumer ID in the path identifies the consumer; the tenant ID scopes the dependency to that tenant's templates.
+**Dependency management** (proposed) is placed under
+`/tenants/{tenantKey}/consumers/{consumerId}/dependencies/...` because a dependency belongs to the
+consumer that declares it. The rest of the path names the template the same way the API names a
+catalog everywhere: registry, namespace and catalog key as separate segments.
 
-**Impact query** is placed under `/tenants/{tenantKey}/templates/{templateKey}/dependents` because the question is "who depends on this template?" — a template-centric view.
+**Impact query** (proposed) is placed under
+`/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/templates/{templateKey}/dependents`
+because the question is "who depends on this template?" — a template-centric view, independent of
+any one catalog version.
 
 ---
 
-## 6. Integration Points
+## 6. Integration Points (proposed)
 
 ### 6.1 Event System
 
-The event system design (`event-system.md`, Section 2.2) defines an `actor` field on the event envelope:
+The event system design (`event-system.md`, Section 2.2) defines an `actor` field on the event
+envelope:
 
 ```yaml
 actor:
@@ -789,54 +908,70 @@ actor:
         to a registered consumer.
 ```
 
-This enriches every event: instead of just "user jane@acme-corp.com performed this action", the event now records "user jane@acme-corp.com via invoice-service performed this action."
+This enriches every event: instead of just "user jane@acme-corp.com performed this action", the
+event now records "user jane@acme-corp.com via invoice-service performed this action."
 
-Consumer registration also generates its own events:
+Consumer registration also generates its own events, named as `event-system.md` names event types:
 
 | Event Type | Trigger |
 |---|---|
-| `consumer.registered` | `POST /consumers` |
-| `consumer.updated` | `PATCH /consumers/{consumerId}` |
-| `consumer.deleted` | `DELETE /consumers/{consumerId}` |
-| `dependency.declared` | `PUT .../dependencies/{templateKey}` |
-| `dependency.removed` | `DELETE .../dependencies/{templateKey}` |
+| `consumer.registered` | `registerConsumer`, or the auto-registration of an OAuth consumer |
+| `consumer.approved` | `approveConsumer` |
+| `consumer.rejected` | `rejectConsumer` |
+| `consumer.updated` | `updateConsumer` |
+| `consumer.public-key-rotated` | `rotatePublicKey` |
+| `consumer.expired` | The approval's `expiresAt` passed |
+| `consumer.deleted` | `deleteConsumer` |
+| `consumer-dependency.declared` | `declareTemplateDependency` (proposed) |
+| `consumer-dependency.removed` | `deleteTemplateDependency` (proposed) |
 
-Note: Consumer events are **not** tenant-scoped (consumers are platform-level). This requires extending the event model to support events without a `tenantKey`, or using a reserved tenant ID (e.g., `_platform`). This decision is deferred to the event system implementation.
-
-Dependency events **are** tenant-scoped and fit the existing event model without modification.
+Consumers and their dependencies are tenant-scoped, so all of these events fit the tenant-scoped
+event model without modification.
 
 ### 6.2 Document Generation
 
-The `DocumentDto.createdBy` field (currently `type: [string, "null"]`, always `null`) gets populated with the consumer ID when the server can identify the calling consumer.
+The `DocumentDto.createdBy` field (currently `type: [string, "null"]`, always `null`) gets populated
+with the consumer ID when the server can identify the calling consumer.
 
 ```json
 {
   "id": "770e8400-e29b-41d4-a716-446655440002",
+  "tenantKey": "acme-corp",
+  "registry": "exchange.epistola.app",
+  "namespace": "acme-corp",
+  "catalogKey": "letters",
   "templateKey": "invoice",
   "variantKey": "english",
-  "versionId": 3,
+  "releaseVersion": "1.4.0",
   "filename": "invoice-2026-001.pdf",
   "correlationId": "order-7890",
   "contentType": "application/pdf",
   "sizeBytes": 184320,
-  "createdAt": "2026-02-01T08:00:03Z",
+  "createdAt": "2026-10-17T08:00:03Z",
   "createdBy": "invoice-service"
 }
 ```
 
-This is fully backwards compatible — the field already exists and is nullable. Consumers that don't check `createdBy` are unaffected.
+This is fully backwards compatible — the field already exists and is nullable. Consumers that don't
+check `createdBy` are unaffected.
 
-**Note**: The current field description in `generation.yaml` reads "User who generated the document (future feature)". This must be updated when implementing Phase 1 to reflect that `createdBy` contains a **consumer system identifier** (e.g., `invoice-service`), not a human user identifier. The field semantics change from "which person" to "which system" — a deliberate choice since document generation is typically triggered by automated systems, not individual users.
+**Note**: The current field description in `generation.yaml` reads "User who generated the document
+(future feature)". This must be updated when implementing attribution to reflect that `createdBy`
+contains a **consumer identifier** (e.g., `invoice-service`), not a human user identifier. The field
+semantics change from "which person" to "which system" — a deliberate choice since document
+generation is typically triggered by automated systems, not individual users.
 
 ### 6.3 Authentication
 
-The consumer identity can be resolved server-side in several ways:
+The consumer identity is resolved from the credential, as 3.4 describes:
 
-1. **JWT `client_id` claim** — The OAuth2 client credentials `client_id` is mapped to a consumer ID in server configuration.
-2. **API key metadata** — Each API key is associated with a consumer ID in the server's key store.
-3. **`X-Consumer-Id` header** — An optional header that allows explicit consumer identification, useful for shared credentials or development environments.
+1. **OAuth** (experimental) — the JWT `client_id` claim is the consumer ID.
+2. **Self-signed JWT** (experimental) — the JWT `iss` claim is the consumer ID, verified against the
+   registered `publicKey`.
+3. **API key** — each key is associated with a consumer in the server's key store.
 
-The API contract does not prescribe which method is used. The server documentation should describe the supported identification mechanisms.
+A caller that is not a consumer (a user in Epistola Suite, an API key not linked to one) leaves
+`createdBy` null.
 
 ---
 
@@ -844,48 +979,59 @@ The API contract does not prescribe which method is used. The server documentati
 
 ### Phased Implementation
 
-Consumer registration delivers value incrementally. Each phase is independently useful and does not require subsequent phases.
+Consumer registration delivers value incrementally. Each phase is independently useful and does not
+require subsequent phases.
 
 #### Phase 1: Consumer Registry + Attribution
 
-**Scope**: Consumer CRUD (`/consumers`) and `createdBy` population.
+**Scope**: Consumer registration and lifecycle, and `createdBy` population.
 
-**Value**: Provides a central registry of which systems use Epistola. Documents can be traced back to the generating system. This is the minimum viable feature.
+**Status**: The registry is in the spec, as the experimental Consumers API. Attribution is not done:
+the server does not populate `createdBy`, and its description still describes a user.
 
-**API changes**:
-- Add `ConsumerDto`, `CreateConsumerRequest`, `UpdateConsumerRequest`, `ConsumerListResponse` schemas
-- Add consumer CRUD endpoints at `/consumers`
-- Add `Consumers` tag
+**Value**: Provides a registry of which systems use a tenant. Documents can be traced back to the
+generating system.
+
+**API changes still needed**:
+- Update the `DocumentDto.createdBy` description (6.2)
 - Server populates `DocumentDto.createdBy` (no schema change needed — field exists)
 
-**Effort**: Small — standard CRUD, follows existing patterns exactly.
+**Effort**: Small.
 
 #### Phase 2: Dependencies + Impact Analysis
 
-**Scope**: Dependency declaration, impact queries, and 409 Conflict on delete.
+**Scope**: Dependency declaration, impact queries, and 409 Conflict on release and undeploy.
 
-**Value**: This is the high-value feature. Operators can now see which systems are affected before making changes. Templates cannot be accidentally deleted while consumers depend on them.
+**Value**: This is the high-value feature. Operators can now see which systems are affected before
+releasing or undeploying. A release cannot remove a template consumers depend on without someone
+acknowledging it.
 
 **API changes**:
-- Add `TemplateDependencyDto`, `DeclareTemplateDependencyRequest`, `TemplateDependencyListResponse`, `TemplateDependentListResponse`, `DependentConflictResponse` schemas
+- Add `TemplateDependencyDto`, `DeclareTemplateDependencyRequest`, `TemplateDependencyListResponse`,
+  `TemplateDependentListResponse` schemas
 - Add dependency management endpoints under `/tenants/{tenantKey}/consumers/{consumerId}/dependencies/`
-- Add impact query endpoint under `/tenants/{tenantKey}/templates/{templateKey}/dependents`
-- Modify delete endpoints to return 409 when dependents exist
-- Add `?force=true` query parameter to delete endpoints
+- Add the impact query endpoint under
+  `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/templates/{templateKey}/dependents`
+- Register the `has-dependents` problem type with `HasDependentsProblemDetail`
+- Return 409 from `releaseCatalogDraft`, `undeployRelease` and `deployRelease` (`replace=true`)
+  when dependents would be affected
+- Add `acknowledgedDependents` to `ReleaseCatalogDraftRequest` and `acknowledgeDependents` to
+  `undeployRelease` and `deployRelease`
 - Add `Consumer Dependencies` tag
 
-**Effort**: Medium — dependency model is simple, but the 409 Conflict integration touches existing delete endpoints.
+**Effort**: Medium — the dependency model is simple, but the 409 Conflict integration touches
+releasing and deploying.
 
 #### Phase 3: Event System Integration
 
-**Scope**: Enrich event `actor` with `consumerId`, add consumer/dependency event types.
+**Scope**: Enrich event `actor` with `consumerId`, add consumer and dependency event types.
 
-**Value**: Full audit trail with consumer attribution. Every event records not just who performed the action, but which system they used.
+**Value**: Full audit trail with consumer attribution. Every event records not just who performed
+the action, but which system they used.
 
 **API changes**:
 - Extend `actor` schema in event envelope with `consumerId`
 - Add consumer and dependency event types
-- Address platform-level events (consumers are not tenant-scoped)
 
 **Depends on**: Event system implementation (see `event-system.md`).
 
@@ -893,49 +1039,68 @@ Consumer registration delivers value incrementally. Each phase is independently 
 
 ---
 
-## Appendix A: Platform-Level Resources
+## Appendix A: Resource Scopes
 
-Consumer registration introduces the first platform-level resource besides tenants. This establishes a pattern for future platform-level resources that may be needed (e.g., global settings, platform-wide themes).
+Consumers are tenant-scoped like every resource but tenants themselves. Resources in a catalog are
+scoped further, to a catalog version.
 
-| Resource | Scope | Path Prefix | Management Role |
+| Resource | Scope | Path Prefix | Management Permission |
 |---|---|---|---|
-| Tenants | Platform | `/tenants` | `tenant_control` |
-| Consumers | Platform | `/consumers` | `tenant_control` |
-| Templates | Tenant | `/tenants/{tenantKey}/templates` | `editor`, `manager` |
-| Themes | Tenant | `/tenants/{tenantKey}/themes` | `editor`, `manager` |
-| Environments | Tenant | `/tenants/{tenantKey}/environments` | `editor`, `manager` |
+| Tenants | Platform | `/tenants` | `TENANT_MANAGER` platform role (create, delete); `TENANT_SETTINGS` (update) |
+| Consumers | Tenant | `/tenants/{tenantKey}/consumers` | `TENANT_USERS` |
+| Environments | Tenant | `/tenants/{tenantKey}/environments` | `TENANT_SETTINGS`; `ENVIRONMENT_DEPLOY` to deploy, undeploy and override |
+| Catalog versions | Catalog | `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions` | `TEMPLATE_EDIT` (drafts); `CATALOG_RELEASE` (release, promote, discard) |
+| Templates | Catalog version | `…/versions/{catalogVersion}/templates` | `TEMPLATE_EDIT` |
+| Themes | Catalog version | `…/versions/{catalogVersion}/themes` | `THEME_EDIT` |
 
-## Appendix B: Hybrid Scoping Coherence
+## Appendix B: Scoping Coherence
 
-The hybrid model (platform-level consumers, tenant-scoped dependencies) creates a cross-reference between scoping levels. This appendix addresses potential consistency concerns.
+Consumers and their dependencies are both tenant-scoped, so no operation crosses a scope boundary.
+This appendix addresses the remaining consistency concerns.
 
 **Scenario: Consumer is deleted while dependencies exist**
 
-When a consumer is deleted (`DELETE /consumers/{consumerId}`), all dependencies across all tenants are cascade-deleted. This is the only operation that crosses the scope boundary, and it flows top-down (platform → tenant), which is safe.
+When a consumer is deleted (`deleteConsumer`), its dependencies are deleted with it.
 
-**Scenario: Tenant is deleted while dependencies reference it**
+**Scenario: Tenant is deleted**
 
-When a tenant is deleted (`DELETE /tenants/{tenantKey}`), all dependencies within that tenant are deleted as part of the tenant cleanup. The consumer record itself is unaffected (it may have dependencies in other tenants).
+When a tenant is deleted (`deleteTenant`), its consumers and their dependencies are deleted as part
+of the tenant cleanup. The same application registered in other tenants is unaffected: those are
+separate consumers.
 
-**Scenario: Consumer exists but has no dependencies in a tenant**
+**Scenario: The same application in several tenants**
 
-This is valid. A consumer might be registered at the platform level but only have dependencies declared in some tenants. The dependency endpoints return empty lists for tenants where no dependencies have been declared.
+Each registration is a separate consumer, with its own approval, permissions and dependencies. Its
+dependencies are declared in each tenant separately.
 
 **Scenario: Dependency references a non-existent consumer**
 
-The `PUT` dependency endpoint validates that the consumer ID exists. If the consumer does not exist, the server returns 404. Dependencies cannot be created for unregistered consumers.
+The `PUT` dependency endpoint validates that the consumer ID exists in the tenant. If the consumer
+does not exist, the server returns 404. Dependencies cannot be created for unregistered consumers.
+
+**Scenario: The template is not in every version**
+
+A dependency names a template, not a version. The template may be new in a draft, removed in a later
+release, or absent from a release an environment still serves; the dependency stays. Impact warnings
+(5.5) are where it matters.
 
 ## Appendix C: Comparison with Auto-Detection
 
-An alternative to explicit dependency declaration is automatic detection: the server tracks which consumer calls which template (via generation requests) and builds the dependency graph automatically.
+An alternative to explicit dependency declaration is automatic detection: the server tracks which
+consumer calls which template (via generation requests) and builds the dependency graph
+automatically.
 
 | Aspect | Explicit Declaration | Auto-Detection |
 |---|---|---|
 | **Accuracy** | Declared by the consumer — may be incomplete or stale | Based on actual usage — always up to date |
-| **Intent** | Captures purpose and scope (variants, environments) | Only captures observed usage patterns |
+| **Intent** | Captures purpose and scope (variants, environments, version selector) | Only captures observed usage patterns |
 | **Forward-looking** | Can declare dependencies before first use | Only reflects past behavior |
 | **Server complexity** | Low — simple CRUD | High — requires tracking every API call per consumer |
 | **Privacy** | Consumer controls what it declares | Server tracks all activity |
 | **Contract expressibility** | Full — standard REST endpoints | Minimal — auto-detection is server-internal |
 
-The explicit model is chosen because it fits the contract-first approach (it's an API feature, not an observability feature), captures richer information (purpose, intended variants/environments), and has minimal server complexity. A server implementation could supplement explicit declarations with auto-detected usage data as a future enhancement.
+The explicit model is chosen because it fits the contract-first approach (it's an API feature, not
+an observability feature), captures richer information (purpose, intended variants, environments
+and versions), and has minimal server complexity. A server implementation could supplement explicit
+declarations with auto-detected usage data as a future enhancement; `DeploymentDto.lastUsedAt` and
+`documentsRequested` already report usage per deployed release, though not per consumer.
