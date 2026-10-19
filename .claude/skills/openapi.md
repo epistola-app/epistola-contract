@@ -121,9 +121,9 @@ widgets:
 ```yaml
 paths:
   # Widgets
-  /v1/tenants/{tenantId}/widgets:
+  /tenants/{tenantKey}/widgets:
     $ref: './contracts/api/paths/widgets.yaml#/widgets'
-  /v1/tenants/{tenantId}/widgets/{widgetId}:
+  /tenants/{tenantKey}/widgets/{widgetKey}:
     $ref: './contracts/api/paths/widgets.yaml#/widgets-id'
 ```
 
@@ -131,8 +131,8 @@ paths:
 
 - Use kebab-case: `/document-templates`, not `/documentTemplates`
 - Use plural nouns: `/widgets`, not `/widget`
-- Nest under tenant: `/v1/tenants/{tenantId}/widgets`
-- Action endpoints use verbs: `/widgets/{id}/publish`, `/widgets/{id}/archive`
+- Nest under tenant: `/tenants/{tenantKey}/widgets`
+- Action endpoints use verbs: `/widgets/{widgetKey}/publish`, `/widgets/{widgetKey}/archive`
 
 ### OperationId Conventions
 

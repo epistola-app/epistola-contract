@@ -15,7 +15,7 @@ info:
     ## Catalog versions
     A catalog is versioned as a whole, never resource by resource. It consists of **versions**,
     addressed as `/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}`, with the
-    catalog's resources below it (ADR 0002, amendment 2).
+    catalog's resources below it (ADR 0002).
 
     A **draft** is edited, its changed resources marked ready, and **released**, after which it is
     immutable: every write to it is refused with 409. A draft has no number until it is released; it

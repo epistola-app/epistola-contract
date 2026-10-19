@@ -23,7 +23,7 @@ libraries.
   write wins. A template's `ETag` covers its own properties; a variant's covers its title,
   attributes and template model, whether read through `getVariant` or `getVariantContent`. New
   reusable components: the `IfMatch` parameter and the `ETag` response header.
-- **Long-term work becomes the next version; it is not released** (ADR 0002, amendment 2).
+- **Long-term work becomes the next version; it is not released** (ADR 0002).
   `promoteCatalogDraft` (`{keepPreviousAs?, acknowledgedBehind?}`) makes long-term work the next
   version, which is then released like any next version. Releasing long-term work is refused with
   409 `catalog-draft-kind` (a new problem type); it is tried by pointing a non-production environment
@@ -31,7 +31,7 @@ libraries.
   cycle, are withdrawn before release: there is no `CatalogVersionDto.preRelease`, and release
   numbers in addresses, `ReleaseCatalogDraftRequest.version` and `CreateCatalogDraftRequest.from`
   are plain `MAJOR.MINOR.PATCH`.
-- **Environment overrides and a production mark** (ADR 0002, amendment 2). An environment can
+- **Environment overrides and a production mark** (ADR 0002). An environment can
   override which version of a catalog it uses as its latest: one of the releases it serves (a
   rollback), or a draft, the next version or long-term work, rendered live with no release.
   `listEnvironmentOverrides`, `setEnvironmentOverride` (`PUT
@@ -65,39 +65,6 @@ libraries.
   environment, in the same transaction, each logged as undeployed. Without it, the release is
   still added beside the others.
 
-### Changed
-
-- **BREAKING: the media type is `application/vnd.epistola.v2+json`** (and
-  `application/vnd.epistola.v2+ndjson` for result collection), in `Accept` and `Content-Type`. The
-  media type carries the API's major version, and contract 2.0 changes most request and response
-  bodies, so a 2.x server refuses the 1.x media type with 406 or 415. A 1.x client against a 2.x
-  server now fails on its first request, instead of having `releaseVersion` or `versionId` ignored
-  and being served a release it did not ask for. Every client sends the new media type; the
-  `media-types`, `error-accept` and request-shape conformance scenarios hold all five to it.
-
-- **A draft is numbered when it is released** (ADR 0002, amendment 2). Every AUTHORED catalog has
-  one next version, addressed as `next`, where everyday work goes and the only draft that is
-  released; any other draft is long-term work, named and addressed by its `draftId`. A released
-  version is still addressed by its number: `{catalogVersion}` accepts `next`, a draft id or a
-  SemVer number. `CatalogVersionDto` gains `draftId`, `isNext` and `name`, and a draft's `version`
-  is null. `CatalogDto.draftVersions` becomes `drafts` (`CatalogDraftSummary`).
-  `createCatalogVersion` becomes `createCatalogDraft` (`{name, from?}`: long-term work, from the
-  next version or a release), `renumberCatalogVersion` becomes `renameCatalogDraft`,
-  `deleteCatalogVersion` becomes `deleteCatalogDraft` (discarding the next version starts it again
-  on the latest release), `previewCatalogVersionRenumber` becomes `previewCatalogDraftRelease` (the
-  number it would be released as, from the kind of change against the latest release, and why),
-  and `releaseCatalogVersion` becomes `releaseCatalogDraft`, which numbers the next version (as
-  `version`, never lower than its changes need, or as they need) and continues it on the release;
-  it no longer returns `openedDraft`, and `draftsBehind` names long-term work. `RenumberWarningDto`
-  is gone. Preview names a draft as `draft` (`next` or a draft id) in place of `draftVersion`.
-
-### Added
-
-- **Renumber warnings name the changes that make a number too low.** `RenumberWarningDto` gains
-  `reasons`, and its known kinds gain `passes-draft`, `breaking-changes-in-minor` and
-  `additions-in-patch` beside `breaking-changes-in-patch`: breaking changes need a major, additions
-  a minor (ADR 0001's rule for what breaks).
-
 - **Stencils by reference, with lexical scope (ADR 0006), catalog side.** A stencil declares
   `readsTemplateData` (wire v8, default `false`, left out of the JSON when false and not covered by
   the legacy fingerprint algorithms) when its content also sees the using template's data. The
@@ -107,17 +74,21 @@ libraries.
   template document or style map from wire v7 to v8 exactly as the archive migration does inside a
   resource, so a producer's store and an archive migrate alike.
 
-- **Catalog versions: several drafts at once, released in place** (ADR 0002). A catalog consists
-  of versions, each a `draft` or `released`, addressed as
-  `…/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}`. `listCatalogVersions`,
-  `createCatalogVersion` (from the version's base, or `from` any other version),
-  `getCatalogVersion`, `renumberCatalogVersion` (drafts only; warnings from
-  `previewCatalogVersionRenumber` must be acknowledged), `deleteCatalogVersion` (drafts only) and
-  `releaseCatalogVersion`, which keeps the number and address, makes the version immutable (returned as `catalogVersion`), and
-  changes no other draft: drafts are independent copies, and a draft lists the releases it is
-  behind (see "catalog drafts are independent copies" under Changed). `CatalogDto` lists
-  `draftVersions`.
-
+- **Catalog versions: the next version and long-term work** (ADR 0002). A catalog consists of
+  versions, each a `draft` or `released`, addressed as
+  `…/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}`, where
+  `{catalogVersion}` is `next`, a draft id or a release's SemVer number. Every AUTHORED catalog has
+  one **next version** (`next`), where everyday work goes and the only draft that is released; any
+  other draft is **long-term work**, named and addressed by its `draftId`. A draft has no number
+  until it is released. `listCatalogVersions`, `createCatalogDraft` (`{name, from?}`: long-term
+  work, from the next version or a release), `getCatalogVersion` (`CatalogVersionDto` with
+  `draftId`, `isNext`, `name`, and a `version` that is null for a draft), `renameCatalogDraft`,
+  `deleteCatalogDraft` (discarding the next version starts it again on the latest release),
+  `previewCatalogDraftRelease` (the number it would be released as, from the kind of change against
+  the latest release, and why) and `releaseCatalogDraft`, which numbers the next version (as
+  `version`, never lower than its changes need, or as they need), makes it immutable at that
+  number, and continues the next version on the release. `CatalogDto` lists its `drafts`
+  (`CatalogDraftSummary`). Preview renders a draft named as `draft` (`next` or a draft id).
 - **The changes of a catalog version, and deployments.** A released version also carries the
   releases of other catalogs it renders with (`dependencies`) and the environments that serve it
   (`deployedTo`). `getCatalogChanges` lists what is new, modified, ready or removed since the
@@ -126,6 +97,9 @@ libraries.
   serve several releases of one catalog: `listEnvironmentDeployments`, `deployRelease` and
   `undeployRelease` (both addressed by the release, `…/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}`,
   with no request body), and `listDeploymentHistory` with every deploy and undeploy.
+  `undeployRelease` removes an explicit deployment only, and is never refused because another
+  release the environment serves renders with it: that release keeps rendering it, implicitly. A
+  release the environment uses only implicitly cannot be undeployed (404) (ADR 0003).
 
 - **A template has a `description`** (#97): optional plain-text notes for its authors, at most
   2000 characters, not rendered. On `TemplateDto`, `TemplateSummaryDto`, `CreateTemplateRequest`,
@@ -166,11 +140,13 @@ libraries.
 
 ### Changed
 
-- **Stencil usage reports whether an instance fits, not whether it is held back** (ADR 0006).
-  `StencilUsageDto.heldBack` is replaced by `fits` and `problems`; `MarkStencilReadyResponse.heldBack`
-  by `notFitting`, the instances that do not fit; `ResourceChangeDto.heldBackInstances` is removed.
-  Marking a stencil ready moves nothing: every instance renders the stencil as it is, and one that
-  does not fit blocks the release.
+- **BREAKING: the media type is `application/vnd.epistola.v2+json`** (and
+  `application/vnd.epistola.v2+ndjson` for result collection), in `Accept` and `Content-Type`. The
+  media type carries the API's major version, and contract 2.0 changes most request and response
+  bodies, so a 2.x server refuses the 1.x media type with 406 or 415. A 1.x client against a 2.x
+  server now fails on its first request, instead of having `releaseVersion` or `versionId` ignored
+  and being served a release it did not ask for. Every client sends the new media type; the
+  `media-types`, `error-accept` and request-shape conformance scenarios hold all five to it.
 
 - **`UpdateTemplateRequest.forceUpdate` has no effect.** A template is edited in a draft catalog
   version, which nothing renders, so a breaking data-model change is saved without confirmation and
@@ -217,23 +193,18 @@ libraries.
   catalogs migrated separately still agree; a renamed key that collides with an existing one is
   refused, never disambiguated. Epistola Suite must apply the same rule to the keys it stores.
 
-- **BREAKING: catalog drafts are independent copies; nothing is merged** (ADR 0002, amended). A
-  release no longer flows into higher drafts. A draft's `base` is fixed: the release it started
-  from. A draft is **behind** the releases numbered between its base and its own number:
-  `CatalogVersionDto.behind` lists them (`BehindReleaseDto`, with each release's `added` /
-  `modified` / `removed` resources, `ReleasedChangeDto`). Releasing a draft that is behind is
-  refused with 409 unless `ReleaseCatalogVersionRequest.acknowledgedBehind` names every one of
-  them, and `ReleaseCatalogVersionResponse.draftsBehind` lists the higher drafts a release leaves
-  behind. Removed: `listIncomingChanges`, `resolveIncomingChange`, `IncomingChange*`,
-  `ResolveIncomingChangeRequest`, `ForwardFlowDto`, `flowedInto`, `openConflicts` and the renumber
-  preview's `newBase`; renumber warnings `releases-flow-in` and `draft-order-changes` give way to
-  `falls-behind`. Conformance: `list-incoming-changes` and `resolve-incoming-change` are gone;
-  new scenarios `get-draft-behind` and `release-catalog-version-behind`. A merge on request is
-  proposed in ADR 0005, outside 2.0.0.
-
+- **Catalog drafts are independent copies; nothing is merged** (ADR 0002). Releasing a draft
+  changes no other draft. A draft's `base` is fixed: the release it started from. Long-term work is
+  **behind** the releases made since its base: `CatalogVersionDto.behind` lists them
+  (`BehindReleaseDto`, with each release's `added` / `modified` / `removed` resources,
+  `ReleasedChangeDto`), and `ReleaseCatalogDraftResponse.draftsBehind` names the long-term work a
+  release leaves behind. Promoting (or releasing) a draft that is behind is refused with 409 unless
+  `acknowledgedBehind` names every one of them, so a fix can be left out, but never unnoticed.
+  Conformance scenarios `get-draft-behind` and `release-catalog-draft-behind`. A merge on request
+  is proposed in ADR 0005, outside 2.0.0.
 - **BREAKING: a resource's address is its `key`** (#84). The rule: a `key` is a resource's public
   address within its parent; an `id` is a generated identifier that is not an address
-  (`documentId`, `requestId`, `batchId`, `correlationId`, `consumerId`, `changeId`, node and slot
+  (`documentId`, `requestId`, `batchId`, `correlationId`, `consumerId`, node and slot
   ids).
   - Read models: `slug` → `key` on every DTO that had one (templates, variants, stencils, themes,
     environments, tenants, attributes, code lists, fonts, images, import and catalog results,
@@ -333,9 +304,7 @@ libraries.
   images, and its `dependencies`, `changes` and `mark-ready`, gains `/versions/{catalogVersion}`
   after the catalog. Reads work on any version; writes only on a draft, and are refused with 409 on
   a released version. `validateTemplateData` stays on the catalog, as it selects a release like
-  generation does. `releaseCatalog`, `listCatalogReleases` and `getCatalogRelease` are replaced by
-  the version operations, and `CatalogReleaseDto` by `CatalogVersionDto`. Preview renders a draft by
-  `draftVersion` instead of `workingCopy`. `CatalogChangesDto.latestRelease` is now `base`.
+  generation does. `releaseCatalog` is replaced by the version operations (`releaseCatalogDraft`).
   `importCatalog` takes the draft to import into as `catalogVersion`, and reports it.
 
 - **BREAKING: a catalog is identified by its registry, its namespace and its key** (ADR 0003).
@@ -371,9 +340,9 @@ libraries.
   `updateStencilDraft`, `publishStencilVersion`, `archiveStencilVersion`, `getStencilVersionUsage`)
   and the per-template upgrade operations (`applyStencilUpgrade`, `previewStencilUpgrade`) are
   removed, with their schemas. `getStencilContent` and `updateStencilContent` read and replace the
-  working copy; `markStencilReady` marks it reviewed, moves every instance the change does not
-  break, and names the instances it holds back; `listStencilUsage` lists the template variants that
-  use the stencil and which are held back. `StencilDto` and `StencilSummaryDto` report a `status`
+  working copy; `markStencilReady` marks it reviewed and moves nothing (`notFitting` names the
+  instances that do not fit it, which block the release, ADR 0006); `listStencilUsage` lists the
+  template variants and stencils that use it, and whether each fits (`fits`, `problems`). `StencilDto` and `StencilSummaryDto` report a `status`
   in place of `versions` and `latestPublishedVersion`. The stencil node's representation inside a
   template model is unchanged here: it belongs to the portable catalog format and changes there.
 
@@ -399,10 +368,10 @@ libraries.
 
 - **BREAKING: generation renders a catalog release, never a template version.** `versionId` is gone
   from `GenerateDocumentRequest`, `BatchGenerationItem`, `PreviewDocumentRequest` and
-  `ValidateTemplateDataRequest`. A request names the release with `releaseVersion`, or an
-  environment with `environmentKey` (which renders the release that environment serves); with
-  neither, the catalog's latest release is rendered, never unreleased changes. Preview gains
-  `workingCopy: true` to render the working copy instead. Jobs, documents and collected results
+  `ValidateTemplateDataRequest`. A request selects the release with `version` and `environmentKey` (see
+  "a release is selected by a version selector"); with neither, the catalog's latest release is
+  rendered, never unreleased changes. Preview can render a draft instead (`draft`: `next` or a
+  draft id). Jobs, documents and collected results
   report `releaseVersion` in place of `versionId`; it is null for anything generated before 2.0.
 
 - **The clients no longer bundle a JSON Schema library.** Every client validated template data

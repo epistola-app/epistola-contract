@@ -53,7 +53,7 @@ CatalogVersion:
   in: path
   required: true
   description: |
-    A version of the catalog (ADR 0002, amendment 2). A draft has no number until it is released, so
+    A version of the catalog (ADR 0002). A draft has no number until it is released, so
     it is named by `next` (the catalog's next version, where everyday work goes) or by its `draftId`
     (long-term work); a released version by its exact SemVer number. Writes to a released version are
     refused with 409.

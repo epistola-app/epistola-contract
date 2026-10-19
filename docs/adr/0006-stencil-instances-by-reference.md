@@ -1,6 +1,6 @@
 # ADR 0006: Stencil instances by reference, with lexical scope
 
-- **Status:** Proposed — parts 1–5 decided (16 October 2026)
+- **Status:** Accepted
 - **Date:** 2026-10-16
 - **Scope:** portable catalog contract (`contracts/catalog`, wire v8: template model, validation,
   rendering semantics) and API contract (`contracts/api`), contract 2.0
@@ -20,8 +20,8 @@ and wire v8 strips the pins. That leaves the copy without a version to say what 
 raises the question this ADR answers: when a stencil changes, how do the templates that use it
 follow?
 
-The 2.0 API as first drafted kept the copy: marking a stencil ready moved every instance its change
-does not break, and **held back** the others (`heldBack`), which blocked the release until resolved.
+Keeping the copy in 2.0 would mean: marking a stencil ready moves every instance its change does
+not break, and **holds back** the others (`heldBack`), which blocks the release until resolved.
 That needs a per-instance compatibility check, digests to know whether an instance is behind, a
 moving step, and an answer to what a template author sees when someone else's change moves their
 template.
@@ -36,7 +36,7 @@ hides the outer one's.
 
 ### Instances
 
-- **A. Copy, moved on ready, breaking ones held back** (the first 2.0 draft). Each template keeps
+- **A. Copy, moved on ready, breaking ones held back.** Each template keeps
   rendering what it was last moved to; a change reaches templates in a separate step. Costs the
   compatibility check, digests, held-back state and its UX, and duplicate content in every template.
 - **B. Copy, moved only on request.** Simpler than A but leaves stale copies in every release.
