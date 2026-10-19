@@ -126,8 +126,8 @@ Adopt **option C**.
   one lower than the changes need, and it must be above every release of the catalog. The release
   preview shows the number and why.
 - Only what others rely on counts, so a catalog's dependencies do not make a release breaking by
-  themselves: a dependency added is an addition (an installation brings it along), one removed or its
-  range changed is no change, and moving to another release of a dependency is breaking only when
+  themselves: a dependency added is an addition (an installation brings it along), one removed is no
+  change, and moving to another release of a dependency is breaking only when
   that release breaks a resource this catalog uses (see "Dependencies are exact"), whatever the step
   in the dependency's number.
 - **After it is released, the next version continues**: it goes on as a draft on the new release.
@@ -176,8 +176,10 @@ another catalog's long-term work cannot be released until that work is promoted,
 ### Dependencies are exact; compatibility is checked per use
 
 - A release pins **exact** releases of the catalogs it uses (ADR 0003), and renders with exactly
-  those wherever it is installed. Nobody chooses a version range: a declaration's range defaults to
-  `*`, and stays only for clients that set one over the API.
+  those wherever it is installed. A dependency declaration names an exact release, not a range.
+  Ranges in declarations (such as `^1.0.0`, any non-breaking 1.x) may come in a later 2.x, as an
+  addition. Version selectors remain only where a request picks a release to render or check:
+  generation, preview and validation.
 - Moving to a newer release of a catalog it uses is decided while authoring, and **checked per use**,
   not by the version number. The newer release is compared with the pinned one resource by resource,
   by the rules that classify a release's changes (a resource removed, a stencil placeholder removed
@@ -273,7 +275,8 @@ Environment overrides:
 - **Archives:** unchanged. Only released versions are exported.
 - **Not in the API yet:** releasing another catalog's next version along with a release, and the
   per-use check when moving to a newer dependency release. `releaseCatalogDraft` and the dependency
-  operations do not describe either yet.
+  operations do not describe either yet. A dependency declaration names an exact release, so how a
+  draft would declare that it uses another catalog's draft is not described yet either.
 
 ### Suite
 

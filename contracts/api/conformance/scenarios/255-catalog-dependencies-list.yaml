@@ -7,8 +7,8 @@ title: Listing a catalog's dependencies addresses the catalog by registry, names
 why: >
   The schema is validated by Prism, which checks the request against the path's registry and
   namespace patterns (`~` for the default registry) and answers with a body generated from the
-  response schema. A client whose model rejects a registry written in full, or a null
-  `resolvedVersion`, fails here without a scripted fixture having thought of it.
+  response schema. A client whose model rejects a registry written in full, or the pinned
+  `releaseVersion`, fails here without a scripted fixture having thought of it.
 
 backend: prism
 

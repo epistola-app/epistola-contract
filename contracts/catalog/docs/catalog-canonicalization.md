@@ -34,9 +34,9 @@ The v7-to-v8 migration gives the catalog an identity and versions it as a whole:
   (`CATALOG_DEPENDENCY_REGISTRY_ASSIGNED`, `CATALOG_DEPENDENCY_NAMESPACE_ASSIGNED`): a v7 catalog's
   content lived in one tenant, so every catalog it referenced sat beside it.
 - **Catalog dependencies.** Each distinct other catalog the resource dependencies name is declared
-  in `catalogDependencies` with that registry and namespace, the unpinned selector `*`,
+  in `catalogDependencies` with that registry and namespace, pinning no release:
   `releaseVersion: null` and `releaseFingerprint: null` (`CATALOG_DEPENDENCY_CATALOG_DECLARED`). v7
-  never said which version was meant; the author sets the selector rather than the migrator
+  never said which version was meant; the author pins a release rather than the migrator
   guessing one. A dependency on the catalog itself is not declared.
 - **Stencil versions** are removed: a stencil's own `version`, and every stencil node's `version`
   and `draftVersion`, in template, variant, and stencil content (`CATALOG_STENCIL_VERSION_REMOVED`).
@@ -72,11 +72,11 @@ the stored value, not of what is hashed: V5's own domain prefix is unchanged. Se
   catalog's identity and declared dependencies: `catalog.registry` and `catalog.namespace`, each
   resource dependency's `registry` and `namespace` (dependencies sort by type, registry, namespace,
   catalog key, and key), and every `catalogDependencies` entry with its `registry`, `namespace`,
-  `version` selector, `releaseVersion` and `releaseFingerprint`, sorted by registry, namespace and
-  catalog key. Registry and namespace are separate members, never one joined string. They are
-  identity, and a selector decides which release of a dependency the catalog renders with, so two
-  releases differing only there are different content. A dependency's recorded release and its
-  fingerprint are part of what the release was cut with, so V5 covers them too. Resource entries are V4's; a stencil carries no version at v8, so
+  `releaseVersion` and `releaseFingerprint`, sorted by registry, namespace and catalog key.
+  Registry and namespace are separate members, never one joined string. They are identity, and a
+  declaration's pinned release (`releaseVersion`) is exactly the release of the dependency the
+  catalog renders with, so two releases differing only there are different content. That
+  release's fingerprint is part of what the release was cut with, so V5 covers it too. Resource entries are V4's; a stencil carries no version at v8, so
   V5 covers none. Optional content registries and namespaces (`ThemeRef.registry`/`.namespace`,
   `CodeListBindingRef.registry`/`.namespace`, `FontRef.registry`/`.namespace`,
   `TemplateResource.themeRegistry`/`.themeNamespace`) are omitted from the canonical resource JSON

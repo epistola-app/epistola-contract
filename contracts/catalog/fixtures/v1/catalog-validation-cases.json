@@ -19,7 +19,7 @@
   "CATALOG_DEPENDENCY_CATALOG_UNDECLARED": "a resource dependency names a catalog that catalogDependencies does not declare",
   "CATALOG_DEPENDENCY_CATALOG_DUPLICATE": "catalogDependencies declares the same catalog more than once",
   "CATALOG_DEPENDENCY_CATALOG_SELF": "a catalog dependency or resource dependency names the catalog itself",
-  "CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID": "a catalog dependency's version selector is blank or too long, or its recorded release is not SemVer",
+  "CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID": "a catalog dependency's pinned release (releaseVersion) is not SemVer",
   "CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID": "a catalog dependency's release fingerprint is missing although a release is recorded, set although none is, or not v5:<lowercase SHA-256 hex>",
   "CATALOG_RELEASE_VERSION_INVALID": "release version is not SemVer",
   "CATALOG_RELEASE_TIMESTAMP_INVALID": "release timestamp is not ISO-8601",

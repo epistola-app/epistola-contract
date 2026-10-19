@@ -247,8 +247,8 @@ class CatalogCanonicalizerTest {
         val registry = "exchange.epistola.app"
         val namespace = "epistola"
         val original = goldenArchive()
-        val shared = CatalogDependency(registry, namespace, "shared", "^1.2.0", "1.4.0", "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42")
-        val brand = CatalogDependency(registry, namespace, "brand", "*", null)
+        val shared = CatalogDependency(registry, namespace, "shared", "1.4.0", "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42")
+        val brand = CatalogDependency(registry, namespace, "brand", null)
         val base = original.copyWithManifest(
             original.manifest.copy(
                 schemaVersion = CURRENT_VERSION,
@@ -264,8 +264,7 @@ class CatalogCanonicalizerTest {
             "dependency namespace" to changed { it.copy(dependencies = listOf(DependencyRef.Theme("shared", "corporate", "acme", registry))) },
             "dependency registry" to changed { it.copy(dependencies = listOf(DependencyRef.Theme("shared", "corporate", namespace, "acme.com"))) },
             "declared registry" to changed { it.copy(catalogDependencies = listOf(shared.copy(registry = "acme.com"), brand)) },
-            "version selector" to changed { it.copy(catalogDependencies = listOf(shared.copy(version = "^2.0.0"), brand)) },
-            "recorded release" to changed { it.copy(catalogDependencies = listOf(shared.copy(releaseVersion = "1.5.0"), brand)) },
+            "pinned release" to changed { it.copy(catalogDependencies = listOf(shared.copy(releaseVersion = "1.5.0"), brand)) },
             "release fingerprint" to changed { it.copy(catalogDependencies = listOf(shared.copy(releaseFingerprint = "0".repeat(64)), brand)) },
             "declared catalogs" to changed { it.copy(catalogDependencies = listOf(shared)) },
         )

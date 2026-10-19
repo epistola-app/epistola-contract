@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: catalog-dependencies-list-unpinned
+title: A declaration that pins no release is listed with a null releaseVersion, not dropped
+why: >
+  A declaration names the exact release it pins (`releaseVersion`). The one exception is a
+  declaration that came from a catalog archive migrated from wire v7, which never said which
+  release it meant: it pins nothing until an author declares one, and `releaseVersion` is null.
+  That is the state that blocks a release, so a client that turns null into an empty string, fails
+  to parse the list, or drops the entry hides exactly the thing the caller needs to see.
+
+  Every registry is written in full, and the pinned release is reported exactly as parsed.
+
+action:
+  name: list-catalog-dependencies
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: next
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      items:
+        - { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, releaseVersion: 1.3.0 }
+        - { registry: acme.com, namespace: acme, catalogKey: house-style, releaseVersion: null }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/next/dependencies
+  report:
+    registries: exchange.epistola.app,acme.com
+    namespaces: epistola,acme
+    catalogKeys: system,house-style
+    releaseVersions: 1.3.0,null

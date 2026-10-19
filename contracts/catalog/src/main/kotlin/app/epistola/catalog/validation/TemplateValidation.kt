@@ -76,7 +76,7 @@ enum class ResourceResolution {
  *   (wire v8), never an installation default. Naming a registry requires naming a [namespace].
  *
  * A reference carries no version. Catalogs are versioned as a whole from wire v8, so the resource a
- * reference reaches is the one in the release its catalog dependency resolves to, or the one in
+ * reference reaches is the one in the release its catalog dependency pins, or the one in
  * the same catalog.
  */
 data class CatalogResourceReference(

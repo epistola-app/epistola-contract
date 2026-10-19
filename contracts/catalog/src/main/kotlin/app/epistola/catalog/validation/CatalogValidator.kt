@@ -156,11 +156,7 @@ object CatalogValidationCodes {
     /** A catalog dependency, or a resource dependency, names the catalog itself. */
     const val DEPENDENCY_CATALOG_SELF = "CATALOG_DEPENDENCY_CATALOG_SELF"
 
-    /**
-     * A catalog dependency's version selector is blank or longer than
-     * [app.epistola.catalog.protocol.CatalogDependency.MAX_VERSION_LENGTH], or its recorded release
-     * is not SemVer.
-     */
+    /** A catalog dependency's pinned release (`releaseVersion`) is not SemVer. */
     const val DEPENDENCY_CATALOG_VERSION_INVALID = "CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID"
 
     /**
@@ -1172,8 +1168,8 @@ object CatalogValidator {
 
     /**
      * Wire v8: the catalog names its registry in full and its namespace, and declares each catalog it
-     * depends on once, never itself, with a version selector and, unless migrated, the release it
-     * was cut with and that release's fingerprint.
+     * depends on once, never itself, with, unless migrated, the exact release it pins and that
+     * release's fingerprint.
      */
     private fun validateCatalogDependencies(
         manifest: CatalogManifest,
@@ -1201,13 +1197,6 @@ object CatalogValidator {
                     CatalogValidationCodes.DEPENDENCY_CATALOG_DUPLICATE,
                     path,
                     "catalog $identity is declared more than once",
-                )
-            }
-            if (dependency.version.isBlank() || dependency.version.length > CatalogDependency.MAX_VERSION_LENGTH) {
-                findings.error(
-                    CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID,
-                    "$path.version",
-                    "version selector must be 1 to ${CatalogDependency.MAX_VERSION_LENGTH} characters and not blank",
                 )
             }
             dependency.releaseVersion?.let { release ->

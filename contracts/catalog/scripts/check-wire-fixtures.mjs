@@ -187,9 +187,7 @@ for (const [description, edit] of [
   ['dependency without a registry', (m) => { delete m.dependencies[0].registry; }],
   ['catalog dependency without a namespace', (m) => { delete m.catalogDependencies[0].namespace; }],
   ['catalog dependency without a registry', (m) => { delete m.catalogDependencies[0].registry; }],
-  ['catalog dependency without a version', (m) => { delete m.catalogDependencies[0].version; }],
-  ['catalog dependency with an empty version', (m) => { m.catalogDependencies[0].version = ''; }],
-  ['catalog dependency with a 101-character version', (m) => { m.catalogDependencies[0].version = '1'.repeat(101); }],
+  ['catalog dependency with a version selector', (m) => { m.catalogDependencies[0].version = '^1.2.0'; }],
   ['catalog dependency without releaseVersion', (m) => { delete m.catalogDependencies[0].releaseVersion; }],
   ['catalog dependency without releaseFingerprint', (m) => { delete m.catalogDependencies[0].releaseFingerprint; }],
   ['catalog dependency with a release but no releaseFingerprint', (m) => { m.catalogDependencies[0].releaseFingerprint = null; }],
@@ -205,8 +203,7 @@ for (const [description, edit] of [
 for (const [description, edit] of [
   ['no catalog dependencies', (m) => { delete m.catalogDependencies; m.dependencies = []; }],
   ['null catalog dependencies', (m) => { m.catalogDependencies = null; m.dependencies = []; }],
-  ['a migrated catalog dependency', (m) => { m.catalogDependencies[0].version = '*'; m.catalogDependencies[0].releaseVersion = null; m.catalogDependencies[0].releaseFingerprint = null; }],
-  ['a range union selector', (m) => { m.catalogDependencies[0].version = '>=1.0.0 <2.0.0 || ^3.1.0'; }],
+  ['a migrated catalog dependency', (m) => { m.catalogDependencies[0].releaseVersion = null; m.catalogDependencies[0].releaseFingerprint = null; }],
 ]) {
   const manifest = await v8Manifest(edit);
   assert.equal(validateV8Manifest(manifest), true, `v8 manifest rejected ${description}: ${ajv.errorsText(validateV8Manifest.errors)}`);

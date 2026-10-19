@@ -27,9 +27,8 @@ class MissingDependency:
     server could not serve (one entry of a ``release-dependencies-missing`` problem's
     ``missingDependencies`` member).
 
-    :attr:`reason` is the wire value as sent (``NOT_DEPLOYED``, ``NOT_INSTALLED``,
-    ``UNAVAILABLE``), kept as a plain string so a reason a later
-    contract adds is reported rather than lost.
+    :attr:`reason` is the wire value as sent (``UNAVAILABLE``), kept as a plain string so a reason
+    a later contract adds is reported rather than lost.
     """
 
     #: Registry of the catalog depended on, written in full.
@@ -38,7 +37,7 @@ class MissingDependency:
     namespace: str
     #: Key of the catalog depended on.
     catalog_key: str
-    #: The release the deployed release was cut with.
+    #: The release of the catalog depended on that the deployed release pins.
     release_version: str
     #: Why the release could not be served; an open set of wire values.
     reason: str
@@ -98,8 +97,7 @@ class ProblemDetailException(ApiException):
         self.invalid_fields = invalid_fields or []
         #: The dependency releases that could not be served when the body was a
         #: ``ReleaseDependenciesMissingProblemDetail`` (``release-dependencies-missing``), else
-        #: ``[]``. Deploying again with ``include_dependencies=True`` deploys the ones whose
-        #: ``reason`` is ``NOT_DEPLOYED``.
+        #: ``[]``.
         self.missing_dependencies = missing_dependencies or []
         #: The HTTP status of the error response.
         self.status_code = status_code

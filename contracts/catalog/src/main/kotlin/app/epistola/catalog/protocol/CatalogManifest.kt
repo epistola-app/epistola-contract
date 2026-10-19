@@ -7,6 +7,7 @@ package app.epistola.catalog.protocol
 import app.epistola.catalog.canonical.QualifiedCatalogFingerprint
 import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
@@ -29,8 +30,8 @@ import java.util.TreeSet
  * @property includes optional linked catalog documents retained by the format.
  * @property resources complete resource-detail index.
  * @property dependencies explicit references to resources outside this catalog.
- * @property catalogDependencies the catalogs this catalog depends on, each declared once with a
- *   version selector (wire v8). Every catalog named by [dependencies] must be declared here.
+ * @property catalogDependencies the catalogs this catalog depends on, each declared once with the
+ *   exact release it pins (wire v8). Every catalog named by [dependencies] must be declared here.
  */
 data class CatalogManifest(
     val schemaVersion: Int,
@@ -49,15 +50,19 @@ data class CatalogManifest(
  *
  * Catalogs are versioned as a whole, so the version lives here and nowhere else: a reference from
  * this catalog's resources into the dependency names the catalog ([registry], [namespace] and
- * [catalogKey]) but never a version. The catalog renders with the release [version] resolves to.
+ * [catalogKey]) but never a version. The catalog renders with exactly the release
+ * [releaseVersion] pins. A declaration names an exact release, not a range; ranges may come in a
+ * later wire version, as an addition.
+ *
+ * An earlier draft of wire v8 also carried a version selector, `version`. It is ignored when
+ * binding, so that manifests stored with it still bind.
  *
  * @property registry the dependency's registry, written in full ([CatalogNamespaces.REGISTRY_PATTERN]).
  * @property namespace the dependency's namespace within [registry] ([CatalogNamespaces.PATTERN]).
  * @property catalogKey the dependency's key within [namespace].
- * @property version the declared version selector, in the npm SemVer range grammar (`^1.4.0`,
- *   `>=1.0.0 <2.0.0`, `1.4.0`, `*`, ...), at most [MAX_VERSION_LENGTH] characters.
- * @property releaseVersion the exact release of the dependency that this archive's release was cut
- *   with. Null only for a catalog migrated from wire v7 or earlier, which never recorded one.
+ * @property releaseVersion the exact release of the dependency that this catalog renders with, and
+ *   that this archive's release was cut with. Null only for a catalog migrated from wire v7 or
+ *   earlier, which never recorded one: the author pins one before the catalog is released again.
  * @property releaseFingerprint the fingerprint of the [releaseVersion] release, copied from that
  *   release's own `release.fingerprint`, in the form that names its algorithm (`v5:<hex>`,
  *   [QualifiedCatalogFingerprint]). It lets an installation check a copy of that release fetched
@@ -66,18 +71,15 @@ data class CatalogManifest(
  *   migrator's wire check and the validator enforce it, not this model, so that manifests stored
  *   without it still bind.
  */
+@JsonIgnoreProperties("version")
 data class CatalogDependency(
     val registry: String,
     val namespace: String,
     val catalogKey: String,
-    val version: String,
     val releaseVersion: String? = null,
     val releaseFingerprint: String? = null,
 ) {
     companion object {
-        /** Longest version selector a declaration may carry. */
-        const val MAX_VERSION_LENGTH: Int = 100
-
         /** The shape of a [releaseFingerprint]: [QualifiedCatalogFingerprint.PATTERN], `v5:<hex>`. */
         const val RELEASE_FINGERPRINT_PATTERN: String = QualifiedCatalogFingerprint.PATTERN
 

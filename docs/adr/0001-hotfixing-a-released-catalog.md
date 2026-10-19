@@ -106,7 +106,7 @@ hotfix therefore *is* `1.0.1` for every selector:
   - **Rollback is undeploying it:** routing falls back to `1.0.1`.
   - **The next release replaces it:** `1.0.2`, `1.1.0` and `2.0.0` all sort above every
     `1.0.1+hotfix.N`.
-- **Dependents get the fix.** A catalog that depends on `1.0.1` resolves to its latest hotfix the
+- **Dependents get the fix.** A catalog that pins `1.0.1` renders with its latest hotfix the
   environment serves, so a fix in a shared stencil reaches every catalog that uses it.
 - **Traceable.** Generated documents and results record the full `releaseVersion`, for example
   `1.0.1+hotfix.1`. No separate override identity is needed.
@@ -144,7 +144,7 @@ Anything else needs a real release (`1.0.2`, `1.1.0`, `2.0.0`) through the norma
   publisher's next release is the real fix.
 - Two installations can each cut `1.0.1+hotfix.1` with different content. An import whose label
   matches an installed release but whose fingerprint differs is refused.
-- A release whose dependencies resolve to a hotfix cannot be published either: no registry serves
+- A release whose dependencies pin a hotfix cannot be published either: no registry serves
   that hotfix, so no other installation could install the dependency (ADR 0003).
 
 ## Decision (proposed)

@@ -127,15 +127,19 @@ libraries.
   environment use them without deploying them. A dependency release that cannot be had refuses the
   deployment with the new problem type `release-dependencies-missing` (409), whose
   `missingDependencies` member lists each release (`MissingReleaseDependency`) and its `reason`
-  (`UNAVAILABLE`; `NOT_DEPLOYED` and `NOT_INSTALLED` are no longer returned). The new `deployRelease` query parameter `includeDependencies` (default false) also
+  (`MissingReleaseDependencyReason`, whose one value is `UNAVAILABLE`). The new `deployRelease`
+  query parameter `includeDependencies` (default false) also
   deploys them explicitly, all or nothing. Every client's problem parser surfaces
   `missingDependencies`; the server stubs add `ProblemDetails.releaseDependenciesMissing`.
 
-- **Catalog dependencies.** A catalog declares each catalog its resources reference, once, with a
-  version selector: `listCatalogDependencies` and `updateCatalogDependencies`. References between
-  catalogs carry no version; they render with the release the declaration resolves to, so a release
-  renders with exactly one release of every catalog it depends on. A release is refused when a
-  resource references an undeclared catalog, a dependency resolves to no release, or two paths need
+- **Catalog dependencies pin an exact release.** A catalog declares each catalog its resources
+  reference, once, with the exact release of it that the catalog renders with (`releaseVersion`):
+  `listCatalogDependencies` and `updateCatalogDependencies` (`CatalogDependencyRequirement`,
+  `CatalogDependencyDto`). A declaration names no range; ranges (such as `^1.0.0`, any non-breaking
+  1.x) may come in a later 2.x, as an addition. References between catalogs carry no version; they
+  render with the release their catalog's declaration pins, so a release renders with exactly the
+  releases its dependencies pin. A release is refused when a resource references an undeclared
+  catalog, a declaration pins no release or one the tenant does not have, or two paths pin
   different releases of one catalog. `CatalogChangesDto` reports `dependenciesChanged`.
 
 ### Changed
@@ -256,9 +260,9 @@ libraries.
   namespace and key (ADR 0003) and versions catalogs as a whole;
   `x-epistola-catalog-contract.wireSchemaVersion` is 8.
   - `catalog.registry` (a DNS name, always in full) and `catalog.namespace` (a slug) are required.
-    New manifest member `catalogDependencies` declares each catalog depended on once, with a version
-    selector (`version`, npm range grammar), the exact `releaseVersion` the release was cut with, and
-    that release's `releaseFingerprint`, so a copy fetched through any mirror can be checked (both
+    New manifest member `catalogDependencies` declares each catalog depended on once, with the
+    exact `releaseVersion` it pins (the release the catalog renders with and was cut with; no range),
+    and that release's `releaseFingerprint`, so a copy fetched through any mirror can be checked (both
     null only for archives migrated from v7). Each resource dependency gains a required `registry`
     and `namespace`, and every catalog it names must be declared. References inside content
     (`ThemeRef` override, stencil nodes, `CodeListBindingRef`, `TemplateResource.themeRegistry` /
@@ -272,8 +276,9 @@ libraries.
     (`CatalogMigrationOptions(namespace, registry)`, accepted by `CatalogSchemaMigrator.migrateManifest`,
     `CatalogArchiveReader.read` and `CatalogValidationPolicy`); without them a v7 archive is refused
     with `CATALOG_REGISTRY_MISSING` / `CATALOG_NAMESPACE_MISSING`. It qualifies dependencies with
-    them, declares each referenced catalog with selector `*`, and removes stencil versions, each with
-    a notice.
+    them, declares each referenced catalog pinning no release (`releaseVersion` and
+    `releaseFingerprint` null, for the author to pin), and removes stencil versions, each with a
+    notice.
   - Fingerprints: V5 (now `currentFingerprint`) also covers the registry, namespace and declared
     dependencies, including their release fingerprints. v6 and v7 archives keep verifying against their V4 fingerprint; re-exporting
     replaces it with V5.
@@ -289,7 +294,7 @@ libraries.
   - New validator codes `CATALOG_REGISTRY_INVALID`, `CATALOG_NAMESPACE_INVALID`,
     `CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`, `CATALOG_DEPENDENCY_CATALOG_UNDECLARED`,
     `CATALOG_DEPENDENCY_CATALOG_DUPLICATE`, `CATALOG_DEPENDENCY_CATALOG_SELF` and
-    `CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`. `CatalogNamespaces` (Kotlin) and the
+    `CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID` (a pinned `releaseVersion` that is not SemVer). `CatalogNamespaces` (Kotlin) and the
     `CATALOG_REGISTRY_*`, `CATALOG_NAMESPACE_*` and `CATALOG_RELEASE_FINGERPRINT_PATTERN` constants
     (npm) publish the rules.
   - Kotlin API: `StencilResource.version`, `CatalogResourceReference.version`/`draftVersion`,
@@ -322,10 +327,25 @@ libraries.
   `importCatalog` takes an optional `registry` and `namespace`. The client libraries' template data
   validators take `registry` before `namespace` (`DEFAULT_REGISTRY = "~"`).
 
+- **BREAKING: one schema for a release number, `ReleaseVersion`.** Wherever the contract names one
+  exact release, it is a SemVer core version without leading zeros
+  (`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`), at most 50 characters: the
+  `deployRelease` / `undeployRelease` path parameter, the release and promote requests
+  (`acknowledgedBehind`), `setEnvironmentOverride`, and every response member that names a release
+  (`CatalogDto.releasedVersion`, `CatalogVersionDto.version` and `base`, `BehindReleaseDto.version`,
+  `CatalogChangesDto.base`, `CatalogDraftReleasePreview.latest` and `suggested`,
+  `ReleaseDependencyDto`, `CatalogDependencyDto`, `CatalogUpgradeDiff` / `UpgradeCatalogResponse`
+  `previousVersion` and `newVersion`, deployments, overrides, deployment history, missing
+  dependencies, jobs, documents and collected results). `CatalogVersionDto.createdFrom` and
+  `ImportCatalogResponse.catalogVersion` take the same number or a draft, and the template import's
+  `version` the same pattern. Version selectors are not release numbers and keep their own schema.
+  Every client still sees these members as plain strings, and each client's generated model
+  validation checks a member that references `ReleaseVersion` as if its constraints were inline.
+
 - **BREAKING: a release is selected by a version selector, together with an environment.** The
   generation, preview, batch and validation requests take `version` in place of `releaseVersion`:
-  a selector in the npm SemVer range grammar, of which a server may accept only exact versions for
-  now. It combines with `environmentKey`, which narrows the choice to the releases that environment
+  a selector in the npm SemVer range grammar, which a server accepts in full (an exact version, `^`,
+  `~`, comparators, a hyphen range, a `||` union). It combines with `environmentKey`, which narrows the choice to the releases that environment
   serves; the highest release that satisfies the selector is rendered. `DeployReleaseRequest` and
   `DeploymentEventDto.previousReleaseVersion` are removed.
 

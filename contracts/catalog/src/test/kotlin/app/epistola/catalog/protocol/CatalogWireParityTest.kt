@@ -56,9 +56,24 @@ class CatalogWireParityTest {
 
         assertEquals("exchange.epistola.app", manifest.catalog.registry)
         assertEquals("epistola", manifest.catalog.namespace)
-        assertEquals(listOf(CatalogDependency("exchange.epistola.app", "epistola", "shared", "^1.2.0", "1.4.0", "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42")), manifest.catalogDependencies)
+        assertEquals(listOf(CatalogDependency("exchange.epistola.app", "epistola", "shared", "1.4.0", "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42")), manifest.catalogDependencies)
         assertEquals(manifest, mapper.readValue(mapper.writeValueAsBytes(manifest), CatalogManifest::class.java))
         assertEquals(detail, mapper.readValue(mapper.writeValueAsBytes(detail), ResourceDetail::class.java))
+    }
+
+    @Test
+    fun `a stored catalog dependency that still carries a version selector binds, and the selector is dropped`() {
+        val stored = """
+            {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"shared","version":"^1.2.0",
+             "releaseVersion":"1.4.0","releaseFingerprint":"v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42"}
+        """.trimIndent()
+        val dependency = mapper.readValue(stored, CatalogDependency::class.java)
+
+        assertEquals(
+            CatalogDependency("exchange.epistola.app", "epistola", "shared", "1.4.0", "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42"),
+            dependency,
+        )
+        assertTrue(!mapper.valueToTree<JsonNode>(dependency).has("version"))
     }
 
     @Test

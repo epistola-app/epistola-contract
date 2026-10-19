@@ -90,7 +90,7 @@ class ProblemDetailErrorHandlerTest {
              "title":"Release dependencies missing","status":409,
              "missingDependencies":[
                {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system",
-                "releaseVersion":"3.2.0","reason":"NOT_DEPLOYED"},
+                "releaseVersion":"3.2.0","reason":"UNAVAILABLE"},
                {"registry":"registry.gemeente-x.nl","namespace":"huisstijl","catalogKey":"branding",
                 "releaseVersion":"1.4.2","reason":"SOME_FUTURE_REASON"}]}
         """.trimIndent()
@@ -102,7 +102,7 @@ class ProblemDetailErrorHandlerTest {
         assertTrue(ex.isReleaseDependenciesMissingProblem)
         assertEquals(
             listOf(
-                MissingReleaseDependency("exchange.epistola.app", "epistola", "system", "3.2.0", MissingReleaseDependency.Reasons.NOT_DEPLOYED),
+                MissingReleaseDependency("exchange.epistola.app", "epistola", "system", "3.2.0", MissingReleaseDependency.Reasons.UNAVAILABLE),
                 // A reason this client does not know yet is kept, not dropped.
                 MissingReleaseDependency("registry.gemeente-x.nl", "huisstijl", "branding", "1.4.2", "SOME_FUTURE_REASON"),
             ),
@@ -129,15 +129,15 @@ class ProblemDetailErrorHandlerTest {
              "missingDependencies":[
                "not an object",
                {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system","releaseVersion":"3.2.0"},
-               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system","releaseVersion":3,"reason":"NOT_DEPLOYED"},
+               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system","releaseVersion":3,"reason":"UNAVAILABLE"},
                {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system",
-                "releaseVersion":"3.2.0","reason":"NOT_INSTALLED"}]}
+                "releaseVersion":"3.2.0","reason":"UNAVAILABLE"}]}
         """.trimIndent()
 
         val ex = assertFailsWith<ProblemDetailException> {
             handleErrorResponse(response(HttpStatus.CONFLICT, body))
         }
-        assertEquals(listOf("NOT_INSTALLED"), ex.missingDependencies.map { it.reason })
+        assertEquals(listOf("UNAVAILABLE"), ex.missingDependencies.map { it.reason })
 
         val notAnArray = """
             {"type":"https://epistola.app/errors/release-dependencies-missing",

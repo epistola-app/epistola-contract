@@ -158,9 +158,8 @@ DeploymentDto:
       description: Key of the catalog, unique within its registry and namespace
       example: letters
     releaseVersion:
-      type: string
-      maxLength: 50
-      example: "1.4.0"
+      $ref: './catalogs.yaml#/ReleaseVersion'
+      description: The release the environment serves
     deployedAt:
       type: string
       format: date-time
@@ -220,10 +219,8 @@ MissingReleaseDependency:
       description: Key of the catalog depended on, unique within its registry and namespace
       example: system
     releaseVersion:
-      type: string
-      maxLength: 50
-      description: The release the deployed release was cut with
-      example: "3.2.0"
+      $ref: './catalogs.yaml#/ReleaseVersion'
+      description: The release of the catalog depended on that the deployed release renders with
     reason:
       $ref: '#/MissingReleaseDependencyReason'
 
@@ -234,11 +231,7 @@ MissingReleaseDependencyReason:
 
     - `UNAVAILABLE`: the tenant does not have the release, and it could not be fetched from its
       registry or any configured mirror, or the copy did not match its recorded fingerprint.
-    - `NOT_DEPLOYED`, `NOT_INSTALLED`: not returned. From an earlier draft, in which a dependency
-      release had to be deployed (dependency releases are used implicitly now).
   enum:
-    - NOT_DEPLOYED
-    - NOT_INSTALLED
     - UNAVAILABLE
   example: UNAVAILABLE
 
@@ -301,6 +294,7 @@ DeploymentEventDto:
       example: deployed
     releaseVersion:
       type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: |
         The release deployed or undeployed, or the release an override named. Null for an override
@@ -380,6 +374,7 @@ EnvironmentOverrideDto:
       example: letters
     releaseVersion:
       type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: The release the environment uses, one it serves. Null when it follows a draft.
       example: null

@@ -126,8 +126,8 @@ would match it.
 
 ## Dependency Release Fingerprints
 
-Each `catalogDependencies` entry records the release of the dependency the archive's release was
-cut with, `releaseVersion`, and that release's fingerprint, `releaseFingerprint`, copied verbatim
+Each `catalogDependencies` entry pins the exact release of the dependency the catalog renders
+with, and that the archive's release was cut with, `releaseVersion`, and that release's fingerprint, `releaseFingerprint`, copied verbatim
 from that release's own `release.fingerprint` (`v5:<hex>`). An installation that fetches the
 dependency release from any registry or mirror checks the copy against it, with the algorithm it
 names. A `releaseFingerprint` naming an algorithm this library does not know is invalid. Both are null for a dependency of an archive migrated from wire v7,

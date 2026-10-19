@@ -51,7 +51,7 @@ class CatalogSchemaMigratorTest {
         assertEquals(REGISTRY, result.value.catalog.registry)
         assertEquals(NAMESPACE, result.value.catalog.namespace)
         assertEquals(
-            listOf(CatalogDependency(REGISTRY, NAMESPACE, "shared", "^1.2.0", "1.4.0", SHARED_FINGERPRINT)),
+            listOf(CatalogDependency(REGISTRY, NAMESPACE, "shared", "1.4.0", SHARED_FINGERPRINT)),
             result.value.catalogDependencies,
         )
         assertEquals(REGISTRY, result.value.dependencies.orEmpty().single().registry)
@@ -231,8 +231,8 @@ class CatalogSchemaMigratorTest {
         assertEquals(ACME, manifest.catalog.namespace)
         assertEquals(
             listOf(
-                CatalogDependency(REGISTRY, ACME, "brand", "*", null),
-                CatalogDependency(REGISTRY, ACME, "shared", "*", null),
+                CatalogDependency(REGISTRY, ACME, "brand", null),
+                CatalogDependency(REGISTRY, ACME, "shared", null),
             ),
             manifest.catalogDependencies,
         )
@@ -364,7 +364,7 @@ class CatalogSchemaMigratorTest {
         val stored = resource("wire-v8/catalog.json").use(mapper::readTree) as ObjectNode
         (stored["catalogDependencies"][0] as ObjectNode).remove("releaseFingerprint")
         assertEquals(
-            CatalogDependency(REGISTRY, NAMESPACE, "shared", "^1.2.0", "1.4.0"),
+            CatalogDependency(REGISTRY, NAMESPACE, "shared", "1.4.0"),
             mapper.treeToValue(stored, CatalogManifest::class.java).catalogDependencies.orEmpty().single(),
         )
     }

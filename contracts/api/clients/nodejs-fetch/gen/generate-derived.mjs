@@ -148,9 +148,13 @@ function specModel(root) {
     if (!isObject(schema) || schema.type !== 'object' || !isObject(schema.properties)) continue
     const required = Array.isArray(schema.required) ? schema.required : []
     const fields = []
-    for (const [propertyName, property] of Object.entries(schema.properties)) {
-      // Skip $ref properties — the referenced type carries its own constraints.
-      if (!isObject(property) || '$ref' in property) continue
+    for (const [propertyName, declared] of Object.entries(schema.properties)) {
+      if (!isObject(declared)) continue
+      // A $ref to an object or enum is a type of its own: skip it. A $ref to a plain string schema
+      // (`ReleaseVersion`) is generated as a string, so its constraints are checked here, as if
+      // written inline.
+      const property = '$ref' in declared ? stringAlias(schemas, declared.$ref) : declared
+      if (!property) continue
       const declaredType = property.type
       const explicitlyNullable = Array.isArray(declaredType) && declaredType.includes('null')
       const baseType = typeof declaredType === 'string'
@@ -488,6 +492,17 @@ function constraintLiteral(constraint) {
     default:
       fail(`unhandled constraint kind: ${constraint.kind}`)
   }
+}
+
+/**
+ * The schema a `$ref` names when it is a plain string schema with no `enum` (`ReleaseVersion`),
+ * which the generator renders as a string rather than a type of its own; undefined otherwise.
+ */
+function stringAlias(schemas, ref) {
+  const prefix = '#/components/schemas/'
+  if (typeof ref !== 'string' || !ref.startsWith(prefix)) return undefined
+  const target = schemas[ref.slice(prefix.length)]
+  return isObject(target) && target.type === 'string' && !('enum' in target) ? target : undefined
 }
 
 /** Follows a local `$ref` (`#/components/...`) to its target; returns other nodes unchanged. */

@@ -116,8 +116,8 @@ class ProblemDetailException(
 
     /**
      * The releases of other catalogs a `release-dependencies-missing` problem (409, from
-     * `deployRelease`) reports the environment does not serve, in the order the server listed them;
-     * empty for any other problem.
+     * `deployRelease`) reports cannot be had, in the order the server listed them; empty for any
+     * other problem.
      *
      * Each entry's [MissingReleaseDependency.reason] is kept as the string the server sent, so a
      * reason a later contract adds is surfaced rather than dropped. An entry missing one of its

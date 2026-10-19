@@ -73,7 +73,7 @@ ResourceModifiedError:
 ReleaseDependenciesMissingError:
   description: >-
     The request conflicts with the current state of the resource. When the release renders with
-    releases of other catalogs that the environment does not serve, the problem is
+    releases of other catalogs that the tenant does not have and that cannot be fetched, the problem is
     `release-dependencies-missing` and `missingDependencies` lists each one and why. Other conflicts
     use `conflict`.
   content:
@@ -84,13 +84,13 @@ ReleaseDependenciesMissingError:
         type: https://epistola.app/errors/release-dependencies-missing
         title: Release Dependencies Missing
         status: 409
-        detail: "letters 1.4.0 renders with releases production does not serve: exchange.epistola.app/epistola/system@3.2.0"
+        detail: "letters 1.4.0 renders with releases that cannot be had: exchange.epistola.app/epistola/system@3.2.0"
         missingDependencies:
           - registry: exchange.epistola.app
             namespace: epistola
             catalogKey: system
             releaseVersion: 3.2.0
-            reason: NOT_DEPLOYED
+            reason: UNAVAILABLE
 
 CatalogDraftKindError:
   description: >-

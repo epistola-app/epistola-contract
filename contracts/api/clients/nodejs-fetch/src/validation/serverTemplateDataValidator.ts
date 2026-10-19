@@ -26,8 +26,8 @@ export interface ServerValidationTarget {
   /** Variant to check against; without it, the default variant of the template in the resolved release. */
   readonly variantKey?: string
   /**
-   * Version selector for the release of the template's catalog (`1.4.0`, or a range such as
-   * `^1.4.0` where the server supports ranges). Sent as the request's `version`. Combined with
+   * Version selector for the release of the template's catalog, in the npm range grammar the server
+   * accepts in full (`1.4.0`, or a range such as `^1.4.0`). Sent as the request's `version`. Combined with
    * `environmentKey`, it narrows to the highest release that environment serves which satisfies it.
    */
   readonly version?: string

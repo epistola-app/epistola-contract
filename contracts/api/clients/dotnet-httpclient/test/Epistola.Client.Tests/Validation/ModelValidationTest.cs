@@ -153,6 +153,18 @@ public class ModelValidationTest
     }
 
     [Fact]
+    public void DependencyDeclarationPinsAnExactRelease()
+    {
+        var pinned = new CatalogDependencyRequirement(varNamespace: "epistola", catalogKey: "system", releaseVersion: "1.3.0");
+        Assert.Same(pinned, pinned.Validate());
+        foreach (var release in new[] { "^1.3.0", "1.x", "*", "01.3.0", "1.3.0-rc.1" })
+        {
+            var declared = new CatalogDependencyRequirement(varNamespace: "epistola", catalogKey: "system", releaseVersion: release);
+            Assert.Throws<ArgumentException>(() => declared.Validate());
+        }
+    }
+
+    [Fact]
     public void PromoteRequestNamesThePreviousNextVersionWithinBounds()
     {
         new PromoteCatalogDraftRequest().Validate();

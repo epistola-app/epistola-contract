@@ -5,11 +5,12 @@
 id: deploy-release-dependencies-missing
 title: A refused deployment says which dependency releases are missing, and why
 why: >
-  Deploying a release whose dependency releases the environment does not serve, without
-  `includeDependencies`, is refused with `release-dependencies-missing`. Its `missingDependencies`
-  member is the reason: each release the environment would need, named in full, and why it is
-  missing. Without it a caller knows only that something conflicted, and cannot tell whether to
-  retry with `includeDependencies`, install a catalog first, or give up.
+  Deploying a release whose pinned dependency releases cannot be had (the tenant does not have
+  them, and they could not be fetched from their registry or a mirror, or not verified) is refused
+  with `release-dependencies-missing`. Its `missingDependencies` member is the reason: each release
+  the deployed one renders with, named in full, and why it is missing (`UNAVAILABLE`, the one
+  reason the contract names). Without it a caller knows only that something conflicted, and cannot
+  tell which registry or mirror to fix.
 
   A client's problem parser must surface the member, every entry in order, with the registry as
   written and the reason as sent, including one it reached only through another dependency.
@@ -32,19 +33,19 @@ script:
       type: https://epistola.app/errors/release-dependencies-missing
       title: Release dependencies missing
       status: 409
-      detail: letters 1.4.0 renders with releases production does not serve
+      detail: letters 1.4.0 renders with releases that cannot be had
       instance: /api/tenants/acme-corp/environments/production/deployments/~/acme-corp/letters/1.4.0
       missingDependencies:
         - registry: exchange.epistola.app
           namespace: epistola
           catalogKey: system
           releaseVersion: 3.2.0
-          reason: NOT_DEPLOYED
+          reason: UNAVAILABLE
         - registry: registry.gemeente-x.nl
           namespace: huisstijl
           catalogKey: branding
           releaseVersion: 1.4.2
-          reason: NOT_INSTALLED
+          reason: UNAVAILABLE
 
 expect:
   requestCount: 1
@@ -55,4 +56,4 @@ expect:
   report:
     problemTypeSlug: release-dependencies-missing
     problemStatus: 409
-    problemMissingDependencies: exchange.epistola.app/epistola/system@3.2.0:NOT_DEPLOYED,registry.gemeente-x.nl/huisstijl/branding@1.4.2:NOT_INSTALLED
+    problemMissingDependencies: exchange.epistola.app/epistola/system@3.2.0:UNAVAILABLE,registry.gemeente-x.nl/huisstijl/branding@1.4.2:UNAVAILABLE

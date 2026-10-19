@@ -46,7 +46,7 @@ Stencil composition is part of the portable specification. From wire v8 a
 stencil node names its stencil by `stencilKey` (`stencilId` until wire v8), optionally qualified by
 `catalogKey`, `namespace` and `registry` (each omitted one means the owning
 catalog's; a `registry` requires a `namespace`), and carries no version: catalogs are versioned as a whole, so the
-stencil reached is the one in the release the catalog dependency resolves to,
+stencil reached is the one in the release the catalog dependency pins,
 or the one in the same catalog. The context resolver receives that identity as a
 `CatalogResourceReference`. A node's `version` or `draftVersion` is reported as
 an undeclared property (`TEMPLATE_NODE_PROPERTY_INVALID`), as is a leftover
@@ -133,8 +133,8 @@ resource dependency and `catalogDependencies` entry (`CATALOG_REGISTRY_INVALID`,
 `CATALOG_NAMESPACE_INVALID`, also raised by the migrator's wire check).
 `catalogDependencies` declares each catalog at most once (`CATALOG_DEPENDENCY_CATALOG_DUPLICATE`),
 never the catalog itself (`CATALOG_DEPENDENCY_CATALOG_SELF`, which also applies to a resource
-dependency naming the catalog itself), with a nonblank version selector of at most 100 characters
-and, when recorded, a SemVer `releaseVersion` (`CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`).
+dependency naming the catalog itself), pinning, unless migrated from wire v7, an exact SemVer
+`releaseVersion`, never a range (`CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`).
 A recorded `releaseVersion` comes with the `releaseFingerprint` of that release, naming a known
 algorithm (`v5:<lowercase SHA-256 hex>`), and an unrecorded one with a null fingerprint
 (`CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`, also raised by the migrator's wire check).
@@ -178,8 +178,8 @@ need to validate one resource can use `ResourceValidator`. Cross-catalog resolut
 through `CatalogDependencyResolver`; returning `UNKNOWN` deliberately suppresses existence
 findings when the complete dependency graph is unavailable. A reference into another catalog
 reaches the resolver with the owning catalog's registry, namespace or key filled in wherever it
-omitted one, never an installation default. The validator does not evaluate version
-selectors; which release a `catalogDependencies` selector resolves to is consumer policy.
+omitted one, never an installation default. A `catalogDependencies` entry pins an exact release;
+whether the consumer has that release is for the consumer to check.
 
 The validator calls `TemplateValidator` for a template's primary model, each variant model, and
 stencil content. It rejects unsupported template `modelVersion` values, validates the parameter

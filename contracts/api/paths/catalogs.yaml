@@ -230,8 +230,8 @@ catalog-dependencies:
     operationId: listCatalogDependencies
     summary: List the catalogs a catalog version depends on
     description: |
-      The dependencies declared in the catalog version, each with the release it resolves to now
-      (for a released version: the release it was cut with). A resource can reference another catalog's resources only through a declared dependency.
+      The dependencies declared in the catalog version, each with the exact release it pins. A
+      resource can reference another catalog's resources only through a declared dependency.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
@@ -254,8 +254,10 @@ catalog-dependencies:
     summary: Replace the catalogs a draft depends on
     description: |
       Replaces the dependencies declared in a draft of an AUTHORED catalog. The change is released
-      with the draft, like any other change. Each catalog is declared at most once, so a release
-      renders with one release of every catalog it depends on.
+      with the draft, like any other change. Each catalog is declared at most once, with the exact
+      release the catalog renders with (`releaseVersion`), so a release renders with exactly the
+      releases its dependencies pin. A declaration names an exact release, not a range; ranges
+      (such as `^1.0.0`) may come in a later 2.x, as an addition.
 
       Refused with 409 for a released version, and for a SUBSCRIBED catalog, whose dependencies are
       its publisher's.
@@ -563,10 +565,10 @@ catalog-version-release:
       Releasing it is refused with 409 unless `acknowledgedBehind` names every one of those
       versions.
 
-      Each declared dependency is resolved to one release, and so are the dependencies of those
-      releases in turn; the release records them all. It is refused when a resource references a
-      catalog that is not declared, when a dependency resolves to no release, or when two paths
-      through the dependencies need different releases of one catalog.
+      Each declared dependency pins one release, and the releases it pins pin theirs in turn; the
+      release records them all. It is refused when a resource references a catalog that is not
+      declared, when a declaration pins no release or one the tenant does not have, or when two
+      paths through the dependencies pin different releases of one catalog.
 
       After the release, the next version continues, as a draft on it. Long-term work is untouched
       and now behind it; the response names it (`draftsBehind`).

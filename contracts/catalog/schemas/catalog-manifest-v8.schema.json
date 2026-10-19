@@ -432,7 +432,7 @@
       "additionalProperties": false
     },
     "CatalogDependency": {
-      "description": "A catalog this catalog depends on, declared once. References from this catalog's resources into it carry no version: they render with the release this declaration resolves to.",
+      "description": "A catalog this catalog depends on, declared once with the exact release it pins. References from this catalog's resources into it carry no version: they render with the release this declaration pins.",
       "type": "object",
       "properties": {
         "registry": {
@@ -447,14 +447,8 @@
           "minLength": 3,
           "maxLength": 50
         },
-        "version": {
-          "description": "The declared version selector, in the npm SemVer range grammar (an exact version, ^, ~, comparators, a hyphen range, a || union, or *).",
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 100
-        },
         "releaseVersion": {
-          "description": "The exact release of the dependency this archive's release was cut with. Null only for a catalog migrated from wire v7 or earlier, and then releaseFingerprint is null too.",
+          "description": "The exact release of the dependency this catalog renders with, and that this archive's release was cut with: an exact version, not a range. Null only for a catalog migrated from wire v7 or earlier, which pins no release, and then releaseFingerprint is null too.",
           "type": [
             "string",
             "null"
@@ -475,7 +469,6 @@
         "registry",
         "namespace",
         "catalogKey",
-        "version",
         "releaseVersion",
         "releaseFingerprint"
       ],

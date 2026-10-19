@@ -239,9 +239,7 @@ environment-deployment-release:
       required: true
       description: The release of the catalog
       schema:
-        type: string
-        minLength: 1
-        maxLength: 50
+        $ref: '../components/schemas/catalogs.yaml#/ReleaseVersion'
 
   put:
     operationId: deployRelease

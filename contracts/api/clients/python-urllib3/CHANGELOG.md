@@ -13,10 +13,12 @@ records contract changes; this file records changes to the hand-written library 
 
 - `ProblemDetailException.missing_dependencies` and `is_release_dependencies_missing_problem`
   surface a `release-dependencies-missing` problem (409 from `deploy_release`): each dependency
-  release the environment could not serve, as a `MissingDependency(registry, namespace,
+  release that cannot be had, as a `MissingDependency(registry, namespace,
   catalog_key, release_version, reason)`. `reason` is the wire string, so a reason a later
   contract adds is kept rather than failing the parse. The member is `[]` when absent or
   malformed, and the exception's new `missing_dependencies=` constructor parameter is optional.
+- `model_validation` also covers a model whose only constraint sits in a referenced plain string
+  schema (`ReleaseVersion`), which pydantic already enforces on the generated field.
 
 ### Changed
 

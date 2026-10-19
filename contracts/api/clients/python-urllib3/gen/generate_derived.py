@@ -116,15 +116,33 @@ def _resolve_type(prop: dict[str, Any]) -> tuple[str | None, bool]:
     return None, False
 
 
-def _model_has_constraints(schema: dict[str, Any]) -> bool:
+def _string_alias(schemas: dict[str, Any], ref: Any) -> dict[str, Any] | None:
+    """The schema a ``$ref`` names when it is a plain string schema with no ``enum``
+    (``ReleaseVersion``), which the generator renders as a ``str``; ``None`` otherwise."""
+    prefix = "#/components/schemas/"
+    if not isinstance(ref, str) or not ref.startswith(prefix):
+        return None
+    target = schemas.get(ref[len(prefix):])
+    if isinstance(target, dict) and target.get("type") == "string" and "enum" not in target:
+        return target
+    return None
+
+
+def _model_has_constraints(schema: dict[str, Any], schemas: dict[str, Any]) -> bool:
     if schema.get("type") != "object":
         return False
     properties = schema.get("properties")
     if not isinstance(properties, dict):
         return False
     for prop in properties.values():
-        if not isinstance(prop, dict) or "$ref" in prop:
+        if not isinstance(prop, dict):
             continue
+        # A $ref to an object or enum is a model of its own; a $ref to a plain string schema is a
+        # constrained ``str`` of this model.
+        if "$ref" in prop:
+            prop = _string_alias(schemas, prop["$ref"])
+            if prop is None:
+                continue
         base_type, _ = _resolve_type(prop)
         if base_type == "string" and any(k in prop for k in ("pattern", "minLength", "maxLength")):
             return True
@@ -141,7 +159,7 @@ def _generate_model_validation(root: dict[str, Any]) -> str:
         schemas = {}
 
     constrained = [name for name, schema in schemas.items()
-                   if isinstance(schema, dict) and _model_has_constraints(schema)]
+                   if isinstance(schema, dict) and _model_has_constraints(schema, schemas)]
     constrained.sort()
 
     if not constrained:

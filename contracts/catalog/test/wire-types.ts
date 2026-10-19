@@ -47,20 +47,23 @@ const manifest: CatalogManifest = {
   release: { version: '1.0.0' },
   resources: [],
   dependencies: [{ type: 'theme', registry: 'acme.com', namespace: 'acme', catalogKey: 'shared', key: 'corporate' }],
-  catalogDependencies: [{ registry: 'acme.com', namespace: 'acme', catalogKey: 'shared', version: '^1.2.0', releaseVersion: '1.4.0', releaseFingerprint: 'v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42' }],
+  catalogDependencies: [{ registry: 'acme.com', namespace: 'acme', catalogKey: 'shared', releaseVersion: '1.4.0', releaseFingerprint: 'v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42' }],
 }
 
 // Registry and namespace are separate, required members wherever the manifest names a catalog.
 // @ts-expect-error a catalog dependency names its registry
-const unregisteredDependency: CatalogDependency = { namespace: 'acme', catalogKey: 'shared', version: '*', releaseVersion: null, releaseFingerprint: null }
+const unregisteredDependency: CatalogDependency = { namespace: 'acme', catalogKey: 'shared', releaseVersion: null, releaseFingerprint: null }
 const registry: CatalogRegistry = 'exchange.epistola.app'
 const namespace: CatalogNamespace = 'acme-corp'
 
 // A catalog migrated from wire v7 records no release, and so no release fingerprint, for its
 // declared dependencies.
-const migratedDependency: CatalogDependency = { registry: 'acme.com', namespace: 'acme', catalogKey: 'shared', version: '*', releaseVersion: null, releaseFingerprint: null }
+const migratedDependency: CatalogDependency = { registry: 'acme.com', namespace: 'acme', catalogKey: 'shared', releaseVersion: null, releaseFingerprint: null }
 // @ts-expect-error a catalog dependency always writes its release fingerprint member
-const unfingerprintedDependency: CatalogDependency = { registry: 'acme.com', namespace: 'acme', catalogKey: 'shared', version: '*', releaseVersion: null }
+const unfingerprintedDependency: CatalogDependency = { registry: 'acme.com', namespace: 'acme', catalogKey: 'shared', releaseVersion: null }
+// A declaration pins an exact release; it carries no version selector.
+// @ts-expect-error a catalog dependency has no version selector
+const selectorDependency: CatalogDependency = { registry: 'acme.com', namespace: 'acme', catalogKey: 'shared', version: '^1.2.0', releaseVersion: '1.4.0', releaseFingerprint: 'v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42' }
 const fingerprintPattern: string = CATALOG_RELEASE_FINGERPRINT_PATTERN
 
 // A stencil carries no version from wire v8.
@@ -143,6 +146,7 @@ void v8Rules
 void manifest
 void migratedDependency
 void unfingerprintedDependency
+void selectorDependency
 void fingerprintPattern
 void stencil
 void versionedStencil

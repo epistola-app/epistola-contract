@@ -447,14 +447,17 @@ public final class Driver {
     }
 
     private static void listCatalogDependencies(String baseUrl, JsonObject config) {
-        clients(baseUrl, config)
-                .api(CatalogsApi.class)
-                .listCatalogDependencies(
-                        config.getString("tenantKey"),
-                        config.getString("registry"),
-                        config.getString("namespace"),
-                        config.getString("catalogKey"),
-                        config.getString("catalogVersion"));
+        reportDependencies(
+                baseUrl,
+                clients(baseUrl, config)
+                        .api(CatalogsApi.class)
+                        .listCatalogDependencies(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("catalogVersion"))
+                        .getItems());
     }
 
     /** Replaces the declared dependencies and reports every field of the answer, a null as {@code null}. */
@@ -465,7 +468,7 @@ public final class Driver {
                         .registry(optional(dependency, "registry"))
                         .namespace(dependency.getString("namespace"))
                         .catalogKey(dependency.getString("catalogKey"))
-                        .version(dependency.getString("version")))
+                        .releaseVersion(dependency.getString("releaseVersion")))
                 .collect(Collectors.toList());
 
         List<CatalogDependencyDto> items = clients(baseUrl, config)
@@ -479,14 +482,21 @@ public final class Driver {
                         new UpdateCatalogDependenciesRequest().dependencies(dependencies))
                 .getItems();
 
+        reportDependencies(baseUrl, items);
+    }
+
+    /**
+     * Reports declared dependencies as parsed. A declaration that pins no release (migrated from
+     * wire v7) has a null {@code releaseVersion}, reported as {@code null} rather than lost.
+     */
+    private static void reportDependencies(String baseUrl, List<CatalogDependencyDto> items) {
         report(
                 baseUrl,
                 Map.of(
                         "registries", joined(items, CatalogDependencyDto::getRegistry),
                         "namespaces", joined(items, CatalogDependencyDto::getNamespace),
                         "catalogKeys", joined(items, CatalogDependencyDto::getCatalogKey),
-                        "versions", joined(items, CatalogDependencyDto::getVersion),
-                        "resolvedVersions", joined(items, CatalogDependencyDto::getResolvedVersion)));
+                        "releaseVersions", joined(items, CatalogDependencyDto::getReleaseVersion)));
     }
 
     private static void createCatalogDraft(String baseUrl, JsonObject config) {

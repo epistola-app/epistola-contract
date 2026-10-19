@@ -73,7 +73,7 @@ data class QualifiedCatalogFingerprint(
  * catalog v6, includes authored discovery metadata. V5 is the current algorithm, introduced with
  * catalog v8, and also covers the catalog's identity and declared dependencies: its registry and
  * namespace, the registry and namespace of every resource dependency, and every catalog dependency
- * with its registry, namespace, version selector, recorded release and that release's fingerprint.
+ * with its registry, namespace, pinned release and that release's fingerprint.
  * Registry and namespace are separate members, never joined into one string.
  *
  * V5 is also the only algorithm that names a resource's address `key`, as wire v8 does. V1 to V4
@@ -387,7 +387,7 @@ object CatalogCanonicalizer {
     /**
      * V5: V4 plus the catalog's identity and declared dependencies, introduced with catalog v8.
      *
-     * A registry and namespace are identity, and a catalog dependency's version selector decides what
+     * A registry and namespace are identity, and a catalog dependency's pinned release decides what
      * the catalog renders with, so two releases that differ only there are different content. A
      * stencil carries no version from catalog v8, so V5 covers none; the resource entries are
      * otherwise V4's. V5 names every member as catalog v8 does: a resource's address is its `key`.
@@ -462,13 +462,12 @@ object CatalogCanonicalizer {
         )
         if (includeV8Identity) {
             canonical["catalogDependencies"] = manifest.catalogDependencies.orEmpty()
-                .sortedWith(compareBy({ it.registry }, { it.namespace }, { it.catalogKey }, { it.version }, { it.releaseVersion }, { it.releaseFingerprint }))
+                .sortedWith(compareBy({ it.registry }, { it.namespace }, { it.catalogKey }, { it.releaseVersion }, { it.releaseFingerprint }))
                 .map { dependency ->
                     linkedMapOf(
                         "registry" to dependency.registry,
                         "namespace" to dependency.namespace,
                         "catalogKey" to dependency.catalogKey,
-                        "version" to dependency.version,
                         "releaseVersion" to dependency.releaseVersion,
                         "releaseFingerprint" to dependency.releaseFingerprint,
                     )

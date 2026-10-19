@@ -123,7 +123,7 @@ class ProblemDetailParserTest {
                   "status": 409,
                   "missingDependencies": [
                     {"registry": "exchange.epistola.app", "namespace": "acme-corp",
-                     "catalogKey": "shared", "releaseVersion": "1.2.0", "reason": "NOT_DEPLOYED"},
+                     "catalogKey": "shared", "releaseVersion": "1.2.0", "reason": "UNAVAILABLE"},
                     {"registry": "acme.com", "namespace": "brand",
                      "catalogKey": "styles", "releaseVersion": "2.0.0", "reason": "UNAVAILABLE"}
                   ]
@@ -138,8 +138,8 @@ class ProblemDetailParserTest {
         assertEquals("acme-corp", first.getNamespace());
         assertEquals("shared", first.getCatalogKey());
         assertEquals("1.2.0", first.getReleaseVersion());
-        assertEquals("NOT_DEPLOYED", first.getReason());
-        assertEquals(MissingReleaseDependencyReason.NOT_DEPLOYED, first.getKnownReason());
+        assertEquals("UNAVAILABLE", first.getReason());
+        assertEquals(MissingReleaseDependencyReason.UNAVAILABLE, first.getKnownReason());
         assertEquals("acme.com/brand/styles@2.0.0:UNAVAILABLE", missing.get(1).toString());
     }
 

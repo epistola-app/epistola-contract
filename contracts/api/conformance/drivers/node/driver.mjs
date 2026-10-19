@@ -321,9 +321,10 @@ async function listCatalogDependencies(baseUrl, config) {
 }
 
 /**
- * Declares a catalog's dependencies. An entry's `registry` goes out only when the scenario gives
- * one: omitted means the server's default registry. The response writes every registry in full and
- * a `resolvedVersion` that nothing satisfies as null; both are reported exactly as parsed.
+ * Declares a catalog's dependencies, each pinning an exact release. An entry's `registry` goes out
+ * only when the scenario gives one: omitted means the server's default registry. The response
+ * writes every registry in full, and a declaration that pins no release (migrated from wire v7)
+ * with a null `releaseVersion`; both are reported exactly as parsed.
  */
 async function updateCatalogDependencies(baseUrl, config) {
   const response = await new CatalogsApi(client(baseUrl, config)).updateCatalogDependencies({
@@ -344,8 +345,7 @@ function reportDependencies(baseUrl, items) {
     registries: items.map((d) => show(d.registry)).join(','),
     namespaces: items.map((d) => show(d.namespace)).join(','),
     catalogKeys: items.map((d) => show(d.catalogKey)).join(','),
-    versions: items.map((d) => show(d.version)).join(','),
-    resolvedVersions: items.map((d) => show(d.resolvedVersion)).join(','),
+    releaseVersions: items.map((d) => show(d.releaseVersion)).join(','),
   })
 }
 

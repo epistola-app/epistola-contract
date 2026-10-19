@@ -55,10 +55,8 @@ class CatalogSchemaParityTest {
             val required = List(node.size()) { node[it].asString() }
             assertTrue("registry" in required && "namespace" in required, "$name requires registry and namespace: $required")
         }
-        assertEquals(
-            CatalogDependency.MAX_VERSION_LENGTH,
-            manifest["\$defs"]["CatalogDependency"]["properties"]["version"]["maxLength"].asInt(),
-        )
+        // A declaration pins an exact release: it carries no version selector.
+        assertTrue(!manifest["\$defs"]["CatalogDependency"]["properties"].has("version"))
         assertEquals(
             CatalogDependency.RELEASE_FINGERPRINT_PATTERN,
             manifest["\$defs"]["CatalogDependency"]["properties"]["releaseFingerprint"]["pattern"].asString(),

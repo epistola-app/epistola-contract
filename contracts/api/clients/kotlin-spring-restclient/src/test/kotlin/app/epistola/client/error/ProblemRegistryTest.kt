@@ -48,11 +48,7 @@ class ProblemRegistryTest {
         // contract's values, which the generated enum carries.
         assertEquals(
             MissingReleaseDependencyReason.entries.map { it.value }.sorted(),
-            listOf(
-                MissingReleaseDependency.Reasons.NOT_DEPLOYED,
-                MissingReleaseDependency.Reasons.NOT_INSTALLED,
-                MissingReleaseDependency.Reasons.UNAVAILABLE,
-            ).sorted(),
+            listOf(MissingReleaseDependency.Reasons.UNAVAILABLE),
         )
     }
 }
