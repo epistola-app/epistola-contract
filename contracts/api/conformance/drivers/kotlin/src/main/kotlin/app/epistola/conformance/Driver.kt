@@ -10,6 +10,7 @@ import app.epistola.client.api.ConsumersApi
 import app.epistola.client.api.EnvironmentsApi
 import app.epistola.client.api.GenerationApi
 import app.epistola.client.api.ImagesApi
+import app.epistola.client.api.StencilsApi
 import app.epistola.client.api.SystemApi
 import app.epistola.client.api.TemplatesApi
 import app.epistola.client.api.VariantsApi
@@ -19,6 +20,7 @@ import app.epistola.client.collect.ResultCollector
 import app.epistola.client.error.ProblemDetailException
 import app.epistola.client.error.installProblemDetailHandler
 import app.epistola.client.identity.ClientIdentity
+import app.epistola.client.model.CatalogChangesDto
 import app.epistola.client.model.CatalogDependencyDto
 import app.epistola.client.model.CatalogDependencyRequirement
 import app.epistola.client.model.CatalogVersionStatus
@@ -37,6 +39,7 @@ import app.epistola.client.model.UpdateConsumerRequest
 import app.epistola.client.model.Node
 import app.epistola.client.model.TemplateDocument
 import app.epistola.client.model.ThemeRef
+import app.epistola.client.model.UpdateStencilContentRequest
 import app.epistola.client.model.UpdateVariantContentRequest
 import app.epistola.client.validation.schema.TemplateDataValidationException
 import app.epistola.client.validation.schema.TemplateSchemaValidator
@@ -110,6 +113,17 @@ object Driver {
                 "create-environment" -> createEnvironment(baseUrl, config)
                 "update-environment" -> updateEnvironment(baseUrl, config)
                 "update-variant-content" -> updateVariantContent(baseUrl, config)
+                "get-variant-content" -> getVariantContent(baseUrl, config)
+                "mark-variant-ready" -> markVariantReady(baseUrl, config)
+                "mark-template-ready" -> markTemplateReady(baseUrl, config)
+                "get-stencil-content" -> getStencilContent(baseUrl, config)
+                "update-stencil-content" -> updateStencilContent(baseUrl, config)
+                "mark-stencil-ready" -> markStencilReady(baseUrl, config)
+                "list-stencil-usage" -> listStencilUsage(baseUrl, config)
+                "get-catalog-changes" -> getCatalogChanges(baseUrl, config)
+                "mark-catalog-ready" -> markCatalogReady(baseUrl, config)
+                "list-environment-deployments" -> listEnvironmentDeployments(baseUrl, config)
+                "list-deployment-history" -> listDeploymentHistory(baseUrl, config)
                 else -> error("unknown action $action")
             }
             done(baseUrl, null)
@@ -774,6 +788,261 @@ object Driver {
             return
         }
         report(baseUrl, mapOf("variantKey" to content.variantKey))
+    }
+
+    // --- Content, ready marks and changes ---
+
+    private fun oneNodeModel() = TemplateDocument(
+        modelVersion = TemplateDocument.ModelVersion._1,
+        root = "root",
+        nodes = mapOf("root" to Node(id = "root", type = "root", slots = emptyList())),
+        slots = emptyMap(),
+        themeRef = ThemeRef(type = ThemeRef.Type.inherit),
+    )
+
+    /** The `type` member of a free-form JSON Schema object, or null when there is none. */
+    private fun schemaType(schema: Any?): String = ((schema as? Map<*, *>)?.get("type"))?.toString() ?: "null"
+
+    /**
+     * Reads a variant's content through `…WithHttpInfo`, which is how a caller reaches the response
+     * headers: the `ETag` is reported exactly as received, quotes included.
+     */
+    private fun getVariantContent(baseUrl: String, config: ObjectNode) {
+        val response = VariantsApi(restClient(baseUrl, config)).getVariantContentWithHttpInfo(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+            config["templateKey"].asText(),
+            config["variantKey"].asText(),
+        )
+        val content = response.body!!
+        report(
+            baseUrl,
+            mapOf(
+                "variantKey" to content.variantKey,
+                "templateModelRoot" to content.templateModel.root,
+                "status" to content.status.value,
+                "lastModified" to timestamp(content.lastModified),
+                "readyAt" to timestamp(content.readyAt),
+                "etag" to (response.headers.eTag ?: "null"),
+            ),
+        )
+    }
+
+    private fun markVariantReady(baseUrl: String, config: ObjectNode) {
+        val content = VariantsApi(restClient(baseUrl, config)).markVariantReady(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+            config["templateKey"].asText(),
+            config["variantKey"].asText(),
+        )
+        report(
+            baseUrl,
+            mapOf(
+                "variantKey" to content.variantKey,
+                "status" to content.status.value,
+                "lastModified" to timestamp(content.lastModified),
+                "readyAt" to timestamp(content.readyAt),
+            ),
+        )
+    }
+
+    private fun markTemplateReady(baseUrl: String, config: ObjectNode) {
+        val template = TemplatesApi(restClient(baseUrl, config)).markTemplateReady(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+            config["templateKey"].asText(),
+        )
+        report(
+            baseUrl,
+            mapOf(
+                "key" to template.key,
+                "name" to template.name,
+                "variantKeys" to template.variants.joinToString(",") { it.key },
+                "variantStatuses" to template.variants.joinToString(",") { it.status.value },
+            ),
+        )
+    }
+
+    /** Reads a stencil's content through `…WithHttpInfo`, reporting the `ETag` exactly as received. */
+    private fun getStencilContent(baseUrl: String, config: ObjectNode) {
+        val response = StencilsApi(restClient(baseUrl, config)).getStencilContentWithHttpInfo(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+            config["stencilKey"].asText(),
+        )
+        val content = response.body!!
+        report(
+            baseUrl,
+            mapOf(
+                "stencilKey" to content.stencilKey,
+                "contentRoot" to content.content.root,
+                "parameterSchemaType" to schemaType(content.parameterSchema),
+                "status" to content.status.value,
+                "lastModified" to timestamp(content.lastModified),
+                "readyAt" to timestamp(content.readyAt),
+                "etag" to (response.headers.eTag ?: "null"),
+            ),
+        )
+    }
+
+    /**
+     * Replaces a stencil's content with a one-node template model and `config.parameterSchema`,
+     * sending `config.ifMatch` as `If-Match`, and reports the new `ETag` the update answered with.
+     */
+    private fun updateStencilContent(baseUrl: String, config: ObjectNode) {
+        val response = StencilsApi(restClient(baseUrl, config)).updateStencilContentWithHttpInfo(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+            config["stencilKey"].asText(),
+            UpdateStencilContentRequest(
+                content = oneNodeModel(),
+                parameterSchema = mapper.convertValue(config["parameterSchema"], Map::class.java),
+            ),
+            ifMatch = config.optionalText("ifMatch"),
+        )
+        val content = response.body!!
+        report(
+            baseUrl,
+            mapOf(
+                "stencilKey" to content.stencilKey,
+                "status" to content.status.value,
+                "readyAt" to timestamp(content.readyAt),
+                "etag" to (response.headers.eTag ?: "null"),
+            ),
+        )
+    }
+
+    private fun markStencilReady(baseUrl: String, config: ObjectNode) {
+        val response = StencilsApi(restClient(baseUrl, config)).markStencilReady(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+            config["stencilKey"].asText(),
+        )
+        report(
+            baseUrl,
+            mapOf(
+                "stencilKey" to response.stencil.stencilKey,
+                "status" to response.stencil.status.value,
+                "readyAt" to timestamp(response.stencil.readyAt),
+                "parameterSchemaType" to schemaType(response.stencil.parameterSchema),
+                "notFitting" to response.notFitting.joinToString(",") { "${it.templateKey}/${it.variantKey}:${it.fits}" },
+                "notFittingProblems" to response.notFitting.joinToString(";") { it.problems.joinToString("|") },
+            ),
+        )
+    }
+
+    private fun listStencilUsage(baseUrl: String, config: ObjectNode) {
+        val response = StencilsApi(restClient(baseUrl, config)).listStencilUsage(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+            config["stencilKey"].asText(),
+            page = config["page"].asInt(),
+            size = config["size"].asInt(),
+        )
+        report(
+            baseUrl,
+            mapOf(
+                "templateKeys" to response.items.joinToString(",") { it.templateKey },
+                "templateNames" to response.items.joinToString("|") { it.templateName },
+                "variantKeys" to response.items.joinToString(",") { it.variantKey },
+                "fits" to response.items.joinToString(",") { it.fits.toString() },
+                "problems" to response.items.joinToString(";") { it.problems.joinToString("|") },
+                "pageNumber" to response.page.number.toString(),
+                "totalElements" to response.page.totalElements.toString(),
+            ),
+        )
+    }
+
+    private fun getCatalogChanges(baseUrl: String, config: ObjectNode) = reportChanges(
+        baseUrl,
+        CatalogsApi(restClient(baseUrl, config)).getCatalogChanges(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+        ),
+    )
+
+    private fun markCatalogReady(baseUrl: String, config: ObjectNode) = reportChanges(
+        baseUrl,
+        CatalogsApi(restClient(baseUrl, config)).markCatalogReady(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+        ),
+    )
+
+    private fun reportChanges(baseUrl: String, changes: CatalogChangesDto) = report(
+        baseUrl,
+        mapOf(
+            "base" to (changes.base ?: "null"),
+            "releasable" to changes.releasable.toString(),
+            "dependenciesChanged" to changes.dependenciesChanged.toString(),
+            "changes" to changes.changes.joinToString(",") { "${it.type}/${it.key}:${it.change.value}" },
+        ),
+    )
+
+    private fun listEnvironmentDeployments(baseUrl: String, config: ObjectNode) {
+        val deployments = EnvironmentsApi(restClient(baseUrl, config))
+            .listEnvironmentDeployments(config["tenantKey"].asText(), config["environmentKey"].asText())
+            .items
+        report(
+            baseUrl,
+            mapOf(
+                "registries" to deployments.joinToString(",") { it.registry },
+                "catalogKeys" to deployments.joinToString(",") { it.catalogKey },
+                "releaseVersions" to deployments.joinToString(",") { it.releaseVersion },
+                "deployedAt" to deployments.joinToString(",") { timestamp(it.deployedAt) },
+                "lastUsedAt" to deployments.joinToString(",") { timestamp(it.lastUsedAt) },
+                "documentsRequested" to deployments.joinToString(",") { it.documentsRequested.toString() },
+            ),
+        )
+    }
+
+    private fun listDeploymentHistory(baseUrl: String, config: ObjectNode) {
+        val response = EnvironmentsApi(restClient(baseUrl, config)).listDeploymentHistory(
+            config["tenantKey"].asText(),
+            config["environmentKey"].asText(),
+            page = config["page"].asInt(),
+            size = config["size"].asInt(),
+        )
+        val events = response.items
+        report(
+            baseUrl,
+            mapOf(
+                "catalogKeys" to events.joinToString(",") { it.catalogKey },
+                "actions" to events.joinToString(",") { it.action.value },
+                "releaseVersions" to events.joinToString(",") { it.releaseVersion ?: "null" },
+                "draftLabels" to events.joinToString("|") { it.draftLabel ?: "null" },
+                "changedAt" to events.joinToString(",") { timestamp(it.changedAt) },
+                "changedBy" to events.joinToString("|") { it.changedBy ?: "null" },
+                "totalElements" to response.page.totalElements.toString(),
+            ),
+        )
     }
 
     /** Creates an environment; `production` is sent only when configured. */

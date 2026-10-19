@@ -10,6 +10,7 @@ import app.epistola.client.jakarta.api.ConsumersApi;
 import app.epistola.client.jakarta.api.EnvironmentsApi;
 import app.epistola.client.jakarta.api.GenerationApi;
 import app.epistola.client.jakarta.api.ImagesApi;
+import app.epistola.client.jakarta.api.StencilsApi;
 import app.epistola.client.jakarta.api.SystemApi;
 import app.epistola.client.jakarta.api.TemplatesApi;
 import app.epistola.client.jakarta.api.VariantsApi;
@@ -20,6 +21,7 @@ import app.epistola.client.jakarta.error.MissingDependency;
 import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.identity.ClientIdentity;
 import app.epistola.client.jakarta.model.BehindReleaseDto;
+import app.epistola.client.jakarta.model.CatalogChangesDto;
 import app.epistola.client.jakarta.model.CatalogDependencyDto;
 import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
 import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
@@ -28,6 +30,8 @@ import app.epistola.client.jakarta.model.CatalogVersionStatus;
 import app.epistola.client.jakarta.model.CreateCatalogDraftRequest;
 import app.epistola.client.jakarta.model.CreateEnvironmentRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
+import app.epistola.client.jakarta.model.DeploymentEventDto;
+import app.epistola.client.jakarta.model.DeploymentHistoryResponse;
 import app.epistola.client.jakarta.model.EnvironmentDto;
 import app.epistola.client.jakarta.model.EnvironmentOverrideDto;
 import app.epistola.client.jakarta.model.SetEnvironmentOverrideRequest;
@@ -35,6 +39,7 @@ import app.epistola.client.jakarta.model.UpdateEnvironmentRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.ImageDto;
+import app.epistola.client.jakarta.model.MarkStencilReadyResponse;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
 import app.epistola.client.jakarta.model.PromoteCatalogDraftRequest;
@@ -43,6 +48,10 @@ import app.epistola.client.jakarta.model.ReleaseCatalogDraftResponse;
 import app.epistola.client.jakarta.model.ReleaseDependencyDto;
 import app.epistola.client.jakarta.model.ReleasedChangeDto;
 import app.epistola.client.jakarta.model.RenameCatalogDraftRequest;
+import app.epistola.client.jakarta.model.StencilContentDto;
+import app.epistola.client.jakarta.model.StencilUsageDto;
+import app.epistola.client.jakarta.model.StencilUsageListResponse;
+import app.epistola.client.jakarta.model.TemplateDto;
 import app.epistola.client.jakarta.model.TemplateListResponse;
 import app.epistola.client.jakarta.model.TemplateSummaryDto;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
@@ -50,6 +59,7 @@ import app.epistola.client.jakarta.model.UpdateConsumerRequest;
 import app.epistola.client.jakarta.model.Node;
 import app.epistola.client.jakarta.model.TemplateDocument;
 import app.epistola.client.jakarta.model.ThemeRef;
+import app.epistola.client.jakarta.model.UpdateStencilContentRequest;
 import app.epistola.client.jakarta.model.UpdateVariantContentRequest;
 import app.epistola.client.jakarta.model.VariantContentDto;
 import app.epistola.client.jakarta.validation.schema.TemplateDataValidationException;
@@ -57,6 +67,8 @@ import app.epistola.client.jakarta.validation.schema.TemplateSchemaValidator;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonValue;
+import jakarta.json.bind.JsonbBuilder;
+import jakarta.ws.rs.core.Response;
 import java.io.File;
 import java.io.StringReader;
 import java.net.URI;
@@ -127,6 +139,17 @@ public final class Driver {
                 case "create-environment" -> createEnvironment(baseUrl, config);
                 case "update-environment" -> updateEnvironment(baseUrl, config);
                 case "update-variant-content" -> updateVariantContent(baseUrl, config);
+                case "get-variant-content" -> getVariantContent(baseUrl, config);
+                case "mark-variant-ready" -> markVariantReady(baseUrl, config);
+                case "mark-template-ready" -> markTemplateReady(baseUrl, config);
+                case "get-stencil-content" -> getStencilContent(baseUrl, config);
+                case "update-stencil-content" -> updateStencilContent(baseUrl, config);
+                case "mark-stencil-ready" -> markStencilReady(baseUrl, config);
+                case "list-stencil-usage" -> listStencilUsage(baseUrl, config);
+                case "get-catalog-changes" -> getCatalogChanges(baseUrl, config);
+                case "mark-catalog-ready" -> markCatalogReady(baseUrl, config);
+                case "list-environment-deployments" -> listEnvironmentDeployments(baseUrl, config);
+                case "list-deployment-history" -> listDeploymentHistory(baseUrl, config);
                 default -> throw new IllegalArgumentException("unknown action " + instruction.getString("action"));
             }
             done(baseUrl, null);
@@ -869,6 +892,277 @@ public final class Driver {
             return;
         }
         report(baseUrl, Map.of("variantKey", String.valueOf(content.getVariantKey())));
+    }
+
+    // --- Content, ready marks and changes ---
+
+    private static TemplateDocument oneNodeModel() {
+        return new TemplateDocument()
+                .modelVersion(TemplateDocument.ModelVersionEnum.NUMBER_1)
+                .root("root")
+                .nodes(Map.of("root", new Node().id("root").type("root").slots(List.of())))
+                .slots(Map.of())
+                .themeRef(new ThemeRef().type(ThemeRef.TypeEnum.INHERIT));
+    }
+
+    /** The {@code type} member of a free-form JSON Schema object, which JSON-B reads as a Map. */
+    private static String schemaType(Object schema) {
+        return schema instanceof Map<?, ?> map ? String.valueOf(map.get("type")) : "null";
+    }
+
+    /** A free-form JSON object from the scenario, as the plain Map a caller would hand the client. */
+    private static Object freeForm(JsonValue value) {
+        try (var jsonb = JsonbBuilder.create()) {
+            return jsonb.fromJson(value.toString(), Map.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("could not read " + value, e);
+        }
+    }
+
+    /**
+     * Reads a variant's content through {@code getVariantContentWithHttpInfo}, which is how a caller
+     * reaches the response headers: the {@code ETag} is reported exactly as received, quotes included.
+     */
+    private static void getVariantContent(String baseUrl, JsonObject config) {
+        try (Response response = clients(baseUrl, config)
+                .api(VariantsApi.class)
+                .getVariantContentWithHttpInfo(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"),
+                        config.getString("templateKey"),
+                        config.getString("variantKey"))) {
+            VariantContentDto content = response.readEntity(VariantContentDto.class);
+            report(
+                    baseUrl,
+                    Map.of(
+                            "variantKey", String.valueOf(content.getVariantKey()),
+                            "templateModelRoot", String.valueOf(content.getTemplateModel().getRoot()),
+                            "status", String.valueOf(content.getStatus()),
+                            "lastModified", instant(content.getLastModified()),
+                            "readyAt", instant(content.getReadyAt()),
+                            "etag", String.valueOf(response.getHeaderString("ETag"))));
+        }
+    }
+
+    private static void markVariantReady(String baseUrl, JsonObject config) {
+        VariantContentDto content = clients(baseUrl, config)
+                .api(VariantsApi.class)
+                .markVariantReady(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"),
+                        config.getString("templateKey"),
+                        config.getString("variantKey"));
+        report(
+                baseUrl,
+                Map.of(
+                        "variantKey", String.valueOf(content.getVariantKey()),
+                        "status", String.valueOf(content.getStatus()),
+                        "lastModified", instant(content.getLastModified()),
+                        "readyAt", instant(content.getReadyAt())));
+    }
+
+    private static void markTemplateReady(String baseUrl, JsonObject config) {
+        TemplateDto template = clients(baseUrl, config)
+                .api(TemplatesApi.class)
+                .markTemplateReady(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"),
+                        config.getString("templateKey"));
+        report(
+                baseUrl,
+                Map.of(
+                        "key", String.valueOf(template.getKey()),
+                        "name", String.valueOf(template.getName()),
+                        "variantKeys", joined(template.getVariants(), variant -> variant.getKey()),
+                        "variantStatuses", joined(template.getVariants(), variant -> String.valueOf(variant.getStatus()))));
+    }
+
+    /** Reads a stencil's content through {@code getStencilContentWithHttpInfo}, reporting the {@code ETag} as received. */
+    private static void getStencilContent(String baseUrl, JsonObject config) {
+        try (Response response = clients(baseUrl, config)
+                .api(StencilsApi.class)
+                .getStencilContentWithHttpInfo(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"),
+                        config.getString("stencilKey"))) {
+            StencilContentDto content = response.readEntity(StencilContentDto.class);
+            report(
+                    baseUrl,
+                    Map.of(
+                            "stencilKey", String.valueOf(content.getStencilKey()),
+                            "contentRoot", String.valueOf(content.getContent().getRoot()),
+                            "parameterSchemaType", schemaType(content.getParameterSchema()),
+                            "status", String.valueOf(content.getStatus()),
+                            "lastModified", instant(content.getLastModified()),
+                            "readyAt", instant(content.getReadyAt()),
+                            "etag", String.valueOf(response.getHeaderString("ETag"))));
+        }
+    }
+
+    /**
+     * Replaces a stencil's content with a one-node template model and {@code config.parameterSchema},
+     * sending {@code config.ifMatch} as {@code If-Match}, and reports the new {@code ETag} the update
+     * answered with.
+     */
+    private static void updateStencilContent(String baseUrl, JsonObject config) {
+        try (Response response = clients(baseUrl, config)
+                .api(StencilsApi.class)
+                .updateStencilContentWithHttpInfo(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"),
+                        config.getString("stencilKey"),
+                        new UpdateStencilContentRequest()
+                                .content(oneNodeModel())
+                                .parameterSchema(freeForm(config.get("parameterSchema"))),
+                        optional(config, "ifMatch"))) {
+            StencilContentDto content = response.readEntity(StencilContentDto.class);
+            report(
+                    baseUrl,
+                    Map.of(
+                            "stencilKey", String.valueOf(content.getStencilKey()),
+                            "status", String.valueOf(content.getStatus()),
+                            "readyAt", instant(content.getReadyAt()),
+                            "etag", String.valueOf(response.getHeaderString("ETag"))));
+        }
+    }
+
+    private static void markStencilReady(String baseUrl, JsonObject config) {
+        MarkStencilReadyResponse response = clients(baseUrl, config)
+                .api(StencilsApi.class)
+                .markStencilReady(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"),
+                        config.getString("stencilKey"));
+        List<StencilUsageDto> notFitting = response.getNotFitting();
+        report(
+                baseUrl,
+                Map.of(
+                        "stencilKey", String.valueOf(response.getStencil().getStencilKey()),
+                        "status", String.valueOf(response.getStencil().getStatus()),
+                        "readyAt", instant(response.getStencil().getReadyAt()),
+                        "parameterSchemaType", schemaType(response.getStencil().getParameterSchema()),
+                        "notFitting", joined(notFitting, usage -> usage.getTemplateKey() + "/" + usage.getVariantKey() + ":" + usage.getFits()),
+                        "notFittingProblems", notFitting.stream()
+                                .map(usage -> String.join("|", usage.getProblems()))
+                                .collect(Collectors.joining(";"))));
+    }
+
+    private static void listStencilUsage(String baseUrl, JsonObject config) {
+        StencilUsageListResponse response = clients(baseUrl, config)
+                .api(StencilsApi.class)
+                .listStencilUsage(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"),
+                        config.getString("stencilKey"),
+                        config.getInt("page"),
+                        config.getInt("size"));
+        List<StencilUsageDto> items = response.getItems();
+        report(
+                baseUrl,
+                Map.of(
+                        "templateKeys", joined(items, StencilUsageDto::getTemplateKey),
+                        "templateNames", items.stream().map(StencilUsageDto::getTemplateName).collect(Collectors.joining("|")),
+                        "variantKeys", joined(items, StencilUsageDto::getVariantKey),
+                        "fits", joined(items, usage -> String.valueOf(usage.getFits())),
+                        "problems", items.stream()
+                                .map(usage -> String.join("|", usage.getProblems()))
+                                .collect(Collectors.joining(";")),
+                        "pageNumber", String.valueOf(response.getPage().getNumber()),
+                        "totalElements", String.valueOf(response.getPage().getTotalElements())));
+    }
+
+    private static void getCatalogChanges(String baseUrl, JsonObject config) {
+        reportChanges(
+                baseUrl,
+                clients(baseUrl, config)
+                        .api(CatalogsApi.class)
+                        .getCatalogChanges(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("catalogVersion")));
+    }
+
+    private static void markCatalogReady(String baseUrl, JsonObject config) {
+        reportChanges(
+                baseUrl,
+                clients(baseUrl, config)
+                        .api(CatalogsApi.class)
+                        .markCatalogReady(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("catalogVersion")));
+    }
+
+    private static void reportChanges(String baseUrl, CatalogChangesDto changes) {
+        report(
+                baseUrl,
+                Map.of(
+                        "base", String.valueOf(changes.getBase()),
+                        "releasable", String.valueOf(changes.getReleasable()),
+                        "dependenciesChanged", String.valueOf(changes.getDependenciesChanged()),
+                        "changes", joined(changes.getChanges(), change -> change.getType() + "/" + change.getKey() + ":" + change.getChange())));
+    }
+
+    private static void listEnvironmentDeployments(String baseUrl, JsonObject config) {
+        List<DeploymentDto> items = clients(baseUrl, config)
+                .api(EnvironmentsApi.class)
+                .listEnvironmentDeployments(config.getString("tenantKey"), config.getString("environmentKey"))
+                .getItems();
+        report(
+                baseUrl,
+                Map.of(
+                        "registries", joined(items, DeploymentDto::getRegistry),
+                        "catalogKeys", joined(items, DeploymentDto::getCatalogKey),
+                        "releaseVersions", joined(items, DeploymentDto::getReleaseVersion),
+                        "deployedAt", joined(items, deployment -> instant(deployment.getDeployedAt())),
+                        "lastUsedAt", joined(items, deployment -> instant(deployment.getLastUsedAt())),
+                        "documentsRequested", joined(items, deployment -> String.valueOf(deployment.getDocumentsRequested()))));
+    }
+
+    private static void listDeploymentHistory(String baseUrl, JsonObject config) {
+        DeploymentHistoryResponse response = clients(baseUrl, config)
+                .api(EnvironmentsApi.class)
+                .listDeploymentHistory(
+                        config.getString("tenantKey"),
+                        config.getString("environmentKey"),
+                        config.getInt("page"),
+                        config.getInt("size"));
+        List<DeploymentEventDto> items = response.getItems();
+        report(
+                baseUrl,
+                Map.of(
+                        "catalogKeys", joined(items, DeploymentEventDto::getCatalogKey),
+                        "actions", joined(items, event -> String.valueOf(event.getAction())),
+                        "releaseVersions", joined(items, DeploymentEventDto::getReleaseVersion),
+                        "draftLabels", items.stream().map(event -> String.valueOf(event.getDraftLabel())).collect(Collectors.joining("|")),
+                        "changedAt", joined(items, event -> instant(event.getChangedAt())),
+                        "changedBy", items.stream().map(event -> String.valueOf(event.getChangedBy())).collect(Collectors.joining("|")),
+                        "totalElements", String.valueOf(response.getPage().getTotalElements())));
     }
 
     /** Creates an environment; {@code production} is sent only when the scenario names it. */

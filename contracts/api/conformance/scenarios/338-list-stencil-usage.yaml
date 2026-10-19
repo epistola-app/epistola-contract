@@ -1,0 +1,68 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: list-stencil-usage
+title: Listing a stencil's usage pages as asked, and reads whether each instance fits
+why: >
+  Before changing a stencil, an author lists the template variants that use it, and after changing
+  it, which of them no longer fit (ADR 0006). Each entry says so in `fits`, with the reasons in
+  `problems`, which is empty when the instance fits. A client must read an empty list beside a
+  filled one, and `false` beside `true`, in order.
+
+  The page is the caller's: `page` and `size` go out as given, and the answer's page metadata is
+  read back.
+
+action:
+  name: list-stencil-usage
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: next
+    stencilKey: corporate-header
+    page: 1
+    size: 2
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      items:
+        - templateKey: invoice
+          templateName: Monthly Invoice
+          variantKey: english
+          fits: true
+          problems: []
+        - templateKey: invoice
+          templateName: Monthly Invoice
+          variantKey: dutch
+          fits: false
+          problems:
+            - fills placeholder logo, which the stencil no longer has
+            - leaves the required parameter recipientName unbound
+      page: { number: 1, size: 2, totalElements: 4, totalPages: 2 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/next/stencils/corporate-header/usage
+      queryParams:
+        page: "1"
+        size: "2"
+      headers:
+        Accept:
+          contains: application/vnd.epistola.v2+json
+  report:
+    templateKeys: invoice,invoice
+    # Names are free text, so they are joined with `|`.
+    templateNames: Monthly Invoice|Monthly Invoice
+    variantKeys: english,dutch
+    fits: true,false
+    # Each entry's problems joined with `|`, the entries with `;`: the first has none.
+    problems: ";fills placeholder logo, which the stencil no longer has|leaves the required parameter recipientName unbound"
+    pageNumber: "1"
+    totalElements: "4"

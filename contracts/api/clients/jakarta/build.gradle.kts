@@ -260,6 +260,66 @@ tasks.openApiGenerate {
         }
         logger.lifecycle("Taught $deserializers enum deserializer(s) to read a JSON null as null")
     }
+
+    // The response headers of an operation that answers with an `ETag`. A MicroProfile Rest Client
+    // method returns its body alone, and the generator has no option to return the Response as
+    // well, so a caller had no way to read the `ETag` of a read and send it back as `If-Match`:
+    // optimistic locking was unusable from this client. Each such operation gains a sibling,
+    // `<operation>WithHttpInfo`, with the same annotations and parameters, returning the
+    // `jakarta.ws.rs.core.Response` (the name the other generated clients give the same thing).
+    // Found by the `get-variant-content` conformance scenario.
+    val spec = bundledSpec
+    doLast {
+        @Suppress("UNCHECKED_CAST")
+        val paths = (org.yaml.snakeyaml.Yaml().load<Map<String, Any>>(spec.readText())["paths"] as Map<String, Map<String, Any>>)
+        val etagOperations = paths.values
+            .flatMap { pathItem -> pathItem.values.filterIsInstance<Map<String, Any>>() }
+            .filter { operation ->
+                @Suppress("UNCHECKED_CAST")
+                val responses = operation["responses"] as? Map<String, Map<String, Any>> ?: emptyMap()
+                responses.any { (status, response) ->
+                    status.startsWith("2") && (response["headers"] as? Map<*, *>)?.keys?.any { "$it".equals("ETag", ignoreCase = true) } == true
+                }
+            }
+            .map { it["operationId"] as String }
+            .toSortedSet()
+        check(etagOperations.isNotEmpty()) {
+            "no operation in the spec answers with an ETag header any more — remove the WithHttpInfo rewrite"
+        }
+
+        val rewritten = mutableSetOf<String>()
+        fileTree(apiDir) { include("**/*Api.java") }.forEach { apiFile ->
+            var source = apiFile.readText()
+            for (operation in etagOperations) {
+                // The annotations directly above the declaration, which the generator emits one per
+                // line (an absent @Path leaves an indented blank line), and the declaration itself.
+                val declaration = Regex(
+                    """((?:^ {4}(?:@[^\n]*)?\n)+)^ {4}(\S+(?:<[^>]*>)?) ($operation)\((.*)\) throws ApiException, ProcessingException;$""",
+                    RegexOption.MULTILINE,
+                )
+                val match = declaration.find(source) ?: continue
+                val (annotations, returnType, _, parameters) = match.destructured
+                val sibling = """
+
+    /**
+     * {@code $operation}, answering with the whole {@link Response} rather than its body alone: its
+     * status, its headers (the {@code ETag} to send back as {@code If-Match} among them), and its
+     * body, read with {@code readEntity($returnType.class)}. Close the response when done with it.
+     * An error response still arrives as a {@code ProblemDetailException}.
+     */
+$annotations    Response ${operation}WithHttpInfo($parameters) throws ApiException, ProcessingException;"""
+                source = source.substring(0, match.range.last + 1) + sibling + source.substring(match.range.last + 1)
+                rewritten += operation
+            }
+            apiFile.writeText(source)
+        }
+        val missing = etagOperations - rewritten
+        check(missing.isEmpty()) {
+            "the WithHttpInfo rewrite found no generated method for $missing — the generator's emitted " +
+                "method shape changed; update this rewrite"
+        }
+        logger.lifecycle("Gave ${rewritten.size} operation(s) answering with an ETag a WithHttpInfo sibling")
+    }
 }
 
 // The spec-walking these three tasks share with the Kotlin client lives in build-logic; only the

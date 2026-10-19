@@ -26,6 +26,7 @@ const {
   JwtSigner,
   ProblemDetailException,
   ResultCollector,
+  StencilsApi,
   SystemApi,
   TemplateDataValidationException,
   TemplateSchemaValidator,
@@ -65,6 +66,17 @@ const ACTIONS = {
   'create-environment': createEnvironment,
   'update-environment': updateEnvironment,
   'update-variant-content': updateVariantContent,
+  'get-variant-content': getVariantContent,
+  'mark-variant-ready': markVariantReady,
+  'mark-template-ready': markTemplateReady,
+  'get-stencil-content': getStencilContent,
+  'update-stencil-content': updateStencilContent,
+  'mark-stencil-ready': markStencilReady,
+  'list-stencil-usage': listStencilUsage,
+  'get-catalog-changes': getCatalogChanges,
+  'mark-catalog-ready': markCatalogReady,
+  'list-environment-deployments': listEnvironmentDeployments,
+  'list-deployment-history': listDeploymentHistory,
 }
 
 process.exit(await main())
@@ -619,6 +631,200 @@ async function updateVariantContent(baseUrl, config) {
     return
   }
   await report(baseUrl, { variantKey: show(content.variantKey) })
+}
+
+// --- Content, ready marks and changes ---
+
+/** The catalog version a content action addresses, as the generated request objects name it. */
+function versionAddress(config) {
+  return {
+    tenantKey: config.tenantKey,
+    registry: config.registry,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
+  }
+}
+
+/**
+ * Reads a variant's content through the `Raw` method, which is how a caller reaches the response
+ * headers: the `ETag` is reported exactly as received, quotes included.
+ */
+async function getVariantContent(baseUrl, config) {
+  const response = await new VariantsApi(client(baseUrl, config)).getVariantContentRaw({
+    ...versionAddress(config),
+    templateKey: config.templateKey,
+    variantKey: config.variantKey,
+  })
+  const content = await response.value()
+  await report(baseUrl, {
+    variantKey: show(content.variantKey),
+    templateModelRoot: show(content.templateModel.root),
+    status: show(content.status),
+    lastModified: showInstant(content.lastModified),
+    readyAt: showInstant(content.readyAt),
+    etag: show(response.raw.headers.get('ETag')),
+  })
+}
+
+async function markVariantReady(baseUrl, config) {
+  const content = await new VariantsApi(client(baseUrl, config)).markVariantReady({
+    ...versionAddress(config),
+    templateKey: config.templateKey,
+    variantKey: config.variantKey,
+  })
+  await report(baseUrl, {
+    variantKey: show(content.variantKey),
+    status: show(content.status),
+    lastModified: showInstant(content.lastModified),
+    readyAt: showInstant(content.readyAt),
+  })
+}
+
+async function markTemplateReady(baseUrl, config) {
+  const template = await new TemplatesApi(client(baseUrl, config)).markTemplateReady({
+    ...versionAddress(config),
+    templateKey: config.templateKey,
+  })
+  await report(baseUrl, {
+    key: show(template.key),
+    name: show(template.name),
+    variantKeys: template.variants.map((v) => show(v.key)).join(','),
+    variantStatuses: template.variants.map((v) => show(v.status)).join(','),
+  })
+}
+
+/** Reads a stencil's content through the `Raw` method, reporting the `ETag` exactly as received. */
+async function getStencilContent(baseUrl, config) {
+  const response = await new StencilsApi(client(baseUrl, config)).getStencilContentRaw({
+    ...versionAddress(config),
+    stencilKey: config.stencilKey,
+  })
+  const content = await response.value()
+  await report(baseUrl, {
+    stencilKey: show(content.stencilKey),
+    contentRoot: show(content.content.root),
+    parameterSchemaType: show(content.parameterSchema?.type),
+    status: show(content.status),
+    lastModified: showInstant(content.lastModified),
+    readyAt: showInstant(content.readyAt),
+    etag: show(response.raw.headers.get('ETag')),
+  })
+}
+
+/**
+ * Replaces a stencil's content with a one-node template model and `config.parameterSchema`, sending
+ * `config.ifMatch` as `If-Match`, and reports the new `ETag` the update answered with.
+ */
+async function updateStencilContent(baseUrl, config) {
+  const response = await new StencilsApi(client(baseUrl, config)).updateStencilContentRaw({
+    ...versionAddress(config),
+    stencilKey: config.stencilKey,
+    updateStencilContentRequest: { content: oneNodeModel(), parameterSchema: config.parameterSchema },
+    ...(config.ifMatch !== undefined ? { ifMatch: config.ifMatch } : {}),
+  })
+  const content = await response.value()
+  await report(baseUrl, {
+    stencilKey: show(content.stencilKey),
+    status: show(content.status),
+    readyAt: showInstant(content.readyAt),
+    etag: show(response.raw.headers.get('ETag')),
+  })
+}
+
+async function markStencilReady(baseUrl, config) {
+  const response = await new StencilsApi(client(baseUrl, config)).markStencilReady({
+    ...versionAddress(config),
+    stencilKey: config.stencilKey,
+  })
+  await report(baseUrl, {
+    stencilKey: show(response.stencil.stencilKey),
+    status: show(response.stencil.status),
+    readyAt: showInstant(response.stencil.readyAt),
+    parameterSchemaType: show(response.stencil.parameterSchema?.type),
+    notFitting: response.notFitting.map((u) => `${show(u.templateKey)}/${show(u.variantKey)}:${show(u.fits)}`).join(','),
+    notFittingProblems: response.notFitting.map((u) => u.problems.join('|')).join(';'),
+  })
+}
+
+async function listStencilUsage(baseUrl, config) {
+  const response = await new StencilsApi(client(baseUrl, config)).listStencilUsage({
+    ...versionAddress(config),
+    stencilKey: config.stencilKey,
+    page: config.page,
+    size: config.size,
+  })
+  await report(baseUrl, {
+    templateKeys: response.items.map((u) => show(u.templateKey)).join(','),
+    templateNames: response.items.map((u) => show(u.templateName)).join('|'),
+    variantKeys: response.items.map((u) => show(u.variantKey)).join(','),
+    fits: response.items.map((u) => show(u.fits)).join(','),
+    problems: response.items.map((u) => u.problems.join('|')).join(';'),
+    pageNumber: show(response.page.number),
+    totalElements: show(response.page.totalElements),
+  })
+}
+
+async function getCatalogChanges(baseUrl, config) {
+  await reportChanges(baseUrl, await new CatalogsApi(client(baseUrl, config)).getCatalogChanges(versionAddress(config)))
+}
+
+async function markCatalogReady(baseUrl, config) {
+  await reportChanges(baseUrl, await new CatalogsApi(client(baseUrl, config)).markCatalogReady(versionAddress(config)))
+}
+
+function reportChanges(baseUrl, changes) {
+  return report(baseUrl, {
+    base: show(changes.base),
+    releasable: show(changes.releasable),
+    dependenciesChanged: show(changes.dependenciesChanged),
+    changes: changes.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join(','),
+  })
+}
+
+async function listEnvironmentDeployments(baseUrl, config) {
+  const { items } = await new EnvironmentsApi(client(baseUrl, config)).listEnvironmentDeployments({
+    tenantKey: config.tenantKey,
+    environmentKey: config.environmentKey,
+  })
+  await report(baseUrl, {
+    registries: items.map((d) => show(d.registry)).join(','),
+    catalogKeys: items.map((d) => show(d.catalogKey)).join(','),
+    releaseVersions: items.map((d) => show(d.releaseVersion)).join(','),
+    deployedAt: items.map((d) => showInstant(d.deployedAt)).join(','),
+    lastUsedAt: items.map((d) => showInstant(d.lastUsedAt)).join(','),
+    documentsRequested: items.map((d) => show(d.documentsRequested)).join(','),
+  })
+}
+
+async function listDeploymentHistory(baseUrl, config) {
+  const response = await new EnvironmentsApi(client(baseUrl, config)).listDeploymentHistory({
+    tenantKey: config.tenantKey,
+    environmentKey: config.environmentKey,
+    page: config.page,
+    size: config.size,
+  })
+  const items = response.items
+  await report(baseUrl, {
+    catalogKeys: items.map((e) => show(e.catalogKey)).join(','),
+    actions: items.map((e) => show(e.action)).join(','),
+    releaseVersions: items.map((e) => show(e.releaseVersion)).join(','),
+    draftLabels: items.map((e) => show(e.draftLabel)).join('|'),
+    changedAt: items.map((e) => showInstant(e.changedAt)).join(','),
+    changedBy: items.map((e) => show(e.changedBy)).join('|'),
+    totalElements: show(response.page.totalElements),
+  })
+}
+
+/** The one-node template model the content updates send. */
+function oneNodeModel() {
+  return {
+    modelVersion: 1,
+    root: 'root',
+    nodes: { root: { id: 'root', type: 'root', slots: [] } },
+    slots: {},
+    themeRef: { type: 'inherit' },
+  }
 }
 
 async function listEnvironmentOverrides(baseUrl, config) {

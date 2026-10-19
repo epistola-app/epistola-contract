@@ -208,6 +208,39 @@ working. Error responses that are not parseable problem+json stay a plain `ApiEx
 Some Epistola Suite deployments disable API-key authentication entirely; that arrives as
 `KnownProblemSlugs.API_KEY_AUTH_DISABLED`, which is the signal to guide the caller to JWT auth.
 
+## Optimistic locking
+
+Templates, variants, themes, stencils, code lists and attributes carry a revision, which a read
+(and an update) returns as the `ETag` response header. Send it back as `If-Match` and the update is
+refused with 412 `resource-modified` if someone changed the resource since you read it.
+
+A generated method returns the body alone, so each operation that answers with an `ETag` has a
+sibling, `…WithHttpInfo`, with the same parameters, that returns the whole `Response`: read the
+header from it and the body with `readEntity`, and close it when done. An error still arrives as a
+`ProblemDetailException`.
+
+```java
+String etag;
+VariantContentDto content;
+try (Response response = variantsApi.getVariantContentWithHttpInfo(
+        "acme-corp", "~", "acme-corp", "letters", "next", "invoice", "english")) {
+    etag = response.getHeaderString("ETag");            // e.g. "7", quotes included
+    content = response.readEntity(VariantContentDto.class);
+}
+
+try {
+    variantsApi.updateVariantContent("acme-corp", "~", "acme-corp", "letters", "next", "invoice", "english",
+            new UpdateVariantContentRequest().templateModel(edited(content)), etag);
+} catch (ProblemDetailException e) {
+    if (KnownProblemSlugs.RESOURCE_MODIFIED.equals(e.getTypeSlug())) {
+        // changed since the read: read it again, reapply the edit, retry with the new ETag
+    }
+}
+```
+
+Send the tag exactly as received; without `If-Match` the update is applied unconditionally, and
+the last write wins.
+
 ## Uploading files
 
 `uploadImage` and `importCatalog` send `multipart/form-data`. Pass a `File` and the part gets its

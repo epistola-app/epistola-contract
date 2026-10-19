@@ -409,6 +409,18 @@ libraries.
 
 ### Fixed
 
+- **The Jakarta EE client can read an `ETag`.** Its generated MicroProfile Rest Client methods
+  return the body alone, so a caller could send `If-Match` but never read the tag to send. Every
+  operation whose success response declares `ETag` now has a sibling `<operation>WithHttpInfo`
+  returning `jakarta.ws.rs.core.Response` (17 operations: get and update of attributes, code lists,
+  stencils and their content, templates, themes, variants and their content, and
+  `setDefaultVariant`); the build fails if one stops matching. The other clients already exposed
+  it (`…WithHttpInfo`, `…_with_http_info`, `…Raw`).
+- **Conformance covers every operation contract 2.0 adds.** New scenarios drive
+  `getVariantContent` and `getStencilContent` (reading the `ETag` exactly, quotes included),
+  `updateStencilContent`, the four mark-ready operations, `getCatalogChanges`, `listStencilUsage`,
+  `listEnvironmentDeployments` and `listDeploymentHistory` in all five clients.
+
 - **The Jakarta EE client reads a null enum member as null.** The generated JSON-B enum
   deserializers read every value as a string, so a JSON `null` failed the whole response; the first
   nullable enum in the contract, `CatalogDraftReleasePreview.changeKind`, made a release preview of

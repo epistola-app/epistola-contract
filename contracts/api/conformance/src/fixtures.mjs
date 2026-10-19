@@ -67,6 +67,38 @@ const ACTION_OPERATIONS = {
     method: 'put',
     path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateKey}/variants/{variantKey}/content',
   },
+  'get-variant-content': {
+    method: 'get',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateKey}/variants/{variantKey}/content',
+  },
+  'mark-variant-ready': {
+    method: 'post',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateKey}/variants/{variantKey}/mark-ready',
+  },
+  'mark-template-ready': {
+    method: 'post',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateKey}/mark-ready',
+  },
+  'get-stencil-content': {
+    method: 'get',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilKey}/content',
+  },
+  'update-stencil-content': {
+    method: 'put',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilKey}/content',
+  },
+  'mark-stencil-ready': {
+    method: 'post',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilKey}/mark-ready',
+  },
+  'list-stencil-usage': {
+    method: 'get',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilKey}/usage',
+  },
+  'get-catalog-changes': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/changes' },
+  'mark-catalog-ready': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/mark-ready' },
+  'list-environment-deployments': { method: 'get', path: '/tenants/{tenantKey}/environments/{environmentKey}/deployments' },
+  'list-deployment-history': { method: 'get', path: '/tenants/{tenantKey}/environments/{environmentKey}/deployment-history' },
   'create-catalog-draft': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions' },
   'list-catalog-versions': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions' },
   'get-catalog-version': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}' },

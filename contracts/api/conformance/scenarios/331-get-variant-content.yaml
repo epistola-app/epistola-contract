@@ -1,0 +1,61 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: get-variant-content
+title: Reading a variant's content surfaces its ETag exactly as sent, quotes included
+why: >
+  Optimistic locking only works if a caller can read the `ETag` of a read and send it back as
+  `If-Match`. A client whose read operations hand back the body alone gives its callers no revision
+  to send, so every update they make is last-write-wins whatever the contract offers. The tag is a
+  quoted string (`"7"`); a client that strips the quotes, or reports a weak or parsed form, sends a
+  value the server does not match.
+
+  The content is a draft's, edited since its base and not marked ready: `status` is `modified` and
+  `readyAt` is null. A client must read the null as a missing instant, not refuse the response.
+
+action:
+  name: get-variant-content
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: next
+    templateKey: invoice
+    variantKey: english
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      ETag: '"7"'
+    body:
+      variantKey: english
+      templateModel:
+        modelVersion: 1
+        root: root
+        nodes: { root: { id: root, type: root, slots: [] } }
+        slots: {}
+        themeRef: { type: inherit }
+      status: modified
+      lastModified: "2026-10-18T09:15:00Z"
+      readyAt: null
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/next/templates/invoice/variants/english/content
+      query: ""
+      headers:
+        Accept:
+          contains: application/vnd.epistola.v2+json
+  report:
+    variantKey: english
+    templateModelRoot: root
+    status: modified
+    lastModified: "2026-10-18T09:15:00Z"
+    readyAt: "null"
+    etag: '"7"'

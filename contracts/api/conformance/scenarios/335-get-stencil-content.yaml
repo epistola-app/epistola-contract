@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: get-stencil-content
+title: Reading a stencil's content surfaces its ETag exactly as sent, and its parameter schema
+why: >
+  A stencil's content is updated under optimistic locking like a variant's, so a caller has to be
+  able to read the `ETag` of the read, quotes included, to send it back as `If-Match`.
+
+  The content carries the stencil's parameters as a free-form JSON Schema object. A client must
+  hand that object back as data its caller can read, not drop it or fail on it. This stencil is
+  marked ready, so `readyAt` is an instant.
+
+action:
+  name: get-stencil-content
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: next
+    stencilKey: corporate-header
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      ETag: '"12"'
+    body:
+      stencilKey: corporate-header
+      content:
+        modelVersion: 1
+        root: root
+        nodes: { root: { id: root, type: root, slots: [] } }
+        slots: {}
+        themeRef: { type: inherit }
+      parameterSchema:
+        type: object
+        properties:
+          recipientName: { type: string }
+        required: [recipientName]
+      status: ready
+      lastModified: "2026-10-16T08:00:00Z"
+      readyAt: "2026-10-16T08:30:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/next/stencils/corporate-header/content
+      query: ""
+      headers:
+        Accept:
+          contains: application/vnd.epistola.v2+json
+  report:
+    stencilKey: corporate-header
+    contentRoot: root
+    parameterSchemaType: object
+    status: ready
+    lastModified: "2026-10-16T08:00:00Z"
+    readyAt: "2026-10-16T08:30:00Z"
+    etag: '"12"'

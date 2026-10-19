@@ -13,7 +13,9 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -73,28 +75,37 @@ public final class StubServer implements AutoCloseable {
         final String contentType;
         final byte[] body;
         final String contentEncoding;
+        final Map<String, String> headers;
 
-        private StubResponse(int status, String contentType, byte[] body, String contentEncoding) {
+        private StubResponse(int status, String contentType, byte[] body, String contentEncoding, Map<String, String> headers) {
             this.status = status;
             this.contentType = contentType;
             this.body = body;
             this.contentEncoding = contentEncoding;
+            this.headers = headers;
         }
 
         public static StubResponse of(int status, String contentType, String body) {
-            return new StubResponse(status, contentType, body.getBytes(StandardCharsets.UTF_8), null);
+            return new StubResponse(status, contentType, body.getBytes(StandardCharsets.UTF_8), null, Map.of());
         }
 
         public static StubResponse of(int status, String contentType, byte[] body) {
-            return new StubResponse(status, contentType, body, null);
+            return new StubResponse(status, contentType, body, null, Map.of());
         }
 
         public StubResponse contentEncoding(String contentEncoding) {
-            return new StubResponse(status, contentType, body, contentEncoding);
+            return new StubResponse(status, contentType, body, contentEncoding, headers);
+        }
+
+        /** The same response with one more header, sent exactly as given. */
+        public StubResponse header(String name, String value) {
+            Map<String, String> more = new LinkedHashMap<>(headers);
+            more.put(name, value);
+            return new StubResponse(status, contentType, body, contentEncoding, more);
         }
 
         public static StubResponse noContent() {
-            return new StubResponse(204, null, new byte[0], null);
+            return new StubResponse(204, null, new byte[0], null, Map.of());
         }
     }
 
@@ -173,6 +184,7 @@ public final class StubServer implements AutoCloseable {
         if (response.contentEncoding != null) {
             exchange.getResponseHeaders().add("Content-Encoding", response.contentEncoding);
         }
+        response.headers.forEach((name, value) -> exchange.getResponseHeaders().add(name, value));
         // -1 means "no body"; 0 would mean "chunked with unknown length" to HttpServer.
         exchange.sendResponseHeaders(response.status, response.body.length == 0 ? -1 : response.body.length);
         if (response.body.length > 0) {

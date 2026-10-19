@@ -1,0 +1,56 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: list-environment-deployments
+title: Listing what an environment serves reads several releases of one catalog, used and unused
+why: >
+  An environment can serve several releases of one catalog, and the list is how an operator finds
+  the ones nobody uses any more before undeploying them. So each entry's usage has to be read
+  exactly: `lastUsedAt` is null for a release no request has used since it was deployed and an
+  instant otherwise, and `documentsRequested` is an int64 count. The count here is larger than a
+  32-bit integer holds, so a client that reads it into one overflows or fails.
+
+action:
+  name: list-environment-deployments
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    environmentKey: production
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      items:
+        - registry: exchange.epistola.app
+          namespace: acme-corp
+          catalogKey: letters
+          releaseVersion: 1.4.0
+          deployedAt: "2026-10-02T07:30:00Z"
+          lastUsedAt: "2026-10-17T14:05:00Z"
+          documentsRequested: 5000000000
+        - registry: exchange.epistola.app
+          namespace: acme-corp
+          catalogKey: letters
+          releaseVersion: 1.3.2
+          deployedAt: "2026-08-14T12:00:00Z"
+          lastUsedAt: null
+          documentsRequested: 0
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/environments/production/deployments
+      query: ""
+      headers:
+        Accept:
+          contains: application/vnd.epistola.v2+json
+  report:
+    registries: exchange.epistola.app,exchange.epistola.app
+    catalogKeys: letters,letters
+    releaseVersions: 1.4.0,1.3.2
+    deployedAt: 2026-10-02T07:30:00Z,2026-08-14T12:00:00Z
+    lastUsedAt: 2026-10-17T14:05:00Z,null
+    documentsRequested: 5000000000,0

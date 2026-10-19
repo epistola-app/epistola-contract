@@ -1,0 +1,54 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: mark-variant-ready
+title: Marking a variant ready posts to its address with no body, and reads back the ready content
+why: >
+  A catalog release refuses while any resource is modified and not ready, so marking ready is the
+  step every author takes before releasing. The request is addressed by its path alone: the
+  catalog, the draft, the template and the variant. The answer is the variant's content, now
+  `ready`, with the instant it was marked; a client that cannot read `ready` or the `readyAt`
+  instant cannot tell its caller the mark took.
+
+action:
+  name: mark-variant-ready
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: next
+    templateKey: invoice
+    variantKey: english
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      variantKey: english
+      templateModel:
+        modelVersion: 1
+        root: root
+        nodes: { root: { id: root, type: root, slots: [] } }
+        slots: {}
+        themeRef: { type: inherit }
+      status: ready
+      lastModified: "2026-10-18T09:15:00Z"
+      readyAt: "2026-10-18T09:20:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/next/templates/invoice/variants/english/mark-ready
+      query: ""
+      headers:
+        Accept:
+          contains: application/vnd.epistola.v2+json
+  report:
+    variantKey: english
+    status: ready
+    lastModified: "2026-10-18T09:15:00Z"
+    readyAt: "2026-10-18T09:20:00Z"

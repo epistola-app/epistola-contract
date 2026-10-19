@@ -1,0 +1,82 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: update-stencil-content
+title: Updating a stencil's content sends If-Match and the whole content, and surfaces the new ETag
+why: >
+  An update replaces the stencil's content and its parameter schema in full: an omitted
+  `parameterSchema` clears it. So both go out, the content as a template document and the schema as
+  the free-form object the caller gave, and the `ETag` read earlier goes out as `If-Match`, byte for
+  byte.
+
+  A successful update answers with the stencil's new revision as `ETag`. A caller making a second
+  edit needs that tag, so a client must surface it from the update as well as from a read. The edit
+  clears the ready mark: `status` is `modified` and `readyAt` null.
+
+action:
+  name: update-stencil-content
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: next
+    stencilKey: corporate-header
+    ifMatch: '"12"'
+    parameterSchema:
+      type: object
+      properties:
+        recipientName: { type: string }
+      required: [recipientName]
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      ETag: '"13"'
+    body:
+      stencilKey: corporate-header
+      content:
+        modelVersion: 1
+        root: root
+        nodes: { root: { id: root, type: root, slots: [] } }
+        slots: {}
+        themeRef: { type: inherit }
+      parameterSchema:
+        type: object
+        properties:
+          recipientName: { type: string }
+        required: [recipientName]
+      status: modified
+      lastModified: "2026-10-18T10:00:00Z"
+      readyAt: null
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PUT
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/next/stencils/corporate-header/content
+      headers:
+        if-match: '"12"'
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
+        Accept:
+          contains: application/vnd.epistola.v2+json
+      body:
+        json:
+          content:
+            modelVersion: 1
+            root: root
+            nodes: { root: { id: root, type: root } }
+          parameterSchema:
+            type: object
+            properties:
+              recipientName: { type: string }
+            required: [recipientName]
+  report:
+    stencilKey: corporate-header
+    status: modified
+    readyAt: "null"
+    etag: '"13"'

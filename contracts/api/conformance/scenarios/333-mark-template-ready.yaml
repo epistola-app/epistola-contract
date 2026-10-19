@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: mark-template-ready
+title: Marking a template ready posts to its address, and reads back each variant's status
+why: >
+  Marking a template ready marks every variant of it, and its data contract, in one action. The
+  answer is the template with each variant's status, which is what tells the caller whether the
+  template still blocks the release. A variant unchanged since the base stays `released`, so the
+  answer mixes `ready` and `released`; a client must read both, in order.
+
+action:
+  name: mark-template-ready
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: next
+    templateKey: invoice
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      key: invoice
+      tenantKey: acme-corp
+      name: Monthly Invoice
+      description: null
+      variants:
+        - { key: english, title: English Invoice, attributes: { locale: en-GB }, isDefault: true, status: ready }
+        - { key: dutch, title: Dutch Invoice, attributes: { locale: nl-NL }, isDefault: false, status: released }
+      createdAt: "2026-01-21T10:00:00Z"
+      lastModified: "2026-10-18T09:20:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/next/templates/invoice/mark-ready
+      query: ""
+      headers:
+        Accept:
+          contains: application/vnd.epistola.v2+json
+  report:
+    key: invoice
+    name: Monthly Invoice
+    variantKeys: english,dutch
+    variantStatuses: ready,released

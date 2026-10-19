@@ -1,0 +1,73 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: mark-stencil-ready
+title: Marking a stencil ready reads back the stencil and every instance that does not fit it
+why: >
+  Marking a stencil ready records that its content is reviewed, and nothing else: every instance
+  already renders the stencil as it is (ADR 0006). The answer names the instances the content
+  breaks in `notFitting`, each with `fits: false` and why, and those block the catalog release
+  until their template variant is edited. A client that drops `notFitting`, or misreads `fits`,
+  tells its caller the release can go ahead when it cannot.
+
+action:
+  name: mark-stencil-ready
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: next
+    stencilKey: corporate-header
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      stencil:
+        stencilKey: corporate-header
+        content:
+          modelVersion: 1
+          root: root
+          nodes: { root: { id: root, type: root, slots: [] } }
+          slots: {}
+          themeRef: { type: inherit }
+        parameterSchema: null
+        status: ready
+        lastModified: "2026-10-18T10:00:00Z"
+        readyAt: "2026-10-18T10:05:00Z"
+      notFitting:
+        - templateKey: invoice
+          templateName: Monthly Invoice
+          variantKey: dutch
+          fits: false
+          problems:
+            - fills placeholder logo, which the stencil no longer has
+            - leaves the required parameter recipientName unbound
+        - templateKey: reminder
+          templateName: Payment Reminder
+          variantKey: english
+          fits: false
+          problems:
+            - leaves the required parameter recipientName unbound
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/next/stencils/corporate-header/mark-ready
+      query: ""
+      headers:
+        Accept:
+          contains: application/vnd.epistola.v2+json
+  report:
+    stencilKey: corporate-header
+    status: ready
+    readyAt: "2026-10-18T10:05:00Z"
+    parameterSchemaType: "null"
+    # One entry per instance, as templateKey/variantKey:fits.
+    notFitting: invoice/dutch:false,reminder/english:false
+    # Problems are free text: each instance's joined with `|`, the instances with `;`.
+    notFittingProblems: fills placeholder logo, which the stencil no longer has|leaves the required parameter recipientName unbound;leaves the required parameter recipientName unbound
