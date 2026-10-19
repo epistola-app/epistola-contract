@@ -12,6 +12,7 @@ import app.epistola.client.api.GenerationApi
 import app.epistola.client.api.ImagesApi
 import app.epistola.client.api.SystemApi
 import app.epistola.client.api.TemplatesApi
+import app.epistola.client.api.VariantsApi
 import app.epistola.client.auth.ApiKeyAuth
 import app.epistola.client.auth.JwtSigner
 import app.epistola.client.collect.ResultCollector
@@ -33,6 +34,10 @@ import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.PingRequest
 import app.epistola.client.model.UpdateCatalogDependenciesRequest
 import app.epistola.client.model.UpdateConsumerRequest
+import app.epistola.client.model.Node
+import app.epistola.client.model.TemplateDocument
+import app.epistola.client.model.ThemeRef
+import app.epistola.client.model.UpdateVariantContentRequest
 import app.epistola.client.validation.schema.TemplateDataValidationException
 import app.epistola.client.validation.schema.TemplateSchemaValidator
 import com.fasterxml.jackson.databind.JsonNode
@@ -104,6 +109,7 @@ object Driver {
                 "clear-environment-override" -> clearEnvironmentOverride(baseUrl, config)
                 "create-environment" -> createEnvironment(baseUrl, config)
                 "update-environment" -> updateEnvironment(baseUrl, config)
+                "update-variant-content" -> updateVariantContent(baseUrl, config)
                 else -> error("unknown action $action")
             }
             done(baseUrl, null)
@@ -736,6 +742,38 @@ object Driver {
             config["namespace"].asText(),
             config["catalogKey"].asText(),
         )
+    }
+
+    /**
+     * Replaces a variant's content with a one-node template model, sending `config.ifMatch` as
+     * `If-Match` when present and no `If-Match` otherwise.
+     */
+    private fun updateVariantContent(baseUrl: String, config: ObjectNode) {
+        val content = try {
+            VariantsApi(restClient(baseUrl, config)).updateVariantContent(
+                config["tenantKey"].asText(),
+                config["registry"].asText(),
+                config["namespace"].asText(),
+                config["catalogKey"].asText(),
+                config["catalogVersion"].asText(),
+                config["templateKey"].asText(),
+                config["variantKey"].asText(),
+                UpdateVariantContentRequest(
+                    templateModel = TemplateDocument(
+                        modelVersion = TemplateDocument.ModelVersion._1,
+                        root = "root",
+                        nodes = mapOf("root" to Node(id = "root", type = "root", slots = emptyList())),
+                        slots = emptyMap(),
+                        themeRef = ThemeRef(type = ThemeRef.Type.inherit),
+                    ),
+                ),
+                ifMatch = config.optionalText("ifMatch"),
+            )
+        } catch (e: ProblemDetailException) {
+            report(baseUrl, mapOf("problemTypeSlug" to (e.typeSlug ?: "<null>"), "problemStatus" to e.statusCode.value()))
+            return
+        }
+        report(baseUrl, mapOf("variantKey" to content.variantKey))
     }
 
     /** Creates an environment; `production` is sent only when configured. */

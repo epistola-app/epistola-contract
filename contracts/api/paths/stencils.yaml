@@ -120,6 +120,9 @@ stencils-id:
     responses:
       '200':
         description: Stencil details
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -134,10 +137,15 @@ stencils-id:
   patch:
     operationId: updateStencil
     summary: Update a stencil
-    description: Update a stencil's metadata (name, description, tags).
+    description: |
+      Update a stencil's metadata (name, description, tags).
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
       required: true
       content:
@@ -147,6 +155,9 @@ stencils-id:
     responses:
       '200':
         description: Stencil updated successfully
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -161,6 +172,8 @@ stencils-id:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
 
   delete:
     operationId: deleteStencil
@@ -218,6 +231,9 @@ stencil-content:
     responses:
       '200':
         description: The stencil's content
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -235,9 +251,13 @@ stencil-content:
     description: |
       Replaces the stencil's content and parameters in the draft. Templates keep rendering the
       stencil's ready content until this content is marked ready.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_EDIT]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
       required: true
       content:
@@ -247,6 +267,9 @@ stencil-content:
     responses:
       '200':
         description: The updated content
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v1+json:
             schema:
@@ -261,6 +284,8 @@ stencil-content:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
 
 stencil-mark-ready:
   parameters:

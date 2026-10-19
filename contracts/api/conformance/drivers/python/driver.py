@@ -48,6 +48,8 @@ from epistola_client import (
     UpdateCatalogDependenciesRequest,
     UpdateConsumerRequest,
     UpdateEnvironmentRequest,
+    UpdateVariantContentRequest,
+    VariantsApi,
 )
 
 
@@ -91,6 +93,7 @@ def main() -> int:
         "clear-environment-override": _clear_environment_override,
         "create-environment": _create_environment,
         "update-environment": _update_environment,
+        "update-variant-content": _update_variant_content,
     }
 
     try:
@@ -607,6 +610,38 @@ def _undeploy_release(base_url: str, config: dict) -> None:
         config["catalogKey"],
         config["releaseVersion"],
     )
+
+
+def _update_variant_content(base_url: str, config: dict) -> None:
+    """Replaces a variant's content with a one-node template model, sending ``ifMatch`` as
+    ``If-Match`` only when the scenario sets it. A refusal is reported by its problem."""
+    request = UpdateVariantContentRequest.from_dict(
+        {
+            "templateModel": {
+                "modelVersion": 1,
+                "root": "root",
+                "nodes": {"root": {"id": "root", "type": "root", "slots": []}},
+                "slots": {},
+                "themeRef": {"type": "inherit"},
+            }
+        }
+    )
+    try:
+        content = VariantsApi(_client(base_url, config)).update_variant_content(
+            config["tenantKey"],
+            config["registry"],
+            config["namespace"],
+            config["catalogKey"],
+            config["catalogVersion"],
+            config["templateKey"],
+            config["variantKey"],
+            request,
+            if_match=config.get("ifMatch"),
+        )
+    except ProblemDetailException as exc:
+        _report(base_url, {"problemTypeSlug": exc.type_slug or "<null>", "problemStatus": exc.status_code})
+        return
+    _report(base_url, {"variantKey": content.variant_key})
 
 
 def _set_environment_override(base_url: str, config: dict) -> None:

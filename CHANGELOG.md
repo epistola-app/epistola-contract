@@ -11,6 +11,18 @@ libraries.
 
 ### Added
 
+- **Optimistic locking with `ETag` and `If-Match`.** Templates, variants, themes, stencils, code
+  lists and attributes carry a revision, returned as a strong `ETag` response header (a quoted
+  decimal integer, e.g. `"7"`) by `getTemplate`, `getVariant`, `getVariantContent`, `getTheme`,
+  `getStencil`, `getStencilContent`, `getCodeList` and `getAttribute`, and on the 200 of a
+  successful update. `updateTemplate`, `updateVariant`, `updateVariantContent`, `setDefaultVariant`
+  (the `ETag` of the variant being made default), `updateTheme`, `updateStencil`,
+  `updateStencilContent`, `updateCodeList` and `updateAttribute` take an optional `If-Match` header:
+  when it no longer matches, the update is refused with 412 `resource-modified` (a new problem type,
+  `ResourceModifiedError`) and nothing changes. Without `If-Match` an update applies as before, last
+  write wins. A template's `ETag` covers its own properties; a variant's covers its title,
+  attributes and template model, whether read through `getVariant` or `getVariantContent`. New
+  reusable components: the `IfMatch` parameter and the `ETag` response header.
 - **Long-term work becomes the next version; it is not released** (ADR 0002, amendment 2).
   `promoteCatalogDraft` (`{keepPreviousAs?, acknowledgedBehind?}`) makes long-term work the next
   version, which is then released like any next version. Releasing long-term work is refused with

@@ -35,5 +35,6 @@ public class ProblemRegistryTest
         Assert.Equal("release-dependencies-missing", KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING);
         Assert.Equal("catalog-draft-kind", KnownProblemSlugs.CATALOG_DRAFT_KIND);
         Assert.Equal("environment-override-refused", KnownProblemSlugs.ENVIRONMENT_OVERRIDE_REFUSED);
+        Assert.Equal("resource-modified", KnownProblemSlugs.RESOURCE_MODIFIED);
     }
 }

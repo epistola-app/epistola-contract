@@ -30,6 +30,7 @@ const {
   TemplateDataValidationException,
   TemplateSchemaValidator,
   TemplatesApi,
+  VariantsApi,
 } = await import(CLIENT)
 
 const ACTIONS = {
@@ -63,6 +64,7 @@ const ACTIONS = {
   'clear-environment-override': clearEnvironmentOverride,
   'create-environment': createEnvironment,
   'update-environment': updateEnvironment,
+  'update-variant-content': updateVariantContent,
 }
 
 process.exit(await main())
@@ -583,6 +585,40 @@ async function setEnvironmentOverride(baseUrl, config) {
     draftLabel: show(override.draftLabel),
     setAt: showInstant(override.setAt),
   })
+}
+
+/**
+ * Replaces a variant's content with a one-node template model, sending `config.ifMatch` as `If-Match`
+ * when present and no `If-Match` otherwise.
+ */
+async function updateVariantContent(baseUrl, config) {
+  let content
+  try {
+    content = await new VariantsApi(client(baseUrl, config)).updateVariantContent({
+      tenantKey: config.tenantKey,
+      registry: config.registry,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      catalogVersion: config.catalogVersion,
+      templateKey: config.templateKey,
+      variantKey: config.variantKey,
+      updateVariantContentRequest: {
+        templateModel: {
+          modelVersion: 1,
+          root: 'root',
+          nodes: { root: { id: 'root', type: 'root', slots: [] } },
+          slots: {},
+          themeRef: { type: 'inherit' },
+        },
+      },
+      ...(config.ifMatch !== undefined ? { ifMatch: config.ifMatch } : {}),
+    })
+  } catch (error) {
+    if (!(error instanceof ProblemDetailException)) throw error
+    await report(baseUrl, { problemTypeSlug: error.typeSlug ?? '<null>', problemStatus: error.statusCode })
+    return
+  }
+  await report(baseUrl, { variantKey: show(content.variantKey) })
 }
 
 async function listEnvironmentOverrides(baseUrl, config) {

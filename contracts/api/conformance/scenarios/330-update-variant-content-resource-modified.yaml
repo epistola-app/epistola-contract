@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: update-variant-content-resource-modified
+title: An update sends If-Match as given, and a stale one surfaces as resource-modified
+why: >
+  Optimistic locking only protects an edit if the client sends the `ETag` it read as `If-Match`,
+  byte for byte, quotes included: a client that drops the header, or strips the quotes, turns every
+  conditional update back into last-write-wins without anyone noticing. When the variant changed
+  since that read, the server refuses with 412 `resource-modified` and nothing changed. A client
+  must surface that slug, which tells the caller to read the variant again and reapply the change,
+  rather than a bare failure an integration would retry unchanged.
+
+action:
+  name: update-variant-content
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: next
+    templateKey: invoice
+    variantKey: english
+    ifMatch: '"7"'
+
+script:
+  - status: 412
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/resource-modified
+      title: Resource Modified
+      status: 412
+      detail: "The resource changed since revision 7 was read; it is now at revision 8"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PUT
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/next/templates/invoice/variants/english/content
+      headers:
+        if-match: '"7"'
+      body:
+        json:
+          templateModel:
+            modelVersion: 1
+            root: root
+  report:
+    problemTypeSlug: resource-modified
+    problemStatus: 412

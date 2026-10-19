@@ -33,6 +33,7 @@ Clients must ignore members they do not recognize.
 | `https://epistola.app/errors/release-dependencies-missing` | `release-dependencies-missing` | 409 | `ProblemDetail` + `missingDependencies` | a release cannot be deployed because the environment does not serve the releases of other catalogs it renders with; the `missingDependencies` member lists each one with its `reason`. Deploying with `includeDependencies=true` deploys them along instead |
 | `https://epistola.app/errors/catalog-draft-kind` | `catalog-draft-kind` | 409 | `ProblemDetail` | the operation does not apply to this kind of draft: releasing long-term work, which is released only after `promoteCatalogDraft` makes it the next version |
 | `https://epistola.app/errors/environment-override-refused` | `environment-override-refused` | 409 | `ProblemDetail` | an environment override cannot be set: a draft on a production environment, or a release the environment does not serve; or an environment that follows a draft is marked production |
+| `https://epistola.app/errors/resource-modified` | `resource-modified` | 412 | `ProblemDetail` | an update sent `If-Match` with an `ETag` that is no longer current: the resource changed since it was read, and nothing changed. Read it again, reapply the change and retry with the new `ETag` |
 | `https://epistola.app/errors/data-model-validation-error` | `data-model-validation-error` | 422 | `ProblemDetail` + `validationErrors` | the request is well-formed but semantically invalid: supplied data examples do not validate against the data model; the `validationErrors` member maps each example name to its failures |
 | `https://epistola.app/errors/rate-limited` | `rate-limited` | 429 | `ProblemDetail` | too many requests; a `Retry-After` header indicates how long to wait |
 
@@ -62,6 +63,28 @@ A `validation-error` problem extends the base shape with an `errors` array. Each
   ]
 }
 ```
+
+## Resource modified (optimistic locking)
+
+Templates, variants, themes, stencils, code lists and attributes carry a revision, returned as a
+strong `ETag` response header (a quoted decimal integer, e.g. `"7"`) on their `GET` and on a
+successful update. An update that sends that value back as `If-Match` is applied only if the
+resource has not changed since; otherwise the server answers 412 `resource-modified` and changes
+nothing:
+
+```json
+{
+  "type": "https://epistola.app/errors/resource-modified",
+  "title": "Resource Modified",
+  "status": 412,
+  "detail": "The resource changed since revision 7 was read; it is now at revision 8"
+}
+```
+
+Read the resource again, reapply your change to what you read, and retry with the new `ETag`. Do
+not retry the same request unchanged: it would only be refused again, or, without `If-Match`,
+overwrite the other change. `If-Match` is optional; an update without it is applied
+unconditionally, and the last write wins.
 
 ## Handling problems in the generated clients
 

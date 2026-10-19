@@ -55,6 +55,21 @@ ConflictError:
         status: 409
         detail: The request conflicts with the current state of the resource
 
+ResourceModifiedError:
+  description: >-
+    The resource changed since the `ETag` sent as `If-Match` was read, so the update was refused and
+    nothing changed. Read the resource again, reapply your change to what you read, and send the
+    update with the new `ETag`.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ProblemDetail'
+      example:
+        type: https://epistola.app/errors/resource-modified
+        title: Resource Modified
+        status: 412
+        detail: "The resource changed since revision 7 was read; it is now at revision 8"
+
 ReleaseDependenciesMissingError:
   description: >-
     The request conflicts with the current state of the resource. When the release renders with

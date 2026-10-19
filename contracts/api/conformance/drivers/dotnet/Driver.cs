@@ -73,6 +73,7 @@ public static class Driver
                 case "clear-environment-override": ClearEnvironmentOverride(baseUrl, config); break;
                 case "create-environment": CreateEnvironment(baseUrl, config); break;
                 case "update-environment": UpdateEnvironment(baseUrl, config); break;
+                case "update-variant-content": UpdateVariantContent(baseUrl, config); break;
                 default: throw new ArgumentException($"unknown action {instruction.GetProperty("action")}");
             }
 
@@ -764,6 +765,41 @@ public static class Driver
         new EnvironmentsApi(http, apiBase).ClearEnvironmentOverride(
             Str(config, "tenantKey"), Str(config, "environmentKey"),
             Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"));
+    }
+
+    /// <summary>
+    /// Replaces a variant's content with a one-node template model, sending <c>config.ifMatch</c>
+    /// as <c>If-Match</c> when present and no <c>If-Match</c> otherwise.
+    /// </summary>
+    private static void UpdateVariantContent(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        VariantContentDto content;
+        try
+        {
+            content = new VariantsApi(http, apiBase).UpdateVariantContent(
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"),
+                Str(config, "catalogKey"), Str(config, "catalogVersion"),
+                Str(config, "templateKey"), Str(config, "variantKey"),
+                new UpdateVariantContentRequest(new TemplateDocument(
+                    modelVersion: TemplateDocument.ModelVersionEnum.NUMBER_1,
+                    root: "root",
+                    nodes: new Dictionary<string, Node> { ["root"] = new Node(id: "root", type: "root", slots: new List<string>()) },
+                    slots: new Dictionary<string, Slot>(),
+                    themeRef: new ThemeRef(type: ThemeRef.TypeEnum.Inherit))),
+                ifMatch: OptStr(config, "ifMatch"));
+        }
+        catch (ProblemDetailException e)
+        {
+            Report(baseUrl, new Dictionary<string, object>
+            {
+                ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
+                ["problemStatus"] = (int)e.StatusCode,
+            });
+            return;
+        }
+
+        Report(baseUrl, new Dictionary<string, object> { ["variantKey"] = Show(content.VariantKey) });
     }
 
     /// <summary>Creates an environment; <c>production</c> keeps its default when the scenario does not name it.</summary>
