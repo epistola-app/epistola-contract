@@ -19,7 +19,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+    versionId: r4t8w2nc
 
 script:
   - status: 409
@@ -37,7 +37,7 @@ expect:
       path: /api/tenants/acme-corp/environments/production/overrides/~/acme-corp/letters
       body:
         json:
-          catalogVersion: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+          versionId: r4t8w2nc
         jsonAbsent: [releaseVersion]
   report:
     problemTypeSlug: environment-override-refused

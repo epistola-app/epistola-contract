@@ -332,7 +332,7 @@ EnvironmentOverrideDto:
   type: object
   description: |
     Which version of a catalog an environment uses as its latest, in place of the highest release it
-    serves: one of those releases (`releaseVersion`), or a draft of the catalog (`draftId`), rendered
+    serves: one of those releases (`releaseVersion`), or a draft of the catalog (`versionId`), rendered
     live with no release. A generation or preview request through the environment that names no
     version, or a version range, gets it; one naming an exact release still gets that release.
   required:
@@ -377,12 +377,15 @@ EnvironmentOverrideDto:
       maxLength: 50
       description: The release the environment uses, one it serves. Null when it follows a draft.
       example: null
-    draftId:
+    versionId:
       type: [string, "null"]
-      format: uuid
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 4
+      maxLength: 36
       description: |
-        The draft the environment follows, rendered live. Null when it uses a release.
-      example: "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"
+        The draft the environment follows, rendered live, by its `versionId` (a
+        `CatalogVersionId`). Null when it uses a release.
+      example: k7m2x9qa
     draftLabel:
       type: [string, "null"]
       maxLength: 100
@@ -410,7 +413,7 @@ SetEnvironmentOverrideRequest:
   type: object
   description: |
     What the environment uses for the catalog: exactly one of `releaseVersion` (a release) and
-    `catalogVersion` (a draft). Neither, or both, is refused with 400.
+    `versionId` (a draft). Neither, or both, is refused with 400.
   properties:
     releaseVersion:
       type: [string, "null"]
@@ -420,11 +423,14 @@ SetEnvironmentOverrideRequest:
         An exact release the environment serves, such as an earlier one to roll back to. A release
         it does not serve is refused with 409 (`environment-override-refused`).
       example: null
-    catalogVersion:
+    versionId:
       type: [string, "null"]
-      pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 4
       maxLength: 36
       description: |
-        A draft of the catalog, by its `draftId`, rendered live with no release. Refused with 409
-        (`environment-override-refused`) on a production environment.
-      example: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+        A draft of the catalog, by its `versionId` (a `CatalogVersionId`), rendered live with no
+        release. Refused with 409 (`environment-override-refused`) on a production environment. The
+        `versionId` of a released version names that release, exactly as its `releaseVersion`
+        would.
+      example: k7m2x9qa

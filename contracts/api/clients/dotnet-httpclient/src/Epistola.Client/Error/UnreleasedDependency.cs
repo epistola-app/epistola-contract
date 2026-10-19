@@ -31,17 +31,17 @@ public sealed class UnreleasedDependency
     public string CatalogKey { get; }
 
     /// <summary>The id of the draft the declaration names.</summary>
-    public string DraftId { get; }
+    public string VersionId { get; }
 
     /// <summary>The draft's name, as the server sent it.</summary>
     public string DraftName { get; }
 
-    public UnreleasedDependency(string registry, string @namespace, string catalogKey, string draftId, string draftName)
+    public UnreleasedDependency(string registry, string @namespace, string catalogKey, string versionId, string draftName)
     {
         Registry = registry;
         Namespace = @namespace;
         CatalogKey = catalogKey;
-        DraftId = draftId;
+        VersionId = versionId;
         DraftName = draftName;
     }
 
@@ -62,15 +62,15 @@ public sealed class UnreleasedDependency
         var registry = Text("registry");
         var ns = Text("namespace");
         var catalogKey = Text("catalogKey");
-        var draftId = Text("draftId");
+        var versionId = Text("versionId");
         var draftName = Text("draftName");
-        if (registry == null || ns == null || catalogKey == null || draftId == null || draftName == null)
+        if (registry == null || ns == null || catalogKey == null || versionId == null || draftName == null)
         {
             return null;
         }
-        return new UnreleasedDependency(registry, ns, catalogKey, draftId, draftName);
+        return new UnreleasedDependency(registry, ns, catalogKey, versionId, draftName);
     }
 
     /// <inheritdoc/>
-    public override string ToString() => $"{Registry}/{Namespace}/{CatalogKey}#{DraftId}={DraftName}";
+    public override string ToString() => $"{Registry}/{Namespace}/{CatalogKey}#{VersionId}={DraftName}";
 }

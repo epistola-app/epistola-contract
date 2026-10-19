@@ -96,7 +96,10 @@ example keys among them, are `CatalogKeys` (`PATTERN`, `MIN_LENGTH`, `MAX_LENGTH
 `isValid`, the migration's `migrate`, and `deriveDataExampleKey`) and
 `CATALOG_RESOURCE_KEY_PATTERN`, `MIN_CATALOG_RESOURCE_KEY_LENGTH` and
 `MAX_CATALOG_RESOURCE_KEY_LENGTH`; the template description limit is
-`TemplateResource.MAX_DESCRIPTION_LENGTH` and `MAX_TEMPLATE_DESCRIPTION_LENGTH`.
+`TemplateResource.MAX_DESCRIPTION_LENGTH` and `MAX_TEMPLATE_DESCRIPTION_LENGTH`; where an archive
+carries a release it pins is `CatalogDependencyArchivePaths` and
+`CATALOG_DEPENDENCY_ARCHIVE_PATH_PATTERN`, `parseCatalogDependencyArchivePath` and
+`catalogDependencyArchivePath`.
 Producers should use these rather than their own copies.
 
 ## Build

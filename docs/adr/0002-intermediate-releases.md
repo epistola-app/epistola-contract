@@ -87,8 +87,11 @@ Adopt **option C**.
 
 - A **draft** is editable. A **released** version is immutable: every write to it is refused with
   `409`.
-- A draft has no number. It is identified by an opaque `draftId`. A released version is identified
-  by its SemVer number, `MAJOR.MINOR.PATCH`, unique in its catalog.
+- Every version has an opaque **`versionId`**, assigned by the server when it is started as a draft
+  and kept when it is released; a release installed by import or upgrade gets one when it is
+  installed. A draft has no number yet, so it is identified by its `versionId` alone. A released
+  version is identified by its `versionId` or by its SemVer number, `MAJOR.MINOR.PATCH`, unique in
+  its catalog, interchangeably: both address the same version.
 - Only released versions are deployed, exported or published, and version selectors (`^1.4.0`)
   never match a draft. A draft is rendered only by preview and by an environment that follows it
   (see "Trying work: environment overrides").
@@ -96,7 +99,7 @@ Adopt **option C**.
 ### Drafts
 
 - An authored catalog has **any number of drafts**, none special. A subscribed catalog has none.
-- A draft has a `draftId` (its address), a **name** unique among the catalog's drafts, and a fixed
+- A draft has a `versionId` (its address), a **name** unique among the catalog's drafts, and a fixed
   **base**: the release it started from, which its changes are measured against and its number
   follows from. The base is null when the catalog had no release yet.
 - A draft is started (`createCatalogDraft {name, from?}`) as a copy of a **release**, which becomes
@@ -130,9 +133,9 @@ Adopt **option C**.
   change, and moving to another release of a dependency is breaking only when that release breaks a
   resource this catalog uses (see "Dependencies are exact"), whatever the step in the dependency's
   number.
-- **The released draft becomes the released version** at that number, immutable. Its `draftId`
-  addresses nothing any more: a request to it gets `404`. Environment overrides that followed it
-  end.
+- **The released draft becomes the released version** at that number, immutable. Its `versionId`
+  stays and addresses the release, as the number does: a write through either is refused with
+  `409`, never `404`. Environment overrides that followed it end.
 
 ### A draft can be behind
 
@@ -180,7 +183,7 @@ A release pins exact releases of the catalogs it uses (ADR 0003). While authorin
 on another catalog's work that is not released yet:
 
 - In a **draft**, a dependency declaration names either a release (`releaseVersion`) or a draft of
-  the other catalog (`draftId`), exactly one. The draft then renders with that draft, live.
+  the other catalog (`versionId`), exactly one. The draft then renders with that draft, live.
 - A **release never pins a draft**, so the catalog archive and exchanges only ever carry releases.
 - Releasing a draft whose declarations name drafts is refused with `409`
   (`release-dependencies-unreleased`), listing each such draft, directly or through those drafts'
@@ -220,9 +223,11 @@ on another catalog's work that is not released yet:
 
 - **Work in progress is never published to an exchange.** An exchange carries what other
   installations build on, which is releases.
-- **An export can carry what a release uses** ([catalog bundle](../catalog-bundle.md)): one file
-  with the release and the releases it pins, transitively, installed dependencies first. It is how a
-  catalog moves to an installation that does not reach an exchange.
+- **An export can carry what a release uses**: a catalog archive may contain the releases it pins,
+  transitively, each an ordinary catalog archive at
+  `dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip`
+  ([catalog archive](../../contracts/catalog/docs/catalog-archive.md)). Importing it installs the
+  dependencies first. It is how a catalog moves to an installation that does not reach an exchange.
 
 ## API
 
@@ -236,14 +241,17 @@ A catalog version is addressed by one path segment, `{catalogVersion}`:
 …
 ```
 
-`{catalogVersion}` is a `draftId` (a draft) or an exact SemVer number (a released version,
-read-only). A UUID and a SemVer number never collide, so drafts and releases share one segment and
-every resource path stays where it is.
+`{catalogVersion}` is a `versionId` (a draft, or a released version) or an exact SemVer number (a
+released version); a released version is read-only whichever way it is addressed. A `versionId`
+never contains a dot and a SemVer number always does, so they never collide: drafts and releases
+share one segment and every resource path stays where it is. A `versionId` is lowercase letters,
+digits and single hyphens, 4 to 36 characters (`CatalogVersionId`); a UUID fits, but a short random
+id such as `k7m2x9qa` is recommended, because people read and type it.
 
 | Operation | Request | Notes |
 | --- | --- | --- |
 | `listCatalogVersions` | `GET …/versions?status=` | Drafts (oldest first), then released versions (highest first) |
-| `createCatalogDraft` | `POST …/versions` `{name, from?}` | `from` a release number or a draft id; default the highest release |
+| `createCatalogDraft` | `POST …/versions` `{name, from?}` | `from` a release number or a `versionId`; default the highest release |
 | `getCatalogVersion` | `GET …/versions/{catalogVersion}` | Status, base, name, what a draft is behind; for a release its dependencies and the environments that serve it |
 | `renameCatalogDraft` | `PATCH …/versions/{catalogVersion}` `{name}` | Any draft |
 | `deleteCatalogDraft` | `DELETE …/versions/{catalogVersion}` | Any draft |
@@ -255,22 +263,24 @@ Environment overrides:
 | Operation | Request | Notes |
 | --- | --- | --- |
 | `listEnvironmentOverrides` | `GET …/environments/{environmentKey}/overrides` | At most one per catalog |
-| `setEnvironmentOverride` | `PUT …/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}` `{releaseVersion? \| catalogVersion?}` | Exactly one; `catalogVersion` is a draft id; a draft on a production environment is refused (`environment-override-refused`) |
+| `setEnvironmentOverride` | `PUT …/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}` `{releaseVersion? \| versionId?}` | Exactly one; `versionId` names a draft; a draft on a production environment is refused (`environment-override-refused`) |
 | `clearEnvironmentOverride` | `DELETE …/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}` | Idempotent |
 
 - **Every resource path of the catalog's content is under `…/versions/{catalogVersion}/`,** and so
   are `getCatalogChanges`, `markCatalogReady` and the dependency operations. Reads work on any
   version. Writes and ready marks work on drafts only, and are refused with `409` on a released
   version.
-- `CatalogDto.drafts` lists the open drafts (`CatalogDraftSummary`: id, name, base).
+- `CatalogDto.drafts` lists the open drafts (`CatalogDraftSummary`: `versionId`, name, base).
+  `CatalogVersionDto` carries `versionId` for every version and `version`, its number, once
+  released.
 - `CatalogDependencyRequirement` and `CatalogDependencyDto` carry `releaseVersion` or, in a draft,
-  `draftId`.
+  `versionId`.
 - `EnvironmentDto.production` marks a production environment.
 - Deployments, generation and results address released versions by number, and keep the name
-  `releaseVersion` where they mean one. A document rendered from a draft carries `draftId` and
+  `releaseVersion` where they mean one. A document rendered from a draft carries `versionId` and
   `draftLabel` with a null `releaseVersion`. `validateTemplateData` stays on the catalog, because
   it selects a release by version selector and environment, as generation does.
-- Preview renders a draft named by its `draftId`.
+- Preview renders a draft named by its `versionId`.
 - `importCatalog` never touches a draft. It installs the release the archive carries, at its number,
   next to the catalog's other releases (ADR 0003): already present with the same fingerprint, nothing
   changes; the same number with a different fingerprint is refused with 409. A catalog the import

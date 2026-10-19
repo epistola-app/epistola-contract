@@ -56,8 +56,8 @@ templates = TemplatesApi(http)
 template = templates.get_template("acme", "~", "acme", "invoices", "1.4.0", "invoice")
 ```
 
-Everything in a catalog is addressed through one of its versions: a draft by its draft id, a
-release by its exact SemVer number. A catalog can have any number of drafts, and a draft is numbered
+Everything in a catalog is addressed through one of its versions, by its `version_id` or, once
+released, by its exact SemVer number: a version keeps its id when it is released. A catalog can have any number of drafts, and a draft is numbered
 when it is released. `CatalogsApi` lists and reads those versions, starts drafts (from a release or
 another draft), renames and discards them, and previews and releases any of them
 (`create_catalog_draft`, `preview_catalog_draft_release`, `release_catalog_draft`, …).
@@ -116,7 +116,7 @@ except ProblemDetailException as e:
         case KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED:
             for d in e.unreleased_dependencies:  # 409 from release_catalog_draft
                 log.warning("%s/%s/%s uses draft %s (%s)", d.registry, d.namespace,
-                            d.catalog_key, d.draft_name, d.draft_id)
+                            d.catalog_key, d.draft_name, d.version_id)
         case _:
             raise                              # unknown / framework error — fall back to status
 ```
@@ -129,7 +129,7 @@ except ProblemDetailException as e:
 `is_release_dependencies_missing_problem` and `is_release_dependencies_unreleased_problem`. Each
 `missing_dependencies` entry is a `MissingDependency` whose `reason` is the wire string, so a
 reason a later contract adds is reported rather than lost. Each `unreleased_dependencies` entry is
-an `UnreleasedDependency(registry, namespace, catalog_key, draft_id, draft_name)`: a draft of
+an `UnreleasedDependency(registry, namespace, catalog_key, version_id, draft_name)`: a draft of
 another catalog to release first, or along with the release (`releaseDependencies`).
 
 ## Result collection
@@ -162,7 +162,7 @@ from epistola_client import ImagesApi
 
 with open("logo.png", "rb") as f:
     image = ImagesApi(http).upload_image(
-        "acme-corp", "~", "acme-corp", "main", "0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b",
+        "acme-corp", "~", "acme-corp", "main", "k7m2x9qa",
         ("logo.png", f.read()), name="Logo"
     )
 ```

@@ -73,7 +73,8 @@ ResourceModifiedError:
 ReleaseDependenciesMissingError:
   description: >-
     The request conflicts with the current state of the resource. When the release renders with
-    releases of other catalogs that the tenant does not have and that cannot be fetched, the problem is
+    releases of other catalogs that the tenant does not have, that an imported archive does not
+    carry, and that cannot be fetched, the problem is
     `release-dependencies-missing` and `missingDependencies` lists each one and why. Other conflicts
     use `conflict`.
   content:
@@ -112,7 +113,7 @@ ReleaseDependenciesUnreleasedError:
           - registry: exchange.epistola.app
             namespace: acme-corp
             catalogKey: branding
-            draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+            versionId: r4t8w2nc
             draftName: House style 2027
 
 EnvironmentOverrideRefusedError:

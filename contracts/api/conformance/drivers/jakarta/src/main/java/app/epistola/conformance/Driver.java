@@ -515,7 +515,7 @@ public final class Driver {
                         .namespace(dependency.getString("namespace"))
                         .catalogKey(dependency.getString("catalogKey"))
                         .releaseVersion(optional(dependency, "releaseVersion"))
-                        .draftId(optionalUuid(dependency, "draftId")))
+                        .versionId(optional(dependency, "versionId")))
                 .collect(Collectors.toList());
 
         List<CatalogDependencyDto> items = clients(baseUrl, config)
@@ -535,7 +535,7 @@ public final class Driver {
     /**
      * Reports declared dependencies as parsed. A declaration that names a draft, or pins no release
      * (migrated from wire v7), has a null {@code releaseVersion}, and one that pins a release a null
-     * {@code draftId}; each is reported as {@code null} rather than lost.
+     * {@code versionId}; each is reported as {@code null} rather than lost.
      */
     private static void reportDependencies(String baseUrl, List<CatalogDependencyDto> items) {
         report(
@@ -545,7 +545,7 @@ public final class Driver {
                         "namespaces", joined(items, CatalogDependencyDto::getNamespace),
                         "catalogKeys", joined(items, CatalogDependencyDto::getCatalogKey),
                         "releaseVersions", joined(items, CatalogDependencyDto::getReleaseVersion),
-                        "draftIds", joined(items, dependency -> String.valueOf(dependency.getDraftId()))));
+                        "versionIds", joined(items, dependency -> String.valueOf(dependency.getVersionId()))));
     }
 
     private static void createCatalogDraft(String baseUrl, JsonObject config) {
@@ -563,7 +563,7 @@ public final class Driver {
                 baseUrl,
                 Map.of(
                         "version", String.valueOf(version.getVersion()),
-                        "draftId", String.valueOf(version.getDraftId()),
+                        "versionId", String.valueOf(version.getVersionId()),
                         "name", String.valueOf(version.getName()),
                         "status", String.valueOf(version.getStatus()),
                         "base", String.valueOf(version.getBase()),
@@ -588,7 +588,7 @@ public final class Driver {
                 baseUrl,
                 Map.of(
                         "versions", joined(versions, CatalogVersionDto::getVersion),
-                        "draftIds", joined(versions, version -> String.valueOf(version.getDraftId())),
+                        "versionIds", joined(versions, version -> String.valueOf(version.getVersionId())),
                         "names",
                                 versions.stream()
                                         .map(version -> String.valueOf(version.getName()))
@@ -614,7 +614,7 @@ public final class Driver {
                 baseUrl,
                 Map.ofEntries(
                         Map.entry("version", String.valueOf(version.getVersion())),
-                        Map.entry("draftId", String.valueOf(version.getDraftId())),
+                        Map.entry("versionId", String.valueOf(version.getVersionId())),
                         Map.entry("name", String.valueOf(version.getName())),
                         Map.entry("status", String.valueOf(version.getStatus())),
                         Map.entry("releasedAt", instant(version.getReleasedAt())),
@@ -666,7 +666,7 @@ public final class Driver {
                 baseUrl,
                 Map.of(
                         "version", String.valueOf(version.getVersion()),
-                        "draftId", String.valueOf(version.getDraftId()),
+                        "versionId", String.valueOf(version.getVersionId()),
                         "name", String.valueOf(version.getName()),
                         "status", String.valueOf(version.getStatus()),
                         "base", String.valueOf(version.getBase())));
@@ -739,7 +739,7 @@ public final class Driver {
                                     e.getUnreleasedDependencies().stream()
                                             .map(dependency -> dependency.getRegistry() + "/"
                                                     + dependency.getNamespace() + "/" + dependency.getCatalogKey()
-                                                    + "#" + dependency.getDraftId() + "=" + dependency.getDraftName())
+                                                    + "#" + dependency.getVersionId() + "=" + dependency.getDraftName())
                                             .collect(Collectors.joining("|"))));
             return;
         }
@@ -751,7 +751,7 @@ public final class Driver {
                 Map.of(
                         "version", String.valueOf(response.getCatalogVersion().getVersion()),
                         "status", String.valueOf(response.getCatalogVersion().getStatus()),
-                        "draftId", String.valueOf(response.getCatalogVersion().getDraftId()),
+                        "versionId", String.valueOf(response.getCatalogVersion().getVersionId()),
                         "draftsBehind", String.join("|", draftsBehind),
                         "releasedDependencies",
                                 joined(
@@ -852,7 +852,7 @@ public final class Driver {
                             config.getString("catalogKey"),
                             new SetEnvironmentOverrideRequest()
                                     .releaseVersion(optional(config, "releaseVersion"))
-                                    .catalogVersion(optional(config, "catalogVersion")));
+                                    .versionId(optional(config, "versionId")));
         } catch (ProblemDetailException e) {
             report(
                     baseUrl,
@@ -869,7 +869,7 @@ public final class Driver {
                         "namespace", String.valueOf(override.getNamespace()),
                         "catalogKey", String.valueOf(override.getCatalogKey()),
                         "releaseVersion", String.valueOf(override.getReleaseVersion()),
-                        "draftId", String.valueOf(override.getDraftId()),
+                        "versionId", String.valueOf(override.getVersionId()),
                         "draftLabel", String.valueOf(override.getDraftLabel()),
                         "setAt", instant(override.getSetAt())));
     }
@@ -890,9 +890,9 @@ public final class Driver {
                                 overrides.stream()
                                         .map(o -> String.valueOf(o.getReleaseVersion()))
                                         .collect(Collectors.joining(",")),
-                        "draftIds",
+                        "versionIds",
                                 overrides.stream()
-                                        .map(o -> String.valueOf(o.getDraftId()))
+                                        .map(o -> String.valueOf(o.getVersionId()))
                                         .collect(Collectors.joining(",")),
                         "draftLabels",
                                 overrides.stream()
@@ -1255,12 +1255,6 @@ public final class Driver {
 
     private static Boolean optionalBoolean(JsonObject config, String key) {
         return config.containsKey(key) && !config.isNull(key) ? config.getBoolean(key) : null;
-    }
-
-    /** A draft id the scenario may leave out; absent stays null, so the request leaves it off the wire. */
-    private static UUID optionalUuid(JsonObject config, String key) {
-        String value = optional(config, key);
-        return value == null ? null : UUID.fromString(value);
     }
 
     private static String optional(JsonObject config, String key) {

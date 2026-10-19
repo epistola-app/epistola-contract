@@ -5,9 +5,9 @@
 id: get-draft-behind
 title: A draft, addressed by its id, says which releases it is behind, and what they changed
 why: >
-  A draft has no number until it is released, so it is addressed by its `draftId`, a UUID, in the
-  same path segment that takes a release's number (ADR 0002). A client must send the id as given,
-  lowercase and with its hyphens.
+  A draft has no number until it is released, so it is addressed by its `versionId`, an opaque
+  id, in the same path segment that takes a release's number (ADR 0002). A client must send the id
+  as given.
 
   Drafts are independent copies; nothing is merged between them. "Redesign 2027" was started from
   `1.4.0` and holds breaking changes, so it would be released as `2.0.0`. It does not get the
@@ -27,14 +27,14 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+    catalogVersion: r4t8w2nc
 
 script:
   - status: 200
     contentType: application/vnd.epistola.v2+json
     body:
       version: null
-      draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+      versionId: r4t8w2nc
       name: Redesign 2027
       status: draft
       base: 1.4.0
@@ -58,10 +58,10 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/r4t8w2nc
   report:
     version: 'null'
-    draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+    versionId: r4t8w2nc
     name: Redesign 2027
     status: draft
     behind: 1.5.0=template/invoice:modified+theme/corporate:added;1.6.0=stencil/letter-shell:removed

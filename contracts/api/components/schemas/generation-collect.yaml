@@ -124,13 +124,15 @@ GenerationResult:
       description: |
         Release of the template's catalog used for generation. Null for a result accepted before
         contract 2.0, which rendered a template version, and for one rendered from a draft
-        (`draftId`).
+        (`versionId`).
       example: "1.4.0"
-    draftId:
+    versionId:
       type: [string, "null"]
-      format: uuid
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 4
+      maxLength: 36
       description: |
-        The draft rendered, live, through an environment that follows it
+        The `versionId` of the draft rendered, live, through an environment that follows it
         (`setEnvironmentOverride`); `releaseVersion` is then null. Null when rendered from a release.
       example: null
     draftLabel:

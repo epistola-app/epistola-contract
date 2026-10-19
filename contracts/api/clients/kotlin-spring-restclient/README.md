@@ -309,7 +309,7 @@ try {
             }
         KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED -> // from releaseCatalogDraft
             e.unreleasedDependencies.forEach {
-                println("${it.registry}/${it.namespace}/${it.catalogKey}: draft ${it.draftName} (${it.draftId})")
+                println("${it.registry}/${it.namespace}/${it.catalogKey}: draft ${it.draftName} (${it.versionId})")
             }
         else                                          -> throw e   // unknown / framework error
     }

@@ -19,7 +19,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+    catalogVersion: k7m2x9qa
     stencilKey: corporate-header
 
 script:
@@ -57,7 +57,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b/stencils/corporate-header/mark-ready
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/k7m2x9qa/stencils/corporate-header/mark-ready
       query: ""
       headers:
         Accept:

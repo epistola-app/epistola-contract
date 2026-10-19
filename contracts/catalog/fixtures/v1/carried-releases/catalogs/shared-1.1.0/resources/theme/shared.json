@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 8,
+  "resource": {
+    "type": "theme",
+    "key": "shared",
+    "name": "Shared",
+    "description": null,
+    "documentStyles": {
+      "fontSize": "10pt",
+      "color": "#444444"
+    },
+    "pageSettings": null,
+    "blockStylePresets": null,
+    "spacingUnit": 1.2
+  }
+}

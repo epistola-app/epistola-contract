@@ -164,7 +164,7 @@ class ModelValidationTest {
     @Test
     fun `SetEnvironmentOverrideRequest takes an exact release or a draft`() {
         SetEnvironmentOverrideRequest(releaseVersion = "1.3.0").validate()
-        SetEnvironmentOverrideRequest(catalogVersion = "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192").validate()
+        SetEnvironmentOverrideRequest(versionId = "r4t8w2nc").validate()
 
         for (release in listOf("^1.3.0", "1.3", "2.0.0-beta.1", "next")) {
             val ex = assertFailsWith<IllegalArgumentException>("expected release '$release' to fail") {
@@ -172,12 +172,12 @@ class ModelValidationTest {
             }
             assertEquals(true, ex.message?.startsWith("releaseVersion: "), ex.message)
         }
-        // The `next` alias is gone: a draft is named by its id only.
-        for (draft in listOf("1.3.0", "next", "Next", "draft-1")) {
+        // A draft is named by its versionId only: lowercase, no dot, 4 to 36 characters.
+        for (draft in listOf("1.3.0", "Next", "abc", "k7m2--x9")) {
             val ex = assertFailsWith<IllegalArgumentException>("expected draft '$draft' to fail") {
-                SetEnvironmentOverrideRequest(catalogVersion = draft).validate()
+                SetEnvironmentOverrideRequest(versionId = draft).validate()
             }
-            assertEquals(true, ex.message?.startsWith("catalogVersion: "), ex.message)
+            assertEquals(true, ex.message?.startsWith("versionId: "), ex.message)
         }
     }
 

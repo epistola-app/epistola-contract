@@ -50,16 +50,16 @@ test('a dependency declaration pins an exact release, checked through the Releas
     )
   }
   // In a draft a declaration may name a draft instead; exactly one of the two is a server-side rule.
-  validateModel('CatalogDependencyRequirement', { namespace: 'acme-corp', catalogKey: 'branding', draftId: '0193a6b2-8a10-7d2e-8b3c-4d5e6f708192' })
+  validateModel('CatalogDependencyRequirement', { namespace: 'acme-corp', catalogKey: 'branding', versionId: 'r4t8w2nc' })
 })
 
 test('an environment override takes an exact release or a draft', () => {
   validateModel('SetEnvironmentOverrideRequest', { releaseVersion: '1.3.0' })
-  validateModel('SetEnvironmentOverrideRequest', { catalogVersion: '0193a6b2-8a10-7d2e-8b3c-4d5e6f708192' })
+  validateModel('SetEnvironmentOverrideRequest', { versionId: 'r4t8w2nc' })
   for (const release of ['^1.3.0', '1.3', '2.0.0-beta.1', 'next']) {
     assert.throws(() => validateModel('SetEnvironmentOverrideRequest', { releaseVersion: release }), /releaseVersion: /, release)
   }
-  for (const draft of ['1.3.0', 'next', 'draft-1']) {
-    assert.throws(() => validateModel('SetEnvironmentOverrideRequest', { catalogVersion: draft }), /catalogVersion: /, draft)
+  for (const draft of ['1.3.0', 'Draft-1', 'abc', 'k7m2--x9']) {
+    assert.throws(() => validateModel('SetEnvironmentOverrideRequest', { versionId: draft }), /versionId: /, draft)
   }
 })

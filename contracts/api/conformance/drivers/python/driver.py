@@ -415,7 +415,7 @@ def _update_catalog_dependencies(base_url: str, config: dict) -> None:
                     namespace=dependency["namespace"],
                     catalogKey=dependency["catalogKey"],
                     # Exactly one of these names what the declaration uses: only the one given.
-                    **{name: dependency[name] for name in ("releaseVersion", "draftId") if name in dependency},
+                    **{name: dependency[name] for name in ("releaseVersion", "versionId") if name in dependency},
                 )
                 for dependency in config["dependencies"]
             ]
@@ -433,7 +433,7 @@ def _report_dependencies(base_url: str, dependencies) -> None:
             "catalogKeys": ",".join(_show(d.catalog_key) for d in dependencies),
             # A declaration that pins no release (migrated from wire v7) reports ``null``.
             "releaseVersions": ",".join(_show(d.release_version) for d in dependencies),
-            "draftIds": ",".join(_show(d.draft_id) for d in dependencies),
+            "versionIds": ",".join(_show(d.version_id) for d in dependencies),
         },
     )
 
@@ -457,7 +457,7 @@ def _create_catalog_draft(base_url: str, config: dict) -> None:
         base_url,
         {
             "version": _show(created.version),
-            "draftId": _show(created.draft_id),
+            "versionId": _show(created.version_id),
             "name": _show(created.name),
             "status": _show(_enum(created.status)),
             "base": _show(created.base),
@@ -480,7 +480,7 @@ def _list_catalog_versions(base_url: str, config: dict) -> None:
         base_url,
         {
             "versions": ",".join(_show(v.version) for v in versions),
-            "draftIds": ",".join(_show(v.draft_id) for v in versions),
+            "versionIds": ",".join(_show(v.version_id) for v in versions),
             "names": "|".join(_show(v.name) for v in versions),
             "statuses": ",".join(_show(_enum(v.status)) for v in versions),
             "bases": ",".join(_show(v.base) for v in versions),
@@ -498,7 +498,7 @@ def _get_catalog_version(base_url: str, config: dict) -> None:
         base_url,
         {
             "version": _show(version.version),
-            "draftId": _show(version.draft_id),
+            "versionId": _show(version.version_id),
             "name": _show(version.name),
             "status": _show(_enum(version.status)),
             "releasedAt": _show_instant(version.released_at),
@@ -526,7 +526,7 @@ def _rename_catalog_draft(base_url: str, config: dict) -> None:
         base_url,
         {
             "version": _show(version.version),
-            "draftId": _show(version.draft_id),
+            "versionId": _show(version.version_id),
             "name": _show(version.name),
             "status": _show(_enum(version.status)),
             "base": _show(version.base),
@@ -574,7 +574,7 @@ def _release_catalog_draft(base_url: str, config: dict) -> None:
                 "problemTypeSlug": exc.type_slug or "<null>",
                 "problemStatus": exc.status_code,
                 "problemUnreleasedDependencies": "|".join(
-                    f"{d.registry}/{d.namespace}/{d.catalog_key}#{d.draft_id}={d.draft_name}"
+                    f"{d.registry}/{d.namespace}/{d.catalog_key}#{d.version_id}={d.draft_name}"
                     for d in exc.unreleased_dependencies
                 ),
             },
@@ -585,7 +585,7 @@ def _release_catalog_draft(base_url: str, config: dict) -> None:
         {
             "version": _show(response.catalog_version.version),
             "status": _show(_enum(response.catalog_version.status)),
-            "draftId": _show(response.catalog_version.draft_id),
+            "versionId": _show(response.catalog_version.version_id),
             "draftsBehind": "|".join(response.drafts_behind),
             "releasedDependencies": ",".join(
                 f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}@{_show(d.release_version)}"
@@ -891,9 +891,9 @@ def _list_deployment_history(base_url: str, config: dict) -> None:
 
 def _set_environment_override(base_url: str, config: dict) -> None:
     """Overrides the version of a catalog an environment uses; ``releaseVersion`` and
-    ``catalogVersion`` go out only when the scenario sets them. A refusal is reported by its
+    ``versionId`` go out only when the scenario sets them. A refusal is reported by its
     problem."""
-    optional = {name: config[name] for name in ("releaseVersion", "catalogVersion") if name in config}
+    optional = {name: config[name] for name in ("releaseVersion", "versionId") if name in config}
     try:
         override = EnvironmentsApi(_client(base_url, config)).set_environment_override(
             config["tenantKey"],
@@ -914,7 +914,7 @@ def _set_environment_override(base_url: str, config: dict) -> None:
             "namespace": _show(override.namespace),
             "catalogKey": _show(override.catalog_key),
             "releaseVersion": _show(override.release_version),
-            "draftId": _show(override.draft_id),
+            "versionId": _show(override.version_id),
             "draftLabel": _show(override.draft_label),
             "setAt": _show_instant(override.set_at),
         },
@@ -932,7 +932,7 @@ def _list_environment_overrides(base_url: str, config: dict) -> None:
         {
             "catalogKeys": ",".join(_show(o.catalog_key) for o in overrides),
             "releaseVersions": ",".join(_show(o.release_version) for o in overrides),
-            "draftIds": ",".join(_show(o.draft_id) for o in overrides),
+            "versionIds": ",".join(_show(o.version_id) for o in overrides),
             "draftLabels": "|".join(_show(o.draft_label) for o in overrides),
         },
     )

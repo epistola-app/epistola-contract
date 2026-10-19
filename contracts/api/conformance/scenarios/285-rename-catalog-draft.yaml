@@ -5,7 +5,7 @@
 id: rename-catalog-draft
 title: Renaming a draft sends only the new name, to its unchanged address
 why: >
-  A draft is named, and addressed by its `draftId`, not by its name (ADR 0002).
+  A draft is named, and addressed by its `versionId`, not by its name (ADR 0002).
   Renaming it is a PATCH to that address carrying the new `name`, and the address does not change:
   the response is the same draft under its new name. A client that still sends a `version`, or an
   `acknowledgeWarnings` flag from the renumber this replaced, sends members the contract no longer
@@ -23,7 +23,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: onboarding
-    catalogVersion: 0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
+    catalogVersion: h3v9p6db
     name: Redesign 2028
 
 script:
@@ -31,11 +31,11 @@ script:
     contentType: application/vnd.epistola.v2+json
     body:
       version: null
-      draftId: 0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
+      versionId: h3v9p6db
       name: Redesign 2028
       status: draft
       base: null
-      createdFrom: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+      createdFrom: k7m2x9qa
       behind: []
       dependencies: []
       deployedTo: []
@@ -44,7 +44,7 @@ expect:
   requestCount: 1
   requests:
     - method: PATCH
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/onboarding/versions/0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/onboarding/versions/h3v9p6db
       headers:
         Content-Type:
           matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
@@ -54,7 +54,7 @@ expect:
         jsonAbsent: [version, acknowledgeWarnings]
   report:
     version: 'null'
-    draftId: 0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
+    versionId: h3v9p6db
     name: Redesign 2028
     status: draft
     base: 'null'

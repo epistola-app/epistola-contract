@@ -11,7 +11,6 @@ import app.epistola.api.model.UnreleasedCatalogDependency
 import app.epistola.api.model.ValidationError
 import org.springframework.http.HttpStatus
 import java.net.URI
-import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -87,7 +86,7 @@ class ProblemDetailsTest {
                 registry = "exchange.epistola.app",
                 namespace = "acme-corp",
                 catalogKey = "branding",
-                draftId = UUID.fromString("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"),
+                versionId = "r4t8w2nc",
                 draftName = "House style 2027",
             ),
         )

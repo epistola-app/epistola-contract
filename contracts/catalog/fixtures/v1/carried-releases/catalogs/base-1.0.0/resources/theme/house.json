@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 8,
+  "resource": {
+    "type": "theme",
+    "key": "house",
+    "name": "House",
+    "description": null,
+    "documentStyles": {
+      "fontSize": "10pt",
+      "color": "#111111"
+    },
+    "pageSettings": null,
+    "blockStylePresets": null,
+    "spacingUnit": 1.2
+  }
+}

@@ -1,0 +1,297 @@
+{
+  "formatVersion": 1,
+  "description": "Catalog archives that carry the releases they pin (wire v8). Build each case's archive as a ZIP of its catalog's files, with each carried release, itself a ZIP of its catalog's files (and of whatever it carries), at its path, and each extra file as UTF-8 text. Validate it with the policy's limits (defaults otherwise). 'findings' lists the code and path of every finding; 'installOrder' the carried releases a reader exposes, each before every release that pins it.",
+  "pathPattern": "^dependencies/([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/((?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*))\\.zip$",
+  "defaultPolicy": {
+    "maxDependencies": 50,
+    "maxTotalCompressedBytes": 104857600,
+    "maxTotalExpandedBytes": 209715200
+  },
+  "catalogsRoot": "carried-releases/catalogs",
+  "catalogs": {
+    "base-1.0.0": [
+      "catalog.json",
+      "resources/theme/house.json"
+    ],
+    "base-2.0.0": [
+      "catalog.json",
+      "resources/theme/house.json"
+    ],
+    "shared-1.0.0": [
+      "catalog.json",
+      "resources/theme/shared.json"
+    ],
+    "shared-1.0.0-altered": [
+      "catalog.json",
+      "resources/theme/shared.json"
+    ],
+    "shared-1.1.0": [
+      "catalog.json",
+      "resources/theme/shared.json"
+    ],
+    "letters-1.0.0": [
+      "catalog.json",
+      "resources/theme/letter.json"
+    ],
+    "letters-1.1.0": [
+      "catalog.json",
+      "resources/theme/letter.json"
+    ]
+  },
+  "pathCases": {
+    "valid": [
+      "dependencies/exchange.epistola.app/acme/base/1.0.0.zip",
+      "dependencies/registry.gemeente-x.nl/gemeente-x/letters-2027/10.20.30.zip"
+    ],
+    "invalid": [
+      "dependencies/base/1.0.0.zip",
+      "dependencies/exchange.epistola.app/acme/base/1.0.0",
+      "dependencies/exchange.epistola.app/acme/base/1.0.zip",
+      "dependencies/exchange.epistola.app/acme/base/01.0.0.zip",
+      "dependencies/exchange.epistola.app/acme/base/1.0.0-beta.1.zip",
+      "dependencies/exchange.epistola.app/Acme/base/1.0.0.zip",
+      "dependencies/exchange.epistola.app/acme/1base/1.0.0.zip",
+      "dependencies/localhost/acme/base/1.0.0.zip",
+      "dependencies/exchange.epistola.app/acme/base/x/1.0.0.zip",
+      "dependencies/exchange.epistola.app/acme/../base/1.0.0.zip",
+      "dependencies/exchange.epistola.app/ab/base/1.0.0.zip",
+      "resources/exchange.epistola.app/acme/base/1.0.0.zip"
+    ]
+  },
+  "cases": [
+    {
+      "id": "thin",
+      "description": "A release exported thin: its pins are resolved from what the installation has or can fetch.",
+      "catalog": "letters-1.0.0",
+      "carries": [],
+      "expected": {
+        "valid": true,
+        "installOrder": [],
+        "findings": []
+      }
+    },
+    {
+      "id": "flat-transitive",
+      "description": "letters pins shared, which pins base: both are carried, flat, in the outer archive.",
+      "catalog": "letters-1.0.0",
+      "carries": [
+        {
+          "path": "dependencies/exchange.epistola.app/acme/shared/1.0.0.zip",
+          "catalog": "shared-1.0.0"
+        },
+        {
+          "path": "dependencies/exchange.epistola.app/acme/base/1.0.0.zip",
+          "catalog": "base-1.0.0"
+        }
+      ],
+      "expected": {
+        "valid": true,
+        "installOrder": [
+          "dependencies/exchange.epistola.app/acme/base/1.0.0.zip",
+          "dependencies/exchange.epistola.app/acme/shared/1.0.0.zip"
+        ],
+        "findings": []
+      }
+    },
+    {
+      "id": "fingerprint-mismatch",
+      "description": "The release carried for shared@1.0.0 is not the one the pin's releaseFingerprint names.",
+      "catalog": "letters-1.0.0",
+      "carries": [
+        {
+          "path": "dependencies/exchange.epistola.app/acme/shared/1.0.0.zip",
+          "catalog": "shared-1.0.0-altered"
+        },
+        {
+          "path": "dependencies/exchange.epistola.app/acme/base/1.0.0.zip",
+          "catalog": "base-1.0.0"
+        }
+      ],
+      "expected": {
+        "valid": false,
+        "installOrder": [
+          "dependencies/exchange.epistola.app/acme/base/1.0.0.zip",
+          "dependencies/exchange.epistola.app/acme/shared/1.0.0.zip"
+        ],
+        "findings": [
+          {
+            "code": "CATALOG_ARCHIVE_DEPENDENCY_FINGERPRINT_MISMATCH",
+            "path": "dependencies/exchange.epistola.app/acme/shared/1.0.0.zip"
+          }
+        ]
+      }
+    },
+    {
+      "id": "identity-mismatch",
+      "description": "The archive at base/1.0.0.zip is release 2.0.0 of base.",
+      "catalog": "letters-1.0.0",
+      "carries": [
+        {
+          "path": "dependencies/exchange.epistola.app/acme/shared/1.0.0.zip",
+          "catalog": "shared-1.0.0"
+        },
+        {
+          "path": "dependencies/exchange.epistola.app/acme/base/1.0.0.zip",
+          "catalog": "base-2.0.0"
+        }
+      ],
+      "expected": {
+        "valid": false,
+        "installOrder": [
+          "dependencies/exchange.epistola.app/acme/shared/1.0.0.zip"
+        ],
+        "findings": [
+          {
+            "code": "CATALOG_ARCHIVE_DEPENDENCY_FINGERPRINT_MISMATCH",
+            "path": "dependencies/exchange.epistola.app/acme/base/1.0.0.zip"
+          },
+          {
+            "code": "CATALOG_ARCHIVE_DEPENDENCY_IDENTITY_MISMATCH",
+            "path": "dependencies/exchange.epistola.app/acme/base/1.0.0.zip!/catalog.json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "nested",
+      "description": "shared carries base inside itself instead of the outer archive carrying both.",
+      "catalog": "letters-1.0.0",
+      "carries": [
+        {
+          "path": "dependencies/exchange.epistola.app/acme/shared/1.0.0.zip",
+          "catalog": "shared-1.0.0",
+          "carries": [
+            {
+              "path": "dependencies/exchange.epistola.app/acme/base/1.0.0.zip",
+              "catalog": "base-1.0.0"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "valid": false,
+        "installOrder": [
+          "dependencies/exchange.epistola.app/acme/shared/1.0.0.zip"
+        ],
+        "findings": [
+          {
+            "code": "CATALOG_ARCHIVE_DEPENDENCY_NESTED",
+            "path": "dependencies/exchange.epistola.app/acme/shared/1.0.0.zip!/dependencies/"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unreferenced",
+      "description": "base@2.0.0 is carried, but no pin reaches it.",
+      "catalog": "letters-1.0.0",
+      "carries": [
+        {
+          "path": "dependencies/exchange.epistola.app/acme/shared/1.0.0.zip",
+          "catalog": "shared-1.0.0"
+        },
+        {
+          "path": "dependencies/exchange.epistola.app/acme/base/1.0.0.zip",
+          "catalog": "base-1.0.0"
+        },
+        {
+          "path": "dependencies/exchange.epistola.app/acme/base/2.0.0.zip",
+          "catalog": "base-2.0.0"
+        }
+      ],
+      "expected": {
+        "valid": false,
+        "installOrder": [
+          "dependencies/exchange.epistola.app/acme/base/1.0.0.zip",
+          "dependencies/exchange.epistola.app/acme/shared/1.0.0.zip"
+        ],
+        "findings": [
+          {
+            "code": "CATALOG_ARCHIVE_DEPENDENCY_UNREFERENCED",
+            "path": "dependencies/exchange.epistola.app/acme/base/2.0.0.zip"
+          }
+        ]
+      }
+    },
+    {
+      "id": "path-invalid",
+      "description": "Files under dependencies/ that are not dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip.",
+      "catalog": "letters-1.0.0",
+      "carries": [],
+      "extraFiles": {
+        "dependencies/notes.txt": "not a release",
+        "dependencies/exchange.epistola.app/acme/base/1.0.zip": "not a release number"
+      },
+      "expected": {
+        "valid": false,
+        "installOrder": [],
+        "findings": [
+          {
+            "code": "CATALOG_ARCHIVE_DEPENDENCY_PATH_INVALID",
+            "path": "dependencies/exchange.epistola.app/acme/base/1.0.zip"
+          },
+          {
+            "code": "CATALOG_ARCHIVE_DEPENDENCY_PATH_INVALID",
+            "path": "dependencies/notes.txt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "conflict",
+      "description": "letters pins base@1.0.0; the shared@1.1.0 it also pins pins base@2.0.0.",
+      "catalog": "letters-1.1.0",
+      "carries": [
+        {
+          "path": "dependencies/exchange.epistola.app/acme/shared/1.1.0.zip",
+          "catalog": "shared-1.1.0"
+        },
+        {
+          "path": "dependencies/exchange.epistola.app/acme/base/1.0.0.zip",
+          "catalog": "base-1.0.0"
+        }
+      ],
+      "expected": {
+        "valid": false,
+        "installOrder": [
+          "dependencies/exchange.epistola.app/acme/shared/1.1.0.zip",
+          "dependencies/exchange.epistola.app/acme/base/1.0.0.zip"
+        ],
+        "findings": [
+          {
+            "code": "CATALOG_ARCHIVE_DEPENDENCY_CONFLICT",
+            "path": "dependencies/exchange.epistola.app/acme/shared/1.1.0.zip!/catalog.json.catalogDependencies[0]"
+          }
+        ]
+      }
+    },
+    {
+      "id": "count-exceeded",
+      "description": "Two carried releases where the policy allows one.",
+      "catalog": "letters-1.0.0",
+      "carries": [
+        {
+          "path": "dependencies/exchange.epistola.app/acme/shared/1.0.0.zip",
+          "catalog": "shared-1.0.0"
+        },
+        {
+          "path": "dependencies/exchange.epistola.app/acme/base/1.0.0.zip",
+          "catalog": "base-1.0.0"
+        }
+      ],
+      "policy": {
+        "maxDependencies": 1
+      },
+      "expected": {
+        "valid": false,
+        "installOrder": [],
+        "findings": [
+          {
+            "code": "CATALOG_ARCHIVE_DEPENDENCY_COUNT_EXCEEDED",
+            "path": "archive"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 8,
+  "catalog": {
+    "registry": "exchange.epistola.app",
+    "namespace": "acme",
+    "key": "base",
+    "name": "Base Catalog"
+  },
+  "publisher": {
+    "name": "Acme"
+  },
+  "release": {
+    "version": "2.0.0",
+    "fingerprint": "v5:fea0a290719328605f1d45ec16d55e0f14746c48e0d46f41c7829719aefdf14b"
+  },
+  "resources": [
+    {
+      "type": "theme",
+      "key": "house",
+      "name": "House",
+      "detailUrl": "./resources/theme/house.json"
+    }
+  ],
+  "dependencies": [],
+  "catalogDependencies": []
+}

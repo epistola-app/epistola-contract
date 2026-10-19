@@ -6,10 +6,10 @@ id: release-catalog-draft
 title: Releasing a draft lets the server number it, and names the drafts now behind it
 why: >
   A draft has no number until it is released (ADR 0002), so the request goes to the draft's
-  address, `…/versions/{draftId}/release`. Without a `version` the server numbers it as its
+  address, `…/versions/{versionId}/release`. Without a `version` the server numbers it as its
   changes need against its base, so a client must leave `version` out rather than send one it was
   not given; it carries only the notes. The answer is the release, under its new number, no longer
-  a draft: its `draftId` is null, and the id it had addresses nothing any more.
+  a draft. It keeps its `versionId`, which now addresses the release as its number does.
 
   Nothing is merged into other drafts, so what the author needs next is in the answer: the drafts
   this release puts behind (`draftsBehind`), by name, which will not contain its changes unless
@@ -27,7 +27,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+    catalogVersion: k7m2x9qa
     notes: Finished improvements, ahead of the redesign.
 
 script:
@@ -36,7 +36,7 @@ script:
     body:
       catalogVersion:
         version: 1.5.0
-        draftId: null
+        versionId: k7m2x9qa
         name: null
         status: released
         base: 1.4.0
@@ -55,7 +55,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b/release
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/k7m2x9qa/release
       body:
         json:
           notes: Finished improvements, ahead of the redesign.
@@ -65,7 +65,7 @@ expect:
   report:
     version: 1.5.0
     status: released
-    draftId: 'null'
+    versionId: k7m2x9qa
     # Names are free text, so they are joined with `|`.
     draftsBehind: Redesign 2027|Accessibility pass
     releasedDependencies: ""

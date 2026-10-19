@@ -20,7 +20,7 @@ records contract changes; this file records changes to the hand-written library 
 - `ProblemDetailException.unreleasedDependencies` lists the drafts of other catalogs a
   `release-dependencies-unreleased` problem (409, from `releaseCatalogDraft`) reports the released
   draft's dependency declarations name, each an `UnreleasedDependency` (`registry`, `namespace`,
-  `catalogKey`, `draftId`, `draftName`); entries missing a member are dropped, and the list is
+  `catalogKey`, `versionId`, `draftName`); entries missing a member are dropped, and the list is
   empty for any other problem. `isReleaseDependenciesUnreleasedProblem` is true when it is not
   empty.
 - The generated model validators check a member that references a plain string schema, such as

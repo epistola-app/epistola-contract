@@ -99,7 +99,7 @@ ProblemDetails.releaseDependenciesUnreleased(
             registry = "exchange.epistola.app",
             namespace = "acme-corp",
             catalogKey = "branding",
-            draftId = UUID.fromString("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"),
+            versionId = "r4t8w2nc",
             draftName = "House style 2027",
         ),
     ),

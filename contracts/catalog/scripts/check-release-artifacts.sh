@@ -53,6 +53,7 @@ require_zip_entry "$MAIN_JAR" "META-INF/epistola-catalog/schemas/template-docume
 require_zip_entry "$MAIN_JAR" "META-INF/epistola-catalog/fixtures/v1/template-validation.json"
 require_zip_entry "$MAIN_JAR" "META-INF/epistola-catalog/fixtures/v1/conformance/catalog-cases.json"
 require_zip_entry "$MAIN_JAR" "META-INF/epistola-catalog/fixtures/v1/conformance/catalog/valid-minimal/expected-report.json"
+require_zip_entry "$MAIN_JAR" "META-INF/epistola-catalog/fixtures/v1/carried-releases/carried-release-cases.json"
 require_zip_entry "$SOURCES_JAR" "app/epistola/catalog/validation/CatalogValidator.kt"
 require_zip_entry "$JAVADOC_JAR" "index.html"
 
@@ -67,6 +68,7 @@ require_tar_entry "$NPM_TARBALL" "package/schemas/template-document-v7.schema.js
 require_tar_entry "$NPM_TARBALL" "package/fixtures/v1/template-validation.json"
 require_tar_entry "$NPM_TARBALL" "package/fixtures/v1/conformance/catalog-cases.json"
 require_tar_entry "$NPM_TARBALL" "package/fixtures/v1/conformance/catalog/valid-minimal/expected-report.json"
+require_tar_entry "$NPM_TARBALL" "package/fixtures/v1/carried-releases/carried-release-cases.json"
 
 PACKAGE_JSON="$(tar -xOzf "$NPM_TARBALL" package/package.json)"
 PACKAGE_JSON="$PACKAGE_JSON" EXPECTED_VERSION="$VERSION" node <<'NODE'

@@ -15,6 +15,7 @@ HEX = "9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70"
 def _version(fingerprint):
     return {
         "version": "1.4.0",
+        "versionId": "m3q8v5tk",
         "status": "released",
         "createdAt": "2026-01-01T00:00:00Z",
         "behind": [],

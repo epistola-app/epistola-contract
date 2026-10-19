@@ -18,8 +18,11 @@ info:
     catalog's resources below it (ADR 0002).
 
     A **draft** is edited, its changed resources marked ready, and **released**, after which it is
-    immutable: every write to it is refused with 409. A draft has no number until it is released; it
-    is addressed by its `draftId`, and a released version by its SemVer number.
+    immutable: every write to it is refused with 409. Every version has a **`versionId`**, assigned
+    when it is started as a draft and kept when it is released (a release installed by import or
+    upgrade gets one too). A draft has no number until it is released, so it is addressed by its
+    `versionId`; a released version by its `versionId` or its SemVer number, interchangeably: both
+    address the same version, and a write through either is refused with 409.
 
     - An AUTHORED catalog has **any number of drafts**, each named and each started from a release,
       its **base**, or from another draft (`createCatalogDraft`). The base is fixed: it does not move
@@ -29,7 +32,7 @@ info:
       (`previewCatalogDraftRelease`). The author may choose a higher number, never a lower one, and
       never one another release has. A fix to an older line is a draft from a release of that line:
       from `1.4.0`, while `1.5.0` and `2.0.0` exist, it is released as `1.4.1`. The released draft
-      becomes the release at that number; its id addresses nothing any more.
+      becomes the release at that number, and its `versionId` keeps addressing it.
     - Drafts are independent copies: releasing one does not change another, and nothing is merged.
       A draft is **behind** each release that, relative to the number it would be released as, is
       numbered above its base and below that number, or was published after the draft was started
@@ -38,7 +41,7 @@ info:
       that is behind must be acknowledged.
 
     Documents are rendered from a released version, and version selectors never match a draft. Two
-    things render a draft: preview, naming it by its id, and an environment that follows a draft
+    things render a draft: preview, naming it by its `versionId`, and an environment that follows a draft
     (see "Environment overrides").
 
     Importing a catalog archive (`importCatalog`) never fills or creates a draft: it installs the
@@ -86,7 +89,7 @@ info:
     a range; ranges in declarations (such as `^1.0.0`, any non-breaking 1.x) may come in a later
     2.x, as an addition.
 
-    In a draft, a declaration may name a **draft** of another catalog (`draftId`) instead of a
+    In a draft, a declaration may name a **draft** of another catalog (`versionId`) instead of a
     release, to build on work that is not released yet. A release never pins a draft: releasing the
     draft is refused (`release-dependencies-unreleased`) unless the request releases those drafts
     along with it (`releaseDependencies`), in one transaction, and the new release pins the
@@ -117,7 +120,7 @@ info:
     - An environment marked **production** (`EnvironmentDto.production`) uses only published
       versions: an override there may name a release, never a draft.
     - A document rendered from a draft carries the draft's id and its name at render time
-      (`draftId`, `draftLabel`, with a null `releaseVersion`), and its PDF a preview watermark.
+      (`versionId`, `draftLabel`, with a null `releaseVersion`), and its PDF a preview watermark.
     - Undeploying the release an override names ends the override, and so does releasing or
       discarding the draft it follows.
 
@@ -293,10 +296,11 @@ x-problem-types:
       status: 409
       schema: ReleaseDependenciesMissingProblemDetail
       description: >-
-        A release cannot be deployed because releases of other catalogs it
-        renders with (the releases it pins) cannot be had: the tenant does not
-        have them and they could not be fetched or verified;
-        `missingDependencies` lists each one and why.
+        A release cannot be deployed or imported because releases of other
+        catalogs it renders with (the releases it pins) cannot be had: the
+        tenant does not have them, the import does not carry them, and they
+        could not be fetched or verified; `missingDependencies` lists each one
+        and why.
     - slug: release-dependencies-unreleased
       status: 409
       schema: ReleaseDependenciesUnreleasedProblemDetail
@@ -725,6 +729,8 @@ components:
       $ref: './components/schemas/catalogs.yaml#/ResourceChangeDto'
     ReleaseVersion:
       $ref: './components/schemas/catalogs.yaml#/ReleaseVersion'
+    CatalogVersionId:
+      $ref: './components/schemas/catalogs.yaml#/CatalogVersionId'
     CatalogVersionStatus:
       $ref: './components/schemas/catalogs.yaml#/CatalogVersionStatus'
     CatalogVersionDto:
@@ -767,8 +773,6 @@ components:
       $ref: './components/schemas/code-lists.yaml#/UpdateCodeListRequest'
     ImportCatalogResponse:
       $ref: './components/schemas/import.yaml#/ImportCatalogResponse'
-    ImportTemplateResultDto:
-      $ref: './components/schemas/import.yaml#/ImportTemplateResultDto'
 
     # Validation schemas
     ValidateTemplateDataRequest:

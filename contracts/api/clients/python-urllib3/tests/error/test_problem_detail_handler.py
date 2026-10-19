@@ -273,14 +273,14 @@ def test_parses_release_dependencies_unreleased_problem_in_order():
                 "registry": "exchange.epistola.app",
                 "namespace": "acme-corp",
                 "catalogKey": "branding",
-                "draftId": "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192",
+                "versionId": "r4t8w2nc",
                 "draftName": "House style 2027",
             },
             {
                 "registry": "registry.gemeente-x.nl",
                 "namespace": "huisstijl",
                 "catalogKey": "fonts",
-                "draftId": "0193a6b2-9c21-7e3f-8c4d-5e6f708192a3",
+                "versionId": "h3v9p6db",
                 "draftName": "New typefaces, round 2",
             },
         ]
@@ -295,18 +295,18 @@ def test_parses_release_dependencies_unreleased_problem_in_order():
             "exchange.epistola.app",
             "acme-corp",
             "branding",
-            "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192",
+            "r4t8w2nc",
             "House style 2027",
         ),
         UnreleasedDependency(
             "registry.gemeente-x.nl",
             "huisstijl",
             "fonts",
-            "0193a6b2-9c21-7e3f-8c4d-5e6f708192a3",
+            "h3v9p6db",
             "New typefaces, round 2",
         ),
     ]
-    assert exc.unreleased_dependencies[0].draft_id == "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"
+    assert exc.unreleased_dependencies[0].version_id == "r4t8w2nc"
     assert exc.unreleased_dependencies[1].draft_name == "New typefaces, round 2"
 
 
@@ -330,10 +330,10 @@ def test_a_malformed_unreleased_dependencies_member_yields_nothing_rather_than_a
                     "registry": "exchange.epistola.app",
                     "namespace": "acme-corp",
                     "catalogKey": "branding",
-                    "draftId": "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192",
+                    "versionId": "r4t8w2nc",
                     "draftName": "House style 2027",
                 },
-                {"registry": "exchange.epistola.app", "draftId": 42},
+                {"registry": "exchange.epistola.app", "versionId": 42},
             ]
         ),
         409,

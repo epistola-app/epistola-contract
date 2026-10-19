@@ -26,7 +26,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+    catalogVersion: k7m2x9qa
     notes: The 2.0 house style.
     acknowledgedBehind: [1.5.0, 1.6.0]
 
@@ -36,7 +36,7 @@ script:
     body:
       catalogVersion:
         version: 2.0.0
-        draftId: null
+        versionId: k7m2x9qa
         name: null
         status: released
         base: 1.4.0
@@ -55,7 +55,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b/release
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/k7m2x9qa/release
       body:
         json:
           notes: The 2.0 house style.
@@ -66,6 +66,6 @@ expect:
   report:
     version: 2.0.0
     status: released
-    draftId: 'null'
+    versionId: k7m2x9qa
     draftsBehind: ""
     releasedDependencies: ""

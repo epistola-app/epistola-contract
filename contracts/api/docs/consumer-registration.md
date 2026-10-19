@@ -745,7 +745,7 @@ The response is **409 Conflict** instead of proceeding, as an RFC 9457 problem. 
 `has-dependents` and its `dependents` member are **proposed**: neither is in `x-problem-types`.
 
 ```
-POST /tenants/{tenantKey}/catalogs/~/acme-corp/letters/versions/0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b/release
+POST /tenants/{tenantKey}/catalogs/~/acme-corp/letters/versions/k7m2x9qa/release
 
 409 Conflict
 Content-Type: application/problem+json

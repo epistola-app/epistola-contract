@@ -83,17 +83,18 @@ PreviewDocumentRequest:
         the template's catalog that the environment serves: the highest one, or the highest that
         satisfies `version`. When the environment overrides the catalog (`setEnvironmentOverride`),
         a request with no `version` or a range gets the override instead: one of those releases, or
-        a draft rendered live (the document then carries `draftId` and `draftLabel`); an exact
+        a draft rendered live (the document then carries `versionId` and `draftLabel`); an exact
         release is still that release. The request is refused when the environment serves no such
         release and has no override.
       example: null
     draft:
       type: [string, "null"]
-      pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 4
       maxLength: 36
       description: |
         Render a draft of the template's catalog, including changes not yet released, by its
-        `draftId` (mutually exclusive with version and environmentKey). A version selector never matches a draft; a generated document renders one
+        `versionId` (a `CatalogVersionId`; mutually exclusive with version and environmentKey). A version selector never matches a draft; a generated document renders one
         only through an environment that follows it (`setEnvironmentOverride`).
       example: null
     data:
@@ -261,7 +262,7 @@ GenerateDocumentRequest:
         the template's catalog that the environment serves: the highest one, or the highest that
         satisfies `version`. When the environment overrides the catalog (`setEnvironmentOverride`),
         a request with no `version` or a range gets the override instead: one of those releases, or
-        a draft rendered live (the document then carries `draftId` and `draftLabel`); an exact
+        a draft rendered live (the document then carries `versionId` and `draftLabel`); an exact
         release is still that release. The request is refused when the environment serves no such
         release and has no override.
       example: null
@@ -398,7 +399,7 @@ BatchGenerationItem:
         the template's catalog that the environment serves: the highest one, or the highest that
         satisfies `version`. When the environment overrides the catalog (`setEnvironmentOverride`),
         a request with no `version` or a range gets the override instead: one of those releases, or
-        a draft rendered live (the document then carries `draftId` and `draftLabel`); an exact
+        a draft rendered live (the document then carries `versionId` and `draftLabel`); an exact
         release is still that release. The request is refused when the environment serves no such
         release and has no override.
       example: null
@@ -582,14 +583,16 @@ DocumentGenerationItemDto:
       description: |
         Release of the template's catalog this item renders, bound when the request was accepted.
         Null for an item accepted before contract 2.0, which rendered a template version, and for
-        one that renders a draft (`draftId`).
+        one that renders a draft (`versionId`).
       example: "1.4.0"
-    draftId:
+    versionId:
       type: [string, "null"]
-      format: uuid
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 4
+      maxLength: 36
       description: |
-        The draft this item renders, live, through an environment that follows it
-        (`setEnvironmentOverride`); `releaseVersion` is then null. Null when rendered from a release.
+        The `versionId` of the draft this item renders, live, through an environment that follows
+        it (`setEnvironmentOverride`); `releaseVersion` is then null. Null when rendered from a release.
       example: null
     draftLabel:
       type: [string, "null"]
@@ -964,14 +967,16 @@ DocumentDto:
       description: |
         Release of the template's catalog this document was generated from. Null for a document
         generated before contract 2.0, which rendered a template version, and for one rendered from
-        a draft (`draftId`).
+        a draft (`versionId`).
       example: "1.4.0"
-    draftId:
+    versionId:
       type: [string, "null"]
-      format: uuid
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 4
+      maxLength: 36
       description: |
-        The draft this document was rendered from, live, through an environment that follows it
-        (`setEnvironmentOverride`); `releaseVersion` is then null. Null when rendered from a release.
+        The `versionId` of the draft this document was rendered from, live, through an environment
+        that follows it (`setEnvironmentOverride`); `releaseVersion` is then null. Null when rendered from a release.
       example: null
     draftLabel:
       type: [string, "null"]

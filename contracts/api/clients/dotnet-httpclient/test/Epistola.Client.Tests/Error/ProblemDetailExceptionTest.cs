@@ -147,7 +147,7 @@ public class ProblemDetailExceptionTest
             headers: null,
             unreleasedDependencies: new List<UnreleasedDependency>
             {
-                new("exchange.epistola.app", "acme-corp", "branding", "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", "House style 2027"),
+                new("exchange.epistola.app", "acme-corp", "branding", "r4t8w2nc", "House style 2027"),
             });
 
         Assert.True(ex.IsReleaseDependenciesUnreleasedProblem);

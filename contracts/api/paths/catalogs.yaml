@@ -260,7 +260,7 @@ catalog-dependencies:
       releases its dependencies pin. A declaration names an exact release, not a range; ranges
       (such as `^1.0.0`) may come in a later 2.x, as an addition.
 
-      In a draft, a declaration may name a **draft** of the other catalog instead (`draftId`), to
+      In a draft, a declaration may name a **draft** of the other catalog instead (`versionId`), to
       build on work that is not released yet: this draft then renders with that draft, live. A
       release never pins a draft, so releasing this one is refused until that draft is released,
       or the release takes it along (`releaseDependencies` on `releaseCatalogDraft`).
@@ -353,7 +353,7 @@ catalog-versions:
       - With `from` a released version, it starts as a copy of that release, which is its base. A
         fix to an older line is a draft from a release of that line (`1.4.0`, released as `1.4.1`
         while `2.0.0` exists).
-      - With `from` a draft id, it starts as a copy of that draft, unreleased changes included, on
+      - With `from` another draft's `versionId`, it starts as a copy of that draft, unreleased changes included, on
         that draft's base.
       - Without `from`, it starts as a copy of the catalog's highest release, or empty, with no
         base, when the catalog has no release.
@@ -376,7 +376,7 @@ catalog-versions:
         description: The draft
         headers:
           Location:
-            description: The draft's address, by its id
+            description: The draft's address, by its `versionId`
             schema:
               type: string
         content:
@@ -414,10 +414,10 @@ catalog-version:
     operationId: getCatalogVersion
     summary: Get a catalog version
     description: |
-      One version of the catalog: a draft, by its id, or a released version, by its number. A
-      released version also lists the releases of other catalogs it renders with and the
-      environments that serve it. The id of a draft that was released or discarded addresses
-      nothing: 404.
+      One version of the catalog: a draft, by its `versionId`, or a released version, by its
+      `versionId` or its number, which return the same version. A released version also lists the
+      releases of other catalogs it renders with and the environments that serve it. The id of a
+      discarded draft addresses nothing: 404.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
@@ -439,7 +439,7 @@ catalog-version:
     operationId: renameCatalogDraft
     summary: Rename a draft
     description: |
-      Gives a draft another name. Its address, its id, does not change. Refused with 409 for a name
+      Gives a draft another name. Its address, its `versionId`, does not change. Refused with 409 for a name
       another draft of the catalog has, and for a released version.
     tags:
       - Catalogs
@@ -472,7 +472,7 @@ catalog-version:
     operationId: deleteCatalogDraft
     summary: Discard a draft
     description: |
-      Discards a draft and everything changed in it; its id then addresses nothing. Environment
+      Discards a draft and everything changed in it; its `versionId` then addresses nothing. Environment
       overrides that follow the draft end (`setEnvironmentOverride`, recorded as `override-cleared`).
 
       Refused with 409 for a released version, while a dependency declaration in a draft of another
@@ -584,8 +584,9 @@ catalog-version-release:
       each first, recursively, numbered by its own changes, in the same transaction, all or
       nothing, and the new release pins the releases they became (`releasedDependencies`).
 
-      The draft becomes the released version at that number, immutable; its id addresses nothing
-      any more (404), and environment overrides that followed it end (`override-cleared`). Other
+      The draft becomes the released version at that number, immutable. Its `versionId` stays and
+      addresses the release, as the number does; writes through either are refused with 409.
+      Environment overrides that followed the draft end (`override-cleared`). Other
       drafts are untouched; the response names those the release puts behind (`draftsBehind`).
     tags:
       - Catalogs

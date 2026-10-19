@@ -5,7 +5,9 @@
 package app.epistola.catalog.validation
 
 import app.epistola.catalog.archive.ArchiveContentProvider
+import app.epistola.catalog.archive.ArchiveValidationCodes
 import app.epistola.catalog.archive.CatalogArchive
+import app.epistola.catalog.archive.CatalogArchiveDependencies
 import app.epistola.catalog.archive.CatalogArchivePolicy
 import app.epistola.catalog.archive.CatalogArchiveReader
 import app.epistola.catalog.canonical.CatalogCanonicalizer
@@ -16,6 +18,7 @@ import app.epistola.catalog.protocol.AttributeResource
 import app.epistola.catalog.protocol.BinaryRef
 import app.epistola.catalog.protocol.CatalogArchivePaths
 import app.epistola.catalog.protocol.CatalogDependency
+import app.epistola.catalog.protocol.CatalogDependencyArchivePaths
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogKeywords
@@ -780,7 +783,7 @@ object CatalogValidator {
         }
         val archive = read.archive ?: return CatalogValidationReport(archiveFindings.sorted())
         return archive.use {
-            CatalogValidationReport((archiveFindings + validate(it, policy).findings).sorted())
+            CatalogValidationReport((archiveFindings + validate(it, policy).findings).distinct().sorted())
         }
     }
 
@@ -880,7 +883,39 @@ object CatalogValidator {
             findings += ResourceValidator.validate(detail, context, "resources/$key.json").findings
         }
         validateStencilComposition(resources, manifest.catalog.key, manifest.catalog.namespace, manifest.catalog.registry, findings)
+        validateCarriedReleases(catalog, policy, findings)
         return CatalogValidationReport(findings.distinct().sorted())
+    }
+
+    /**
+     * The releases [catalog] carries (wire v8): the same rules the reader applies
+     * ([CatalogArchiveDependencies]), and each release validated as a catalog of its own, its
+     * findings reported under its path (`dependencies/…/1.0.0.zip!/catalog.json`).
+     */
+    private fun validateCarriedReleases(
+        catalog: CatalogArchive,
+        policy: CatalogValidationPolicy,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        if (catalog.dependencies.isEmpty()) return
+        val carried = catalog.dependencies.associate {
+            CatalogDependencyArchivePaths.Coordinates(it.registry, it.namespace, it.catalogKey, it.releaseVersion) to it.archive
+        }
+        CatalogArchiveDependencies.check(catalog.manifest, carried).findings.forEach {
+            findings.error(it.code, it.path, it.message)
+        }
+        catalog.dependencies.forEach { release ->
+            if (release.archive.dependencies.isNotEmpty()) {
+                findings.error(
+                    ArchiveValidationCodes.ARCHIVE_DEPENDENCY_NESTED,
+                    release.path,
+                    "a carried release may not carry releases itself: every release lives in the outer archive's dependencies/",
+                )
+            }
+            validate(release.archive, policy).findings.forEach {
+                findings += it.copy(path = CatalogArchiveDependencies.nested(release.path, it.path))
+            }
+        }
     }
 
     /**
