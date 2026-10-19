@@ -38,19 +38,53 @@ fun interface ArchiveContentProvider {
  *   the `resources/` prefix or `.json` suffix.
  * @property paths every normalized file path present in the archive.
  * @property content repeatable streaming access to files listed in [paths].
+ * @property dependencies the releases the archive carries for its pins (wire v8,
+ *   `dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip`), flat and
+ *   transitive, in install order: each before every release that pins it. Empty for a thin
+ *   archive. The archive owns them and closes them with itself.
  */
-class CatalogArchive(
+class CatalogArchive
+@JvmOverloads
+constructor(
     val manifest: CatalogManifest,
     val resourceDetails: Map<String, ResourceDetail>,
     val paths: Set<String>,
     val content: ArchiveContentProvider,
     private val closeAction: () -> Unit = {},
+    val dependencies: List<EmbeddedCatalogRelease> = emptyList(),
 ) : AutoCloseable {
     /** Original wire version before migration; used for legacy fingerprint verification. */
     internal var sourceSchemaVersion: Int = manifest.schemaVersion
 
-    /** Releases backing storage owned by this archive. Safe to call once. */
-    override fun close() = closeAction()
+    /** Releases backing storage owned by this archive and the releases it carries. Safe to call once. */
+    override fun close() {
+        try {
+            dependencies.forEach { it.archive.close() }
+        } finally {
+            closeAction()
+        }
+    }
+}
+
+/**
+ * A release a catalog archive carries for a pin, at [path]
+ * ([app.epistola.catalog.protocol.CatalogDependencyArchivePaths]).
+ *
+ * [archive] is an ordinary, thin catalog archive of that release. The reader exposes it only when
+ * its manifest names this catalog and release; whether it matches every pin's `releaseFingerprint`
+ * is reported as findings ([ArchiveValidationCodes.ARCHIVE_DEPENDENCY_FINGERPRINT_MISMATCH]).
+ */
+class EmbeddedCatalogRelease(
+    val registry: String,
+    val namespace: String,
+    val catalogKey: String,
+    val releaseVersion: String,
+    val archive: CatalogArchive,
+) {
+    /** Where the outer archive carries it. */
+    val path: String get() = app.epistola.catalog.protocol.CatalogDependencyArchivePaths.pathOf(registry, namespace, catalogKey, releaseVersion)
+
+    override fun toString(): String = "$registry/$namespace/$catalogKey@$releaseVersion"
 }
 
 /**
@@ -96,12 +130,24 @@ data class CatalogArchiveReadResult(
  * @property maxEntries maximum number of normalized archive entries.
  * @property maxExpansionRatio maximum uncompressed-to-compressed ratio for one
  *   input entry; this is a reader-side ZIP-bomb control.
+ * @property maxDependencies maximum number of releases one archive carries under `dependencies/`
+ *   (wire v8). The limits above apply to the archive's own content and, separately, to each
+ *   release it carries.
+ * @property maxTotalCompressedBytes maximum ZIP bytes of an archive together with the releases it
+ *   carries. A thin archive stays bound by [maxCompressedBytes].
+ * @property maxTotalExpandedBytes maximum combined uncompressed content of an archive and every
+ *   release it carries.
  */
-data class CatalogArchivePolicy(
+data class CatalogArchivePolicy
+@JvmOverloads
+constructor(
     val maxCompressedBytes: Long = 10L * 1024 * 1024,
     val maxExpandedBytes: Long = 20L * 1024 * 1024,
     val maxEntries: Int = 10_000,
     val maxExpansionRatio: Double = 100.0,
+    val maxDependencies: Int = 50,
+    val maxTotalCompressedBytes: Long = 100L * 1024 * 1024,
+    val maxTotalExpandedBytes: Long = 200L * 1024 * 1024,
 )
 
 /** Stable finding codes emitted by [CatalogArchiveReader]. */
@@ -117,4 +163,31 @@ object ArchiveValidationCodes {
     const val ARCHIVE_ENCRYPTION_FORBIDDEN = "CATALOG_ARCHIVE_ENCRYPTION_FORBIDDEN"
     const val ARCHIVE_REQUIRED_FILE_MISSING = "CATALOG_ARCHIVE_REQUIRED_FILE_MISSING"
     const val ARCHIVE_DOCUMENT_MALFORMED = "CATALOG_ARCHIVE_DOCUMENT_MALFORMED"
+
+    /**
+     * An entry under `dependencies/` is not `dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip`
+     * with each segment valid ([app.epistola.catalog.protocol.CatalogDependencyArchivePaths]).
+     */
+    const val ARCHIVE_DEPENDENCY_PATH_INVALID = "CATALOG_ARCHIVE_DEPENDENCY_PATH_INVALID"
+
+    /** The archive carries more releases than [CatalogArchivePolicy.maxDependencies]. */
+    const val ARCHIVE_DEPENDENCY_COUNT_EXCEEDED = "CATALOG_ARCHIVE_DEPENDENCY_COUNT_EXCEEDED"
+
+    /**
+     * A carried release itself contains `dependencies/`. Carried releases are flat: every release
+     * reachable through the pins lives in the outer archive's `dependencies/`, once.
+     */
+    const val ARCHIVE_DEPENDENCY_NESTED = "CATALOG_ARCHIVE_DEPENDENCY_NESTED"
+
+    /** A carried release's manifest does not name the registry, namespace, key and release its path names. */
+    const val ARCHIVE_DEPENDENCY_IDENTITY_MISMATCH = "CATALOG_ARCHIVE_DEPENDENCY_IDENTITY_MISMATCH"
+
+    /** A carried release's content does not match the `releaseFingerprint` of a pin that reaches it. */
+    const val ARCHIVE_DEPENDENCY_FINGERPRINT_MISMATCH = "CATALOG_ARCHIVE_DEPENDENCY_FINGERPRINT_MISMATCH"
+
+    /** A carried release no pin reaches, from the archive's own pins or, transitively, a carried release's. */
+    const val ARCHIVE_DEPENDENCY_UNREFERENCED = "CATALOG_ARCHIVE_DEPENDENCY_UNREFERENCED"
+
+    /** Two pins reachable from the archive name different releases of one catalog. */
+    const val ARCHIVE_DEPENDENCY_CONFLICT = "CATALOG_ARCHIVE_DEPENDENCY_CONFLICT"
 }

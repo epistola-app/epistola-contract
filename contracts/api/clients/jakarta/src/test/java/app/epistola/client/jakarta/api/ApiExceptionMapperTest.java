@@ -230,7 +230,7 @@ class ApiExceptionMapperTest {
                           "status": 409,
                           "unreleasedDependencies": [
                             {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "branding",
-                             "draftId": "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", "draftName": "House style 2027"}
+                             "versionId": "r4t8w2nc", "draftName": "House style 2027"}
                           ]
                         }
                         """)));
@@ -240,7 +240,7 @@ class ApiExceptionMapperTest {
         assertFalse(e.isReleaseDependenciesMissingProblem());
         assertEquals(
                 List.of(new UnreleasedDependency("exchange.epistola.app", "acme-corp", "branding",
-                        "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", "House style 2027")),
+                        "r4t8w2nc", "House style 2027")),
                 e.getUnreleasedDependencies());
     }
 

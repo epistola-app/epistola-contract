@@ -201,6 +201,13 @@ entry, a repeated data example key, and variant metadata over 8 KiB). These file
 another JVM implementation, a Python validator, or a browser client can load the same inputs and
 compare its complete ordered report with the expected result.
 
+`carried-releases/carried-release-cases.json` is a second executable suite, for archives that carry
+the releases they pin (wire v8): a thin archive, one carrying flat transitive dependencies, and one
+case per refusal, each built from the catalogs under `carried-releases/catalogs/` as the index says,
+with the expected validity, the code and path of every finding, and the reader's install order. It
+also publishes valid and invalid carried-release paths and the path pattern, which the Kotlin and npm
+libraries are both held to.
+
 `catalog-validation-cases.json` and `archive-validation-cases.json` are finding-code registries,
 not executable catalog inputs. They ensure stable public codes stay inventoried, while focused
 Kotlin unit tests provide detailed implementation coverage. The smaller conformance suite is

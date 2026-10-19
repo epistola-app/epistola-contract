@@ -144,18 +144,18 @@ public class ModelValidationTest
     [InlineData("1.4.0+build")]
     [InlineData("2.0.0-beta.1")]
     [InlineData("2.0.0-redesign-2027.1")]
-    [InlineData("next")]
+    [InlineData("Next")]
     public void ReleaseNumberRejectsAnythingElse(string version)
     {
         Assert.Throws<ArgumentException>(() => new ReleaseCatalogDraftRequest(varVersion: version).Validate());
         Assert.Throws<ArgumentException>(() => new CreateCatalogDraftRequest(name: "Follow-up", from: version).Validate());
     }
 
-    // A draft starts from a release number or from another draft's id; `next` is not an alias.
+    // A draft starts from a release number or from another version's versionId.
     [Fact]
-    public void CreateCatalogDraftRequestStartsFromADraftId()
+    public void CreateCatalogDraftRequestStartsFromAVersionId()
     {
-        var draft = new CreateCatalogDraftRequest(name: "Redesign 2027", from: "0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b");
+        var draft = new CreateCatalogDraftRequest(name: "Redesign 2027", from: "k7m2x9qa");
         Assert.Same(draft, draft.Validate());
     }
 
@@ -176,7 +176,7 @@ public class ModelValidationTest
     public void DependencyDeclarationMayNameADraft()
     {
         var onDraft = new CatalogDependencyRequirement(varNamespace: "acme-corp", catalogKey: "branding",
-            draftId: Guid.Parse("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"));
+            versionId: "r4t8w2nc");
         Assert.Same(onDraft, onDraft.Validate());
     }
 
@@ -185,7 +185,7 @@ public class ModelValidationTest
     public void SetEnvironmentOverrideRequestTakesAnExactReleaseOrADraft()
     {
         new SetEnvironmentOverrideRequest(releaseVersion: "1.3.0").Validate();
-        new SetEnvironmentOverrideRequest(catalogVersion: "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192").Validate();
+        new SetEnvironmentOverrideRequest(versionId: "r4t8w2nc").Validate();
     }
 
     [Theory]
@@ -201,12 +201,13 @@ public class ModelValidationTest
 
     [Theory]
     [InlineData("1.3.0")]
-    [InlineData("next")]
-    [InlineData("draft-1")]
+    [InlineData("Draft-1")]
+    [InlineData("abc")]
+    [InlineData("k7m2--x9")]
     public void SetEnvironmentOverrideRequestRejectsAnyOtherDraft(string draft)
     {
-        var ex = Assert.Throws<ArgumentException>(() => new SetEnvironmentOverrideRequest(catalogVersion: draft).Validate());
-        Assert.Contains("catalogVersion", ex.Message);
+        var ex = Assert.Throws<ArgumentException>(() => new SetEnvironmentOverrideRequest(versionId: draft).Validate());
+        Assert.Contains("versionId", ex.Message);
     }
 
     [Fact]

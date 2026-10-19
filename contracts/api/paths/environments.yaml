@@ -417,17 +417,17 @@ environment-override:
 
       - **a release** it serves (`releaseVersion`), such as an earlier one to roll back to without
         undeploying anything; or
-      - **a draft** of the catalog (`catalogVersion`, its `draftId`), rendered live with no release,
+      - **a draft** of the catalog (`versionId`), rendered live with no release,
         to try it before it is released.
 
       A generation or preview request through the environment (`environmentKey`) that names no
       `version`, or a version range, gets the override; one naming an exact release still gets that
       release. A document rendered from a draft carries the draft's id and its name at render time
-      (`draftId`, `draftLabel`), and its PDF a preview watermark.
+      (`versionId`, `draftLabel`), and its PDF a preview watermark.
 
       A **production** environment uses only published versions: a draft there is refused with 409
       (`environment-override-refused`), and so is a release the environment does not serve.
-      Neither or both of `releaseVersion` and `catalogVersion` is refused with 400.
+      Neither or both of `releaseVersion` and `versionId` is refused with 400.
 
       The override ends when the release it names is undeployed (`undeployRelease`), or the draft it
       follows is released (`releaseCatalogDraft`) or discarded (`deleteCatalogDraft`). Every change

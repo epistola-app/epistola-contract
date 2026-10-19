@@ -159,7 +159,8 @@ All endpoints use versioned media type: `application/vnd.epistola.v2+json`
 - **Tenant scoping**: All resources are scoped under `/tenants/{tenantKey}/` (the server prefixes
   `/api`); a catalog's content under `…/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/`
 - **Keys, not IDs**: a `key` is a resource's public address within its parent; an `id` is a
-  generated identifier that is not an address (`documentId`, `requestId`, `draftId`, …)
+  generated identifier (`documentId`, `requestId`, …). A catalog version's `versionId` is the
+  exception: server-assigned, yet it addresses the version, like its number once released
 - **Catalog resource keys** (template, variant, stencil, theme, attribute, code list, font, image,
   data example): `^[a-z0-9]+(-[a-z0-9]+)*$`, 3–50 characters, a leading digit allowed, the same in
   the API and in catalog wire v8
@@ -182,9 +183,9 @@ The Epistola API manages:
    several per catalog, and can override which version of a catalog it uses: a release it serves, or
    a draft rendered live (never a draft in an environment marked `production`)
 5. **Variants** - Language/brand variations of templates, edited in a draft catalog version
-6. **Catalog versions** - A draft (editable, no number) or released (immutable, addressed by its
-   SemVer number). An authored catalog has any number of drafts, all alike: each named, addressed by
-   its `draftId`, started from a release (its fixed **base**) or another draft, and released on its
+6. **Catalog versions** - A draft (editable, no number) or released (immutable, numbered). Every
+   version has a `versionId`, kept when it is released; a released version is addressed by either.
+   An authored catalog has any number of drafts, all alike: each named, started from a release (its fixed **base**) or another draft, and released on its
    own, numbered from what it changed against its base (a fix to an older line is `1.4.1` after
    `2.0.0`). Drafts are independent copies: nothing is merged, and a draft is **behind** releases
    numbered below the number it would get (above its base, or published after it started). In a
@@ -199,7 +200,7 @@ The Epistola API manages:
 ```
 Tenant
 ├── Catalog (identified by registry + namespace + key; `~` in a path = the default registry)
-│   └── Version: a draft (by `draftId`) or a release (by SemVer number)
+│   └── Version (by `versionId`; a release also by its SemVer number): draft or released
 │       │   draft (from a release, its base, or another draft)
 │       │     ──release (numbered from what changed against the base)──▶ released (immutable)
 │       └── Template (with data contract) → Variant, Stencil, Theme, …

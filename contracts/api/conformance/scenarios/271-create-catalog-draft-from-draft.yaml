@@ -19,20 +19,20 @@ action:
     namespace: acme-corp
     catalogKey: letters
     name: Redesign 2027
-    from: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+    from: k7m2x9qa
 
 script:
   - status: 201
     contentType: application/vnd.epistola.v2+json
     headers:
-      Location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+      Location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/r4t8w2nc
     body:
       version: null
-      draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+      versionId: r4t8w2nc
       name: Redesign 2027
       status: draft
       base: 1.5.0
-      createdFrom: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+      createdFrom: k7m2x9qa
       createdAt: "2026-10-15T09:00:00Z"
       behind: []
       releasedAt: null
@@ -52,13 +52,13 @@ expect:
       body:
         json:
           name: Redesign 2027
-          from: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+          from: k7m2x9qa
         jsonAbsent: [version, var_from]
   report:
     version: 'null'
-    draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+    versionId: r4t8w2nc
     name: Redesign 2027
     status: draft
     base: 1.5.0
-    createdFrom: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+    createdFrom: k7m2x9qa
     releasedAt: 'null'

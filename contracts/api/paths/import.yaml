@@ -40,13 +40,22 @@ import-catalog:
       `bad-request`, as any archive that fails validation is. Installing is all or nothing: when a
       resource cannot be installed, nothing is.
 
-      It may also be a **catalog bundle** (a fat export: `bundle.json` and one catalog archive per
-      catalog, see `docs/catalog-bundle.md`): the releases of the catalogs the bundled catalog uses
-      are installed first, each in a SUBSCRIBED catalog, when this tenant does not have them
-      (`installedDependencies`); those it has already are left alone (`presentDependencies`).
-      A release the tenant has with the same number but a different fingerprint refuses the whole
-      import with 409 `conflict`, naming each, and nothing changes. The bundled catalog's own release
-      is then installed as above.
+      The archive may also carry the releases its catalog pins (`catalogDependencies`), each an
+      ordinary catalog archive at `dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip`,
+      found from the pin alone: every release reachable through the pins, a dependency's own pins
+      included, once, in the outer archive (see `contracts/catalog/docs/catalog-archive.md`). An
+      embedded release must match its pin's `releaseFingerprint` and name that catalog and number,
+      or the archive is refused with 400 `bad-request`, as is a file under `dependencies/` that no
+      pin reaches. The embedded releases this tenant lacks are installed first, each before every
+      release that pins it, each in a SUBSCRIBED catalog when the tenant does not have that catalog
+      (`installedDependencies`); those it has already, with the same fingerprint, are left alone
+      (`presentDependencies`). Each is installed side by side with the releases of that catalog the
+      tenant has, which are left as they are. A release the tenant has with the same number but a
+      different fingerprint refuses the whole import with 409 `conflict`, naming each, and nothing
+      changes. A pin the archive does not carry is resolved from what the tenant has or the server
+      can fetch (ADR 0003); one that cannot be had refuses the import with 409
+      `release-dependencies-missing`, listing each (`UNAVAILABLE`). The
+      archive's own release is then installed as above, all in one transaction.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_MANAGE]
@@ -62,7 +71,7 @@ import-catalog:
               file:
                 type: string
                 format: binary
-                description: The catalog ZIP archive, or a catalog bundle
+                description: The catalog ZIP archive, possibly carrying the releases it pins
               registry:
                 type: string
                 pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
@@ -106,4 +115,4 @@ import-catalog:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/ReleaseDependenciesMissingError'

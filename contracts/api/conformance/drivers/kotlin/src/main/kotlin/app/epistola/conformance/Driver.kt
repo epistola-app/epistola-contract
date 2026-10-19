@@ -459,7 +459,7 @@ object Driver {
 
     /**
      * Sends the declared dependencies, each pinning an exact release or naming a draft, exactly as
-     * configured (an unconfigured `releaseVersion` or `draftId` stays off the wire) and reports what
+     * configured (an unconfigured `releaseVersion` or `versionId` stays off the wire) and reports what
      * came back, in order, a null value as `null`.
      */
     private fun updateCatalogDependencies(baseUrl: String, config: ObjectNode) {
@@ -476,7 +476,7 @@ object Driver {
                         namespace = it["namespace"].asText(),
                         catalogKey = it["catalogKey"].asText(),
                         releaseVersion = it.optionalText("releaseVersion"),
-                        draftId = it.optionalText("draftId")?.let(UUID::fromString),
+                        versionId = it.optionalText("versionId"),
                     )
                 },
             ),
@@ -491,7 +491,7 @@ object Driver {
             "namespaces" to dependencies.joinToString(",") { it.namespace },
             "catalogKeys" to dependencies.joinToString(",") { it.catalogKey },
             "releaseVersions" to dependencies.joinToString(",") { it.releaseVersion ?: "null" },
-            "draftIds" to dependencies.joinToString(",") { it.draftId?.toString() ?: "null" },
+            "versionIds" to dependencies.joinToString(",") { it.versionId ?: "null" },
         ),
     )
 
@@ -510,7 +510,7 @@ object Driver {
             baseUrl,
             mapOf(
                 "version" to (version.version ?: "null"),
-                "draftId" to (version.draftId?.toString() ?: "null"),
+                "versionId" to version.versionId,
                 "name" to (version.name ?: "null"),
                 "status" to version.status.value,
                 "base" to (version.base ?: "null"),
@@ -532,7 +532,7 @@ object Driver {
             baseUrl,
             mapOf(
                 "versions" to versions.joinToString(",") { it.version ?: "null" },
-                "draftIds" to versions.joinToString(",") { it.draftId?.toString() ?: "null" },
+                "versionIds" to versions.joinToString(",") { it.versionId },
                 "names" to versions.joinToString("|") { it.name ?: "null" },
                 "statuses" to versions.joinToString(",") { it.status.value },
                 "bases" to versions.joinToString(",") { it.base ?: "null" },
@@ -555,7 +555,7 @@ object Driver {
             baseUrl,
             mapOf(
                 "version" to (version.version ?: "null"),
-                "draftId" to (version.draftId?.toString() ?: "null"),
+                "versionId" to version.versionId,
                 "name" to (version.name ?: "null"),
                 "status" to version.status.value,
                 "releasedAt" to timestamp(version.releasedAt),
@@ -585,7 +585,7 @@ object Driver {
             baseUrl,
             mapOf(
                 "version" to (version.version ?: "null"),
-                "draftId" to (version.draftId?.toString() ?: "null"),
+                "versionId" to version.versionId,
                 "name" to (version.name ?: "null"),
                 "status" to version.status.value,
                 "base" to (version.base ?: "null"),
@@ -650,7 +650,7 @@ object Driver {
                     "problemTypeSlug" to (e.typeSlug ?: "<null>"),
                     "problemStatus" to e.statusCode.value(),
                     "problemUnreleasedDependencies" to e.unreleasedDependencies.joinToString("|") {
-                        "${it.registry}/${it.namespace}/${it.catalogKey}#${it.draftId}=${it.draftName}"
+                        "${it.registry}/${it.namespace}/${it.catalogKey}#${it.versionId}=${it.draftName}"
                     },
                 ),
             )
@@ -661,7 +661,7 @@ object Driver {
             mapOf(
                 "version" to (response.catalogVersion.version ?: "null"),
                 "status" to response.catalogVersion.status.value,
-                "draftId" to (response.catalogVersion.draftId?.toString() ?: "null"),
+                "versionId" to response.catalogVersion.versionId,
                 "draftsBehind" to response.draftsBehind.joinToString("|"),
                 "releasedDependencies" to response.releasedDependencies.joinToString(",") {
                     "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}"
@@ -741,7 +741,7 @@ object Driver {
                 config["catalogKey"].asText(),
                 SetEnvironmentOverrideRequest(
                     releaseVersion = config.optionalText("releaseVersion"),
-                    catalogVersion = config.optionalText("catalogVersion"),
+                    versionId = config.optionalText("versionId"),
                 ),
             )
         } catch (e: ProblemDetailException) {
@@ -756,7 +756,7 @@ object Driver {
                 "namespace" to override.namespace,
                 "catalogKey" to override.catalogKey,
                 "releaseVersion" to (override.releaseVersion ?: "null"),
-                "draftId" to (override.draftId?.toString() ?: "null"),
+                "versionId" to (override.versionId ?: "null"),
                 "draftLabel" to (override.draftLabel ?: "null"),
                 "setAt" to timestamp(override.setAt),
             ),
@@ -772,7 +772,7 @@ object Driver {
             mapOf(
                 "catalogKeys" to overrides.joinToString(",") { it.catalogKey },
                 "releaseVersions" to overrides.joinToString(",") { it.releaseVersion ?: "null" },
-                "draftIds" to overrides.joinToString(",") { it.draftId?.toString() ?: "null" },
+                "versionIds" to overrides.joinToString(",") { it.versionId ?: "null" },
                 "draftLabels" to overrides.joinToString("|") { it.draftLabel ?: "null" },
             ),
         )

@@ -7,7 +7,7 @@ title: Listing an environment's overrides reads both forms, a release and a draf
 why: >
   An environment overrides at most one version per catalog: a release it serves, or a draft it
   follows (ADR 0002). The list mixes both, so a client must read a null
-  `releaseVersion` beside a set one, and a null `draftId` and `draftLabel` beside set ones, without
+  `releaseVersion` beside a set one, and a null `versionId` and `draftLabel` beside set ones, without
   refusing the response or inventing values.
 
 action:
@@ -22,8 +22,8 @@ script:
     contentType: application/vnd.epistola.v2+json
     body:
       items:
-        - { environmentKey: acceptance, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: letters, releaseVersion: null, draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192, draftLabel: Redesign 2027, setAt: "2026-10-18T09:00:00Z" }
-        - { environmentKey: acceptance, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: invoices, releaseVersion: 2.1.0, draftId: null, draftLabel: null, setAt: "2026-10-17T15:30:00Z" }
+        - { environmentKey: acceptance, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: letters, releaseVersion: null, versionId: r4t8w2nc, draftLabel: Redesign 2027, setAt: "2026-10-18T09:00:00Z" }
+        - { environmentKey: acceptance, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: invoices, releaseVersion: 2.1.0, versionId: null, draftLabel: null, setAt: "2026-10-17T15:30:00Z" }
 
 expect:
   requestCount: 1
@@ -33,6 +33,6 @@ expect:
   report:
     catalogKeys: letters,invoices
     releaseVersions: null,2.1.0
-    draftIds: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192,null
+    versionIds: r4t8w2nc,null
     # Names are free text, so they are joined with `|`.
     draftLabels: Redesign 2027|null

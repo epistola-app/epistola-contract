@@ -192,7 +192,7 @@ function isMissingDependency(entry: object): entry is MissingDependency {
  */
 export type UnreleasedDependency = Readonly<UnreleasedCatalogDependency>
 
-const UNRELEASED_DEPENDENCY_MEMBERS = ['registry', 'namespace', 'catalogKey', 'draftId', 'draftName'] as const
+const UNRELEASED_DEPENDENCY_MEMBERS = ['registry', 'namespace', 'catalogKey', 'versionId', 'draftName'] as const
 
 function isUnreleasedDependency(entry: object): entry is UnreleasedDependency {
   const record = entry as Record<string, unknown>

@@ -6,8 +6,8 @@ id: set-environment-override-draft
 title: Overriding an environment with a draft sends the draft alone, and reads back its id and name
 why: >
   A draft is tried by pointing a non-production environment at it: the environment then renders
-  the draft live, with no release (ADR 0002). The draft goes in the body as `catalogVersion`, its
-  id, exactly as given; `releaseVersion` is left out. A client that sent `"releaseVersion": null`
+  the draft live, with no release (ADR 0002). The draft goes in the body as `versionId`, exactly
+  as given; `releaseVersion` is left out. A client that sent `"releaseVersion": null`
   would send a request naming both.
 
   The answer has no release: `releaseVersion` is null, and the draft is named by its id and by its
@@ -23,7 +23,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+    versionId: k7m2x9qa
 
 script:
   - status: 200
@@ -34,7 +34,7 @@ script:
       namespace: acme-corp
       catalogKey: letters
       releaseVersion: null
-      draftId: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+      versionId: k7m2x9qa
       draftLabel: Spring fixes
       setAt: "2026-10-18T09:00:00Z"
 
@@ -48,16 +48,16 @@ expect:
           matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
       body:
         json:
-          catalogVersion: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+          versionId: k7m2x9qa
         jsonAbsent: [releaseVersion]
-        matches: '^\s*\{\s*"catalogVersion"\s*:\s*"0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b"\s*\}\s*$'
+        matches: '^\s*\{\s*"versionId"\s*:\s*"k7m2x9qa"\s*\}\s*$'
   report:
     environmentKey: acceptance
     registry: exchange.epistola.app
     namespace: acme-corp
     catalogKey: letters
     releaseVersion: 'null'
-    draftId: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+    versionId: k7m2x9qa
     # Names are free text, so a driver reports them as given.
     draftLabel: Spring fixes
     setAt: "2026-10-18T09:00:00Z"

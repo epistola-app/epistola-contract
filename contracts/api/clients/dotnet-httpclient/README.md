@@ -142,7 +142,7 @@ each such draft:
 catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED)
 {
     foreach (var d in e.UnreleasedDependencies)
-        Console.WriteLine($"{d.Registry}/{d.Namespace}/{d.CatalogKey}: draft {d.DraftName} ({d.DraftId})");
+        Console.WriteLine($"{d.Registry}/{d.Namespace}/{d.CatalogKey}: draft {d.DraftName} ({d.VersionId})");
 }
 ```
 
@@ -183,8 +183,8 @@ the backoff when a result is expected soon. Partition helpers: `PartitionFor`, `
 
 A catalog consists of versions, each a `draft` or `released`. A catalog has any number of drafts,
 each named, on a fixed base (the release it started from), and each released on its own. A draft
-has no number until it is released and is addressed by its `DraftId`; a release by its SemVer
-number. Every catalog-content operation (templates, variants, stencils, themes, images,
+has no number until it is released and is addressed by its `VersionId`, which it keeps when it is
+released; a release by that id or by its SemVer number. Every catalog-content operation (templates, variants, stencils, themes, images,
 dependencies, …) takes the version after the catalog key; template data validation
 (`ValidateTemplateData`) does not. The versions themselves are managed through `CatalogsApi`:
 
@@ -192,11 +192,11 @@ dependencies, …) takes the version after the catalog key; template data valida
 var catalogs = new CatalogsApi(http, "https://epistola.example.com/api");
 
 // Start a draft, named, as a copy of a release (`from`, which becomes its base), of another draft
-// (`from` its id), or, without `from`, of the highest release. A fix to an older line is a draft
+// (`from` its `VersionId`), or, without `from`, of the highest release. A fix to an older line is a draft
 // from a release of that line.
 var draft = catalogs.CreateCatalogDraft("my-tenant", "~", "acme-corp", "default",
     new CreateCatalogDraftRequest(name: "Fixes 1.4", from: "1.4.0"));
-var id = draft.DraftId.ToString();
+var id = draft.VersionId;
 
 // The number releasing it would give it, from its changes against its base: `Needed`, or the next
 // free number of the same kind when another release already has it (`Suggested`).

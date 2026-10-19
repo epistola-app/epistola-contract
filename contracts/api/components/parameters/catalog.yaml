@@ -53,12 +53,15 @@ CatalogVersion:
   in: path
   required: true
   description: |
-    A version of the catalog (ADR 0002). A draft has no number until it is released, so it is named
-    by its `draftId`; a released version by its exact SemVer number. Writes to a released version are
-    refused with 409. The id of a draft that was released or discarded addresses nothing (404).
+    A version of the catalog (ADR 0002), by its `versionId` (`CatalogVersionId`) or, once it is
+    released, by its exact SemVer number: both address the same version. A draft has no number
+    until it is released, so it is addressed by its `versionId` alone; releasing it keeps the id,
+    which then addresses the release. Writes to a released version are refused with 409, whichever
+    way it is addressed. A `versionId` never contains a dot, so the two cannot be confused. A
+    discarded draft's id addresses nothing (404).
   schema:
     type: string
-    pattern: '^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$'
-    minLength: 5
+    pattern: '^([a-z0-9]+(-[a-z0-9]+)*|(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$'
+    minLength: 4
     maxLength: 50
-  example: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+  example: k7m2x9qa

@@ -226,7 +226,7 @@ public final class ProblemDetailParser {
                     stringMember(dependency, "registry"),
                     stringMember(dependency, "namespace"),
                     stringMember(dependency, "catalogKey"),
-                    stringMember(dependency, "draftId"),
+                    stringMember(dependency, "versionId"),
                     stringMember(dependency, "draftName")));
         }
         return dependencies;

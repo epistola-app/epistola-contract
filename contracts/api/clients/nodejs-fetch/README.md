@@ -107,7 +107,7 @@ carries a name and a type:
 import { readFile } from 'node:fs/promises'
 
 const file = new File([await readFile('logo.png')], 'logo.png', { type: 'image/png' })
-const image = await new ImagesApi(client).uploadImage({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', catalogVersion: '0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b', file, name: 'Logo' })
+const image = await new ImagesApi(client).uploadImage({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', catalogVersion: 'k7m2x9qa', file, name: 'Logo' })
 ```
 
 A plain `Blob` is always sent with the filename `blob`, and as `application/octet-stream` unless it
@@ -147,7 +147,7 @@ try {
         break
       case KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED:
         for (const d of e.unreleasedDependencies) {                              // 409 from releaseCatalogDraft
-          log.warn(`${d.registry}/${d.namespace}/${d.catalogKey}: draft ${d.draftName} (${d.draftId})`)
+          log.warn(`${d.registry}/${d.namespace}/${d.catalogKey}: draft ${d.draftName} (${d.versionId})`)
         }
         break
       default:
@@ -170,7 +170,7 @@ base five), `statusCode`, `rawBody`, `isValidationProblem`, `isDataModelValidati
 A `release-dependencies-unreleased` problem (409) means `releaseCatalogDraft` was refused because
 the draft's dependency declarations name drafts of other catalogs, and a release pins only
 releases. `unreleasedDependencies` lists each such draft (`registry`, `namespace`, `catalogKey`,
-`draftId`, `draftName`); release them first, or send `releaseDependencies: true` to release them
+`versionId`, `draftName`); release them first, or send `releaseDependencies: true` to release them
 along with the draft.
 
 A `release-dependencies-missing` problem (409) means `deployRelease` was refused because releases

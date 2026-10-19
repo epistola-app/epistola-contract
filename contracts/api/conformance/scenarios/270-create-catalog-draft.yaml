@@ -12,7 +12,7 @@ why: >
   calls that member `var_from`, because `from` is a keyword, and a client that sends the alias
   instead of the wire name starts the draft from the highest release without saying so.
 
-  The answer is a draft: `version` is null, and it is addressed by its `draftId` (which `Location`
+  The answer is a draft: `version` is null, and it is addressed by its `versionId` (which `Location`
   carries). A draft has no release data either: `releasedAt` and `fingerprint` are null and
   `dependencies` and `deployedTo` empty. A client that turns a null `version` into an empty string
   makes a draft look like a broken release.
@@ -32,10 +32,10 @@ script:
   - status: 201
     contentType: application/vnd.epistola.v2+json
     headers:
-      Location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+      Location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/r4t8w2nc
     body:
       version: null
-      draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+      versionId: r4t8w2nc
       name: Fixes 1.4
       status: draft
       base: 1.4.0
@@ -63,7 +63,7 @@ expect:
         jsonAbsent: [version, var_from]
   report:
     version: 'null'
-    draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+    versionId: r4t8w2nc
     name: Fixes 1.4
     status: draft
     base: 1.4.0

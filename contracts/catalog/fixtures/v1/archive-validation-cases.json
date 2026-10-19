@@ -9,5 +9,12 @@
   "CATALOG_ARCHIVE_SYMLINK_FORBIDDEN": "entry has a symbolic-link Unix mode",
   "CATALOG_ARCHIVE_ENCRYPTION_FORBIDDEN": "entry has the encrypted general-purpose bit",
   "CATALOG_ARCHIVE_REQUIRED_FILE_MISSING": "catalog.json is absent",
-  "CATALOG_ARCHIVE_DOCUMENT_MALFORMED": "manifest or resource detail cannot be decoded"
+  "CATALOG_ARCHIVE_DOCUMENT_MALFORMED": "manifest or resource detail cannot be decoded",
+  "CATALOG_ARCHIVE_DEPENDENCY_PATH_INVALID": "an entry under dependencies/ is not dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip with each segment valid",
+  "CATALOG_ARCHIVE_DEPENDENCY_COUNT_EXCEEDED": "archive carries more than 50 releases",
+  "CATALOG_ARCHIVE_DEPENDENCY_NESTED": "a carried release itself contains dependencies/",
+  "CATALOG_ARCHIVE_DEPENDENCY_IDENTITY_MISMATCH": "a carried release's manifest names another catalog or release than its path",
+  "CATALOG_ARCHIVE_DEPENDENCY_FINGERPRINT_MISMATCH": "a carried release does not match the releaseFingerprint of a pin that reaches it",
+  "CATALOG_ARCHIVE_DEPENDENCY_UNREFERENCED": "a carried release no pin reaches, directly or through a carried release",
+  "CATALOG_ARCHIVE_DEPENDENCY_CONFLICT": "two reachable pins name different releases of one catalog"
 }

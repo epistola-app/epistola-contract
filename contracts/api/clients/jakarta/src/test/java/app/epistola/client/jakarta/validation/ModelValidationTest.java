@@ -115,7 +115,7 @@ class ModelValidationTest {
     @Test
     void an_environment_override_takes_an_exact_release_or_a_draft() {
         ModelValidation.validate(new SetEnvironmentOverrideRequest().releaseVersion("1.3.0"));
-        ModelValidation.validate(new SetEnvironmentOverrideRequest().catalogVersion("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"));
+        ModelValidation.validate(new SetEnvironmentOverrideRequest().versionId("r4t8w2nc"));
 
         for (String release : List.of("^1.3.0", "1.3", "2.0.0-beta.1", "next")) {
             assertTrue(assertThrows(
@@ -125,13 +125,13 @@ class ModelValidationTest {
                     .getMessage()
                     .startsWith("releaseVersion: "));
         }
-        for (String draft : List.of("1.3.0", "next", "draft-1")) {
+        for (String draft : List.of("1.3.0", "Draft-1", "abc", "k7m2--x9")) {
             assertTrue(assertThrows(
                             IllegalArgumentException.class,
-                            () -> ModelValidation.validate(new SetEnvironmentOverrideRequest().catalogVersion(draft)),
+                            () -> ModelValidation.validate(new SetEnvironmentOverrideRequest().versionId(draft)),
                             "expected an override to draft '" + draft + "' to fail")
                     .getMessage()
-                    .startsWith("catalogVersion: "));
+                    .startsWith("versionId: "));
         }
     }
 
@@ -207,7 +207,7 @@ class ModelValidationTest {
         CatalogDependencyRequirement onDraft = new CatalogDependencyRequirement()
                 .namespace("acme-corp")
                 .catalogKey("branding")
-                .draftId(java.util.UUID.fromString("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"));
+                .versionId("r4t8w2nc");
         assertSame(onDraft, ModelValidation.validate(onDraft));
     }
 
@@ -234,19 +234,19 @@ class ModelValidationTest {
         ModelValidation.validate(new CreateCatalogDraftRequest().name("Redesign 2027"));
         ModelValidation.validate(new CreateCatalogDraftRequest().name("Fixes 1.4").from("1.4.0"));
         ModelValidation.validate(
-                new CreateCatalogDraftRequest().name("Redesign 2027").from("0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b"));
+                new CreateCatalogDraftRequest().name("Redesign 2027").from("k7m2x9qa"));
         ModelValidation.validate(new RenameCatalogDraftRequest().name("Redesign 2028"));
 
         assertTrue(assertThrows(
                         IllegalArgumentException.class,
                         () -> ModelValidation.validate(
-                                new CreateCatalogDraftRequest().name("Redesign 2027").from("latest")))
+                                new CreateCatalogDraftRequest().name("Redesign 2027").from("Latest")))
                 .getMessage()
                 .startsWith("from: must match pattern"));
         assertTrue(assertThrows(
                         IllegalArgumentException.class,
                         () -> ModelValidation.validate(
-                                new CreateCatalogDraftRequest().name("Redesign 2027").from("next")))
+                                new CreateCatalogDraftRequest().name("Redesign 2027").from("1.4.x")))
                 .getMessage()
                 .startsWith("from: must match pattern"));
         for (String name : List.of("", "x".repeat(101))) {
@@ -263,8 +263,8 @@ class ModelValidationTest {
 
     @Test
     void a_preview_names_a_draft_by_its_id_never_by_a_number() {
-        ModelValidation.validate(previewOf("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"));
-        for (String draft : List.of("1.4.0", "next", "0193A6B2-8A10-7D2E-8B3C-4D5E6F708192", "draft")) {
+        ModelValidation.validate(previewOf("r4t8w2nc"));
+        for (String draft : List.of("1.4.0", "Next", "0193A6B2-8A10-7D2E-8B3C-4D5E6F708192", "abc")) {
             assertTrue(assertThrows(
                             IllegalArgumentException.class,
                             () -> ModelValidation.validate(previewOf(draft)),

@@ -5,6 +5,9 @@
 package app.epistola.catalog.archive
 
 import app.epistola.catalog.archive.ArchiveValidationCodes.ARCHIVE_COMPRESSED_SIZE_EXCEEDED
+import app.epistola.catalog.archive.ArchiveValidationCodes.ARCHIVE_DEPENDENCY_COUNT_EXCEEDED
+import app.epistola.catalog.archive.ArchiveValidationCodes.ARCHIVE_DEPENDENCY_NESTED
+import app.epistola.catalog.archive.ArchiveValidationCodes.ARCHIVE_DEPENDENCY_PATH_INVALID
 import app.epistola.catalog.archive.ArchiveValidationCodes.ARCHIVE_DOCUMENT_MALFORMED
 import app.epistola.catalog.archive.ArchiveValidationCodes.ARCHIVE_ENCRYPTION_FORBIDDEN
 import app.epistola.catalog.archive.ArchiveValidationCodes.ARCHIVE_ENTRY_COUNT_EXCEEDED
@@ -19,6 +22,7 @@ import app.epistola.catalog.migration.CatalogMigrationCodes
 import app.epistola.catalog.migration.CatalogMigrationContext
 import app.epistola.catalog.migration.CatalogMigrationOptions
 import app.epistola.catalog.migration.CatalogSchemaMigrator
+import app.epistola.catalog.protocol.CatalogDependencyArchivePaths
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipFile
 import java.io.BufferedInputStream
@@ -45,6 +49,11 @@ import java.util.zip.ZipException
  * manifest `detailUrl`, and the returned [ArchiveContentProvider] refuses any path that is not a
  * normalized relative path inside the extraction root. Wire v8 additionally constrains the declared
  * paths themselves ([app.epistola.catalog.protocol.CatalogArchivePaths]).
+ *
+ * From wire v8 an archive may carry the releases it pins under `dependencies/`
+ * ([app.epistola.catalog.protocol.CatalogDependencyArchivePaths]). Each is read as an archive of
+ * its own under the per-archive limits, checked against the pins that reach it, and exposed in
+ * install order as [CatalogArchive.dependencies]; see `docs/catalog-archive.md`.
  *
  * Temporary files live until the returned archive is closed.
  */
@@ -73,27 +82,50 @@ object CatalogArchiveReader {
         require(policy.maxExpandedBytes > 0)
         require(policy.maxEntries > 0)
         require(policy.maxExpansionRatio > 0)
+        require(policy.maxDependencies >= 0)
+        require(policy.maxTotalCompressedBytes > 0)
+        require(policy.maxTotalExpandedBytes > 0)
+        return read(input, policy, migration, carried = false).result
+    }
 
+    /**
+     * Reads one archive. [carried] is true for a release another archive carries under
+     * `dependencies/`: it is bound by the per-archive limits alone, and may not carry releases itself.
+     */
+    private fun read(
+        input: InputStream,
+        policy: CatalogArchivePolicy,
+        migration: CatalogMigrationOptions,
+        carried: Boolean,
+    ): ReadOutcome {
         val workspace = Files.createTempDirectory("epistola-catalog-")
         val archiveFile = workspace.resolve("catalog.zip")
         val expandedRoot = workspace.resolve("entries")
         Files.createDirectory(expandedRoot)
         val findings = mutableListOf<ArchiveValidationFinding>()
         try {
-            if (!copyCompressed(input, archiveFile, policy, findings)) {
+            val inputLimit = if (carried) policy.maxCompressedBytes else maxOf(policy.maxCompressedBytes, policy.maxTotalCompressedBytes)
+            if (!copyCompressed(input, archiveFile, inputLimit, findings)) {
                 deleteRecursively(workspace)
-                return CatalogArchiveReadResult(null, findings.sorted())
+                return ReadOutcome(CatalogArchiveReadResult(null, findings.sorted()))
             }
-            val extraction = extract(archiveFile, expandedRoot, policy, findings)
+            val extraction = extract(archiveFile, expandedRoot, policy, carried, findings)
             if (!extraction.safe) {
                 deleteRecursively(workspace)
-                return CatalogArchiveReadResult(null, findings.sorted())
+                return ReadOutcome(CatalogArchiveReadResult(null, findings.sorted()))
+            }
+            if (carried && extraction.paths.any(CatalogDependencyArchivePaths::isDependencyPath)) {
+                findings += finding(
+                    ARCHIVE_DEPENDENCY_NESTED,
+                    CatalogDependencyArchivePaths.DIRECTORY,
+                    "a carried release may not carry releases itself: every release lives in the outer archive's dependencies/",
+                )
             }
             val manifestPath = expandedRoot.resolve("catalog.json")
             if (!Files.isRegularFile(manifestPath)) {
                 findings += finding(ARCHIVE_REQUIRED_FILE_MISSING, "catalog.json", "archive does not contain catalog.json")
                 deleteRecursively(workspace)
-                return CatalogArchiveReadResult(null, findings.sorted())
+                return ReadOutcome(CatalogArchiveReadResult(null, findings.sorted()))
             }
             val manifestResult = Files.newInputStream(manifestPath).use { CatalogSchemaMigrator.migrateManifest(it, migration) }
             val migrationNotices = manifestResult.notices.toMutableList()
@@ -103,7 +135,18 @@ object CatalogArchiveReader {
             val manifest = manifestResult.value
             if (manifest == null) {
                 deleteRecursively(workspace)
-                return CatalogArchiveReadResult(null, findings.sorted())
+                return ReadOutcome(CatalogArchiveReadResult(null, findings.sorted()))
+            }
+            val sourceVersion = requireNotNull(manifestResult.sourceVersion)
+            if (!carried && extraction.dependencyPaths.isNotEmpty() && sourceVersion < CARRIED_RELEASES_SINCE_WIRE_VERSION) {
+                // Before wire v8 an archive carries no releases: `dependencies/` is an ordinary
+                // directory, held to the per-archive limits as it always was, and not interpreted.
+                val legacyLimit = legacyLimitFinding(archiveFile, extraction, policy)
+                if (legacyLimit != null) {
+                    findings += legacyLimit
+                    deleteRecursively(workspace)
+                    return ReadOutcome(CatalogArchiveReadResult(null, findings.sorted()))
+                }
             }
             val details = linkedMapOf<String, app.epistola.catalog.protocol.ResourceDetail>()
             val entriesByPath = manifest.resources.associateBy { it.detailUrl.removePrefix("./") }
@@ -117,7 +160,7 @@ object CatalogArchiveReader {
                 Files.newInputStream(resolved)
             }
             val migrationContext = CatalogMigrationContext(
-                sourceVersion = requireNotNull(manifestResult.sourceVersion),
+                sourceVersion = sourceVersion,
                 manifest = manifest,
                 content = contentProvider,
             )
@@ -145,6 +188,15 @@ object CatalogArchiveReader {
                         details["$declaredType/$key"] = detail
                     }
                 }
+            val carriedReleases = if (!carried && sourceVersion >= CARRIED_RELEASES_SINCE_WIRE_VERSION) {
+                readCarried(manifest, extraction, expandedRoot, policy, findings, migrationNotices)
+                    ?: run {
+                        deleteRecursively(workspace)
+                        return ReadOutcome(CatalogArchiveReadResult(null, findings.sorted()))
+                    }
+            } else {
+                emptyList()
+            }
             val archive = CatalogArchive(
                 manifest = manifest,
                 resourceDetails = details,
@@ -159,17 +211,23 @@ object CatalogArchiveReader {
                     BufferedInputStream(Files.newInputStream(resolved))
                 },
                 closeAction = { deleteRecursively(workspace) },
-            ).also { it.sourceSchemaVersion = requireNotNull(manifestResult.sourceVersion) }
-            return CatalogArchiveReadResult(
-                archive,
-                findings.sorted(),
-                migrationNotices.sortedWith(compareBy({ it.path }, { it.code }, { it.message })),
+                dependencies = carriedReleases,
+            ).also { it.sourceSchemaVersion = sourceVersion }
+            return ReadOutcome(
+                CatalogArchiveReadResult(
+                    archive,
+                    findings.sorted(),
+                    migrationNotices.sortedWith(compareBy({ it.path }, { it.code }, { it.message })),
+                ),
+                extraction.ownExpanded,
             )
         } catch (exception: ZipException) {
             deleteRecursively(workspace)
-            return CatalogArchiveReadResult(
-                null,
-                (findings + finding(ARCHIVE_INVALID, "archive", "archive is not a valid ZIP: ${exception.message}")).sorted(),
+            return ReadOutcome(
+                CatalogArchiveReadResult(
+                    null,
+                    (findings + finding(ARCHIVE_INVALID, "archive", "archive is not a valid ZIP: ${exception.message}")).sorted(),
+                ),
             )
         } catch (exception: IOException) {
             deleteRecursively(workspace)
@@ -183,7 +241,7 @@ object CatalogArchiveReader {
     private fun copyCompressed(
         input: InputStream,
         target: Path,
-        policy: CatalogArchivePolicy,
+        limit: Long,
         findings: MutableList<ArchiveValidationFinding>,
     ): Boolean {
         var total = 0L
@@ -194,11 +252,11 @@ object CatalogArchiveReader {
                     val read = source.read(buffer)
                     if (read < 0) break
                     total += read
-                    if (total > policy.maxCompressedBytes) {
+                    if (total > limit) {
                         findings += finding(
                             ARCHIVE_COMPRESSED_SIZE_EXCEEDED,
                             "archive",
-                            "compressed archive exceeds ${policy.maxCompressedBytes} bytes",
+                            "compressed archive exceeds $limit bytes",
                         )
                         return false
                     }
@@ -209,53 +267,86 @@ object CatalogArchiveReader {
         return true
     }
 
+    /**
+     * Expands every entry. The archive's own content is held to the per-archive limits. Files under
+     * `dependencies/` are, for an outer archive, releases it may carry: each is held to
+     * [CatalogArchivePolicy.maxCompressedBytes] (its size is the carried archive's compressed size)
+     * and their number to [CatalogArchivePolicy.maxDependencies]; the entries inside each are checked
+     * when it is read. Whether they are interpreted depends on the wire version, known only once the
+     * manifest is read.
+     */
     private fun extract(
         archiveFile: Path,
         expandedRoot: Path,
         policy: CatalogArchivePolicy,
+        carried: Boolean,
         findings: MutableList<ArchiveValidationFinding>,
     ): ExtractionResult {
         val seenPaths = linkedSetOf<String>()
         val filePaths = linkedSetOf<String>()
-        var totalExpanded = 0L
+        val dependencyPaths = linkedSetOf<String>()
+        var ownExpanded = 0L
+        var dependencyExpanded = 0L
+        var dependencyCompressed = 0L
         var entryCount = 0
+
+        fun unsafe() = ExtractionResult(false, filePaths, dependencyPaths, ownExpanded, dependencyExpanded, dependencyCompressed, entryCount)
         ZipFile.builder().setFile(archiveFile.toFile()).get().use { zip ->
             val entries = zip.entries.asSequence().toList()
             for (entry in entries) {
-                entryCount++
-                if (entryCount > policy.maxEntries) {
-                    findings += finding(
-                        ARCHIVE_ENTRY_COUNT_EXCEEDED,
-                        "archive",
-                        "archive contains more than ${policy.maxEntries} entries",
-                    )
-                    return ExtractionResult(false, filePaths)
-                }
                 val encodedName = entry.rawName?.toString(StandardCharsets.UTF_8) ?: entry.name
                 val originalName = if (entry.isDirectory) encodedName.removeSuffix("/") else encodedName
                 val normalized = normalizePath(originalName)
+                val isCarriedRelease = !carried &&
+                    !entry.isDirectory &&
+                    normalized != null &&
+                    CatalogDependencyArchivePaths.isDependencyPath(normalized)
+                if (isCarriedRelease) {
+                    if (dependencyPaths.size + 1 > policy.maxDependencies) {
+                        findings += finding(
+                            ARCHIVE_DEPENDENCY_COUNT_EXCEEDED,
+                            "archive",
+                            "archive carries more than ${policy.maxDependencies} releases",
+                        )
+                        return unsafe()
+                    }
+                } else {
+                    entryCount++
+                    if (entryCount > policy.maxEntries) {
+                        findings += finding(
+                            ARCHIVE_ENTRY_COUNT_EXCEEDED,
+                            "archive",
+                            "archive contains more than ${policy.maxEntries} entries",
+                        )
+                        return unsafe()
+                    }
+                }
                 if (normalized == null) {
                     findings += finding(ARCHIVE_PATH_INVALID, originalName, "archive entry path is unsafe")
-                    return ExtractionResult(false, filePaths)
+                    return unsafe()
                 }
                 if (!seenPaths.add(normalized)) {
                     findings += finding(ARCHIVE_PATH_DUPLICATE, normalized, "archive contains a duplicate normalized path")
-                    return ExtractionResult(false, filePaths)
+                    return unsafe()
                 }
                 if (entry.isUnixSymlink) {
                     findings += finding(ARCHIVE_SYMLINK_FORBIDDEN, normalized, "symbolic-link entries are forbidden")
-                    return ExtractionResult(false, filePaths)
+                    return unsafe()
                 }
                 if (entry.generalPurposeBit.usesEncryption()) {
                     findings += finding(ARCHIVE_ENCRYPTION_FORBIDDEN, normalized, "encrypted entries are forbidden")
-                    return ExtractionResult(false, filePaths)
+                    return unsafe()
                 }
                 if (entry.isDirectory) continue
                 filePaths += normalized
+                if (isCarriedRelease) {
+                    dependencyPaths += normalized
+                    dependencyCompressed += maxOf(entry.compressedSize, 0L)
+                }
                 val target = expandedRoot.resolve(normalized).normalize()
                 if (!target.startsWith(expandedRoot)) {
                     findings += finding(ARCHIVE_PATH_INVALID, normalized, "archive entry escapes the extraction root")
-                    return ExtractionResult(false, filePaths)
+                    return unsafe()
                 }
                 Files.createDirectories(target.parent)
                 var entryExpanded = 0L
@@ -266,14 +357,26 @@ object CatalogArchiveReader {
                             val read = source.read(buffer)
                             if (read < 0) break
                             entryExpanded += read
-                            totalExpanded += read
-                            if (totalExpanded > policy.maxExpandedBytes) {
-                                findings += finding(
-                                    ARCHIVE_EXPANDED_SIZE_EXCEEDED,
-                                    normalized,
-                                    "expanded archive exceeds ${policy.maxExpandedBytes} bytes",
-                                )
-                                return ExtractionResult(false, filePaths)
+                            if (isCarriedRelease) {
+                                dependencyExpanded += read
+                                if (entryExpanded > policy.maxCompressedBytes) {
+                                    findings += finding(
+                                        ARCHIVE_COMPRESSED_SIZE_EXCEEDED,
+                                        normalized,
+                                        "carried archive exceeds ${policy.maxCompressedBytes} bytes",
+                                    )
+                                    return unsafe()
+                                }
+                            } else {
+                                ownExpanded += read
+                                if (ownExpanded > policy.maxExpandedBytes) {
+                                    findings += finding(
+                                        ARCHIVE_EXPANDED_SIZE_EXCEEDED,
+                                        normalized,
+                                        "expanded archive exceeds ${policy.maxExpandedBytes} bytes",
+                                    )
+                                    return unsafe()
+                                }
                             }
                             if (ratio(entryExpanded, entry) > policy.maxExpansionRatio) {
                                 findings += finding(
@@ -281,7 +384,7 @@ object CatalogArchiveReader {
                                     normalized,
                                     "entry expansion ratio exceeds ${policy.maxExpansionRatio}:1",
                                 )
-                                return ExtractionResult(false, filePaths)
+                                return unsafe()
                             }
                             output.write(buffer, 0, read)
                         }
@@ -289,7 +392,101 @@ object CatalogArchiveReader {
                 }
             }
         }
-        return ExtractionResult(true, filePaths)
+        // The archive's own content, without the releases it carries, stays within the per-archive
+        // compressed limit.
+        if (Files.size(archiveFile) - dependencyCompressed > policy.maxCompressedBytes) {
+            findings += finding(
+                ARCHIVE_COMPRESSED_SIZE_EXCEEDED,
+                "archive",
+                "compressed archive exceeds ${policy.maxCompressedBytes} bytes",
+            )
+            return unsafe()
+        }
+        return ExtractionResult(true, filePaths, dependencyPaths, ownExpanded, dependencyExpanded, dependencyCompressed, entryCount)
+    }
+
+    /**
+     * An archive read before wire v8 carries no releases, so the per-archive limits apply to all of
+     * it, `dependencies/` included, exactly as before wire v8.
+     */
+    private fun legacyLimitFinding(
+        archiveFile: Path,
+        extraction: ExtractionResult,
+        policy: CatalogArchivePolicy,
+    ): ArchiveValidationFinding? = when {
+        Files.size(archiveFile) > policy.maxCompressedBytes ->
+            finding(ARCHIVE_COMPRESSED_SIZE_EXCEEDED, "archive", "compressed archive exceeds ${policy.maxCompressedBytes} bytes")
+        extraction.entryCount + extraction.dependencyPaths.size > policy.maxEntries ->
+            finding(ARCHIVE_ENTRY_COUNT_EXCEEDED, "archive", "archive contains more than ${policy.maxEntries} entries")
+        extraction.ownExpanded + extraction.dependencyExpanded > policy.maxExpandedBytes ->
+            finding(ARCHIVE_EXPANDED_SIZE_EXCEEDED, "archive", "expanded archive exceeds ${policy.maxExpandedBytes} bytes")
+        else -> null
+    }
+
+    /**
+     * Reads the releases a wire-v8 archive carries under `dependencies/` and checks them
+     * ([CatalogArchiveDependencies]). Returns them in install order, or null when the whole archive
+     * exceeds [CatalogArchivePolicy.maxTotalExpandedBytes]. Findings inside a carried release are
+     * reported under its path (`dependencies/…/1.0.0.zip!/catalog.json`).
+     */
+    private fun readCarried(
+        manifest: app.epistola.catalog.protocol.CatalogManifest,
+        extraction: ExtractionResult,
+        expandedRoot: Path,
+        policy: CatalogArchivePolicy,
+        findings: MutableList<ArchiveValidationFinding>,
+        notices: MutableList<app.epistola.catalog.migration.CatalogMigrationNotice>,
+    ): List<EmbeddedCatalogRelease>? {
+        val carried = linkedMapOf<CatalogDependencyArchivePaths.Coordinates, CatalogArchive?>()
+        var totalExpanded = extraction.ownExpanded
+        try {
+            for (path in extraction.dependencyPaths.sorted()) {
+                val coordinates = CatalogDependencyArchivePaths.parse(path)
+                if (coordinates == null) {
+                    findings += finding(
+                        ARCHIVE_DEPENDENCY_PATH_INVALID,
+                        path,
+                        "a file under dependencies/ must be dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip",
+                    )
+                    continue
+                }
+                // The path names the catalog: what a carried archive from before wire v8 does not say.
+                val migration = CatalogMigrationOptions(namespace = coordinates.namespace, registry = coordinates.registry)
+                val outcome = Files.newInputStream(expandedRoot.resolve(path)).use { read(it, policy, migration, carried = true) }
+                findings += outcome.result.findings.map {
+                    finding(it.code, CatalogArchiveDependencies.nested(path, it.path), it.message)
+                }
+                notices += outcome.result.migrationNotices.map { it.copy(path = CatalogArchiveDependencies.nested(path, it.path)) }
+                carried[coordinates] = outcome.result.archive
+                totalExpanded += outcome.expandedBytes
+                if (totalExpanded > policy.maxTotalExpandedBytes) {
+                    findings += finding(
+                        ARCHIVE_EXPANDED_SIZE_EXCEEDED,
+                        "archive",
+                        "expanded archive and the releases it carries exceed ${policy.maxTotalExpandedBytes} bytes",
+                    )
+                    carried.values.forEach { it?.close() }
+                    return null
+                }
+            }
+            val checked = CatalogArchiveDependencies.check(manifest, carried)
+            findings += checked.findings
+            val exposed = checked.installOrder.map { coordinates ->
+                EmbeddedCatalogRelease(
+                    coordinates.registry,
+                    coordinates.namespace,
+                    coordinates.catalogKey,
+                    coordinates.releaseVersion,
+                    requireNotNull(carried[coordinates]),
+                )
+            }
+            val exposedArchives = exposed.mapTo(mutableSetOf()) { it.archive }
+            carried.values.filterNotNull().filter { it !in exposedArchives }.forEach { it.close() }
+            return exposed
+        } catch (exception: Exception) {
+            carried.values.forEach { it?.close() }
+            throw exception
+        }
     }
 
     private fun ratio(
@@ -333,10 +530,26 @@ object CatalogArchiveReader {
         this
     }
 
-    private data class ExtractionResult(
+    private class ExtractionResult(
         val safe: Boolean,
         val paths: Set<String>,
+        /** Files under `dependencies/`, for an outer archive; also in [paths]. */
+        val dependencyPaths: Set<String>,
+        val ownExpanded: Long,
+        val dependencyExpanded: Long,
+        val dependencyCompressed: Long,
+        /** Entries counted against [CatalogArchivePolicy.maxEntries]. */
+        val entryCount: Int,
     )
+
+    private class ReadOutcome(
+        val result: CatalogArchiveReadResult,
+        /** Uncompressed bytes of the archive's own content. */
+        val expandedBytes: Long = 0L,
+    )
+
+    /** The wire version from which an archive may carry the releases it pins. */
+    private const val CARRIED_RELEASES_SINCE_WIRE_VERSION = 8
 
     private val DRIVE_PATH = Regex("^[A-Za-z]:.*")
 }

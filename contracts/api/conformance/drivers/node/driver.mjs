@@ -351,9 +351,9 @@ async function listCatalogDependencies(baseUrl, config) {
 
 /**
  * Declares a catalog's dependencies, each pinning an exact release or, in a draft, naming a draft
- * (`draftId`). An entry's `registry`, `releaseVersion` and `draftId` go out only when the scenario
+ * (`versionId`). An entry's `registry`, `releaseVersion` and `versionId` go out only when the scenario
  * gives them: omitted `registry` means the server's default registry. The response writes every
- * registry in full, and a null `releaseVersion` or `draftId` as null; both are reported exactly as
+ * registry in full, and a null `releaseVersion` or `versionId` as null; both are reported exactly as
  * parsed.
  */
 async function updateCatalogDependencies(baseUrl, config) {
@@ -363,7 +363,7 @@ async function updateCatalogDependencies(baseUrl, config) {
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
-    // Each entry as given: a `registry`, `releaseVersion` or `draftId` the scenario leaves out stays
+    // Each entry as given: a `registry`, `releaseVersion` or `versionId` the scenario leaves out stays
     // undefined, which the generated serializer keeps off the wire.
     updateCatalogDependenciesRequest: { dependencies: config.dependencies },
   })
@@ -376,7 +376,7 @@ function reportDependencies(baseUrl, items) {
     namespaces: items.map((d) => show(d.namespace)).join(','),
     catalogKeys: items.map((d) => show(d.catalogKey)).join(','),
     releaseVersions: items.map((d) => show(d.releaseVersion)).join(','),
-    draftIds: items.map((d) => show(d.draftId)).join(','),
+    versionIds: items.map((d) => show(d.versionId)).join(','),
   })
 }
 
@@ -393,7 +393,7 @@ async function createCatalogDraft(baseUrl, config) {
   })
   await report(baseUrl, {
     version: show(version.version),
-    draftId: show(version.draftId),
+    versionId: show(version.versionId),
     name: show(version.name),
     status: show(version.status),
     base: show(version.base),
@@ -409,7 +409,7 @@ async function listCatalogVersions(baseUrl, config) {
   const { items } = await new CatalogsApi(client(baseUrl, config)).listCatalogVersions(request)
   await report(baseUrl, {
     versions: items.map((v) => show(v.version)).join(','),
-    draftIds: items.map((v) => show(v.draftId)).join(','),
+    versionIds: items.map((v) => show(v.versionId)).join(','),
     names: items.map((v) => show(v.name)).join('|'),
     statuses: items.map((v) => show(v.status)).join(','),
     bases: items.map((v) => show(v.base)).join(','),
@@ -429,7 +429,7 @@ async function getCatalogVersion(baseUrl, config) {
   })
   await report(baseUrl, {
     version: show(version.version),
-    draftId: show(version.draftId),
+    versionId: show(version.versionId),
     name: show(version.name),
     status: show(version.status),
     releasedAt: showInstant(version.releasedAt),
@@ -454,7 +454,7 @@ async function renameCatalogDraft(baseUrl, config) {
   })
   await report(baseUrl, {
     version: show(version.version),
-    draftId: show(version.draftId),
+    versionId: show(version.versionId),
     name: show(version.name),
     status: show(version.status),
     base: show(version.base),
@@ -517,7 +517,7 @@ async function releaseCatalogDraft(baseUrl, config) {
       problemTypeSlug: error.typeSlug ?? '<null>',
       problemStatus: error.statusCode,
       problemUnreleasedDependencies: error.unreleasedDependencies
-        .map((d) => `${d.registry}/${d.namespace}/${d.catalogKey}#${d.draftId}=${d.draftName}`)
+        .map((d) => `${d.registry}/${d.namespace}/${d.catalogKey}#${d.versionId}=${d.draftName}`)
         .join('|'),
     })
     return
@@ -525,7 +525,7 @@ async function releaseCatalogDraft(baseUrl, config) {
   await report(baseUrl, {
     version: show(response.catalogVersion.version),
     status: show(response.catalogVersion.status),
-    draftId: show(response.catalogVersion.draftId),
+    versionId: show(response.catalogVersion.versionId),
     draftsBehind: response.draftsBehind.map(show).join('|'),
     releasedDependencies: response.releasedDependencies
       .map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.releaseVersion)}`)
@@ -583,13 +583,13 @@ async function undeployRelease(baseUrl, config) {
 }
 
 /**
- * Overrides the version of a catalog an environment uses; `releaseVersion` and `catalogVersion` go
+ * Overrides the version of a catalog an environment uses; `releaseVersion` and `versionId` go
  * out only when the scenario sets them. A refusal is reported by its problem.
  */
 async function setEnvironmentOverride(baseUrl, config) {
   const body = {}
   if (config.releaseVersion !== undefined) body.releaseVersion = config.releaseVersion
-  if (config.catalogVersion !== undefined) body.catalogVersion = config.catalogVersion
+  if (config.versionId !== undefined) body.versionId = config.versionId
   let override
   try {
     override = await new EnvironmentsApi(client(baseUrl, config)).setEnvironmentOverride({
@@ -611,7 +611,7 @@ async function setEnvironmentOverride(baseUrl, config) {
     namespace: show(override.namespace),
     catalogKey: show(override.catalogKey),
     releaseVersion: show(override.releaseVersion),
-    draftId: show(override.draftId),
+    versionId: show(override.versionId),
     draftLabel: show(override.draftLabel),
     setAt: showInstant(override.setAt),
   })
@@ -853,7 +853,7 @@ async function listEnvironmentOverrides(baseUrl, config) {
   await report(baseUrl, {
     catalogKeys: items.map((o) => show(o.catalogKey)).join(','),
     releaseVersions: items.map((o) => show(o.releaseVersion)).join(','),
-    draftIds: items.map((o) => show(o.draftId)).join(','),
+    versionIds: items.map((o) => show(o.versionId)).join(','),
     draftLabels: items.map((o) => show(o.draftLabel)).join('|'),
   })
 }

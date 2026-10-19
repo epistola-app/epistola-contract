@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 8,
+  "resource": {
+    "type": "theme",
+    "key": "letter",
+    "name": "Letter",
+    "description": null,
+    "documentStyles": {
+      "fontSize": "10pt",
+      "color": "#666666"
+    },
+    "pageSettings": null,
+    "blockStylePresets": null,
+    "spacingUnit": 1.2
+  }
+}

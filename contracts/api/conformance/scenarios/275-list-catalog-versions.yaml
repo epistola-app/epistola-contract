@@ -10,7 +10,7 @@ why: >
   wrong versions.
 
   A draft has no number until it is released (ADR 0002), so every `version` here is null, and a
-  draft is told apart by its `draftId` and named. A client that cannot read a null `version` cannot
+  draft is told apart by its `versionId` and named. A client that cannot read a null `version` cannot
   list a catalog's drafts at all.
 
   "Spring fixes" was started from release 1.5.0, its base, and is behind nothing. "Redesign 2027"
@@ -33,8 +33,8 @@ script:
     contentType: application/vnd.epistola.v2+json
     body:
       items:
-        - { version: null, draftId: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b, name: Spring fixes, status: draft, base: 1.5.0, createdFrom: null, behind: [], dependencies: [], deployedTo: [] }
-        - { version: null, draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192, name: Redesign 2027, status: draft, base: 1.4.0, createdFrom: 0193a6b2-6e3d-7b0c-8a1b-2c3d4e5f6a7b, behind: [{ version: 1.5.0, changes: [{ type: template, key: invoice, change: modified }] }], dependencies: [], deployedTo: [] }
+        - { version: null, versionId: k7m2x9qa, name: Spring fixes, status: draft, base: 1.5.0, createdFrom: null, behind: [], dependencies: [], deployedTo: [] }
+        - { version: null, versionId: r4t8w2nc, name: Redesign 2027, status: draft, base: 1.4.0, createdFrom: w6n4c8ze, behind: [{ version: 1.5.0, changes: [{ type: template, key: invoice, change: modified }] }], dependencies: [], deployedTo: [] }
       page: { number: 0, size: 20, totalElements: 2, totalPages: 1 }
 
 expect:
@@ -48,11 +48,11 @@ expect:
         size: { whenPresent: '20' }
   report:
     versions: null,null
-    draftIds: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b,0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+    versionIds: k7m2x9qa,r4t8w2nc
     # Names are free text, so they are joined with `|`.
     names: Spring fixes|Redesign 2027
     statuses: draft,draft
     bases: 1.5.0,1.4.0
-    createdFrom: null,0193a6b2-6e3d-7b0c-8a1b-2c3d4e5f6a7b
+    createdFrom: null,w6n4c8ze
     # How many releases each draft is behind: "Redesign 2027" does not contain release 1.5.0.
     behindCounts: 0,1

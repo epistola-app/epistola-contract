@@ -14,6 +14,14 @@ The default `CatalogArchivePolicy` enforces:
 - 10,000 entries
 - a maximum 100:1 expansion ratio
 
+An archive that carries releases (see "Dependencies inside an archive") is held to these limits for
+its own content, and each release it carries to the same limits on its own (a carried archive's size
+is its compressed size). The whole is further bounded by:
+
+- at most 50 carried releases (`maxDependencies`)
+- 100 MiB compressed for the archive together with the releases it carries (`maxTotalCompressedBytes`)
+- 200 MiB expanded content of the archive and every release it carries (`maxTotalExpandedBytes`)
+
 The reader rejects absolute and drive-qualified paths, traversal segments,
 backslashes, NULs, duplicate normalized paths, symbolic links, and encrypted
 entries. It spools bounded compressed input and expanded entries to temporary
@@ -135,6 +143,69 @@ which never recorded a release; otherwise both are set. The migrator's wire chec
 `CatalogValidator` report any other pairing, or a malformed fingerprint, as
 `CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`. The Kotlin model binds either alone, so manifests
 stored without the member still load.
+
+## Dependencies Inside an Archive
+
+A release pins exact releases of the catalogs it uses (`catalogDependencies`), and installing it
+needs those releases. An exchange installs them first; an archive can also carry them, for an
+installation that receives catalogs as files. From wire v8 a catalog archive **may** contain, for each
+pin, an ordinary catalog archive of the pinned release at a path derived from the pin:
+
+```text
+dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip
+```
+
+The manifest has no member for it: the pin (`registry`, `namespace`, `catalogKey`, `releaseVersion`,
+`releaseFingerprint`) says where to look. So a release's `catalog.json` and its fingerprint are the
+same whether it is exported thin or with its dependencies; V5 covers the manifest and the resources,
+never `dependencies/`. `CatalogArchiveWriter` writes the releases in `CatalogArchive.dependencies`
+there and leaves `catalog.json` byte for byte as a thin export writes it.
+
+- **Flat and transitive.** Every release reachable through the pins, a carried release's own pins
+  included, is carried in the **outer** archive's `dependencies/`, once. A carried archive is itself
+  thin: one that contains `dependencies/` refuses the archive (`CATALOG_ARCHIVE_DEPENDENCY_NESTED`).
+  A reader resolves every pin, at any depth, against the outer archive's `dependencies/`.
+- **Optional, all or nothing per pin.** A pin may have no carried release; the installation then
+  resolves it from what it has or can fetch (ADR 0003), and reports it unavailable otherwise. A
+  carried release must be the release its path names, by its own manifest's registry, namespace,
+  key and `release.version` (`CATALOG_ARCHIVE_DEPENDENCY_IDENTITY_MISMATCH`), and match the
+  `releaseFingerprint` of every pin that reaches it, checked with the algorithm the fingerprint names
+  (`CATALOG_ARCHIVE_DEPENDENCY_FINGERPRINT_MISMATCH`). Otherwise the whole archive is refused.
+- **Nothing else.** Every file under `dependencies/` must be such a path, each segment by its own
+  rule and length limits (`CatalogDependencyArchivePaths`, `CATALOG_DEPENDENCY_ARCHIVE_PATH_PATTERN`;
+  `CATALOG_ARCHIVE_DEPENDENCY_PATH_INVALID`), so a path cannot traverse or name anything else. A
+  carried release no pin reaches is refused (`CATALOG_ARCHIVE_DEPENDENCY_UNREFERENCED`), as a resource
+  detail the manifest does not declare is. Two pins in the graph naming different releases of one
+  catalog refuse the archive (`CATALOG_ARCHIVE_DEPENDENCY_CONFLICT`); a release already refuses two
+  paths needing different releases of one catalog, so a well-formed archive never has them. More
+  releases than the policy allows is `CATALOG_ARCHIVE_DEPENDENCY_COUNT_EXCEEDED`.
+
+`CatalogArchiveReader` reads each carried release as an archive of its own, under the per-archive
+limits, and reports what is wrong inside it under its path (`dependencies/…/1.0.0.zip!/catalog.json`).
+It exposes the carried releases that name themselves correctly and that a pin reaches as
+`CatalogArchive.dependencies` (`EmbeddedCatalogRelease`), in **install order**: each before every
+release that pins it. Closing the archive closes them. `CatalogValidator` applies the same rules,
+also to an archive assembled in memory, and validates each carried release as a catalog of its own,
+under its path.
+
+Wire v5 to v7 archives never carry releases. Their rules are unchanged: a `dependencies/` directory
+in one is an ordinary directory, held to the per-archive limits and not interpreted.
+
+### Installing
+
+An installation installs the carried releases first, in install order, then the archive's own
+release. A catalog's releases are immutable and stay installed side by side (ADR 0003), so it adds
+only the releases it lacks:
+
+- a release the installation has (the same catalog, by registry, namespace and key, and the same
+  number and fingerprint) is left as it is;
+- a release it lacks is installed from its carried archive, next to any other releases of that
+  catalog it has, which are left as they are: everything that renders with them keeps doing so;
+- a release it has with the same number but a **different fingerprint** is different content under
+  one name: the whole archive is refused, naming each, before anything changes.
+
+The archive's own release is installed by the same rules, last. Installing never fills or creates a
+draft.
 
 ## Deterministic Output
 

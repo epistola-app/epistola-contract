@@ -20,15 +20,15 @@ public final class UnreleasedDependency {
     private final String registry;
     private final String namespace;
     private final String catalogKey;
-    private final String draftId;
+    private final String versionId;
     private final String draftName;
 
     public UnreleasedDependency(
-            String registry, String namespace, String catalogKey, String draftId, String draftName) {
+            String registry, String namespace, String catalogKey, String versionId, String draftName) {
         this.registry = registry;
         this.namespace = namespace;
         this.catalogKey = catalogKey;
-        this.draftId = draftId;
+        this.versionId = versionId;
         this.draftName = draftName;
     }
 
@@ -48,8 +48,8 @@ public final class UnreleasedDependency {
     }
 
     /** The id of the draft the declaration names, as sent. */
-    public String getDraftId() {
-        return draftId;
+    public String getVersionId() {
+        return versionId;
     }
 
     /** The draft's name, as sent. */
@@ -69,18 +69,18 @@ public final class UnreleasedDependency {
         return Objects.equals(registry, that.registry)
                 && Objects.equals(namespace, that.namespace)
                 && Objects.equals(catalogKey, that.catalogKey)
-                && Objects.equals(draftId, that.draftId)
+                && Objects.equals(versionId, that.versionId)
                 && Objects.equals(draftName, that.draftName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(registry, namespace, catalogKey, draftId, draftName);
+        return Objects.hash(registry, namespace, catalogKey, versionId, draftName);
     }
 
-    /** {@code registry/namespace/catalogKey#draftId=draftName}. */
+    /** {@code registry/namespace/catalogKey#versionId=draftName}. */
     @Override
     public String toString() {
-        return registry + "/" + namespace + "/" + catalogKey + "#" + draftId + "=" + draftName;
+        return registry + "/" + namespace + "/" + catalogKey + "#" + versionId + "=" + draftName;
     }
 }

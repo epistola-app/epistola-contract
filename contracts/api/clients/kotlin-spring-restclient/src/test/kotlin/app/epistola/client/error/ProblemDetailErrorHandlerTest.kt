@@ -157,11 +157,11 @@ class ProblemDetailErrorHandlerTest {
              "title":"Release dependencies unreleased","status":409,
              "unreleasedDependencies":[
                {"registry":"exchange.epistola.app","namespace":"acme-corp","catalogKey":"branding",
-                "draftId":"0193a6b2-8a10-7d2e-8b3c-4d5e6f708192","draftName":"House style 2027"},
+                "versionId":"r4t8w2nc","draftName":"House style 2027"},
                "not an object",
-               {"registry":"exchange.epistola.app","namespace":"acme-corp","catalogKey":"fonts","draftId":"x"},
+               {"registry":"exchange.epistola.app","namespace":"acme-corp","catalogKey":"fonts","versionId":"x"},
                {"registry":"registry.gemeente-x.nl","namespace":"huisstijl","catalogKey":"fonts",
-                "draftId":"0193a6b2-9c21-7e3f-8c4d-5e6f708192a3","draftName":"New typefaces, round 2"}]}
+                "versionId":"h3v9p6db","draftName":"New typefaces, round 2"}]}
         """.trimIndent()
 
         val ex = assertFailsWith<ProblemDetailException> {
@@ -172,8 +172,8 @@ class ProblemDetailErrorHandlerTest {
         assertFalse(ex.isReleaseDependenciesMissingProblem)
         assertEquals(
             listOf(
-                UnreleasedCatalogDependency("exchange.epistola.app", "acme-corp", "branding", "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", "House style 2027"),
-                UnreleasedCatalogDependency("registry.gemeente-x.nl", "huisstijl", "fonts", "0193a6b2-9c21-7e3f-8c4d-5e6f708192a3", "New typefaces, round 2"),
+                UnreleasedCatalogDependency("exchange.epistola.app", "acme-corp", "branding", "r4t8w2nc", "House style 2027"),
+                UnreleasedCatalogDependency("registry.gemeente-x.nl", "huisstijl", "fonts", "h3v9p6db", "New typefaces, round 2"),
             ),
             ex.unreleasedDependencies,
         )

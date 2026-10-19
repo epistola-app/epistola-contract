@@ -255,9 +255,9 @@ public class ProblemDetailHandlerTest
               "detail": "letters uses drafts of other catalogs",
               "unreleasedDependencies": [
                 {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "branding",
-                 "draftId": "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", "draftName": "House style 2027"},
+                 "versionId": "r4t8w2nc", "draftName": "House style 2027"},
                 {"registry": "registry.gemeente-x.nl", "namespace": "huisstijl", "catalogKey": "fonts",
-                 "draftId": "0193a6b2-9c21-7e3f-8c4d-5e6f708192a3", "draftName": "New typefaces, round 2"}
+                 "versionId": "h3v9p6db", "draftName": "New typefaces, round 2"}
               ]
             }
             """;
@@ -273,10 +273,10 @@ public class ProblemDetailHandlerTest
         Assert.Equal("exchange.epistola.app", first.Registry);
         Assert.Equal("acme-corp", first.Namespace);
         Assert.Equal("branding", first.CatalogKey);
-        Assert.Equal("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", first.DraftId);
+        Assert.Equal("r4t8w2nc", first.VersionId);
         Assert.Equal("House style 2027", first.DraftName);
         Assert.Equal(
-            "registry.gemeente-x.nl/huisstijl/fonts#0193a6b2-9c21-7e3f-8c4d-5e6f708192a3=New typefaces, round 2",
+            "registry.gemeente-x.nl/huisstijl/fonts#h3v9p6db=New typefaces, round 2",
             ex.UnreleasedDependencies[1].ToString());
     }
 
@@ -290,9 +290,9 @@ public class ProblemDetailHandlerTest
               "status": 409,
               "unreleasedDependencies": [
                 "not an object",
-                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "draftId": "d"},
-                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "draftId": 1, "draftName": "x"},
-                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "draftId": "d2", "draftName": "Kept"}
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "versionId": "d"},
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "versionId": 1, "draftName": "x"},
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "versionId": "d2", "draftName": "Kept"}
               ]
             }
             """);

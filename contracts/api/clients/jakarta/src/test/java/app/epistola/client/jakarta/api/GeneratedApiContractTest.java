@@ -518,7 +518,7 @@ class GeneratedApiContractTest {
             VariantsApi variants = EpistolaRestClients.builder().baseUri(stub.baseUri()).build().api(VariantsApi.class);
 
             try (Response response = variants.getVariantContentWithHttpInfo(
-                    "acme-corp", "~", "acme-corp", "letters", "0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b", "invoice", "english")) {
+                    "acme-corp", "~", "acme-corp", "letters", "k7m2x9qa", "invoice", "english")) {
                 assertEquals("\"7\"", response.getHeaderString("ETag"));
                 assertEquals("english", response.readEntity(VariantContentDto.class).getVariantKey());
             }
@@ -536,7 +536,7 @@ class GeneratedApiContractTest {
             ProblemDetailException thrown = org.junit.jupiter.api.Assertions.assertThrows(
                     ProblemDetailException.class,
                     () -> variants.getVariantContentWithHttpInfo(
-                            "acme-corp", "~", "acme-corp", "letters", "0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b", "invoice", "english"));
+                            "acme-corp", "~", "acme-corp", "letters", "k7m2x9qa", "invoice", "english"));
             assertEquals("not-found", thrown.getTypeSlug());
         }
     }

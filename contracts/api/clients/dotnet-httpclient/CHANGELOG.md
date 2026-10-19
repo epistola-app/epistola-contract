@@ -23,7 +23,7 @@ records contract changes; this file records changes to the hand-written library 
   surface the `unreleasedDependencies` member of a `release-dependencies-unreleased` problem (409
   from `ReleaseCatalogDraft`): each draft of another catalog the released draft's dependency
   declarations name, as a hand-written `Epistola.Client.Error.UnreleasedDependency` (`Registry`,
-  `Namespace`, `CatalogKey`, `DraftId`, `DraftName`). A malformed entry is skipped on its own; an
+  `Namespace`, `CatalogKey`, `VersionId`, `DraftName`). A malformed entry is skipped on its own; an
   absent member is an empty list. The constructor takes it as a new optional
   `unreleasedDependencies` parameter.
 - The generated `Validate()` extensions check a member that references a plain string schema, such

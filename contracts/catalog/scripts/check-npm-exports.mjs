@@ -180,3 +180,17 @@ await assert.rejects(
   (error) => error?.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED',
   'generator output must not be a public npm entry point',
 );
+
+// Wire v8: the releases a catalog archive carries, held to the published fixture the Kotlin library is held to.
+const carried = JSON.parse(
+  await readFile(new URL('../fixtures/v1/carried-releases/carried-release-cases.json', import.meta.url), 'utf8'),
+);
+assert.equal(catalog.CATALOG_DEPENDENCY_ARCHIVE_PATH_PATTERN, carried.pathPattern, 'npm and fixture carried-release path patterns must agree');
+assert.equal(catalog.MAX_CATALOG_ARCHIVE_DEPENDENCIES, carried.defaultPolicy.maxDependencies, 'npm and fixture carried-release limits must agree');
+for (const path of carried.pathCases.valid) {
+  assert.ok(catalog.parseCatalogDependencyArchivePath(path), `${path} is a carried-release path`);
+  assert.equal(catalog.catalogDependencyArchivePath(catalog.parseCatalogDependencyArchivePath(path)), path);
+}
+for (const path of carried.pathCases.invalid) {
+  assert.equal(catalog.parseCatalogDependencyArchivePath(path), undefined, `${path} is not a carried-release path`);
+}

@@ -422,7 +422,7 @@ public static class Driver
     /// <summary>
     /// Declares the catalog's dependencies as the scenario lists them, each pinning an exact
     /// release or naming a draft, and reports what came back. <c>releaseVersion</c> and
-    /// <c>draftId</c> are set only when the entry names them, so the other stays off the wire. A
+    /// <c>versionId</c> are set only when the entry names them, so the other stays off the wire. A
     /// declaration that names a draft, or pins no release (migrated from wire v7), has a null
     /// <c>releaseVersion</c>, reported as <c>null</c> rather than lost.
     /// </summary>
@@ -436,7 +436,7 @@ public static class Driver
                 varNamespace: Str(d, "namespace"),
                 catalogKey: Str(d, "catalogKey"),
                 releaseVersion: OptStr(d, "releaseVersion")!,
-                draftId: OptStr(d, "draftId") is { } draftId ? Guid.Parse(draftId) : null))
+                versionId: OptStr(d, "versionId")))
             .ToList();
         ReportDependencies(baseUrl, new CatalogsApi(http, apiBase).UpdateCatalogDependencies(
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
@@ -452,7 +452,7 @@ public static class Driver
             ["namespaces"] = string.Join(",", items.Select(d => Show(d.Namespace))),
             ["catalogKeys"] = string.Join(",", items.Select(d => Show(d.CatalogKey))),
             ["releaseVersions"] = string.Join(",", items.Select(d => Show(d.ReleaseVersion))),
-            ["draftIds"] = string.Join(",", items.Select(d => Show(d.DraftId))),
+            ["versionIds"] = string.Join(",", items.Select(d => Show(d.VersionId))),
         });
     }
 
@@ -472,7 +472,7 @@ public static class Driver
         Report(baseUrl, new Dictionary<string, object>
         {
             ["version"] = Show(version.VarVersion),
-            ["draftId"] = Show(version.DraftId),
+            ["versionId"] = Show(version.VersionId),
             ["name"] = Show(version.Name),
             ["status"] = Show(Wire(version.Status)),
             ["base"] = Show(version.Base),
@@ -492,7 +492,7 @@ public static class Driver
         Report(baseUrl, new Dictionary<string, object>
         {
             ["versions"] = string.Join(",", items.Select(v => Show(v.VarVersion))),
-            ["draftIds"] = string.Join(",", items.Select(v => Show(v.DraftId))),
+            ["versionIds"] = string.Join(",", items.Select(v => Show(v.VersionId))),
             ["names"] = string.Join("|", items.Select(v => Show(v.Name))),
             ["statuses"] = string.Join(",", items.Select(v => Show(Wire(v.Status)))),
             ["bases"] = string.Join(",", items.Select(v => Show(v.Base))),
@@ -510,7 +510,7 @@ public static class Driver
         Report(baseUrl, new Dictionary<string, object>
         {
             ["version"] = Show(version.VarVersion),
-            ["draftId"] = Show(version.DraftId),
+            ["versionId"] = Show(version.VersionId),
             ["name"] = Show(version.Name),
             ["status"] = Show(Wire(version.Status)),
             ["releasedAt"] = Show(Iso(version.ReleasedAt)),
@@ -535,7 +535,7 @@ public static class Driver
         Report(baseUrl, new Dictionary<string, object>
         {
             ["version"] = Show(version.VarVersion),
-            ["draftId"] = Show(version.DraftId),
+            ["versionId"] = Show(version.VersionId),
             ["name"] = Show(version.Name),
             ["status"] = Show(Wire(version.Status)),
             ["base"] = Show(version.Base),
@@ -593,7 +593,7 @@ public static class Driver
                 ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
                 ["problemStatus"] = (int)e.StatusCode,
                 ["problemUnreleasedDependencies"] = string.Join("|", e.UnreleasedDependencies.Select(d =>
-                    $"{d.Registry}/{d.Namespace}/{d.CatalogKey}#{d.DraftId}={d.DraftName}")),
+                    $"{d.Registry}/{d.Namespace}/{d.CatalogKey}#{d.VersionId}={d.DraftName}")),
             });
             return;
         }
@@ -602,7 +602,7 @@ public static class Driver
         {
             ["version"] = Show(response.CatalogVersion?.VarVersion),
             ["status"] = Show(response.CatalogVersion == null ? null : Wire(response.CatalogVersion.Status)),
-            ["draftId"] = Show(response.CatalogVersion?.DraftId),
+            ["versionId"] = Show(response.CatalogVersion?.VersionId),
             ["draftsBehind"] = string.Join("|", response.DraftsBehind ?? new List<string>()),
             ["releasedDependencies"] = string.Join(",", (response.ReleasedDependencies ?? new List<ReleasedDependencyDto>())
                 .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.ReleaseVersion)}")),
@@ -757,7 +757,7 @@ public static class Driver
 
     /// <summary>
     /// Overrides the version of a catalog an environment uses; <c>releaseVersion</c> and
-    /// <c>catalogVersion</c> are left unset when the scenario does not name them. A refusal is
+    /// <c>versionId</c> are left unset when the scenario does not name them. A refusal is
     /// reported by its problem.
     /// </summary>
     private static void SetEnvironmentOverride(string baseUrl, JsonElement config)
@@ -771,7 +771,7 @@ public static class Driver
                 Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
                 new SetEnvironmentOverrideRequest(
                     releaseVersion: OptStr(config, "releaseVersion")!,
-                    catalogVersion: OptStr(config, "catalogVersion")!));
+                    versionId: OptStr(config, "versionId")!));
         }
         catch (ProblemDetailException e)
         {
@@ -790,7 +790,7 @@ public static class Driver
             ["namespace"] = Show(environmentOverride.Namespace),
             ["catalogKey"] = Show(environmentOverride.CatalogKey),
             ["releaseVersion"] = Show(environmentOverride.ReleaseVersion),
-            ["draftId"] = Show(environmentOverride.DraftId),
+            ["versionId"] = Show(environmentOverride.VersionId),
             ["draftLabel"] = Show(environmentOverride.DraftLabel),
             ["setAt"] = Show(Iso(environmentOverride.SetAt)),
         });
@@ -805,7 +805,7 @@ public static class Driver
         {
             ["catalogKeys"] = string.Join(",", overrides.Select(o => Show(o.CatalogKey))),
             ["releaseVersions"] = string.Join(",", overrides.Select(o => Show(o.ReleaseVersion))),
-            ["draftIds"] = string.Join(",", overrides.Select(o => Show(o.DraftId))),
+            ["versionIds"] = string.Join(",", overrides.Select(o => Show(o.VersionId))),
             ["draftLabels"] = string.Join("|", overrides.Select(o => Show(o.DraftLabel))),
         });
     }

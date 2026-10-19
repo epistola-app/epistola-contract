@@ -22,7 +22,7 @@ data class UnreleasedCatalogDependency(
     /** Key of the catalog depended on. */
     val catalogKey: String,
     /** The draft the declaration names. */
-    val draftId: String,
+    val versionId: String,
     /** The draft's name. */
     val draftName: String,
 ) {
@@ -35,7 +35,7 @@ data class UnreleasedCatalogDependency(
                 registry = text("registry") ?: return null,
                 namespace = text("namespace") ?: return null,
                 catalogKey = text("catalogKey") ?: return null,
-                draftId = text("draftId") ?: return null,
+                versionId = text("versionId") ?: return null,
                 draftName = text("draftName") ?: return null,
             )
         }

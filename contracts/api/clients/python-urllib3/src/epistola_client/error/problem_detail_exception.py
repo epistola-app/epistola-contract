@@ -59,7 +59,7 @@ class UnreleasedDependency:
     #: Key of the catalog depended on.
     catalog_key: str
     #: The draft the declaration names.
-    draft_id: str
+    version_id: str
     #: The draft's name.
     draft_name: str
 

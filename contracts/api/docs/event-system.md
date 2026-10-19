@@ -185,9 +185,9 @@ EventEnvelope:
           type: [string, "null"]
           description: >
             The catalog version the change was made in: a released
-            version's SemVer number, or a draft's draftId. A
-            draft's id no longer addresses anything once the
-            draft is released.
+            version's SemVer number, or a draft's versionId. A
+            draft keeps its versionId when it is released, so
+            the id addresses the release from then on.
         parentRefs:
           type: object
           description: >
@@ -281,7 +281,7 @@ A `document.generated` event carries the release the document was rendered from,
     "templateKey": "invoice",
     "variantKey": "english",
     "releaseVersion": "1.4.0",
-    "draftId": null,
+    "versionId": null,
     "draftLabel": null,
     "environmentKey": "production",
     "correlationId": "order-7890",
@@ -290,7 +290,7 @@ A `document.generated` event carries the release the document was rendered from,
 }
 ```
 
-The `data` members are taken from `DocumentGenerationItemDto`. A document rendered from a draft, through an environment that follows one, has a null `releaseVersion` and carries `draftId` and `draftLabel`; its `catalogVersion` is the `draftId`.
+The `data` members are taken from `DocumentGenerationItemDto`. A document rendered from a draft, through an environment that follows one, has a null `releaseVersion` and carries `versionId` and `draftLabel`; its `catalogVersion` is the `versionId`.
 
 ### 2.3 Ordering and Idempotency
 

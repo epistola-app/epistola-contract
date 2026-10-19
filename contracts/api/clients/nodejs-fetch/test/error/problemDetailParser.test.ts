@@ -112,16 +112,16 @@ test('parses a release-dependencies-unreleased problem with its unreleasedDepend
     title: 'Release dependencies unreleased',
     status: 409,
     unreleasedDependencies: [
-      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'branding', draftId: '0193a6b2-8a10-7d2e-8b3c-4d5e6f708192', draftName: 'House style 2027' },
-      { registry: 'registry.gemeente-x.nl', namespace: 'huisstijl', catalogKey: 'fonts', draftId: '0193a6b2-9c21-7e3f-8c4d-5e6f708192a3', draftName: 'New typefaces, round 2' },
+      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'branding', versionId: 'r4t8w2nc', draftName: 'House style 2027' },
+      { registry: 'registry.gemeente-x.nl', namespace: 'huisstijl', catalogKey: 'fonts', versionId: 'h3v9p6db', draftName: 'New typefaces, round 2' },
     ],
   }, 409)!
   assert.equal(problem.typeSlug, KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED)
   assert.ok(problem.isReleaseDependenciesUnreleasedProblem)
   assert.equal(problem.isReleaseDependenciesMissingProblem, false)
-  assert.deepEqual(problem.unreleasedDependencies.map((d) => `${d.catalogKey}#${d.draftId}=${d.draftName}`), [
-    'branding#0193a6b2-8a10-7d2e-8b3c-4d5e6f708192=House style 2027',
-    'fonts#0193a6b2-9c21-7e3f-8c4d-5e6f708192a3=New typefaces, round 2',
+  assert.deepEqual(problem.unreleasedDependencies.map((d) => `${d.catalogKey}#${d.versionId}=${d.draftName}`), [
+    'branding#r4t8w2nc=House style 2027',
+    'fonts#h3v9p6db=New typefaces, round 2',
   ])
 })
 
@@ -132,8 +132,8 @@ test('malformed unreleasedDependencies entries are dropped, and other problems r
     status: 409,
     unreleasedDependencies: [
       'not-an-object',
-      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'branding', draftId: '0193a6b2-8a10-7d2e-8b3c-4d5e6f708192' },
-      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'fonts', draftId: '0193a6b2-9c21-7e3f-8c4d-5e6f708192a3', draftName: 'Typefaces' },
+      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'branding', versionId: 'r4t8w2nc' },
+      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'fonts', versionId: 'h3v9p6db', draftName: 'Typefaces' },
     ],
   }, 409)!
   assert.deepEqual(problem.unreleasedDependencies.map((d) => d.catalogKey), ['fonts'])

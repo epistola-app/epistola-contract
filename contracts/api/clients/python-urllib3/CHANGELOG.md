@@ -20,7 +20,7 @@ records contract changes; this file records changes to the hand-written library 
 - `ProblemDetailException.unreleased_dependencies` and `is_release_dependencies_unreleased_problem`
   surface a `release-dependencies-unreleased` problem (409 from `release_catalog_draft`): each
   draft of another catalog the draft's dependency declarations name, as an
-  `UnreleasedDependency(registry, namespace, catalog_key, draft_id, draft_name)`, exported from
+  `UnreleasedDependency(registry, namespace, catalog_key, version_id, draft_name)`, exported from
   `epistola_client`. The member is `[]` when absent or malformed, and the exception's new
   `unreleased_dependencies=` constructor parameter is optional.
 - `model_validation` also covers a model whose only constraint sits in a referenced plain string

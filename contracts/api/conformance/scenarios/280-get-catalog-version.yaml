@@ -7,8 +7,8 @@ title: A released version reads back with what it renders with and where it runs
 why: >
   A released version is addressed by the number it was given when it was released, and carries
   release data: when it was released, its fingerprint, the releases of other catalogs it renders
-  with, and the environments that serve it. It is no longer a draft, so its `draftId` and `name`
-  are null (ADR 0002). The fingerprint names the algorithm that computed it (`v5:`), as the
+  with, and the environments that serve it. It is no longer a draft, so its `name` is null, but it
+  keeps the `versionId` it had as a draft (ADR 0002). The fingerprint names the algorithm that computed it (`v5:`), as the
   release's catalog archive does.
 
   The catalog is in a registry other than the default (`exchange.example.org`), named in full as
@@ -30,7 +30,7 @@ script:
     contentType: application/vnd.epistola.v2+json
     body:
       version: 1.4.0
-      draftId: null
+      versionId: m3q8v5tk
       name: null
       status: released
       base: 1.3.0
@@ -51,7 +51,7 @@ expect:
       path: /api/tenants/acme-corp/catalogs/exchange.example.org/team-a/letters/versions/1.4.0
   report:
     version: 1.4.0
-    draftId: 'null'
+    versionId: m3q8v5tk
     name: 'null'
     status: released
     releasedAt: "2026-10-01T12:00:00Z"

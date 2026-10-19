@@ -15,8 +15,8 @@ test('a listing operation asks for the success type and the problem document, in
 
 test('a catalog is addressed by registry, namespace and key, the default registry as ~ or %7E', () => {
   assert.equal(findOperation('GET', '/tenants/acme/catalogs/exchange.example.org/team-a/letters/versions/1.4.1/dependencies')!.operationId, 'listCatalogDependencies')
-  assert.equal(findOperation('PUT', '/tenants/acme/catalogs/~/acme/letters/versions/0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b/dependencies')!.operationId, 'updateCatalogDependencies')
-  assert.equal(findOperation('PUT', '/tenants/acme/catalogs/%7E/acme/letters/versions/0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b/dependencies')!.operationId, 'updateCatalogDependencies')
+  assert.equal(findOperation('PUT', '/tenants/acme/catalogs/~/acme/letters/versions/k7m2x9qa/dependencies')!.operationId, 'updateCatalogDependencies')
+  assert.equal(findOperation('PUT', '/tenants/acme/catalogs/%7E/acme/letters/versions/k7m2x9qa/dependencies')!.operationId, 'updateCatalogDependencies')
   assert.equal(findOperation('PUT', '/tenants/acme/environments/production/deployments/~/acme-corp/letters/1.4.0')!.operationId, 'deployRelease')
   assert.equal(findOperation('DELETE', '/tenants/acme/environments/production/deployments/acme.com/acme/letters/1.4.0')!.operationId, 'undeployRelease')
   // An override is addressed by the catalog alone: one per catalog, with no release segment.
@@ -30,20 +30,20 @@ test('a catalog is addressed by registry, namespace and key, the default registr
 
 test('a catalog version is addressed by a draft id or by its number, and its sub-resources by literal segments', () => {
   const base = '/tenants/acme/catalogs/~/acme-corp/letters/versions'
-  const draftId = '0193a6b2-8a10-7d2e-8b3c-4d5e6f708192'
+  const versionId = 'r4t8w2nc'
   assert.equal(findOperation('GET', base)!.operationId, 'listCatalogVersions')
   assert.equal(findOperation('POST', base)!.operationId, 'createCatalogDraft')
   assert.equal(findOperation('GET', `${base}/1.4.0`)!.operationId, 'getCatalogVersion')
-  assert.equal(findOperation('GET', `${base}/${draftId}`)!.operationId, 'getCatalogVersion')
-  assert.equal(findOperation('PATCH', `${base}/${draftId}`)!.operationId, 'renameCatalogDraft')
-  assert.equal(findOperation('DELETE', `${base}/${draftId}`)!.operationId, 'deleteCatalogDraft')
-  assert.equal(findOperation('GET', `${base}/${draftId}/release-preview`)!.operationId, 'previewCatalogDraftRelease')
+  assert.equal(findOperation('GET', `${base}/${versionId}`)!.operationId, 'getCatalogVersion')
+  assert.equal(findOperation('PATCH', `${base}/${versionId}`)!.operationId, 'renameCatalogDraft')
+  assert.equal(findOperation('DELETE', `${base}/${versionId}`)!.operationId, 'deleteCatalogDraft')
+  assert.equal(findOperation('GET', `${base}/${versionId}/release-preview`)!.operationId, 'previewCatalogDraftRelease')
   // Any draft is released at its own address (ADR 0002); there is no promotion.
-  assert.equal(findOperation('POST', `${base}/${draftId}/release`)!.operationId, 'releaseCatalogDraft')
-  assert.equal(findOperation('POST', `${base}/${draftId}/promote`), undefined)
-  assert.equal(findOperation('GET', `${base}/${draftId}/templates`)!.operationId, 'listTemplates')
+  assert.equal(findOperation('POST', `${base}/${versionId}/release`)!.operationId, 'releaseCatalogDraft')
+  assert.equal(findOperation('POST', `${base}/${versionId}/promote`), undefined)
+  assert.equal(findOperation('GET', `${base}/${versionId}/templates`)!.operationId, 'listTemplates')
   // A draft is numbered when it is released, so there is nothing to renumber.
-  assert.equal(findOperation('GET', `${base}/${draftId}/renumber-preview`), undefined)
+  assert.equal(findOperation('GET', `${base}/${versionId}/renumber-preview`), undefined)
   // Drafts are independent copies: nothing flows into them, so there are no incoming changes.
   assert.equal(findOperation('GET', `${base}/2.0.0/incoming`), undefined)
   assert.equal(findOperation('POST', `${base}/2.0.0/incoming/chg-1/resolve`), undefined)

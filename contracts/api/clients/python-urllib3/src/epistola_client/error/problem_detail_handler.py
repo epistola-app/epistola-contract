@@ -142,7 +142,7 @@ def _unreleased_dependencies(tree: Dict[str, Any]) -> List[UnreleasedDependency]
             continue
         values = [
             entry.get(name)
-            for name in ("registry", "namespace", "catalogKey", "draftId", "draftName")
+            for name in ("registry", "namespace", "catalogKey", "versionId", "draftName")
         ]
         if not all(isinstance(value, str) for value in values):
             return []

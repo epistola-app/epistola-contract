@@ -194,3 +194,51 @@ export const MAX_CATALOG_VARIANT_METADATA_NAMESPACES = 16
 
 /** Largest serialized metadata of one variant, in UTF-8 bytes of its compact JSON (wire v8). */
 export const MAX_CATALOG_VARIANT_METADATA_BYTES = 8192
+
+/** The directory, at a catalog archive's root, that holds the releases the archive carries (wire v8). */
+export const CATALOG_DEPENDENCY_ARCHIVE_DIRECTORY = 'dependencies/'
+
+/**
+ * Pattern the path of a release a catalog archive carries must match in full (wire v8):
+ * `dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip`, the pin's own values, each
+ * segment by its own rule (and its length limits: a registry at most 253 characters, a namespace 3 to
+ * 63, a catalog key 3 to 50, a release number at most 50). The groups are, in order, the registry,
+ * namespace, catalog key and release number. Anything else under `dependencies/` refuses the archive.
+ * The manifest has no member for it: a release's manifest and fingerprint are the same whether it is
+ * exported thin or with the releases it pins.
+ */
+export const CATALOG_DEPENDENCY_ARCHIVE_PATH_PATTERN =
+  '^dependencies/([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/((?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*))\\.zip$'
+
+/** Most releases one catalog archive carries by default; each is held to the per-archive limits on its own. */
+export const MAX_CATALOG_ARCHIVE_DEPENDENCIES = 50
+
+/** The release a carried archive's path names. */
+export interface CatalogDependencyArchiveCoordinates {
+  registry: string
+  namespace: string
+  catalogKey: string
+  releaseVersion: string
+}
+
+/**
+ * The release `path` names, or `undefined` when it is not a valid carried-release path
+ * ({@link CATALOG_DEPENDENCY_ARCHIVE_PATH_PATTERN} and each segment's length limits).
+ */
+export function parseCatalogDependencyArchivePath(path: string): CatalogDependencyArchiveCoordinates | undefined {
+  const match = new RegExp(CATALOG_DEPENDENCY_ARCHIVE_PATH_PATTERN).exec(path)
+  if (!match) return undefined
+  const [, registry, namespace, catalogKey, releaseVersion] = match
+  if (registry.length > MAX_CATALOG_REGISTRY_LENGTH) return undefined
+  if (namespace.length < MIN_CATALOG_NAMESPACE_LENGTH || namespace.length > MAX_CATALOG_NAMESPACE_LENGTH) return undefined
+  if (catalogKey.length < 3 || catalogKey.length > 50) return undefined
+  if (releaseVersion.length > MAX_CATALOG_RELEASE_VERSION_LENGTH) return undefined
+  return { registry, namespace, catalogKey, releaseVersion }
+}
+
+/** The path at which a catalog archive carries the given pinned release; throws when a segment breaks its rule. */
+export function catalogDependencyArchivePath(release: CatalogDependencyArchiveCoordinates): string {
+  const path = `${CATALOG_DEPENDENCY_ARCHIVE_DIRECTORY}${release.registry}/${release.namespace}/${release.catalogKey}/${release.releaseVersion}.zip`
+  if (!parseCatalogDependencyArchivePath(path)) throw new Error(`not a valid carried catalog release path: ${path}`)
+  return path
+}

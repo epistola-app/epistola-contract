@@ -211,9 +211,9 @@ class ProblemDetailParserTest {
                   "status": 409,
                   "unreleasedDependencies": [
                     {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "branding",
-                     "draftId": "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", "draftName": "House style 2027"},
+                     "versionId": "r4t8w2nc", "draftName": "House style 2027"},
                     {"registry": "acme.com", "namespace": "brand", "catalogKey": "fonts",
-                     "draftId": "0193a6b2-9c21-7e3f-8c4d-5e6f708192a3", "draftName": "New typefaces, round 2"}
+                     "versionId": "h3v9p6db", "draftName": "New typefaces, round 2"}
                   ]
                 }
                 """);
@@ -225,10 +225,10 @@ class ProblemDetailParserTest {
         assertEquals("exchange.epistola.app", first.getRegistry());
         assertEquals("acme-corp", first.getNamespace());
         assertEquals("branding", first.getCatalogKey());
-        assertEquals("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", first.getDraftId());
+        assertEquals("r4t8w2nc", first.getVersionId());
         assertEquals("House style 2027", first.getDraftName());
         assertEquals(
-                "acme.com/brand/fonts#0193a6b2-9c21-7e3f-8c4d-5e6f708192a3=New typefaces, round 2",
+                "acme.com/brand/fonts#h3v9p6db=New typefaces, round 2",
                 unreleased.get(1).toString());
         assertTrue(parsed.missingDependencies().isEmpty());
     }
