@@ -41,23 +41,30 @@ libraries.
   `ProblemDetails.releaseDependenciesUnreleased`. Conformance scenarios
   `catalog-dependencies-update-draft`, `release-catalog-draft-with-dependencies` and
   `release-catalog-draft-dependencies-unreleased`.
-- **Environment overrides and a production mark** (ADR 0002). An environment can
-  override which version of a catalog it uses as its latest: one of the releases it serves (a
-  rollback), or a draft, rendered live with no release, which is how a draft is tried.
-  `listEnvironmentOverrides`, `setEnvironmentOverride` (`PUT
-  …/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}`,
-  `SetEnvironmentOverrideRequest {releaseVersion? | versionId?}`, exactly one) and
-  `clearEnvironmentOverride` (204, idempotent) manage them (`EnvironmentOverrideDto`). A generation
-  or preview request through the environment naming no version or a range gets the override; one
-  naming an exact release still gets that release. `EnvironmentDto` gains the required
-  `production`, settable on create and update: a production environment uses only published
-  versions, so an override there names a release, never a draft. A refused override, or marking
-  production an environment that follows a draft, is 409 `environment-override-refused` (a new
-  problem type). Documents, generation items and collected results rendered from a draft carry
-  `versionId` and `draftLabel` (its name at render time) with a null `releaseVersion`. Deployment
-  history records `override-set` and `override-cleared`, with a nullable `releaseVersion` and a new
-  `draftLabel`. Undeploying the release an override names, or releasing or discarding the draft it
-  follows, ends it (`override-cleared`).
+- **An environment serves catalog versions, a draft included, and a production mark** (ADR 0002,
+  ADR 0003 "Deploying"). A deployment names a catalog version by `versionId` or release number:
+  `deployCatalogVersion` and `undeployCatalogVersion` (`…/deployments/{registry}/{namespace}/{catalogKey}/{catalogVersion}`,
+  no request body). A draft can be deployed, which is how it is tried: it renders live, with no
+  release, and an environment serves at most one draft per catalog (deploying another replaces
+  it, logged as undeployed). A generation or preview request through the environment that names
+  no version renders the deployed draft if there is one, else the highest served release; one that
+  names a range or an exact number renders the highest served release that satisfies it, never a
+  draft. Rollback is undeploying the newer release. Releasing a deployed draft keeps its
+  `versionId`, so the environment then serves that release, an explicit deployment logged as
+  `released`; discarding it ends the deployment, logged as `undeployed`. A deployed draft's pinned
+  dependency releases are used implicitly, a declaration naming another catalog's draft renders
+  that draft live, and `includeDependencies` deploys pinned releases only. `EnvironmentDto` gains
+  the required `production`, settable on create and update: a production environment serves only
+  releases. Deploying a draft to one, or marking production an environment that serves a draft, is
+  409 `environment-deployment-refused` (a new problem type). `DeploymentDto` and
+  `DeploymentEventDto` carry the required `versionId`, `kind` (`DeploymentKind`: `release` or
+  `draft`) and `draftName` (null for a release), with a nullable `releaseVersion` (null for a
+  draft); the history's `action` is `deployed`, `undeployed` or `released`. Documents, generation
+  items and collected results rendered from a draft carry `versionId` and `draftLabel` (its name at
+  render time) with a null `releaseVersion`. Every client's problem-type helpers know the new slug.
+  Conformance scenarios `deploy-catalog-draft`, `deploy-catalog-draft-refused`,
+  `list-environment-deployments-with-draft`, `undeploy-catalog-draft` and
+  `update-environment-production-refused`.
 - **A catalog archive can carry the releases it pins** (wire v8). Beside `catalog.json`, an
   archive may contain `dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip`, an
   ordinary catalog archive of a release its `catalogDependencies` pin, found from the pin alone: no
@@ -83,18 +90,18 @@ libraries.
   different fingerprint refuses the import with 409, and a pin it can neither find in the archive
   nor have refuses it with 409 `release-dependencies-missing`. The API has no export operation, so
   exporting with dependencies is a producer's choice.
-- **Deployments report how much they are used**, so an operator can see which deployed releases
+- **Deployments report how much they are used**, so an operator can see which deployed versions
   nobody uses any more before undeploying them. `DeploymentDto` (from `listEnvironmentDeployments`
-  and `deployRelease`) gains the required `lastUsedAt` (nullable `date-time`: null when no request
-  has used the release since it was deployed) and `documentsRequested` (`int64`, at least 0). A
-  generation request is counted when it names the environment and is accepted and rendered with
-  that deployed release; requests naming no environment, and requests through an environment that
-  follows a draft, are not. Both are updated within about a minute and reset when the release is
-  undeployed.
-- **`deployRelease` can replace what an environment serves of a catalog.** The optional query
-  parameter `replace` (default false) also stops serving the catalog's other releases in that
-  environment, in the same transaction, each logged as undeployed. Without it, the release is
-  still added beside the others.
+  and `deployCatalogVersion`) gains the required `lastUsedAt` (nullable `date-time`: null when no
+  request has used the version since it was deployed) and `documentsRequested` (`int64`, at least
+  0). A generation request is counted when it names the environment and is accepted and rendered
+  with that deployed version; requests naming no environment are not. Both are updated within
+  about a minute and reset when the version is undeployed; a deployed draft that is released keeps
+  its counts.
+- **`deployCatalogVersion` can replace what an environment serves of a catalog.** The optional
+  query parameter `replace` (default false) also stops serving the catalog's other versions in that
+  environment, its deployed draft included, in the same transaction, each logged as undeployed.
+  Without it, a release is still added beside the others.
 
 - **Stencils by reference, with lexical scope (ADR 0006), catalog side.** A stencil declares
   `readsTemplateData` (wire v8, default `false`, left out of the JSON when false and not covered by
@@ -135,11 +142,11 @@ libraries.
   (`deployedTo`). `getCatalogChanges` lists what is new, modified, ready or removed since the
   version's base and whether releasing it would be accepted;
   `markCatalogReady` marks everything changed ready in one action. An environment can
-  serve several releases of one catalog: `listEnvironmentDeployments`, `deployRelease` and
-  `undeployRelease` (both addressed by the release, `…/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}`,
-  with no request body), and `listDeploymentHistory` with every deploy and undeploy.
-  `undeployRelease` removes an explicit deployment only, and is never refused because another
-  release the environment serves renders with it: that release keeps rendering it, implicitly. A
+  serve several releases of one catalog: `listEnvironmentDeployments`, `deployCatalogVersion` and
+  `undeployCatalogVersion` (both addressed by the version, with no request body), and
+  `listDeploymentHistory` with every change to what the environment serves.
+  `undeployCatalogVersion` removes an explicit deployment only, and is never refused because another
+  version the environment serves renders with it: that version keeps rendering it, implicitly. A
   release the environment uses only implicitly cannot be undeployed (404) (ADR 0003).
 
 - **A template has a `description`** (#97): optional plain-text notes for its authors, at most
@@ -168,7 +175,7 @@ libraries.
   environment use them without deploying them. A dependency release that cannot be had refuses the
   deployment with the new problem type `release-dependencies-missing` (409), whose
   `missingDependencies` member lists each release (`MissingReleaseDependency`) and its `reason`
-  (`MissingReleaseDependencyReason`, whose one value is `UNAVAILABLE`). The new `deployRelease`
+  (`MissingReleaseDependencyReason`, whose one value is `UNAVAILABLE`). The new `deployCatalogVersion`
   query parameter `includeDependencies` (default false) also
   deploys them explicitly, all or nothing. Every client's problem parser surfaces
   `missingDependencies`; the server stubs add `ProblemDetails.releaseDependenciesMissing`.
@@ -448,16 +455,16 @@ libraries.
 - **BREAKING: one schema for a release number, `ReleaseVersion`.** Wherever the contract names one
   exact release, it is a SemVer core version without leading zeros
   (`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`), at most 50 characters: the
-  `deployRelease` / `undeployRelease` path parameter, the release request (`version`,
-  `acknowledgedBehind`), `setEnvironmentOverride`, a dependency declaration, and every response
+  release request (`version`, `acknowledgedBehind`), a dependency declaration, and every response
   member that names a release (`CatalogDto.releasedVersion`, `CatalogVersionDto.version` and
   `base`, `CatalogDraftSummary.base`, `BehindReleaseDto.version`, `CatalogChangesDto.base`,
   `CatalogDraftReleasePreview.base`, `needed` and `suggested`, `ReleasedDependencyDto`,
   `ReleaseDependencyDto`, `CatalogDependencyDto`, `AvailableReleaseDto.version` and `comparedTo`,
   `AvailableReleaseDependencyDto.releaseVersion`, `InstallCatalogReleaseResponse.releaseVersion` and
-  the `installCatalogRelease` `releaseVersion` path parameter, deployments, overrides, deployment history, missing
+  the `installCatalogRelease` `releaseVersion` path parameter, deployments, deployment history, missing
   dependencies, jobs, documents and collected results, `ImportCatalogResponse.releaseVersion`).
-  `CreateCatalogDraftRequest.from` takes the same number or a `versionId`. Version selectors are not release numbers and keep their own schema.
+  `CreateCatalogDraftRequest.from` and the `deployCatalogVersion` / `undeployCatalogVersion` path
+  parameter take the same number or a `versionId`. Version selectors are not release numbers and keep their own schema.
   Every client still sees these members as plain strings, and each client's generated model
   validation checks a member that references `ReleaseVersion` as if its constraints were inline.
 

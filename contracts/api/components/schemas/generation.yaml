@@ -67,11 +67,10 @@ PreviewDocumentRequest:
       description: |
         Which release of the template's catalog to render, as a version selector (see "Version
         selectors" in the API description); the highest release that satisfies it is rendered.
-        With `environmentKey`, only the releases that environment serves are considered, and when
-        the environment overrides the catalog (see "Environment overrides"), a request with no
-        version or with a range gets the override, which may be a draft rendered live; an exact
-        release is still that release. Omitted: the highest release (that the environment serves,
-        or its override, with `environmentKey`).
+        With `environmentKey`, only the releases that environment serves are considered (see
+        "Deploying"); a draft deployed there never matches a version. Omitted: the highest release,
+        or with `environmentKey` the catalog's draft deployed to that environment if there is one,
+        else the highest release it serves.
       example: null
     environmentKey:
       type: [string, "null"]
@@ -79,13 +78,12 @@ PreviewDocumentRequest:
       minLength: 3
       maxLength: 30
       description: |
-        Key of an environment. The release rendered is chosen among the releases of
-        the template's catalog that the environment serves: the highest one, or the highest that
-        satisfies `version`. When the environment overrides the catalog (`setEnvironmentOverride`),
-        a request with no `version` or a range gets the override instead: one of those releases, or
-        a draft rendered live (the document then carries `versionId` and `draftLabel`); an exact
-        release is still that release. The request is refused when the environment serves no such
-        release and has no override.
+        Key of an environment. With no `version`, the catalog's draft deployed to the environment is
+        rendered live if there is one (the document then carries `versionId` and `draftLabel`),
+        else the highest release of the template's catalog the environment serves. With a
+        `version`, the highest served release that satisfies it; a draft never matches a version
+        (`deployCatalogVersion`). The request is refused when the environment serves no such
+        version.
       example: null
     draft:
       type: [string, "null"]
@@ -94,8 +92,9 @@ PreviewDocumentRequest:
       maxLength: 36
       description: |
         Render a draft of the template's catalog, including changes not yet released, by its
-        `versionId` (a `CatalogVersionId`; mutually exclusive with version and environmentKey). A version selector never matches a draft; a generated document renders one
-        only through an environment that follows it (`setEnvironmentOverride`).
+        `versionId` (a `CatalogVersionId`; mutually exclusive with version and environmentKey). A
+        version selector never matches a draft; a generated document renders one only through an
+        environment it is deployed to (`deployCatalogVersion`).
       example: null
     data:
       type: object
@@ -246,11 +245,10 @@ GenerateDocumentRequest:
       description: |
         Which release of the template's catalog to render, as a version selector (see "Version
         selectors" in the API description); the highest release that satisfies it is rendered.
-        With `environmentKey`, only the releases that environment serves are considered, and when
-        the environment overrides the catalog (see "Environment overrides"), a request with no
-        version or with a range gets the override, which may be a draft rendered live; an exact
-        release is still that release. Omitted: the highest release (that the environment serves,
-        or its override, with `environmentKey`).
+        With `environmentKey`, only the releases that environment serves are considered (see
+        "Deploying"); a draft deployed there never matches a version. Omitted: the highest release,
+        or with `environmentKey` the catalog's draft deployed to that environment if there is one,
+        else the highest release it serves.
       example: null
     environmentKey:
       type: [string, "null"]
@@ -258,13 +256,12 @@ GenerateDocumentRequest:
       minLength: 3
       maxLength: 30
       description: |
-        Key of an environment. The release rendered is chosen among the releases of
-        the template's catalog that the environment serves: the highest one, or the highest that
-        satisfies `version`. When the environment overrides the catalog (`setEnvironmentOverride`),
-        a request with no `version` or a range gets the override instead: one of those releases, or
-        a draft rendered live (the document then carries `versionId` and `draftLabel`); an exact
-        release is still that release. The request is refused when the environment serves no such
-        release and has no override.
+        Key of an environment. With no `version`, the catalog's draft deployed to the environment is
+        rendered live if there is one (the document then carries `versionId` and `draftLabel`),
+        else the highest release of the template's catalog the environment serves. With a
+        `version`, the highest served release that satisfies it; a draft never matches a version
+        (`deployCatalogVersion`). The request is refused when the environment serves no such
+        version.
       example: null
     data:
       type: object
@@ -383,11 +380,10 @@ BatchGenerationItem:
       description: |
         Which release of the template's catalog to render, as a version selector (see "Version
         selectors" in the API description); the highest release that satisfies it is rendered.
-        With `environmentKey`, only the releases that environment serves are considered, and when
-        the environment overrides the catalog (see "Environment overrides"), a request with no
-        version or with a range gets the override, which may be a draft rendered live; an exact
-        release is still that release. Omitted: the highest release (that the environment serves,
-        or its override, with `environmentKey`).
+        With `environmentKey`, only the releases that environment serves are considered (see
+        "Deploying"); a draft deployed there never matches a version. Omitted: the highest release,
+        or with `environmentKey` the catalog's draft deployed to that environment if there is one,
+        else the highest release it serves.
       example: null
     environmentKey:
       type: [string, "null"]
@@ -395,13 +391,12 @@ BatchGenerationItem:
       minLength: 3
       maxLength: 30
       description: |
-        Key of an environment. The release rendered is chosen among the releases of
-        the template's catalog that the environment serves: the highest one, or the highest that
-        satisfies `version`. When the environment overrides the catalog (`setEnvironmentOverride`),
-        a request with no `version` or a range gets the override instead: one of those releases, or
-        a draft rendered live (the document then carries `versionId` and `draftLabel`); an exact
-        release is still that release. The request is refused when the environment serves no such
-        release and has no override.
+        Key of an environment. With no `version`, the catalog's draft deployed to the environment is
+        rendered live if there is one (the document then carries `versionId` and `draftLabel`),
+        else the highest release of the template's catalog the environment serves. With a
+        `version`, the highest served release that satisfies it; a draft never matches a version
+        (`deployCatalogVersion`). The request is refused when the environment serves no such
+        version.
       example: null
     data:
       type: object
@@ -591,8 +586,8 @@ DocumentGenerationItemDto:
       minLength: 4
       maxLength: 36
       description: |
-        The `versionId` of the draft this item renders, live, through an environment that follows
-        it (`setEnvironmentOverride`); `releaseVersion` is then null. Null when rendered from a release.
+        The `versionId` of the draft this item renders, live, through an environment it is
+        deployed to (`deployCatalogVersion`); `releaseVersion` is then null. Null when rendered from a release.
       example: null
     draftLabel:
       type: [string, "null"]
@@ -976,7 +971,7 @@ DocumentDto:
       maxLength: 36
       description: |
         The `versionId` of the draft this document was rendered from, live, through an environment
-        that follows it (`setEnvironmentOverride`); `releaseVersion` is then null. Null when rendered from a release.
+        it is deployed to (`deployCatalogVersion`); `releaseVersion` is then null. Null when rendered from a release.
       example: null
     draftLabel:
       type: [string, "null"]

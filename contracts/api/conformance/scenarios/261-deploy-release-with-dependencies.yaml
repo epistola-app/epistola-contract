@@ -13,7 +13,7 @@ why: >
   JSON boolean, not `True` or `1`, and still address the release by its path alone, with no body.
 
 action:
-  name: deploy-release
+  name: deploy-catalog-version
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
@@ -21,7 +21,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    releaseVersion: 1.4.0
+    catalogVersion: 1.4.0
     includeDependencies: true
 
 script:
@@ -31,7 +31,10 @@ script:
       registry: exchange.epistola.app
       namespace: acme-corp
       catalogKey: letters
+      versionId: m3q8v5tw
+      kind: release
       releaseVersion: 1.4.0
+      draftName: null
       deployedAt: "2026-10-02T07:30:00Z"
       lastUsedAt: null
       documentsRequested: 0
@@ -46,4 +49,7 @@ expect:
     registry: exchange.epistola.app
     namespace: acme-corp
     catalogKey: letters
+    versionId: m3q8v5tw
+    kind: release
     releaseVersion: 1.4.0
+    draftName: 'null'

@@ -17,7 +17,7 @@ why: >
   instant as sent and the count in full: it is an int64, and 5000000000 does not fit in 32 bits.
 
 action:
-  name: deploy-release
+  name: deploy-catalog-version
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
@@ -25,7 +25,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    releaseVersion: 1.4.0
+    catalogVersion: 1.4.0
     replace: true
 
 script:
@@ -35,7 +35,10 @@ script:
       registry: exchange.epistola.app
       namespace: acme-corp
       catalogKey: letters
+      versionId: m3q8v5tw
+      kind: release
       releaseVersion: 1.4.0
+      draftName: null
       deployedAt: "2026-10-02T07:30:00Z"
       lastUsedAt: "2026-10-17T14:05:00Z"
       documentsRequested: 5000000000
@@ -50,6 +53,9 @@ expect:
     registry: exchange.epistola.app
     namespace: acme-corp
     catalogKey: letters
+    versionId: m3q8v5tw
+    kind: release
     releaseVersion: 1.4.0
+    draftName: 'null'
     lastUsedAt: "2026-10-17T14:05:00Z"
     documentsRequested: "5000000000"

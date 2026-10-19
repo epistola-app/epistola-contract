@@ -76,8 +76,8 @@ simple, but it pushes the problem onto the authors. **Rejected.**
   warning model of its own.
 - **Pre-releases of drafts** (`X.Y.Z-<label>.<n>`), so the work could be deployed and tried. A
   pre-release had to be deployed, kept out of every version range and out of every exchange, and
-  numbered by a rule of its own, only so the work could be tried. An environment override tries the
-  draft itself, with none of that.
+  numbered by a rule of its own, only so the work could be tried. Deploying the draft itself tries
+  it, with none of that.
 
 ## Decision
 
@@ -92,9 +92,9 @@ Adopt **option C**.
   installed. A draft has no number yet, so it is identified by its `versionId` alone. A released
   version is identified by its `versionId` or by its SemVer number, `MAJOR.MINOR.PATCH`, unique in
   its catalog, interchangeably: both address the same version.
-- Only released versions are deployed, exported or published, and version selectors (`^1.4.0`)
-  never match a draft. A draft is rendered only by preview and by an environment that follows it
-  (see "Trying work: environment overrides").
+- Only released versions are exported or published, and version selectors (`^1.4.0`) never match a
+  draft. A draft is rendered only by preview and by an environment it is deployed to (see "Trying
+  work: deploying a draft").
 
 ### Drafts
 
@@ -105,7 +105,7 @@ Adopt **option C**.
 - A draft is started (`createCatalogDraft {name, from?}`) as a copy of a **release**, which becomes
   its base, or of **another draft**, unreleased changes included, on that draft's base. Without
   `from` it starts from the catalog's highest release, or empty when there is none.
-- Any draft can be renamed and discarded. Discarding ends the environment overrides that follow it.
+- Any draft can be renamed and discarded. Discarding ends its deployments.
 - **Drafts are independent copies.** Releasing one never changes another. Nothing is merged.
 - Which draft an author calls the next version, and which long-term work, is a convention of the
   UI, not of the contract.
@@ -135,7 +135,7 @@ Adopt **option C**.
   number.
 - **The released draft becomes the released version** at that number, immutable. Its `versionId`
   stays and addresses the release, as the number does: a write through either is refused with
-  `409`, never `404`. Environment overrides that followed it end.
+  `409`, never `404`. Where the draft was deployed, the environment now serves the release.
 
 ### A draft can be behind
 
@@ -159,23 +159,25 @@ number it is actually released as, or it is refused with `409`. A fix shipped in
 be left out of `2.0.0`, but never unnoticed. The release response names the catalog's drafts the new
 release puts behind (`draftsBehind`).
 
-### Trying work: environment overrides
+### Trying work: deploying a draft
 
-A draft is tried where it is authored, by pointing an environment at it, not by releasing it:
+A draft is tried where it is authored, by deploying it to an environment, not by releasing it
+(`deployCatalogVersion`, addressed by its `versionId`; ADR 0003, "Deploying"):
 
-- An environment can **override** which version of a catalog it uses as its latest: one of the
-  releases it serves (a rollback, without undeploying anything), or a **draft** of the catalog,
-  rendered live with no release. There is at most one override per catalog per environment. Setting
-  one is a deployment change: the same permission, recorded in the deployment history.
-- A generation or preview request through that environment that names **no version, or a version
-  range**, gets the override. A request naming an **exact release** still gets that release, so an
-  integration pinned to a release is not moved.
-- An environment marked **production** uses only published versions: an override there may name a
-  release, never a draft, and an environment that follows a draft cannot be marked production.
+- The environment renders the draft live, with no release. It serves at most one draft per
+  catalog; deploying another replaces it. Deploying is a deployment change: the same permission,
+  recorded in the deployment history.
+- A generation or preview request through that environment that names **no version** gets the
+  draft. A request naming a **range or an exact release** gets the highest served release that
+  satisfies it: a draft never matches a version, so an integration pinned to a release or a range
+  is not moved.
+- An environment marked **production** serves only releases: deploying a draft there is refused,
+  and an environment that serves a draft cannot be marked production
+  (`environment-deployment-refused`).
 - A document rendered from a draft records the draft's id and its name at render time, and its PDF
   carries a preview watermark.
-- An override ends with what it names: undeploying the release it names ends it, and so does
-  releasing or discarding the draft it follows (`override-cleared` in the history).
+- The deployment follows the draft: releasing it keeps the `versionId`, so the environment then
+  serves the release (`released` in the history); discarding it ends the deployment (`undeployed`).
 
 ### Releasing takes along the drafts it uses
 
@@ -258,13 +260,12 @@ id such as `k7m2x9qa` is recommended, because people read and type it.
 | `previewCatalogDraftRelease` | `GET …/versions/{catalogVersion}/release-preview` | `base`, `changeKind`, `reasons`, `needed`, `suggested` |
 | `releaseCatalogDraft` | `POST …/versions/{catalogVersion}/release` `{version?, notes?, acknowledgedBehind?, releaseDependencies?}` | Any draft. Returns the release, `draftsBehind` and `releasedDependencies`; refused with `release-dependencies-unreleased` when declarations name drafts and `releaseDependencies` is not set |
 
-Environment overrides:
+Deployments (ADR 0003, "Deploying"):
 
 | Operation | Request | Notes |
 | --- | --- | --- |
-| `listEnvironmentOverrides` | `GET …/environments/{environmentKey}/overrides` | At most one per catalog |
-| `setEnvironmentOverride` | `PUT …/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}` `{releaseVersion? \| versionId?}` | Exactly one; `versionId` names a draft; a draft on a production environment is refused (`environment-override-refused`) |
-| `clearEnvironmentOverride` | `DELETE …/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}` | Idempotent |
+| `deployCatalogVersion` | `PUT …/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{catalogVersion}` | A release number or a `versionId`; at most one draft per catalog; a draft on a production environment is refused (`environment-deployment-refused`) |
+| `undeployCatalogVersion` | `DELETE …/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{catalogVersion}` | Only an explicit deployment |
 
 - **Every resource path of the catalog's content is under `…/versions/{catalogVersion}/`,** and so
   are `getCatalogChanges`, `markCatalogReady` and the dependency operations. Reads work on any
@@ -276,9 +277,10 @@ Environment overrides:
 - `CatalogDependencyRequirement` and `CatalogDependencyDto` carry `releaseVersion` or, in a draft,
   `versionId`.
 - `EnvironmentDto.production` marks a production environment.
-- Deployments, generation and results address released versions by number, and keep the name
-  `releaseVersion` where they mean one. A document rendered from a draft carries `versionId` and
-  `draftLabel` with a null `releaseVersion`. `validateTemplateData` stays on the catalog, because
+- Generation and results address released versions by number, and keep the name `releaseVersion`
+  where they mean one. A deployment names a version by `versionId` or number, with its `kind`
+  (`release` or `draft`), and a null `releaseVersion` for a draft. A document rendered from a draft
+  carries `versionId` and `draftLabel` with a null `releaseVersion`. `validateTemplateData` stays on the catalog, because
   it selects a release by version selector and environment, as generation does.
 - Preview renders a draft named by its `versionId`.
 - `importCatalog` never touches a draft. It installs the release the archive carries, at its number,
@@ -323,9 +325,9 @@ this one:
   raise it, asks for notes and the optional exchange publication, asks the author to confirm the
   releases the draft is behind, offers to release the drafts of other catalogs it uses along with
   it, and afterwards lists the drafts now behind it.
-- **Trying work** is "use in environment…" on a draft, which sets an environment override.
-- **Deployments** become a catalog-level page: environments × released versions, with each
-  environment's override.
+- **Trying work** is "deploy to environment…" on a draft.
+- **Deployments** become a catalog-level page: environments × catalog versions, releases and the
+  draft each environment serves.
 
 ## Open questions
 

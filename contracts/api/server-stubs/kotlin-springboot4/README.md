@@ -76,7 +76,7 @@ ProblemDetails.dataModelValidation(
     ),
 )
 
-// 409 release-dependencies-missing: deployRelease, when a release the deployed one pins cannot be
+// 409 release-dependencies-missing: deployCatalogVersion, when a release the deployed version pins cannot be
 // had (the tenant does not have it, and it could not be fetched or verified)
 ProblemDetails.releaseDependenciesMissing(
     missingDependencies = listOf(

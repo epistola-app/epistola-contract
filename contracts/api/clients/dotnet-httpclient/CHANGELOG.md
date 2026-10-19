@@ -13,7 +13,7 @@ records contract changes; this file records changes to the hand-written library 
 
 - `ProblemDetailException.MissingDependencies` and `IsReleaseDependenciesMissingProblem` surface the
   `missingDependencies` member of a `release-dependencies-missing` problem (409 from
-  `DeployRelease`): each dependency release that cannot be had, as a hand-written
+  `DeployCatalogVersion`): each dependency release that cannot be had, as a hand-written
   `Epistola.Client.Error.MissingDependency` (`Registry`, `Namespace`, `CatalogKey`,
   `ReleaseVersion`, `Reason`). `Reason` is the string the server sent, so a reason a later contract
   adds is not lost; `MissingDependency.Reasons` holds the one named today, `Unavailable`. A malformed entry is

@@ -132,8 +132,8 @@ GenerationResult:
       minLength: 4
       maxLength: 36
       description: |
-        The `versionId` of the draft rendered, live, through an environment that follows it
-        (`setEnvironmentOverride`); `releaseVersion` is then null. Null when rendered from a release.
+        The `versionId` of the draft rendered, live, through an environment it is deployed
+        to (`deployCatalogVersion`); `releaseVersion` is then null. Null when rendered from a release.
       example: null
     draftLabel:
       type: [string, "null"]

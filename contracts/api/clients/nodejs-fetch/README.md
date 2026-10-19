@@ -141,7 +141,7 @@ try {
         }
         break
       case KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING:
-        for (const d of e.missingDependencies) {                                 // 409 from deployRelease
+        for (const d of e.missingDependencies) {                                 // 409 from deployCatalogVersion
           log.warn(`${d.registry}/${d.namespace}/${d.catalogKey}@${d.releaseVersion}: ${d.reason}`)
         }
         break
@@ -178,16 +178,16 @@ releases. `unreleasedDependencies` lists each such draft (`registry`, `namespace
 `versionId`, `draftName`); release them first, or send `releaseDependencies: true` to release them
 along with the draft.
 
-A `release-dependencies-missing` problem (409) means `deployRelease` was refused because releases
+A `release-dependencies-missing` problem (409) means `deployCatalogVersion` was refused because releases
 of other catalogs the release pins cannot be had: the tenant does not have them and they could not
 be fetched or verified. `missingDependencies` lists each, with a `reason` kept as the string the
 server sent (compare it against `MissingReleaseDependencyReason`). The dependency releases are used
 implicitly; pass `includeDependencies: true` to deploy them explicitly as well:
 
 ```ts
-await new EnvironmentsApi(client).deployRelease({
+await new EnvironmentsApi(client).deployCatalogVersion({
   tenantKey: 'acme', environmentKey: 'production',
-  registry: '~', namespace: 'acme', catalogKey: 'invoices', releaseVersion: '1.4.0',
+  registry: '~', namespace: 'acme', catalogKey: 'invoices', catalogVersion: '1.4.0',
   includeDependencies: true,
 })
 ```

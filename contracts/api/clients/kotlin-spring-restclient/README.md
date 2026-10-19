@@ -309,7 +309,7 @@ try {
             e.validationErrors.forEach { (example, failures) ->
                 failures.forEach { println("$example ${it.path}: ${it.message}") }
             }
-        KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING ->   // from deployRelease
+        KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING ->   // from deployCatalogVersion
             e.missingDependencies.forEach {
                 println("${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}: ${it.reason}")
             }

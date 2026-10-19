@@ -41,8 +41,8 @@ info:
       that is behind must be acknowledged.
 
     Documents are rendered from a released version, and version selectors never match a draft. Two
-    things render a draft: preview, naming it by its `versionId`, and an environment that follows a draft
-    (see "Environment overrides").
+    things render a draft: preview, naming it by its `versionId`, and an environment it is deployed
+    to (see "Deploying").
 
     Importing a catalog archive (`importCatalog`) never fills or creates a draft: it installs the
     release the archive carries, at its number, next to the releases the tenant already has. To edit
@@ -113,21 +113,27 @@ info:
     release that satisfies the selector is chosen; responses always name the exact release used.
     Catalog dependencies take no selector: they pin an exact release.
 
-    ## Environment overrides
-    An environment serves catalog releases, and a request through it (`environmentKey`) renders the
-    highest one it serves, or the highest that satisfies the request's `version`. An environment
-    can **override** that for a catalog (`setEnvironmentOverride`): it then uses one of the releases
-    it serves (a rollback), or a **draft** of the catalog, rendered live with no release. This is
-    how a draft is tried before it is released.
+    ## Deploying
+    An environment serves catalog versions (`deployCatalogVersion`), each named by its `versionId`
+    or its release number: releases, several of one catalog possibly, and at most one **draft** per
+    catalog, rendered live with no release. Deploying a draft is how it is tried before it is
+    released. A request through the environment (`environmentKey`) renders:
 
-    - A request through the environment that names **no version, or a version range**, gets the
-      override. A request naming an **exact release** still gets that release.
-    - An environment marked **production** (`EnvironmentDto.production`) uses only published
-      versions: an override there may name a release, never a draft.
+    - when it names **no version**: the catalog's deployed draft if there is one, else the highest
+      release the environment serves;
+    - when it names a **range or an exact number**: the highest served release that satisfies it. A
+      draft never matches a range or a number, as a SemVer pre-release does not.
+
+    Rollback is undeploying the newer release; holding a newer release back is not deploying it.
+    For drafts:
+
+    - Deploying a draft replaces the draft the environment served for that catalog.
+    - An environment marked **production** (`EnvironmentDto.production`) serves only releases:
+      deploying a draft there is refused (`environment-deployment-refused`).
     - A document rendered from a draft carries the draft's id and its name at render time
       (`versionId`, `draftLabel`, with a null `releaseVersion`), and its PDF a preview watermark.
-    - Undeploying the release an override names ends the override, and so does releasing or
-      discarding the draft it follows.
+    - Releasing a deployed draft keeps its `versionId`, so the environment then serves that release;
+      discarding it ends the deployment. Both are recorded in the deployment history.
 
     ## Authentication
     The API accepts authentication through the `Authorization` header:
@@ -301,7 +307,7 @@ x-problem-types:
       status: 409
       schema: ReleaseDependenciesMissingProblemDetail
       description: >-
-        A release cannot be deployed or imported because releases of other
+        A catalog version cannot be deployed or imported because releases of other
         catalogs it renders with (the releases it pins) cannot be had: the
         tenant does not have them, the import does not carry them, and they
         could not be fetched or verified; `missingDependencies` lists each one
@@ -314,13 +320,13 @@ x-problem-types:
         drafts of other catalogs, and a release pins only releases; release
         them first, or along with it (`releaseDependencies`).
         `unreleasedDependencies` lists each such draft.
-    - slug: environment-override-refused
+    - slug: environment-deployment-refused
       status: 409
       schema: ProblemDetail
       description: >-
-        An environment override cannot be set: a draft on a production
-        environment, or a release the environment does not serve; or an
-        environment that follows a draft cannot be marked production.
+        A production environment serves only releases: a draft cannot be
+        deployed to it, and an environment that serves a draft cannot be marked
+        production.
     - slug: resource-modified
       status: 412
       schema: ProblemDetail
@@ -492,12 +498,8 @@ paths:
     $ref: './paths/environments.yaml#/environments-id'
   /tenants/{tenantKey}/environments/{environmentKey}/deployments:
     $ref: './paths/environments.yaml#/environment-deployments'
-  /tenants/{tenantKey}/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{releaseVersion}:
-    $ref: './paths/environments.yaml#/environment-deployment-release'
-  /tenants/{tenantKey}/environments/{environmentKey}/overrides:
-    $ref: './paths/environments.yaml#/environment-overrides'
-  /tenants/{tenantKey}/environments/{environmentKey}/overrides/{registry}/{namespace}/{catalogKey}:
-    $ref: './paths/environments.yaml#/environment-override'
+  /tenants/{tenantKey}/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{catalogVersion}:
+    $ref: './paths/environments.yaml#/environment-deployment-version'
   /tenants/{tenantKey}/environments/{environmentKey}/deployment-history:
     $ref: './paths/environments.yaml#/environment-deployment-history'
 
@@ -684,6 +686,8 @@ components:
       $ref: './components/schemas/environments.yaml#/EnvironmentListResponse'
     DeploymentDto:
       $ref: './components/schemas/environments.yaml#/DeploymentDto'
+    DeploymentKind:
+      $ref: './components/schemas/environments.yaml#/DeploymentKind'
     MissingReleaseDependency:
       $ref: './components/schemas/environments.yaml#/MissingReleaseDependency'
     MissingReleaseDependencyReason:
@@ -694,12 +698,6 @@ components:
       $ref: './components/schemas/environments.yaml#/DeploymentEventDto'
     DeploymentHistoryResponse:
       $ref: './components/schemas/environments.yaml#/DeploymentHistoryResponse'
-    EnvironmentOverrideDto:
-      $ref: './components/schemas/environments.yaml#/EnvironmentOverrideDto'
-    EnvironmentOverrideListResponse:
-      $ref: './components/schemas/environments.yaml#/EnvironmentOverrideListResponse'
-    SetEnvironmentOverrideRequest:
-      $ref: './components/schemas/environments.yaml#/SetEnvironmentOverrideRequest'
 
     # Image schemas
     ImageDto:

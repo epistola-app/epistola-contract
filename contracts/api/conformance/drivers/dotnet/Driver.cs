@@ -68,11 +68,8 @@ public static class Driver
                 case "preview-catalog-draft-release": PreviewCatalogDraftRelease(baseUrl, config); break;
                 case "delete-catalog-draft": DeleteCatalogDraft(baseUrl, config); break;
                 case "release-catalog-draft": ReleaseCatalogDraft(baseUrl, config); break;
-                case "deploy-release": DeployRelease(baseUrl, config); break;
-                case "undeploy-release": UndeployRelease(baseUrl, config); break;
-                case "set-environment-override": SetEnvironmentOverride(baseUrl, config); break;
-                case "list-environment-overrides": ListEnvironmentOverrides(baseUrl, config); break;
-                case "clear-environment-override": ClearEnvironmentOverride(baseUrl, config); break;
+                case "deploy-catalog-version": DeployCatalogVersion(baseUrl, config); break;
+                case "undeploy-catalog-version": UndeployCatalogVersion(baseUrl, config); break;
                 case "create-environment": CreateEnvironment(baseUrl, config); break;
                 case "update-environment": UpdateEnvironment(baseUrl, config); break;
                 case "update-variant-content": UpdateVariantContent(baseUrl, config); break;
@@ -708,21 +705,22 @@ public static class Driver
         Newtonsoft.Json.JsonConvert.DeserializeObject<T>(Newtonsoft.Json.JsonConvert.SerializeObject(wire));
 
     /// <summary>
-    /// Deploys one release. The registry goes into the path exactly as the scenario gives it,
+    /// Deploys one catalog version, a release by its number or a draft by its <c>versionId</c>. The
+    /// registry and the version go into the path exactly as the scenario gives them,
     /// <c>~</c> for the server's default registry or a name in full; the request has no body.
     /// <c>includeDependencies</c> and <c>replace</c> are passed only when the scenario names them, so
     /// they stay off the query otherwise. A refusal is reported as its problem and the dependency
     /// releases it lists.
     /// </summary>
-    private static void DeployRelease(string baseUrl, JsonElement config)
+    private static void DeployCatalogVersion(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         DeploymentDto deployment;
         try
         {
-            deployment = new EnvironmentsApi(http, apiBase).DeployRelease(
+            deployment = new EnvironmentsApi(http, apiBase).DeployCatalogVersion(
                 Str(config, "tenantKey"), Str(config, "environmentKey"),
-                Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "releaseVersion"),
+                Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
                 includeDependencies: OptBool(config, "includeDependencies"),
                 replace: OptBool(config, "replace"));
         }
@@ -743,18 +741,21 @@ public static class Driver
             ["registry"] = Show(deployment.Registry),
             ["namespace"] = Show(deployment.Namespace),
             ["catalogKey"] = Show(deployment.CatalogKey),
+            ["versionId"] = Show(deployment.VersionId),
+            ["kind"] = Wire(deployment.Kind),
             ["releaseVersion"] = Show(deployment.ReleaseVersion),
+            ["draftName"] = Show(deployment.DraftName),
             ["lastUsedAt"] = Show(Iso(deployment.LastUsedAt)),
             ["documentsRequested"] = Show(deployment.DocumentsRequested),
         });
     }
 
-    private static void UndeployRelease(string baseUrl, JsonElement config)
+    private static void UndeployCatalogVersion(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        new EnvironmentsApi(http, apiBase).UndeployRelease(
+        new EnvironmentsApi(http, apiBase).UndeployCatalogVersion(
             Str(config, "tenantKey"), Str(config, "environmentKey"),
-            Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "releaseVersion"));
+            Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
     }
 
     private static void ReportBytes(string baseUrl, FileParameter file)
@@ -834,69 +835,6 @@ public static class Driver
             error == null ? "{}" : JsonSerializer.Serialize(new Dictionary<string, string> { ["error"] = error }));
 
     // --- Config helpers ---
-
-    /// <summary>
-    /// Overrides the version of a catalog an environment uses; <c>releaseVersion</c> and
-    /// <c>versionId</c> are left unset when the scenario does not name them. A refusal is
-    /// reported by its problem.
-    /// </summary>
-    private static void SetEnvironmentOverride(string baseUrl, JsonElement config)
-    {
-        var (http, apiBase) = Client(baseUrl, config);
-        EnvironmentOverrideDto environmentOverride;
-        try
-        {
-            environmentOverride = new EnvironmentsApi(http, apiBase).SetEnvironmentOverride(
-                Str(config, "tenantKey"), Str(config, "environmentKey"),
-                Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
-                new SetEnvironmentOverrideRequest(
-                    releaseVersion: OptStr(config, "releaseVersion")!,
-                    versionId: OptStr(config, "versionId")!));
-        }
-        catch (ProblemDetailException e)
-        {
-            Report(baseUrl, new Dictionary<string, object>
-            {
-                ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
-                ["problemStatus"] = (int)e.StatusCode,
-            });
-            return;
-        }
-
-        Report(baseUrl, new Dictionary<string, object>
-        {
-            ["environmentKey"] = Show(environmentOverride.EnvironmentKey),
-            ["registry"] = Show(environmentOverride.Registry),
-            ["namespace"] = Show(environmentOverride.Namespace),
-            ["catalogKey"] = Show(environmentOverride.CatalogKey),
-            ["releaseVersion"] = Show(environmentOverride.ReleaseVersion),
-            ["versionId"] = Show(environmentOverride.VersionId),
-            ["draftLabel"] = Show(environmentOverride.DraftLabel),
-            ["setAt"] = Show(Iso(environmentOverride.SetAt)),
-        });
-    }
-
-    private static void ListEnvironmentOverrides(string baseUrl, JsonElement config)
-    {
-        var (http, apiBase) = Client(baseUrl, config);
-        var overrides = new EnvironmentsApi(http, apiBase)
-            .ListEnvironmentOverrides(Str(config, "tenantKey"), Str(config, "environmentKey")).Items;
-        Report(baseUrl, new Dictionary<string, object>
-        {
-            ["catalogKeys"] = string.Join(",", overrides.Select(o => Show(o.CatalogKey))),
-            ["releaseVersions"] = string.Join(",", overrides.Select(o => Show(o.ReleaseVersion))),
-            ["versionIds"] = string.Join(",", overrides.Select(o => Show(o.VersionId))),
-            ["draftLabels"] = string.Join("|", overrides.Select(o => Show(o.DraftLabel))),
-        });
-    }
-
-    private static void ClearEnvironmentOverride(string baseUrl, JsonElement config)
-    {
-        var (http, apiBase) = Client(baseUrl, config);
-        new EnvironmentsApi(http, apiBase).ClearEnvironmentOverride(
-            Str(config, "tenantKey"), Str(config, "environmentKey"),
-            Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"));
-    }
 
     /// <summary>
     /// Replaces a variant's content with a one-node template model, sending <c>config.ifMatch</c>
@@ -1129,7 +1067,10 @@ public static class Driver
         {
             ["registries"] = string.Join(",", items.Select(d => Show(d.Registry))),
             ["catalogKeys"] = string.Join(",", items.Select(d => Show(d.CatalogKey))),
+            ["versionIds"] = string.Join(",", items.Select(d => Show(d.VersionId))),
+            ["kinds"] = string.Join(",", items.Select(d => Wire(d.Kind))),
             ["releaseVersions"] = string.Join(",", items.Select(d => Show(d.ReleaseVersion))),
+            ["draftNames"] = string.Join("|", items.Select(d => Show(d.DraftName))),
             ["deployedAt"] = string.Join(",", items.Select(d => Show(Iso(d.DeployedAt)))),
             ["lastUsedAt"] = string.Join(",", items.Select(d => Show(Iso(d.LastUsedAt)))),
             ["documentsRequested"] = string.Join(",", items.Select(d => d.DocumentsRequested.ToString(System.Globalization.CultureInfo.InvariantCulture))),
@@ -1149,8 +1090,10 @@ public static class Driver
         {
             ["catalogKeys"] = string.Join(",", items.Select(e => Show(e.CatalogKey))),
             ["actions"] = string.Join(",", items.Select(e => Wire(e.Action))),
+            ["versionIds"] = string.Join(",", items.Select(e => Show(e.VersionId))),
+            ["kinds"] = string.Join(",", items.Select(e => Wire(e.Kind))),
             ["releaseVersions"] = string.Join(",", items.Select(e => Show(e.ReleaseVersion))),
-            ["draftLabels"] = string.Join("|", items.Select(e => Show(e.DraftLabel))),
+            ["draftNames"] = string.Join("|", items.Select(e => Show(e.DraftName))),
             ["changedAt"] = string.Join(",", items.Select(e => Show(Iso(e.ChangedAt)))),
             ["changedBy"] = string.Join("|", items.Select(e => Show(e.ChangedBy))),
             ["totalElements"] = Show(response.Page?.TotalElements),
@@ -1170,15 +1113,31 @@ public static class Driver
         ReportEnvironment(baseUrl, environment);
     }
 
-    /// <summary>A partial update: each member is left unset when the scenario does not name it.</summary>
+    /// <summary>
+    /// A partial update: each member is left unset when the scenario does not name it. A refusal is
+    /// reported by its problem.
+    /// </summary>
     private static void UpdateEnvironment(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        var environment = new EnvironmentsApi(http, apiBase).UpdateEnvironment(
-            Str(config, "tenantKey"), Str(config, "environmentKey"),
-            new UpdateEnvironmentRequest(
-                name: OptStr(config, "name")!,
-                production: OptBool(config, "production")));
+        EnvironmentDto environment;
+        try
+        {
+            environment = new EnvironmentsApi(http, apiBase).UpdateEnvironment(
+                Str(config, "tenantKey"), Str(config, "environmentKey"),
+                new UpdateEnvironmentRequest(
+                    name: OptStr(config, "name")!,
+                    production: OptBool(config, "production")));
+        }
+        catch (ProblemDetailException e)
+        {
+            Report(baseUrl, new Dictionary<string, object>
+            {
+                ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
+                ["problemStatus"] = (int)e.StatusCode,
+            });
+            return;
+        }
         ReportEnvironment(baseUrl, environment);
     }
 

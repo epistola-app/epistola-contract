@@ -38,7 +38,6 @@ from epistola_client import (
     ProblemDetailException,
     ReleaseCatalogDraftRequest,
     RenameCatalogDraftRequest,
-    SetEnvironmentOverrideRequest,
     ResultCollector,
     StencilsApi,
     SystemApi,
@@ -89,11 +88,8 @@ def main() -> int:
         "preview-catalog-draft-release": _preview_catalog_draft_release,
         "delete-catalog-draft": _delete_catalog_draft,
         "release-catalog-draft": _release_catalog_draft,
-        "deploy-release": _deploy_release,
-        "undeploy-release": _undeploy_release,
-        "set-environment-override": _set_environment_override,
-        "list-environment-overrides": _list_environment_overrides,
-        "clear-environment-override": _clear_environment_override,
+        "deploy-catalog-version": _deploy_catalog_version,
+        "undeploy-catalog-version": _undeploy_catalog_version,
         "create-environment": _create_environment,
         "update-environment": _update_environment,
         "update-variant-content": _update_variant_content,
@@ -674,8 +670,9 @@ def _release_catalog_draft(base_url: str, config: dict) -> None:
     )
 
 
-def _deploy_release(base_url: str, config: dict) -> None:
-    """Deploys one release; the request has no body, the release is the last path segment.
+def _deploy_catalog_version(base_url: str, config: dict) -> None:
+    """Deploys one catalog version; the request has no body, the version (a release number or a
+    draft's ``versionId``) is the last path segment.
 
     ``includeDependencies`` and ``replace`` are passed only when the scenario sets them, so an unset
     one sends no query parameter. A refusal is reported by the dependency releases it names.
@@ -686,13 +683,13 @@ def _deploy_release(base_url: str, config: dict) -> None:
     if "replace" in config:
         optional["replace"] = config["replace"]
     try:
-        deployment = EnvironmentsApi(_client(base_url, config)).deploy_release(
+        deployment = EnvironmentsApi(_client(base_url, config)).deploy_catalog_version(
             config["tenantKey"],
             config["environmentKey"],
             config["registry"],
             config["namespace"],
             config["catalogKey"],
-            config["releaseVersion"],
+            config["catalogVersion"],
             **optional,
         )
     except ProblemDetailException as exc:
@@ -714,21 +711,24 @@ def _deploy_release(base_url: str, config: dict) -> None:
             "registry": _show(deployment.registry),
             "namespace": _show(deployment.namespace),
             "catalogKey": _show(deployment.catalog_key),
+            "versionId": _show(deployment.version_id),
+            "kind": _show(_enum(deployment.kind)),
             "releaseVersion": _show(deployment.release_version),
+            "draftName": _show(deployment.draft_name),
             "lastUsedAt": _show_instant(deployment.last_used_at),
             "documentsRequested": _show(deployment.documents_requested),
         },
     )
 
 
-def _undeploy_release(base_url: str, config: dict) -> None:
-    EnvironmentsApi(_client(base_url, config)).undeploy_release(
+def _undeploy_catalog_version(base_url: str, config: dict) -> None:
+    EnvironmentsApi(_client(base_url, config)).undeploy_catalog_version(
         config["tenantKey"],
         config["environmentKey"],
         config["registry"],
         config["namespace"],
         config["catalogKey"],
-        config["releaseVersion"],
+        config["catalogVersion"],
     )
 
 
@@ -941,7 +941,10 @@ def _list_environment_deployments(base_url: str, config: dict) -> None:
         {
             "registries": ",".join(_show(d.registry) for d in items),
             "catalogKeys": ",".join(_show(d.catalog_key) for d in items),
+            "versionIds": ",".join(_show(d.version_id) for d in items),
+            "kinds": ",".join(_show(_enum(d.kind)) for d in items),
             "releaseVersions": ",".join(_show(d.release_version) for d in items),
+            "draftNames": "|".join(_show(d.draft_name) for d in items),
             "deployedAt": ",".join(_show_instant(d.deployed_at) for d in items),
             "lastUsedAt": ",".join(_show_instant(d.last_used_at) for d in items),
             "documentsRequested": ",".join(_show(d.documents_requested) for d in items),
@@ -959,71 +962,14 @@ def _list_deployment_history(base_url: str, config: dict) -> None:
         {
             "catalogKeys": ",".join(_show(e.catalog_key) for e in items),
             "actions": ",".join(_show(_enum(e.action)) for e in items),
+            "versionIds": ",".join(_show(e.version_id) for e in items),
+            "kinds": ",".join(_show(_enum(e.kind)) for e in items),
             "releaseVersions": ",".join(_show(e.release_version) for e in items),
-            "draftLabels": "|".join(_show(e.draft_label) for e in items),
+            "draftNames": "|".join(_show(e.draft_name) for e in items),
             "changedAt": ",".join(_show_instant(e.changed_at) for e in items),
             "changedBy": "|".join(_show(e.changed_by) for e in items),
             "totalElements": _show(response.page.total_elements),
         },
-    )
-
-
-def _set_environment_override(base_url: str, config: dict) -> None:
-    """Overrides the version of a catalog an environment uses; ``releaseVersion`` and
-    ``versionId`` go out only when the scenario sets them. A refusal is reported by its
-    problem."""
-    optional = {name: config[name] for name in ("releaseVersion", "versionId") if name in config}
-    try:
-        override = EnvironmentsApi(_client(base_url, config)).set_environment_override(
-            config["tenantKey"],
-            config["environmentKey"],
-            config["registry"],
-            config["namespace"],
-            config["catalogKey"],
-            SetEnvironmentOverrideRequest(**optional),
-        )
-    except ProblemDetailException as exc:
-        _report(base_url, {"problemTypeSlug": exc.type_slug or "<null>", "problemStatus": exc.status_code})
-        return
-    _report(
-        base_url,
-        {
-            "environmentKey": _show(override.environment_key),
-            "registry": _show(override.registry),
-            "namespace": _show(override.namespace),
-            "catalogKey": _show(override.catalog_key),
-            "releaseVersion": _show(override.release_version),
-            "versionId": _show(override.version_id),
-            "draftLabel": _show(override.draft_label),
-            "setAt": _show_instant(override.set_at),
-        },
-    )
-
-
-def _list_environment_overrides(base_url: str, config: dict) -> None:
-    overrides = (
-        EnvironmentsApi(_client(base_url, config))
-        .list_environment_overrides(config["tenantKey"], config["environmentKey"])
-        .items
-    )
-    _report(
-        base_url,
-        {
-            "catalogKeys": ",".join(_show(o.catalog_key) for o in overrides),
-            "releaseVersions": ",".join(_show(o.release_version) for o in overrides),
-            "versionIds": ",".join(_show(o.version_id) for o in overrides),
-            "draftLabels": "|".join(_show(o.draft_label) for o in overrides),
-        },
-    )
-
-
-def _clear_environment_override(base_url: str, config: dict) -> None:
-    EnvironmentsApi(_client(base_url, config)).clear_environment_override(
-        config["tenantKey"],
-        config["environmentKey"],
-        config["registry"],
-        config["namespace"],
-        config["catalogKey"],
     )
 
 
@@ -1038,13 +984,18 @@ def _create_environment(base_url: str, config: dict) -> None:
 
 
 def _update_environment(base_url: str, config: dict) -> None:
-    """A partial update: each member goes out only when the scenario sets it."""
+    """A partial update: each member goes out only when the scenario sets it. A refusal is
+    reported by its problem."""
     optional = {name: config[name] for name in ("name", "production") if name in config}
-    environment = EnvironmentsApi(_client(base_url, config)).update_environment(
-        config["tenantKey"],
-        config["environmentKey"],
-        UpdateEnvironmentRequest(**optional),
-    )
+    try:
+        environment = EnvironmentsApi(_client(base_url, config)).update_environment(
+            config["tenantKey"],
+            config["environmentKey"],
+            UpdateEnvironmentRequest(**optional),
+        )
+    except ProblemDetailException as exc:
+        _report(base_url, {"problemTypeSlug": exc.type_slug or "<null>", "problemStatus": exc.status_code})
+        return
     _report_environment(base_url, environment)
 
 

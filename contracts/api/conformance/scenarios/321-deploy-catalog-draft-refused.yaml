@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: deploy-catalog-draft-refused
+title: A production environment refuses to serve a draft, and the client surfaces the problem type
+why: >
+  A production environment serves only releases, so deploying a draft there is refused with 409
+  `environment-deployment-refused` (ADR 0003, "Deploying"). A client must surface that slug, which
+  says the request can never succeed against this environment, rather than a bare conflict an
+  integration would retry. The problem carries no `missingDependencies`, and a client must read it
+  as an empty list, not fail on the member's absence.
+
+action:
+  name: deploy-catalog-version
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    environmentKey: production
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: r4t8w2nc
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/environment-deployment-refused
+      title: Environment Deployment Refused
+      status: 409
+      detail: "production serves only releases: it cannot serve a draft of letters"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PUT
+      path: /api/tenants/acme-corp/environments/production/deployments/~/acme-corp/letters/r4t8w2nc
+  report:
+    problemTypeSlug: environment-deployment-refused
+    problemStatus: 409
+    problemMissingDependencies: ""

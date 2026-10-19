@@ -5,8 +5,8 @@
 id: create-environment-production
 title: Creating a production environment sends the mark, and reads it back
 why: >
-  An environment marked production uses only published versions: it can never follow a draft
-  (ADR 0002). The mark is sent on creation as `production`, a JSON boolean, not a
+  An environment marked production uses only published versions: it can never serve a draft
+  (ADR 0003, "Deploying"). The mark is sent on creation as `production`, a JSON boolean, not a
   string; omitted, it is false. The answer carries it, always, so a client must read it.
 
 action:

@@ -544,7 +544,8 @@ CatalogVersionStatus:
     - draft
     - released
   description: |
-    - `draft`: editable. Never rendered by generation, deployed, exported or published.
+    - `draft`: editable. Never exported or published, and never matched by a version selector;
+      rendered only by preview and by an environment it is deployed to.
     - `released`: immutable, and numbered. A draft is numbered when it is released, and is then
       the released version at that number.
   example: draft
@@ -672,7 +673,9 @@ CatalogVersionDto:
         $ref: '#/ReleaseDependencyDto'
     deployedTo:
       type: array
-      description: Keys of the environments that serve this version; empty for a draft
+      description: |
+        Keys of the environments that serve this version (`deployCatalogVersion`), a release or a
+        draft
       items:
         type: string
       example: []

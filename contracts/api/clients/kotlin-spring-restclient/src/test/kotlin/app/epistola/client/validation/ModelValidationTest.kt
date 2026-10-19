@@ -15,7 +15,6 @@ import app.epistola.client.model.GenerateBatchRequest
 import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.Node
 import app.epistola.client.model.ResourceStatus
-import app.epistola.client.model.SetEnvironmentOverrideRequest
 import app.epistola.client.model.Slot
 import app.epistola.client.model.TemplateDocument
 import app.epistola.client.model.ThemeRef
@@ -157,28 +156,6 @@ class ModelValidationTest {
             CreateEnvironmentRequest(key = "a".repeat(31), name = "Env").validate()
         }
         assertEquals("key: length must be between 3 and 30", ex.message)
-    }
-
-    // --- An environment override names a release or a draft by its id (ADR 0002) ---
-
-    @Test
-    fun `SetEnvironmentOverrideRequest takes an exact release or a draft`() {
-        SetEnvironmentOverrideRequest(releaseVersion = "1.3.0").validate()
-        SetEnvironmentOverrideRequest(versionId = "r4t8w2nc").validate()
-
-        for (release in listOf("^1.3.0", "1.3", "2.0.0-beta.1", "next")) {
-            val ex = assertFailsWith<IllegalArgumentException>("expected release '$release' to fail") {
-                SetEnvironmentOverrideRequest(releaseVersion = release).validate()
-            }
-            assertEquals(true, ex.message?.startsWith("releaseVersion: "), ex.message)
-        }
-        // A draft is named by its versionId only: lowercase, no dot, 4 to 36 characters.
-        for (draft in listOf("1.3.0", "Next", "abc", "k7m2--x9")) {
-            val ex = assertFailsWith<IllegalArgumentException>("expected draft '$draft' to fail") {
-                SetEnvironmentOverrideRequest(versionId = draft).validate()
-            }
-            assertEquals(true, ex.message?.startsWith("versionId: "), ex.message)
-        }
     }
 
     // --- Integer range: FontVariantDto.weight is bounded 1-1000 ---

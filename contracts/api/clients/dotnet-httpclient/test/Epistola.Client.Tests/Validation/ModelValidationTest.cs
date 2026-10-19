@@ -180,36 +180,6 @@ public class ModelValidationTest
         Assert.Same(onDraft, onDraft.Validate());
     }
 
-    // An environment override names an exact release or a draft (ADR 0002).
-    [Fact]
-    public void SetEnvironmentOverrideRequestTakesAnExactReleaseOrADraft()
-    {
-        new SetEnvironmentOverrideRequest(releaseVersion: "1.3.0").Validate();
-        new SetEnvironmentOverrideRequest(versionId: "r4t8w2nc").Validate();
-    }
-
-    [Theory]
-    [InlineData("^1.3.0")]
-    [InlineData("1.3")]
-    [InlineData("2.0.0-beta.1")]
-    [InlineData("next")]
-    public void SetEnvironmentOverrideRequestRejectsAnyOtherRelease(string release)
-    {
-        var ex = Assert.Throws<ArgumentException>(() => new SetEnvironmentOverrideRequest(releaseVersion: release).Validate());
-        Assert.Contains("releaseVersion", ex.Message);
-    }
-
-    [Theory]
-    [InlineData("1.3.0")]
-    [InlineData("Draft-1")]
-    [InlineData("abc")]
-    [InlineData("k7m2--x9")]
-    public void SetEnvironmentOverrideRequestRejectsAnyOtherDraft(string draft)
-    {
-        var ex = Assert.Throws<ArgumentException>(() => new SetEnvironmentOverrideRequest(versionId: draft).Validate());
-        Assert.Contains("versionId", ex.Message);
-    }
-
     [Fact]
     public void ValidateReturnsSameInstanceForFluentChaining()
     {

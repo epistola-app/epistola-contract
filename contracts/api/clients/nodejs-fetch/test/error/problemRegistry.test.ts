@@ -27,7 +27,7 @@ const EXPECTED_SLUGS: Record<string, string> = {
   RATE_LIMITED: 'rate-limited',
   RELEASE_DEPENDENCIES_MISSING: 'release-dependencies-missing',
   RELEASE_DEPENDENCIES_UNRELEASED: 'release-dependencies-unreleased',
-  ENVIRONMENT_OVERRIDE_REFUSED: 'environment-override-refused',
+  ENVIRONMENT_DEPLOYMENT_REFUSED: 'environment-deployment-refused',
   RESOURCE_MODIFIED: 'resource-modified',
   CATALOG_SOURCE_UNAVAILABLE: 'catalog-source-unavailable',
 }

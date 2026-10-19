@@ -36,8 +36,6 @@ import app.epistola.client.jakarta.model.DeploymentDto;
 import app.epistola.client.jakarta.model.DeploymentEventDto;
 import app.epistola.client.jakarta.model.DeploymentHistoryResponse;
 import app.epistola.client.jakarta.model.EnvironmentDto;
-import app.epistola.client.jakarta.model.EnvironmentOverrideDto;
-import app.epistola.client.jakarta.model.SetEnvironmentOverrideRequest;
 import app.epistola.client.jakarta.model.UpdateEnvironmentRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
@@ -138,11 +136,8 @@ public final class Driver {
                 case "preview-catalog-draft-release" -> previewCatalogDraftRelease(baseUrl, config);
                 case "delete-catalog-draft" -> deleteCatalogDraft(baseUrl, config);
                 case "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config);
-                case "deploy-release" -> deployRelease(baseUrl, config);
-                case "undeploy-release" -> undeployRelease(baseUrl, config);
-                case "set-environment-override" -> setEnvironmentOverride(baseUrl, config);
-                case "list-environment-overrides" -> listEnvironmentOverrides(baseUrl, config);
-                case "clear-environment-override" -> clearEnvironmentOverride(baseUrl, config);
+                case "deploy-catalog-version" -> deployCatalogVersion(baseUrl, config);
+                case "undeploy-catalog-version" -> undeployCatalogVersion(baseUrl, config);
                 case "create-environment" -> createEnvironment(baseUrl, config);
                 case "update-environment" -> updateEnvironment(baseUrl, config);
                 case "update-variant-content" -> updateVariantContent(baseUrl, config);
@@ -877,11 +872,11 @@ public final class Driver {
     }
 
     /**
-     * Deploys a release, passing {@code includeDependencies} and {@code replace} only when the
-     * scenario names them. A refusal is reported as the problem it carried, with every missing
+     * Deploys a catalog version, a release by its number or a draft by its {@code versionId},
+     * passing {@code includeDependencies} and {@code replace} only when the scenario names them. A refusal is reported as the problem it carried, with every missing
      * dependency in order.
      */
-    private static void deployRelease(String baseUrl, JsonObject config) {
+    private static void deployCatalogVersion(String baseUrl, JsonObject config) {
         Boolean includeDependencies = config.containsKey("includeDependencies") && !config.isNull("includeDependencies")
                 ? config.getBoolean("includeDependencies")
                 : null;
@@ -892,13 +887,13 @@ public final class Driver {
         try {
             deployment = clients(baseUrl, config)
                     .api(EnvironmentsApi.class)
-                    .deployRelease(
+                    .deployCatalogVersion(
                             config.getString("tenantKey"),
                             config.getString("environmentKey"),
                             config.getString("registry"),
                             config.getString("namespace"),
                             config.getString("catalogKey"),
-                            config.getString("releaseVersion"),
+                            config.getString("catalogVersion"),
                             includeDependencies,
                             replace);
         } catch (ProblemDetailException e) {
@@ -922,103 +917,28 @@ public final class Driver {
                         "registry", String.valueOf(deployment.getRegistry()),
                         "namespace", String.valueOf(deployment.getNamespace()),
                         "catalogKey", String.valueOf(deployment.getCatalogKey()),
+                        "versionId", String.valueOf(deployment.getVersionId()),
+                        "kind", String.valueOf(deployment.getKind()),
                         "releaseVersion", String.valueOf(deployment.getReleaseVersion()),
+                        "draftName", String.valueOf(deployment.getDraftName()),
                         "lastUsedAt", instant(deployment.getLastUsedAt()),
                         "documentsRequested", String.valueOf(deployment.getDocumentsRequested())));
     }
 
-    private static void undeployRelease(String baseUrl, JsonObject config) {
+    private static void undeployCatalogVersion(String baseUrl, JsonObject config) {
         clients(baseUrl, config)
                 .api(EnvironmentsApi.class)
-                .undeployRelease(
+                .undeployCatalogVersion(
                         config.getString("tenantKey"),
                         config.getString("environmentKey"),
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        config.getString("releaseVersion"));
+                        config.getString("catalogVersion"));
     }
 
     private static <T> String joined(List<T> items, java.util.function.Function<T, String> field) {
         return items.stream().map(item -> String.valueOf(field.apply(item))).collect(Collectors.joining(","));
-    }
-
-    /** A string the scenario may leave out; absent stays null, so the request leaves it off the wire. */
-    /**
-     * Overrides the version of a catalog an environment uses; {@code releaseVersion} and
-     * {@code catalogVersion} are sent only when the scenario names them. A refusal is reported by
-     * its problem.
-     */
-    private static void setEnvironmentOverride(String baseUrl, JsonObject config) {
-        EnvironmentOverrideDto override;
-        try {
-            override = clients(baseUrl, config)
-                    .api(EnvironmentsApi.class)
-                    .setEnvironmentOverride(
-                            config.getString("tenantKey"),
-                            config.getString("environmentKey"),
-                            config.getString("registry"),
-                            config.getString("namespace"),
-                            config.getString("catalogKey"),
-                            new SetEnvironmentOverrideRequest()
-                                    .releaseVersion(optional(config, "releaseVersion"))
-                                    .versionId(optional(config, "versionId")));
-        } catch (ProblemDetailException e) {
-            report(
-                    baseUrl,
-                    Map.of(
-                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
-                            "problemStatus", e.getStatusCode()));
-            return;
-        }
-        report(
-                baseUrl,
-                Map.of(
-                        "environmentKey", String.valueOf(override.getEnvironmentKey()),
-                        "registry", String.valueOf(override.getRegistry()),
-                        "namespace", String.valueOf(override.getNamespace()),
-                        "catalogKey", String.valueOf(override.getCatalogKey()),
-                        "releaseVersion", String.valueOf(override.getReleaseVersion()),
-                        "versionId", String.valueOf(override.getVersionId()),
-                        "draftLabel", String.valueOf(override.getDraftLabel()),
-                        "setAt", instant(override.getSetAt())));
-    }
-
-    private static void listEnvironmentOverrides(String baseUrl, JsonObject config) {
-        List<EnvironmentOverrideDto> overrides = clients(baseUrl, config)
-                .api(EnvironmentsApi.class)
-                .listEnvironmentOverrides(config.getString("tenantKey"), config.getString("environmentKey"))
-                .getItems();
-        report(
-                baseUrl,
-                Map.of(
-                        "catalogKeys",
-                                overrides.stream()
-                                        .map(o -> String.valueOf(o.getCatalogKey()))
-                                        .collect(Collectors.joining(",")),
-                        "releaseVersions",
-                                overrides.stream()
-                                        .map(o -> String.valueOf(o.getReleaseVersion()))
-                                        .collect(Collectors.joining(",")),
-                        "versionIds",
-                                overrides.stream()
-                                        .map(o -> String.valueOf(o.getVersionId()))
-                                        .collect(Collectors.joining(",")),
-                        "draftLabels",
-                                overrides.stream()
-                                        .map(o -> String.valueOf(o.getDraftLabel()))
-                                        .collect(Collectors.joining("|"))));
-    }
-
-    private static void clearEnvironmentOverride(String baseUrl, JsonObject config) {
-        clients(baseUrl, config)
-                .api(EnvironmentsApi.class)
-                .clearEnvironmentOverride(
-                        config.getString("tenantKey"),
-                        config.getString("environmentKey"),
-                        config.getString("registry"),
-                        config.getString("namespace"),
-                        config.getString("catalogKey"));
     }
 
     /**
@@ -1301,7 +1221,10 @@ public final class Driver {
                 Map.of(
                         "registries", joined(items, DeploymentDto::getRegistry),
                         "catalogKeys", joined(items, DeploymentDto::getCatalogKey),
+                        "versionIds", joined(items, DeploymentDto::getVersionId),
+                        "kinds", joined(items, deployment -> String.valueOf(deployment.getKind())),
                         "releaseVersions", joined(items, DeploymentDto::getReleaseVersion),
+                        "draftNames", items.stream().map(deployment -> String.valueOf(deployment.getDraftName())).collect(Collectors.joining("|")),
                         "deployedAt", joined(items, deployment -> instant(deployment.getDeployedAt())),
                         "lastUsedAt", joined(items, deployment -> instant(deployment.getLastUsedAt())),
                         "documentsRequested", joined(items, deployment -> String.valueOf(deployment.getDocumentsRequested()))));
@@ -1321,8 +1244,10 @@ public final class Driver {
                 Map.of(
                         "catalogKeys", joined(items, DeploymentEventDto::getCatalogKey),
                         "actions", joined(items, event -> String.valueOf(event.getAction())),
+                        "versionIds", joined(items, DeploymentEventDto::getVersionId),
+                        "kinds", joined(items, event -> String.valueOf(event.getKind())),
                         "releaseVersions", joined(items, DeploymentEventDto::getReleaseVersion),
-                        "draftLabels", items.stream().map(event -> String.valueOf(event.getDraftLabel())).collect(Collectors.joining("|")),
+                        "draftNames", items.stream().map(event -> String.valueOf(event.getDraftName())).collect(Collectors.joining("|")),
                         "changedAt", joined(items, event -> instant(event.getChangedAt())),
                         "changedBy", items.stream().map(event -> String.valueOf(event.getChangedBy())).collect(Collectors.joining("|")),
                         "totalElements", String.valueOf(response.getPage().getTotalElements())));
@@ -1341,16 +1266,29 @@ public final class Driver {
         reportEnvironment(baseUrl, environment);
     }
 
-    /** A partial update: each member is sent only when the scenario names it. */
+    /**
+     * A partial update: each member is sent only when the scenario names it. A refusal is reported
+     * by its problem.
+     */
     private static void updateEnvironment(String baseUrl, JsonObject config) {
-        EnvironmentDto environment = clients(baseUrl, config)
-                .api(EnvironmentsApi.class)
-                .updateEnvironment(
-                        config.getString("tenantKey"),
-                        config.getString("environmentKey"),
-                        new UpdateEnvironmentRequest()
-                                .name(optional(config, "name"))
-                                .production(optionalBoolean(config, "production")));
+        EnvironmentDto environment;
+        try {
+            environment = clients(baseUrl, config)
+                    .api(EnvironmentsApi.class)
+                    .updateEnvironment(
+                            config.getString("tenantKey"),
+                            config.getString("environmentKey"),
+                            new UpdateEnvironmentRequest()
+                                    .name(optional(config, "name"))
+                                    .production(optionalBoolean(config, "production")));
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode()));
+            return;
+        }
         reportEnvironment(baseUrl, environment);
     }
 
@@ -1367,6 +1305,7 @@ public final class Driver {
         return config.containsKey(key) && !config.isNull(key) ? config.getBoolean(key) : null;
     }
 
+    /** A string the scenario may leave out; absent stays null, so the request leaves it off the wire. */
     private static String optional(JsonObject config, String key) {
         return config.containsKey(key) && !config.isNull(key) ? config.getString(key) : null;
     }

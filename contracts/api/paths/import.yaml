@@ -25,7 +25,7 @@ import-catalog:
 
       - **A release the tenant does not have** is installed. The catalog's other releases, and every
         draft, deployment and catalog that uses them, are left as they are; which release an
-        environment serves is decided by deploying it (`deployRelease`).
+        environment serves is decided by deploying it (`deployCatalogVersion`).
       - **The same number with the same fingerprint** is the release the tenant already has: nothing
         changes, and the response says it was already present (`newlyInstalled: false`).
       - **The same number with a different fingerprint** is different content under one name: the

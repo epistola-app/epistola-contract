@@ -26,14 +26,20 @@ script:
         - registry: exchange.epistola.app
           namespace: acme-corp
           catalogKey: letters
+          versionId: m3q8v5tw
+          kind: release
           releaseVersion: 1.4.0
+          draftName: null
           deployedAt: "2026-10-02T07:30:00Z"
           lastUsedAt: "2026-10-17T14:05:00Z"
           documentsRequested: 5000000000
         - registry: exchange.epistola.app
           namespace: acme-corp
           catalogKey: letters
+          versionId: h6p2c9xd
+          kind: release
           releaseVersion: 1.3.2
+          draftName: null
           deployedAt: "2026-08-14T12:00:00Z"
           lastUsedAt: null
           documentsRequested: 0
@@ -50,7 +56,10 @@ expect:
   report:
     registries: exchange.epistola.app,exchange.epistola.app
     catalogKeys: letters,letters
+    versionIds: m3q8v5tw,h6p2c9xd
+    kinds: release,release
     releaseVersions: 1.4.0,1.3.2
+    draftNames: null|null
     deployedAt: 2026-10-02T07:30:00Z,2026-08-14T12:00:00Z
     lastUsedAt: 2026-10-17T14:05:00Z,null
     documentsRequested: 5000000000,0

@@ -13,7 +13,7 @@ why: >
   rather than fail to deserialize.
 
 action:
-  name: undeploy-release
+  name: undeploy-catalog-version
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
@@ -21,7 +21,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    releaseVersion: 1.3.0
+    catalogVersion: 1.3.0
 
 script:
   - status: 204
