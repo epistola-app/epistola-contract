@@ -189,7 +189,7 @@ object CatalogMigrationCodes {
 
     /**
      * Notice: a catalog-v7 catalog named by a resource dependency was declared as a catalog
-     * dependency with the unpinned selector `*`, for the author to set.
+     * dependency that pins no release, for the author to pin one.
      */
     const val DEPENDENCY_CATALOG_DECLARED = "CATALOG_DEPENDENCY_CATALOG_DECLARED"
 

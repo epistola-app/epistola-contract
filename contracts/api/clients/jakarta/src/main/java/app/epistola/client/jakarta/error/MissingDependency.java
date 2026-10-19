@@ -9,7 +9,7 @@ import java.util.Objects;
 
 /**
  * One release a {@code release-dependencies-missing} problem lists: a release of another catalog
- * the deployed release was cut with, which the environment does not serve, and why.
+ * the deployed release pins, directly or through another dependency, which cannot be had, and why.
  *
  * <p>Hand-written rather than the generated {@code MissingReleaseDependency}, because that binds
  * {@code reason} to an enum and fails on a value it does not know. The contract may add reasons
@@ -48,14 +48,14 @@ public final class MissingDependency {
         return catalogKey;
     }
 
-    /** The release the deployed release was cut with. */
+    /** The release of the catalog depended on that the deployed release pins. */
     public String getReleaseVersion() {
         return releaseVersion;
     }
 
     /**
-     * Why the release is missing, as the server sent it: {@code NOT_DEPLOYED},
-     * {@code NOT_INSTALLED}, {@code UNAVAILABLE}, or a reason a later contract added.
+     * Why the release is missing, as the server sent it: {@code UNAVAILABLE}, or a reason a later
+     * contract added.
      */
     public String getReason() {
         return reason;

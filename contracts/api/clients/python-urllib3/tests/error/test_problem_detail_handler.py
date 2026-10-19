@@ -166,14 +166,14 @@ def test_parses_release_dependencies_missing_problem_in_order():
                 "namespace": "epistola",
                 "catalogKey": "system",
                 "releaseVersion": "3.2.0",
-                "reason": "NOT_DEPLOYED",
+                "reason": "UNAVAILABLE",
             },
             {
                 "registry": "registry.gemeente-x.nl",
                 "namespace": "huisstijl",
                 "catalogKey": "branding",
                 "releaseVersion": "1.4.2",
-                "reason": "NOT_INSTALLED",
+                "reason": "UNAVAILABLE",
             },
         ]
     )
@@ -182,9 +182,9 @@ def test_parses_release_dependencies_missing_problem_in_order():
     assert exc.type_slug == KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
     assert exc.is_release_dependencies_missing_problem
     assert exc.missing_dependencies == [
-        MissingDependency("exchange.epistola.app", "epistola", "system", "3.2.0", "NOT_DEPLOYED"),
+        MissingDependency("exchange.epistola.app", "epistola", "system", "3.2.0", "UNAVAILABLE"),
         MissingDependency(
-            "registry.gemeente-x.nl", "huisstijl", "branding", "1.4.2", "NOT_INSTALLED"
+            "registry.gemeente-x.nl", "huisstijl", "branding", "1.4.2", "UNAVAILABLE"
         ),
     ]
     assert exc.missing_dependencies[0].catalog_key == "system"
@@ -242,7 +242,7 @@ def test_a_malformed_missing_dependencies_member_yields_nothing_rather_than_a_gu
                     "namespace": "epistola",
                     "catalogKey": "system",
                     "releaseVersion": "3.2.0",
-                    "reason": "NOT_DEPLOYED",
+                    "reason": "UNAVAILABLE",
                 },
                 {"registry": "exchange.epistola.app", "catalogKey": 42},
             ]

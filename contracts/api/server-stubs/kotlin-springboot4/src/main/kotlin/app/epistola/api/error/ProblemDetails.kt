@@ -118,8 +118,8 @@ object ProblemDetails {
         const val CONFLICT: String = KnownProblemSlugs.CONFLICT
 
         /**
-         * 409 — a release cannot be deployed because the environment does not serve its dependency
-         * releases (use [releaseDependenciesMissing]).
+         * 409 — a release cannot be deployed because dependency releases it pins cannot be had
+         * (use [releaseDependenciesMissing]).
          */
         const val RELEASE_DEPENDENCIES_MISSING: String = KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
 
@@ -198,8 +198,8 @@ object ProblemDetails {
 
     /**
      * Builds a `release-dependencies-missing` [ProblemDetail] (409): like [of] plus the
-     * [missingDependencies] extension member, each dependency release the environment does not
-     * serve and why (the `ReleaseDependenciesMissingProblemDetail` shape from the contract).
+     * [missingDependencies] extension member, each dependency release that cannot be had, and
+     * why (the `ReleaseDependenciesMissingProblemDetail` shape from the contract).
      */
     fun releaseDependenciesMissing(
         missingDependencies: List<MissingReleaseDependency>,

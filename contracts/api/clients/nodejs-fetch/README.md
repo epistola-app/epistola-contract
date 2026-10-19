@@ -161,10 +161,11 @@ ResponseError` sites keep working. It exposes `type`, `typeSlug`, `title`, `prob
 `rawBody`, `isValidationProblem`, `isDataModelValidationProblem`, `isTemplateDataProblem`, and
 `isReleaseDependenciesMissingProblem`.
 
-A `release-dependencies-missing` problem (409) means `deployRelease` was refused because the
-environment does not serve the releases of other catalogs the release was cut with.
-`missingDependencies` lists each, with a `reason` kept as the string the server sent (compare it
-against `MissingReleaseDependencyReason`). Pass `includeDependencies: true` to deploy them along:
+A `release-dependencies-missing` problem (409) means `deployRelease` was refused because releases
+of other catalogs the release pins cannot be had: the tenant does not have them and they could not
+be fetched or verified. `missingDependencies` lists each, with a `reason` kept as the string the
+server sent (compare it against `MissingReleaseDependencyReason`). The dependency releases are used
+implicitly; pass `includeDependencies: true` to deploy them explicitly as well:
 
 ```ts
 await new EnvironmentsApi(client).deployRelease({

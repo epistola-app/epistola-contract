@@ -57,7 +57,6 @@
       "registry": "exchange.epistola.app",
       "namespace": "epistola",
       "catalogKey": "shared",
-      "version": "^1.2.0",
       "releaseVersion": "1.4.0",
       "releaseFingerprint": "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42"
     }

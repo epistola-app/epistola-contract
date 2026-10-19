@@ -113,9 +113,6 @@ export const MAX_CATALOG_REGISTRY_LENGTH = 253
  */
 export const CATALOG_REGISTRY_PATTERN = '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
 
-/** Longest version selector a catalog dependency may declare (wire v8). */
-export const MAX_CATALOG_DEPENDENCY_VERSION_LENGTH = 100
-
 /**
  * Pattern a catalog fingerprint must match in wire v8: the algorithm that computed it, a colon and
  * lowercase SHA-256 hex (`v5:<hex>`). It applies to `release.fingerprint`, which must name the

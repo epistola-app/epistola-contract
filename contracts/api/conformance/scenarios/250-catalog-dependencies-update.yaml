@@ -3,20 +3,17 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: catalog-dependencies-update
-title: Declaring a catalog's dependencies sends each catalog once, with its version selector
+title: Declaring a catalog's dependencies sends each catalog once, with the exact release it pins
 why: >
-  A catalog's references into other catalogs carry no version; the declared dependency decides
-  which release they render with. So the declaration is the whole answer to "what does this
-  release render with", and a client that drops a field from it changes that answer.
+  A catalog's references into other catalogs carry no version; the declared dependency pins the
+  exact release they render with (`releaseVersion`), never a range. So the declaration is the whole
+  answer to "what does this release render with", and a client that drops a field from it, or still
+  sends the former selector `version`, changes that answer.
 
   The two dependencies cover both ways to name a registry. The first leaves `registry` out, which
   means the default registry; the client must not send one it was not given. The second names a
   registry in full (`acme.com`). The response writes every registry in full, the default one by its
   real name, and a client must surface it as written rather than leave it out again.
-
-  `resolvedVersion` is null when no installed release satisfies the selector. That is the state
-  that blocks a release, so a client that turns null into an empty string or drops the entry hides
-  exactly the thing the caller needs to see.
 
   A write goes to a draft, and the next version is addressed by the literal segment `next`
   (ADR 0002, amendment 2); a released version's number would be refused with 409.
@@ -31,16 +28,16 @@ action:
     catalogKey: letters
     catalogVersion: next
     dependencies:
-      - { namespace: epistola, catalogKey: system, version: 1.3.0 }
-      - { registry: acme.com, namespace: acme, catalogKey: house-style, version: 2.1.0 }
+      - { namespace: epistola, catalogKey: system, releaseVersion: 1.3.0 }
+      - { registry: acme.com, namespace: acme, catalogKey: house-style, releaseVersion: 2.1.0 }
 
 script:
   - status: 200
     contentType: application/vnd.epistola.v2+json
     body:
       items:
-        - { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, version: 1.3.0, resolvedVersion: 1.3.0 }
-        - { registry: acme.com, namespace: acme, catalogKey: house-style, version: 2.1.0, resolvedVersion: null }
+        - { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, releaseVersion: 1.3.0 }
+        - { registry: acme.com, namespace: acme, catalogKey: house-style, releaseVersion: 2.1.0 }
 
 expect:
   requestCount: 1
@@ -54,11 +51,11 @@ expect:
         json:
           dependencies:
             # Omitted or null both mean the default registry; a value the caller never gave is not.
-            - { registry: { whenPresent: { equals: null } }, namespace: epistola, catalogKey: system, version: 1.3.0 }
-            - { registry: acme.com, namespace: acme, catalogKey: house-style, version: 2.1.0 }
+            # A declaration has no version selector any more: `version` is not sent.
+            - { registry: { whenPresent: { equals: null } }, namespace: epistola, catalogKey: system, releaseVersion: 1.3.0, version: { absent: true } }
+            - { registry: acme.com, namespace: acme, catalogKey: house-style, releaseVersion: 2.1.0, version: { absent: true } }
   report:
     registries: exchange.epistola.app,acme.com
     namespaces: epistola,acme
     catalogKeys: system,house-style
-    versions: 1.3.0,2.1.0
-    resolvedVersions: 1.3.0,null
+    releaseVersions: 1.3.0,2.1.0

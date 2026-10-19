@@ -40,8 +40,9 @@ public sealed class ServerTemplateDataValidator : ITemplateDataValidator
     /// <param name="templatesApi">The generated API used to reach <c>validateTemplateData</c>.</param>
     /// <param name="variantKey">Optional variant to check against; without it, the default variant.</param>
     /// <param name="version">
-    /// Optional version selector for the release of the template's catalog to check against, such as
-    /// <c>1.4.0</c>. It is passed through unchecked: the server decides which selectors it accepts.
+    /// Optional version selector for the release of the template's catalog to check against, in the
+    /// npm range grammar the server accepts in full: an exact version such as <c>1.4.0</c>, or a range
+    /// such as <c>^1.4.0</c>. It is passed through unchecked.
     /// Without it (and without <paramref name="environmentKey"/>), the catalog's latest release is used.
     /// </param>
     /// <param name="environmentKey">

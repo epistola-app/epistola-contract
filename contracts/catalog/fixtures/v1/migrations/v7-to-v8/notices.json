@@ -42,11 +42,11 @@
   {
     "code": "CATALOG_DEPENDENCY_CATALOG_DECLARED",
     "path": "catalog.json.catalogDependencies[0]",
-    "message": "catalog 'brand' in namespace 'acme-corp' of registry 'exchange.epistola.app' was declared as a dependency with the unpinned selector '*'; set the version range this catalog requires"
+    "message": "catalog 'brand' in namespace 'acme-corp' of registry 'exchange.epistola.app' was declared as a dependency that pins no release; pin the release this catalog renders with"
   },
   {
     "code": "CATALOG_DEPENDENCY_CATALOG_DECLARED",
     "path": "catalog.json.catalogDependencies[1]",
-    "message": "catalog 'shared' in namespace 'acme-corp' of registry 'exchange.epistola.app' was declared as a dependency with the unpinned selector '*'; set the version range this catalog requires"
+    "message": "catalog 'shared' in namespace 'acme-corp' of registry 'exchange.epistola.app' was declared as a dependency that pins no release; pin the release this catalog renders with"
   }
 ]

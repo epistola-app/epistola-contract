@@ -204,7 +204,7 @@ class ApiExceptionMapperTest {
                           "status": 409,
                           "missingDependencies": [
                             {"registry": "exchange.epistola.app", "namespace": "acme-corp",
-                             "catalogKey": "shared", "releaseVersion": "1.2.0", "reason": "NOT_DEPLOYED"}
+                             "catalogKey": "shared", "releaseVersion": "1.2.0", "reason": "UNAVAILABLE"}
                           ]
                         }
                         """)));
@@ -213,7 +213,7 @@ class ApiExceptionMapperTest {
         assertEquals(409, e.getStatusCode());
         assertTrue(e.isReleaseDependenciesMissingProblem());
         assertEquals(
-                List.of(new MissingDependency("exchange.epistola.app", "acme-corp", "shared", "1.2.0", "NOT_DEPLOYED")),
+                List.of(new MissingDependency("exchange.epistola.app", "acme-corp", "shared", "1.2.0", "UNAVAILABLE")),
                 e.getMissingDependencies());
         assertFalse(e.isTemplateDataProblem());
     }

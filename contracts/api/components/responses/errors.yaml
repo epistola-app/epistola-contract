@@ -92,8 +92,8 @@ ReleaseDependenciesMissingProblemDetail:
           type: array
           description: >-
             Each release of another catalog the deployed release renders with, directly or through
-            another dependency, that the environment does not serve and that was not deployed, in
-            the order the release lists its dependencies.
+            another dependency, that cannot be had, in the order the release lists its
+            dependencies.
           items:
             $ref: '../schemas/environments.yaml#/MissingReleaseDependency'
 

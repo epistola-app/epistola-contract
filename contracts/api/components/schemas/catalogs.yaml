@@ -44,6 +44,8 @@ CatalogDto:
       example: AUTHORED
     releasedVersion:
       type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      maxLength: 50
       description: >-
         The catalog's highest released version. For AUTHORED catalogs null until
         first released. For SUBSCRIBED catalogs the highest installed release.
@@ -122,12 +124,13 @@ CatalogUpgradeDiff:
       example: letters
     previousVersion:
       type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      maxLength: 50
       description: Currently installed release version (null if unknown).
       example: "1.3.0"
     newVersion:
-      type: string
+      $ref: '#/ReleaseVersion'
       description: The source manifest's release version.
-      example: "1.4.0"
     upgradeAvailable:
       type: boolean
       description: True when there is anything to apply (added/removed/changed).
@@ -182,10 +185,11 @@ UpgradeCatalogResponse:
       type:
         - string
         - 'null'
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      maxLength: 50
       example: "1.3.0"
     newVersion:
-      type: string
-      example: "1.4.0"
+      $ref: '#/ReleaseVersion'
     installResults:
       type: array
       items:
@@ -277,9 +281,8 @@ ReleaseDependencyDto:
       description: Key of the catalog, unique within its registry and namespace
       example: letters
     releaseVersion:
-      type: string
-      maxLength: 50
-      example: "1.3.0"
+      $ref: '#/ReleaseVersion'
+      description: The release of the catalog the release renders with
     direct:
       type: boolean
       description: True when the release's own resources reference the catalog; false when only reached through another dependency
@@ -295,6 +298,7 @@ CatalogChangesDto:
   properties:
     base:
       type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: The highest released version below this one; null when there is none
       example: "1.4.0"
@@ -302,8 +306,8 @@ CatalogChangesDto:
       type: boolean
       description: |
         True when the version is a draft, no resource is `new` or `modified`, every stencil instance
-        fits its stencil, every catalog a resource references is a declared
-        dependency that resolves to a release, and something changed
+        fits its stencil, every catalog a resource references is a declared dependency whose pinned
+        release the tenant has, and something changed
       example: false
     dependenciesChanged:
       type: boolean
@@ -346,13 +350,13 @@ ResourceChangeDto:
 CatalogDependencyRequirement:
   type: object
   description: |
-    Another catalog this catalog's resources may reference, and which of its releases they render
+    Another catalog this catalog's resources may reference, and the exact release of it they render
     with. A catalog declares each catalog it depends on once: every reference into that catalog
-    resolves through this one declaration, so a release renders with exactly one release of it.
+    resolves through this one declaration, so a release renders with exactly the release it pins.
   required:
     - namespace
     - catalogKey
-    - version
+    - releaseVersion
   properties:
     registry:
       type: [string, "null"]
@@ -377,24 +381,20 @@ CatalogDependencyRequirement:
       maxLength: 50
       description: Key of the catalog depended on, unique within its registry and namespace
       example: system
-    version:
-      type: string
-      minLength: 1
-      maxLength: 100
+    releaseVersion:
+      $ref: '#/ReleaseVersion'
       description: |
-        Which releases of the catalog satisfy the dependency, as a version selector: see
-        "Version selectors" in the API description. The highest installed release that satisfies
-        it is used.
-      example: "1.3.0"
+        The exact release of the catalog depended on that this catalog renders with, not a range.
+        Ranges (such as `^1.0.0`) may come in a later 2.x, as an addition.
 
 CatalogDependencyDto:
   type: object
-  description: A declared dependency, and the release it resolves to now
+  description: A declared dependency and the exact release it pins
   required:
     - registry
     - namespace
     - catalogKey
-    - version
+    - releaseVersion
   properties:
     registry:
       type: string
@@ -418,19 +418,14 @@ CatalogDependencyDto:
       maxLength: 50
       description: Key of the catalog depended on, unique within its registry and namespace
       example: system
-    version:
-      type: string
-      minLength: 1
-      maxLength: 100
-      description: The version selector as declared
-      example: "1.3.0"
-    resolvedVersion:
+    releaseVersion:
       type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: |
-        The release the version renders with: for a released version, the one it was cut with; for
-        a draft, the highest installed release of the catalog
-        that satisfies `version`. Null when none does, which blocks a release.
+        The exact release of the catalog depended on that this catalog version renders with, as
+        declared. Null only for a declaration that came from a catalog archive migrated from wire
+        v7 or earlier, which pins no release: releasing the draft is refused until one is declared.
       example: "1.3.0"
 
 CatalogDependencyListResponse:
@@ -455,6 +450,15 @@ UpdateCatalogDependenciesRequest:
         Each catalog depended on, at most once. The catalog cannot depend on itself.
       items:
         $ref: '#/CatalogDependencyRequirement'
+
+ReleaseVersion:
+  type: string
+  pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+  maxLength: 50
+  description: |
+    The number of one released catalog version: a SemVer core version, `MAJOR.MINOR.PATCH` without
+    leading zeros, unique in its catalog. Not a version selector.
+  example: "1.4.0"
 
 CatalogVersionStatus:
   type: string
@@ -507,6 +511,7 @@ CatalogVersionDto:
   properties:
     version:
       type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: A released version's SemVer number, unique in its catalog. Null for a draft.
       example: "2.0.0"
@@ -530,6 +535,7 @@ CatalogVersionDto:
       $ref: '#/CatalogVersionStatus'
     base:
       type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: |
         The released version this one started from, which its changes are measured against: for the
@@ -539,6 +545,7 @@ CatalogVersionDto:
       example: "1.4.0"
     createdFrom:
       type: [string, "null"]
+      pattern: '^(next|(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$'
       maxLength: 50
       description: |
         The released version a draft was copied from when that is not its base, or `next` when it was
@@ -583,9 +590,9 @@ CatalogVersionDto:
     dependencies:
       type: array
       description: |
-        For a released version, the release of every other catalog it renders with, resolved from
-        the declared dependencies when it was released: the catalogs it declares directly, and the
-        ones those depend on in turn. Each catalog appears once. Empty for a draft, whose declared
+        For a released version, the release of every other catalog it renders with, as its declared
+        dependencies pinned them when it was released: the catalogs it declares directly, and the
+        releases those pin in turn. Each catalog appears once. Empty for a draft, whose declared
         dependencies are listed by `listCatalogDependencies`.
       items:
         $ref: '#/ReleaseDependencyDto'
@@ -604,10 +611,8 @@ BehindReleaseDto:
     - changes
   properties:
     version:
-      type: string
-      maxLength: 50
+      $ref: '#/ReleaseVersion'
       description: The released version
-      example: "1.5.0"
     changes:
       type: array
       description: |
@@ -696,8 +701,7 @@ PromoteCatalogDraftRequest:
         (their changes applied by hand, or left out on purpose). Promoting work that is behind
         releases is refused with 409 unless this names every one.
       items:
-        type: string
-        maxLength: 50
+        $ref: '#/ReleaseVersion'
       example: ["1.4.1"]
 
 RenameCatalogDraftRequest:
@@ -724,6 +728,7 @@ CatalogDraftReleasePreview:
   properties:
     latest:
       type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: The latest release the draft is measured against; null when the catalog was never released
       example: "1.4.0"
@@ -744,10 +749,8 @@ CatalogDraftReleasePreview:
         type: string
       example: ["template 'reminder': added"]
     suggested:
-      type: string
-      maxLength: 50
+      $ref: '#/ReleaseVersion'
       description: The lowest number that fits, which releasing without a `version` uses
-      example: "1.5.0"
 
 ReleaseCatalogDraftRequest:
   type: object
@@ -772,8 +775,7 @@ ReleaseCatalogDraftRequest:
         applied by hand, or left out on purpose. Releasing a draft that is behind is refused with
         409 unless this names every version in its `behind`; naming others changes nothing.
       items:
-        type: string
-        maxLength: 50
+        $ref: '#/ReleaseVersion'
       example: ["1.5.0"]
 
 ReleaseCatalogDraftResponse:

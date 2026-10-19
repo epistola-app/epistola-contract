@@ -8,8 +8,8 @@ namespace Epistola.Client.Error;
 
 /// <summary>
 /// One entry of a <c>release-dependencies-missing</c> problem's <c>missingDependencies</c> member:
-/// a release of another catalog that the deployed release renders with and that the environment
-/// does not serve.
+/// a release of another catalog that the deployed release renders with (one it pins, directly or
+/// through another dependency) and that cannot be had.
 ///
 /// <para>
 /// Hand-written rather than the generated <c>Epistola.Client.Model.MissingReleaseDependency</c>
@@ -30,7 +30,7 @@ public sealed class MissingDependency
     /// <summary>Key of the catalog depended on.</summary>
     public string CatalogKey { get; }
 
-    /// <summary>The release the deployed release was cut with.</summary>
+    /// <summary>The release of the catalog depended on that the deployed release pins.</summary>
     public string ReleaseVersion { get; }
 
     /// <summary>Why the release is missing, as the server sent it; see <see cref="Reasons"/>.</summary>
@@ -48,13 +48,10 @@ public sealed class MissingDependency
     /// <summary>The reasons the contract names today. Keep a default branch: the set may grow.</summary>
     public static class Reasons
     {
-        /// <summary>The tenant has the release, but the environment does not serve it.</summary>
-        public const string NotDeployed = "NOT_DEPLOYED";
-
-        /// <summary>The tenant does not have the release.</summary>
-        public const string NotInstalled = "NOT_INSTALLED";
-
-        /// <summary><c>includeDependencies</c> was set, but the release could not be fetched or verified.</summary>
+        /// <summary>
+        /// The tenant does not have the release, and it could not be fetched from its registry or
+        /// any configured mirror, or the copy did not match its recorded fingerprint.
+        /// </summary>
         public const string Unavailable = "UNAVAILABLE";
     }
 

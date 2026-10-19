@@ -35,8 +35,8 @@ versions catalogs as a whole:
   namespaces. (This registry is part of a catalog's identity, unrelated to the component and style
   registries below.)
 - `catalogDependencies` declares each catalog the catalog depends on once, with its `registry`,
-  `namespace` and `catalogKey`, a version selector (npm range grammar), the exact
-  `releaseVersion` the release was cut with, and that release's fingerprint,
+  `namespace` and `catalogKey`, the exact `releaseVersion` it pins (the catalog renders with
+  that release and was cut with it; a declaration names no range), and that release's fingerprint,
   `releaseFingerprint`, copied from its `release.fingerprint` in the form that names the algorithm
   (`v5:<hex>`), so a copy fetched from any registry or mirror can be checked. Both are null
   only for a catalog migrated from wire v7. Every catalog named by a resource dependency must be
@@ -89,7 +89,7 @@ normalization) and `MAX_CATALOG_KEYWORD_LENGTH`, `MAX_CATALOG_KEYWORDS`, and
 `CATALOG_KEYWORD_PATTERN` in TypeScript, all pinned to the current schema. Registry and namespace
 rules are defined the same way: `CatalogNamespaces` in Kotlin, and `CATALOG_REGISTRY_PATTERN`,
 `MAX_CATALOG_REGISTRY_LENGTH`, `CATALOG_NAMESPACE_PATTERN`, `MIN_CATALOG_NAMESPACE_LENGTH`,
-`MAX_CATALOG_NAMESPACE_LENGTH`, and `MAX_CATALOG_DEPENDENCY_VERSION_LENGTH` in TypeScript.
+and `MAX_CATALOG_NAMESPACE_LENGTH` in TypeScript.
 Paths into the catalog are `CatalogArchivePaths` and `CATALOG_ARCHIVE_PATH_PATTERN`; variant
 metadata is `CatalogVariantMetadata` and the `…VARIANT_METADATA…` constants; resource keys, data
 example keys among them, are `CatalogKeys` (`PATTERN`, `MIN_LENGTH`, `MAX_LENGTH`, `RESOURCE`,

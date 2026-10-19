@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
 import app.epistola.client.jakarta.model.FontVariantDto;
 import app.epistola.client.jakarta.model.BatchGenerationItem;
 import app.epistola.client.jakarta.model.CreateCatalogDraftRequest;
@@ -186,6 +187,22 @@ class ModelValidationTest {
     }
 
     // --- Catalog drafts and release numbers ---
+
+    @Test
+    void a_dependency_declaration_pins_an_exact_release() {
+        CatalogDependencyRequirement pinned =
+                new CatalogDependencyRequirement().namespace("epistola").catalogKey("system").releaseVersion("1.3.0");
+        assertSame(pinned, ModelValidation.validate(pinned));
+        for (String release : List.of("^1.3.0", "1.x", "*", "01.3.0", "1.3.0-rc.1")) {
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> ModelValidation.validate(new CatalogDependencyRequirement()
+                            .namespace("epistola")
+                            .catalogKey("system")
+                            .releaseVersion(release)),
+                    "expected a pinned release '" + release + "' to fail");
+        }
+    }
 
     @Test
     void a_release_number_is_a_plain_semver_number() {

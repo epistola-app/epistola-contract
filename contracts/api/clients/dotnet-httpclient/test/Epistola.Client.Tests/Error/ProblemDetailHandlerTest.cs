@@ -151,9 +151,9 @@ public class ProblemDetailHandlerTest
               "detail": "letters 1.4.0 renders with releases production does not serve",
               "missingDependencies": [
                 {"registry": "exchange.epistola.app", "namespace": "epistola", "catalogKey": "system",
-                 "releaseVersion": "3.2.0", "reason": "NOT_DEPLOYED"},
+                 "releaseVersion": "3.2.0", "reason": "UNAVAILABLE"},
                 {"registry": "registry.gemeente-x.nl", "namespace": "huisstijl", "catalogKey": "branding",
-                 "releaseVersion": "1.4.2", "reason": "NOT_INSTALLED"}
+                 "releaseVersion": "1.4.2", "reason": "UNAVAILABLE"}
               ]
             }
             """;
@@ -169,8 +169,8 @@ public class ProblemDetailHandlerTest
         Assert.Equal("epistola", first.Namespace);
         Assert.Equal("system", first.CatalogKey);
         Assert.Equal("3.2.0", first.ReleaseVersion);
-        Assert.Equal(MissingDependency.Reasons.NotDeployed, first.Reason);
-        Assert.Equal("registry.gemeente-x.nl/huisstijl/branding@1.4.2:NOT_INSTALLED", ex.MissingDependencies[1].ToString());
+        Assert.Equal(MissingDependency.Reasons.Unavailable, first.Reason);
+        Assert.Equal("registry.gemeente-x.nl/huisstijl/branding@1.4.2:UNAVAILABLE", ex.MissingDependencies[1].ToString());
     }
 
     [Fact]
@@ -215,7 +215,7 @@ public class ProblemDetailHandlerTest
               "missingDependencies": [
                 "not an object",
                 {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": "1.0.0"},
-                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": 1, "reason": "NOT_DEPLOYED"},
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": 1, "reason": "UNAVAILABLE"},
                 {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": "2.0.0", "reason": "UNAVAILABLE"}
               ]
             }

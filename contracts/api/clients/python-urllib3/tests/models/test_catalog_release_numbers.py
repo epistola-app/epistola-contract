@@ -10,7 +10,12 @@ import json
 
 import pytest
 
-from epistola_client import CreateCatalogDraftRequest, PromoteCatalogDraftRequest, ReleaseCatalogDraftRequest
+from epistola_client import (
+    CatalogDependencyRequirement,
+    CreateCatalogDraftRequest,
+    PromoteCatalogDraftRequest,
+    ReleaseCatalogDraftRequest,
+)
 
 
 @pytest.mark.parametrize("version", ["0.1.0", "1.4.0", "10.20.30"])
@@ -38,3 +43,14 @@ def test_a_promotion_sends_only_what_was_set():
 def test_the_previous_next_version_is_kept_under_a_name_within_bounds(name):
     with pytest.raises(ValueError):
         PromoteCatalogDraftRequest(keepPreviousAs=name)
+
+
+def test_a_dependency_declaration_pins_an_exact_release():
+    pinned = CatalogDependencyRequirement(namespace="epistola", catalogKey="system", releaseVersion="1.3.0")
+    assert json.loads(pinned.to_json()) == {"namespace": "epistola", "catalogKey": "system", "releaseVersion": "1.3.0"}
+
+
+@pytest.mark.parametrize("release", ["^1.3.0", "1.x", "*", "01.3.0", "1.3.0-rc.1"])
+def test_a_dependency_declaration_refuses_a_range(release):
+    with pytest.raises(ValueError):
+        CatalogDependencyRequirement(namespace="epistola", catalogKey="system", releaseVersion=release)

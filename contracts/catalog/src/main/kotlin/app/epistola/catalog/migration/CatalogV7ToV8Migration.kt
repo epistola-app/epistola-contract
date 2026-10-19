@@ -20,9 +20,9 @@ import tools.jackson.databind.node.ObjectNode
  *   migrator never invents an identity.
  * - **Resource dependencies** take the catalog's own registry and namespace. A v7 catalog's content
  *   lived in one tenant, so every catalog it referenced sat next to it.
- * - **Catalog dependencies** are declared, one per catalog the resource dependencies name, with the
- *   unpinned selector `*` and no recorded release: v7 never said which version was meant, and the
- *   author sets a selector rather than the migrator guessing one.
+ * - **Catalog dependencies** are declared, one per catalog the resource dependencies name, pinning
+ *   no release (`releaseVersion` and `releaseFingerprint` null): v7 never said which version was
+ *   meant, and the author pins one rather than the migrator guessing one.
  * - **Stencil versions** are removed, both a stencil's own `version` and a stencil reference's
  *   `version` and `draftVersion`. A stencil reference resolves through its catalog's dependency.
  * - **Keys.** A resource's public address is called its `key`, and so are references to one:
@@ -109,14 +109,13 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
                 .put("registry", registry)
                 .put("namespace", namespace)
                 .put("catalogKey", catalogKey)
-                .put("version", UNPINNED)
                 .putNull("releaseVersion")
                 .putNull("releaseFingerprint")
             notices += CatalogMigrationNotice(
                 CatalogMigrationCodes.DEPENDENCY_CATALOG_DECLARED,
                 "catalog.json.catalogDependencies[$index]",
                 "catalog '$catalogKey' in namespace '$namespace' of registry '$registry' was declared as a " +
-                    "dependency with the unpinned selector '$UNPINNED'; set the version range this catalog requires",
+                    "dependency that pins no release; pin the release this catalog renders with",
             )
         }
         return CatalogMigrationStepResult(notices = notices)
@@ -283,10 +282,5 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
                 "data example '$name' was given the key '$key'",
             )
         }
-    }
-
-    private companion object {
-        /** The selector a migrated declaration carries: any release, until the author pins one. */
-        const val UNPINNED = "*"
     }
 }

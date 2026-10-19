@@ -384,7 +384,7 @@ def _update_catalog_dependencies(base_url: str, config: dict) -> None:
                     **({"registry": dependency["registry"]} if "registry" in dependency else {}),
                     namespace=dependency["namespace"],
                     catalogKey=dependency["catalogKey"],
-                    version=dependency["version"],
+                    releaseVersion=dependency["releaseVersion"],
                 )
                 for dependency in config["dependencies"]
             ]
@@ -400,8 +400,8 @@ def _report_dependencies(base_url: str, dependencies) -> None:
             "registries": ",".join(_show(d.registry) for d in dependencies),
             "namespaces": ",".join(_show(d.namespace) for d in dependencies),
             "catalogKeys": ",".join(_show(d.catalog_key) for d in dependencies),
-            "versions": ",".join(_show(d.version) for d in dependencies),
-            "resolvedVersions": ",".join(_show(d.resolved_version) for d in dependencies),
+            # A declaration that pins no release (migrated from wire v7) reports ``null``.
+            "releaseVersions": ",".join(_show(d.release_version) for d in dependencies),
         },
     )
 

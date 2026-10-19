@@ -6,8 +6,8 @@ package app.epistola.client.error
 
 /**
  * One entry of a `release-dependencies-missing` problem's `missingDependencies` member: a release
- * of another catalog that the deployed release renders with and that the environment does not
- * serve.
+ * of another catalog that the deployed release renders with (one it pins, directly or through
+ * another dependency) and that cannot be had.
  *
  * Hand-written rather than the generated `app.epistola.client.model.MissingReleaseDependency`
  * because [reason] is a plain string here: the generated enum would reject a reason a later
@@ -21,20 +21,17 @@ data class MissingReleaseDependency(
     val namespace: String,
     /** Key of the catalog depended on. */
     val catalogKey: String,
-    /** The release the deployed release was cut with. */
+    /** The release of the catalog depended on that the deployed release pins. */
     val releaseVersion: String,
     /** Why the release is missing, as the server sent it; see [Reasons]. */
     val reason: String,
 ) {
     /** The reasons the contract names today. Keep an `else` branch: the set may grow. */
     object Reasons {
-        /** The tenant has the release, but the environment does not serve it. */
-        const val NOT_DEPLOYED: String = "NOT_DEPLOYED"
-
-        /** The tenant does not have the release. */
-        const val NOT_INSTALLED: String = "NOT_INSTALLED"
-
-        /** `includeDependencies` was set, but the release could not be fetched or verified. */
+        /**
+         * The tenant does not have the release, and it could not be fetched from its registry or
+         * any configured mirror, or the copy did not match its recorded fingerprint.
+         */
         const val UNAVAILABLE: String = "UNAVAILABLE"
     }
 

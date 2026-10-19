@@ -12,11 +12,14 @@ records contract changes; this file records changes to the hand-written library 
 ### Added
 
 - `ProblemDetailException.missingDependencies` lists the releases a `release-dependencies-missing`
-  problem (409, from `deployRelease`) reports the environment lacks, each a `MissingDependency`
+  problem (409, from `deployRelease`) reports cannot be had, each a `MissingDependency`
   (`registry`, `namespace`, `catalogKey`, `releaseVersion`, `reason`). `reason` is kept as the
   string the server sent, so a reason added later is not lost; entries missing a member are
   dropped, and the list is empty for any other problem. `isReleaseDependenciesMissingProblem` is
   true when it is not empty.
+- The generated model validators check a member that references a plain string schema, such as
+  `CatalogDependencyRequirement.releaseVersion` (`ReleaseVersion`), as if its constraints were
+  written inline. Before, every referenced member was skipped.
 
 ### Changed
 

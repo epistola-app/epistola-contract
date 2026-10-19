@@ -74,8 +74,8 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | `upload-image` | `POST …/images` with the file from `config` (bytes, filename, content type) and a name, reporting the returned key and name |
 | `download-image` | `GET …/images/{imageKey}/content`, reporting the SHA-256 and length of the bytes |
 | `delete-image` | `DELETE …/images/{imageKey}` with `force` from `config` |
-| `list-catalog-dependencies` | `GET …/versions/{catalogVersion}/dependencies` |
-| `update-catalog-dependencies` | `PUT …/versions/{catalogVersion}/dependencies` with `config.dependencies`, each entry's `registry` set only when the entry has one, reporting the `registries`, `namespaces`, `catalogKeys`, `versions` and `resolvedVersions` it parsed, in order |
+| `list-catalog-dependencies` | `GET …/versions/{catalogVersion}/dependencies`, reporting what it parsed as `update-catalog-dependencies` does |
+| `update-catalog-dependencies` | `PUT …/versions/{catalogVersion}/dependencies` with `config.dependencies` (each entry's `namespace`, `catalogKey` and `releaseVersion`, and its `registry` only when the entry has one), reporting the `registries`, `namespaces`, `catalogKeys` and `releaseVersions` it parsed, in order (a null `releaseVersion` as `null`) |
 | `create-catalog-draft` | `POST …/catalogs/{registry}/{namespace}/{catalogKey}/versions` with `config.name`, and `config.from` when present, reporting the `version`, `draftId`, `isNext`, `name`, `status`, `base`, `createdFrom` and `releasedAt` it parsed |
 | `list-catalog-versions` | `GET …/versions`, with `config.status` as the `status` filter when present, reporting the `versions`, `draftIds`, `isNext`, `names` (joined with `\|`), `statuses`, `bases`, `createdFrom` and `behindCounts` (how many releases each is behind) it parsed, in order |
 | `get-catalog-version` | `GET …/versions/{catalogVersion}`, reporting the `version`, `draftId`, `isNext`, `name`, `status`, `releasedAt` and `fingerprint` it parsed, its `dependencies` as `registry/namespace/catalogKey@releaseVersion`, `deployedTo`, and `behind` as `version=type/key:change+…` per release, releases joined with `;` (empty when none) |

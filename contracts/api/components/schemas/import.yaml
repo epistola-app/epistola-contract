@@ -89,7 +89,8 @@ ImportTemplateDto:
       example: Monthly invoice; the payment block follows the 2026 house style.
     version:
       type: string
-      pattern: '^\d+\.\d+\.\d+$'
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      maxLength: 50
       description: Semantic version of the template definition (for change tracking by callers)
       example: "1.0.0"
     dataModel:
@@ -234,6 +235,8 @@ ImportTemplateResultDto:
       example: created
     version:
       type: string
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+      maxLength: 50
       description: Version that was imported
       example: "1.0.0"
     errorMessage:
@@ -285,6 +288,7 @@ ImportCatalogResponse:
       example: Valtimo Demo Catalog
     catalogVersion:
       type: [string, "null"]
+      pattern: '^(next|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$'
       maxLength: 50
       description: |
         The catalog version the archive went into: the draft of an AUTHORED catalog (`next` or a

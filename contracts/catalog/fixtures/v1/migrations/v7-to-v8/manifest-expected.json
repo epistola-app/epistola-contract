@@ -48,7 +48,6 @@
       "registry": "exchange.epistola.app",
       "namespace": "acme-corp",
       "catalogKey": "brand",
-      "version": "*",
       "releaseVersion": null,
       "releaseFingerprint": null
     },
@@ -56,7 +55,6 @@
       "registry": "exchange.epistola.app",
       "namespace": "acme-corp",
       "catalogKey": "shared",
-      "version": "*",
       "releaseVersion": null,
       "releaseFingerprint": null
     }

@@ -131,6 +131,14 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
     val schemas = (document["components"] as? Map<String, Any>)?.get("schemas") as? Map<String, Any>
         ?: throw GradleException("the bundled spec has no components.schemas")
 
+    // The schema a `$ref` names when it is a plain string schema with no `enum` (`ReleaseVersion`),
+    // which every generator renders as a string rather than a type of its own; null otherwise.
+    fun stringAlias(ref: String?): Map<String, Any>? {
+        val name = ref?.removePrefix("#/components/schemas/")?.takeIf { it != ref } ?: return null
+        val target = schemas[name] as? Map<String, Any> ?: return null
+        return target.takeIf { it["type"] == "string" && !it.containsKey("enum") }
+    }
+
     // The members each problem schema adds to the RFC 9457 base. `ProblemDetail` is the base by
     // name — it is the RFC's own, and the spec's plain problem schema — so anything a registered
     // problem schema declares beyond it is an extension member.
@@ -174,10 +182,15 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
         val fields = mutableListOf<Map<String, Any?>>()
 
         for ((propertyName, propertyDefinition) in properties) {
-            val property = propertyDefinition as? Map<String, Any> ?: continue
-            // Skip $ref properties — the referenced type carries its own constraints, and its own
-            // generated validator.
-            if (property.containsKey("\$ref")) continue
+            val declared = propertyDefinition as? Map<String, Any> ?: continue
+            // A $ref to an object or enum is a type of its own, with its own constraints and its own
+            // generated validator: skip it. A $ref to a plain string schema (`ReleaseVersion`) is
+            // generated as a String, so its constraints are checked here, as if written inline.
+            val property = if (declared.containsKey("\$ref")) {
+                stringAlias(declared["\$ref"] as? String) ?: continue
+            } else {
+                declared
+            }
 
             val declaredType = property["type"]
             val explicitlyNullable = declaredType is List<*> && declaredType.contains("null")

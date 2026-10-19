@@ -35,8 +35,13 @@ assert.equal(catalog.CATALOG_REGISTRY_PATTERN, registrySchema.pattern, 'npm and 
 assert.equal(catalog.MAX_CATALOG_REGISTRY_LENGTH, registrySchema.maxLength, 'npm and schema registry maximum lengths must agree');
 assert.equal(
   catalog.MAX_CATALOG_DEPENDENCY_VERSION_LENGTH,
-  manifestSchema.$defs.CatalogDependency.properties.version.maxLength,
-  'npm and schema version selector limits must agree',
+  undefined,
+  'a catalog dependency pins an exact release: the npm package exports no version selector limit',
+);
+assert.equal(
+  manifestSchema.$defs.CatalogDependency.properties.version,
+  undefined,
+  'a catalog dependency carries no version selector',
 );
 assert.equal(
   catalog.CATALOG_RELEASE_FINGERPRINT_PATTERN,

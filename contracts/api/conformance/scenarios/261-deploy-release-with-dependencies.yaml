@@ -5,9 +5,9 @@
 id: deploy-release-with-dependencies
 title: Deploying with includeDependencies asks the server to deploy the dependency releases along
 why: >
-  A release renders with the releases of other catalogs it was cut with, so an environment must
-  serve those too. `includeDependencies=true` asks the server to deploy (and install, if needed) the
-  ones it does not serve yet; without it, the server refuses instead.
+  A release renders with the releases of other catalogs it pins, which the environment uses
+  implicitly. `includeDependencies=true` asks the server to also deploy the ones it does not serve
+  yet explicitly (installing them first, if needed), so that their own templates are served too.
 
   The flag is an optional boolean query parameter. A client must send it as `true`, the literal
   JSON boolean, not `True` or `1`, and still address the release by its path alone, with no body.

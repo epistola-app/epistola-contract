@@ -380,8 +380,9 @@ public static class Driver
     }
 
     /// <summary>
-    /// Declares the catalog's dependencies as the scenario lists them, and reports what came back.
-    /// A null <c>resolvedVersion</c> is the state that blocks a release, so it is reported as
+    /// Declares the catalog's dependencies as the scenario lists them, each pinning an exact
+    /// release, and reports what came back. A declaration that pins no release (migrated from wire
+    /// v7) has a null <c>releaseVersion</c>, which blocks a release, so it is reported as
     /// <c>null</c> rather than lost.
     /// </summary>
     private static void UpdateCatalogDependencies(string baseUrl, JsonElement config)
@@ -393,7 +394,7 @@ public static class Driver
                 registry: OptStr(d, "registry")!,
                 varNamespace: Str(d, "namespace"),
                 catalogKey: Str(d, "catalogKey"),
-                varVersion: Str(d, "version")))
+                releaseVersion: Str(d, "releaseVersion")))
             .ToList();
         ReportDependencies(baseUrl, new CatalogsApi(http, apiBase).UpdateCatalogDependencies(
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
@@ -408,8 +409,7 @@ public static class Driver
             ["registries"] = string.Join(",", items.Select(d => Show(d.Registry))),
             ["namespaces"] = string.Join(",", items.Select(d => Show(d.Namespace))),
             ["catalogKeys"] = string.Join(",", items.Select(d => Show(d.CatalogKey))),
-            ["versions"] = string.Join(",", items.Select(d => Show(d.VarVersion))),
-            ["resolvedVersions"] = string.Join(",", items.Select(d => Show(d.ResolvedVersion))),
+            ["releaseVersions"] = string.Join(",", items.Select(d => Show(d.ReleaseVersion))),
         });
     }
 

@@ -130,11 +130,11 @@ export class ProblemDetailException extends ResponseError {
   }
 
   /**
-   * The releases a `release-dependencies-missing` problem (409, from `deployRelease`) reports the
-   * environment lacks, in the order the server listed them; empty for any other problem.
+   * The releases a `release-dependencies-missing` problem (409, from `deployRelease`) reports cannot
+   * be had, in the order the server listed them; empty for any other problem.
    *
-   * Without `includeDependencies` these are the releases the deployed release was cut with that
-   * the environment does not serve; with it, those that could not be deployed along. Each
+   * These are the releases the deployed release pins that the tenant does not have and that could
+   * not be fetched or verified. Each
    * {@link MissingDependency.reason} is kept as the string the server sent, so a reason the
    * contract adds later is not lost. An entry that does not carry all five members as strings is
    * dropped rather than guessed at.

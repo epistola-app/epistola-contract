@@ -118,20 +118,23 @@ verifier computes exactly the algorithm the value names, and a release must name
 The API reports the same value. A fingerprint recorded before contract 2.0 may still be bare hex in
 an API response, meaning its algorithm was not recorded.
 
-### Dependencies name the release and its fingerprint
+### Dependencies pin the release and its fingerprint
 
-A catalog declares each catalog it depends on once (wire v8 `catalogDependencies`):
+A catalog declares each catalog it depends on once (wire v8 `catalogDependencies`), with the exact
+release it renders with:
 
 ```json
 {
   "registry": "registry.gemeente-x.nl", "namespace": "huisstijl", "catalogKey": "branding",
-  "version": "^1.4.0",
   "releaseVersion": "1.4.2",
   "releaseFingerprint": "v5:<fingerprint of branding 1.4.2>"
 }
 ```
 
-- `version`: the selector. `releaseVersion`: the release this release was cut with.
+- `releaseVersion`: the exact release of the dependency that the catalog renders with, and that
+  this release was cut with. A release renders with exactly the releases its dependencies pin. A
+  declaration names an exact release, not a range; ranges in declarations (such as `^1.0.0`, any
+  non-breaking 1.x) may come in a later 2.x, as an addition.
 - `releaseFingerprint`: that release's fingerprint, copied from its own `release.fingerprint`, so an
   installation can check a copy it fetched through any mirror. Null exactly when `releaseVersion` is, which is only for archives migrated from
   v7.
@@ -146,18 +149,18 @@ fingerprint it relies on; Suite may not implement this yet.
 Installing (subscribing to) a release of a catalog also installs what it depends on, recursively, as
 subscribed catalogs:
 
-1. For each declared dependency, a release already installed in the tenant that satisfies the
-   selector is used.
-2. Otherwise the installation fetches the declared `releaseVersion`, not the highest match: it is the
-   release the publisher tested with, so the result is reproducible. Newer releases arrive through
-   an upgrade. It fetches from the dependency's registry, through that registry's mirrors when
-   configured, and checks the copy against `releaseFingerprint`.
+1. For each declared dependency, the pinned release (`releaseVersion`) is used when the tenant
+   already has it.
+2. Otherwise the installation fetches it: it is the release the publisher tested with, so the
+   result is reproducible. Newer releases arrive through an upgrade. It fetches from the
+   dependency's registry, through that registry's mirrors when configured, and checks the copy
+   against `releaseFingerprint`.
 3. The install is all or nothing. A release that cannot be fetched stops it, with the list of what
    is missing.
 
 Two installed catalogs that need different releases of the same catalog get both: a catalog's
 releases already stay installed side by side, and each catalog renders with the release its own
-declaration resolves to. There is no single winning version and therefore no conflict to resolve.
+declaration pins. There is no single winning version and therefore no conflict to resolve.
 
 Upgrading a subscribed catalog follows the same steps for the new release's dependencies.
 
@@ -180,10 +183,10 @@ or the flag `includeDependencies`, default false:
 - **With `includeDependencies`**, the dependency releases the environment does not serve are also
   deployed explicitly, in the same transaction. It is all or nothing.
 
-Implicit is the default because deploying a dependency release explicitly can change what other
-catalogs in that environment render, when they select the same catalog with a range: the caller
-opts into that. The reason enum also lists `NOT_DEPLOYED` and `NOT_INSTALLED`; they are never
-returned.
+Implicit is the default because deploying a dependency release explicitly changes what the
+environment serves of that catalog: generation requests for its own templates through the
+environment may then render it. The caller opts into that. Other catalogs are not affected: they
+render with the releases they pin.
 
 ### Undeploying removes only an explicit deployment
 
@@ -233,7 +236,7 @@ The registry should be the one the municipality will publish from:
 ## Hotfix releases
 
 A hotfix (ADR 0001) can be cut by any installation, for any catalog, and is never published. A
-release whose dependencies resolve to a hotfix cannot be published either: no registry serves that
+release whose dependencies pin a hotfix cannot be published either: no registry serves that
 hotfix, so no other installation could install the dependency. ADR 0001 states the same rule.
 
 ## Later

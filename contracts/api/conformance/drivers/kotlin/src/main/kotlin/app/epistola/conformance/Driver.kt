@@ -422,7 +422,11 @@ object Driver {
         reportDependencies(baseUrl, dependencies)
     }
 
-    /** Sends the declared dependencies exactly as configured and reports what came back, in order. */
+    /**
+     * Sends the declared dependencies, each pinning an exact release, exactly as configured and
+     * reports what came back, in order. A declaration that pins no release (migrated from wire v7)
+     * has a null `releaseVersion`, reported as `null`.
+     */
     private fun updateCatalogDependencies(baseUrl: String, config: ObjectNode) {
         val dependencies = CatalogsApi(restClient(baseUrl, config)).updateCatalogDependencies(
             config["tenantKey"].asText(),
@@ -436,7 +440,7 @@ object Driver {
                         registry = it.optionalText("registry"),
                         namespace = it["namespace"].asText(),
                         catalogKey = it["catalogKey"].asText(),
-                        version = it["version"].asText(),
+                        releaseVersion = it["releaseVersion"].asText(),
                     )
                 },
             ),
@@ -450,8 +454,7 @@ object Driver {
             "registries" to dependencies.joinToString(",") { it.registry },
             "namespaces" to dependencies.joinToString(",") { it.namespace },
             "catalogKeys" to dependencies.joinToString(",") { it.catalogKey },
-            "versions" to dependencies.joinToString(",") { it.version },
-            "resolvedVersions" to dependencies.joinToString(",") { it.resolvedVersion ?: "null" },
+            "releaseVersions" to dependencies.joinToString(",") { it.releaseVersion ?: "null" },
         ),
     )
 

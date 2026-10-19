@@ -115,7 +115,7 @@ public class ProblemDetailExceptionTest
             headers: null,
             missingDependencies: new List<MissingDependency>
             {
-                new("exchange.epistola.app", "epistola", "system", "3.2.0", MissingDependency.Reasons.NotDeployed),
+                new("exchange.epistola.app", "epistola", "system", "3.2.0", MissingDependency.Reasons.Unavailable),
             });
 
         Assert.True(ex.IsReleaseDependenciesMissingProblem);

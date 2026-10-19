@@ -69,7 +69,7 @@ class ProblemDetailsTest {
                 namespace = "epistola",
                 catalogKey = "system",
                 releaseVersion = "3.2.0",
-                reason = MissingReleaseDependencyReason.NOT_DEPLOYED,
+                reason = MissingReleaseDependencyReason.UNAVAILABLE,
             ),
         )
         val problem = ProblemDetails.releaseDependenciesMissing(missing, detail = "letters 1.4.0 renders with releases production does not serve")

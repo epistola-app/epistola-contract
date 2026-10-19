@@ -76,8 +76,8 @@ ProblemDetails.dataModelValidation(
     ),
 )
 
-// 409 release-dependencies-missing: deployRelease without includeDependencies, when the
-// environment does not serve a release the deployed one renders with
+// 409 release-dependencies-missing: deployRelease, when a release the deployed one pins cannot be
+// had (the tenant does not have it, and it could not be fetched or verified)
 ProblemDetails.releaseDependenciesMissing(
     missingDependencies = listOf(
         MissingReleaseDependency(
@@ -85,10 +85,10 @@ ProblemDetails.releaseDependenciesMissing(
             namespace = "epistola",
             catalogKey = "system",
             releaseVersion = "3.2.0",
-            reason = MissingReleaseDependencyReason.NOT_DEPLOYED,
+            reason = MissingReleaseDependencyReason.UNAVAILABLE,
         ),
     ),
-    detail = "letters 1.4.0 renders with releases production does not serve",
+    detail = "letters 1.4.0 renders with releases that cannot be had",
 )
 ```
 

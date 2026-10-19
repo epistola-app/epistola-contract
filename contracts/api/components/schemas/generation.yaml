@@ -578,6 +578,7 @@ DocumentGenerationItemDto:
       example: english
     releaseVersion:
       type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: |
         Release of the template's catalog this item renders, bound when the request was accepted.
@@ -960,6 +961,7 @@ DocumentDto:
       example: english
     releaseVersion:
       type: [string, "null"]
+      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: |
         Release of the template's catalog this document was generated from. Null for a document

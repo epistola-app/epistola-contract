@@ -123,6 +123,17 @@ static string GenerateProblemSlugs(IDictionary<object, object> root)
 }
 
 // --- ModelValidation (from schema constraints) ---
+
+// The schema a $ref names when it is a plain string schema with no enum (ReleaseVersion), which the
+// generator renders as a string rather than a type of its own; null otherwise.
+static IDictionary<object, object>? StringAlias(IDictionary<object, object> schemas, string? reference)
+{
+    const string prefix = "#/components/schemas/";
+    if (reference == null || !reference.StartsWith(prefix)) return null;
+    if (!schemas.TryGetValue(reference[prefix.Length..], out var targetObj) || targetObj is not IDictionary<object, object> target) return null;
+    return target.TryGetValue("type", out var type) && type as string == "string" && !target.ContainsKey("enum") ? target : null;
+}
+
 static string GenerateModelValidation(IDictionary<object, object> root)
 {
     var components = (IDictionary<object, object>)root["components"];
@@ -145,8 +156,12 @@ static string GenerateModelValidation(IDictionary<object, object> root)
 
         foreach (var (propNameObj, propDefObj) in properties)
         {
-            if (propDefObj is not IDictionary<object, object> prop) continue;
-            if (prop.ContainsKey("$ref")) continue; // those types have their own Validate()
+            if (propDefObj is not IDictionary<object, object> declared) continue;
+            // A $ref to an object or enum is a type with its own Validate(): skip it. A $ref to a
+            // plain string schema (ReleaseVersion) is generated as a string, so its constraints are
+            // checked here, as if written inline.
+            var prop = declared.ContainsKey("$ref") ? StringAlias(schemas, declared["$ref"] as string) : declared;
+            if (prop == null) continue;
 
             var propName = (string)propNameObj;
             var (baseType, isNullableType) = ResolveType(prop);

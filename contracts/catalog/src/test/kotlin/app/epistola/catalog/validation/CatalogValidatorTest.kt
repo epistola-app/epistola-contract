@@ -194,7 +194,7 @@ class CatalogValidatorTest {
 
     @Test
     fun `every catalog a resource dependency names is declared once, and never the catalog itself`() {
-        val shared = CatalogDependency(REGISTRY, NAMESPACE, "shared", "^1.2.0", "1.4.0", FINGERPRINT)
+        val shared = CatalogDependency(REGISTRY, NAMESPACE, "shared", "1.4.0", FINGERPRINT)
         fun findings(
             dependencies: List<DependencyRef>,
             catalogDependencies: List<CatalogDependency>,
@@ -231,18 +231,18 @@ class CatalogValidatorTest {
         )
         assertEquals(
             listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_DUPLICATE to "catalog.json.catalogDependencies[1]"),
-            findings(emptyList(), listOf(shared, shared.copy(version = "^2.0.0"))),
+            findings(emptyList(), listOf(shared, shared.copy(releaseVersion = "2.0.0"))),
         )
         assertEquals(
             listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_SELF to "catalog.json.catalogDependencies[0]"),
-            findings(emptyList(), listOf(CatalogDependency(REGISTRY, NAMESPACE, "fixture", "*", null))),
+            findings(emptyList(), listOf(CatalogDependency(REGISTRY, NAMESPACE, "fixture", null))),
         )
         assertEquals(
             listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_SELF to "catalog.json.dependencies[0]"),
             findings(listOf(DependencyRef.Theme("fixture", "base", NAMESPACE, REGISTRY)), emptyList()),
         )
         // Not itself: the same namespace and key in another registry.
-        assertEquals(emptyList(), findings(emptyList(), listOf(CatalogDependency("acme.com", NAMESPACE, "fixture", "*", null))))
+        assertEquals(emptyList(), findings(emptyList(), listOf(CatalogDependency("acme.com", NAMESPACE, "fixture", null))))
         assertEquals(
             listOf(CatalogValidationCodes.NAMESPACE_INVALID to "catalog.json.catalogDependencies[0].namespace"),
             findings(emptyList(), listOf(shared.copy(namespace = "exchange.epistola.app/epistola"))),
@@ -251,29 +251,26 @@ class CatalogValidatorTest {
             listOf(CatalogValidationCodes.REGISTRY_INVALID to "catalog.json.catalogDependencies[0].registry"),
             findings(emptyList(), listOf(shared.copy(registry = "~"))),
         )
-        assertEquals(
-            listOf(
-                CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID to "catalog.json.catalogDependencies[0].releaseVersion",
-                CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID to "catalog.json.catalogDependencies[0].version",
-            ),
-            findings(emptyList(), listOf(shared.copy(version = " ", releaseVersion = "latest"))),
-        )
-        assertEquals(
-            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID to "catalog.json.catalogDependencies[0].version"),
-            findings(emptyList(), listOf(shared.copy(version = "1".repeat(CatalogDependency.MAX_VERSION_LENGTH + 1)))),
-        )
+        // A declaration pins an exact release, never a range.
+        listOf("latest", "^1.4.0", "1.x", "*", ">=1.0.0 <2.0.0").forEach { pinned ->
+            assertEquals(
+                listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID to "catalog.json.catalogDependencies[0].releaseVersion"),
+                findings(emptyList(), listOf(shared.copy(releaseVersion = pinned))),
+                pinned,
+            )
+        }
     }
 
     @Test
     fun `a catalog dependency records its release fingerprint exactly when it records a release`() {
-        val shared = CatalogDependency(REGISTRY, NAMESPACE, "shared", "^1.2.0", "1.4.0", FINGERPRINT)
+        val shared = CatalogDependency(REGISTRY, NAMESPACE, "shared", "1.4.0", FINGERPRINT)
         fun findings(dependency: CatalogDependency) = CatalogValidator.validate(
             archive(manifest(catalogDependencies = listOf(dependency)), emptyMap()),
         ).findings.map { it.code to it.path }
         val invalid = listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_FINGERPRINT_INVALID to "catalog.json.catalogDependencies[0].releaseFingerprint")
 
         assertEquals(emptyList(), findings(shared))
-        assertEquals(emptyList(), findings(shared.copy(version = "*", releaseVersion = null, releaseFingerprint = null)))
+        assertEquals(emptyList(), findings(shared.copy(releaseVersion = null, releaseFingerprint = null)))
         assertEquals(invalid, findings(shared.copy(releaseFingerprint = null)))
         assertEquals(invalid, findings(shared.copy(releaseVersion = null)))
         assertEquals(invalid, findings(shared.copy(releaseFingerprint = FINGERPRINT.uppercase())))

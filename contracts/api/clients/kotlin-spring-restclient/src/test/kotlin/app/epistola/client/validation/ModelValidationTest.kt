@@ -5,6 +5,7 @@
 package app.epistola.client.validation
 
 import app.epistola.client.model.BatchGenerationItem
+import app.epistola.client.model.CatalogDependencyRequirement
 import app.epistola.client.model.CreateEnvironmentRequest
 import app.epistola.client.model.CreateTemplateRequest
 import app.epistola.client.model.CreateTenantRequest
@@ -27,6 +28,19 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class ModelValidationTest {
+
+    // --- A referenced plain string schema (ReleaseVersion) is checked as if inline ---
+
+    @Test
+    fun `a dependency declaration pins an exact release`() {
+        val pinned = CatalogDependencyRequirement(namespace = "epistola", catalogKey = "system", releaseVersion = "1.3.0")
+        assertEquals(pinned, pinned.validate())
+        for (release in listOf("^1.3.0", "1.x", "*", "01.3.0", "1.3.0-rc.1")) {
+            assertFailsWith<IllegalArgumentException>("Expected '$release' to fail") {
+                pinned.copy(releaseVersion = release).validate()
+            }
+        }
+    }
 
     // --- Slug pattern: regex edge cases ---
 

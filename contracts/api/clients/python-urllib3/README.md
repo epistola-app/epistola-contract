@@ -114,7 +114,6 @@ except ProblemDetailException as e:
             for d in e.missing_dependencies:   # 409 from deploy_release
                 log.warning("%s/%s/%s@%s: %s", d.registry, d.namespace,
                             d.catalog_key, d.release_version, d.reason)
-            # deploy_release(..., include_dependencies=True) deploys the NOT_DEPLOYED ones too
         case _:
             raise                              # unknown / framework error — fall back to status
 ```

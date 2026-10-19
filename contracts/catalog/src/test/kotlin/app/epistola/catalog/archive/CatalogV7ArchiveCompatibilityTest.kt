@@ -43,7 +43,7 @@ class CatalogV7ArchiveCompatibilityTest {
             assertEquals(CatalogWireSchema.CURRENT_VERSION, manifest.schemaVersion)
             assertEquals(REGISTRY, manifest.catalog.registry)
             assertEquals(NAMESPACE, manifest.catalog.namespace)
-            assertEquals(listOf(CatalogDependency(REGISTRY, NAMESPACE, "shared", "*", null)), manifest.catalogDependencies)
+            assertEquals(listOf(CatalogDependency(REGISTRY, NAMESPACE, "shared", null)), manifest.catalogDependencies)
             assertEquals(listOf(REGISTRY to NAMESPACE), manifest.dependencies.orEmpty().map { it.registry to it.namespace })
 
             // No stencil carries a version any more, and no reference pins one.

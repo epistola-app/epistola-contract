@@ -15,8 +15,8 @@ test('a listing operation asks for the success type and the problem document, in
 
 test('a catalog is addressed by registry, namespace and key, the default registry as ~ or %7E', () => {
   assert.equal(findOperation('GET', '/tenants/acme/catalogs/exchange.example.org/team-a/letters/versions/1.4.1/dependencies')!.operationId, 'listCatalogDependencies')
-  assert.equal(findOperation('PUT', '/tenants/acme/catalogs/~/acme/letters/versions/2.0.0-rc.1/dependencies')!.operationId, 'updateCatalogDependencies')
-  assert.equal(findOperation('PUT', '/tenants/acme/catalogs/%7E/acme/letters/versions/2.0.0-rc.1/dependencies')!.operationId, 'updateCatalogDependencies')
+  assert.equal(findOperation('PUT', '/tenants/acme/catalogs/~/acme/letters/versions/next/dependencies')!.operationId, 'updateCatalogDependencies')
+  assert.equal(findOperation('PUT', '/tenants/acme/catalogs/%7E/acme/letters/versions/next/dependencies')!.operationId, 'updateCatalogDependencies')
   assert.equal(findOperation('PUT', '/tenants/acme/environments/production/deployments/~/acme-corp/letters/1.4.0')!.operationId, 'deployRelease')
   assert.equal(findOperation('DELETE', '/tenants/acme/environments/production/deployments/acme.com/acme/letters/1.4.0')!.operationId, 'undeployRelease')
   // An override is addressed by the catalog alone: one per catalog, with no release segment.

@@ -64,16 +64,16 @@ test('parses a release-dependencies-missing problem with its missingDependencies
     title: 'Release dependencies missing',
     status: 409,
     missingDependencies: [
-      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0', reason: 'NOT_DEPLOYED' },
-      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'legal', releaseVersion: '2.0.0', reason: 'NOT_INSTALLED' },
+      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0', reason: 'UNAVAILABLE' },
+      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'legal', releaseVersion: '2.0.0', reason: 'UNAVAILABLE' },
     ],
   }, 409)!
   assert.equal(problem.typeSlug, KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING)
   assert.ok(problem.isReleaseDependenciesMissingProblem)
   assert.equal(problem.isValidationProblem, false)
   assert.deepEqual(problem.missingDependencies, [
-    { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0', reason: MissingReleaseDependencyReason.NotDeployed },
-    { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'legal', releaseVersion: '2.0.0', reason: MissingReleaseDependencyReason.NotInstalled },
+    { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0', reason: MissingReleaseDependencyReason.Unavailable },
+    { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'legal', releaseVersion: '2.0.0', reason: MissingReleaseDependencyReason.Unavailable },
   ])
 })
 
@@ -93,7 +93,7 @@ test('malformed missingDependencies entries are dropped and an unknown reason is
       null,
       ['registry.epistola.app'],
       { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0' },
-      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: 3, reason: 'NOT_DEPLOYED' },
+      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: 3, reason: 'UNAVAILABLE' },
       { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0', reason: 'QUARANTINED' },
     ],
   }, 409)!

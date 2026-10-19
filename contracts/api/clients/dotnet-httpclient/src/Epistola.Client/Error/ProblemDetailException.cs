@@ -59,8 +59,8 @@ public class ProblemDetailException : ApiException
 
     /// <summary>
     /// The releases of other catalogs a <c>release-dependencies-missing</c> problem (409, from
-    /// <c>DeployRelease</c>) reports the environment does not serve, in the order the server listed
-    /// them; empty for any other problem.
+    /// <c>DeployRelease</c>) reports cannot be had, in the order the server listed them; empty for
+    /// any other problem.
     ///
     /// <para>
     /// Each entry's <see cref="MissingDependency.Reason"/> is kept as the string the server sent, so a

@@ -126,7 +126,7 @@ data class ThemeResource(
  * Wire format for a stencil resource.
  *
  * A stencil carries no version of its own from wire v8: a catalog is versioned as a whole, so the
- * stencil a template embeds is the one in the release its catalog dependency resolves to (or the
+ * stencil a template embeds is the one in the release its catalog dependency pins (or the
  * stencil in the same catalog). Until wire v7 a `version` here recorded the published stencil
  * version, and stencil nodes pinned it; the v7-to-v8 migration removes both. The property is
  * ignored when binding, so a manifest a consumer stored under v7 still loads.

@@ -71,18 +71,27 @@ info:
        A `registry` without a `namespace` is invalid. A reference the server resolved is written
        in full in a response; content documents are returned as they were stored.
 
-    A catalog depends on other catalogs by declaring them, each once, with a version selector. A
-    reference from one catalog's resources into another's names the catalog (registry, namespace
-    and key) but never a version: it renders with the release the declaration resolves to, so a
-    release renders with exactly one release of every catalog it depends on.
+    ## Catalog dependencies
+    A catalog depends on other catalogs by declaring them, each once, with the **exact release** of
+    each that it uses (`releaseVersion`). A reference from one catalog's resources into another's
+    names the catalog (registry, namespace and key) but never a version: it renders with the
+    release its catalog's declaration pins, so a release renders with exactly the releases its
+    dependencies pin, one of every catalog it depends on. A declaration names an exact release, not
+    a range; ranges in declarations (such as `^1.0.0`, any non-breaking 1.x) may come in a later
+    2.x, as an addition.
+
+    ## Release versions
+    A release is numbered with a SemVer core version, `MAJOR.MINOR.PATCH` without leading zeros
+    (`1.4.0`), at most 50 characters (`ReleaseVersion`). Wherever the contract names one exact
+    release, in a path, a request or a response, it has that form.
 
     ## Version selectors
-    Wherever a request selects a release (generation, preview, validation, dependencies), it takes
-    a **version selector** in the npm SemVer range grammar: an exact version (`1.4.0`), a caret
-    (`^1.4.0`), a tilde (`~1.4.0`), comparators (`>=1.0.0 <2.0.0`), a hyphen range
-    (`1.0.0 - 2.0.0`), or a `||` union of these. The highest release that satisfies the selector is
-    chosen. A server that does not support ranges yet accepts an exact version only and refuses a
-    range as a validation failure on that field; responses always name the exact release used.
+    Wherever a request selects a release to render or check (generation, preview, validation), it
+    takes a **version selector** in the npm SemVer range grammar: an exact version (`1.4.0`), a
+    caret (`^1.4.0`), a tilde (`~1.4.0`), comparators (`>=1.0.0 <2.0.0`), a hyphen range
+    (`1.0.0 - 2.0.0`), or a `||` union of these. A server accepts the whole grammar. The highest
+    release that satisfies the selector is chosen; responses always name the exact release used.
+    Catalog dependencies take no selector: they pin an exact release.
 
     ## Environment overrides
     An environment serves catalog releases, and a request through it (`environmentKey`) renders the
@@ -273,10 +282,10 @@ x-problem-types:
       status: 409
       schema: ReleaseDependenciesMissingProblemDetail
       description: >-
-        A release cannot be deployed because the environment does not serve
-        the releases of other catalogs it renders with, and the request did not
-        ask to deploy them along (or they could not be); `missingDependencies`
-        lists each one and why.
+        A release cannot be deployed because releases of other catalogs it
+        renders with (the releases it pins) cannot be had: the tenant does not
+        have them and they could not be fetched or verified;
+        `missingDependencies` lists each one and why.
     - slug: catalog-draft-kind
       status: 409
       schema: ProblemDetail
@@ -702,6 +711,8 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CatalogChangesDto'
     ResourceChangeDto:
       $ref: './components/schemas/catalogs.yaml#/ResourceChangeDto'
+    ReleaseVersion:
+      $ref: './components/schemas/catalogs.yaml#/ReleaseVersion'
     CatalogVersionStatus:
       $ref: './components/schemas/catalogs.yaml#/CatalogVersionStatus'
     CatalogVersionDto:
