@@ -39,7 +39,7 @@ variants:
       '200':
         description: List of variants
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantListResponse'
       '400':
@@ -61,14 +61,14 @@ variants:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/variants.yaml#/CreateVariantRequest'
     responses:
       '201':
         description: Variant created successfully
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantDto'
       '400':
@@ -130,7 +130,7 @@ variants-id:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantDto'
       '401':
@@ -155,7 +155,7 @@ variants-id:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/variants.yaml#/UpdateVariantRequest'
     responses:
@@ -165,7 +165,7 @@ variants-id:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantDto'
       '400':
@@ -253,7 +253,7 @@ variant-set-default:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantDto'
       '401':
@@ -317,7 +317,7 @@ variant-content:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantContentDto'
       '401':
@@ -343,7 +343,7 @@ variant-content:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/variants.yaml#/UpdateVariantContentRequest'
     responses:
@@ -353,7 +353,7 @@ variant-content:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantContentDto'
       '400':
@@ -417,7 +417,7 @@ variant-mark-ready:
       '200':
         description: The variant's content, now ready
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/variants.yaml#/VariantContentDto'
       '401':

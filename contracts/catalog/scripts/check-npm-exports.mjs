@@ -84,7 +84,6 @@ const resourceKeys = [
   ['code list binding key', detailDefs.CodeListBindingRef.properties.key],
   ['data example key', detailDefs.DataExampleEntry.properties.key],
   ['variant key', detailDefs.VariantEntry.properties.key],
-  ['variant attribute key', detailDefs.VariantEntry.properties.attributes.oneOf[0].propertyNames],
   ['manifest resource entry key', manifestDefs.ResourceEntry.properties.key],
   ['dependency key', manifestDefs.CatalogDependencyRef.properties.key],
   ['attribute assignment key', manifestDefs.AttributeAssignment.properties.key],
@@ -92,6 +91,11 @@ const resourceKeys = [
   ['presentation imageKeys', manifestDefs.CatalogPresentation.properties.imageKeys.items],
   ['theme reference themeKey', sharedSchema.$defs.ThemeRef.oneOf[1].properties.themeKey],
 ];
+// A variant's attribute key may be qualified by a catalog key (`system.locale`), so it has a rule of its own.
+const variantAttributeKey = detailDefs.VariantEntry.properties.attributes.oneOf[0].propertyNames;
+assert.equal(catalog.CATALOG_ATTRIBUTE_KEY_PATTERN, variantAttributeKey.pattern, 'npm and schema variant attribute key patterns must agree');
+assert.equal(catalog.MIN_CATALOG_RESOURCE_KEY_LENGTH, variantAttributeKey.minLength, 'npm and schema variant attribute key minimum lengths must agree');
+assert.equal(catalog.MAX_CATALOG_ATTRIBUTE_KEY_LENGTH, variantAttributeKey.maxLength, 'npm and schema variant attribute key maximum lengths must agree');
 for (const [where, key] of resourceKeys) {
   assert.equal(catalog.CATALOG_RESOURCE_KEY_PATTERN, key.pattern, `npm and schema ${where} patterns must agree`);
   assert.equal(catalog.MIN_CATALOG_RESOURCE_KEY_LENGTH, key.minLength, `npm and schema ${where} minimum lengths must agree`);

@@ -244,7 +244,7 @@ Consumer management endpoints live at the platform level, outside any tenant sco
 
 ```
 POST /consumers
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "id": "invoice-service",
@@ -255,7 +255,7 @@ Content-Type: application/vnd.epistola.v1+json
 }
 
 201 Created
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "id": "invoice-service",
@@ -273,10 +273,10 @@ Content-Type: application/vnd.epistola.v1+json
 
 ```
 GET /consumers?q=invoice&status=active&page=0&size=20
-Accept: application/vnd.epistola.v1+json
+Accept: application/vnd.epistola.v2+json
 
 200 OK
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "items": [
@@ -302,10 +302,10 @@ Content-Type: application/vnd.epistola.v1+json
 
 ```
 GET /consumers/{consumerId}
-Accept: application/vnd.epistola.v1+json
+Accept: application/vnd.epistola.v2+json
 
 200 OK
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "id": "invoice-service",
@@ -323,7 +323,7 @@ Content-Type: application/vnd.epistola.v1+json
 
 ```
 PATCH /consumers/{consumerId}
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "description": "Generates PDF and HTML invoices for the billing pipeline",
@@ -331,7 +331,7 @@ Content-Type: application/vnd.epistola.v1+json
 }
 
 200 OK
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "id": "invoice-service",
@@ -472,7 +472,7 @@ Uses `PUT` for idempotent upsert — the consumer either creates or replaces its
 
 ```
 PUT /tenants/{tenantKey}/consumers/{consumerId}/dependencies/{templateKey}
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "variantIds": ["english", "dutch"],
@@ -481,7 +481,7 @@ Content-Type: application/vnd.epistola.v1+json
 }
 
 200 OK
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "consumerId": "invoice-service",
@@ -523,10 +523,10 @@ DeclareTemplateDependencyRequest:
 
 ```
 GET /tenants/{tenantKey}/consumers/{consumerId}/dependencies
-Accept: application/vnd.epistola.v1+json
+Accept: application/vnd.epistola.v2+json
 
 200 OK
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "items": [
@@ -584,10 +584,10 @@ Allows querying which consumers depend on a given template. This is the read sid
 
 ```
 GET /tenants/{tenantKey}/templates/{templateKey}/dependents?status=active
-Accept: application/vnd.epistola.v1+json
+Accept: application/vnd.epistola.v2+json
 
 200 OK
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "items": [
@@ -643,7 +643,7 @@ When a delete operation targets a resource that has dependent consumers, the API
 DELETE /tenants/{tenantKey}/templates/{templateKey}
 
 409 Conflict
-Content-Type: application/vnd.epistola.v1+json
+Content-Type: application/vnd.epistola.v2+json
 
 {
   "code": "HAS_DEPENDENTS",

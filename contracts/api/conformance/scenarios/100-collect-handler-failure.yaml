@@ -34,7 +34,7 @@ action:
 script:
   # Every poll gets the same batch: the cursor never advances, so the server keeps resending it.
   - status: 200
-    contentType: application/vnd.epistola.v1+ndjson
+    contentType: application/vnd.epistola.v2+ndjson
     ndjson:
       - { sequence: 501, requestId: 77777777-7777-4777-8777-000000000501, templateKey: invoice, status: COMPLETED, correlationId: ok-1, completedAt: "2026-02-01T08:05:00Z" }
       - { sequence: 502, requestId: 77777777-7777-4777-8777-000000000502, templateKey: invoice, status: COMPLETED, correlationId: boom, completedAt: "2026-02-01T08:05:00Z" }

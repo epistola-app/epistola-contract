@@ -142,14 +142,14 @@ example-collection:
     responses:
       '200':
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/example.yaml#/ExampleListResponse'
 ```
 
 ### Content Type
 
-All endpoints use versioned media type: `application/vnd.epistola.v1+json`
+All endpoints use versioned media type: `application/vnd.epistola.v2+json`
 
 ### Common Patterns
 

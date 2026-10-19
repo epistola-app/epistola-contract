@@ -22,6 +22,9 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
+- **BREAKING:** `EpistolaMediaTypeHandler.VendorJson` and the result collector send
+  `application/vnd.epistola.v2+json` and `application/vnd.epistola.v2+ndjson`, the contract 2.x media
+  types. A 2.x server refuses the 1.x ones.
 - **BREAKING:** a resource's address is its `key` (epistola-app/epistola-contract#84), so the
   hand-written API follows the generated one: `ResultCollector.Builder().TenantId(…)` is
   `TenantKey(…)`; the result collector's `GenerationResult.TemplateId` / `VariantId` are

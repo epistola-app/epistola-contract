@@ -38,14 +38,14 @@ consumer-register:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/consumers.yaml#/RegisterConsumerRequest'
     responses:
       '201':
         description: Consumer registered (status = pending)
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '400':
@@ -97,7 +97,7 @@ consumer-collection:
       '200':
         description: List of consumers
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerListResponse'
       '400':
@@ -143,7 +143,7 @@ consumer-resource:
       '200':
         description: Consumer details
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '401':
@@ -167,14 +167,14 @@ consumer-resource:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/consumers.yaml#/UpdateConsumerRequest'
     responses:
       '200':
         description: Consumer updated
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '400':
@@ -253,14 +253,14 @@ consumer-approve:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/consumers.yaml#/ApproveConsumerRequest'
     responses:
       '200':
         description: Consumer approved (status = active)
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '400':
@@ -308,14 +308,14 @@ consumer-reject:
     requestBody:
       required: false
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/consumers.yaml#/RejectConsumerRequest'
     responses:
       '200':
         description: Consumer rejected (status = rejected)
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '400':
@@ -363,14 +363,14 @@ consumer-public-key:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/consumers.yaml#/RotatePublicKeyRequest'
     responses:
       '200':
         description: Public key rotated
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/consumers.yaml#/ConsumerDto'
       '400':

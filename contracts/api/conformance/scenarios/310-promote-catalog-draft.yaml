@@ -30,7 +30,7 @@ action:
 
 script:
   - status: 200
-    contentType: application/vnd.epistola.v1+json
+    contentType: application/vnd.epistola.v2+json
     body:
       version: null
       draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
@@ -54,7 +54,7 @@ expect:
       path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-8a10-7d2e-8b3c-4d5e6f708192/promote
       headers:
         Content-Type:
-          matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
       body:
         json:
           keepPreviousAs: Before the redesign

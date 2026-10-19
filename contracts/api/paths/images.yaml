@@ -39,7 +39,7 @@ images:
       '200':
         description: List of images.
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/images.yaml#/ImageListResponse'
       '400':
@@ -92,7 +92,7 @@ images:
       '201':
         description: Image uploaded.
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/images.yaml#/ImageDto'
       '400':

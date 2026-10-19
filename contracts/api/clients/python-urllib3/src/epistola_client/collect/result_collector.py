@@ -30,8 +30,8 @@ import time
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Protocol
 
-_VENDOR_JSON = "application/vnd.epistola.v1+json"
-_NDJSON = "application/vnd.epistola.v1+ndjson"
+_VENDOR_JSON = "application/vnd.epistola.v2+json"
+_NDJSON = "application/vnd.epistola.v2+ndjson"
 
 #: How many prefixes :meth:`ResultCollector.routing_key_to_me` tries before giving up. Reaching
 #: this means every one of a thousand hashes missed every partition this node owns.

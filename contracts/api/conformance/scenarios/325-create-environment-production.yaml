@@ -20,7 +20,7 @@ action:
 
 script:
   - status: 201
-    contentType: application/vnd.epistola.v1+json
+    contentType: application/vnd.epistola.v2+json
     body:
       key: production
       tenantKey: acme-corp
@@ -35,7 +35,7 @@ expect:
       path: /api/tenants/acme-corp/environments
       headers:
         Content-Type:
-          matches: '^application/vnd\.epistola\.v1\+json(;.*)?$'
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
       body:
         json:
           key: production

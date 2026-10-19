@@ -100,7 +100,7 @@ generation-collect:
     requestBody:
       required: false
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/generation-collect.yaml#/CollectRequest'
     responses:
@@ -115,7 +115,7 @@ generation-collect:
               type: string
               enum: [lz4, zstd, gzip]
         content:
-          application/vnd.epistola.v1+ndjson:
+          application/vnd.epistola.v2+ndjson:
             schema:
               type: string
               description: |

@@ -31,7 +31,7 @@ action:
 
 script:
   - status: 200
-    contentType: application/vnd.epistola.v1+json
+    contentType: application/vnd.epistola.v2+json
     body:
       items: []
       page: { number: 0, size: 20, totalElements: 0, totalPages: 0 }
@@ -42,4 +42,4 @@ expect:
     headers:
       # Both, in the order the contract declares them.
       Accept:
-        matches: 'application/vnd\.epistola\.v1\+json,\s*application/problem\+json'
+        matches: 'application/vnd\.epistola\.v2\+json,\s*application/problem\+json'

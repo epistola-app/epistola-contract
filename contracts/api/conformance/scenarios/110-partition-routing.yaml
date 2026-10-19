@@ -35,7 +35,7 @@ action:
 script:
   # A single empty poll whose _meta line carries the assignment the routing helpers work from.
   - status: 200
-    contentType: application/vnd.epistola.v1+ndjson
+    contentType: application/vnd.epistola.v2+ndjson
     ndjson:
       - { _meta: true, hasMore: false, lastSequence: 0, count: 0, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
 

@@ -15,7 +15,7 @@ import pytest
 
 from epistola_client import EpistolaClientBuilder
 
-VENDOR_JSON = "application/vnd.epistola.v1+json"
+VENDOR_JSON = "application/vnd.epistola.v2+json"
 PROBLEM_JSON = "application/problem+json"
 
 

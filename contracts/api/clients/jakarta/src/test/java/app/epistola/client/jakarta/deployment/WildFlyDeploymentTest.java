@@ -64,8 +64,8 @@ class WildFlyDeploymentTest {
         Path war = buildSmokeWar();
 
         try (StubServer epistola = StubServer.start(request -> request.path().endsWith("/images")
-                ? StubServer.StubResponse.of(201, "application/vnd.epistola.v1+json", IMAGE)
-                : StubServer.StubResponse.of(200, "application/vnd.epistola.v1+json", PONG))) {
+                ? StubServer.StubResponse.of(201, "application/vnd.epistola.v2+json", IMAGE)
+                : StubServer.StubResponse.of(200, "application/vnd.epistola.v2+json", PONG))) {
 
             int stubPort = epistola.baseUri().getPort();
             Testcontainers.exposeHostPorts(stubPort);
@@ -105,7 +105,7 @@ class WildFlyDeploymentTest {
                 StubServer.RecordedRequest seen = epistola.onlyRequest();
                 assertEquals("/api/ping", seen.path());
                 assertEquals(
-                        "application/vnd.epistola.v1+json",
+                        "application/vnd.epistola.v2+json",
                         seen.header("Content-Type"),
                         "the deployed client must still send the versioned media type");
                 assertNotNull(seen.header("User-Agent"));

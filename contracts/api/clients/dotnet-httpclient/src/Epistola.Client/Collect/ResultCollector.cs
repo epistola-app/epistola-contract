@@ -54,8 +54,8 @@ public sealed class ResultCollector
     private readonly IMetricsListener? _metricsListener;
     private readonly bool _registerShutdownHook;
 
-    private const string VendorJson = "application/vnd.epistola.v1+json";
-    private const string Ndjson = "application/vnd.epistola.v1+ndjson";
+    private const string VendorJson = "application/vnd.epistola.v2+json";
+    private const string Ndjson = "application/vnd.epistola.v2+ndjson";
 
     private int _running; // 0/1 flag
     private long _currentInterval;

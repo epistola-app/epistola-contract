@@ -5,8 +5,12 @@ info:
     Document template management API for Epistola Suite.
 
     ## Versioning
-    This API uses header-based versioning via the Accept header.
-    Use `application/vnd.epistola.v1+json` for API version 1.
+    This API uses header-based versioning: the media type carries the API's major version.
+    Contract 2.x uses `application/vnd.epistola.v2+json` (and `application/vnd.epistola.v2+ndjson`
+    for the result-collection stream), in `Accept` and in `Content-Type`. A 2.x server refuses a
+    request that asks for or sends a 1.x media type (`vnd.epistola.v1`) with
+    `406 Not Acceptable` or `415 Unsupported Media Type`, so a 1.x client fails loudly instead of
+    being served a body it would misread, or having fields it sends ignored.
 
     ## Catalog versions
     A catalog is versioned as a whole, never resource by resource. It consists of **versions**,

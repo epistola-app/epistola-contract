@@ -147,7 +147,7 @@ class EpistolaClientTest {
             createContext("/") { exchange ->
                 Thread.sleep(delay.toMillis())
                 val body = """{"status":"UP","timestamp":"2026-01-01T00:00:00Z"}""".toByteArray()
-                exchange.responseHeaders.add("Content-Type", "application/vnd.epistola.v1+json")
+                exchange.responseHeaders.add("Content-Type", "application/vnd.epistola.v2+json")
                 exchange.sendResponseHeaders(200, body.size.toLong())
                 exchange.responseBody.use { it.write(body) }
             }
@@ -178,7 +178,7 @@ class EpistolaClientTest {
     private fun jsonServer(
         status: Int,
         body: String,
-        contentType: String = "application/vnd.epistola.v1+json",
+        contentType: String = "application/vnd.epistola.v2+json",
         capture: (com.sun.net.httpserver.HttpExchange) -> Unit,
     ): HttpServer = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
         createContext("/") { exchange ->

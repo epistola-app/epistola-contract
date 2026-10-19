@@ -35,7 +35,7 @@ themes:
       '200':
         description: List of themes
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/themes.yaml#/ThemeListResponse'
       '400':
@@ -57,14 +57,14 @@ themes:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/themes.yaml#/CreateThemeRequest'
     responses:
       '201':
         description: Theme created successfully
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/themes.yaml#/ThemeDto'
       '400':
@@ -117,7 +117,7 @@ themes-id:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/themes.yaml#/ThemeDto'
       '401':
@@ -142,7 +142,7 @@ themes-id:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/themes.yaml#/UpdateThemeRequest'
     responses:
@@ -152,7 +152,7 @@ themes-id:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/themes.yaml#/ThemeDto'
       '400':

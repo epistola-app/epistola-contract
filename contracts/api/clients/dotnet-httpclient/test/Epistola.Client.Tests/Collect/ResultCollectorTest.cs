@@ -192,7 +192,7 @@ public class ResultCollectorTest
             drained = true;
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(body, Encoding.UTF8, "application/vnd.epistola.v1+ndjson"),
+                Content = new StringContent(body, Encoding.UTF8, "application/vnd.epistola.v2+ndjson"),
             };
         });
 

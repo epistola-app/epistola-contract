@@ -19,7 +19,7 @@ import {
 } from '../../src/index.js'
 import { json, startServer, type TestServer } from '../helpers/server.js'
 
-const VENDOR_JSON = 'application/vnd.epistola.v1+json'
+const VENDOR_JSON = 'application/vnd.epistola.v2+json'
 const PROBLEM_JSON = 'application/problem+json'
 const EMPTY_PAGE = { items: [], page: { number: 0, size: 20, totalElements: 0, totalPages: 0 } }
 const PONG = { status: 'UP', timestamp: '2026-04-21T10:30:00Z' }
@@ -41,7 +41,7 @@ test('a generated call carries identity, the declared Accept, the vendor Content
     assert.equal(request.path, '/api/ping')
     assert.equal(request.headers['x-ep-node-id'], 'test-node')
     assert.match(request.headers['user-agent'], /^epistola-contract\/[^ ]+ acme-billing\/9\.9\.9$/)
-    assert.match(request.headers['content-type'], /^application\/vnd\.epistola\.v1\+json(;.*)?$/)
+    assert.match(request.headers['content-type'], /^application\/vnd\.epistola\.v2\+json(;.*)?$/)
     assert.equal(request.headers.accept, VENDOR_JSON)
     assert.equal(request.headers.authorization, 'ApiKey epk_test')
     assert.equal(request.headers['x-api-key'], undefined)
@@ -57,7 +57,7 @@ test('an operation with error responses asks for the problem document as well', 
     await new TemplatesApi(client(server)).listTemplates({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', catalogVersion: '1.0.0' })
     const [request] = server.requests
     assert.equal(request.path, '/api/tenants/acme-corp/catalogs/~/acme-corp/main/versions/1.0.0/templates')
-    assert.match(request.headers.accept, /application\/vnd\.epistola\.v1\+json,\s*application\/problem\+json/)
+    assert.match(request.headers.accept, /application\/vnd\.epistola\.v2\+json,\s*application\/problem\+json/)
   } finally {
     await server.close()
   }

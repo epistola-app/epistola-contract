@@ -67,6 +67,14 @@ libraries.
 
 ### Changed
 
+- **BREAKING: the media type is `application/vnd.epistola.v2+json`** (and
+  `application/vnd.epistola.v2+ndjson` for result collection), in `Accept` and `Content-Type`. The
+  media type carries the API's major version, and contract 2.0 changes most request and response
+  bodies, so a 2.x server refuses the 1.x media type with 406 or 415. A 1.x client against a 2.x
+  server now fails on its first request, instead of having `releaseVersion` or `versionId` ignored
+  and being served a release it did not ask for. Every client sends the new media type; the
+  `media-types`, `error-accept` and request-shape conformance scenarios hold all five to it.
+
 - **A draft is numbered when it is released** (ADR 0002, amendment 2). Every AUTHORED catalog has
   one next version, addressed as `next`, where everyday work goes and the only draft that is
   released; any other draft is long-term work, named and addressed by its `draftId`. A released
@@ -174,7 +182,8 @@ libraries.
   (`system.locale`) that names an attribute defined in another catalog, so a template using the
   system catalog's `locale` could not be validated. The key is now an attribute key, optionally
   qualified by a catalog key, each part by its own rule (`CatalogKeys.isValidAttributeKey`,
-  `ATTRIBUTE_KEY_PATTERN`, at most 101 characters in the schema). The v7-to-v8 migration pads the
+  `ATTRIBUTE_KEY_PATTERN`, at most 101 characters in the schema; on npm
+  `CATALOG_ATTRIBUTE_KEY_PATTERN` and `MAX_CATALOG_ATTRIBUTE_KEY_LENGTH`). The v7-to-v8 migration pads the
   attribute part of a qualified key, as it padded that attribute's own key.
 - **Stencil nesting is checked lexically (ADR 0006).** The template validator no longer counts a
   placeholder's fill as inside the stencil that owns the placeholder: the fill is written outside

@@ -26,7 +26,7 @@ environments:
       '200':
         description: List of environments
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/EnvironmentListResponse'
       '400':
@@ -50,14 +50,14 @@ environments:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/environments.yaml#/CreateEnvironmentRequest'
     responses:
       '201':
         description: Environment created successfully
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/EnvironmentDto'
       '400':
@@ -103,7 +103,7 @@ environments-id:
       '200':
         description: Environment details
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/EnvironmentDto'
       '401':
@@ -126,14 +126,14 @@ environments-id:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/environments.yaml#/UpdateEnvironmentRequest'
     responses:
       '200':
         description: Environment updated successfully
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/EnvironmentDto'
       '400':
@@ -201,7 +201,7 @@ environment-deployments:
       '200':
         description: The environment's deployments
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/DeploymentListResponse'
       '401':
@@ -301,7 +301,7 @@ environment-deployment-release:
       '200':
         description: The deployment
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/DeploymentDto'
       '401':
@@ -367,7 +367,7 @@ environment-overrides:
       '200':
         description: The environment's overrides
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/EnvironmentOverrideListResponse'
       '401':
@@ -433,14 +433,14 @@ environment-override:
     requestBody:
       required: true
       content:
-        application/vnd.epistola.v1+json:
+        application/vnd.epistola.v2+json:
           schema:
             $ref: '../components/schemas/environments.yaml#/SetEnvironmentOverrideRequest'
     responses:
       '200':
         description: The override
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/EnvironmentOverrideDto'
       '400':
@@ -509,7 +509,7 @@ environment-deployment-history:
       '200':
         description: The environment's deployment history
         content:
-          application/vnd.epistola.v1+json:
+          application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/DeploymentHistoryResponse'
       '401':

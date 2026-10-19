@@ -15,7 +15,7 @@ import type { ServerResponse } from 'node:http'
 import { EpistolaClient, ResultCollector, type GenerationResult, type PartitionAssignment } from '../../src/index.js'
 import { sleep, startServer, waitFor, type RecordedRequest, type TestServer } from '../helpers/server.js'
 
-const NDJSON = 'application/vnd.epistola.v1+ndjson'
+const NDJSON = 'application/vnd.epistola.v2+ndjson'
 const RESULTS = [
   { sequence: 501, requestId: '11111111-1111-4111-8111-000000000501', templateKey: 'invoice', status: 'COMPLETED', correlationId: 'inv-1', completedAt: '2026-02-01T08:05:00Z' },
   { sequence: 502, requestId: '11111111-1111-4111-8111-000000000502', templateKey: 'invoice', status: 'FAILED', error: 'render failed', completedAt: '2026-02-01T08:05:00Z' },
@@ -73,7 +73,7 @@ for (const gzip of [false, true]) {
       const [firstRequest, secondRequest] = server.requests
       assert.equal(firstRequest.method, 'POST')
       assert.equal(firstRequest.path, '/api/tenants/acme-corp/generation/collect')
-      assert.match(firstRequest.headers['content-type'], /^application\/vnd\.epistola\.v1\+json/)
+      assert.match(firstRequest.headers['content-type'], /^application\/vnd\.epistola\.v2\+json/)
       assert.equal(firstRequest.headers.accept, NDJSON)
       assert.match(firstRequest.headers['accept-encoding'], /(^|[ ,])gzip($|[ ,;])/)
       assert.equal(firstRequest.headers.authorization, 'ApiKey epk_test')

@@ -142,8 +142,7 @@ export const CATALOG_ARCHIVE_PATH_PATTERN = '^(?:\\./)?(?!\\.{1,2}(?:/|$))(?:[A-
  * hyphen-separated parts, a leading digit allowed. One rule for the keys of templates, variants,
  * stencils, themes, attributes, code lists, fonts, images and data examples, and for every position
  * that names one: references in content (`themeKey`, `stencilKey`, `imageKey`, a `fontFamily` key),
- * resource dependencies, code-list bindings, attribute assignments, a variant's attribute keys, and
- * the presentation's `iconImageKey` and `imageKeys`. The catalog's own key is not a resource key.
+ * resource dependencies, code-list bindings, attribute assignments, and the presentation's `iconImageKey` and `imageKeys`. The catalog's own key is not a resource key.
  */
 export const CATALOG_RESOURCE_KEY_PATTERN = '^[a-z0-9]+(-[a-z0-9]+)*$'
 
@@ -158,6 +157,16 @@ export const MIN_CATALOG_RESOURCE_KEY_LENGTH = 3
  * without a trailing hyphen, and every reference to it alike.
  */
 export const MAX_CATALOG_RESOURCE_KEY_LENGTH = 50
+
+/**
+ * Pattern of a variant's attribute key (wire v8): an attribute key, optionally qualified by the key of
+ * the catalog that defines the attribute (`system.locale`). Each part follows its own rule: the
+ * catalog part the catalog key's, the attribute part the resource key's.
+ */
+export const CATALOG_ATTRIBUTE_KEY_PATTERN = '^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\\.)?[a-z0-9]+(-[a-z0-9]+)*$'
+
+/** Longest variant attribute key (wire v8): a catalog key, the separator and a resource key. */
+export const MAX_CATALOG_ATTRIBUTE_KEY_LENGTH = 101
 
 /** Longest template description, in characters (wire v8). */
 export const MAX_TEMPLATE_DESCRIPTION_LENGTH = 2000
