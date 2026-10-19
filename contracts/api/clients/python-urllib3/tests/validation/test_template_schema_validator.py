@@ -201,7 +201,7 @@ def test_an_invalid_result_with_nothing_to_report_still_raises():
     assert raised.value.errors[0].path == ""
 
 
-def test_the_version_selectors_are_passed_through_when_configured():
+def test_the_variant_and_environment_are_passed_through_when_configured():
     api = _StubTemplatesApi(_result(valid=True))
 
     TemplateSchemaValidator(
@@ -212,15 +212,15 @@ def test_the_version_selectors_are_passed_through_when_configured():
     assert api.sent[0].environment_key == "production"
 
 
-def test_the_catalog_is_addressed_by_registry_namespace_and_key_and_the_version_selector_is_sent():
+def test_the_catalog_is_addressed_by_registry_namespace_and_key_and_the_version_range_is_sent():
     api = _StubTemplatesApi(_result(valid=True))
 
-    ServerTemplateDataValidator(api, version="^1.4.0", environment_key="production").validate(
+    ServerTemplateDataValidator(api, version_range="^1.4.0", environment_key="production").validate(
         "acme-corp", "exchange.example.org", "team-a", "default", "invoice", {}
     )
 
     assert api.addressed == ("acme-corp", "exchange.example.org", "team-a", "default", "invoice")
-    assert api.sent[0].version == "^1.4.0"
+    assert api.sent[0].version_range == "^1.4.0"
     assert api.sent[0].environment_key == "production"
 
 

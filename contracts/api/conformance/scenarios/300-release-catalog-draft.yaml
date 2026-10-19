@@ -6,8 +6,8 @@ id: release-catalog-draft
 title: Releasing a draft lets the server number it, and names the drafts now behind it
 why: >
   A draft has no number until it is released (ADR 0002), so the request goes to the draft's
-  address, `…/versions/{versionId}/release`. Without a `version` the server numbers it as its
-  changes need against its base, so a client must leave `version` out rather than send one it was
+  address, `…/versions/{versionId}/release`. Without a `releaseVersion` the server numbers it as its
+  changes need against its base, so a client must leave `releaseVersion` out rather than send one it was
   not given; it carries only the notes. The answer is the release, under its new number, no longer
   a draft. It keeps its `versionId`, which now addresses the release as its number does.
 
@@ -35,7 +35,7 @@ script:
     contentType: application/vnd.epistola.v2+json
     body:
       catalogVersion:
-        version: 1.5.0
+        releaseVersion: 1.5.0
         versionId: k7m2x9qa
         name: null
         status: released
@@ -61,9 +61,9 @@ expect:
           notes: Finished improvements, ahead of the redesign.
           # Its default is false, so a client may send `false` or leave it out, never `true`.
           releaseDependencies: { whenPresent: { equals: false } }
-        jsonAbsent: [version, acknowledgedBehind]
+        jsonAbsent: [releaseVersion, acknowledgedBehind]
   report:
-    version: 1.5.0
+    releaseVersion: 1.5.0
     status: released
     versionId: k7m2x9qa
     # Names are free text, so they are joined with `|`.

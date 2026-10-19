@@ -153,15 +153,15 @@ class TemplateSchemaValidatorTest {
     }
 
     @Test
-    fun `the version selectors are passed through when configured`() {
+    fun `the version range is passed through when configured`() {
         val body = slot<ValidateTemplateDataRequest>()
         every { templatesApi.validateTemplateData("acme", "~", "acme-corp", "default", "invoice", capture(body)) } returns result(valid = true)
 
-        val validator = ServerTemplateDataValidator(templatesApi, variantKey = "nl-nl", version = "^1.4.0", environmentKey = "production")
+        val validator = ServerTemplateDataValidator(templatesApi, variantKey = "nl-nl", versionRange = "^1.4.0", environmentKey = "production")
         TemplateSchemaValidator(validator).validate("acme", "~", "acme-corp", "default", "invoice", emptyMap<String, Any>())
 
         assertEquals("nl-nl", body.captured.variantKey)
-        assertEquals("^1.4.0", body.captured.version)
+        assertEquals("^1.4.0", body.captured.versionRange)
         assertEquals("production", body.captured.environmentKey)
     }
 

@@ -15,7 +15,7 @@ why: >
   `2.0.0`.
 
   The list is an array of version strings in the JSON body. A client that drops it, sends it as a
-  single string, or reorders it into something else gets the release refused. No `version` was
+  single string, or reorders it into something else gets the release refused. No `releaseVersion` was
   given, so the server numbers it, and the client sends none.
 
 action:
@@ -35,7 +35,7 @@ script:
     contentType: application/vnd.epistola.v2+json
     body:
       catalogVersion:
-        version: 2.0.0
+        releaseVersion: 2.0.0
         versionId: k7m2x9qa
         name: null
         status: released
@@ -62,9 +62,9 @@ expect:
           acknowledgedBehind: [1.5.0, 1.6.0]
           # Its default is false, so a client may send `false` or leave it out, never `true`.
           releaseDependencies: { whenPresent: { equals: false } }
-        jsonAbsent: [version]
+        jsonAbsent: [releaseVersion]
   report:
-    version: 2.0.0
+    releaseVersion: 2.0.0
     status: released
     versionId: k7m2x9qa
     draftsBehind: ""

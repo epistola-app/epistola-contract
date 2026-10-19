@@ -116,7 +116,7 @@ class ServerTemplateDataValidator:
 
     :param templates_api: the generated API used to reach ``validateTemplateData``
     :param variant_key: optional variant to check against; without it, the default variant
-    :param version: optional version selector for the template's catalog release to check against
+    :param version_range: optional version range for the template's catalog release to check against
         (an exact version such as ``1.4.0`` or a range such as ``^1.4.0``); it may be combined with
         ``environment_key``. Without either, the catalog's latest release is used
     :param environment_key: optional environment whose deployed releases to check against
@@ -126,12 +126,12 @@ class ServerTemplateDataValidator:
         self,
         templates_api: TemplatesApi,
         variant_key: Optional[str] = None,
-        version: Optional[str] = None,
+        version_range: Optional[str] = None,
         environment_key: Optional[str] = None,
     ) -> None:
         self._templates_api = templates_api
         self._variant_key = variant_key
-        self._version = version
+        self._version_range = version_range
         self._environment_key = environment_key
 
     @property
@@ -159,7 +159,7 @@ class ServerTemplateDataValidator:
             ValidateTemplateDataRequest(
                 data=data if data is not None else {},
                 variantKey=self._variant_key,
-                version=self._version,
+                versionRange=self._version_range,
                 environmentKey=self._environment_key,
             ),
         )

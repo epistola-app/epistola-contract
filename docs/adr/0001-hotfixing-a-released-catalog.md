@@ -13,7 +13,7 @@ number of drafts of its catalog, each started from a release and released on its
 what it changed against that release. A catalog is identified by registry, namespace and key,
 published to an exchange, and installed and deployed elsewhere. Environments can serve several
 releases of one catalog. A render request picks the highest release that satisfies its version
-selector, among the releases its environment serves.
+range (`versionRange`), among the releases its environment serves.
 
 **Fixing an older line where the catalog is authored is solved by ADR 0002.** Say production runs
 `1.0.1`, a spelling error in it has to be fixed now, and the authoring installation already holds
@@ -71,13 +71,13 @@ A hotfix is a release of its own, labelled with SemVer **build metadata** on the
 `1.0.1+hotfix.1`, `1.0.1+hotfix.2`.
 
 SemVer ignores build metadata when ordering versions, and npm ranges ignore it when matching. A
-hotfix therefore *is* `1.0.1` for every selector:
+hotfix therefore *is* `1.0.1` for every version range:
 
 - **Selection:**
-  - A selector that matches `1.0.1` (`1.0.1`, `^1.0.1`, `>=1.0.0 <2.0.0`) matches all of its
+  - A range that matches `1.0.1` (`1.0.1`, `^1.0.1`, `>=1.0.0 <2.0.0`) matches all of its
     hotfixes.
   - Among releases that differ only in the hotfix suffix, the **highest hotfix number wins**.
-  - A selector that names a hotfix in full (`1.0.1+hotfix.2`) selects exactly that one.
+  - A range that names a hotfix in full (`1.0.1+hotfix.2`) selects exactly that one.
   - `1.0.1+hotfix.0` selects the release without hotfixes.
 - **Deployment:** a hotfix is deployed like any release, next to the release it fixes.
   - Requests the environment routes to `1.0.1` now render the hotfix.
@@ -145,10 +145,10 @@ Anything else needs a real release (`1.0.2`, `1.1.0`, `2.0.0`) through the norma
 - **Version grammar:** release versions accept the build suffix `+hotfix.N`, and only that one.
   Contract 2.0.0's `ReleaseVersion` and wire v8 accept `MAJOR.MINOR.PATCH` only, so this widens
   both, which clients that validate a release number must be told about.
-  `ReleaseCatalogDraftRequest.version` keeps plain `MAJOR.MINOR.PATCH`; hotfix labels are assigned
+  `ReleaseCatalogDraftRequest.releaseVersion` keeps plain `MAJOR.MINOR.PATCH`; hotfix labels are assigned
   by the server.
-- **Version selectors:** "highest" breaks ties between hotfixes of one version by hotfix number. A
-  selector without a suffix matches every hotfix of the versions it matches.
+- **Version ranges:** "highest" breaks ties between hotfixes of one version by hotfix number. A
+  range without a suffix matches every hotfix of the versions it matches.
 - **`+` in URL paths.** `getCatalogVersion`, `deployCatalogVersion` and `undeployCatalogVersion`
   carry the version in the path. In a path, `+` is a literal character, but some stacks decode it
   as a space, as in a query string. The contract states that `+` is sent as `%2B` or literally and means `+`, and a

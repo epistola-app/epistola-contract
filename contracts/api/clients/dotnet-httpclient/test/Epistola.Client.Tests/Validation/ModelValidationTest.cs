@@ -97,9 +97,9 @@ public class ModelValidationTest
     [Fact]
     public void GenerateDocumentRequestValidatesNullableFieldsIndependently()
     {
-        new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), varVersion: null).Validate();
+        new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: null).Validate();
         Assert.Throws<ArgumentException>(() =>
-            new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), varVersion: "").Validate());
+            new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: "").Validate());
 
         new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), environmentKey: null).Validate();
         Assert.Throws<ArgumentException>(() =>
@@ -132,7 +132,7 @@ public class ModelValidationTest
     [Fact]
     public void ReleaseNumberAcceptsAPlainSemVerNumber()
     {
-        var release = new ReleaseCatalogDraftRequest(varVersion: "1.4.0");
+        var release = new ReleaseCatalogDraftRequest(releaseVersion: "1.4.0");
         Assert.Same(release, release.Validate());
         var draft = new CreateCatalogDraftRequest(name: "Follow-up", from: "1.4.0");
         Assert.Same(draft, draft.Validate());
@@ -147,7 +147,7 @@ public class ModelValidationTest
     [InlineData("Next")]
     public void ReleaseNumberRejectsAnythingElse(string version)
     {
-        Assert.Throws<ArgumentException>(() => new ReleaseCatalogDraftRequest(varVersion: version).Validate());
+        Assert.Throws<ArgumentException>(() => new ReleaseCatalogDraftRequest(releaseVersion: version).Validate());
         Assert.Throws<ArgumentException>(() => new CreateCatalogDraftRequest(name: "Follow-up", from: version).Validate());
     }
 

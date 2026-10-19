@@ -17,7 +17,7 @@ why: >
   changed. That list is what lets an author port a fix into the draft before it is released.
 
   A client must surface every release, in order, with every change and its kind, and the draft's
-  null `version` as null.
+  null `releaseVersion` as null.
 
 action:
   name: get-catalog-version
@@ -33,7 +33,7 @@ script:
   - status: 200
     contentType: application/vnd.epistola.v2+json
     body:
-      version: null
+      releaseVersion: null
       versionId: r4t8w2nc
       name: Redesign 2027
       status: draft
@@ -41,11 +41,11 @@ script:
       createdFrom: null
       createdAt: "2026-09-20T09:00:00Z"
       behind:
-        - version: 1.5.0
+        - releaseVersion: 1.5.0
           changes:
             - { type: template, key: invoice, change: modified }
             - { type: theme, key: corporate, change: added }
-        - version: 1.6.0
+        - releaseVersion: 1.6.0
           changes:
             - { type: stencil, key: letter-shell, change: removed }
       releasedAt: null
@@ -60,7 +60,7 @@ expect:
     - method: GET
       path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/r4t8w2nc
   report:
-    version: 'null'
+    releaseVersion: 'null'
     versionId: r4t8w2nc
     name: Redesign 2027
     status: draft

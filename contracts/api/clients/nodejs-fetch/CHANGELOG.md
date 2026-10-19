@@ -44,9 +44,9 @@ records contract changes; this file records changes to the hand-written library 
   server's default registry, or named in full, such as `acme.com`) and the namespace a plain slug.
   `SchemaCache.getOrLoad` / `evict` are keyed the same way. `ValidatingGenerationApi` hands a
   pre-flighting validator the request's `registry`, or `~` when the request leaves it out or null.
-- **BREAKING:** `ServerValidationTarget` takes a `version` (a version selector such as `1.4.0` or
-  `^1.4.0`, sent as the request's `version`) in place of `versionId`, matching contract 2.0's
-  generation by release. It may be combined with `environmentId`; without either, the catalog's
+- **BREAKING:** `ServerValidationTarget` takes a `versionRange` (a version range such as `1.4.0` or
+  `^1.4.0`, sent as the request's `versionRange`) in place of `versionId`, matching contract 2.0's
+  generation by release. It may be combined with `environmentKey`; without either, the catalog's
   latest release is checked.
 - Results handed to a `ResultCollector` handler carry the template's catalog as `registry`,
   `namespace` and `catalogKey` next to `releaseVersion`; all four are null for a result accepted

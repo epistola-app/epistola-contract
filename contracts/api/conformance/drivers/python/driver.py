@@ -264,7 +264,7 @@ def _generate_document(base_url: str, config: dict) -> None:
     """
     optional = {
         name: config[name]
-        for name in ("registry", "version", "environmentKey", "correlationId", "routingKey")
+        for name in ("registry", "versionRange", "environmentKey", "correlationId", "routingKey")
         if name in config
     }
     GenerationApi(_client(base_url, config)).generate_document(
@@ -425,14 +425,14 @@ def _list_available_catalog_releases(base_url: str, config: dict) -> None:
             "registry": _show(releases.registry),
             "namespace": _show(releases.namespace),
             "catalogKey": _show(releases.catalog_key),
-            "availableComparedTo": ";".join(f"{_show(r.version)}={_show(r.compared_to)}" for r in releases.available),
+            "availableComparedTo": ";".join(f"{_show(r.release_version)}={_show(r.compared_to)}" for r in releases.available),
             "availableChanges": ";".join(
-                f"{_show(r.version)}="
+                f"{_show(r.release_version)}="
                 + "+".join(f"{_show(c.type)}/{_show(c.key)}:{_show(_enum(c.change))}" for c in r.changes)
                 for r in releases.available
             ),
             "availableDependencies": ";".join(
-                f"{_show(r.version)}="
+                f"{_show(r.release_version)}="
                 + "+".join(
                     f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}"
                     f"@{_show(d.release_version)}:{_show_bool(d.present)}"
@@ -531,7 +531,7 @@ def _create_catalog_draft(base_url: str, config: dict) -> None:
     _report(
         base_url,
         {
-            "version": _show(created.version),
+            "releaseVersion": _show(created.release_version),
             "versionId": _show(created.version_id),
             "name": _show(created.name),
             "status": _show(_enum(created.status)),
@@ -554,7 +554,7 @@ def _list_catalog_versions(base_url: str, config: dict) -> None:
     _report(
         base_url,
         {
-            "versions": ",".join(_show(v.version) for v in versions),
+            "releaseVersions": ",".join(_show(v.release_version) for v in versions),
             "versionIds": ",".join(_show(v.version_id) for v in versions),
             "names": "|".join(_show(v.name) for v in versions),
             "statuses": ",".join(_show(_enum(v.status)) for v in versions),
@@ -572,7 +572,7 @@ def _get_catalog_version(base_url: str, config: dict) -> None:
     _report(
         base_url,
         {
-            "version": _show(version.version),
+            "releaseVersion": _show(version.release_version),
             "versionId": _show(version.version_id),
             "name": _show(version.name),
             "status": _show(_enum(version.status)),
@@ -584,7 +584,7 @@ def _get_catalog_version(base_url: str, config: dict) -> None:
             ),
             "deployedTo": ",".join(version.deployed_to),
             "behind": ";".join(
-                f"{_show(b.version)}="
+                f"{_show(b.release_version)}="
                 + "+".join(f"{_show(c.type)}/{_show(c.key)}:{_show(_enum(c.change))}" for c in b.changes)
                 for b in version.behind
             ),
@@ -600,7 +600,7 @@ def _rename_catalog_draft(base_url: str, config: dict) -> None:
     _report(
         base_url,
         {
-            "version": _show(version.version),
+            "releaseVersion": _show(version.release_version),
             "versionId": _show(version.version_id),
             "name": _show(version.name),
             "status": _show(_enum(version.status)),
@@ -634,7 +634,7 @@ def _release_catalog_draft(base_url: str, config: dict) -> None:
     reported by its problem, with the dependency drafts it names."""
     optional = {
         name: config[name]
-        for name in ("version", "notes", "acknowledgedBehind", "releaseDependencies")
+        for name in ("releaseVersion", "notes", "acknowledgedBehind", "releaseDependencies")
         if name in config
     }
     try:
@@ -658,7 +658,7 @@ def _release_catalog_draft(base_url: str, config: dict) -> None:
     _report(
         base_url,
         {
-            "version": _show(response.catalog_version.version),
+            "releaseVersion": _show(response.catalog_version.release_version),
             "status": _show(_enum(response.catalog_version.status)),
             "versionId": _show(response.catalog_version.version_id),
             "draftsBehind": "|".join(response.drafts_behind),

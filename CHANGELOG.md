@@ -47,7 +47,7 @@ libraries.
   no request body). A draft can be deployed, which is how it is tried: it renders live, with no
   release, and an environment serves at most one draft per catalog (deploying another replaces
   it, logged as undeployed). A generation or preview request through the environment that names
-  no version renders the deployed draft if there is one, else the highest served release; one that
+  no `versionRange` renders the deployed draft if there is one, else the highest served release; one that
   names a range or an exact number renders the highest served release that satisfies it, never a
   draft. Rollback is undeploying the newer release. Releasing a deployed draft keeps its
   `versionId`, so the environment then serves that release, an explicit deployment logged as
@@ -125,12 +125,12 @@ libraries.
   draft has no number until it is released. `listCatalogVersions`, `createCatalogDraft`
   (`{name, from?}`: from a release number or another version's `versionId`, by default the highest
   release), `getCatalogVersion` (`CatalogVersionDto` with the required `versionId`, `name`,
-  `createdFrom`, and a `version` that is null for a draft), `renameCatalogDraft`,
+  `createdFrom`, and a `releaseVersion` that is null for a draft), `renameCatalogDraft`,
   `deleteCatalogDraft`, `previewCatalogDraftRelease` (`CatalogDraftReleasePreview`: the `base`, the
   kind of change against it and why, the number the changes need, `needed`, and the number the draft
   gets, `suggested`) and `releaseCatalogDraft`, which releases any draft. Its number follows from the
   kind of change against the draft's base (patch, minor, major); when that number is taken, the next
-  free one of the same kind. The author may give a higher `version`; one lower than the changes
+  free one of the same kind. The author may give a higher `releaseVersion` (now optional); one lower than the changes
   need, not above the base, or taken is refused with 400. From `1.4.0` while `1.5.0` and `2.0.0` exist, a fix
   becomes `1.4.1` and a breaking change `3.0.0`, so an older line is fixed by an ordinary release.
   The released draft becomes the release at that number, immutable, and keeps its `versionId`: a
@@ -455,24 +455,26 @@ libraries.
 - **BREAKING: one schema for a release number, `ReleaseVersion`.** Wherever the contract names one
   exact release, it is a SemVer core version without leading zeros
   (`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`), at most 50 characters: the
-  release request (`version`, `acknowledgedBehind`), a dependency declaration, and every response
-  member that names a release (`CatalogDto.releasedVersion`, `CatalogVersionDto.version` and
-  `base`, `CatalogDraftSummary.base`, `BehindReleaseDto.version`, `CatalogChangesDto.base`,
+  release request (`releaseVersion`, `acknowledgedBehind`), a dependency declaration, and every
+  response member that names a release (`CatalogDto.highestReleaseVersion`, which replaces
+  `releasedVersion` and is the number of the catalog's highest release, `CatalogVersionDto.releaseVersion` and
+  `base`, `CatalogDraftSummary.base`, `BehindReleaseDto.releaseVersion`, `CatalogChangesDto.base`,
   `CatalogDraftReleasePreview.base`, `needed` and `suggested`, `ReleasedDependencyDto`,
-  `ReleaseDependencyDto`, `CatalogDependencyDto`, `AvailableReleaseDto.version` and `comparedTo`,
+  `ReleaseDependencyDto`, `CatalogDependencyDto`, `AvailableReleaseDto.releaseVersion` and `comparedTo`,
   `AvailableReleaseDependencyDto.releaseVersion`, `InstallCatalogReleaseResponse.releaseVersion` and
   the `installCatalogRelease` `releaseVersion` path parameter, deployments, deployment history, missing
   dependencies, jobs, documents and collected results, `ImportCatalogResponse.releaseVersion`).
   `CreateCatalogDraftRequest.from` and the `deployCatalogVersion` / `undeployCatalogVersion` path
-  parameter take the same number or a `versionId`. Version selectors are not release numbers and keep their own schema.
+  parameter take the same number or a `versionId`. A number is always named `releaseVersion`, a
+  range always `versionRange`; version ranges are not release numbers and keep their own schema.
   Every client still sees these members as plain strings, and each client's generated model
   validation checks a member that references `ReleaseVersion` as if its constraints were inline.
 
-- **BREAKING: a release is selected by a version selector, together with an environment.** The
-  generation, preview, batch and validation requests take `version` in place of `releaseVersion`:
-  a selector in the npm SemVer range grammar, which a server accepts in full (an exact version, `^`,
+- **BREAKING: a release is selected by a version range, together with an environment.** The
+  generation, preview, batch and validation requests take `versionRange` in place of `releaseVersion`:
+  a range in the npm SemVer range grammar, which a server accepts in full (an exact version, `^`,
   `~`, comparators, a hyphen range, a `||` union). It combines with `environmentKey`, which narrows the choice to the releases that environment
-  serves; the highest release that satisfies the selector is rendered. `DeployReleaseRequest` and
+  serves; the highest release that satisfies the range is rendered. `DeployReleaseRequest` and
   `DeploymentEventDto.previousReleaseVersion` are removed.
 
 - **BREAKING: release and deploy replace publish.** `releaseCatalog` requires `CATALOG_RELEASE` and
@@ -513,8 +515,8 @@ libraries.
 
 - **BREAKING: generation renders a catalog release, never a template version.** `versionId` is gone
   from `GenerateDocumentRequest`, `BatchGenerationItem`, `PreviewDocumentRequest` and
-  `ValidateTemplateDataRequest`. A request selects the release with `version` and `environmentKey` (see
-  "a release is selected by a version selector"); with neither, the catalog's latest release is
+  `ValidateTemplateDataRequest`. A request selects the release with `versionRange` and `environmentKey` (see
+  "a release is selected by a version range"); with neither, the catalog's latest release is
   rendered, never unreleased changes. Preview can render a draft instead (`draft`: its
   `versionId`). Jobs, documents and collected results
   report `releaseVersion` in place of the template version's `versionId`; it is null for anything
@@ -529,7 +531,9 @@ libraries.
   `NoClassDefFoundError` for any consumer who did not already happen to have a 1.x copy on the
   classpath; it worked only in the clients' own tests. Validation now goes through a pluggable
   `TemplateDataValidator` (`ITemplateDataValidator` in .NET, a `Protocol` in Python) whose one
-  shipped implementation asks the server's `validateTemplateData`. See each client's changelog for
+  shipped implementation asks the server's `validateTemplateData`; it takes the release to check
+  against as `versionRange` (`version_range` in Python, a `versionRange` member of
+  `ServerValidationTarget` in Node.js), alongside `environmentKey`. See each client's changelog for
   its breaking details, and #9.
 
   The server was always going to validate the same data on submit, so this removes a second

@@ -57,8 +57,8 @@ records contract changes; this file records changes to the hand-written library 
   `(tenant_id, namespace, catalog_key, template_id, data)` in place of
   `(tenant_id, catalog_id, template_id, data)`, and `ValidatingGenerationApi` passes a request's
   `namespace` and `catalog_key` to the validator. `ServerTemplateDataValidator`'s
-  `release_version=` is now `version=`, a version selector (`1.4.0`, `^1.4.0`) that may be combined
-  with `environment_id=`.
+  `release_version=` is now `version_range=`, a version range (`1.4.0`, `^1.4.0`) sent as the
+  request's `versionRange`, that may be combined with `environment_key=`.
 - The result collector's `GenerationResult` gained `namespace` and `catalog_key` next to
   `release_version`, naming the catalog release a document was generated from (`None` for results
   from before contract 2.0).

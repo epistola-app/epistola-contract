@@ -34,30 +34,30 @@ public sealed class ServerTemplateDataValidator : ITemplateDataValidator
 {
     private readonly ITemplatesApi _templatesApi;
     private readonly string? _variantKey;
-    private readonly string? _version;
+    private readonly string? _versionRange;
     private readonly string? _environmentKey;
 
     /// <param name="templatesApi">The generated API used to reach <c>validateTemplateData</c>.</param>
     /// <param name="variantKey">Optional variant to check against; without it, the default variant.</param>
-    /// <param name="version">
-    /// Optional version selector for the release of the template's catalog to check against, in the
+    /// <param name="versionRange">
+    /// Optional version range for the release of the template's catalog to check against, in the
     /// npm range grammar the server accepts in full: an exact version such as <c>1.4.0</c>, or a range
     /// such as <c>^1.4.0</c>. It is passed through unchecked.
     /// Without it (and without <paramref name="environmentKey"/>), the catalog's latest release is used.
     /// </param>
     /// <param name="environmentKey">
     /// Optional environment to check against: the highest release it serves (that satisfies
-    /// <paramref name="version"/>, when both are given).
+    /// <paramref name="versionRange"/>, when both are given).
     /// </param>
     public ServerTemplateDataValidator(
         ITemplatesApi templatesApi,
         string? variantKey = null,
-        string? version = null,
+        string? versionRange = null,
         string? environmentKey = null)
     {
         _templatesApi = templatesApi;
         _variantKey = variantKey;
-        _version = version;
+        _versionRange = versionRange;
         _environmentKey = environmentKey;
     }
 
@@ -73,7 +73,7 @@ public sealed class ServerTemplateDataValidator : ITemplateDataValidator
     {
         var request = new ValidateTemplateDataRequest(
             variantKey: _variantKey,
-            varVersion: _version,
+            versionRange: _versionRange,
             environmentKey: _environmentKey,
             data: data);
 

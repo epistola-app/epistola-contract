@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: render-target
-title: A generation request names its catalog by namespace and key, leaves the default registry implicit, and narrows the release by version and environment together
+title: A generation request names its catalog by namespace and key, leaves the default registry implicit, and narrows the release by version range and environment together
 why: >
   A catalog is identified by its registry, its namespace and its key; the key alone can name two
   different catalogs from two publishers. A client that drops the namespace renders a template from
@@ -12,12 +12,12 @@ why: >
   The catalog is in the default registry, so the caller leaves `registry` out, and the client must
   not invent one: omitted or null both mean the default registry, which only the server knows.
 
-  The release rendered is chosen by `version` and `environmentKey` together: the highest release the
-  environment serves that satisfies the selector. They used to be mutually exclusive, so a client
+  The release rendered is chosen by `versionRange` and `environmentKey` together: the highest release
+  the environment serves that satisfies the range. They used to be mutually exclusive, so a client
   that still enforces that, or drops one when the other is set, renders a different release than
   the caller asked for.
 
-  `version` is a selector, not a version. The contract keeps it unconstrained so that SemVer ranges
+  `versionRange` is a range, not a release number. The contract keeps it unconstrained so that SemVer ranges
   can be enabled without a client release; a client that validates it as `MAJOR.MINOR.PATCH` refuses
   `^1.4.0` before it reaches a server that may accept it.
 
@@ -29,7 +29,7 @@ action:
     namespace: acme-corp
     catalogKey: letters
     templateKey: invoice
-    version: ^1.4.0
+    versionRange: ^1.4.0
     environmentKey: production
     data:
       customerName: Acme B.V.
@@ -54,7 +54,7 @@ expect:
           namespace: acme-corp
           catalogKey: letters
           templateKey: invoice
-          version: ^1.4.0
+          versionRange: ^1.4.0
           environmentKey: production
           data:
             customerName: Acme B.V.

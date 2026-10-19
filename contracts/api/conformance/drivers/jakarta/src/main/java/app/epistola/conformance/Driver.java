@@ -319,7 +319,7 @@ public final class Driver {
                                 .catalogKey(config.getString("catalogKey"))
                                 .templateKey(config.getString("templateKey"))
                                 .data(config.getJsonObject("data"))
-                                .version(optional(config, "version"))
+                                .versionRange(optional(config, "versionRange"))
                                 .environmentKey(optional(config, "environmentKey"))
                                 .correlationId(optional(config, "correlationId"))
                                 .routingKey(optional(config, "routingKey")));
@@ -556,11 +556,11 @@ public final class Driver {
                         "catalogKey", String.valueOf(releases.getCatalogKey()),
                         "availableComparedTo",
                                 available.stream()
-                                        .map(release -> release.getVersion() + "=" + release.getComparedTo())
+                                        .map(release -> release.getReleaseVersion() + "=" + release.getComparedTo())
                                         .collect(Collectors.joining(";")),
                         "availableChanges",
                                 available.stream()
-                                        .map(release -> release.getVersion() + "="
+                                        .map(release -> release.getReleaseVersion() + "="
                                                 + orEmpty(release.getChanges()).stream()
                                                         .map(change -> change.getType() + "/" + change.getKey() + ":"
                                                                 + change.getChange())
@@ -568,7 +568,7 @@ public final class Driver {
                                         .collect(Collectors.joining(";")),
                         "availableDependencies",
                                 available.stream()
-                                        .map(release -> release.getVersion() + "="
+                                        .map(release -> release.getReleaseVersion() + "="
                                                 + orEmpty(release.getDependencies()).stream()
                                                         .map((AvailableReleaseDependencyDto dependency) ->
                                                                 dependency.getRegistry() + "/"
@@ -667,7 +667,7 @@ public final class Driver {
         report(
                 baseUrl,
                 Map.of(
-                        "version", String.valueOf(version.getVersion()),
+                        "releaseVersion", String.valueOf(version.getReleaseVersion()),
                         "versionId", String.valueOf(version.getVersionId()),
                         "name", String.valueOf(version.getName()),
                         "status", String.valueOf(version.getStatus()),
@@ -692,7 +692,7 @@ public final class Driver {
         report(
                 baseUrl,
                 Map.of(
-                        "versions", joined(versions, CatalogVersionDto::getVersion),
+                        "releaseVersions", joined(versions, CatalogVersionDto::getReleaseVersion),
                         "versionIds", joined(versions, version -> String.valueOf(version.getVersionId())),
                         "names",
                                 versions.stream()
@@ -718,7 +718,7 @@ public final class Driver {
         report(
                 baseUrl,
                 Map.ofEntries(
-                        Map.entry("version", String.valueOf(version.getVersion())),
+                        Map.entry("releaseVersion", String.valueOf(version.getReleaseVersion())),
                         Map.entry("versionId", String.valueOf(version.getVersionId())),
                         Map.entry("name", String.valueOf(version.getName())),
                         Map.entry("status", String.valueOf(version.getStatus())),
@@ -743,10 +743,10 @@ public final class Driver {
                                         .collect(Collectors.joining(";")))));
     }
 
-    /** One release a draft is behind, as {@code version=type/key:change+type/key:change}. */
+    /** One release a draft is behind, as {@code releaseVersion=type/key:change+type/key:change}. */
     private static String behindRelease(BehindReleaseDto release) {
         List<ReleasedChangeDto> changes = release.getChanges() == null ? List.of() : release.getChanges();
-        return release.getVersion() + "="
+        return release.getReleaseVersion() + "="
                 + changes.stream()
                         .map(change -> change.getType() + "/" + change.getKey() + ":" + change.getChange())
                         .collect(Collectors.joining("+"));
@@ -770,7 +770,7 @@ public final class Driver {
         report(
                 baseUrl,
                 Map.of(
-                        "version", String.valueOf(version.getVersion()),
+                        "releaseVersion", String.valueOf(version.getReleaseVersion()),
                         "versionId", String.valueOf(version.getVersionId()),
                         "name", String.valueOf(version.getName()),
                         "status", String.valueOf(version.getStatus()),
@@ -825,7 +825,7 @@ public final class Driver {
                             config.getString("catalogKey"),
                             config.getString("catalogVersion"),
                             new ReleaseCatalogDraftRequest()
-                                    .version(optional(config, "version"))
+                                    .releaseVersion(optional(config, "releaseVersion"))
                                     .notes(optional(config, "notes"))
                                     // The generated model leaves the list null until set; null stays off the wire.
                                     .acknowledgedBehind(
@@ -854,7 +854,7 @@ public final class Driver {
         report(
                 baseUrl,
                 Map.of(
-                        "version", String.valueOf(response.getCatalogVersion().getVersion()),
+                        "releaseVersion", String.valueOf(response.getCatalogVersion().getReleaseVersion()),
                         "status", String.valueOf(response.getCatalogVersion().getStatus()),
                         "versionId", String.valueOf(response.getCatalogVersion().getVersionId()),
                         "draftsBehind", String.join("|", draftsBehind),

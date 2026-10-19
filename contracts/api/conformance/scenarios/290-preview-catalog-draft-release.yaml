@@ -9,7 +9,7 @@ why: >
   (ADR 0002). The preview is what an author sees before releasing: the base, the kind of change
   (`none`, `additive` or `breaking`), each change that makes it more than a fix, breaking first,
   the number those changes need, and the number the draft gets, which releasing without a
-  `version` uses. A client that drops a reason hides why the number is a major.
+  `releaseVersion` uses. A client that drops a reason hides why the number is a major.
 
   This draft started from `1.4.0` and breaks something, so it needs `2.0.0`; another draft was
   already released as `2.0.0`, so it gets the next free major, `3.0.0`. A client that reports only

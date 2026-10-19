@@ -240,7 +240,7 @@ class ModelValidationTest {
                 "invoiceNumber" to "INV-2026-001",
                 "totals" to mapOf("subtotal" to 222.40, "tax" to 44.48, "total" to 266.88),
             ),
-            version = "^1.4.0",
+            versionRange = "^1.4.0",
             filename = "invoice-2026-001.pdf",
             correlationId = "order-7890",
         )
@@ -249,17 +249,17 @@ class ModelValidationTest {
 
     @Test
     fun `GenerateDocumentRequest validates each nullable field independently`() {
-        // null version: skipped
+        // null versionRange: skipped
         GenerateDocumentRequest(
             namespace = "acme-corp",
             catalogKey = "default",
             templateKey = "invoice",
             variantKey = "english",
             data = emptyMap<String, Any>(),
-            version = null,
+            versionRange = null,
         ).validate()
 
-        // empty version: fails
+        // empty versionRange: fails
         assertFailsWith<IllegalArgumentException> {
             GenerateDocumentRequest(
                 namespace = "acme-corp",
@@ -267,7 +267,7 @@ class ModelValidationTest {
                 templateKey = "invoice",
                 variantKey = "english",
                 data = emptyMap<String, Any>(),
-                version = "",
+                versionRange = "",
             ).validate()
         }
 
@@ -326,10 +326,10 @@ class ModelValidationTest {
                 templateKey = "INVALID",
                 variantKey = "english",
                 data = emptyMap<String, Any>(),
-                version = "",
+                versionRange = "",
             ).validate()
         }
-        // templateKey is validated first — fails on pattern before version is checked
+        // templateKey is validated first — fails on pattern before versionRange is checked
         assertEquals("templateKey: must match pattern ^[a-z0-9]+(-[a-z0-9]+)*\$", ex.message)
     }
 
@@ -369,7 +369,7 @@ class ModelValidationTest {
                 "customer" to mapOf("name" to "Jane Smith"),
                 "items" to listOf(mapOf("sku" to "A1", "qty" to 1)),
             ),
-            version = null,
+            versionRange = null,
             environmentKey = "staging",
             filename = "batch-doc-001.pdf",
             correlationId = "batch-run-42",
@@ -378,7 +378,7 @@ class ModelValidationTest {
     }
 
     @Test
-    fun `BatchGenerationItem rejects environmentKey with invalid slug when version is null`() {
+    fun `BatchGenerationItem rejects environmentKey with invalid slug when versionRange is null`() {
         assertFailsWith<IllegalArgumentException> {
             BatchGenerationItem(
                 namespace = "acme-corp",
@@ -386,7 +386,7 @@ class ModelValidationTest {
                 templateKey = "invoice",
                 variantKey = "english",
                 data = emptyMap<String, Any>(),
-                version = null,
+                versionRange = null,
                 environmentKey = "Production!", // invalid slug
             ).validate()
         }
