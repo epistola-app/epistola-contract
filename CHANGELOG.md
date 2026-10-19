@@ -337,9 +337,23 @@ libraries.
   after the catalog. Reads work on any version; writes only on a draft, and are refused with 409 on
   a released version. `validateTemplateData` stays on the catalog, as it selects a release like
   generation does. `releaseCatalog` is replaced by the version operations (`releaseCatalogDraft`).
-  `importCatalog` takes the draft to import into as `catalogVersion` (a draft id; omitted, the
-  catalog's only draft, refused with 400 when it has none or several), and reports it; a new AUTHORED
-  catalog gets one draft, named after the catalog.
+  An import never touches a draft (see "an import installs a release" below).
+
+- **BREAKING: an import installs a release, never a draft.** `importCatalog` installs the release
+  the archive carries, at its number, as an immutable release of the catalog it names (registry,
+  namespace and key), side by side with the releases the tenant already has, as installing from an
+  exchange does (ADR 0003). Nothing is merged, and no draft is created or changed. The same number
+  with the same fingerprint is already present and changes nothing; the same number with a different
+  fingerprint is refused with 409 `conflict`, as for a bundle's dependencies. An archive without a
+  release is not a valid archive at any wire version (`release.version` is required) and is refused
+  with 400 `bad-request`. A catalog the import creates holds the release and no draft; an author
+  starts one with `createCatalogDraft` `from` the release. The request loses `catalogVersion` and
+  `authoredMode` (`catalogType` stays, for a catalog the import creates). `ImportCatalogResponse`
+  reports the release, `releaseVersion` (required), and `newlyInstalled` (required, false when it
+  was already present), and loses `catalogVersion`, the per-resource counts `installed`, `updated`
+  and `failed`, and `aborted`: installing a release is all or nothing. `total` stays. The operation
+  requires `CATALOG_MANAGE`, as `upgradeCatalog` does, instead of `TEMPLATE_EDIT`: installing a
+  release is not editing templates.
 
 - **BREAKING: a catalog is identified by its registry, its namespace and its key** (ADR 0003).
   Every catalog-scoped path is `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/…`
@@ -366,8 +380,8 @@ libraries.
   `CatalogDraftReleasePreview.base`, `needed` and `suggested`, `ReleasedDependencyDto`,
   `ReleaseDependencyDto`, `CatalogDependencyDto`, `CatalogUpgradeDiff` / `UpgradeCatalogResponse`
   `previousVersion` and `newVersion`, deployments, overrides, deployment history, missing
-  dependencies, jobs, documents and collected results). `ImportCatalogResponse.catalogVersion` and
-  `CreateCatalogDraftRequest.from` take the same number or a draft id, and the template import's
+  dependencies, jobs, documents and collected results, `ImportCatalogResponse.releaseVersion`).
+  `CreateCatalogDraftRequest.from` takes the same number or a draft id, and the template import's
   `version` the same pattern. Version selectors are not release numbers and keep their own schema.
   Every client still sees these members as plain strings, and each client's generated model
   validation checks a member that references `ReleaseVersion` as if its constraints were inline.

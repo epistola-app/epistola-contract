@@ -39,6 +39,7 @@ import app.epistola.client.jakarta.model.UpdateEnvironmentRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.ImageDto;
+import app.epistola.client.jakarta.model.ImportCatalogResponse;
 import app.epistola.client.jakarta.model.MarkStencilReadyResponse;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
@@ -119,6 +120,7 @@ public final class Driver {
                 case "download-document" -> downloadDocument(baseUrl, config);
                 case "list-images" -> listImages(baseUrl, config);
                 case "upload-image" -> uploadImage(baseUrl, config);
+                case "import-catalog" -> importCatalog(baseUrl, config);
                 case "download-image" -> downloadImage(baseUrl, config);
                 case "delete-image" -> deleteImage(baseUrl, config);
                 case "list-catalog-dependencies" -> listCatalogDependencies(baseUrl, config);
@@ -426,6 +428,51 @@ public final class Driver {
                     .api(ImagesApi.class)
                     .uploadImage(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), file, config.getString("name"), null, null);
             report(baseUrl, Map.of("imageKey", image.getKey(), "imageName", image.getName()));
+        } finally {
+            Files.deleteIfExists(file.toPath());
+            Files.deleteIfExists(directory);
+        }
+    }
+
+    /**
+     * Imports a catalog archive. Like an image upload, the bytes go to a file named the way the part
+     * should be named; {@code registry}, {@code namespace} and {@code catalogType} are sent only when
+     * the scenario names them (a null field is left out). A refusal is reported by its problem.
+     */
+    private static void importCatalog(String baseUrl, JsonObject config) throws Exception {
+        Path directory = Files.createTempDirectory("conformance-import");
+        File file = Files.write(
+                        directory.resolve(config.getString("filename")),
+                        Base64.getDecoder().decode(config.getString("fileBase64")))
+                .toFile();
+        try {
+            ImportCatalogResponse imported;
+            try {
+                imported = clients(baseUrl, config)
+                        .api(CatalogsApi.class)
+                        .importCatalog(
+                                config.getString("tenantKey"),
+                                file,
+                                optional(config, "registry"),
+                                optional(config, "namespace"),
+                                optional(config, "catalogType"));
+            } catch (ProblemDetailException e) {
+                report(
+                        baseUrl,
+                        Map.of(
+                                "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                                "problemStatus", e.getStatusCode()));
+                return;
+            }
+            report(
+                    baseUrl,
+                    Map.of(
+                            "registry", String.valueOf(imported.getRegistry()),
+                            "namespace", String.valueOf(imported.getNamespace()),
+                            "catalogKey", String.valueOf(imported.getCatalogKey()),
+                            "releaseVersion", String.valueOf(imported.getReleaseVersion()),
+                            "newlyInstalled", String.valueOf(imported.getNewlyInstalled()),
+                            "total", String.valueOf(imported.getTotal())));
         } finally {
             Files.deleteIfExists(file.toPath());
             Files.deleteIfExists(directory);

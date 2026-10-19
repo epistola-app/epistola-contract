@@ -1,0 +1,80 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: import-catalog
+title: Importing an archive installs its release, and the request names no draft
+why: >
+  An import never fills or creates a draft (contract 2.0): it installs the release the archive
+  carries, at its number, next to the releases the tenant already has. So the request has no
+  `catalogVersion` and no `authoredMode`. A client generated from an older spec still sends them,
+  and a server that reads them would merge the archive into a draft it was never meant to touch.
+
+  `file` must be a file part with its filename and the archive's content type, byte for byte, as
+  for an image upload. `catalogType` is set here, so it must be sent; `registry` and `namespace`
+  were not set, so they must not be sent: omitted means the registry and namespace the archive
+  names, which only the server reads. A client that fills them in, or sends `null`, imports the
+  release into another catalog.
+
+  The response names the installed release (`releaseVersion`) and that this import installed it
+  (`newlyInstalled`), which the client must read back as a boolean, not a string.
+
+action:
+  name: import-catalog
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    catalogType: SUBSCRIBED
+    filename: letters-1.2.0.zip
+    fileContentType: application/zip
+    # an empty ZIP: the end-of-central-directory record alone
+    fileBase64: UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA==
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      registry: exchange.epistola.app
+      namespace: acme-corp
+      catalogKey: letters
+      catalogName: Letters
+      releaseVersion: 1.2.0
+      newlyInstalled: true
+      total: 7
+      installedDependencies: []
+      presentDependencies: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/import
+      headers:
+        Content-Type:
+          matches: '^multipart/form-data;\s*boundary='
+      body:
+        multipart:
+          file:
+            filename: letters-1.2.0.zip
+            contentType: application/zip
+            byteLength: 22
+            sha256: 8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85
+          catalogType:
+            value: SUBSCRIBED
+          registry:
+            absent: true
+          namespace:
+            absent: true
+          catalogVersion:
+            absent: true
+          authoredMode:
+            absent: true
+  report:
+    registry: exchange.epistola.app
+    namespace: acme-corp
+    catalogKey: letters
+    releaseVersion: 1.2.0
+    newlyInstalled: 'true'
+    total: '7'

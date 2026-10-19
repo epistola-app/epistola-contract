@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: import-catalog-fingerprint-conflict
+title: A release with a number the tenant has, but other content, is refused with 409
+why: >
+  A release is immutable, and its number names one content. An archive that carries a release the
+  tenant has under the same number but with a different fingerprint is different content under one
+  name, so the import is refused with 409 `conflict` and nothing changes: neither the release the
+  tenant has nor any draft. The client must surface that as a problem with its slug and status, so
+  a caller can tell it from a failed upload and does not retry it.
+
+action:
+  name: import-catalog
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    filename: letters-1.2.0.zip
+    fileContentType: application/zip
+    fileBase64: UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA==
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/conflict
+      title: Conflict
+      status: 409
+      detail: >-
+        The tenant has release 1.2.0 of exchange.epistola.app/acme-corp/letters with another
+        fingerprint
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/import
+      body:
+        multipart:
+          file:
+            filename: letters-1.2.0.zip
+            byteLength: 22
+          catalogVersion:
+            absent: true
+          authoredMode:
+            absent: true
+  report:
+    problemTypeSlug: conflict
+    problemStatus: 409

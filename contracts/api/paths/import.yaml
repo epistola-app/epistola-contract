@@ -12,34 +12,44 @@ import-catalog:
 
   post:
     operationId: importCatalog
-    summary: Import a catalog from a ZIP archive
+    summary: Install the release a catalog archive carries
     description: |
-      Import a self-contained catalog ZIP archive. The ZIP must contain a `catalog.json` manifest
-      and resource detail files matching the catalog exchange protocol.
+      Install the release a self-contained catalog ZIP archive carries. The ZIP must contain a
+      `catalog.json` manifest and resource detail files matching the catalog exchange protocol.
+
+      An import never touches a draft. It installs **the archive's release**, at its number
+      (`release.version`), as an immutable release of the catalog the archive names (registry +
+      namespace + key), side by side with the releases of that catalog the tenant already has, the
+      same way installing from an exchange does (ADR 0003). Nothing is merged, no resource is
+      updated in place, and no draft is created or changed.
+
+      - **A release the tenant does not have** is installed. The catalog's other releases, and every
+        draft, deployment and catalog that uses them, are left as they are; which release an
+        environment serves is decided by deploying it (`deployRelease`).
+      - **The same number with the same fingerprint** is the release the tenant already has: nothing
+        changes, and the response says it was already present (`newlyInstalled: false`).
+      - **The same number with a different fingerprint** is different content under one name: the
+        import is refused with 409 `conflict`, and nothing changes.
+      - **A new catalog** is created by the import, of type `catalogType`, holding that release and
+        no draft. To edit it, an author starts a draft from the release
+        (`createCatalogDraft` with `from`), which only an AUTHORED catalog allows.
+
+      The fingerprint compared is the release's `release.fingerprint`, or the fingerprint of its
+      content when the archive records none. Every catalog wire version requires `release.version`,
+      so an archive without a release is not a valid archive: it is refused with 400
+      `bad-request`, as any archive that fails validation is. Installing is all or nothing: when a
+      resource cannot be installed, nothing is.
 
       It may also be a **catalog bundle** (a fat export: `bundle.json` and one catalog archive per
       catalog, see `docs/catalog-bundle.md`): the releases of the catalogs the bundled catalog uses
       are installed first, each in a SUBSCRIBED catalog, when this tenant does not have them
       (`installedDependencies`); those it has already are left alone (`presentDependencies`).
-      Releases are immutable and stay side by side: other releases of those catalogs that the
-      tenant has are left as they are. A release the tenant has with the same number but a different
-      fingerprint refuses the whole import with 409, naming each, and nothing changes. The bundled
-      catalog itself is then imported as below.
-
-      - If the catalog (registry + namespace + key) already exists and is AUTHORED: resources are merged into
-        the draft `catalogVersion`, or replaced, per `authoredMode` (default `MERGE` — upsert and keep local-only
-        resources; `REPLACE` also deletes local-only resources, conflict-checked first)
-      - If the catalog (registry + namespace + key) already exists and is SUBSCRIBED: the ZIP is applied as a
-        full upgrade (conflict-checked; on a failed resource the upgrade is aborted
-        before any pruning and the catalog stays on its previous release — see
-        `aborted` in the response)
-      - If the catalog is new: a new catalog is created with the specified type. A new AUTHORED
-        catalog gets one draft, with no base, named after the catalog, which the archive fills.
-
-      Resources are installed in dependency order: assets → attributes → themes → stencils → templates.
+      A release the tenant has with the same number but a different fingerprint refuses the whole
+      import with 409 `conflict`, naming each, and nothing changes. The bundled catalog's own release
+      is then installed as above.
     tags:
       - Catalogs
-    x-required-permissions: [TEMPLATE_EDIT]
+    x-required-permissions: [CATALOG_MANAGE]
     requestBody:
       required: true
       content:
@@ -52,52 +62,37 @@ import-catalog:
               file:
                 type: string
                 format: binary
-                description: The catalog ZIP archive
+                description: The catalog ZIP archive, or a catalog bundle
               registry:
                 type: string
                 pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
                 maxLength: 253
                 description: |
-                  Registry to import the catalog into. Omitted: the registry the archive names. An
-                  archive from before catalog wire version 8 names none, and the server then uses
-                  the default registry.
+                  Registry of the catalog to install the release in. Omitted: the registry the
+                  archive names. An archive from before catalog wire version 8 names none, and the
+                  server then uses the default registry.
               namespace:
                 type: string
                 pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
                 minLength: 3
                 maxLength: 63
                 description: |
-                  Namespace, within the registry, to import the catalog into. Omitted: the
-                  namespace the archive names. An archive from before catalog wire version 8 names
-                  none, and the server then chooses one (typically the tenant's own).
-              catalogVersion:
-                type: string
-                pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-                maxLength: 36
-                description: |
-                  For an existing AUTHORED catalog, the draft to import into, by its id. Omitted:
-                  the catalog's only draft; refused with 400 when it has none or several. Ignored
-                  for a new catalog, whose one draft it fills, and for a SUBSCRIBED catalog, which
-                  installs the archive's release.
+                  Namespace, within the registry, of the catalog to install the release in.
+                  Omitted: the namespace the archive names. An archive from before catalog wire
+                  version 8 names none, and the server then chooses one (typically the tenant's
+                  own).
               catalogType:
                 type: string
                 enum: [AUTHORED, SUBSCRIBED]
                 default: AUTHORED
-                description: Type of catalog to create if it doesn't exist
-              authoredMode:
-                type: string
-                enum: [MERGE, REPLACE]
-                default: MERGE
                 description: |
-                  For a ZIP that targets an **existing AUTHORED** catalog:
-                  `MERGE` upserts the ZIP's resources and keeps resources that
-                  exist locally but not in the ZIP; `REPLACE` additionally
-                  deletes those local-only resources (conflict-checked before
-                  any mutation). Release state is never changed either way.
-                  Ignored for a newly-created or SUBSCRIBED catalog.
+                  Type of the catalog the import creates when the tenant does not have it: AUTHORED
+                  allows drafts to be started from its releases (`createCatalogDraft`); SUBSCRIBED
+                  only installs releases and is upgraded from its source (`upgradeCatalog`).
+                  Ignored for a catalog the tenant has, whose type does not change.
     responses:
       '200':
-        description: Catalog imported successfully
+        description: The release is installed, or was already present
         content:
           application/vnd.epistola.v2+json:
             schema:

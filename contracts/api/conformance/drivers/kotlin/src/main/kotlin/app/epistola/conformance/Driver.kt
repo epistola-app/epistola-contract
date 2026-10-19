@@ -92,6 +92,7 @@ object Driver {
                 "download-document" -> downloadDocument(baseUrl, config)
                 "list-images" -> listImages(baseUrl, config)
                 "upload-image" -> uploadImage(baseUrl, config)
+                "import-catalog" -> importCatalog(baseUrl, config)
                 "download-image" -> downloadImage(baseUrl, config)
                 "delete-image" -> deleteImage(baseUrl, config)
                 "list-catalog-dependencies" -> listCatalogDependencies(baseUrl, config)
@@ -383,6 +384,42 @@ object Driver {
         )
 
         report(baseUrl, mapOf("imageKey" to image.key, "imageName" to image.name))
+    }
+
+    /**
+     * Imports a catalog archive from bytes, as a Resource that reports a filename, like an image
+     * upload. `registry`, `namespace` and `catalogType` go out only when configured: the generated
+     * method defaults `catalogType` to AUTHORED, so an unconfigured one is passed as null. A refusal
+     * is reported by its problem.
+     */
+    private fun importCatalog(baseUrl: String, config: ObjectNode) {
+        val filename = config["filename"].asText()
+        val file = object : ByteArrayResource(Base64.getDecoder().decode(config["fileBase64"].asText())) {
+            override fun getFilename() = filename
+        }
+        val imported = try {
+            CatalogsApi(restClient(baseUrl, config)).importCatalog(
+                config["tenantKey"].asText(),
+                file,
+                registry = config.optionalText("registry"),
+                namespace = config.optionalText("namespace"),
+                catalogType = config.optionalText("catalogType")?.let { CatalogsApi.CatalogTypeImportCatalog.valueOf(it) },
+            )
+        } catch (e: ProblemDetailException) {
+            report(baseUrl, mapOf("problemTypeSlug" to (e.typeSlug ?: "<null>"), "problemStatus" to e.statusCode.value()))
+            return
+        }
+        report(
+            baseUrl,
+            mapOf(
+                "registry" to imported.registry,
+                "namespace" to imported.namespace,
+                "catalogKey" to imported.catalogKey,
+                "releaseVersion" to imported.releaseVersion,
+                "newlyInstalled" to imported.newlyInstalled.toString(),
+                "total" to imported.total.toString(),
+            ),
+        )
     }
 
     private fun downloadImage(baseUrl: String, config: ObjectNode) {

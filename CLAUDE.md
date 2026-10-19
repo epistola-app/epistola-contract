@@ -189,7 +189,8 @@ The Epistola API manages:
    `2.0.0`). Drafts are independent copies: nothing is merged, and a draft is **behind** releases
    numbered below the number it would get (above its base, or published after it started). In a
    draft, a dependency may name another catalog's draft; releasing takes such drafts along
-   (`releaseDependencies`) or is refused (ADR 0002)
+   (`releaseDependencies`) or is refused (ADR 0002). Importing an archive (`importCatalog`) installs
+   the release it carries next to the catalog's other releases, never into a draft
 7. **Generation** - Async document generation with batch support, from a release, or from a draft
    when an environment override follows one
 
