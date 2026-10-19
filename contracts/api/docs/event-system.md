@@ -75,12 +75,11 @@ An event type is `{resourceType}.{action}`, both in kebab-case. The triggers bel
 | `catalog.imported` | `importCatalog` |
 | `catalog.upgraded` | `upgradeCatalog` |
 | `catalog.dependencies-updated` | `updateCatalogDependencies` |
-| `catalog-version.draft-created` | `createCatalogDraft` (long-term work) |
+| `catalog-version.draft-created` | `createCatalogDraft` |
 | `catalog-version.draft-renamed` | `renameCatalogDraft` |
 | `catalog-version.draft-discarded` | `deleteCatalogDraft` |
 | `catalog-version.marked-ready` | `markCatalogReady` (every changed resource of a draft) |
-| `catalog-version.released` | `releaseCatalogDraft` (the next version is numbered and becomes immutable) |
-| `catalog-version.promoted` | `promoteCatalogDraft` (long-term work becomes the next version) |
+| `catalog-version.released` | `releaseCatalogDraft` (a draft is numbered and becomes immutable; one event per release, including drafts of other catalogs released along with it) |
 
 **Environments**
 
@@ -186,10 +185,9 @@ EventEnvelope:
           type: [string, "null"]
           description: >
             The catalog version the change was made in: a released
-            version's SemVer number, or a draft's draftId. Never
-            `next`, which names whichever draft is the next version
-            when the event is read, not the one changed when it
-            happened.
+            version's SemVer number, or a draft's draftId. A
+            draft's id no longer addresses anything once the
+            draft is released.
         parentRefs:
           type: object
           description: >
@@ -245,7 +243,6 @@ EventEnvelope:
     "catalogVersion": {
       "version": "1.4.0",
       "status": "released",
-      "isNext": false,
       "base": "1.3.2",
       "releasedAt": "2026-10-12T14:30:00Z",
       "fingerprint": "v5:3b1f0c9e8d7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c",
@@ -254,7 +251,8 @@ EventEnvelope:
       "behind": []
     },
     "unchangedContent": false,
-    "draftsBehind": ["Redesign 2027"]
+    "draftsBehind": ["Redesign 2027"],
+    "releasedDependencies": []
   }
 }
 ```

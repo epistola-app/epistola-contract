@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: release-catalog-draft-dependencies-unreleased
+title: A release refused for unreleased dependency drafts says which drafts they are
+why: >
+  Releasing a draft whose dependency declarations name drafts of other catalogs, without asking to
+  release them along (`releaseDependencies`), is refused with `release-dependencies-unreleased`
+  (ADR 0002). Its `unreleasedDependencies` member is the reason: each such draft, named in full by
+  its catalog, its id and its name, including one reached only through another draft's
+  declarations. Without it a caller knows only that something conflicted, and cannot tell which
+  drafts to release or take along.
+
+  A client's problem parser must surface the member, every entry in order, with the registry as
+  written and the name as sent.
+
+action:
+  name: release-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/release-dependencies-unreleased
+      title: Release dependencies unreleased
+      status: 409
+      detail: letters uses drafts of other catalogs
+      instance: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b/release
+      unreleasedDependencies:
+        - registry: exchange.epistola.app
+          namespace: acme-corp
+          catalogKey: branding
+          draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192
+          draftName: House style 2027
+        - registry: registry.gemeente-x.nl
+          namespace: huisstijl
+          catalogKey: fonts
+          draftId: 0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
+          draftName: New typefaces, round 2
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b/release
+      body:
+        json:
+          # Its default is false, so a client may send `false` or leave it out, never `true`.
+          releaseDependencies: { whenPresent: { equals: false } }
+  report:
+    problemTypeSlug: release-dependencies-unreleased
+    problemStatus: 409
+    # Draft names are free text, so entries are joined with `|`.
+    problemUnreleasedDependencies: exchange.epistola.app/acme-corp/branding#0193a6b2-8a10-7d2e-8b3c-4d5e6f708192=House style 2027|registry.gemeente-x.nl/huisstijl/fonts#0193a6b2-9c21-7e3f-8c4d-5e6f708192a3=New typefaces, round 2

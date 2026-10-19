@@ -150,7 +150,7 @@ catalog-changes:
     summary: List a catalog version's changes since its base
     description: |
       Every resource of the version that is `new`, `modified` or `ready`, and the resources removed
-      since its base, the highest released version below it. For a draft, `releasable` says whether
+      since its base, the release the draft started from. For a draft, `releasable` says whether
       releasing it would be accepted now; a released version has no changes and is not releasable.
     tags:
       - Catalogs
@@ -230,8 +230,9 @@ catalog-dependencies:
     operationId: listCatalogDependencies
     summary: List the catalogs a catalog version depends on
     description: |
-      The dependencies declared in the catalog version, each with the exact release it pins. A
-      resource can reference another catalog's resources only through a declared dependency.
+      The dependencies declared in the catalog version, each with the exact release it pins, or, in
+      a draft, the draft of it the draft uses. A resource can reference another catalog's resources
+      only through a declared dependency.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
@@ -258,6 +259,11 @@ catalog-dependencies:
       release the catalog renders with (`releaseVersion`), so a release renders with exactly the
       releases its dependencies pin. A declaration names an exact release, not a range; ranges
       (such as `^1.0.0`) may come in a later 2.x, as an addition.
+
+      In a draft, a declaration may name a **draft** of the other catalog instead (`draftId`), to
+      build on work that is not released yet: this draft then renders with that draft, live. A
+      release never pins a draft, so releasing this one is refused until that draft is released,
+      or the release takes it along (`releaseDependencies` on `releaseCatalogDraft`).
 
       Refused with 409 for a released version, and for a SUBSCRIBED catalog, whose dependencies are
       its publisher's.
@@ -307,9 +313,8 @@ catalog-versions:
     operationId: listCatalogVersions
     summary: List a catalog's versions
     description: |
-      The catalog's versions: its drafts, the next version first and then long-term work, oldest
-      first; then its released versions, highest first. A SUBSCRIBED catalog lists the releases it
-      installed, and has no drafts.
+      The catalog's versions: its drafts, oldest first, then its released versions, highest first.
+      A SUBSCRIBED catalog lists the releases it installed, and has no drafts.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
@@ -340,18 +345,21 @@ catalog-versions:
 
   post:
     operationId: createCatalogDraft
-    summary: Start long-term work
+    summary: Start a draft
     description: |
-      Starts long-term work on an AUTHORED catalog (ADR 0002): a named draft next to the
-      next version, for a change that is not ready to be released with everyday work. It has no number
-      until it is released.
+      Starts a draft of an AUTHORED catalog (ADR 0002). A catalog has any number of drafts, each
+      named, and each released on its own. A draft has no number until it is released.
 
-      - Without `from`, it starts as a copy of the next version, unreleased changes included, on the
-        next version's base.
-      - With `from`, a released version, it starts as a copy of that release, which is its base.
+      - With `from` a released version, it starts as a copy of that release, which is its base. A
+        fix to an older line is a draft from a release of that line (`1.4.0`, released as `1.4.1`
+        while `2.0.0` exists).
+      - With `from` a draft id, it starts as a copy of that draft, unreleased changes included, on
+        that draft's base.
+      - Without `from`, it starts as a copy of the catalog's highest release, or empty, with no
+        base, when the catalog has no release.
 
-      Nothing is merged: the draft is an independent copy. Every release published after it started
-      is one it is **behind** (see `CatalogVersionDto.behind`).
+      The base is fixed. Nothing is merged: the draft is an independent copy, and the releases it is
+      **behind** are listed (see `CatalogVersionDto.behind`).
 
       Refused with 409 when another draft of the catalog has the name, and for a SUBSCRIBED catalog.
     tags:
@@ -406,9 +414,10 @@ catalog-version:
     operationId: getCatalogVersion
     summary: Get a catalog version
     description: |
-      One version of the catalog: a draft, by `next` or its id, or a released version, by its number.
-      A released version also lists the releases of other catalogs it renders with and the
-      environments that serve it.
+      One version of the catalog: a draft, by its id, or a released version, by its number. A
+      released version also lists the releases of other catalogs it renders with and the
+      environments that serve it. The id of a draft that was released or discarded addresses
+      nothing: 404.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
@@ -428,11 +437,10 @@ catalog-version:
 
   patch:
     operationId: renameCatalogDraft
-    summary: Rename long-term work
+    summary: Rename a draft
     description: |
-      Gives long-term work another name. Its address, its id, does not change. Refused with 409 for
-      the next version, which has no name of its own, for a name another draft has, and for a
-      released version.
+      Gives a draft another name. Its address, its id, does not change. Refused with 409 for a name
+      another draft of the catalog has, and for a released version.
     tags:
       - Catalogs
     x-required-permissions: [TEMPLATE_EDIT]
@@ -464,14 +472,13 @@ catalog-version:
     operationId: deleteCatalogDraft
     summary: Discard a draft
     description: |
-      Discards a draft and everything changed in it. Discarding the **next version** throws its
-      changes away: it starts again as a copy of the latest release (empty when there is none), under
-      a new id, so everyday work always has somewhere to go. Long-term work is gone. Environment
-      overrides that follow the draft end (`setEnvironmentOverride`).
+      Discards a draft and everything changed in it; its id then addresses nothing. Environment
+      overrides that follow the draft end (`setEnvironmentOverride`, recorded as `override-cleared`).
 
-      Refused with 409 for a released version, and while the draft alone holds a resource something
-      outside it still uses (the tenant's default theme, a code list another catalog's attribute
-      binds, a theme another catalog's template uses).
+      Refused with 409 for a released version, while a dependency declaration in a draft of another
+      catalog names this draft, and while the draft alone holds a resource something outside it
+      still uses (the tenant's default theme, a code list another catalog's attribute binds, a theme
+      another catalog's template uses).
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_RELEASE]
@@ -508,8 +515,9 @@ catalog-version-release-preview:
     summary: Preview the number a draft is released as
     description: |
       The number releasing the draft would give it, **without releasing it**: the kind of change it
-      holds against the latest release, why, and the lowest number that fits. Refused with 409 for a
-      released version.
+      holds against its base, why, the number that needs (`needed`), and the number it gets
+      (`suggested`): `needed`, or the next free number of the same kind when another release already
+      has it. Refused with 409 for a released version.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
@@ -547,31 +555,38 @@ catalog-version-release:
 
   post:
     operationId: releaseCatalogDraft
-    summary: Release the next version
+    summary: Release a draft
     description: |
-      Releases the next version of an AUTHORED catalog (ADR 0002), numbering it: as
-      `version`, or, when that is omitted, as its changes need against the latest release
-      (`previewCatalogDraftRelease`). A given number must be above every release and no lower than
-      the changes need, or the request is refused with 400. A release contains the whole draft: it is
-      refused while any resource is `new` or `modified`.
+      Releases a draft of an AUTHORED catalog (ADR 0002). Any draft can be released, whatever else
+      the catalog has released since it started.
 
-      Only the next version is released: the catalog's history moves forward. Releasing long-term
-      work is refused with 409 (`catalog-draft-kind`). Long-term work is tried by pointing an
-      environment at it (`setEnvironmentOverride`), and released after it is made the next version
-      (`promoteCatalogDraft`).
+      **The number** follows from the kind of change against the draft's base: corrections raise
+      the patch, additions the minor, breaking changes the major (`previewCatalogDraftRelease`).
+      Omitted `version`: that number, or the next free one of the same kind when another release
+      already has it (`suggested`). A given `version` must be one no release of the catalog has,
+      above the base and no lower than the changes need (`needed`), or the request is refused with
+      400. From `1.4.0`, while `1.5.0` and `2.0.0` exist, a fix becomes `1.4.1`, and a breaking
+      redesign `3.0.0`.
 
-      A next version that is **behind** (see `CatalogVersionDto.behind`) does not contain those
-      releases' changes unless an author applied them by hand, which the server cannot tell.
-      Releasing it is refused with 409 unless `acknowledgedBehind` names every one of those
-      versions.
+      A release contains the whole draft: it is refused while any resource is `new` or `modified`.
+
+      A draft that is **behind** (see `CatalogVersionDto.behind`, recomputed for the number it is
+      released as) does not contain those releases' changes unless an author applied them by hand,
+      which the server cannot tell. Releasing it is refused with 409 unless `acknowledgedBehind`
+      names every one.
 
       Each declared dependency pins one release, and the releases it pins pin theirs in turn; the
       release records them all. It is refused when a resource references a catalog that is not
       declared, when a declaration pins no release or one the tenant does not have, or when two
-      paths through the dependencies pin different releases of one catalog.
+      paths through the dependencies pin different releases of one catalog. A declaration that
+      names a **draft** of another catalog is refused with 409 (`release-dependencies-unreleased`,
+      listing each such draft), unless `releaseDependencies` releases those drafts along with it:
+      each first, recursively, numbered by its own changes, in the same transaction, all or
+      nothing, and the new release pins the releases they became (`releasedDependencies`).
 
-      After the release, the next version continues, as a draft on it. Long-term work is untouched
-      and now behind it; the response names it (`draftsBehind`).
+      The draft becomes the released version at that number, immutable; its id addresses nothing
+      any more (404), and environment overrides that followed it end (`override-cleared`). Other
+      drafts are untouched; the response names those the release puts behind (`draftsBehind`).
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_RELEASE]
@@ -583,7 +598,7 @@ catalog-version-release:
             $ref: '../components/schemas/catalogs.yaml#/ReleaseCatalogDraftRequest'
     responses:
       '200':
-        description: The next version is released
+        description: The draft is released
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -597,61 +612,4 @@ catalog-version-release:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/CatalogDraftKindError'
-
-catalog-version-promote:
-  parameters:
-    - name: tenantKey
-      in: path
-      required: true
-      description: Unique key of the tenant
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
-    - $ref: '../components/parameters/catalog.yaml#/Registry'
-    - $ref: '../components/parameters/catalog.yaml#/Namespace'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
-
-  post:
-    operationId: promoteCatalogDraft
-    summary: Make long-term work the next version
-    description: |
-      Makes long-term work the catalog's next version (ADR 0002), when it is ready to go
-      out with everyday work. It must contain every release published since it started, or
-      `acknowledgedBehind` names those it leaves out; it then continues on the latest release and is
-      behind nothing. The draft that was the next version is discarded with its changes, or kept as
-      long-term work under `keepPreviousAs`. Environments following the next version
-      (`setEnvironmentOverride`) move to the new next version.
-
-      Refused with 409 for the next version itself, for work behind a release not acknowledged, for
-      a name another draft has, and while the discarded next version alone holds a resource something
-      outside it uses.
-    tags:
-      - Catalogs
-    x-required-permissions: [CATALOG_RELEASE]
-    requestBody:
-      required: true
-      content:
-        application/vnd.epistola.v2+json:
-          schema:
-            $ref: '../components/schemas/catalogs.yaml#/PromoteCatalogDraftRequest'
-    responses:
-      '200':
-        description: The work, now the next version
-        content:
-          application/vnd.epistola.v2+json:
-            schema:
-              $ref: '../components/schemas/catalogs.yaml#/CatalogVersionDto'
-      '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
-      '401':
-        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
-      '403':
-        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
-      '404':
-        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
-      '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/ReleaseDependenciesUnreleasedError'

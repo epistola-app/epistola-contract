@@ -24,7 +24,8 @@ namespace Epistola.Client.Error;
 /// are surfaced via <see cref="Errors"/>; per-example data-model validation failures (the
 /// <c>DataModelValidationProblemDetail</c> shape, <c>data-model-validation-error</c>) via
 /// <see cref="ValidationErrors"/>; the dependency releases a <c>release-dependencies-missing</c>
-/// problem lists via <see cref="MissingDependencies"/> — the generated <c>ProblemDetail</c>,
+/// problem lists via <see cref="MissingDependencies"/>; the dependency drafts a
+/// <c>release-dependencies-unreleased</c> problem lists via <see cref="UnreleasedDependencies"/> — the generated <c>ProblemDetail</c>,
 /// <c>ValidationProblemDetail</c>, and <c>DataModelValidationProblemDetail</c> models are
 /// independent, so the base fields and each extension are carried separately.
 /// </summary>
@@ -70,6 +71,15 @@ public class ProblemDetailException : ApiException
     /// </summary>
     public IReadOnlyList<MissingDependency> MissingDependencies { get; }
 
+    /// <summary>
+    /// The drafts of other catalogs a <c>release-dependencies-unreleased</c> problem (409, from
+    /// <c>ReleaseCatalogDraft</c>) reports the released draft's dependency declarations name, in the
+    /// order the server listed them; empty for any other problem. Release them first, or along with
+    /// it (<c>releaseDependencies</c>). An entry missing one of its five members, or carrying one
+    /// that is not a string, is skipped.
+    /// </summary>
+    public IReadOnlyList<UnreleasedDependency> UnreleasedDependencies { get; }
+
     /// <summary>The HTTP status of the error response.</summary>
     public HttpStatusCode StatusCode { get; }
 
@@ -82,7 +92,8 @@ public class ProblemDetailException : ApiException
         Multimap<string, string>? headers,
         IReadOnlyList<MissingDataField>? missingFields = null,
         IReadOnlyList<InvalidDataField>? invalidFields = null,
-        IReadOnlyList<MissingDependency>? missingDependencies = null)
+        IReadOnlyList<MissingDependency>? missingDependencies = null,
+        IReadOnlyList<UnreleasedDependency>? unreleasedDependencies = null)
         // ApiException is generated and nullable-oblivious; its errorContent/headers are
         // optional and accept null at runtime, so bridge the nullable values with `!`.
         : base((int)statusCode, BuildMessage(statusCode, problem), rawBody!, headers!)
@@ -93,6 +104,7 @@ public class ProblemDetailException : ApiException
         MissingFields = missingFields ?? new List<MissingDataField>();
         InvalidFields = invalidFields ?? new List<InvalidDataField>();
         MissingDependencies = missingDependencies ?? new List<MissingDependency>();
+        UnreleasedDependencies = unreleasedDependencies ?? new List<UnreleasedDependency>();
         StatusCode = statusCode;
     }
 
@@ -125,6 +137,9 @@ public class ProblemDetailException : ApiException
 
     /// <summary>True when this problem listed dependency releases a deployment is missing.</summary>
     public bool IsReleaseDependenciesMissingProblem => MissingDependencies.Count > 0;
+
+    /// <summary>True when this problem listed dependency drafts a release would have to take along.</summary>
+    public bool IsReleaseDependenciesUnreleasedProblem => UnreleasedDependencies.Count > 0;
 
     private static string BuildMessage(HttpStatusCode status, ProblemDetail problem)
     {

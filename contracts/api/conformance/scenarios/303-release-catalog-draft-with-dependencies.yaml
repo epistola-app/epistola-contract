@@ -1,0 +1,73 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: release-catalog-draft-with-dependencies
+title: Releasing a draft with its dependencies asks for it, and reads back the releases made along
+why: >
+  A release pins only releases, so a draft whose dependency declarations name drafts of other
+  catalogs is released together with them when the request asks (`releaseDependencies: true`):
+  those drafts first, each numbered by its own changes, all in one transaction (ADR 0002). The flag
+  is a JSON boolean; a client that drops it, or sends it as a string, gets the release refused with
+  `release-dependencies-unreleased`.
+
+  The answer lists the releases made along (`releasedDependencies`), dependencies first, each with
+  the draft it was and the number it became, and the new release pins them. A client that drops
+  the list hides that other catalogs were released too.
+
+action:
+  name: release-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
+    notes: Letters in the 2027 house style.
+    releaseDependencies: true
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      catalogVersion:
+        version: 1.5.0
+        draftId: null
+        name: null
+        status: released
+        base: 1.4.0
+        createdFrom: null
+        behind: []
+        releasedAt: "2026-10-19T10:00:00Z"
+        notes: Letters in the 2027 house style.
+        fingerprint: v5:3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b
+        dependencies:
+          - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: fonts, releaseVersion: 1.1.0, direct: false }
+          - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, releaseVersion: 3.0.0, direct: true }
+        deployedTo: []
+      unchangedContent: false
+      draftsBehind: []
+      releasedDependencies:
+        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: fonts, draftId: 0193a6b2-9c21-7e3f-8c4d-5e6f708192a3, releaseVersion: 1.1.0 }
+        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, draftId: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192, releaseVersion: 3.0.0 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b/release
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
+      body:
+        json:
+          notes: Letters in the 2027 house style.
+          releaseDependencies: true
+        jsonAbsent: [version, acknowledgedBehind]
+  report:
+    version: 1.5.0
+    status: released
+    draftId: 'null'
+    draftsBehind: ""
+    releasedDependencies: exchange.epistola.app/acme-corp/fonts@1.1.0,exchange.epistola.app/acme-corp/branding@3.0.0

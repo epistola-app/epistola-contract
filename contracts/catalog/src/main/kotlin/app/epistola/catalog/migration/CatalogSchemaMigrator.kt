@@ -10,6 +10,7 @@ import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogNamespaces
+import app.epistola.catalog.protocol.CatalogReleaseVersions
 import app.epistola.catalog.protocol.KeywordRule
 import app.epistola.catalog.protocol.ResourceDetail
 import tools.jackson.core.JacksonException
@@ -121,6 +122,21 @@ object CatalogMigrationCodes {
     const val KEYWORD_DUPLICATE = "CATALOG_KEYWORD_DUPLICATE"
     const val KEYWORD_TOO_LONG = "CATALOG_KEYWORD_TOO_LONG"
     const val KEYWORD_LIMIT_EXCEEDED = "CATALOG_KEYWORD_LIMIT_EXCEEDED"
+
+    /**
+     * `release.version` is not a wire-v8 release number ([CatalogReleaseVersions]:
+     * `MAJOR.MINOR.PATCH`). Raised for a catalog-v8 manifest, and by the v7 to v8 migration for a
+     * release numbered with a pre-release or build part (`1.0.0-beta.1`), which earlier wire versions
+     * accepted: the migrator never strips that part, because the number would then name another
+     * release.
+     */
+    const val RELEASE_VERSION_INVALID = "CATALOG_RELEASE_VERSION_INVALID"
+
+    /**
+     * A catalog-v8 catalog dependency's `releaseVersion` is not a release number
+     * ([CatalogReleaseVersions]: `MAJOR.MINOR.PATCH`).
+     */
+    const val DEPENDENCY_CATALOG_VERSION_INVALID = "CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID"
 
     /**
      * A catalog-v6 asset dependency names no catalog, and catalog-v7 requires one.
@@ -366,6 +382,7 @@ object CatalogSchemaMigrator {
         source: Int,
     ): List<CatalogMigrationFinding> = renamedMemberFindings(CatalogKeyRenames.manifestSites(tree)) +
         namespaceFindings(tree) +
+        releaseVersionFindings(tree) +
         releaseFingerprintFindings(tree) +
         keywordFindings(tree) +
         detailUrlFindings(tree, source)
@@ -427,6 +444,36 @@ object CatalogSchemaMigrator {
             path,
             "'${site.oldName}' is not a catalog-v8 member; wire v8 calls it '${site.newName}'",
         )
+    }
+
+    /**
+     * Wire v8 numbers every release it names `MAJOR.MINOR.PATCH` ([CatalogReleaseVersions]): the
+     * catalog's own `release.version` and each catalog dependency's `releaseVersion`. The model binds
+     * any string, so that manifests stored under earlier versions still load; the wire check is where
+     * v8 enforces the rule.
+     */
+    private fun releaseVersionFindings(tree: ObjectNode): List<CatalogMigrationFinding> {
+        val findings = mutableListOf<CatalogMigrationFinding>()
+        tree["release"]?.get("version")?.takeIf { it.isString }?.asString()?.let { version ->
+            if (!CatalogReleaseVersions.isValid(version)) {
+                findings += CatalogMigrationFinding(
+                    CatalogMigrationCodes.RELEASE_VERSION_INVALID,
+                    "catalog.json.release.version",
+                    "release version '$version' must be MAJOR.MINOR.PATCH, without a pre-release or build part",
+                )
+            }
+        }
+        (tree["catalogDependencies"] as? ArrayNode)?.forEachIndexed { index, entry ->
+            val release = (entry as? ObjectNode)?.get("releaseVersion")?.takeUnless { it.isNull } ?: return@forEachIndexed
+            if (!release.isString || !CatalogReleaseVersions.isValid(release.asString())) {
+                findings += CatalogMigrationFinding(
+                    CatalogMigrationCodes.DEPENDENCY_CATALOG_VERSION_INVALID,
+                    "catalog.json.catalogDependencies[$index].releaseVersion",
+                    "releaseVersion must be MAJOR.MINOR.PATCH, without a pre-release or build part",
+                )
+            }
+        }
+        return findings
     }
 
     /**

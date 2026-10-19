@@ -6,6 +6,7 @@ package app.epistola.catalog.migration
 
 import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogNamespaces
+import app.epistola.catalog.protocol.CatalogReleaseVersions
 import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 
@@ -39,6 +40,12 @@ import tools.jackson.databind.node.ObjectNode
  *   another ([CatalogKeyRewrites]). A rewrite that collides with another key of its scope is a
  *   finding; the migration never chooses another key.
  *
+ * - **Release number.** Wire v8 numbers a release `MAJOR.MINOR.PATCH` ([CatalogReleaseVersions]);
+ *   earlier versions accepted full SemVer. A `release.version` with a pre-release or build part
+ *   (`1.0.0-beta.1`, `1.0.0+5`) is a finding ([CatalogMigrationCodes.RELEASE_VERSION_INVALID]),
+ *   never stripped: `1.0.0` would name another release. A v7 archive has no catalog dependencies,
+ *   so the release is the only number it carries.
+ *
  * Each repair is reported with a [CatalogMigrationNotice], except the key renames and the rewritten
  * references to a padded or cut key: like catalog
  * v7's rename of a variant's `id` to `slug`, the value is unchanged, so there is nothing for an
@@ -54,7 +61,7 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
         options: CatalogMigrationOptions,
     ): CatalogMigrationStepResult {
         tree.put("schemaVersion", toVersion)
-        val identityFindings = identityFindings(options)
+        val identityFindings = identityFindings(options) + releaseVersionFindings(tree)
         if (identityFindings.isNotEmpty()) return CatalogMigrationStepResult(identityFindings)
         val registry = checkNotNull(options.registry)
         val namespace = checkNotNull(options.namespace)
@@ -148,6 +155,24 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
             CatalogKeyRewrites.rewriteReference(presentation, "iconImageKey")
             CatalogKeyRewrites.rewriteReferences(presentation["imageKeys"])
         }
+    }
+
+    /**
+     * The release number, when it is a string that wire v8 does not accept: a pre-release or build
+     * part, which earlier wire versions allowed. Anything else wrong with it is left to the wire
+     * check and the binding, as for a catalog-v8 archive.
+     */
+    private fun releaseVersionFindings(tree: ObjectNode): List<CatalogMigrationFinding> {
+        val version = tree["release"]?.get("version")?.takeIf { it.isString }?.asString() ?: return emptyList()
+        if (CatalogReleaseVersions.isValid(version)) return emptyList()
+        return listOf(
+            CatalogMigrationFinding(
+                CatalogMigrationCodes.RELEASE_VERSION_INVALID,
+                "catalog.json.release.version",
+                "release version '$version' must be MAJOR.MINOR.PATCH from catalog v8; a pre-release or " +
+                    "build part is not stripped, because the number would then name another release",
+            ),
+        )
     }
 
     /** The registry and namespace the caller supplied, each present and well-formed, or why not. */

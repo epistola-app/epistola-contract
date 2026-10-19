@@ -6,7 +6,7 @@ id: list-environment-overrides
 title: Listing an environment's overrides reads both forms, a release and a draft, in order
 why: >
   An environment overrides at most one version per catalog: a release it serves, or a draft it
-  follows (ADR 0002, amendment 2). The list mixes both, so a client must read a null
+  follows (ADR 0002). The list mixes both, so a client must read a null
   `releaseVersion` beside a set one, and a null `draftId` and `draftLabel` beside set ones, without
   refusing the response or inventing values.
 

@@ -19,6 +19,13 @@ records contract changes; this file records changes to the hand-written library 
   adds is not lost; `MissingDependency.Reasons` holds the one named today, `Unavailable`. A malformed entry is
   skipped on its own; an absent member is an empty list. The exception's constructor takes it as a
   new optional `missingDependencies` parameter, so existing call sites compile unchanged.
+- `ProblemDetailException.UnreleasedDependencies` and `IsReleaseDependenciesUnreleasedProblem`
+  surface the `unreleasedDependencies` member of a `release-dependencies-unreleased` problem (409
+  from `ReleaseCatalogDraft`): each draft of another catalog the released draft's dependency
+  declarations name, as a hand-written `Epistola.Client.Error.UnreleasedDependency` (`Registry`,
+  `Namespace`, `CatalogKey`, `DraftId`, `DraftName`). A malformed entry is skipped on its own; an
+  absent member is an empty list. The constructor takes it as a new optional
+  `unreleasedDependencies` parameter.
 - The generated `Validate()` extensions check a member that references a plain string schema, such
   as `CatalogDependencyRequirement.ReleaseVersion` (`ReleaseVersion`), as if its constraints were
   written inline. Before, every referenced member was skipped.

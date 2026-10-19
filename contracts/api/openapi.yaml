@@ -19,25 +19,27 @@ info:
 
     A **draft** is edited, its changed resources marked ready, and **released**, after which it is
     immutable: every write to it is refused with 409. A draft has no number until it is released; it
-    is addressed as `next` or by its `draftId`, and a released version by its SemVer number.
+    is addressed by its `draftId`, and a released version by its SemVer number.
 
-    - Every AUTHORED catalog has one **next version** (`next`): the draft everyday work goes into, and
-      the only one that is released. Releasing numbers it from the kind of change against the latest
-      release (`previewCatalogDraftRelease`), and it then continues, as a draft on that release.
-    - **Long-term work** is any other draft: named, started from the next version or a release, and
-      kept apart until it is ready. It is not released: it is tried by pointing a non-production
-      environment at it (an environment override, `setEnvironmentOverride`), and released after it
-      becomes the next version (`promoteCatalogDraft`).
-    - A draft's **base** is the released version it started from, which its changes are measured
-      against. It does not move when other versions are released.
+    - An AUTHORED catalog has **any number of drafts**, each named and each started from a release,
+      its **base**, or from another draft (`createCatalogDraft`). The base is fixed: it does not move
+      when other versions are released.
+    - **Any draft can be released**, numbered from the kind of change against its base: corrections
+      raise the patch, additions the minor, breaking changes the major
+      (`previewCatalogDraftRelease`). The author may choose a higher number, never a lower one, and
+      never one another release has. A fix to an older line is a draft from a release of that line:
+      from `1.4.0`, while `1.5.0` and `2.0.0` exist, it is released as `1.4.1`. The released draft
+      becomes the release at that number; its id addresses nothing any more.
     - Drafts are independent copies: releasing one does not change another, and nothing is merged.
-      A draft is **behind** every release above its base; it does not contain their changes unless an
-      author applied them by hand. `getCatalogVersion` lists them, and releasing a draft that is
-      behind must be acknowledged.
+      A draft is **behind** each release that, relative to the number it would be released as, is
+      numbered above its base and below that number, or was published after the draft was started
+      and is numbered below that number (other than its base). It does not contain their changes
+      unless an author applied them by hand. `getCatalogVersion` lists them, and releasing a draft
+      that is behind must be acknowledged.
 
     Documents are rendered from a released version, and version selectors never match a draft. Two
-    things render a draft: preview, naming it by `next` or its id, and an environment that follows
-    a draft (see "Environment overrides").
+    things render a draft: preview, naming it by its id, and an environment that follows a draft
+    (see "Environment overrides").
 
     ## Catalog identity
     A catalog is identified by three parts together, never by its key alone: two publishers can
@@ -80,6 +82,12 @@ info:
     a range; ranges in declarations (such as `^1.0.0`, any non-breaking 1.x) may come in a later
     2.x, as an addition.
 
+    In a draft, a declaration may name a **draft** of another catalog (`draftId`) instead of a
+    release, to build on work that is not released yet. A release never pins a draft: releasing the
+    draft is refused (`release-dependencies-unreleased`) unless the request releases those drafts
+    along with it (`releaseDependencies`), in one transaction, and the new release pins the
+    releases they became.
+
     ## Release versions
     A release is numbered with a SemVer core version, `MAJOR.MINOR.PATCH` without leading zeros
     (`1.4.0`), at most 50 characters (`ReleaseVersion`). Wherever the contract names one exact
@@ -97,8 +105,8 @@ info:
     An environment serves catalog releases, and a request through it (`environmentKey`) renders the
     highest one it serves, or the highest that satisfies the request's `version`. An environment
     can **override** that for a catalog (`setEnvironmentOverride`): it then uses one of the releases
-    it serves (a rollback), or a **draft** of the catalog, the next version or long-term work,
-    rendered live with no release. This is how the next version and long-term work are tried.
+    it serves (a rollback), or a **draft** of the catalog, rendered live with no release. This is
+    how a draft is tried before it is released.
 
     - A request through the environment that names **no version, or a version range**, gets the
       override. A request naming an **exact release** still gets that release.
@@ -106,9 +114,8 @@ info:
       versions: an override there may name a release, never a draft.
     - A document rendered from a draft carries the draft's id and its name at render time
       (`draftId`, `draftLabel`, with a null `releaseVersion`), and its PDF a preview watermark.
-    - Undeploying the release an override names ends the override, and so does discarding the draft
-      it follows. Promoting long-term work moves environments following the next version to the new
-      next version.
+    - Undeploying the release an override names ends the override, and so does releasing or
+      discarding the draft it follows.
 
     ## Authentication
     The API accepts authentication through the `Authorization` header:
@@ -286,13 +293,14 @@ x-problem-types:
         renders with (the releases it pins) cannot be had: the tenant does not
         have them and they could not be fetched or verified;
         `missingDependencies` lists each one and why.
-    - slug: catalog-draft-kind
+    - slug: release-dependencies-unreleased
       status: 409
-      schema: ProblemDetail
+      schema: ReleaseDependenciesUnreleasedProblemDetail
       description: >-
-        The operation does not apply to this kind of draft: releasing long-term
-        work, which is released only after it is made the next version
-        (`promoteCatalogDraft`).
+        A draft cannot be released because its dependency declarations name
+        drafts of other catalogs, and a release pins only releases; release
+        them first, or along with it (`releaseDependencies`).
+        `unreleasedDependencies` lists each such draft.
     - slug: environment-override-refused
       status: 409
       schema: ProblemDetail
@@ -402,8 +410,10 @@ tags:
 
       Consumers declare what permissions they need at registration time (or via
       OAuth scopes). The tenant manager reviews and grants equal or fewer permissions
-      on approval. Permissions are per-resource (`read`, `write`, `publish`) and
-      managed in Epistola's consumer record.
+      on approval. Permissions are per resource type, each with its own levels, a higher level
+      implying the lower ones: `none`, `read` and `write` for most; `deploy` above `write` for
+      environments, `release` above `write` for catalogs, and `manage` above `read` for consumers
+      (see `ConsumerPermissions`). They are managed in Epistola's consumer record.
 
       ## Authentication
 
@@ -545,8 +555,6 @@ paths:
     $ref: './paths/catalogs.yaml#/catalog-version-release-preview'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/release:
     $ref: './paths/catalogs.yaml#/catalog-version-release'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/promote:
-    $ref: './paths/catalogs.yaml#/catalog-version-promote'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/dependencies:
     $ref: './paths/catalogs.yaml#/catalog-dependencies'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/changes:
@@ -729,14 +737,16 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CreateCatalogDraftRequest'
     RenameCatalogDraftRequest:
       $ref: './components/schemas/catalogs.yaml#/RenameCatalogDraftRequest'
-    PromoteCatalogDraftRequest:
-      $ref: './components/schemas/catalogs.yaml#/PromoteCatalogDraftRequest'
     CatalogDraftReleasePreview:
       $ref: './components/schemas/catalogs.yaml#/CatalogDraftReleasePreview'
     ReleaseCatalogDraftRequest:
       $ref: './components/schemas/catalogs.yaml#/ReleaseCatalogDraftRequest'
     ReleaseCatalogDraftResponse:
       $ref: './components/schemas/catalogs.yaml#/ReleaseCatalogDraftResponse'
+    ReleasedDependencyDto:
+      $ref: './components/schemas/catalogs.yaml#/ReleasedDependencyDto'
+    UnreleasedCatalogDependency:
+      $ref: './components/schemas/catalogs.yaml#/UnreleasedCatalogDependency'
 
     # Code list schemas
     CodeListDto:
@@ -865,6 +875,8 @@ components:
       $ref: './components/responses/errors.yaml#/DataModelValidationProblemDetail'
     ReleaseDependenciesMissingProblemDetail:
       $ref: './components/responses/errors.yaml#/ReleaseDependenciesMissingProblemDetail'
+    ReleaseDependenciesUnreleasedProblemDetail:
+      $ref: './components/responses/errors.yaml#/ReleaseDependenciesUnreleasedProblemDetail'
     DataModelValidationError:
       $ref: './components/responses/errors.yaml#/DataModelValidationError'
     TemplateDataValidationProblemDetail:
@@ -916,7 +928,7 @@ components:
         The JWT `client_id` claim identifies the consumer.
 
         **Self-signed JWT (no IdP required):**
-        Register via `POST /consumers/register` with a public key.
+        Register via `POST /tenants/{tenantKey}/consumers/register` with a public key.
         After admin approval, create short-lived JWTs (60s) signed with
         your private key. Required claims: `iss` (consumer ID), `exp`,
         `jti` (unique nonce for replay protection).

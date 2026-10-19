@@ -108,6 +108,13 @@ const withV7Keywords = async (keywords) => {
 };
 const numbered = (count) => Array.from({ length: count }, (_, index) => `keyword-${index}`);
 
+// Wire v7 keeps its release number rule: full SemVer. Only wire v8 narrows it to MAJOR.MINOR.PATCH.
+{
+  const manifest = await readJson('fixtures/v1/wire-v7/catalog.json');
+  manifest.release.version = '1.0.0-beta.1+5';
+  assert.equal(validateV7Manifest(manifest), true, `v7 manifest rejected a pre-release version: ${ajv.errorsText(validateV7Manifest.errors)}`);
+}
+
 for (const keywords of [['1-loket', 'getting-started'], ['a'.repeat(30)], numbered(20), [], null]) {
   const manifest = await withV7Keywords(keywords);
   assert.equal(validateV7Manifest(manifest), true, `valid v7 keywords were rejected: ${JSON.stringify(keywords)}: ${ajv.errorsText(validateV7Manifest.errors)}`);
@@ -196,6 +203,12 @@ for (const [description, edit] of [
   ['catalog dependency with a short releaseFingerprint', (m) => { m.catalogDependencies[0].releaseFingerprint = m.catalogDependencies[0].releaseFingerprint.slice(1); }],
   ['catalog dependency with a prefixed releaseFingerprint', (m) => { m.catalogDependencies[0].releaseFingerprint = `sha256:${m.catalogDependencies[0].releaseFingerprint}`; }],
   ['catalog dependency with an unknown member', (m) => { m.catalogDependencies[0].range = '^1.0.0'; }],
+  ['a pre-release release version', (m) => { m.release.version = '1.0.0-beta.1'; }],
+  ['a release version with build metadata', (m) => { m.release.version = '1.0.0+5'; }],
+  ['a release version with a leading zero', (m) => { m.release.version = '1.01.0'; }],
+  ['a release version that is too long', (m) => { m.release.version = `1.0.${'1'.repeat(48)}`; }],
+  ['a pre-release catalog dependency releaseVersion', (m) => { m.catalogDependencies[0].releaseVersion = '1.4.0-rc.1'; }],
+  ['a range as catalog dependency releaseVersion', (m) => { m.catalogDependencies[0].releaseVersion = '^1.4.0'; }],
 ]) {
   assert.equal(validateV8Manifest(await v8Manifest(edit)), false, `v8 manifest accepted ${description}`);
 }

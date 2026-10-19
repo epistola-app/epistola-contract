@@ -202,6 +202,61 @@ class ProblemDetailParserTest {
     }
 
     @Test
+    void reads_the_unreleased_dependencies_of_a_release_dependencies_unreleased_problem_in_order() {
+        var parsed = ProblemDetailParser.parse(
+                """
+                {
+                  "type": "https://epistola.app/errors/release-dependencies-unreleased",
+                  "title": "Release dependencies unreleased",
+                  "status": 409,
+                  "unreleasedDependencies": [
+                    {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "branding",
+                     "draftId": "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", "draftName": "House style 2027"},
+                    {"registry": "acme.com", "namespace": "brand", "catalogKey": "fonts",
+                     "draftId": "0193a6b2-9c21-7e3f-8c4d-5e6f708192a3", "draftName": "New typefaces, round 2"}
+                  ]
+                }
+                """);
+
+        assertNotNull(parsed);
+        List<UnreleasedDependency> unreleased = parsed.unreleasedDependencies();
+        assertEquals(2, unreleased.size());
+        UnreleasedDependency first = unreleased.get(0);
+        assertEquals("exchange.epistola.app", first.getRegistry());
+        assertEquals("acme-corp", first.getNamespace());
+        assertEquals("branding", first.getCatalogKey());
+        assertEquals("0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", first.getDraftId());
+        assertEquals("House style 2027", first.getDraftName());
+        assertEquals(
+                "acme.com/brand/fonts#0193a6b2-9c21-7e3f-8c4d-5e6f708192a3=New typefaces, round 2",
+                unreleased.get(1).toString());
+        assertTrue(parsed.missingDependencies().isEmpty());
+    }
+
+    @Test
+    void tolerates_malformed_unreleased_dependencies() {
+        var notAnArray = ProblemDetailParser.parse(
+                """
+                {"title": "Conflict", "status": 409, "unreleasedDependencies": {"registry": "acme.com"}}
+                """);
+        assertNotNull(notAnArray);
+        assertTrue(notAnArray.unreleasedDependencies().isEmpty());
+
+        var badEntries = ProblemDetailParser.parse(
+                """
+                {
+                  "title": "Conflict",
+                  "status": 409,
+                  "unreleasedDependencies": ["acme.com/brand/fonts", null, {"registry": "acme.com", "draftName": 3}]
+                }
+                """);
+        assertNotNull(badEntries);
+        assertEquals(
+                List.of(new UnreleasedDependency("acme.com", null, null, null, null)),
+                badEntries.unreleasedDependencies());
+    }
+
+    @Test
     void defaults_the_type_to_about_blank_when_absent() {
         var parsed = ProblemDetailParser.parse("{\"title\":\"Internal Server Error\",\"status\":500}");
 

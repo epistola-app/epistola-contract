@@ -76,7 +76,7 @@ ConsumerDto:
         - `api-key`: Long-lived static key provisioned by a tenant manager, sent as
           `Authorization: ApiKey <key>` (or the deprecated `X-API-Key` header). This
           is the supported method. The consumer cannot self-rotate an api key —
-          `PUT /consumers/{cid}/public-key` does not apply; rotation requires
+          `PUT /tenants/{tenantKey}/consumers/{consumerId}/public-key` does not apply; rotation requires
           a tenant manager to issue a new key and revoke the old one out of
           band.
       example: self-signed-jwt

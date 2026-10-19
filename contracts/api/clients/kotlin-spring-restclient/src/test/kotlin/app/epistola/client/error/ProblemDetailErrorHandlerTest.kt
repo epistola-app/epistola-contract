@@ -151,6 +151,46 @@ class ProblemDetailErrorHandlerTest {
     }
 
     @Test
+    fun `surfaces the unreleased dependency drafts of a release-dependencies-unreleased problem in order`() {
+        val body = """
+            {"type":"https://epistola.app/errors/release-dependencies-unreleased",
+             "title":"Release dependencies unreleased","status":409,
+             "unreleasedDependencies":[
+               {"registry":"exchange.epistola.app","namespace":"acme-corp","catalogKey":"branding",
+                "draftId":"0193a6b2-8a10-7d2e-8b3c-4d5e6f708192","draftName":"House style 2027"},
+               "not an object",
+               {"registry":"exchange.epistola.app","namespace":"acme-corp","catalogKey":"fonts","draftId":"x"},
+               {"registry":"registry.gemeente-x.nl","namespace":"huisstijl","catalogKey":"fonts",
+                "draftId":"0193a6b2-9c21-7e3f-8c4d-5e6f708192a3","draftName":"New typefaces, round 2"}]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, body))
+        }
+        assertEquals(KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED, ex.typeSlug)
+        assertTrue(ex.isReleaseDependenciesUnreleasedProblem)
+        assertFalse(ex.isReleaseDependenciesMissingProblem)
+        assertEquals(
+            listOf(
+                UnreleasedCatalogDependency("exchange.epistola.app", "acme-corp", "branding", "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", "House style 2027"),
+                UnreleasedCatalogDependency("registry.gemeente-x.nl", "huisstijl", "fonts", "0193a6b2-9c21-7e3f-8c4d-5e6f708192a3", "New typefaces, round 2"),
+            ),
+            ex.unreleasedDependencies,
+        )
+    }
+
+    @Test
+    fun `a problem without unreleasedDependencies reports none`() {
+        val body = """{"type":"https://epistola.app/errors/conflict","title":"Conflict","status":409}"""
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, body))
+        }
+        assertTrue(ex.unreleasedDependencies.isEmpty())
+        assertFalse(ex.isReleaseDependenciesUnreleasedProblem)
+    }
+
+    @Test
     fun `falls back to a plain exception for non-problem error bodies`() {
         val ex = assertFailsWith<RestClientResponseException> {
             handleErrorResponse(response(HttpStatus.INTERNAL_SERVER_ERROR, "gateway boom", MediaType.TEXT_PLAIN))

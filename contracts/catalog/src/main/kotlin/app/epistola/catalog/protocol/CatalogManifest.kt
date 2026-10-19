@@ -61,7 +61,7 @@ data class CatalogManifest(
  * @property namespace the dependency's namespace within [registry] ([CatalogNamespaces.PATTERN]).
  * @property catalogKey the dependency's key within [namespace].
  * @property releaseVersion the exact release of the dependency that this catalog renders with, and
- *   that this archive's release was cut with. Null only for a catalog migrated from wire v7 or
+ *   that this archive's release was cut with, a release number ([CatalogReleaseVersions]). Null only for a catalog migrated from wire v7 or
  *   earlier, which never recorded one: the author pins one before the catalog is released again.
  * @property releaseFingerprint the fingerprint of the [releaseVersion] release, copied from that
  *   release's own `release.fingerprint`, in the form that names its algorithm (`v5:<hex>`,
@@ -360,8 +360,10 @@ data class PublisherInfo(
 /**
  * Release metadata for a catalog.
  *
- * @param version author-controlled SemVer (`MAJOR.MINOR.PATCH`) for AUTHORED
- *   catalogs, or the installed release label for bundled/subscribed ones.
+ * @param version the release's number. From wire v8 it is `MAJOR.MINOR.PATCH`, without a
+ *   pre-release or build part ([CatalogReleaseVersions]); earlier wire versions accepted full
+ *   SemVer. The migrator's wire check and the validator enforce it, not this model, so that
+ *   manifests stored under earlier versions still bind.
  * @param releasedAt ISO-8601 timestamp the version was cut, if known.
  * @param fingerprint the canonical fingerprint of the catalog's content
  *   (deterministic, order-independent, excludes volatile fields). Lets

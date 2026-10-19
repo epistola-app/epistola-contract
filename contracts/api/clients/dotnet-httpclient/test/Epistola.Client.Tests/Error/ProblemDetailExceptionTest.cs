@@ -131,5 +131,28 @@ public class ProblemDetailExceptionTest
 
         Assert.False(ex.IsReleaseDependenciesMissingProblem);
         Assert.Empty(ex.MissingDependencies);
+        Assert.False(ex.IsReleaseDependenciesUnreleasedProblem);
+        Assert.Empty(ex.UnreleasedDependencies);
+    }
+
+    [Fact]
+    public void ReleaseDependenciesUnreleasedProblemExposesItsDrafts()
+    {
+        var ex = new ProblemDetailException(
+            new ProblemDetail(type: "https://epistola.app/errors/release-dependencies-unreleased", title: "Release dependencies unreleased", status: 409),
+            new List<ValidationError>(),
+            new Dictionary<string, List<DataModelValidationError>>(),
+            HttpStatusCode.Conflict,
+            "{}",
+            headers: null,
+            unreleasedDependencies: new List<UnreleasedDependency>
+            {
+                new("exchange.epistola.app", "acme-corp", "branding", "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", "House style 2027"),
+            });
+
+        Assert.True(ex.IsReleaseDependenciesUnreleasedProblem);
+        Assert.False(ex.IsReleaseDependenciesMissingProblem);
+        Assert.Equal(KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED, ex.TypeSlug);
+        Assert.Equal("House style 2027", ex.UnreleasedDependencies[0].DraftName);
     }
 }

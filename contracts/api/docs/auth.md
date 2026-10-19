@@ -165,8 +165,13 @@ Tenant roles are composable and non-hierarchical:
 | `CONTENT_VIEWER` | `TEMPLATE_VIEW`, `DOCUMENT_VIEW`, `THEME_VIEW`, `STENCIL_VIEW`, `REFERENCE_VIEW`, `CATALOG_VIEW`, `BACKUP_VIEW` |
 | `CONTENT_AUTHOR` | `TEMPLATE_EDIT`, `THEME_EDIT`, `STENCIL_EDIT`, `REFERENCE_EDIT` |
 | `DOCUMENT_GENERATOR` | `DOCUMENT_GENERATE` |
-| `CONTENT_PUBLISHER` | `TEMPLATE_PUBLISH`, `STENCIL_PUBLISH` |
+| `CONTENT_PUBLISHER` | `CATALOG_RELEASE` (release and discard catalog drafts), `ENVIRONMENT_DEPLOY` (deploy, undeploy and override releases in environments) |
 | `TENANT_ADMINISTRATOR` | `TENANT_SETTINGS`, `TENANT_USERS`, `CATALOG_MANAGE`, `BACKUP_CREATE`, `DIAGNOSTICS_VIEW`, `AUDIT_VIEW`, `TENANT_RESTORE` |
+
+`BACKUP_VIEW`, `BACKUP_CREATE`, `DIAGNOSTICS_VIEW`, `AUDIT_VIEW` and `TENANT_RESTORE` grant Suite
+features outside this API: no operation in the contract requires them. Every other permission
+above is the `x-required-permissions` of at least one operation, and every permission an operation
+requires is in this table.
 
 Platform roles:
 
@@ -175,9 +180,9 @@ Platform roles:
 | `TENANT_MANAGER` | Create and delete tenants across the platform |
 | `PLATFORM_OBSERVER` | Cross-tenant read-only diagnostics/status observation |
 
-Important: `TENANT_ADMINISTRATOR` does not imply content publish or content edit. Grant
+Important: `TENANT_ADMINISTRATOR` does not imply releasing, deploying or editing content. Grant
 `CONTENT_AUTHOR` and/or `CONTENT_PUBLISHER` alongside administration when an administrator also
-authors or approves content.
+authors content, or releases and deploys it.
 
 Legacy role names such as `reader`, `editor`, `generator`, `manager`, and `tenant_control` are not
 part of the current Suite authorization vocabulary and should not be emitted by IdPs or API-key
@@ -190,7 +195,7 @@ provisioning flows.
 > **Experimental.** The Consumers API that manages this lifecycle may not be implemented by Epistola Suite yet.
 
 ```
-Self-signed JWT:  POST /consumers/register → PENDING
+Self-signed JWT:  POST /tenants/{tenantKey}/consumers/register → PENDING
 OAuth:            First authenticated request → PENDING
 API key:          Issued by a tenant manager → ACTIVE
 

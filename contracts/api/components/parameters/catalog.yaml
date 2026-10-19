@@ -53,13 +53,12 @@ CatalogVersion:
   in: path
   required: true
   description: |
-    A version of the catalog (ADR 0002). A draft has no number until it is released, so
-    it is named by `next` (the catalog's next version, where everyday work goes) or by its `draftId`
-    (long-term work); a released version by its exact SemVer number. Writes to a released version are
-    refused with 409.
+    A version of the catalog (ADR 0002). A draft has no number until it is released, so it is named
+    by its `draftId`; a released version by its exact SemVer number. Writes to a released version are
+    refused with 409. The id of a draft that was released or discarded addresses nothing (404).
   schema:
     type: string
-    pattern: '^(next|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$'
-    minLength: 4
+    pattern: '^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$'
+    minLength: 5
     maxLength: 50
-  example: next
+  example: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b

@@ -106,7 +106,6 @@ const ACTION_OPERATIONS = {
   'preview-catalog-draft-release': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/release-preview' },
   'delete-catalog-draft': { method: 'delete', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}' },
   'release-catalog-draft': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/release' },
-  'promote-catalog-draft': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/promote' },
   collect: { method: 'post', path: '/tenants/{tenantKey}/generation/collect' },
   routing: { method: 'post', path: '/tenants/{tenantKey}/generation/collect' },
 }

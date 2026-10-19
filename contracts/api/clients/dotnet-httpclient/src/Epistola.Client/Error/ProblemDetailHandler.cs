@@ -77,15 +77,17 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             headers: null,
             missingFields: parsed.MissingFields,
             invalidFields: parsed.InvalidFields,
-            missingDependencies: parsed.MissingDependencies);
+            missingDependencies: parsed.MissingDependencies,
+            unreleasedDependencies: parsed.UnreleasedDependencies);
     }
 
     /// <summary>
     /// Parses a problem+json body into its base <see cref="ProblemDetail"/> plus the field-level
     /// <c>errors</c> array, the per-example <c>validationErrors</c> map, and the
     /// <c>missingFields</c> / <c>invalidFields</c> arrays a <c>template-data-invalid</c> problem
-    /// carries, and the <c>missingDependencies</c> array of a <c>release-dependencies-missing</c>
-    /// problem. Returns <c>null</c> on any parse failure. Internal and self-contained so it can be
+    /// carries, the <c>missingDependencies</c> array of a <c>release-dependencies-missing</c>
+    /// problem, and the <c>unreleasedDependencies</c> array of a
+    /// <c>release-dependencies-unreleased</c> problem. Returns <c>null</c> on any parse failure. Internal and self-contained so it can be
     /// unit-tested without a live server.
     /// </summary>
     internal static ParsedProblem? ParseProblem(string body)
@@ -119,7 +121,8 @@ public sealed class ProblemDetailHandler : DelegatingHandler
                 validationErrors,
                 Members<MissingDataField>(tree, "missingFields"),
                 Members<InvalidDataField>(tree, "invalidFields"),
-                Dependencies(tree));
+                Entries(tree, "missingDependencies", MissingDependency.FromMember),
+                Entries(tree, "unreleasedDependencies", UnreleasedDependency.FromMember));
         }
         catch (JsonException)
         {
@@ -149,20 +152,21 @@ public sealed class ProblemDetailHandler : DelegatingHandler
     }
 
     /// <summary>
-    /// The <c>missingDependencies</c> member, entry by entry: unlike <see cref="Members{T}"/>, a
-    /// malformed entry is skipped on its own, so one bad entry does not hide the releases the others
-    /// name. Absent or not an array yields an empty list.
+    /// A dependency member (<c>missingDependencies</c>, <c>unreleasedDependencies</c>), entry by
+    /// entry: unlike <see cref="Members{T}"/>, a malformed entry is skipped on its own, so one bad
+    /// entry does not hide what the others name. Absent or not an array yields an empty list.
     /// </summary>
-    private static List<MissingDependency> Dependencies(JObject tree)
+    private static List<T> Entries<T>(JObject tree, string member, Func<JToken?, T?> parse)
+        where T : class
     {
-        var result = new List<MissingDependency>();
-        if (tree["missingDependencies"] is not JArray array)
+        var result = new List<T>();
+        if (tree[member] is not JArray array)
         {
             return result;
         }
         foreach (var entry in array)
         {
-            var dependency = MissingDependency.FromMember(entry);
+            var dependency = parse(entry);
             if (dependency != null)
             {
                 result.Add(dependency);
@@ -189,13 +193,17 @@ public sealed class ProblemDetailHandler : DelegatingHandler
         /// <summary>Dependency releases from a <c>ReleaseDependenciesMissingProblemDetail</c>; empty when absent.</summary>
         public IReadOnlyList<MissingDependency> MissingDependencies { get; }
 
+        /// <summary>Dependency drafts from a <c>ReleaseDependenciesUnreleasedProblemDetail</c>; empty when absent.</summary>
+        public IReadOnlyList<UnreleasedDependency> UnreleasedDependencies { get; }
+
         public ParsedProblem(
             ProblemDetail problem,
             IReadOnlyList<ValidationError> errors,
             IReadOnlyDictionary<string, List<DataModelValidationError>> validationErrors,
             IReadOnlyList<MissingDataField> missingFields,
             IReadOnlyList<InvalidDataField> invalidFields,
-            IReadOnlyList<MissingDependency>? missingDependencies = null)
+            IReadOnlyList<MissingDependency>? missingDependencies = null,
+            IReadOnlyList<UnreleasedDependency>? unreleasedDependencies = null)
         {
             Problem = problem;
             Errors = errors;
@@ -203,6 +211,7 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             MissingFields = missingFields;
             InvalidFields = invalidFields;
             MissingDependencies = missingDependencies ?? new List<MissingDependency>();
+            UnreleasedDependencies = unreleasedDependencies ?? new List<UnreleasedDependency>();
         }
     }
 }

@@ -745,7 +745,7 @@ The response is **409 Conflict** instead of proceeding, as an RFC 9457 problem. 
 `has-dependents` and its `dependents` member are **proposed**: neither is in `x-problem-types`.
 
 ```
-POST /tenants/{tenantKey}/catalogs/~/acme-corp/letters/versions/next/release
+POST /tenants/{tenantKey}/catalogs/~/acme-corp/letters/versions/0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b/release
 
 409 Conflict
 Content-Type: application/problem+json
@@ -1049,7 +1049,7 @@ scoped further, to a catalog version.
 | Tenants | Platform | `/tenants` | `TENANT_MANAGER` platform role (create, delete); `TENANT_SETTINGS` (update) |
 | Consumers | Tenant | `/tenants/{tenantKey}/consumers` | `TENANT_USERS` |
 | Environments | Tenant | `/tenants/{tenantKey}/environments` | `TENANT_SETTINGS`; `ENVIRONMENT_DEPLOY` to deploy, undeploy and override |
-| Catalog versions | Catalog | `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions` | `TEMPLATE_EDIT` (drafts); `CATALOG_RELEASE` (release, promote, discard) |
+| Catalog versions | Catalog | `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions` | `TEMPLATE_EDIT` (drafts); `CATALOG_RELEASE` (release, discard) |
 | Templates | Catalog version | `…/versions/{catalogVersion}/templates` | `TEMPLATE_EDIT` |
 | Themes | Catalog version | `…/versions/{catalogVersion}/themes` | `THEME_EDIT` |
 

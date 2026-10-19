@@ -287,7 +287,10 @@
       "type": "object",
       "properties": {
         "version": {
-          "type": "string"
+          "description": "The release's number: MAJOR.MINOR.PATCH without leading zeros, and without a pre-release or build part, at most 50 characters; the same rule as the API's ReleaseVersion.",
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "maxLength": 50
         },
         "releasedAt": {
           "type": [
@@ -448,13 +451,13 @@
           "maxLength": 50
         },
         "releaseVersion": {
-          "description": "The exact release of the dependency this catalog renders with, and that this archive's release was cut with: an exact version, not a range. Null only for a catalog migrated from wire v7 or earlier, which pins no release, and then releaseFingerprint is null too.",
+          "description": "The exact release of the dependency this catalog renders with, and that this archive's release was cut with: an exact version, not a range. A release number as release.version has it: MAJOR.MINOR.PATCH, at most 50 characters. Null only for a catalog migrated from wire v7 or earlier, which pins no release, and then releaseFingerprint is null too.",
           "type": [
             "string",
             "null"
           ],
-          "minLength": 1,
-          "maxLength": 100
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "maxLength": 50
         },
         "releaseFingerprint": {
           "description": "The fingerprint of the release releaseVersion names, copied from that release's own release.fingerprint, in the form that names its algorithm (v5:<lowercase SHA-256 hex>), so a copy of that release fetched from any registry or mirror can be checked with exactly that algorithm. Null exactly when releaseVersion is null.",

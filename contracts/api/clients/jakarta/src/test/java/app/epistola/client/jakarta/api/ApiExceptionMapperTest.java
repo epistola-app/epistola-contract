@@ -16,6 +16,7 @@ import app.epistola.client.jakarta.StubServer;
 import app.epistola.client.jakarta.error.KnownProblemSlugs;
 import app.epistola.client.jakarta.error.MissingDependency;
 import app.epistola.client.jakarta.error.ProblemDetailException;
+import app.epistola.client.jakarta.error.UnreleasedDependency;
 import java.util.List;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
@@ -219,6 +220,31 @@ class ApiExceptionMapperTest {
     }
 
     @Test
+    void a_release_dependencies_unreleased_problem_lists_the_drafts() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {
+                          "type": "https://epistola.app/errors/release-dependencies-unreleased",
+                          "title": "Release dependencies unreleased",
+                          "status": 409,
+                          "unreleasedDependencies": [
+                            {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "branding",
+                             "draftId": "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", "draftName": "House style 2027"}
+                          ]
+                        }
+                        """)));
+
+        assertEquals(KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED, e.getTypeSlug());
+        assertTrue(e.isReleaseDependenciesUnreleasedProblem());
+        assertFalse(e.isReleaseDependenciesMissingProblem());
+        assertEquals(
+                List.of(new UnreleasedDependency("exchange.epistola.app", "acme-corp", "branding",
+                        "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192", "House style 2027")),
+                e.getUnreleasedDependencies());
+    }
+
+    @Test
     void another_problem_lists_no_missing_dependencies() {
         ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
                 StubServer.StubResponse.of(409, PROBLEM_JSON,
@@ -226,6 +252,8 @@ class ApiExceptionMapperTest {
 
         assertFalse(e.isReleaseDependenciesMissingProblem());
         assertTrue(e.getMissingDependencies().isEmpty());
+        assertFalse(e.isReleaseDependenciesUnreleasedProblem());
+        assertTrue(e.getUnreleasedDependencies().isEmpty());
     }
 
     private static void callGetTenant(Function<StubServer.RecordedRequest, StubServer.StubResponse> responder) {

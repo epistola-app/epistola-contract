@@ -17,6 +17,12 @@ records contract changes; this file records changes to the hand-written library 
   catalog_key, release_version, reason)`. `reason` is the wire string, so a reason a later
   contract adds is kept rather than failing the parse. The member is `[]` when absent or
   malformed, and the exception's new `missing_dependencies=` constructor parameter is optional.
+- `ProblemDetailException.unreleased_dependencies` and `is_release_dependencies_unreleased_problem`
+  surface a `release-dependencies-unreleased` problem (409 from `release_catalog_draft`): each
+  draft of another catalog the draft's dependency declarations name, as an
+  `UnreleasedDependency(registry, namespace, catalog_key, draft_id, draft_name)`, exported from
+  `epistola_client`. The member is `[]` when absent or malformed, and the exception's new
+  `unreleased_dependencies=` constructor parameter is optional.
 - `model_validation` also covers a model whose only constraint sits in a referenced plain string
   schema (`ReleaseVersion`), which pydantic already enforces on the generated field.
 

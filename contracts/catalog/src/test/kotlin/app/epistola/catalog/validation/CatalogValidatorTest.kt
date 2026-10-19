@@ -252,7 +252,8 @@ class CatalogValidatorTest {
             findings(emptyList(), listOf(shared.copy(registry = "~"))),
         )
         // A declaration pins an exact release, never a range.
-        listOf("latest", "^1.4.0", "1.x", "*", ">=1.0.0 <2.0.0").forEach { pinned ->
+        // ... and a release number, as the API reports one: no pre-release or build part.
+        listOf("latest", "^1.4.0", "1.x", "*", ">=1.0.0 <2.0.0", "1.4.0-rc.1", "1.4.0+5", "1.0.${"1".repeat(47)}").forEach { pinned ->
             assertEquals(
                 listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID to "catalog.json.catalogDependencies[0].releaseVersion"),
                 findings(emptyList(), listOf(shared.copy(releaseVersion = pinned))),
@@ -626,6 +627,17 @@ class CatalogValidatorTest {
             ),
             report.findings.filter { it.code == CatalogValidationCodes.RESOURCE_KEY_INVALID }.map { it.path }.sorted(),
         )
+    }
+
+    @Test
+    fun `a release is numbered MAJOR_MINOR_PATCH, without a pre-release or build part`() {
+        fun codes(version: String) = CatalogValidator.validate(archive(manifest(ReleaseInfo(version), emptyList()), emptyMap()))
+            .findings.filter { it.path == "catalog.json.release.version" }.map { it.code }
+
+        listOf("0.0.0", "1.4.0", "10.20.30").forEach { assertEquals(emptyList(), codes(it), it) }
+        listOf("1.0.0-beta.1", "1.0.0+5", "1.01.0", "v1.0.0", "1.0", "1.0.${"1".repeat(47)}").forEach {
+            assertEquals(listOf(CatalogValidationCodes.RELEASE_VERSION_INVALID), codes(it), it)
+        }
     }
 
     @Test

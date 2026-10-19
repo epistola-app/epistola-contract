@@ -307,6 +307,10 @@ try {
             e.missingDependencies.forEach {
                 println("${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}: ${it.reason}")
             }
+        KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED -> // from releaseCatalogDraft
+            e.unreleasedDependencies.forEach {
+                println("${it.registry}/${it.namespace}/${it.catalogKey}: draft ${it.draftName} (${it.draftId})")
+            }
         else                                          -> throw e   // unknown / framework error
     }
 }
@@ -318,8 +322,10 @@ try {
 `data-model-validation-error` problem), `missingDependencies` (the dependency releases a
 `release-dependencies-missing` problem lists, each with its `reason` kept as the string the server
 sent so a future reason is not lost; compare it against `MissingReleaseDependency.Reasons`),
-`isValidationProblem`, `isDataModelValidationProblem`, `isReleaseDependenciesMissingProblem`, and
-`extensions`. See [error-types.md](../../docs/error-types.md) for the full list of problem `type`
+`unreleasedDependencies` (the drafts of other catalogs a `release-dependencies-unreleased` problem
+lists, which must be released first or along with the draft, `releaseDependencies`),
+`isValidationProblem`, `isDataModelValidationProblem`, `isReleaseDependenciesMissingProblem`,
+`isReleaseDependenciesUnreleasedProblem`, and `extensions`. See [error-types.md](../../docs/error-types.md) for the full list of problem `type`
 slugs.
 
 Error responses that are **not** `application/problem+json` (e.g. an HTML page from a proxy or

@@ -46,6 +46,7 @@ public class ProblemDetailException extends ApiException {
     private final List<MissingDataField> missingFields;
     private final List<InvalidDataField> invalidFields;
     private final List<MissingDependency> missingDependencies;
+    private final List<UnreleasedDependency> unreleasedDependencies;
     private final int statusCode;
     private final String responseBody;
     private final String message;
@@ -87,7 +88,28 @@ public class ProblemDetailException extends ApiException {
             List<InvalidDataField> invalidFields,
             List<MissingDependency> missingDependencies,
             String responseBody) {
+        this(response, problem, errors, validationErrors, missingFields, invalidFields, missingDependencies, null,
+                responseBody);
+    }
+
+    /**
+     * The same, for a problem that may also list unreleased dependency drafts
+     * ({@code release-dependencies-unreleased}).
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            List<MissingDependency> missingDependencies,
+            List<UnreleasedDependency> unreleasedDependencies,
+            String responseBody) {
         super(response);
+        this.unreleasedDependencies = unreleasedDependencies == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(unreleasedDependencies);
         this.missingDependencies = missingDependencies == null
                 ? Collections.emptyList()
                 : Collections.unmodifiableList(missingDependencies);
@@ -223,6 +245,21 @@ public class ProblemDetailException extends ApiException {
     /** True when this problem listed missing release dependencies. */
     public boolean isReleaseDependenciesMissingProblem() {
         return !missingDependencies.isEmpty();
+    }
+
+    /**
+     * The drafts of other catalogs a {@code release-dependencies-unreleased} problem (409, from
+     * {@code releaseCatalogDraft}) lists, in the order sent: each one the draft's dependency
+     * declarations name, which a release cannot pin. Release them first, or along with it
+     * ({@code releaseDependencies}). Empty for any other problem.
+     */
+    public List<UnreleasedDependency> getUnreleasedDependencies() {
+        return unreleasedDependencies;
+    }
+
+    /** True when this problem listed unreleased dependency drafts. */
+    public boolean isReleaseDependenciesUnreleasedProblem() {
+        return !unreleasedDependencies.isEmpty();
     }
 
     private static String buildMessage(int statusCode, ProblemDetail problem) {

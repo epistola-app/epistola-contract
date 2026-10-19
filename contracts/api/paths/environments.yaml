@@ -417,9 +417,8 @@ environment-override:
 
       - **a release** it serves (`releaseVersion`), such as an earlier one to roll back to without
         undeploying anything; or
-      - **a draft** of the catalog (`catalogVersion`: `next` or a `draftId`), rendered live with no
-        release, to try the next version or long-term work. Following the next version follows the
-        catalog's next version, whichever draft that is.
+      - **a draft** of the catalog (`catalogVersion`, its `draftId`), rendered live with no release,
+        to try it before it is released.
 
       A generation or preview request through the environment (`environmentKey`) that names no
       `version`, or a version range, gets the override; one naming an exact release still gets that
@@ -430,10 +429,9 @@ environment-override:
       (`environment-override-refused`), and so is a release the environment does not serve.
       Neither or both of `releaseVersion` and `catalogVersion` is refused with 400.
 
-      The override ends when the release it names is undeployed (`undeployRelease`) or the draft it
-      follows is discarded (`deleteCatalogDraft`). Promoting long-term work (`promoteCatalogDraft`)
-      moves environments following the next version to the new next version. Every change is
-      recorded in the deployment history (`override-set`, `override-cleared`).
+      The override ends when the release it names is undeployed (`undeployRelease`), or the draft it
+      follows is released (`releaseCatalogDraft`) or discarded (`deleteCatalogDraft`). Every change
+      is recorded in the deployment history (`override-set`, `override-cleared`).
     tags:
       - Environments
     x-required-permissions: [ENVIRONMENT_DEPLOY]

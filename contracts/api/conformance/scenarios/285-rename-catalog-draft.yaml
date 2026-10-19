@@ -3,17 +3,17 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: rename-catalog-draft
-title: Renaming long-term work sends only the new name, to its unchanged address
+title: Renaming a draft sends only the new name, to its unchanged address
 why: >
-  Long-term work is named, and addressed by its `draftId`, not by its name (ADR 0002, amendment 2).
+  A draft is named, and addressed by its `draftId`, not by its name (ADR 0002).
   Renaming it is a PATCH to that address carrying the new `name`, and the address does not change:
   the response is the same draft under its new name. A client that still sends a `version`, or an
   `acknowledgeWarnings` flag from the renumber this replaced, sends members the contract no longer
   has.
 
-  This catalog was never released, so the draft has no base: it was copied from the next version,
-  which had none either. A client that cannot read a null `base` cannot rename work on a new
-  catalog.
+  This catalog was never released, so the draft has no base: it was copied from another draft
+  (`createdFrom`), which had none either. A client that cannot read a null `base` cannot rename a
+  draft of a new catalog.
 
 action:
   name: rename-catalog-draft
@@ -32,11 +32,10 @@ script:
     body:
       version: null
       draftId: 0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
-      isNext: false
       name: Redesign 2028
       status: draft
       base: null
-      createdFrom: next
+      createdFrom: 0193a6b2-7f4e-7c1d-9a2b-3c4d5e6f7a8b
       behind: []
       dependencies: []
       deployedTo: []
@@ -56,7 +55,6 @@ expect:
   report:
     version: 'null'
     draftId: 0193a6b2-9c21-7e3f-8c4d-5e6f708192a3
-    isNext: 'false'
     name: Redesign 2028
     status: draft
     base: 'null'

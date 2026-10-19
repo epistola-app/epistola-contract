@@ -141,6 +141,10 @@ release it renders with:
 
 The name says where to fetch; there is no location field.
 
+While authoring, a draft may declare another catalog's **draft** instead of a release, through the
+API (ADR 0002). That never reaches an archive: a release never pins a draft, so releasing such a
+draft releases the drafts it names first, or is refused. The wire format carries only releases.
+
 ### Installing resolves dependencies
 
 The behaviour below is the direction for installations. The contract fixes the names and the

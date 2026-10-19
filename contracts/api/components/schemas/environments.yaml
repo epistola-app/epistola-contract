@@ -285,7 +285,7 @@ DeploymentEventDto:
         - `override-set`: the environment overrode the catalog with `releaseVersion`, or, when that
           is null, with the draft `draftLabel` names (`setEnvironmentOverride`).
         - `override-cleared`: the override ended: cleared (`clearEnvironmentOverride`), or ended by
-          undeploying the release it named or discarding the draft it followed.
+          undeploying the release it named, or releasing or discarding the draft it followed.
       enum:
         - deployed
         - undeployed
@@ -304,8 +304,7 @@ DeploymentEventDto:
       type: [string, "null"]
       maxLength: 100
       description: |
-        For an override that named a draft, the draft's name at the time: "Next version" for the
-        next version, else the work's name. Null otherwise.
+        For an override that named a draft, the draft's name at the time. Null otherwise.
       example: null
     changedAt:
       type: string
@@ -382,15 +381,13 @@ EnvironmentOverrideDto:
       type: [string, "null"]
       format: uuid
       description: |
-        The draft the environment follows, rendered live: for the next version, the id the next
-        version has now. Null when it uses a release.
+        The draft the environment follows, rendered live. Null when it uses a release.
       example: "0193a6b2-8a10-7d2e-8b3c-4d5e6f708192"
     draftLabel:
       type: [string, "null"]
       maxLength: 100
       description: |
-        The draft's name: "Next version" for the next version, else the work's name. Null when it
-        uses a release.
+        The draft's name. Null when it uses a release.
       example: Redesign 2027
     setAt:
       type: string
@@ -425,10 +422,9 @@ SetEnvironmentOverrideRequest:
       example: null
     catalogVersion:
       type: [string, "null"]
-      pattern: '^(next|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$'
+      pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
       maxLength: 36
       description: |
-        A draft of the catalog, rendered live with no release: `next` for its next version, or
-        long-term work by its `draftId`. Refused with 409 (`environment-override-refused`) on a
-        production environment.
-      example: next
+        A draft of the catalog, by its `draftId`, rendered live with no release. Refused with 409
+        (`environment-override-refused`) on a production environment.
+      example: 0193a6b2-8a10-7d2e-8b3c-4d5e6f708192

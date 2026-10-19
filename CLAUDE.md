@@ -183,11 +183,13 @@ The Epistola API manages:
    a draft rendered live (never a draft in an environment marked `production`)
 5. **Variants** - Language/brand variations of templates, edited in a draft catalog version
 6. **Catalog versions** - A draft (editable, no number) or released (immutable, addressed by its
-   SemVer number). Every authored catalog has one **next version** (`next`), the only draft that is
-   released, numbered at release from what changed; any other draft is **long-term work**, named,
-   tried through an environment override and promoted to the next version before release. Drafts
-   are independent copies: nothing is merged, and a draft is **behind** releases above its base
-   (ADR 0002)
+   SemVer number). An authored catalog has any number of drafts, all alike: each named, addressed by
+   its `draftId`, started from a release (its fixed **base**) or another draft, and released on its
+   own, numbered from what it changed against its base (a fix to an older line is `1.4.1` after
+   `2.0.0`). Drafts are independent copies: nothing is merged, and a draft is **behind** releases
+   numbered below the number it would get (above its base, or published after it started). In a
+   draft, a dependency may name another catalog's draft; releasing takes such drafts along
+   (`releaseDependencies`) or is refused (ADR 0002)
 7. **Generation** - Async document generation with batch support, from a release, or from a draft
    when an environment override follows one
 
@@ -196,9 +198,9 @@ The Epistola API manages:
 ```
 Tenant
 ├── Catalog (identified by registry + namespace + key; `~` in a path = the default registry)
-│   └── Version: a draft (`next`, or long-term work by `draftId`) or a release (by SemVer number)
-│       │   next version ──release (numbered from what changed)──▶ released (immutable)
-│       │   long-term work ──promote──▶ next version
+│   └── Version: a draft (by `draftId`) or a release (by SemVer number)
+│       │   draft (from a release, its base, or another draft)
+│       │     ──release (numbered from what changed against the base)──▶ released (immutable)
 │       └── Template (with data contract) → Variant, Stencil, Theme, …
 │           each new / modified / ready / released against the version's base
 └── Environment ─ deploys ─▶ Releases of each Catalog (renders the highest that matches)

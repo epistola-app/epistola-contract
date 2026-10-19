@@ -113,6 +113,17 @@ export const MAX_CATALOG_REGISTRY_LENGTH = 253
  */
 export const CATALOG_REGISTRY_PATTERN = '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
 
+/** Longest release number (wire v8), the same limit as the API's `ReleaseVersion`. */
+export const MAX_CATALOG_RELEASE_VERSION_LENGTH = 50
+
+/**
+ * Pattern a release number must match in wire v8: `MAJOR.MINOR.PATCH` without leading zeros, and
+ * without a pre-release or build part (`1.4.0`, never `1.4.0-beta.1`). It applies to
+ * `release.version` and to a catalog dependency's `releaseVersion`, and is the same rule as the
+ * API's `ReleaseVersion`. Wire v7 and earlier accepted full SemVer.
+ */
+export const CATALOG_RELEASE_VERSION_PATTERN = '^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$'
+
 /**
  * Pattern a catalog fingerprint must match in wire v8: the algorithm that computed it, a colon and
  * lowercase SHA-256 hex (`v5:<hex>`). It applies to `release.fingerprint`, which must name the
