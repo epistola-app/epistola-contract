@@ -10,10 +10,11 @@
 ## Context
 
 Contract 2.0 identifies a catalog by more than its key: two publishers can each publish a catalog
-called `letters`. The first attempt made a **namespace** one string in three forms: a name on the
+called `letters`. One design made a **namespace** one string in three forms: a name on the
 default exchange (`acme-corp`), a name on another exchange (`exchange.example.org/acme-corp`), or a
 bare domain (`acme.com`). In a URL the `/` had to be written as `~`
 (`/catalogs/exchange.example.org~acme-corp/letters`), and the number of parts depended on the form.
+It is not adopted.
 
 The expected landscape:
 
@@ -160,6 +161,9 @@ declaration resolves to. There is no single winning version and therefore no con
 
 Upgrading a subscribed catalog follows the same steps for the new release's dependencies.
 
+An installation that reaches no registry receives a release together with the releases it pins in
+one file, a [catalog bundle](../catalog-bundle.md), and installs them in the same way.
+
 ### Deploying uses dependencies implicitly; deploying them too is a choice
 
 A release renders with the dependency releases it was cut with, direct and transitive: it is pinned
@@ -178,13 +182,26 @@ or the flag `includeDependencies`, default false:
 
 Implicit is the default because deploying a dependency release explicitly can change what other
 catalogs in that environment render, when they select the same catalog with a range: the caller
-opts into that. `NOT_DEPLOYED` and `NOT_INSTALLED` remain in the reason enum for clients written
-against the earlier draft; a deployment is no longer refused for them.
+opts into that. The reason enum also lists `NOT_DEPLOYED` and `NOT_INSTALLED`; they are never
+returned.
+
+### Undeploying removes only an explicit deployment
+
+`undeployRelease` removes an explicit deployment: the environment no longer serves that catalog's
+own templates through the release. It is never refused because another release the environment
+serves renders with it. That release is pinned to it and renders it from the tenant's copy, so it
+keeps rendering it: the undeployed release stays in use implicitly.
+
+A release the environment uses only implicitly, as a dependency, is not deployed, so it cannot be
+undeployed: `undeployRelease` answers 404, as for a release the environment does not use at all.
+Deploying and undeploying are therefore not symmetrical: deploying is refused when a dependency
+cannot be had, because the release could not render; undeploying never takes away what another
+release renders with.
 
 ### Migrating existing catalogs
 
 An installation upgrading to 2.0 gives its existing catalogs a registry and one namespace per tenant
-(the tenant's slug by default). The contract's migrator does not choose: it takes both from the
+(the tenant's key by default). The contract's migrator does not choose: it takes both from the
 importer (`CatalogMigrationOptions`) and refuses an archive from before v8 without them.
 
 The registry should be the one the municipality will publish from:
@@ -210,14 +227,14 @@ The registry should be the one the municipality will publish from:
   members on catalog dependencies, resource dependencies and content references; `releaseFingerprint`
   on catalog dependencies; the V5 fingerprint covers all of them. Every fingerprint names its
   algorithm (`v5:<hex>`).
-- Deploying can fail on dependencies it did not fail on before: callers either deploy dependencies
-  first or pass `includeDependencies=true`.
+- Deploying can fail on dependencies: when a dependency release cannot be had, the deployment is
+  refused with `release-dependencies-missing`. Undeploying never fails on them.
 
 ## Hotfix releases
 
 A hotfix (ADR 0001) can be cut by any installation, for any catalog, and is never published. A
 release whose dependencies resolve to a hotfix cannot be published either: no registry serves that
-hotfix, so no other installation could install the dependency. ADR 0001 does not say this yet.
+hotfix, so no other installation could install the dependency. ADR 0001 states the same rule.
 
 ## Later
 
@@ -226,11 +243,4 @@ hotfix, so no other installation could install the dependency. ADR 0001 does not
   came from. Additive: an extra archive file, no change to `catalog.json`. Its own ADR.
 - **Publishing one catalog as an original in several registries** (option B), if the landscape ever
   needs it.
-- **Bundling dependency releases into an export**, for installations without network access to any
-  registry.
 - **Moving a catalog** to another registry.
-
-## Open questions
-
-- Undeploying a release that another release the environment serves renders with. Refusing it, as
-  deploying refuses, would be symmetrical; this ADR does not decide it yet.

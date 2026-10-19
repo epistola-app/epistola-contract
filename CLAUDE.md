@@ -130,11 +130,14 @@ CreateExampleRequest:
 # contracts/api/paths/example.yaml
 example-collection:
   parameters:
-    - name: tenantId
+    - name: tenantKey
       in: path
       required: true
       schema:
         type: string
+        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+        minLength: 3
+        maxLength: 63
   get:
     operationId: listExamples
     tags:
@@ -153,10 +156,20 @@ All endpoints use versioned media type: `application/vnd.epistola.v2+json`
 
 ### Common Patterns
 
-- **Tenant scoping**: All resources are scoped under `/v1/tenants/{tenantId}/`
-- **Slug IDs**: Use lowercase kebab-case identifiers (pattern: `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
-- **Error responses**: Reference `../components/responses/errors.yaml#/ErrorResponse`
-- **Validation errors**: Reference `../components/responses/errors.yaml#/ValidationErrorResponse`
+- **Tenant scoping**: All resources are scoped under `/tenants/{tenantKey}/` (the server prefixes
+  `/api`); a catalog's content under `…/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/`
+- **Keys, not IDs**: a `key` is a resource's public address within its parent; an `id` is a
+  generated identifier that is not an address (`documentId`, `requestId`, `draftId`, …)
+- **Catalog resource keys** (template, variant, stencil, theme, attribute, code list, font, image,
+  data example): `^[a-z0-9]+(-[a-z0-9]+)*$`, 3–50 characters, a leading digit allowed, the same in
+  the API and in catalog wire v8
+- **Other keys have their own rule**: tenant keys and namespaces `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`
+  3–63, environment keys the same pattern 3–30, catalog keys the same pattern 3–50; a registry is a
+  DNS name with a dot
+- **Error responses**: Reference the problem responses in
+  `../components/responses/problem-responses.yaml` (e.g. `#/NotFoundError`, `#/ConflictError`) and
+  `../components/responses/auth-errors.yaml`
+- **Validation errors**: Reference `../components/responses/problem-responses.yaml#/ValidationFailedError`
 
 ## API Domain Model
 
@@ -165,21 +178,31 @@ The Epistola API manages:
 1. **Tenants** - Multi-tenant isolation
 2. **Templates** - Document templates with JSON Schema for input validation
 3. **Themes** - Reusable style collections
-4. **Environments** - Deployment contexts (staging, production); each serves catalog releases, possibly several per catalog
+4. **Environments** - Deployment contexts (staging, production); each serves catalog releases, possibly
+   several per catalog, and can override which version of a catalog it uses: a release it serves, or
+   a draft rendered live (never a draft in an environment marked `production`)
 5. **Variants** - Language/brand variations of templates, edited in a draft catalog version
-6. **Catalog versions** - A draft (editable, several may be open) or released (immutable, same
-   number and address); releasing flows changes forward into higher drafts (ADR 0002)
-7. **Generation** - Async document generation with batch support, always from a release
+6. **Catalog versions** - A draft (editable, no number) or released (immutable, addressed by its
+   SemVer number). Every authored catalog has one **next version** (`next`), the only draft that is
+   released, numbered at release from what changed; any other draft is **long-term work**, named,
+   tried through an environment override and promoted to the next version before release. Drafts
+   are independent copies: nothing is merged, and a draft is **behind** releases above its base
+   (ADR 0002)
+7. **Generation** - Async document generation with batch support, from a release, or from a draft
+   when an environment override follows one
 
 ### Template Hierarchy
 
 ```
 Tenant
 ├── Catalog (identified by registry + namespace + key; `~` in a path = the default registry)
-│   └── Version (SemVer number, its address): draft ──release──▶ released (immutable)
+│   └── Version: a draft (`next`, or long-term work by `draftId`) or a release (by SemVer number)
+│       │   next version ──release (numbered from what changed)──▶ released (immutable)
+│       │   long-term work ──promote──▶ next version
 │       └── Template (with data contract) → Variant, Stencil, Theme, …
 │           each new / modified / ready / released against the version's base
 └── Environment ─ deploys ─▶ Releases of each Catalog (renders the highest that matches)
+    └── Override per Catalog ─▶ one release it serves, or a draft (not in production)
 ```
 
 ## Build System
@@ -447,5 +470,5 @@ When a fix is needed on an older release:
 
 - `openapi.yaml` is gitignored - always regenerate with `make bundle`
 - The API version in `contracts/api/openapi.yaml` drives artifact versioning
-- All IDs use slug format (kebab-case, 3-63 chars)
+- Addresses are keys (see "Common Patterns" for the rules per kind); generated `id`s are not addresses
 - Timestamps use ISO 8601 format (`date-time`)

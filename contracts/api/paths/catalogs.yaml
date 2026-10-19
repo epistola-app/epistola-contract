@@ -340,7 +340,7 @@ catalog-versions:
     operationId: createCatalogDraft
     summary: Start long-term work
     description: |
-      Starts long-term work on an AUTHORED catalog (ADR 0002, amendment 2): a named draft next to the
+      Starts long-term work on an AUTHORED catalog (ADR 0002): a named draft next to the
       next version, for a change that is not ready to be released with everyday work. It has no number
       until it is released.
 
@@ -547,7 +547,7 @@ catalog-version-release:
     operationId: releaseCatalogDraft
     summary: Release the next version
     description: |
-      Releases the next version of an AUTHORED catalog (ADR 0002, amendment 2), numbering it: as
+      Releases the next version of an AUTHORED catalog (ADR 0002), numbering it: as
       `version`, or, when that is omitted, as its changes need against the latest release
       (`previewCatalogDraftRelease`). A given number must be above every release and no lower than
       the changes need, or the request is refused with 400. A release contains the whole draft: it is
@@ -617,7 +617,7 @@ catalog-version-promote:
     operationId: promoteCatalogDraft
     summary: Make long-term work the next version
     description: |
-      Makes long-term work the catalog's next version (ADR 0002, amendment 2), when it is ready to go
+      Makes long-term work the catalog's next version (ADR 0002), when it is ready to go
       out with everyday work. It must contain every release published since it started, or
       `acknowledgedBehind` names those it leaves out; it then continues on the latest release and is
       behind nothing. The draft that was the next version is discarded with its changes, or kept as

@@ -71,7 +71,8 @@ exchange.epistola.app/epistola/letters@1.4.0/templates/invoice/variants/english
   reference inside content does; which release it means is then decided by the catalog dependency
   that declares it.
 - The name is unambiguous without escaping: a registry is a DNS name, a namespace and a key are
-  slugs, and a version is SemVer, none of which contains `/` or `@`.
+  lowercase letters, digits and hyphens, and a version is a SemVer number, `next` or a draft id
+  (ADR 0002), none of which contains `/` or `@`.
 - The tenant is not part of the name. It is local to an installation; the REST path puts
   `/tenants/{tenantKey}` in front.
 

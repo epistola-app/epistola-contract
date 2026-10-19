@@ -287,9 +287,10 @@ ImportCatalogResponse:
       type: [string, "null"]
       maxLength: 50
       description: |
-        The catalog version the archive went into: the draft of an AUTHORED catalog, or the release
-        a SUBSCRIBED catalog installed. Null when the import was aborted.
-      example: "1.0.0"
+        The catalog version the archive went into: the draft of an AUTHORED catalog (`next` or a
+        draft id), or the release a SUBSCRIBED catalog installed (its SemVer number). Null when the
+        import was aborted.
+      example: next
     installed:
       type: integer
       description: Number of resources newly installed

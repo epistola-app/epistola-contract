@@ -492,7 +492,7 @@ CatalogDraftSummary:
 CatalogVersionDto:
   type: object
   description: |
-    One version of a catalog: a draft or a released version (ADR 0002, amendment 2). A draft is
+    One version of a catalog: a draft or a released version (ADR 0002). A draft is
     numbered when it is released. Every AUTHORED catalog has one **next version** (`isNext`), the
     draft everyday work goes into and the only one that is released; any other draft is **long-term
     work**, named, kept apart until it is ready. Each draft is an independent copy, and nothing is
@@ -715,7 +715,7 @@ RenameCatalogDraftRequest:
 CatalogDraftReleasePreview:
   type: object
   description: |
-    The number a draft would be released as (ADR 0002, amendment 2): from the kind of change it holds
+    The number a draft would be released as (ADR 0002): from the kind of change it holds
     against the latest release, by ADR 0001's rule of what breaks. A release may be numbered higher,
     never lower.
   required:

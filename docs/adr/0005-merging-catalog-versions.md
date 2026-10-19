@@ -8,10 +8,10 @@
 
 ## Context
 
-In contract 2.0.0 a draft is an independent copy of the release it started from (ADR 0002, as
-amended). Nothing is merged. A draft is **behind** the releases numbered between its base and its own
-number, and releasing it requires acknowledging them. Porting a change from `1.5.0` into `2.0.0` is
-the author's work: they apply it again by hand.
+In contract 2.0.0 a draft is an independent copy of the release it started from (ADR 0002). Nothing
+is merged. A draft is **behind** every release above its base, and releasing or promoting it
+requires acknowledging them. Porting a change released in `1.5.0` into long-term work ("Redesign
+2027") is the author's work: they apply it again by hand.
 
 That is safe but laborious, and an author porting by hand can get it subtly wrong. A merge would
 bring a release's changes into a draft for them. This ADR records how that should work, so that the
@@ -21,10 +21,10 @@ bring a release's changes into a draft for them. This ADR records how that shoul
 
 ### Pull, not push
 
-A draft **pulls** a release in when its author asks: "update `2.0.0` from `1.5.0`". Releasing a
-version never changes another draft; that is 2.0.0 behaviour and stays.
+A draft **pulls** a release in when its author asks: "update Redesign 2027 from `1.5.0`". Releasing
+a version never changes another draft; that is 2.0.0 behaviour and stays.
 
-The first version of ADR 0002 pushed every release into higher drafts automatically. Pull is
+ADR 0002 considered pushing every release into higher drafts automatically, and rejected it. Pull is
 preferred because:
 
 - it keeps 2.0.0's guarantee that a release changes no other draft;
@@ -34,8 +34,8 @@ preferred because:
 
 After a successful update the draft's base becomes that release, and the release drops off `behind`.
 
-The same operation can bring in changes from any other version, not only lower releases, which
-covers "take the finished templates from `2.0.0` into `1.5.0`":
+The same operation can bring in changes from any other version, not only releases, which covers
+"take the finished templates from Redesign 2027 into the next version":
 `POST …/versions/{catalogVersion}/merge` `{from, resources?}`.
 
 ### A three-way merge, first per resource

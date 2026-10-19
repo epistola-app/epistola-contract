@@ -317,9 +317,18 @@ environment-deployment-release:
     operationId: undeployRelease
     summary: Stop an environment serving a catalog release
     description: |
-      The environment stops serving this release. Generation naming the environment then renders
-      the highest release of the catalog it still serves, and fails for the catalog's templates when
-      it serves none. An override naming this release (`setEnvironmentOverride`) ends with it.
+      Removes an explicit deployment: the environment stops serving this release. Generation naming
+      the environment then renders the highest release of the catalog it still serves, and fails for
+      the catalog's templates when it serves none. An override naming this release
+      (`setEnvironmentOverride`) ends with it.
+
+      It is never refused because another release the environment serves renders with this one. That
+      release is pinned to it and renders it from the tenant's copy, so it keeps rendering it: the
+      release stays in use implicitly. Only the environment no longer serves this catalog's own
+      templates through it.
+
+      A release the environment uses only implicitly, as a dependency of a release it serves, is not
+      deployed and cannot be undeployed: 404, as for a release the environment does not use at all.
     tags:
       - Environments
     x-required-permissions: [ENVIRONMENT_DEPLOY]

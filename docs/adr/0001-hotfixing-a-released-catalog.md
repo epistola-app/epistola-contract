@@ -3,24 +3,33 @@
 - **Status:** Proposed
 - **Date:** 2026-10-15
 - **Scope:** API contract (`contracts/api`) and catalog contract (`contracts/catalog`), contract 2.0
-- **Related:** [ADR 0002](0002-intermediate-releases.md) (working on several catalog versions at once)
+- **Related:** [ADR 0002](0002-intermediate-releases.md) (working on several catalog versions at once),
+  [ADR 0003](0003-catalog-identity-and-distribution.md) (catalog identity and dependencies)
 
 ## Context
 
-In contract 2.0 a catalog is versioned as a whole. Its resources are edited in one **working copy**,
-marked ready, and released together as an immutable SemVer release. A catalog is identified by
-registry, namespace and key, published to an exchange, and installed and deployed elsewhere.
-Environments can serve several releases of one catalog. A render request picks the highest release
-that satisfies its version selector, among the releases its environment serves.
+In contract 2.0 a catalog is versioned as a whole (ADR 0002). Everyday work goes into the catalog's
+**next version**, a draft whose resources are marked ready and released together as an immutable
+SemVer release; a large change is kept apart as **long-term work** until it is promoted to the next
+version. A catalog is identified by registry, namespace and key, published to an exchange, and
+installed and deployed elsewhere. Environments can serve several releases of one catalog. A render
+request picks the highest release that satisfies its version selector, among the releases its
+environment serves.
+
+**Releases only go forward.** A release number must be above every release of the catalog, and
+only the next version is released. So once `2.0.0` is released there is no way to ship `1.4.1`: a
+fix to an older line, which production may still run, has nowhere to be made. This ADR is about
+filling that gap.
 
 The editorial flow this ADR is about:
 
 1. A team authors its catalog on one installation, typically **test**.
 2. When a release is ready, they publish it and install it on **acceptance**, then on **production**.
 
-Say production runs `1.0.1`, and a spelling error in it has to be fixed now. Meanwhile, test's working
-copy already holds weeks of unreleased work towards `2.0.0`, which must not reach production. The
-team needs to:
+Say production runs `1.0.1`, and a spelling error in it has to be fixed now. Meanwhile test already
+holds weeks of unreleased work towards `2.0.0`, in its next version or as long-term work, or `2.0.0`
+is already released and production has not moved to it yet. Either way the work towards `2.0.0`
+must not reach production. The team needs to:
 
 - take the content of `1.0.1`;
 - change one small thing;
@@ -33,37 +42,31 @@ publisher to fix.
 
 ## Options
 
-### A. Hotfix working copy in the authoring installation
+### A. Maintenance draft in the authoring installation
 
-The authoring installation opens a second, short-lived working copy from a release, releases it as a
-patch (`1.0.2`), and carries the change forward into the main working copy with a node-level
-three-way merge. A merge conflict blocks the next release.
+The authoring installation starts a draft from an older release and releases it as a patch of that
+line (`1.0.2` while `2.0.0` exists).
 
 - It keeps production a pure consumer of published releases.
 - It costs:
-  - a second working copy in the API;
-  - a `workingCopy` selector on every working-copy operation;
-  - a three-way merge per resource type in the catalog module;
-  - a looser release ordering rule.
-- It only works for catalogs the team authors. A subscribed catalog has no working copy to branch
-  from, and its namespace is not the team's to release in.
+  - a third kind of draft next to the next version and long-term work (ADR 0002), released below the
+    latest release, which loosens ADR 0002's rule that releases only go forward;
+  - the fix reaches the next version only when an author applies it again by hand (ADR 0002's
+    `behind`), until a merge exists (ADR 0005).
+- It only works for catalogs the team authors. A subscribed catalog has no drafts, and its namespace
+  is not the team's to release in.
 
-**Superseded** by ADR 0002, which adds several drafts per catalog and the forward merge for
-intermediate releases. A hotfix of an owned catalog is then simply a patch draft (`1.0.2`). Option F
-remains for fixing in place, where the release must keep its version, and for catalogs the team does
-not own.
+### B. Stash the next version
 
-### B. Stash the working copy
-
-Set the working copy aside, reset it to `1.0.1`, fix, release, then restore the stash. Nobody can work
-on `2.0.0` while the stash is out, and the restored working copy still lacks the fix. **Rejected.**
+Set the next version aside, reset it to `1.0.1`, fix, release, then restore the stash. Nobody can work
+on `2.0.0` while the stash is out, and the restored next version still lacks the fix. **Rejected.**
 
 ### C. Cherry-pick a patch release
 
-Make the fix in the working copy and release only selected changes on top of `1.0.1`. This fails when
+Make the fix in the next version and release only selected changes on top of `1.0.1`. This fails when
 the template with the error has also changed for `2.0.0`, because half a template cannot be released.
-**Rejected.** [ADR 0002](0002-intermediate-releases.md) covers the related, broader need to release
-only part of the working copy.
+**Rejected.** [ADR 0002](0002-intermediate-releases.md) covers the related, broader need to keep
+unfinished work out of a release, with long-term work.
 
 ### D. Author a normal release in production and publish it from there
 
@@ -73,7 +76,8 @@ and its next release can collide with or silently revert it. **Rejected.**
 ### E. Unversioned override in production
 
 The environment holds a local layer of changes on top of the release it serves, identified by a
-revision rather than a version.
+revision rather than a version. (This is not ADR 0002's environment override, which chooses one of
+the catalog's existing versions and changes no content.)
 
 - It fixes what production runs, for any catalog, without minting anything in another namespace.
 - But an override is not a release:
@@ -111,11 +115,12 @@ hotfix therefore *is* `1.0.1` for every selector:
 
 - A hotfix is created from a release the installation has installed: one it authored or one it
   subscribes to, including another publisher's.
-- It is a catalog version in draft state (ADR 0002), numbered `1.0.1+hotfix.N` with the next free
-  `N` when it is created. It sits next to any other drafts, so the `2.0.0` work in an authoring
-  installation is untouched.
-- It contains its base, `1.0.1`, never later releases, and does not flow forward into other drafts.
-- Releasing it is the same state transition as for any draft.
+- It is a draft (ADR 0002) of its own kind, next to the next version and any long-term work, so the
+  `2.0.0` work in an authoring installation is untouched. It is numbered `1.0.1+hotfix.N`, the next
+  free `N`.
+- It contains its base, `1.0.1`, never later releases. Nothing is merged into other drafts.
+- Releasing it is the same state transition as for any draft. It is the one release that is not
+  above every release of the catalog: it sorts as the release it fixes.
 
 #### A hotfix may not break anything
 
@@ -139,6 +144,8 @@ Anything else needs a real release (`1.0.2`, `1.1.0`, `2.0.0`) through the norma
   publisher's next release is the real fix.
 - Two installations can each cut `1.0.1+hotfix.1` with different content. An import whose label
   matches an installed release but whose fingerprint differs is refused.
+- A release whose dependencies resolve to a hotfix cannot be published either: no registry serves
+  that hotfix, so no other installation could install the dependency (ADR 0003).
 
 ## Decision (proposed)
 
@@ -151,24 +158,25 @@ Anything else needs a real release (`1.0.2`, `1.1.0`, `2.0.0`) through the norma
    requires confirmation that those fixes are dropped. For a catalog the team does not own, this also
    shows whether the publisher has fixed the error yet.
 3. **Offer a way back, but do not require it.** A hotfix can be read as a diff against its base, and
-   imported into the authoring installation, so the team can apply the same fix in its open drafts.
-   Applying it stays a manual step.
+   imported into the authoring installation, so the team can apply the same fix in its next version
+   or long-term work. Applying it stays a manual step.
 4. **Reject options A to E.**
 
 ## Consequences
 
 - **Version grammar:** release versions accept the build suffix `+hotfix.N`, and only that one.
-  `ReleaseCatalogRequest` keeps plain `MAJOR.MINOR.PATCH`; hotfix labels are assigned by the server.
+  `ReleaseCatalogDraftRequest.version` keeps plain `MAJOR.MINOR.PATCH`; hotfix labels are assigned
+  by the server.
 - **Version selectors:** "highest" breaks ties between hotfixes of one version by hotfix number. A
   selector without a suffix matches every hotfix of the versions it matches.
-- **`+` in URL paths.** `getCatalogRelease`, `deployRelease` and `undeployRelease` carry the version
+- **`+` in URL paths.** `getCatalogVersion`, `deployRelease` and `undeployRelease` carry the version
   in the path. In a path, `+` is a literal character, but some stacks decode it as a space, as in a
   query string. The contract states that `+` is sent as `%2B` or literally and means `+`, and a
   conformance scenario holds every client to it.
 - **API:**
-  - Hotfix lifecycle: the catalog version operations of ADR 0002, with `createCatalogVersion`
-    accepting `+hotfix` from an installed release, also in a subscribed catalog.
-  - `releaseCatalog`-style validation of the hotfix that reports every breaking change it finds.
+  - Hotfix lifecycle: the catalog version operations of ADR 0002, with a way to start a hotfix
+    draft from an installed release, also in a subscribed catalog, which has no drafts today.
+  - Validation of the hotfix on release that reports every breaking change it finds.
   - `deployRelease` reports dropped hotfix fixes and needs a confirmation flag to proceed.
   - Export of a single release, and refusal of a conflicting import.
   - A permission for cutting hotfixes, separate from authoring and from deploying.

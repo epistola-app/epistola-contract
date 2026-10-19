@@ -501,7 +501,7 @@ make breaking
 
 # Start mock server on http://localhost:4010
 make mock
-# Test with: curl http://localhost:4010/api/v1/tenants
+# Test with: curl http://localhost:4010/api/tenants
 
 # Validate your implementation against the spec
 TARGET_URL=http://localhost:8080 make validate-impl
@@ -520,7 +520,7 @@ docker run -p 4010:4010 ghcr.io/epistola-app/epistola-contract/mock-server:lates
 docker run -p 4010:4010 ghcr.io/epistola-app/epistola-contract/mock-server:1.0.0
 ```
 
-Test with: `curl http://localhost:4010/api/v1/tenants`
+Test with: `curl http://localhost:4010/api/tenants`
 
 ## Using in Your Project
 
@@ -528,79 +528,18 @@ Test with: `curl http://localhost:4010/api/v1/tenants`
 
 ```kotlin
 dependencies {
-    implementation("app.epistola.contract:client-spring3-restclient:1.0.0")
+    implementation("app.epistola.contract:client-spring3-restclient:2.0.0")
 }
 ```
 
-#### Client-Side JSON Schema Validation
+#### Client-side validation
 
-The client can validate generation request data against the template's JSON Schema before sending it to the server. This is opt-in — add the validation library to your dependencies:
-
-```kotlin
-dependencies {
-    implementation("app.epistola.contract:client-spring3-restclient:1.0.0")
-    implementation("com.networknt:json-schema-validator:1.5.7") // required for validation
-}
-```
-
-**Option 1: Transparent validation via `ValidatingGenerationApi`**
-
-Wraps `GenerationApi` and validates automatically before every generation call:
-
-```kotlin
-val restClient = RestClient.builder().baseUrl("https://api.epistola.app").build()
-val generationApi = GenerationApi(restClient)
-val templatesApi = TemplatesApi(restClient)
-
-val validatingApi = ValidatingGenerationApi(generationApi, templatesApi)
-
-// Throws TemplateDataValidationException if data doesn't match the template's schema
-validatingApi.generateDocument("acme", GenerateDocumentRequest(
-    templateId = "invoice",
-    data = invoiceData,
-))
-```
-
-**Option 2: Standalone validation via `TemplateSchemaValidator`**
-
-For explicit control over when validation happens:
-
-```kotlin
-val validator = TemplateSchemaValidator(templatesApi)
-
-try {
-    validator.validate("acme", "invoice", invoiceData)
-} catch (e: TemplateDataValidationException) {
-    // e.errors contains structured errors with path, message, and keyword
-    println(e.formatErrors())
-}
-```
-
-**Schema caching**
-
-Template schemas are fetched from the server and cached. The default `TtlSchemaCache` uses an in-memory cache with a configurable TTL (default: 5 minutes):
-
-```kotlin
-import java.time.Duration
-
-// Custom TTL
-val cache = TtlSchemaCache(ttl = Duration.ofMinutes(30))
-val validator = TemplateSchemaValidator(templatesApi, cache = cache)
-```
-
-You can provide your own cache implementation via the `SchemaCache` fun interface:
-
-```kotlin
-val myCache = SchemaCache { tenantId, templateId, loader ->
-    // your caching logic here; call loader() on miss
-    myExternalCache.get("$tenantId:$templateId") { loader() }
-}
-val validator = TemplateSchemaValidator(templatesApi, cache = myCache)
-```
-
-**Batch validation**
-
-For batch generation requests, all items are validated and errors are collected into a single exception with indexed paths (e.g. `items[0]/customer/email`, `items[2]/invoiceNumber`).
+Template data can be checked before a generation request is sent. The client ships no JSON Schema
+library: validation goes through a pluggable `TemplateDataValidator`, and the shipped
+implementation asks the server's `validateTemplateData`, so the verdict is the server's. Every
+client reports a failure the same way: a JSON Pointer `path` into the data and a JSON Schema
+`keyword`. See [the Kotlin client's README](contracts/api/clients/kotlin-spring-restclient/README.md#client-side-validation)
+and the other clients' READMEs.
 
 ### .NET Client (NuGet)
 
