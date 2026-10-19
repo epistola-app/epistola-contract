@@ -133,8 +133,7 @@ libraries.
   environment use them without deploying them. A dependency release that cannot be had refuses the
   deployment with the new problem type `release-dependencies-missing` (409), whose
   `missingDependencies` member lists each release (`MissingReleaseDependency`) and its `reason`
-  (`UNAVAILABLE`, `CONTENT_NOT_RETAINED`; `NOT_DEPLOYED` and `NOT_INSTALLED` are no longer
-  returned). The new `deployRelease` query parameter `includeDependencies` (default false) also
+  (`UNAVAILABLE`; `NOT_DEPLOYED` and `NOT_INSTALLED` are no longer returned). The new `deployRelease` query parameter `includeDependencies` (default false) also
   deploys them explicitly, all or nothing. Every client's problem parser surfaces
   `missingDependencies`; the server stubs add `ProblemDetails.releaseDependenciesMissing`.
 

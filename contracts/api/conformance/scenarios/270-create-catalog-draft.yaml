@@ -12,8 +12,8 @@ why: >
   name starts the work from the next version without saying so.
 
   The answer is a draft: `version` is null, it is addressed by its `draftId` (which `Location`
-  carries), and it is not the next version. A draft has no release data either: `releasedAt`,
-  `fingerprint` and `contentRetained` are null and `dependencies` and `deployedTo` empty. A client
+  carries), and it is not the next version. A draft has no release data either: `releasedAt`
+  and `fingerprint` are null and `dependencies` and `deployedTo` empty. A client
   that turns a null `version` into an empty string, or a false `isNext` into a missing one, makes a
   draft look like a broken release.
 
@@ -46,7 +46,6 @@ script:
       releasedAt: null
       notes: null
       fingerprint: null
-      contentRetained: null
       dependencies: []
       deployedTo: []
 

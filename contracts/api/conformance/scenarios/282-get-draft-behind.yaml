@@ -51,7 +51,6 @@ script:
       releasedAt: null
       notes: null
       fingerprint: null
-      contentRetained: null
       dependencies: []
       deployedTo: []
 

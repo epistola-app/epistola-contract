@@ -36,9 +36,6 @@ data class MissingReleaseDependency(
 
         /** `includeDependencies` was set, but the release could not be fetched or verified. */
         const val UNAVAILABLE: String = "UNAVAILABLE"
-
-        /** The tenant has the release without its content, so it cannot be deployed. */
-        const val CONTENT_NOT_RETAINED: String = "CONTENT_NOT_RETAINED"
     }
 
     internal companion object {

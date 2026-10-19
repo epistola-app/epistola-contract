@@ -580,13 +580,6 @@ CatalogVersionDto:
         catalog archive. A bare hex value is a fingerprint recorded before contract 2.0 whose
         algorithm was not recorded. Null for a draft.
       example: null
-    contentRetained:
-      type: [boolean, "null"]
-      description: |
-        For a released version, whether it kept its content. Only such a release can be rendered,
-        deployed or exported; releases cut before releases retained content cannot. Null for a
-        draft.
-      example: null
     dependencies:
       type: array
       description: |

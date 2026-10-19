@@ -28,7 +28,7 @@ class MissingDependency:
     ``missingDependencies`` member).
 
     :attr:`reason` is the wire value as sent (``NOT_DEPLOYED``, ``NOT_INSTALLED``,
-    ``UNAVAILABLE``, ``CONTENT_NOT_RETAINED``), kept as a plain string so a reason a later
+    ``UNAVAILABLE``), kept as a plain string so a reason a later
     contract adds is reported rather than lost.
     """
 

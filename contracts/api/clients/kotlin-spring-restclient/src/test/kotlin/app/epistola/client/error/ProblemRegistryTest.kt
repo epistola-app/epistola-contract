@@ -51,7 +51,6 @@ class ProblemRegistryTest {
                 MissingReleaseDependency.Reasons.NOT_DEPLOYED,
                 MissingReleaseDependency.Reasons.NOT_INSTALLED,
                 MissingReleaseDependency.Reasons.UNAVAILABLE,
-                MissingReleaseDependency.Reasons.CONTENT_NOT_RETAINED,
             ).sorted(),
         )
     }

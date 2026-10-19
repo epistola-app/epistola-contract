@@ -171,8 +171,7 @@ or the flag `includeDependencies`, default false:
 
 - **Always**, a dependency release must be available to render from. One the tenant does not have
   is installed first, as described above. When one cannot be fetched or does not match its
-  fingerprint (`UNAVAILABLE`), or the tenant has it without content (`CONTENT_NOT_RETAINED`), the
-  deployment is refused with `release-dependencies-missing` (409), whose `missingDependencies`
+  fingerprint (`UNAVAILABLE`), the deployment is refused with `release-dependencies-missing` (409), whose `missingDependencies`
   lists those. Nothing is deployed.
 - **With `includeDependencies`**, the dependency releases the environment does not serve are also
   deployed explicitly, in the same transaction. It is all or nothing.

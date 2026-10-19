@@ -125,7 +125,7 @@ class ProblemDetailParserTest {
                     {"registry": "exchange.epistola.app", "namespace": "acme-corp",
                      "catalogKey": "shared", "releaseVersion": "1.2.0", "reason": "NOT_DEPLOYED"},
                     {"registry": "acme.com", "namespace": "brand",
-                     "catalogKey": "styles", "releaseVersion": "2.0.0", "reason": "CONTENT_NOT_RETAINED"}
+                     "catalogKey": "styles", "releaseVersion": "2.0.0", "reason": "UNAVAILABLE"}
                   ]
                 }
                 """);
@@ -140,7 +140,7 @@ class ProblemDetailParserTest {
         assertEquals("1.2.0", first.getReleaseVersion());
         assertEquals("NOT_DEPLOYED", first.getReason());
         assertEquals(MissingReleaseDependencyReason.NOT_DEPLOYED, first.getKnownReason());
-        assertEquals("acme.com/brand/styles@2.0.0:CONTENT_NOT_RETAINED", missing.get(1).toString());
+        assertEquals("acme.com/brand/styles@2.0.0:UNAVAILABLE", missing.get(1).toString());
     }
 
     @Test

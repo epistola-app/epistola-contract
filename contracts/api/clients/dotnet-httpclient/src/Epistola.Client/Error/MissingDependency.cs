@@ -56,9 +56,6 @@ public sealed class MissingDependency
 
         /// <summary><c>includeDependencies</c> was set, but the release could not be fetched or verified.</summary>
         public const string Unavailable = "UNAVAILABLE";
-
-        /// <summary>The tenant has the release without its content, so it cannot be deployed.</summary>
-        public const string ContentNotRetained = "CONTENT_NOT_RETAINED";
     }
 
     /// <summary>
