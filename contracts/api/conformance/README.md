@@ -72,6 +72,7 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 | `download-document` | `GET …/documents/{id}`, reporting the SHA-256 and length of the bytes |
 | `list-images` | `GET …/images?search=…`, reporting the keys, widths, heights and media types it parsed |
 | `upload-image` | `POST …/images` with the file from `config` (bytes, filename, content type) and a name, reporting the returned key and name |
+| `import-catalog` | `POST …/catalogs/import` with the file from `config` (bytes, filename, content type), and `config.registry`, `config.namespace` and `config.catalogType` each only when present, reporting the `registry`, `namespace`, `catalogKey`, `releaseVersion`, `newlyInstalled` and `total` it parsed. When the server answers with a problem, report `problemTypeSlug` and `problemStatus` instead |
 | `download-image` | `GET …/images/{imageKey}/content`, reporting the SHA-256 and length of the bytes |
 | `delete-image` | `DELETE …/images/{imageKey}` with `force` from `config` |
 | `list-catalog-dependencies` | `GET …/versions/{catalogVersion}/dependencies`, reporting what it parsed as `update-catalog-dependencies` does |

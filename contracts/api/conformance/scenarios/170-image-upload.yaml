@@ -5,8 +5,8 @@
 id: image-upload
 title: An uploaded image leaves the client as a named file part, byte for byte
 why: >
-  Upload is the only multipart request in the contract, and the five stacks build multipart bodies in
-  five different ways. A server reads the fields below, and each one fails differently.
+  Upload is one of the contract's two multipart requests (import is the other), and the five
+  stacks build multipart bodies in five different ways. A server reads the fields below, and each one fails differently.
 
   `file` must be a file part: a filename, and the image's content type. A part without a filename is
   a plain form field to most multipart parsers, so the upload is rejected as missing its file. The

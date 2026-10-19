@@ -75,6 +75,7 @@ def main() -> int:
         "download-document": _download_document,
         "list-images": _list_images,
         "upload-image": _upload_image,
+        "import-catalog": _import_catalog,
         "download-image": _download_image,
         "delete-image": _delete_image,
         "list-catalog-dependencies": _list_catalog_dependencies,
@@ -335,6 +336,37 @@ def _upload_image(base_url: str, config: dict) -> None:
         name=config["name"],
     )
     _report(base_url, {"imageKey": image.key, "imageName": image.name})
+
+
+def _import_catalog(base_url: str, config: dict) -> None:
+    """Imports a catalog archive, the file as a ``(filename, bytes)`` pair like an image upload.
+    ``registry``, ``namespace`` and ``catalogType`` go out only when the scenario sets them. A
+    refusal is reported by its problem."""
+    optional = {
+        name: config[key]
+        for key, name in (("registry", "registry"), ("namespace", "namespace"), ("catalogType", "catalog_type"))
+        if key in config
+    }
+    try:
+        imported = CatalogsApi(_client(base_url, config)).import_catalog(
+            config["tenantKey"],
+            (config["filename"], base64.b64decode(config["fileBase64"])),
+            **optional,
+        )
+    except ProblemDetailException as exc:
+        _report(base_url, {"problemTypeSlug": exc.type_slug or "<null>", "problemStatus": exc.status_code})
+        return
+    _report(
+        base_url,
+        {
+            "registry": _show(imported.registry),
+            "namespace": _show(imported.namespace),
+            "catalogKey": _show(imported.catalog_key),
+            "releaseVersion": _show(imported.release_version),
+            "newlyInstalled": _show_bool(imported.newly_installed),
+            "total": _show(imported.total),
+        },
+    )
 
 
 def _download_image(base_url: str, config: dict) -> None:

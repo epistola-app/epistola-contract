@@ -46,6 +46,7 @@ const ACTIONS = {
   'download-document': downloadDocument,
   'list-images': listImages,
   'upload-image': uploadImage,
+  'import-catalog': importCatalog,
   'download-image': downloadImage,
   'delete-image': deleteImage,
   'list-catalog-dependencies': listCatalogDependencies,
@@ -281,6 +282,35 @@ async function uploadImage(baseUrl, config) {
     name: config.name,
   })
   await report(baseUrl, { imageKey: image.key, imageName: image.name })
+}
+
+/**
+ * Imports a catalog archive, passed as a File for its name and type like an image upload.
+ * `registry`, `namespace` and `catalogType` go out only when the scenario sets them. A refusal is
+ * reported by its problem.
+ */
+async function importCatalog(baseUrl, config) {
+  const file = new File([Buffer.from(config.fileBase64, 'base64')], config.filename, { type: config.fileContentType })
+  const request = { tenantKey: config.tenantKey, file }
+  for (const name of ['registry', 'namespace', 'catalogType']) {
+    if (config[name] !== undefined) request[name] = config[name]
+  }
+  let imported
+  try {
+    imported = await new CatalogsApi(client(baseUrl, config)).importCatalog(request)
+  } catch (error) {
+    if (!(error instanceof ProblemDetailException)) throw error
+    await report(baseUrl, { problemTypeSlug: error.typeSlug ?? '<null>', problemStatus: error.statusCode })
+    return
+  }
+  await report(baseUrl, {
+    registry: show(imported.registry),
+    namespace: show(imported.namespace),
+    catalogKey: show(imported.catalogKey),
+    releaseVersion: show(imported.releaseVersion),
+    newlyInstalled: show(imported.newlyInstalled),
+    total: show(imported.total),
+  })
 }
 
 async function downloadImage(baseUrl, config) {

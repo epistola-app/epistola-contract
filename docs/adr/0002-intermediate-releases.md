@@ -271,8 +271,11 @@ Environment overrides:
   `draftLabel` with a null `releaseVersion`. `validateTemplateData` stays on the catalog, because
   it selects a release by version selector and environment, as generation does.
 - Preview renders a draft named by its `draftId`.
-- `importCatalog` takes the draft of an authored catalog to import into as `catalogVersion`, a draft
-  id; omitted, the catalog's only draft.
+- `importCatalog` never touches a draft. It installs the release the archive carries, at its number,
+  next to the catalog's other releases (ADR 0003): already present with the same fingerprint, nothing
+  changes; the same number with a different fingerprint is refused with 409. A catalog the import
+  creates holds that release and no draft; an author starts one from the release
+  (`createCatalogDraft` with `from`).
 
 ## Consequences
 
@@ -286,8 +289,8 @@ Environment overrides:
   number is decided once, at release.
 - **Older lines are fixed by ordinary releases.** ADR 0001 is narrowed to an installation that does
   not author the catalog.
-- **Archives:** unchanged by drafts. Only released versions are exported, and a release pins only
-  releases.
+- **Archives:** unchanged by drafts. Only released versions are exported, a release pins only
+  releases, and importing an archive installs its release: an archive never becomes a draft.
 - **Not in the API yet:** the per-use check when moving to a newer dependency release.
 
 ### Suite

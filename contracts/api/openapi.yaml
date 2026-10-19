@@ -41,6 +41,10 @@ info:
     things render a draft: preview, naming it by its id, and an environment that follows a draft
     (see "Environment overrides").
 
+    Importing a catalog archive (`importCatalog`) never fills or creates a draft: it installs the
+    release the archive carries, at its number, next to the releases the tenant already has. To edit
+    it, an author starts a draft from that release.
+
     ## Catalog identity
     A catalog is identified by three parts together, never by its key alone: two publishers can
     each publish a catalog called `letters`.

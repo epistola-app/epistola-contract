@@ -135,8 +135,9 @@ Anything else needs a real release (`1.0.2`, `1.1.0`, `2.0.0`) through the norma
    requires confirmation that those fixes are dropped. For a catalog the team does not own, this also
    shows whether the publisher has fixed the error yet.
 3. **Offer a way back, but do not require it.** A hotfix can be read as a diff against its base, and
-   imported into the authoring installation, so the publisher can apply the same fix in a draft and
-   release it. Applying it stays a manual step.
+   installed in the authoring installation next to its releases (an import installs a release, never
+   a draft), so the publisher can apply the same fix in a draft and release it. Applying it stays a
+   manual step.
 4. **Reject options B and C.**
 
 ## Consequences

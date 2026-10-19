@@ -41,6 +41,7 @@ const ACTION_OPERATIONS = {
   'list-images': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/images' },
   'upload-image': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/images' },
   'download-image': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/images/{imageKey}/content' },
+  'import-catalog': { method: 'post', path: '/tenants/{tenantKey}/catalogs/import' },
   'delete-image': { method: 'delete', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/images/{imageKey}' },
   'list-catalog-dependencies': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/dependencies' },
   'update-catalog-dependencies': { method: 'put', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/dependencies' },

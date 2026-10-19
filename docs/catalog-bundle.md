@@ -56,5 +56,9 @@ the installation lacks:
 - a release it has with the same number but a **different fingerprint** is different content under
   one name: the whole bundle is refused, naming each, before anything changes.
 
+The bundled catalog's own release is installed by the same rules, last. Like a single archive, a
+bundle never fills or creates a draft: every catalog in it, the bundled one included, receives a
+release, and a catalog the import creates holds that release and no draft.
+
 A reader refuses a bundle whose `bundleVersion` it does not know, an entry the index does not list or
 a path outside `catalogs/`, and applies the same size limits as to a single archive.

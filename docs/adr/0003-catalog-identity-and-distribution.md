@@ -168,8 +168,12 @@ declaration pins. There is no single winning version and therefore no conflict t
 
 Upgrading a subscribed catalog follows the same steps for the new release's dependencies.
 
-An installation that reaches no registry receives a release together with the releases it pins in
-one file, a [catalog bundle](../catalog-bundle.md), and installs them in the same way.
+An installation that reaches no registry receives a release as a file instead: a catalog archive,
+or, together with the releases it pins, a [catalog bundle](../catalog-bundle.md). Importing either
+(`importCatalog`) installs the release in the same way, side by side with the releases of that
+catalog the tenant has, never into a draft: the same number with the same fingerprint is already
+present and changes nothing, the same number with a different fingerprint is refused (409), and a
+catalog the import creates holds the release and no draft.
 
 ### Deploying uses dependencies implicitly; deploying them too is a choice
 

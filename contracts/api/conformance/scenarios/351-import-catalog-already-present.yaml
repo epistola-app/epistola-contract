@@ -1,0 +1,69 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: import-catalog-already-present
+title: Importing a release the tenant has reports it as already present
+why: >
+  Importing the same release twice is not an error: the same number with the same fingerprint is
+  the release the tenant has, so nothing changes and the response says so with
+  `newlyInstalled: false`. A client that drops a false boolean, or reads it as absent, tells its
+  caller a release was installed when nothing happened.
+
+  `registry` and `namespace` are set here, so they must be sent as given. `catalogType` was not set;
+  its contract default is AUTHORED, so a client may send `AUTHORED` or leave it out, never anything
+  else.
+
+action:
+  name: import-catalog
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    registry: registry.gemeente-x.nl
+    namespace: huisstijl
+    filename: branding-1.4.2.zip
+    fileContentType: application/zip
+    fileBase64: UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA==
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      registry: registry.gemeente-x.nl
+      namespace: huisstijl
+      catalogKey: branding
+      catalogName: Branding
+      releaseVersion: 1.4.2
+      newlyInstalled: false
+      total: 3
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/import
+      body:
+        multipart:
+          file:
+            filename: branding-1.4.2.zip
+            byteLength: 22
+          registry:
+            value: registry.gemeente-x.nl
+          namespace:
+            value: huisstijl
+          catalogType:
+            whenPresent:
+              value: AUTHORED
+          catalogVersion:
+            absent: true
+          authoredMode:
+            absent: true
+  report:
+    registry: registry.gemeente-x.nl
+    namespace: huisstijl
+    catalogKey: branding
+    releaseVersion: 1.4.2
+    newlyInstalled: 'false'
+    total: '3'

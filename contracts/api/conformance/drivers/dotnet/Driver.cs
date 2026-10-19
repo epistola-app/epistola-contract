@@ -54,6 +54,7 @@ public static class Driver
                 case "download-document": DownloadDocument(baseUrl, config); break;
                 case "list-images": ListImages(baseUrl, config); break;
                 case "upload-image": UploadImage(baseUrl, config); break;
+                case "import-catalog": ImportCatalog(baseUrl, config); break;
                 case "download-image": DownloadImage(baseUrl, config); break;
                 case "delete-image": DeleteImage(baseUrl, config); break;
                 case "list-catalog-dependencies": ListCatalogDependencies(baseUrl, config); break;
@@ -354,6 +355,46 @@ public static class Driver
             name: Str(config, "name"));
 
         Report(baseUrl, new Dictionary<string, object> { ["imageKey"] = image.Key, ["imageName"] = image.Name });
+    }
+
+    /// <summary>
+    /// Imports a catalog archive from bytes, as a <c>FileParameter</c> with the scenario's filename
+    /// and content type. <c>registry</c>, <c>namespace</c> and <c>catalogType</c> go out only when
+    /// the scenario sets them. A refusal is reported by its problem.
+    /// </summary>
+    private static void ImportCatalog(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        using var content = new MemoryStream(Convert.FromBase64String(Str(config, "fileBase64")));
+        ImportCatalogResponse imported;
+        try
+        {
+            imported = new CatalogsApi(http, apiBase).ImportCatalog(
+                Str(config, "tenantKey"),
+                new FileParameter(Str(config, "filename"), Str(config, "fileContentType"), content),
+                registry: OptStr(config, "registry"),
+                varNamespace: OptStr(config, "namespace"),
+                catalogType: OptStr(config, "catalogType"));
+        }
+        catch (ProblemDetailException e)
+        {
+            Report(baseUrl, new Dictionary<string, object>
+            {
+                ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
+                ["problemStatus"] = (int)e.StatusCode,
+            });
+            return;
+        }
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["registry"] = Show(imported.Registry),
+            ["namespace"] = Show(imported.Namespace),
+            ["catalogKey"] = Show(imported.CatalogKey),
+            ["releaseVersion"] = Show(imported.ReleaseVersion),
+            ["newlyInstalled"] = Bool(imported.NewlyInstalled),
+            ["total"] = Show(imported.Total),
+        });
     }
 
     private static void DownloadImage(string baseUrl, JsonElement config)
