@@ -20,7 +20,7 @@ public class ModelValidationTest
     [Fact]
     public void AnAttributeCriterionNamesItsAttributeByResourceKeyNeverDotted()
     {
-        var qualified = new VariantSelectionAttribute(key: "locale", value: "nl-NL", catalogKey: "system", varNamespace: "epistola");
+        var qualified = new VariantSelectionAttribute(key: "locale", value: "nl-NL", catalogKey: "system", @namespace: "epistola");
         Assert.Same(qualified, qualified.Validate());
         var ownCatalog = new VariantSelectionAttribute(key: "2026-campaign", value: "spring");
         Assert.Same(ownCatalog, ownCatalog.Validate());
@@ -107,17 +107,17 @@ public class ModelValidationTest
     [Fact]
     public void GenerateDocumentRequestValidatesNullableFieldsIndependently()
     {
-        new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: null).Validate();
+        new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: null).Validate();
         Assert.Throws<ArgumentException>(() =>
-            new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: "").Validate());
+            new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: "").Validate());
 
-        new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), environmentKey: null).Validate();
+        new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), environmentKey: null).Validate();
         Assert.Throws<ArgumentException>(() =>
-            new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), environmentKey: "PROD").Validate());
+            new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), environmentKey: "PROD").Validate());
 
-        new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), filename: new string('x', 255)).Validate();
+        new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), filename: new string('x', 255)).Validate();
         var ex = Assert.Throws<ArgumentException>(() =>
-            new GenerateDocumentRequest(varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), filename: new string('x', 256)).Validate());
+            new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), filename: new string('x', 256)).Validate());
         Assert.Contains("filename: length must be at most 255", ex.Message);
     }
 
@@ -132,7 +132,7 @@ public class ModelValidationTest
     public void GenerateBatchRequestWithItemsPasses()
     {
         var items = Enumerable.Range(1, 5).Select(i => new BatchGenerationItem(
-            varNamespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english",
+            @namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english",
             data: new Dictionary<string, object> { ["n"] = i })).ToList();
         var request = new GenerateBatchRequest(items: items);
         Assert.Same(request, request.Validate());
@@ -142,7 +142,7 @@ public class ModelValidationTest
     [Fact]
     public void VersionAcceptsAPlainSemVerNumber()
     {
-        var release = new ReleaseCatalogDraftRequest(varVersion: "1.4.0");
+        var release = new ReleaseCatalogDraftRequest(version: "1.4.0");
         Assert.Same(release, release.Validate());
         var draft = new CreateCatalogReleaseRequest(name: "Follow-up", from: "1.4.0");
         Assert.Same(draft, draft.Validate());
@@ -157,7 +157,7 @@ public class ModelValidationTest
     [InlineData("Next")]
     public void VersionRejectsAnythingElse(string version)
     {
-        Assert.Throws<ArgumentException>(() => new ReleaseCatalogDraftRequest(varVersion: version).Validate());
+        Assert.Throws<ArgumentException>(() => new ReleaseCatalogDraftRequest(version: version).Validate());
         Assert.Throws<ArgumentException>(() => new CreateCatalogReleaseRequest(name: "Follow-up", from: version).Validate());
     }
 
@@ -172,11 +172,11 @@ public class ModelValidationTest
     [Fact]
     public void DependencyDeclarationPinsAnExactRelease()
     {
-        var pinned = new CatalogDependencyRequirement(varNamespace: "epistola", catalogKey: "system", varVersion: "1.3.0");
+        var pinned = new CatalogDependencyRequirement(@namespace: "epistola", catalogKey: "system", version: "1.3.0");
         Assert.Same(pinned, pinned.Validate());
         foreach (var release in new[] { "^1.3.0", "1.x", "*", "01.3.0", "1.3.0-rc.1" })
         {
-            var declared = new CatalogDependencyRequirement(varNamespace: "epistola", catalogKey: "system", varVersion: release);
+            var declared = new CatalogDependencyRequirement(@namespace: "epistola", catalogKey: "system", version: release);
             Assert.Throws<ArgumentException>(() => declared.Validate());
         }
     }
@@ -185,7 +185,7 @@ public class ModelValidationTest
     [Fact]
     public void DependencyDeclarationMayNameADraft()
     {
-        var onDraft = new CatalogDependencyRequirement(varNamespace: "acme-corp", catalogKey: "branding",
+        var onDraft = new CatalogDependencyRequirement(@namespace: "acme-corp", catalogKey: "branding",
             releaseId: "r4t8w2nc");
         Assert.Same(onDraft, onDraft.Validate());
     }
@@ -198,7 +198,7 @@ public class ModelValidationTest
     }
 
     private static CatalogDto CatalogWithFingerprint(string fingerprint) => new(
-        registry: "exchange.epistola.app", varNamespace: "acme-corp", catalogKey: "letters", name: "Letters",
+        registry: "exchange.epistola.app", @namespace: "acme-corp", catalogKey: "letters", name: "Letters",
         type: CatalogType.Authored, fingerprint: fingerprint);
 
     // A fingerprint names its algorithm version: v<N>:<64 lowercase hex>.

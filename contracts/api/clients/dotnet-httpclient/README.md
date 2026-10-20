@@ -220,28 +220,36 @@ var preview = catalogs.PreviewCatalogDraftRelease("my-tenant", "~", "acme-corp",
 Console.WriteLine($"{preview.Suggested} (needs {preview.Needed}): {string.Join("; ", preview.Reasons)}");
 
 // A draft is an independent copy: releases it does not contain are listed in `Behind`, and
-// releasing it must acknowledge each of them. Leave `varVersion` out to release it as suggested.
+// releasing it must acknowledge each of them. Leave `version` out to release it as suggested.
 // `releaseDependencies` releases the drafts of other catalogs its dependency declarations name
 // along with it, in one transaction.
 var current = catalogs.GetCatalogRelease("my-tenant", "~", "acme-corp", "default", id);
 var released = catalogs.ReleaseCatalogDraft("my-tenant", "~", "acme-corp", "default", id,
     new ReleaseCatalogDraftRequest(
         notes: "Spring update",
-        acknowledgedBehind: current.Behind.Select(b => b.VarVersion).ToList(),
+        acknowledgedBehind: current.Behind.Select(b => b.Version).ToList(),
         releaseDependencies: true));
 
 // Releasing never changes other drafts; the answer names those now behind it, and the releases
 // made along with it.
 foreach (var behind in released.DraftsBehind)
-    Console.WriteLine($"{behind} does not contain {released.Release.VarVersion}");
+    Console.WriteLine($"{behind} does not contain {released.Release.Version}");
 foreach (var dependency in released.ReleasedDependencies)
-    Console.WriteLine($"also released {dependency.CatalogKey} {dependency.VarVersion}");
+    Console.WriteLine($"also released {dependency.CatalogKey} {dependency.Version}");
 ```
 
-The generator names a `base` member `Base` (constructor argument `varBase`) and a `version` member
-`VarVersion` (constructor argument `varVersion`), because they collide with its reserved words. A
-draft's `VarVersion` is null, and a preview's `ChangeKind` is null when the
-draft has no base to compare with.
+A draft's `Version` is null, and a preview's `ChangeKind` is null when the draft has no base to
+compare with.
+
+Generated members take the plain PascalCase of their JSON name: `version` is `Version`, `base` is
+`Base`, `namespace` is `Namespace`. Parameters take the camelCase name; `base` and `namespace` are
+C# keywords, so those parameters are `@base` and `@namespace`, which matters only when you pass them
+by name:
+
+```csharp
+var requirement = new CatalogDependencyRequirement(@namespace: "epistola", catalogKey: "system", version: "1.3.0");
+templates.ListTemplates(tenantKey: "my-tenant", registry: "~", @namespace: "acme-corp", catalogKey: "default", release: "1.4.0");
+```
 
 ## Response headers and conditional updates
 
