@@ -1,6 +1,6 @@
 # ADR 0007: Themes per catalog — a default theme and a catalog list of presets
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-20
 - **Scope:** portable catalog contract (`contracts/catalog`: catalog manifest, theme resource, template
   model, rendering semantics) and API contract (`contracts/api`), contract 2.0
