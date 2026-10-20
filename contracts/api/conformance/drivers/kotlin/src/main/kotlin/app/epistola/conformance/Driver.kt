@@ -35,6 +35,7 @@ import app.epistola.client.model.EnvironmentDto
 import app.epistola.client.model.UpdateEnvironmentRequest
 import app.epistola.client.model.ReleaseCatalogDraftRequest
 import app.epistola.client.model.GenerateDocumentRequest
+import app.epistola.client.model.VariantSelectionAttribute
 import app.epistola.client.model.PingRequest
 import app.epistola.client.model.UpdateCatalogDependenciesRequest
 import app.epistola.client.model.UpdateCatalogDraftRequest
@@ -281,6 +282,16 @@ object Driver {
                 catalogKey = config["catalogKey"].asText(),
                 templateKey = config["templateKey"].asText(),
                 variantKey = config.optionalText("variantKey"),
+                attributes = config["attributes"]?.takeUnless { it.isNull }?.map { attribute ->
+                    VariantSelectionAttribute(
+                        key = attribute["key"].asText(),
+                        `value` = attribute["value"].asText(),
+                        registry = attribute.optionalText("registry"),
+                        namespace = attribute.optionalText("namespace"),
+                        catalogKey = attribute.optionalText("catalogKey"),
+                        required = attribute["required"]?.takeUnless { it.isNull }?.asBoolean() ?: true,
+                    )
+                },
                 data = mapper.convertValue(config["data"], Map::class.java),
                 versionRange = config.optionalText("versionRange"),
                 environmentKey = config.optionalText("environmentKey"),

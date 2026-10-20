@@ -663,6 +663,34 @@ paths:
 
 components:
   schemas:
+    # The rules for keys, ids and numbers, each defined once (see identifiers.yaml)
+    TenantKey:
+      $ref: './components/schemas/identifiers.yaml#/TenantKey'
+    Namespace:
+      $ref: './components/schemas/identifiers.yaml#/Namespace'
+    CatalogKey:
+      $ref: './components/schemas/identifiers.yaml#/CatalogKey'
+    EnvironmentKey:
+      $ref: './components/schemas/identifiers.yaml#/EnvironmentKey'
+    ConsumerId:
+      $ref: './components/schemas/identifiers.yaml#/ConsumerId'
+    ResourceKey:
+      $ref: './components/schemas/identifiers.yaml#/ResourceKey'
+    PresetKey:
+      $ref: './components/schemas/identifiers.yaml#/PresetKey'
+    Registry:
+      $ref: './components/schemas/identifiers.yaml#/Registry'
+    RegistryOrDefault:
+      $ref: './components/schemas/identifiers.yaml#/RegistryOrDefault'
+    ReleaseVersion:
+      $ref: './components/schemas/identifiers.yaml#/ReleaseVersion'
+    CatalogVersionId:
+      $ref: './components/schemas/identifiers.yaml#/CatalogVersionId'
+    CatalogVersionRef:
+      $ref: './components/schemas/identifiers.yaml#/CatalogVersionRef'
+    Fingerprint:
+      $ref: './components/schemas/identifiers.yaml#/Fingerprint'
+
     # Shared building blocks
     PageMeta:
       $ref: './components/schemas/common.yaml#/PageMeta'
@@ -792,10 +820,6 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CatalogChangesDto'
     ResourceChangeDto:
       $ref: './components/schemas/catalogs.yaml#/ResourceChangeDto'
-    ReleaseVersion:
-      $ref: './components/schemas/catalogs.yaml#/ReleaseVersion'
-    CatalogVersionId:
-      $ref: './components/schemas/catalogs.yaml#/CatalogVersionId'
     CatalogType:
       $ref: './components/schemas/catalogs.yaml#/CatalogType'
     CatalogVersionStatus:

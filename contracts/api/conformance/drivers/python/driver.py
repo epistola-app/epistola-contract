@@ -55,6 +55,7 @@ from epistola_client import (
     UpdateStencilContentRequest,
     UpdateTenantRequest,
     UpdateVariantContentRequest,
+    VariantSelectionAttribute,
     VariantsApi,
 )
 
@@ -284,6 +285,19 @@ def _generate_document(base_url: str, config: dict) -> None:
         )
         if name in config
     }
+    if config.get("attributes") is not None:
+        optional["attributes"] = [
+            VariantSelectionAttribute(
+                key=attribute["key"],
+                value=attribute["value"],
+                **{
+                    name: attribute[name]
+                    for name in ("registry", "namespace", "catalogKey", "required")
+                    if name in attribute
+                },
+            )
+            for attribute in config["attributes"]
+        ]
     response = GenerationApi(_client(base_url, config)).generate_document_with_http_info(
         config["tenantKey"],
         GenerateDocumentRequest(

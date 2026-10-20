@@ -9,18 +9,12 @@ EnvironmentDto:
     - createdAt
   properties:
     key:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
+      $ref: './identifiers.yaml#/EnvironmentKey'
       description: |
         Key of the environment
       example: production
     tenantKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/TenantKey'
       description: Key of the tenant this environment belongs to
       example: acme-corp
     name:
@@ -53,10 +47,7 @@ CreateEnvironmentRequest:
     - name
   properties:
     key:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
+      $ref: './identifiers.yaml#/EnvironmentKey'
       description: Key of the environment (e.g., production, staging, development)
       example: production
     name:
@@ -141,38 +132,30 @@ DeploymentDto:
     - documentsRequested
   properties:
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the catalog: the exchange or domain its namespace lives in. Always written in
         full, the default registry by its name, never `~`.
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog, within its registry
       example: acme-corp
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog, unique within its registry and namespace
       example: letters
     versionId:
-      $ref: './catalogs.yaml#/CatalogVersionId'
+      $ref: './identifiers.yaml#/CatalogVersionId'
       description: |
         The version the environment serves, by its `versionId`. A draft keeps it when it is
         released, so a deployed draft that is released is a deployment of that release.
     kind:
       $ref: '#/DeploymentKind'
     releaseVersion:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: The release the environment serves. Null for a draft.
       example: "1.4.0"
     draftName:
@@ -228,29 +211,21 @@ MissingReleaseDependency:
     - reason
   properties:
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the catalog depended on. Always written in full, the default registry by its
         name, never `~`.
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog depended on, within its registry
       example: epistola
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog depended on, unique within its registry and namespace
       example: system
     releaseVersion:
-      $ref: './catalogs.yaml#/ReleaseVersion'
+      $ref: './identifiers.yaml#/ReleaseVersion'
       description: The release of the catalog depended on that the deployed version renders with
     reason:
       $ref: '#/MissingReleaseDependencyReason'
@@ -291,25 +266,17 @@ DeploymentEventDto:
     - changedAt
   properties:
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the catalog: the exchange or domain its namespace lives in. Always written in
         full, the default registry by its name, never `~`.
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog, within its registry
       example: acme-corp
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog, unique within its registry and namespace
       example: letters
     action:
@@ -327,7 +294,7 @@ DeploymentEventDto:
         - released
       example: deployed
     versionId:
-      $ref: './catalogs.yaml#/CatalogVersionId'
+      $ref: './identifiers.yaml#/CatalogVersionId'
       description: The version deployed, undeployed or released, by its `versionId`
     kind:
       $ref: '#/DeploymentKind'
@@ -335,9 +302,9 @@ DeploymentEventDto:
         What the version was after the change: `draft` for a draft deployed or undeployed,
         `release` for a release, and for a draft that was `released`.
     releaseVersion:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: |
         The release deployed or undeployed, or the release a deployed draft became. Null for a
         draft deployed or undeployed.

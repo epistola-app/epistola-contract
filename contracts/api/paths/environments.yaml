@@ -5,10 +5,7 @@ environments:
       required: true
       description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
 
   get:
     operationId: listEnvironments
@@ -82,19 +79,13 @@ environments-id:
       required: true
       description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - name: environmentKey
       in: path
       required: true
       description: Key of the environment (e.g., "production", "staging")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 30
+        $ref: '../components/schemas/identifiers.yaml#/EnvironmentKey'
 
   get:
     operationId: getEnvironment
@@ -190,19 +181,13 @@ environment-deployments:
       required: true
       description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - name: environmentKey
       in: path
       required: true
       description: Key of the environment
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 30
+        $ref: '../components/schemas/identifiers.yaml#/EnvironmentKey'
 
   get:
     operationId: listEnvironmentDeployments
@@ -236,19 +221,13 @@ environment-deployment-version:
       required: true
       description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - name: environmentKey
       in: path
       required: true
       description: Key of the environment
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 30
+        $ref: '../components/schemas/identifiers.yaml#/EnvironmentKey'
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
@@ -384,19 +363,13 @@ environment-deployment-history:
       required: true
       description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - name: environmentKey
       in: path
       required: true
       description: Key of the environment
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 30
+        $ref: '../components/schemas/identifiers.yaml#/EnvironmentKey'
 
   get:
     operationId: listDeploymentHistory

@@ -13,25 +13,17 @@ ImportCatalogResponse:
     - total
   properties:
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the catalog: the exchange or domain its namespace lives in. Always written in
         full, the default registry by its name, never `~`.
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog, within its registry
       example: acme-corp
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the imported catalog, unique within its registry and namespace
       example: valtimo-demo
     catalogName:
@@ -39,7 +31,7 @@ ImportCatalogResponse:
       description: Display name of the imported catalog
       example: Valtimo Demo Catalog
     releaseVersion:
-      $ref: './catalogs.yaml#/ReleaseVersion'
+      $ref: './identifiers.yaml#/ReleaseVersion'
       description: The release the archive carries, which the tenant now has.
     newlyInstalled:
       type: boolean

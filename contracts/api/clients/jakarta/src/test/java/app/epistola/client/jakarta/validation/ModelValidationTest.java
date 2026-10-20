@@ -25,6 +25,7 @@ import app.epistola.client.jakarta.model.UpdateCatalogDraftRequest;
 import app.epistola.client.jakarta.model.UpdateTenantRequest;
 import app.epistola.client.jakarta.model.ResourceStatus;
 import app.epistola.client.jakarta.model.VariantContentDto;
+import app.epistola.client.jakarta.model.VariantSelectionAttribute;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,19 @@ import org.junit.jupiter.api.Test;
  * actually builds.
  */
 class ModelValidationTest {
+
+    // --- An attribute criterion: a resource key, its catalog in members of its own ---
+
+    @Test
+    void an_attribute_criterion_names_its_attribute_by_resource_key_never_dotted() {
+        VariantSelectionAttribute qualified = new VariantSelectionAttribute()
+                .key("locale").value("nl-NL").catalogKey("system").namespace("epistola");
+        assertSame(qualified, ModelValidation.validate(qualified));
+        VariantSelectionAttribute ownCatalog = new VariantSelectionAttribute().key("2026-campaign").value("spring");
+        assertSame(ownCatalog, ModelValidation.validate(ownCatalog));
+        assertThrows(IllegalArgumentException.class,
+                () -> ModelValidation.validate(new VariantSelectionAttribute().key("system.locale").value("nl-NL")));
+    }
 
     // --- Slug pattern ---
 

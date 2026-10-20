@@ -5,10 +5,7 @@ import-catalog:
       required: true
       description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
 
   post:
     operationId: importCatalog
@@ -87,18 +84,13 @@ import-catalog:
                 format: binary
                 description: The catalog ZIP archive, possibly carrying the releases it pins
               registry:
-                type: string
-                pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-                maxLength: 253
+                $ref: '../components/schemas/identifiers.yaml#/Registry'
                 description: |
                   Registry of the catalog to install the release in. Omitted: the registry the
                   archive names. An archive from before catalog wire version 8 names none, and the
                   server then uses the default registry.
               namespace:
-                type: string
-                pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-                minLength: 3
-                maxLength: 63
+                $ref: '../components/schemas/identifiers.yaml#/Namespace'
                 description: |
                   Namespace, within the registry, of the catalog to install the release in.
                   Omitted: the namespace the archive names. An archive from before catalog wire

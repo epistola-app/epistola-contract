@@ -7,10 +7,7 @@ consumer-register:
       required: true
       description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
 
   post:
     operationId: registerConsumer
@@ -66,10 +63,7 @@ consumer-collection:
       required: true
       description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
 
   get:
     operationId: listConsumers
@@ -118,19 +112,13 @@ consumer-resource:
       required: true
       description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - name: consumerId
       in: path
       required: true
       description: Unique slug identifier of the consumer
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/ConsumerId'
 
   get:
     operationId: getConsumer
@@ -239,19 +227,13 @@ consumer-approve:
       required: true
       description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - name: consumerId
       in: path
       required: true
       description: Unique slug identifier of the consumer to approve
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/ConsumerId'
 
   post:
     operationId: approveConsumer
@@ -295,19 +277,13 @@ consumer-reject:
       required: true
       description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - name: consumerId
       in: path
       required: true
       description: Unique slug identifier of the consumer to reject
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/ConsumerId'
 
   post:
     operationId: rejectConsumer
@@ -350,19 +326,13 @@ consumer-public-key:
       required: true
       description: Unique key of the tenant
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - name: consumerId
       in: path
       required: true
       description: Unique slug identifier of the consumer
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/ConsumerId'
 
   put:
     operationId: rotatePublicKey

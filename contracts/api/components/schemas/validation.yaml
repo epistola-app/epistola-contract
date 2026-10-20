@@ -11,10 +11,9 @@ ValidateTemplateDataRequest:
     - data
   properties:
     variantKey:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ResourceKey'
+        - type: 'null'
       description: Key of the variant to check against. If omitted, the default variant of the template in the resolved release is used.
       example: null
     versionRange:
@@ -26,10 +25,9 @@ ValidateTemplateDataRequest:
         ranges" in the API description). Combines with `environmentKey`.
       example: null
     environmentKey:
-      type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
+      oneOf:
+        - $ref: './identifiers.yaml#/EnvironmentKey'
+        - type: 'null'
       description: Key of an environment; only the releases it serves are considered.
       example: null
     data:

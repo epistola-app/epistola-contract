@@ -128,6 +128,19 @@ def _string_alias(schemas: dict[str, Any], ref: Any) -> dict[str, Any] | None:
     return None
 
 
+def _nullable_string_alias(schemas: dict[str, Any], declared: dict[str, Any]) -> dict[str, Any] | None:
+    """The string schema a nullable use of a named rule references,
+    ``oneOf: [{$ref: Rule}, {type: 'null'}]`` (the generator renders it as ``Optional[str]``);
+    ``None`` for anything else."""
+    branches = declared.get("oneOf", declared.get("anyOf"))
+    if not isinstance(branches, list) or len(branches) != 2 or not all(isinstance(b, dict) for b in branches):
+        return None
+    if not any(b.get("type") == "null" and len(b) == 1 for b in branches):
+        return None
+    ref = next((b["$ref"] for b in branches if "$ref" in b), None)
+    return _string_alias(schemas, ref)
+
+
 def _model_has_constraints(schema: dict[str, Any], schemas: dict[str, Any]) -> bool:
     if schema.get("type") != "object":
         return False
@@ -143,6 +156,8 @@ def _model_has_constraints(schema: dict[str, Any], schemas: dict[str, Any]) -> b
             prop = _string_alias(schemas, prop["$ref"])
             if prop is None:
                 continue
+        elif (alias := _nullable_string_alias(schemas, prop)) is not None:
+            prop = alias
         base_type, _ = _resolve_type(prop)
         if base_type == "string" and any(k in prop for k in ("pattern", "minLength", "maxLength")):
             return True

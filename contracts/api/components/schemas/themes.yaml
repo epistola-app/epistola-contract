@@ -10,18 +10,12 @@ ThemeDto:
     - lastModified
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
         Key of the theme (e.g., "corporate")
       example: corporate
     tenantKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/TenantKey'
       description: Key of the tenant this theme belongs to
       example: acme-corp
     name:
@@ -124,10 +118,7 @@ CreateThemeRequest:
     - name
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Client-chosen key for the theme
       example: corporate
     name:

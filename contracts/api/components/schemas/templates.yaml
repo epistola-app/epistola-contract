@@ -10,18 +10,12 @@ TemplateDto:
     - lastModified
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
         Key of the template (e.g., "monthly-invoice")
       example: invoice
     tenantKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/TenantKey'
       description: Key of the tenant this template belongs to
       example: acme-corp
     name:
@@ -378,18 +372,12 @@ TemplateSummaryDto:
     - lastModified
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
         Key of the template (e.g., "monthly-invoice")
       example: invoice
     tenantKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/TenantKey'
       description: Key of the tenant this template belongs to
       example: acme-corp
     name:
@@ -429,13 +417,10 @@ DataExampleDto:
     - data
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
-        Key of the data example, unique within its template. The same rule as a resource key in the
-        catalog archive, where the example carries it as `dataExamples[].key`.
+        Key of the data example, unique within its template. The catalog archive carries it as
+        `dataExamples[].key`.
       example: standard-invoice
     name:
       type: string
@@ -512,10 +497,7 @@ CreateTemplateRequest:
     - name
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Client-chosen key for the template
       example: invoice
     name:

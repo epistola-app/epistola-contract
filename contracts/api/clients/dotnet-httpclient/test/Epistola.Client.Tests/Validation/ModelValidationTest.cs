@@ -17,6 +17,16 @@ namespace Epistola.Client.Tests.Validation;
 /// </summary>
 public class ModelValidationTest
 {
+    [Fact]
+    public void AnAttributeCriterionNamesItsAttributeByResourceKeyNeverDotted()
+    {
+        var qualified = new VariantSelectionAttribute(key: "locale", value: "nl-NL", catalogKey: "system", varNamespace: "epistola");
+        Assert.Same(qualified, qualified.Validate());
+        var ownCatalog = new VariantSelectionAttribute(key: "2026-campaign", value: "spring");
+        Assert.Same(ownCatalog, ownCatalog.Validate());
+        Assert.Throws<ArgumentException>(() => new VariantSelectionAttribute(key: "system.locale", value: "nl-NL").Validate());
+    }
+
     [Theory]
     [InlineData("abc")]
     [InlineData("a1b")]

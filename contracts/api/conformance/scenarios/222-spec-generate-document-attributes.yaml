@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: spec-generate-document-attributes
+title: A generation request selects its variant by attribute criteria, one qualified by its catalog
+why: >
+  An attribute criterion names its attribute one way: `key` is the attribute's resource key, and
+  `catalogKey`, `namespace` and `registry` name the catalog that defines it, each omitted one being
+  the template's catalog's own. The contract used to accept a dotted `<catalogKey>.<key>` too, and a
+  bare key looked up tenant-wide; both are gone, and `key` now has the resource key rule, so a client
+  that checks patterns refuses a dotted key before sending it.
+
+  Prism holds the request to the spec, and the body check holds each client to sending every
+  criterion as given: the qualified one with its catalog, the bare one without, and `required: false`
+  where the scenario sets it. A client that drops a qualifier or rewrites the list fails here.
+
+backend: prism
+
+action:
+  name: generate-document
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    templateKey: invoice
+    attributes:
+      - registry: exchange.epistola.app
+        namespace: epistola
+        catalogKey: system
+        key: locale
+        value: nl-NL
+      - key: brand
+        value: acme
+        required: false
+    data:
+      customerName: Acme B.V.
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/documents/generate
+      body:
+        json:
+          templateKey: invoice
+          attributes:
+            - registry: exchange.epistola.app
+              namespace: epistola
+              catalogKey: system
+              key: locale
+              value: nl-NL
+            - key: brand
+              value: acme
+              required: false

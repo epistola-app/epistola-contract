@@ -86,53 +86,40 @@ GenerationResult:
       description: Routing key used for partition assignment
       example: order-7890
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the template's catalog, written in full (the default registry by its name, never
         `~`)
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the template's catalog, within its registry
       example: acme-corp
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the template's catalog, unique within its registry and namespace
       example: letters
     templateKey:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Template used for generation
       example: invoice
     variantKey:
-      type: ['string', 'null']
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ResourceKey'
+        - type: 'null'
       description: Key of the variant used for generation
       example: english
     releaseVersion:
-      type: ['string', 'null']
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: |
         Release of the template's catalog used for generation. Null when a draft was rendered.
       example: "1.4.0"
     versionId:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 4
-      maxLength: 36
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogVersionId'
+        - type: 'null'
       description: |
         The id of the catalog version rendered (`CatalogVersionId`), always given from 2.0 on:
         a release's, which it keeps from the draft it was released from, or a draft's, when an

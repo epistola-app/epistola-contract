@@ -234,6 +234,8 @@ async function generateDocument(baseUrl, config) {
   if (config.variantKey !== undefined) request.variantKey = config.variantKey
   if (config.versionRange !== undefined) request.versionRange = config.versionRange
   if (config.environmentKey !== undefined) request.environmentKey = config.environmentKey
+  // Attribute criteria pass through as the scenario writes them: each member it leaves out stays out.
+  if (config.attributes !== undefined) request.attributes = config.attributes
   const response = await new GenerationApi(client(baseUrl, config)).generateDocumentRaw({
     tenantKey: config.tenantKey,
     generateDocumentRequest: request,
