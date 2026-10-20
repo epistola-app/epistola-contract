@@ -126,8 +126,7 @@ GenerationResult:
       pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: |
-        Release of the template's catalog used for generation. Null when a draft was rendered
-        (`versionId`).
+        Release of the template's catalog used for generation. Null when a draft was rendered.
       example: "1.4.0"
     versionId:
       type: [string, "null"]
@@ -135,9 +134,11 @@ GenerationResult:
       minLength: 4
       maxLength: 36
       description: |
-        The `versionId` of the draft rendered, live, through an environment it is deployed
-        to (`deployCatalogVersion`); `releaseVersion` is then null. Null when rendered from a release.
-      example: null
+        The id of the catalog version rendered (`CatalogVersionId`), always given from 2.0 on:
+        a release's, which it keeps from the draft it was released from, or a draft's, when an
+        environment renders one live (`deployCatalogVersion`; `releaseVersion` is then null).
+        Null only for one made before 2.0, which no catalog version made.
+      example: k3x9q2ab
     draftLabel:
       type: [string, "null"]
       maxLength: 100

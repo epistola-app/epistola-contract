@@ -223,6 +223,11 @@ libraries.
 
 ### Changed
 
+- **A document, a job item and a collected result always name their catalog version.**
+  `versionId` (`DocumentDto`, `DocumentGenerationItemDto`, `GenerationResult`) is the id of the
+  catalog version rendered, a release's as well as a draft's, rather than a draft's only; it is null
+  only for a document made before 2.0. `releaseVersion` stays null for a draft.
+
 - **BREAKING: every API enum value is lowercase, kebab-case when it has several words.** Generation
   job and item `status` (`pending`, `in-progress`, `completed`, `failed`, `cancelled`, and the
   `listGenerationJobs` `status` filter), `jobType` (`single`, `batch`), `GenerationResult.status`

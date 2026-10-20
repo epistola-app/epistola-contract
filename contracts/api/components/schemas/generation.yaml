@@ -582,7 +582,7 @@ DocumentGenerationItemDto:
       maxLength: 50
       description: |
         Release of the template's catalog this item renders, bound when the request was accepted.
-        Null when it renders a draft (`versionId`).
+        Null when it renders a draft.
       example: "1.4.0"
     versionId:
       type: [string, "null"]
@@ -590,9 +590,11 @@ DocumentGenerationItemDto:
       minLength: 4
       maxLength: 36
       description: |
-        The `versionId` of the draft this item renders, live, through an environment it is
-        deployed to (`deployCatalogVersion`); `releaseVersion` is then null. Null when rendered from a release.
-      example: null
+        The id of the catalog version rendered (`CatalogVersionId`), always given from 2.0 on:
+        a release's, which it keeps from the draft it was released from, or a draft's, when an
+        environment renders one live (`deployCatalogVersion`; `releaseVersion` is then null).
+        Null only for one made before 2.0, which no catalog version made.
+      example: k3x9q2ab
     draftLabel:
       type: [string, "null"]
       maxLength: 100
@@ -966,7 +968,7 @@ DocumentDto:
       maxLength: 50
       description: |
         Release of the template's catalog this document was generated from. Null when it was
-        rendered from a draft (`versionId`).
+        rendered from a draft.
       example: "1.4.0"
     versionId:
       type: [string, "null"]
@@ -974,9 +976,11 @@ DocumentDto:
       minLength: 4
       maxLength: 36
       description: |
-        The `versionId` of the draft this document was rendered from, live, through an environment
-        it is deployed to (`deployCatalogVersion`); `releaseVersion` is then null. Null when rendered from a release.
-      example: null
+        The id of the catalog version rendered (`CatalogVersionId`), always given from 2.0 on:
+        a release's, which it keeps from the draft it was released from, or a draft's, when an
+        environment renders one live (`deployCatalogVersion`; `releaseVersion` is then null).
+        Null only for one made before 2.0, which no catalog version made.
+      example: k3x9q2ab
     draftLabel:
       type: [string, "null"]
       maxLength: 100
