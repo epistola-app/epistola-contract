@@ -18,7 +18,7 @@ fonts:
     summary: List font families in a catalog
     description: |
       Retrieve all font families in the given tenant + catalog, each with the
-      weight/italic faces it ships. Families from a SUBSCRIBED catalog (e.g.
+      weight/italic faces it ships. Families from a subscribed catalog (e.g.
       the bundled `system` catalog) are flagged `readOnly: true`.
 
       Read-only: font families and their binaries are managed through the UI

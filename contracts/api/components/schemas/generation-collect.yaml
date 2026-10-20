@@ -43,6 +43,9 @@ GenerationResult:
     - sequence
     - requestId
     - status
+    - registry
+    - namespace
+    - catalogKey
     - templateKey
     - completedAt
   properties:
@@ -66,13 +69,13 @@ GenerationResult:
       example: null
     status:
       type: string
-      enum: [COMPLETED, FAILED]
+      enum: [completed, failed]
       description: Terminal status of the generation request
-      example: COMPLETED
+      example: completed
     documentId:
       type: ['string', 'null']
       format: uuid
-      description: ID of the generated document. Present when status is COMPLETED.
+      description: ID of the generated document. Present when status is completed.
       example: "770e8400-e29b-41d4-a716-446655440002"
     correlationId:
       type: ['string', 'null']
@@ -83,28 +86,26 @@ GenerationResult:
       description: Routing key used for partition assignment
       example: order-7890
     registry:
-      type: [string, "null"]
+      type: string
       pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
       maxLength: 253
       description: |
         Registry of the template's catalog, written in full (the default registry by its name, never
-        `~`). Null for a result accepted before contract 2.0.
+        `~`)
       example: exchange.epistola.app
     namespace:
-      type: [string, "null"]
+      type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
-      description: |
-        Namespace of the template's catalog, within its registry. Null for a result accepted before
-        contract 2.0.
+      description: Namespace of the template's catalog, within its registry
       example: acme-corp
     catalogKey:
-      type: [string, "null"]
+      type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Key of the template's catalog, unique within its registry and namespace. Null for a result accepted before contract 2.0
+      description: Key of the template's catalog, unique within its registry and namespace
       example: letters
     templateKey:
       type: string
@@ -125,8 +126,7 @@ GenerationResult:
       pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: |
-        Release of the template's catalog used for generation. Null for a result accepted before
-        contract 2.0, which rendered a template version, and for one rendered from a draft
+        Release of the template's catalog used for generation. Null when a draft was rendered
         (`versionId`).
       example: "1.4.0"
     versionId:
@@ -159,7 +159,7 @@ GenerationResult:
       example: 184320
     error:
       type: ['string', 'null']
-      description: Error message. Present when status is FAILED.
+      description: Error message. Present when status is failed.
       example: null
     completedAt:
       type: string
@@ -178,7 +178,7 @@ CollectMeta:
   required:
     - _meta
     - hasMore
-    - count
+    - resultCount
     - lastSequence
     - partitions
   properties:
@@ -190,9 +190,11 @@ CollectMeta:
       description: |
         true = more results are available, poll again immediately.
         false = all results collected, wait before next poll.
-    count:
+    resultCount:
       type: integer
-      description: Number of result lines in this response (excluding this meta line).
+      description: |
+        Number of result lines in this response, excluding this meta line: the size of this batch,
+        not a total of anything outstanding.
     lastSequence:
       type: integer
       format: int64

@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: update-environment-if-match
+title: Renaming an environment sends the ETag it read as If-Match, and reads the new one back
+why: >
+  An environment carries a revision covering its name and its production mark, which
+  `getEnvironment` and `updateEnvironment` return as a strong `ETag`. Marking an environment
+  production while someone else renames it is two edits to one record: sent as `If-Match`, the
+  tag makes the second refuse rather than silently undo the first. The client must send it byte for
+  byte, quotes included, and expose the new `ETag` from the response, which the next update needs.
+
+action:
+  name: update-environment
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    environmentKey: staging
+    name: Acceptance
+    ifMatch: '"2"'
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      ETag: '"3"'
+    body:
+      key: staging
+      tenantKey: acme-corp
+      name: Acceptance
+      production: false
+      createdAt: "2026-10-01T09:00:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PATCH
+      path: /api/tenants/acme-corp/environments/staging
+      headers:
+        if-match: '"2"'
+      body:
+        json:
+          name: Acceptance
+        jsonAbsent: [production]
+  report:
+    key: staging
+    name: Acceptance
+    production: 'false'
+    etag: '"3"'

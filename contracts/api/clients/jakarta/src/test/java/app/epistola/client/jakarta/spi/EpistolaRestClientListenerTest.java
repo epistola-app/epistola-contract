@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test;
  */
 class EpistolaRestClientListenerTest {
 
-    private static final String PONG = "{\"status\":\"UP\",\"timestamp\":\"2026-09-02T10:00:00Z\"}";
+    private static final String PONG = "{\"status\":\"up\",\"timestamp\":\"2026-09-02T10:00:00Z\"}";
 
     @Test
     void configured_identity_and_authentication_reach_an_injected_style_client() {

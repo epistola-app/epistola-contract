@@ -9,7 +9,7 @@ PageMeta:
   required:
     - number
     - size
-    - totalElements
+    - total
     - totalPages
   properties:
     number:
@@ -20,7 +20,7 @@ PageMeta:
       type: integer
       description: Number of items per page
       example: 20
-    totalElements:
+    total:
       type: integer
       format: int64
       description: Total number of elements across all pages

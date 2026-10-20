@@ -182,14 +182,14 @@ def test_parses_release_dependencies_missing_problem_in_order():
                 "namespace": "epistola",
                 "catalogKey": "system",
                 "releaseVersion": "3.2.0",
-                "reason": "UNAVAILABLE",
+                "reason": "unavailable",
             },
             {
                 "registry": "registry.gemeente-x.nl",
                 "namespace": "huisstijl",
                 "catalogKey": "branding",
                 "releaseVersion": "1.4.2",
-                "reason": "UNAVAILABLE",
+                "reason": "unavailable",
             },
         ]
     )
@@ -198,9 +198,9 @@ def test_parses_release_dependencies_missing_problem_in_order():
     assert exc.type_slug == KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING
     assert exc.is_release_dependencies_missing_problem
     assert exc.missing_dependencies == [
-        MissingDependency("exchange.epistola.app", "epistola", "system", "3.2.0", "UNAVAILABLE"),
+        MissingDependency("exchange.epistola.app", "epistola", "system", "3.2.0", "unavailable"),
         MissingDependency(
-            "registry.gemeente-x.nl", "huisstijl", "branding", "1.4.2", "UNAVAILABLE"
+            "registry.gemeente-x.nl", "huisstijl", "branding", "1.4.2", "unavailable"
         ),
     ]
     assert exc.missing_dependencies[0].catalog_key == "system"
@@ -217,13 +217,13 @@ def test_an_unknown_missing_dependency_reason_is_kept_as_sent():
                 "namespace": "epistola",
                 "catalogKey": "system",
                 "releaseVersion": "3.2.0",
-                "reason": "QUARANTINED",
+                "reason": "quarantined",
             }
         ]
     )
     exc = parse_problem(body, 409)
     assert exc is not None
-    assert [d.reason for d in exc.missing_dependencies] == ["QUARANTINED"]
+    assert [d.reason for d in exc.missing_dependencies] == ["quarantined"]
 
 
 def test_a_release_dependencies_problem_without_the_member_lists_nothing():
@@ -258,7 +258,7 @@ def test_a_malformed_missing_dependencies_member_yields_nothing_rather_than_a_gu
                     "namespace": "epistola",
                     "catalogKey": "system",
                     "releaseVersion": "3.2.0",
-                    "reason": "UNAVAILABLE",
+                    "reason": "unavailable",
                 },
                 {"registry": "exchange.epistola.app", "catalogKey": 42},
             ]

@@ -63,6 +63,10 @@ themes:
     responses:
       '201':
         description: Theme created successfully
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The theme's address (`getTheme`)
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -174,7 +178,7 @@ themes-id:
     description: |
       Delete the theme from the draft. Refused with 409 in a released version, and while anything
       in the draft still uses it: a template or variant that names it, or the version's default
-      theme (`defaultTheme`, ADR 0007). A render never falls back to other styles because a theme
+      theme (`defaultTheme`). A render never falls back to other styles because a theme
       it names is missing; change those references first.
     tags:
       - Themes

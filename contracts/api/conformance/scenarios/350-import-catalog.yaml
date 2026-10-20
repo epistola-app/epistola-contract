@@ -27,7 +27,7 @@ action:
     auth: api-key
     apiKey: epk_conformance_0123456789
     tenantKey: acme-corp
-    catalogType: SUBSCRIBED
+    catalogType: subscribed
     filename: letters-1.2.0.zip
     fileContentType: application/zip
     # an empty ZIP: the end-of-central-directory record alone
@@ -63,7 +63,7 @@ expect:
             byteLength: 22
             sha256: 8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85
           catalogType:
-            value: SUBSCRIBED
+            value: subscribed
           registry:
             absent: true
           namespace:

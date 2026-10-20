@@ -43,7 +43,7 @@ script:
           problems:
             - fills placeholder logo, which the stencil no longer has
             - leaves the required parameter recipientName unbound
-      page: { number: 1, size: 2, totalElements: 4, totalPages: 2 }
+      page: { number: 1, size: 2, total: 4, totalPages: 2 }
 
 expect:
   requestCount: 1
@@ -65,4 +65,4 @@ expect:
     # Each entry's problems joined with `|`, the entries with `;`: the first has none.
     problems: ";fills placeholder logo, which the stencil no longer has|leaves the required parameter recipientName unbound"
     pageNumber: "1"
-    totalElements: "4"
+    total: "4"

@@ -56,6 +56,10 @@ environments:
     responses:
       '201':
         description: Environment created successfully
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The environment's address (`getEnvironment`)
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -102,6 +106,9 @@ environments-id:
     responses:
       '200':
         description: Environment details
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -121,9 +128,13 @@ environments-id:
       production while it serves a draft of any catalog is refused with 409
       (`environment-deployment-refused`): a production environment serves only releases. Undeploy
       the draft first.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - Environments
     x-required-permissions: [TENANT_SETTINGS]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
       required: true
       content:
@@ -133,6 +144,9 @@ environments-id:
     responses:
       '200':
         description: Environment updated successfully
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -147,6 +161,8 @@ environments-id:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
         $ref: '../components/responses/problem-responses.yaml#/EnvironmentDeploymentRefusedError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
 
   delete:
     operationId: deleteEnvironment
@@ -278,7 +294,7 @@ environment-deployment-version:
       serves changes. A declaration in a draft that names a draft of another catalog renders that
       draft live. A dependency release the tenant does not have yet is installed first: fetched
       from its registry, through the registry's configured mirrors, and checked against the
-      fingerprint it was recorded with. When one cannot be had (`UNAVAILABLE`), the deployment is
+      fingerprint it was recorded with. When one cannot be had (`unavailable`), the deployment is
       refused with `release-dependencies-missing` (409), whose `missingDependencies` lists those.
       Nothing is deployed.
 
@@ -290,9 +306,6 @@ environment-deployment-version:
       deployed draft included, in the same transaction: each is undeployed, and logged as undeployed
       in the deployment history, just as `undeployCatalogVersion` would. Without it, a release is
       added beside the others.
-
-      Epistola Suite may not implement deploying a draft, or installing missing dependency releases,
-      yet.
     tags:
       - Environments
     x-required-permissions: [ENVIRONMENT_DEPLOY]

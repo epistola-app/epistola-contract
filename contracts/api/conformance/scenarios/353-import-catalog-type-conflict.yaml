@@ -8,7 +8,7 @@ why: >
   A catalog's type is chosen by the import that creates it, and an import never changes it
   (contract 2.0). For a catalog the tenant has, `catalogType` may be left out or repeated; naming
   the other type is refused with 409 `conflict`, and nothing is installed. Here the tenant
-  subscribes to `letters` and the import names it AUTHORED: had the server accepted it, an
+  subscribes to `letters` and the import names it authored: had the server accepted it, an
   installation could start drafts of a catalog someone else publishes.
 
   `catalogType` is set here, so it must be sent as given. The client must surface the refusal as a
@@ -22,7 +22,7 @@ action:
     auth: api-key
     apiKey: epk_conformance_0123456789
     tenantKey: acme-corp
-    catalogType: AUTHORED
+    catalogType: authored
     filename: letters-1.3.0.zip
     fileContentType: application/zip
     fileBase64: UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA==
@@ -35,7 +35,7 @@ script:
       title: Conflict
       status: 409
       detail: >-
-        exchange.epistola.app/acme-corp/letters is SUBSCRIBED; an import does not change a
+        exchange.epistola.app/acme-corp/letters is subscribed; an import does not change a
         catalog's type
 
 expect:
@@ -49,7 +49,7 @@ expect:
             filename: letters-1.3.0.zip
             byteLength: 22
           catalogType:
-            value: AUTHORED
+            value: authored
           registry:
             absent: true
           namespace:

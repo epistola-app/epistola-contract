@@ -108,7 +108,7 @@ class ProblemDetailErrorHandlerTest {
              "title":"Release dependencies missing","status":409,
              "missingDependencies":[
                {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system",
-                "releaseVersion":"3.2.0","reason":"UNAVAILABLE"},
+                "releaseVersion":"3.2.0","reason":"unavailable"},
                {"registry":"registry.gemeente-x.nl","namespace":"huisstijl","catalogKey":"branding",
                 "releaseVersion":"1.4.2","reason":"SOME_FUTURE_REASON"}]}
         """.trimIndent()
@@ -147,15 +147,15 @@ class ProblemDetailErrorHandlerTest {
              "missingDependencies":[
                "not an object",
                {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system","releaseVersion":"3.2.0"},
-               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system","releaseVersion":3,"reason":"UNAVAILABLE"},
+               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system","releaseVersion":3,"reason":"unavailable"},
                {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system",
-                "releaseVersion":"3.2.0","reason":"UNAVAILABLE"}]}
+                "releaseVersion":"3.2.0","reason":"unavailable"}]}
         """.trimIndent()
 
         val ex = assertFailsWith<ProblemDetailException> {
             handleErrorResponse(response(HttpStatus.CONFLICT, body))
         }
-        assertEquals(listOf("UNAVAILABLE"), ex.missingDependencies.map { it.reason })
+        assertEquals(listOf("unavailable"), ex.missingDependencies.map { it.reason })
 
         val notAnArray = """
             {"type":"https://epistola.app/errors/release-dependencies-missing",

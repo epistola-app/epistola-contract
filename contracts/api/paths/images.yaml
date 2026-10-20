@@ -17,7 +17,7 @@ images:
     operationId: listImages
     summary: List images in a catalog
     description: |
-      List the images in a catalog, as metadata. Images from a SUBSCRIBED catalog are flagged
+      List the images in a catalog, as metadata. Images from a subscribed catalog are flagged
       `readOnly: true`.
 
       Only images are listed. The binaries behind font faces are not images; the Fonts API
@@ -54,8 +54,8 @@ images:
     operationId: uploadImage
     summary: Upload an image
     description: |
-      Upload an image into an AUTHORED catalog. The contract sets no size limit; a server may set
-      one (Epistola Suite may limit image content to 5 MiB), and refuses content over it with 400.
+      Upload an image into an authored catalog. The contract sets no size limit; a server may set
+      one, and refuses content over it with 400.
       Supported image types are deployment-configured; common ones are `image/png`, `image/jpeg`,
       `image/svg+xml`, and `image/webp`. Content whose media type is not a supported image type is
       rejected with 400.
@@ -92,6 +92,10 @@ images:
     responses:
       '201':
         description: Image uploaded.
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: "The image's address, `…/images/{imageKey}`; its bytes are at `…/content` (`downloadImageContent`)"
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -200,7 +204,7 @@ image-resource:
     operationId: deleteImage
     summary: Delete an image
     description: |
-      Delete an image from an AUTHORED catalog. Returns 409 when the image is still referenced
+      Delete an image from an authored catalog. Returns 409 when the image is still referenced
       by templates unless `force=true` is supplied. Returns 404 when the catalog has no image
       with this key, including when the key belongs to a font binary.
     tags:

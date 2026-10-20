@@ -2,220 +2,258 @@ openapi: 3.1.0
 info:
   title: Epistola API
   description: |
-    Document template management API for Epistola Suite.
+    Epistola generates documents, PDFs, from templates. Authors design the templates; applications
+    send data and get documents back. This API manages templates and the catalogs that hold them, and
+    generates documents from them, asynchronously and at volume.
 
-    ## Versioning
-    This API uses header-based versioning: the media type carries the API's major version.
-    Contract 2.x uses `application/vnd.epistola.v2+json` (and `application/vnd.epistola.v2+ndjson`
-    for the result-collection stream), in `Accept` and in `Content-Type`. A 2.x server refuses a
-    request that asks for or sends a 1.x media type (`vnd.epistola.v1`) with
-    `406 Not Acceptable` or `415 Unsupported Media Type`, so a 1.x client fails loudly instead of
-    being served a body it would misread, or having fields it sends ignored.
+    ## Glossary
+
+    - **Tenant**: an organisation, isolated from every other. Everything else lives in one, under
+      `/tenants/{tenantKey}`.
+    - **Catalog**: a set of templates and everything they use, versioned as a whole. A catalog is
+      named by three parts together: a **registry**, the DNS name of where it is published
+      (`exchange.epistola.app`, or a domain that publishes its own, `acme.com`); a **namespace**, its
+      publisher within that registry (`acme-corp`); and its key (`letters`). In a path, `~` stands
+      for the server's default registry.
+    - **Catalog version**: the catalog as a whole at one point. A **draft** is editable and has no
+      number; a **release** is immutable and has a number, its `releaseVersion` (`1.4.0`). Every
+      version has a `versionId`, assigned by the server, which a draft keeps when it is released. A
+      request that renders selects a release with a **version range**, its `versionRange`
+      (`^1.4.0`).
+    - **Base**: the release a draft started from; its changes are measured against it. A draft is
+      **behind** a release whose changes it may lack (see "Catalog versions"). A changed resource is
+      **ready** once someone marks it reviewed; a draft is released only when all its changes are.
+    - **Authored** and **subscribed** catalogs: an authored catalog is written in this tenant, in
+      drafts; a subscribed catalog is published elsewhere, and the tenant only installs its releases.
+    - **Environment**: where documents are generated for a purpose, such as `staging` or
+      `production`. A **deployment** makes an environment serve a catalog version; a request through
+      the environment renders what it serves.
+    - **Template**: one kind of document, with its data contract (the JSON Schema its data must meet)
+      and data examples. A **variant** is one rendering of a template, for a language or a brand,
+      chosen by its key or by **attributes** (such as `locale`); an attribute's values may come from a
+      **code list** of `{code, label}` entries. A **stencil** is reusable template content, a
+      **theme** a reusable set of styles, and a **preset** a named block style a catalog declares and
+      its themes style.
+    - **Consumer** (experimental): an application registered in a tenant, with its own permissions.
+
+    ## Getting started
+
+    1. **Get an API key** from a tenant manager. A key belongs to one tenant and carries the roles it
+       was issued with: `CONTENT_VIEWER` to find templates and read jobs and documents, and
+       `DOCUMENT_GENERATOR` to generate.
+    2. **Send these headers** on every request (the client libraries set all but the key):
+
+       ```
+       Authorization: ApiKey <key>
+       Accept: application/vnd.epistola.v2+json
+       Content-Type: application/vnd.epistola.v2+json      (with a request body)
+       User-Agent: epistola-contract/2.0.0 your-app/1.0
+       X-EP-Node-Id: <this host or pod>
+       ```
+
+    3. **Find your template.** `GET /tenants/{tenantKey}/catalogs` lists the catalogs, each with its
+       `registry`, `namespace`, `catalogKey` and `highestReleaseVersion`. `GET
+       /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{releaseVersion}/templates`
+       lists that release's templates, and `getTemplate` shows a template's data contract.
+    4. **Generate.** `POST /tenants/{tenantKey}/documents/generate` with the template and its data:
+
+       ```json
+       {"namespace": "acme-corp", "catalogKey": "letters", "templateKey": "invoice",
+        "variantKey": "english", "data": {"customer": {"name": "Jane Smith"}}}
+       ```
+
+       It answers `202` with a `requestId` and, in `Location`, the job's address. Without a
+       `versionRange` or an `environmentKey`, the catalog's highest release renders.
+    5. **Poll the job**, `GET /tenants/{tenantKey}/documents/jobs/{requestId}`, until
+       `request.status` is `completed` (or `failed` or `cancelled`). Each item names its
+       `documentId`.
+    6. **Download** the PDF: `GET /tenants/{tenantKey}/documents/{documentId}`.
+
+    `validateTemplateData` checks data against a template's contract before you submit it, and
+    `previewDocument` renders one document synchronously, for previews only. For high volume, poll no
+    jobs: collect finished results as a stream instead (`collectGenerationResults`), each delivered
+    to the node that asked for it and acknowledged when handled. That is the advanced path; the client
+    libraries' result collectors implement it.
+
+    ## Media types
+
+    The media type carries the API's major version. Contract 2.x uses
+    `application/vnd.epistola.v2+json`, and `application/vnd.epistola.v2+ndjson` for the result
+    stream, in `Accept` and in `Content-Type`. Problems are `application/problem+json`.
+
+    ## Client identity
+
+    Every request identifies the client with two headers:
+
+    - **`User-Agent`** (required): [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent)
+      product tokens, the first of which **must** be `epistola-contract/{version}`, the contract
+      version the client was built against. Further tokens describe the rest of the stack:
+      `epistola-contract/x.y.z valtimo-epistola-plugin/1.2.0 gzac/5.0.0`.
+    - **`X-EP-Node-Id`** (required): the client node, such as its Kubernetes pod name, container id
+      or hostname.
+
+    The client libraries set both, the contract version and the hostname; an application can append
+    its own product tokens and override the node id.
 
     ## Catalog versions
-    A catalog is versioned as a whole, never resource by resource. It consists of **versions**,
-    addressed as `/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}`, with the
-    catalog's resources below it (ADR 0002).
 
-    A **draft** is edited, its changed resources marked ready, and **released**, after which it is
-    immutable: every write to it is refused with 409. Every version has a **`versionId`**, assigned
-    when it is started as a draft and kept when it is released (a release installed by import or
-    from a catalog's source gets one too). A draft has no number until it is released, so it is addressed by its
-    `versionId`; a released version by its `versionId` or its SemVer number, interchangeably: both
-    address the same version, and a write through either is refused with 409.
+    A catalog consists of versions, addressed as
+    `/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}`, with the catalog's
+    resources below each. A draft is addressed by its `versionId`; a release by its `versionId` or its
+    number, which address the same version. Every write to a release is refused with 409.
 
-    - An AUTHORED catalog has **any number of drafts**, each named and each started from a release,
-      its **base**, or from another draft (`createCatalogDraft`). The base is fixed: it does not move
-      when other versions are released.
-    - **Any draft can be released**, numbered from the kind of change against its base: corrections
-      raise the patch, additions the minor, breaking changes the major
-      (`previewCatalogDraftRelease`). The author may choose a higher number, never a lower one, and
-      never one another release has. A fix to an older line is a draft from a release of that line:
-      from `1.4.0`, while `1.5.0` and `2.0.0` exist, it is released as `1.4.1`. The released draft
-      becomes the release at that number, and its `versionId` keeps addressing it.
-    - Drafts are independent copies: releasing one does not change another, and nothing is merged.
-      A draft is **behind** each release that, relative to the number it would be released as, is
-      numbered above its base and below that number, or was published after the draft was started
-      and is numbered below that number (other than its base). It does not contain their changes
-      unless an author applied them by hand. `getCatalogVersion` lists them, and releasing a draft
-      that is behind must be acknowledged.
+    - An authored catalog has **any number of drafts**, each named, each started from a release (its
+      base) or from another draft (`createCatalogDraft`). The base never moves.
+    - **Any draft can be released.** Its number follows from the kind of change against its base:
+      fixes raise the patch, additions the minor, anything that breaks callers the major
+      (`previewCatalogDraftRelease`). The author may choose a higher number, never a lower one or one
+      another release has. A fix to an older line is a draft from a release of that line: from
+      `1.4.0`, while `1.5.0` and `2.0.0` exist, it is released as `1.4.1`.
+    - **Drafts are independent copies**: releasing one changes no other, and nothing is merged. A
+      draft is **behind** each release numbered between its base and the number it would get, and
+      each release published after it was started that is numbered below that number; it lacks their
+      changes unless an author applied them by hand. `getCatalogVersion` lists them, and releasing a
+      draft that is behind must acknowledge them.
 
-    Documents are rendered from a released version, and version ranges never match a draft. Two
-    things render a draft: preview, naming it by its `versionId`, and an environment it is deployed
-    to (see "Deploying").
+    Documents are rendered from releases, and a version range never matches a draft. A draft renders
+    only in a preview that names its `versionId`, and in an environment it is deployed to.
 
-    Importing a catalog archive (`importCatalog`) never fills or creates a draft: it installs the
-    release the archive carries, at its number, next to the releases the tenant already has. To edit
-    it, an author starts a draft from that release. Installing a release of a SUBSCRIBED catalog
-    from its source (`installCatalogRelease`) is the same install, of a release fetched from the
-    catalog's source; `listAvailableCatalogReleases` lists those the source offers that the tenant
-    has not installed, older lines included. Nothing is upgraded: nothing is updated in place or
-    removed, and deploying decides which release an environment serves. Installing never changes a
-    catalog's type (AUTHORED or SUBSCRIBED); the import that creates a catalog names it.
-
-    ## Catalog identity
-    A catalog is identified by three parts together, never by its key alone: two publishers can
-    each publish a catalog called `letters`.
-
-    - The **registry**: an exchange (`exchange.epistola.app`) or a domain that publishes its own
-      catalogs (`acme.com`), in normal domain order.
-    - The **namespace**: a slug within the registry (`acme-corp`). Every namespace lives in a
-      registry; the same namespace in two registries is two different namespaces.
-    - The **catalog key**: a slug within the namespace (`letters`).
-
-    A server is configured with a **default registry**. Which one it is is configuration, not part
-    of this contract. In a URL path the registry is a segment of its own, and `~` there means the
-    default registry: `/catalogs/~/acme-corp/letters/…` and
-    `/catalogs/exchange.epistola.app/acme-corp/letters/…` address the same catalog when
-    `exchange.epistola.app` is the default. A client may send `~` percent-encoded as `%7E`.
-
-    In a body, a catalog is named by separate `registry`, `namespace` and `catalogKey` members.
-    Two rules say what an omitted `registry` or `namespace` means:
-
-    1. **A request that names a catalog** (a generation or preview target, a dependency
-       declaration): `registry` is optional, and omitted or null means the default registry. (An
-       import's `registry` part defaults to the registry the archive names first.) Every response writes the registry in full, by its name, never `~` and never null
-       for a catalog that exists, so a value read from one installation means the same catalog on
-       another.
-    2. **A reference relative to another catalog** (a code-list binding on an attribute, an
-       attribute qualifier in variant selection, a reference inside a catalog's content):
-       `registry` and `namespace` are both optional, and each omitted one means the value of the
-       catalog the reference is relative to (the attribute's catalog, the template's catalog, the
-       owning catalog), not the default registry: content means the same in every installation.
-       A `registry` without a `namespace` is invalid. A reference the server resolved is written
-       in full in a response; content documents are returned as they were stored.
-
-    ## Catalog dependencies
-    A catalog depends on other catalogs by declaring them, each once, with the **exact release** of
-    each that it uses (`releaseVersion`). A reference from one catalog's resources into another's
-    names the catalog (registry, namespace and key) but never a version: it renders with the
-    release its catalog's declaration pins, so a release renders with exactly the releases its
-    dependencies pin, one of every catalog it depends on. A declaration names an exact release, not
-    a range; ranges in declarations (such as `^1.0.0`, any non-breaking 1.x) may come in a later
-    2.x, as an addition.
-
-    In a draft, a declaration may name a **draft** of another catalog (`versionId`) instead of a
-    release, to build on work that is not released yet. A release never pins a draft: releasing the
-    draft is refused (`release-dependencies-unreleased`) unless the request releases those drafts
-    along with it (`releaseDependencies`), in one transaction, and the new release pins the
-    releases they became.
-
-    ## Release versions
-    A release is numbered with a SemVer core version, `MAJOR.MINOR.PATCH` without leading zeros
-    (`1.4.0`), at most 50 characters (`ReleaseVersion`). Wherever the contract names one exact
-    release, in a path, a request or a response, it has that form.
-
-    ## Version ranges
-    Wherever a request selects a release to render or check (generation, preview, validation), it
-    takes a **version range** (`versionRange`) in the npm SemVer range grammar: an exact version
-    (`1.4.0`), a caret (`^1.4.0`), a tilde (`~1.4.0`), comparators (`>=1.0.0 <2.0.0`), a hyphen
-    range (`1.0.0 - 2.0.0`), or a `||` union of these. A server accepts the whole grammar. The highest
-    release that satisfies the range is chosen; responses always name the exact release used
-    (`releaseVersion`). Catalog dependencies take no range: they pin an exact release.
+    Importing a catalog archive (`importCatalog`) installs the release the archive carries, at its
+    number, beside the releases the tenant already has; it never creates or changes a draft. A
+    subscribed catalog installs releases from its source the same way (`installCatalogRelease`), and
+    `listAvailableCatalogReleases` lists those the tenant does not have yet, older lines included.
+    Nothing is updated in place or removed: deploying decides what an environment serves. The import
+    that creates a catalog names its type, and nothing changes it afterwards.
 
     ## Deploying
-    An environment serves catalog versions (`deployCatalogVersion`), each named by its `versionId`
-    or its release number: releases, several of one catalog possibly, and at most one **draft** per
-    catalog, rendered live with no release. Deploying a draft is how it is tried before it is
-    released. A request through the environment (`environmentKey`) renders:
 
-    - when it names **no `versionRange`**: the catalog's deployed draft if there is one, else the
-      highest release the environment serves;
-    - when it names a **range or an exact number**: the highest served release that satisfies it. A
-      draft never matches a range or a number, as a SemVer pre-release does not.
+    An environment serves catalog versions (`deployCatalogVersion`): releases, several of one catalog
+    if need be, and at most one draft per catalog, rendered live. A request through the environment
+    (`environmentKey`) renders:
 
-    Rollback is undeploying the newer release; holding a newer release back is not deploying it.
-    For drafts:
+    - with **no `versionRange`**: the catalog's deployed draft if there is one, else the highest
+      release the environment serves;
+    - with a **range or an exact number**: the highest served release that satisfies it. A draft never
+      matches, as a SemVer pre-release does not.
 
-    - Deploying a draft replaces the draft the environment served for that catalog.
-    - An environment marked **production** (`EnvironmentDto.production`) serves only releases:
-      deploying a draft there is refused (`environment-deployment-refused`).
-    - A document rendered from a draft carries the draft's id and its name at render time
-      (`versionId`, `draftLabel`, with a null `releaseVersion`), and its PDF a preview watermark.
-    - Releasing a deployed draft keeps its `versionId`, so the environment then serves that release;
-      discarding it ends the deployment. Both are recorded in the deployment history.
+    Rollback is undeploying the newer release. Deploying a draft replaces the draft the environment
+    served for that catalog, and an environment marked **production** (`EnvironmentDto.production`)
+    serves only releases. A document rendered from a draft carries the draft's `versionId` and its
+    name at render time (`draftLabel`), with a null `releaseVersion`, and its PDF a preview watermark.
+    Releasing a deployed draft keeps its `versionId`, so the environment then serves that release;
+    discarding the draft ends the deployment.
 
-    ## Authentication
-    The API accepts authentication through the `Authorization` header:
-    - **API key**: `Authorization: ApiKey <key>` for static tenant API keys. This is
-      the supported method. A tenant manager issues each key for one tenant with a
-      set of tenant roles.
-    - **Bearer JWT** (**experimental**): `Authorization: Bearer <jwt>`, either issued
-      by an OAuth 2.0 identity provider or self-signed with a key pair registered
-      through the Consumers API. Epistola Suite may not implement the consumer model
-      these rely on yet, and the flow may still change.
+    ## Release numbers and version ranges
 
-    The legacy `X-API-Key` header remains supported for existing integrations, but
-    is deprecated. New API-key integrations should use `Authorization: ApiKey <key>`.
+    A release number (`ReleaseVersion`) is a SemVer core version, `MAJOR.MINOR.PATCH` without leading
+    zeros, at most 50 characters. Wherever the contract names one exact release it has that form, and
+    is called `releaseVersion`.
 
-    See the [Authentication Guide](/docs/auth.md) for details.
+    A request that selects a release to render or check (generation, preview, validation) takes a
+    version range, `versionRange`, in the npm SemVer range grammar: an exact version (`1.4.0`), a caret
+    (`^1.4.0`), a tilde (`~1.4.0`), comparators (`>=1.0.0 <2.0.0`), a hyphen range
+    (`1.0.0 - 2.0.0`), or a `||` union of these. The highest release that satisfies it renders, and
+    responses name the exact release used.
 
-    ## Client Identity
+    ## Catalog dependencies
 
-    All requests must include the following headers for client identification:
+    A catalog that uses another catalog's resources declares that catalog once, with the exact
+    release of it that it renders with (`releaseVersion`), never a range. References into the other
+    catalog name the catalog but no version, so a release renders with exactly the releases its
+    declarations pin.
 
-    - **`User-Agent`** (required) — identifies the client software stack using standard
-      [RFC 9110 §10.1.5](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent) product tokens.
-      The first token **must** be `epistola-contract/{version}` indicating the contract
-      version the client was built against. Additional product/version pairs can be
-      appended to describe the full software stack.
-      Example: `epistola-contract/x.y.z valtimo-epistola-plugin/1.2.0 gzac/5.0.0`
-    - **`X-EP-Node-Id`** (required) — identifies the specific client node. Use the
-      Kubernetes pod name, container ID, or hostname. In local/dev environments,
-      the machine hostname is acceptable.
+    In a draft, a declaration may name a draft of the other catalog instead (`versionId`), to build on
+    work that is not released yet. A release pins only releases: releasing such a draft is refused
+    (`release-dependencies-unreleased`) unless the request releases those drafts along with it
+    (`releaseDependencies`), in one transaction.
 
-    The generated Epistola client libraries set both headers automatically — `User-Agent`
-    with the contract version, and `X-EP-Node-Id` with the hostname. Consumers wrapping
-    the client library can append additional product tokens to `User-Agent` for their
-    own software and override the node ID as needed.
+    ## Catalog identity
 
-    ## Error Responses
+    A catalog's key alone is not unique: two publishers can each publish `letters`. The registry and
+    the namespace complete its name, and the same namespace in two registries is two namespaces. Which
+    registry is a server's default is configuration; in a path, `/catalogs/~/acme-corp/letters/…` and
+    `/catalogs/exchange.epistola.app/acme-corp/letters/…` address the same catalog when
+    `exchange.epistola.app` is the default, and `~` may be sent percent-encoded as `%7E`.
 
-    The API uses [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457)
-    for error responses. Error responses have `Content-Type: application/problem+json`
-    and include the following fields:
+    In a body, a catalog is named by separate `registry`, `namespace` and `catalogKey` members:
 
-    - `type` (string, URI) — identifies the problem type; the stable,
-      machine-readable discriminator clients should switch on
-    - `title` (string) — short human-readable summary
-    - `status` (integer) — HTTP status code
-    - `detail` (string, optional) — human-readable explanation of this occurrence
-    - `instance` (string, URI, optional) — identifies this specific occurrence
+    1. **A request that names a catalog** (a generation or preview target, a dependency declaration)
+       may omit `registry`, or send null, for the default registry. (An import's `registry` defaults to
+       the one the archive names.)
+    2. **A reference relative to another catalog** (an attribute's code-list binding, an attribute
+       qualifier in variant selection, a reference inside catalog content) may omit `registry` and
+       `namespace`; each omitted one is that other catalog's own, never the default registry, so content
+       means the same in every installation. A `registry` without a `namespace` is invalid.
 
-    Problem `type` URIs use the `https://epistola.app/errors/{slug}` namespace
-    and resolve to human-readable HTML documentation for that problem type.
-    A response may also carry domain-specific extension members as top-level
-    fields; clients should ignore members they do not recognize.
-
-    For validation errors (`type: .../validation-error`), the response also
-    includes an `errors` array with field-level details.
-
-    The canonical problem `type` slugs are registered in
-    [`docs/error-types.md`](docs/error-types.md); the machine-readable
-    registry is this document's top-level `x-problem-types` extension.
+    Responses write every registry in full, by its name, never `~`, so a value read from one
+    installation means the same catalog on another. Content documents are returned as stored.
 
     ## Concurrency
-    Templates, variants, themes, stencils, code lists and attributes carry a
-    revision. Reading one, or updating it, returns the revision as a strong `ETag`
-    response header: a quoted decimal integer such as `"7"`. Send it back as
-    `If-Match` on an update to make the update conditional: if the resource changed
-    since you read it, the server refuses with 412 `resource-modified` and changes
-    nothing. Read the resource again, reapply your change and retry with the new
-    `ETag`. Without `If-Match` an update is applied unconditionally, and the last
-    write wins.
 
-    A template's `ETag` covers its own properties (name, description, data contract and
-    data examples); a variant's covers its title, description, attributes and template
-    model, so `getVariant` and `getVariantContent` return the same `ETag` for a variant,
-    and either can be sent to `updateVariant` or `updateVariantContent`.
+    Updates can be made conditional. Templates, variants, themes, stencils, code lists, attributes,
+    catalog versions, environments, tenants and consumers carry a revision, which reading or updating
+    one returns as a strong `ETag` header: a quoted decimal integer such as `"7"`. Send it back as
+    `If-Match` on an update: if the resource changed since you read it, the update is refused with 412
+    `resource-modified` and nothing changes; read it again, reapply your change and retry. Without
+    `If-Match` an update applies unconditionally, and the last write wins.
+
+    What a revision covers:
+
+    - a template: its own properties, data contract and data examples;
+    - a variant: its title, description, attributes and template model, so `getVariant` and
+      `getVariantContent` return the same `ETag`, and `updateVariant` and `updateVariantContent` take
+      either;
+    - a catalog version: its name, default theme, presets and dependency declarations, so
+      `getCatalogVersion` and `listCatalogDependencies` return the same `ETag`, and
+      `updateCatalogDraft` and `updateCatalogDependencies` take either;
+    - a code list: its properties and entries, whether each is hidden included, so
+      `updateCodeListEntryHidden` takes the code list's `ETag`;
+    - an environment: its name and production mark, not what it serves.
+
+    ## Authentication
+
+    Credentials go in the `Authorization` header:
+
+    - **API key**, `Authorization: ApiKey <key>`: the supported method. A tenant manager issues each
+      key for one tenant, with a set of tenant roles. The scheme name is case-insensitive.
+    - **Bearer JWT** (**experimental**), `Authorization: Bearer <jwt>`: issued by an OAuth 2.0
+      identity provider, or self-signed with a key pair registered through the Consumers API.
+
+    The [authentication guide](https://github.com/epistola-app/epistola-contract/blob/main/contracts/api/docs/auth.md)
+    has the details.
 
     ## Authorization
-    Access is controlled via Suite permissions such as `TEMPLATE_VIEW`,
-    `TEMPLATE_EDIT`, `DOCUMENT_GENERATE`, and `CATALOG_MANAGE`. Tenant permissions
-    are derived from the Suite tenant roles (`CONTENT_VIEWER`, `CONTENT_AUTHOR`,
-    `DOCUMENT_GENERATOR`, `CONTENT_PUBLISHER`, `TENANT_ADMINISTRATOR`) or from
-    the roles stored on an API key. Platform-only tenant management uses the
-    `TENANT_MANAGER` platform role.
+
+    Each operation names the permissions it requires (`x-required-permissions`), such as
+    `TEMPLATE_VIEW`, `TEMPLATE_EDIT`, `DOCUMENT_GENERATE` and `CATALOG_MANAGE`. A caller has them
+    through its tenant roles (`CONTENT_VIEWER`, `CONTENT_AUTHOR`, `DOCUMENT_GENERATOR`,
+    `CONTENT_PUBLISHER`, `TENANT_ADMINISTRATOR`), the roles stored on its API key. Managing tenants
+    needs the platform role `TENANT_MANAGER`.
+
+    ## Errors
+
+    Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details, with
+    `Content-Type: application/problem+json`:
+
+    - `type` (URI): what went wrong, the stable value to switch on. It is
+      `https://epistola.app/errors/{slug}`, which documents the problem type;
+    - `title`: a short summary;
+    - `status`: the HTTP status code;
+    - `detail` (optional): what happened this time;
+    - `instance` (optional): this occurrence.
+
+    A problem may add members of its own, such as the field-level `errors` of a `validation-error`;
+    ignore members you do not recognize. The problem types are listed, machine-readably, in this
+    document's `x-problem-types` extension, and in the
+    [error type registry](https://github.com/epistola-app/epistola-contract/blob/main/contracts/api/docs/error-types.md).
+    New types may be added in a minor version, so keep a fallback when switching on them.
+
+    ## Experimental parts and server support
+
+    Operations and members marked `x-experimental: true`, the consumer model (Bearer JWT and the
+    Consumers API) among them, may still change. Epistola Suite, the server that implements this
+    contract, may not implement them yet, nor every part of the rest: deploying a draft, installing
+    missing dependency releases when deploying, and recording who requested a document among them.
   version: "2.0.0"
   contact:
     name: Epistola Team
@@ -382,25 +420,35 @@ tags:
       - **Periodic**: Every 30–60 seconds for ongoing health monitoring.
       - **After failures**: Ping to check server availability before retrying.
   - name: Tenants
-    description: Multi-tenant management operations
+    description: Tenants, the organisations everything else lives in. Creating and deleting one is a platform operation.
   - name: Templates
-    description: Document template operations
+    description: |
+      Templates in a catalog version: one kind of document each, with its data contract and data
+      examples. Edited in a draft, read in any version.
   - name: Themes
-    description: Reusable style collections for templates
+    description: Reusable sets of styles that templates render with, in a catalog version
   - name: Environments
-    description: Tenant environment configuration (staging, production, etc.)
+    description: |
+      Environments (such as `staging` and `production`) and what they serve: deploying and
+      undeploying catalog versions, and the history of those changes
   - name: Attributes
-    description: Attribute definitions for variant selection criteria
+    description: The criteria variants are selected by (such as `locale`), in a catalog version
   - name: Variants
-    description: Template variant operations (language, brand variations)
+    description: |
+      A template's variants, one rendering each (for a language or a brand), and their content,
+      in a catalog version
   - name: Stencils
-    description: Reusable template component operations (CRUD, content, readiness, usage tracking); stencils are versioned with their catalog
+    description: |
+      Reusable template content in a catalog version: its content, readiness and where it is used.
+      A stencil has no versions of its own; it is versioned with its catalog.
   - name: Catalogs
-    description: Catalog import and management operations
+    description: |
+      Catalogs and their versions: drafts, releases, dependencies and changes; importing an archive
+      and installing a subscribed catalog's releases
   - name: CodeLists
     description: |
       Reusable `{code, label}` collections that attributes can bind to.
-      Code lists are tenant + catalog scoped; SUBSCRIBED-catalog code
+      Code lists are tenant + catalog scoped; subscribed-catalog code
       lists (e.g. the bundled `system` catalog's BCP-47, ISO 639-1,
       ISO 3166-1 alpha-2) are read-only — PATCH/DELETE return 409.
   - name: Fonts
@@ -408,20 +456,19 @@ tags:
       Font families (tenant + catalog scoped) and the weight/italic faces
       they ship. Read-only over REST; families and their binaries are managed
       through the UI and catalog exchange only.
-      SUBSCRIBED-catalog families (the bundled `system` fonts) are flagged
+      Subscribed-catalog families (the bundled `system` fonts) are flagged
       `readOnly: true`.
   - name: Images
     description: |
       Catalog-scoped images: metadata, upload, download, and delete. An image is what a
       template places in an image node, referenced by the image's `key`.
-      Images from a SUBSCRIBED catalog are flagged `readOnly: true`.
+      Images from a subscribed catalog are flagged `readOnly: true`.
   - name: Consumers
     description: |
       Tenant-scoped consumer application registration and lifecycle management.
 
-      **Experimental.** Epistola Suite may not implement these operations yet, and
-      they may still change. Every operation in this group carries
-      `x-experimental: true`.
+      **Experimental**, like every operation in this group (`x-experimental: true`): see
+      "Experimental parts and server support" in the API description.
 
       Each tenant independently manages which applications can access their resources.
       The same application can register in multiple tenants with separate approvals.
@@ -449,16 +496,15 @@ tags:
       Bearer JWT calls use `Authorization: Bearer <jwt>`. For self-signed JWT consumers,
       the JWT is short-lived (60s) and signed with the consumer's private key.
   - name: Generation
-    description: Asynchronous document generation operations
+    description: |
+      Generating documents: synchronous preview, asynchronous single and batch generation, jobs,
+      documents, and collecting results as a stream
 
-# Global security — any method is accepted.
-# authorizationApiKeyAuth is the supported path. bearerAuth (JWT) is experimental: the
-# server may not implement the consumer model it relies on yet. apiKeyAuth is the
-# deprecated X-API-Key header, retained for backwards compatibility.
+# Global security — either method is accepted. authorizationApiKeyAuth is the supported path;
+# bearerAuth (JWT) is experimental.
 security:
   - bearerAuth: []
   - authorizationApiKeyAuth: []
-  - apiKeyAuth: []
 
 paths:
   # System
@@ -750,6 +796,8 @@ components:
       $ref: './components/schemas/catalogs.yaml#/ReleaseVersion'
     CatalogVersionId:
       $ref: './components/schemas/catalogs.yaml#/CatalogVersionId'
+    CatalogType:
+      $ref: './components/schemas/catalogs.yaml#/CatalogType'
     CatalogVersionStatus:
       $ref: './components/schemas/catalogs.yaml#/CatalogVersionStatus'
     CatalogVersionDto:
@@ -764,8 +812,8 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CatalogVersionListResponse'
     CreateCatalogDraftRequest:
       $ref: './components/schemas/catalogs.yaml#/CreateCatalogDraftRequest'
-    RenameCatalogDraftRequest:
-      $ref: './components/schemas/catalogs.yaml#/RenameCatalogDraftRequest'
+    UpdateCatalogDraftRequest:
+      $ref: './components/schemas/catalogs.yaml#/UpdateCatalogDraftRequest'
     CatalogThemeReference:
       $ref: './components/schemas/catalogs.yaml#/CatalogThemeReference'
     CatalogPresetDto:
@@ -937,6 +985,8 @@ components:
   headers:
     ETag:
       $ref: './components/headers/concurrency.yaml#/ETag'
+    Location:
+      $ref: './components/headers/location.yaml#/Location'
 
   securitySchemes:
     bearerAuth:
@@ -947,9 +997,9 @@ components:
       # makes the status (also stated in the description) machine-readable.
       x-experimental: true
       description: |
-        **Experimental.** Epistola Suite may not implement the consumer model below
-        yet, and both paths may still change. Use an API key
-        (`Authorization: ApiKey <key>`) for production integrations.
+        **Experimental**, and may still change: see "Experimental parts and server support" in
+        the API description. Use an API key (`Authorization: ApiKey <key>`) for production
+        integrations.
 
         JWT Bearer token. Two authentication paths are defined:
 
@@ -968,22 +1018,6 @@ components:
         allowed tenants, and expiry are managed in Epistola's consumer record,
         set by an administrator during approval.
 
-    apiKeyAuth:
-      type: apiKey
-      in: header
-      name: X-API-Key
-      # OpenAPI has no `deprecated` flag for security schemes; this vendor extension
-      # makes the deprecation (also stated in the description) machine-readable. It
-      # deprecates this header only: API keys themselves are the supported method.
-      x-deprecated: true
-      description: |
-        **Deprecated header — send the same key as `Authorization: ApiKey <key>` instead.**
-
-        Static API key through the legacy `X-API-Key` header. API-key authentication
-        itself is supported; only this transport is deprecated. Keys are issued by
-        administrators and stored server-side with associated Suite roles and tenant
-        access.
-
     authorizationApiKeyAuth:
       type: apiKey
       in: header
@@ -993,8 +1027,6 @@ components:
 
         `Authorization: ApiKey <key>`
 
-        The auth scheme token is case-insensitive; examples use `ApiKey`.
-        Keys are issued by administrators and stored server-side with associated
-        Suite roles and tenant access. This is the supported authentication
-        method and the preferred API-key transport. The legacy `X-API-Key` header
-        remains supported but deprecated.
+        The scheme name is case-insensitive; examples use `ApiKey`. A tenant manager issues
+        each key for one tenant, with the tenant roles it grants. This is the supported
+        authentication method.

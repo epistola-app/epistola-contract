@@ -38,7 +38,17 @@ import app.epistola.client.jakarta.model.DeploymentDto;
 import app.epistola.client.jakarta.model.DeploymentEventDto;
 import app.epistola.client.jakarta.model.DeploymentHistoryResponse;
 import app.epistola.client.jakarta.model.DocumentDto;
+import app.epistola.client.jakarta.model.CatalogType;
 import app.epistola.client.jakarta.model.EnvironmentDto;
+import app.epistola.client.jakarta.api.CodeListsApi;
+import app.epistola.client.jakarta.api.TenantsApi;
+import app.epistola.client.jakarta.model.CatalogDependencyListResponse;
+import app.epistola.client.jakarta.model.CodeListEntryDto;
+import app.epistola.client.jakarta.model.ConsumerDto;
+import app.epistola.client.jakarta.model.GenerationJobResponse;
+import app.epistola.client.jakarta.model.TenantDto;
+import app.epistola.client.jakarta.model.UpdateCodeListEntryHiddenRequest;
+import app.epistola.client.jakarta.model.UpdateTenantRequest;
 import app.epistola.client.jakarta.model.UpdateEnvironmentRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.GenerationResult;
@@ -53,7 +63,7 @@ import app.epistola.client.jakarta.model.ReleaseCatalogDraftResponse;
 import app.epistola.client.jakarta.model.ReleasedDependencyDto;
 import app.epistola.client.jakarta.model.ReleaseDependencyDto;
 import app.epistola.client.jakarta.model.ReleasedChangeDto;
-import app.epistola.client.jakarta.model.RenameCatalogDraftRequest;
+import app.epistola.client.jakarta.model.UpdateCatalogDraftRequest;
 import app.epistola.client.jakarta.model.StencilContentDto;
 import app.epistola.client.jakarta.model.StencilUsageDto;
 import app.epistola.client.jakarta.model.StencilUsageListResponse;
@@ -136,7 +146,7 @@ public final class Driver {
                 case "create-catalog-draft" -> createCatalogDraft(baseUrl, config);
                 case "list-catalog-versions" -> listCatalogVersions(baseUrl, config);
                 case "get-catalog-version" -> getCatalogVersion(baseUrl, config);
-                case "rename-catalog-draft" -> renameCatalogDraft(baseUrl, config);
+                case "update-catalog-draft" -> updateCatalogDraft(baseUrl, config);
                 case "set-catalog-draft-theme-settings" -> setCatalogDraftThemeSettings(baseUrl, config);
                 case "preview-catalog-draft-release" -> previewCatalogDraftRelease(baseUrl, config);
                 case "delete-catalog-draft" -> deleteCatalogDraft(baseUrl, config);
@@ -145,6 +155,8 @@ public final class Driver {
                 case "undeploy-catalog-version" -> undeployCatalogVersion(baseUrl, config);
                 case "create-environment" -> createEnvironment(baseUrl, config);
                 case "update-environment" -> updateEnvironment(baseUrl, config);
+                case "update-tenant" -> updateTenant(baseUrl, config);
+                case "update-code-list-entry-hidden" -> updateCodeListEntryHidden(baseUrl, config);
                 case "update-variant-content" -> updateVariantContent(baseUrl, config);
                 case "get-variant-content" -> getVariantContent(baseUrl, config);
                 case "mark-variant-ready" -> markVariantReady(baseUrl, config);
@@ -313,10 +325,11 @@ public final class Driver {
      * receives is the generator's serialization, which is the part no client hand-writes and no
      * client's own tests inspect.
      */
+    /** Reports the accepted job as parsed, and the {@code Location} of the job exactly as received. */
     private static void generateDocument(String baseUrl, JsonObject config) {
-        clients(baseUrl, config)
+        try (Response response = clients(baseUrl, config)
                 .api(GenerationApi.class)
-                .generateDocument(
+                .generateDocumentWithHttpInfo(
                         config.getString("tenantKey"),
                         new GenerateDocumentRequest()
                                 .registry(optional(config, "registry"))
@@ -328,7 +341,16 @@ public final class Driver {
                                 .versionRange(optional(config, "versionRange"))
                                 .environmentKey(optional(config, "environmentKey"))
                                 .correlationId(optional(config, "correlationId"))
-                                .routingKey(optional(config, "routingKey")));
+                                .routingKey(optional(config, "routingKey")))) {
+            GenerationJobResponse job = response.readEntity(GenerationJobResponse.class);
+            Map<String, Object> values = new java.util.LinkedHashMap<>();
+            values.put("requestId", String.valueOf(job.getRequestId()));
+            values.put("status", String.valueOf(job.getStatus()));
+            values.put("jobType", String.valueOf(job.getJobType()));
+            values.put("total", job.getTotal() == null ? "null" : job.getTotal());
+            values.put("location", String.valueOf(response.getHeaderString("Location")));
+            report(baseUrl, values);
+        }
     }
 
     /**
@@ -338,12 +360,42 @@ public final class Driver {
      * description, contact and expiry".
      */
     private static void updateConsumer(String baseUrl, JsonObject config) {
-        clients(baseUrl, config)
-                .api(ConsumersApi.class)
-                .updateConsumer(
-                        config.getString("tenantKey"),
-                        config.getString("consumerId"),
-                        new UpdateConsumerRequest().name(config.getString("name")));
+        conditionalUpdate(
+                baseUrl,
+                () -> clients(baseUrl, config)
+                        .api(ConsumersApi.class)
+                        .updateConsumerWithHttpInfo(
+                                config.getString("tenantKey"),
+                                config.getString("consumerId"),
+                                new UpdateConsumerRequest().name(config.getString("name")),
+                                optional(config, "ifMatch")),
+                response -> {
+                    ConsumerDto consumer = response.readEntity(ConsumerDto.class);
+                    return Map.of(
+                            "id", String.valueOf(consumer.getId()),
+                            "name", String.valueOf(consumer.getName()));
+                });
+    }
+
+    /**
+     * Calls an update through its header-exposing sibling and reports what {@code fields} read from
+     * the response plus its {@code ETag} exactly as received ({@code null} when absent). A problem
+     * response is reported by its slug and status instead.
+     */
+    private static void conditionalUpdate(
+            String baseUrl,
+            java.util.function.Supplier<Response> call,
+            java.util.function.Function<Response, Map<String, Object>> fields) {
+        Map<String, Object> values = new java.util.LinkedHashMap<>();
+        try (Response response = call.get()) {
+            values.putAll(fields.apply(response));
+            values.put("etag", String.valueOf(response.getHeaderString("ETag")));
+        } catch (ProblemDetailException e) {
+            values.clear();
+            values.put("problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug());
+            values.put("problemStatus", e.getStatusCode());
+        }
+        report(baseUrl, values);
     }
 
     /**
@@ -490,7 +542,9 @@ public final class Driver {
                                 file,
                                 optional(config, "registry"),
                                 optional(config, "namespace"),
-                                optional(config, "catalogType"));
+                                optional(config, "catalogType") == null
+                                        ? null
+                                        : CatalogType.fromValue(config.getString("catalogType")));
             } catch (ProblemDetailException e) {
                 report(
                         baseUrl,
@@ -657,18 +711,20 @@ public final class Driver {
                         .versionId(optional(dependency, "versionId")))
                 .collect(Collectors.toList());
 
-        List<CatalogDependencyDto> items = clients(baseUrl, config)
-                .api(CatalogsApi.class)
-                .updateCatalogDependencies(
-                        config.getString("tenantKey"),
-                        config.getString("registry"),
-                        config.getString("namespace"),
-                        config.getString("catalogKey"),
-                        config.getString("catalogVersion"),
-                        new UpdateCatalogDependenciesRequest().dependencies(dependencies))
-                .getItems();
-
-        reportDependencies(baseUrl, items);
+        conditionalUpdate(
+                baseUrl,
+                () -> clients(baseUrl, config)
+                        .api(CatalogsApi.class)
+                        .updateCatalogDependenciesWithHttpInfo(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("catalogVersion"),
+                                new UpdateCatalogDependenciesRequest().dependencies(dependencies),
+                                optional(config, "ifMatch")),
+                response -> dependencyFields(
+                        response.readEntity(CatalogDependencyListResponse.class).getItems()));
     }
 
     /**
@@ -677,37 +733,42 @@ public final class Driver {
      * {@code versionId}; each is reported as {@code null} rather than lost.
      */
     private static void reportDependencies(String baseUrl, List<CatalogDependencyDto> items) {
-        report(
-                baseUrl,
-                Map.of(
+        report(baseUrl, dependencyFields(items));
+    }
+
+    private static Map<String, Object> dependencyFields(List<CatalogDependencyDto> items) {
+        return Map.of(
                         "registries", joined(items, CatalogDependencyDto::getRegistry),
                         "namespaces", joined(items, CatalogDependencyDto::getNamespace),
                         "catalogKeys", joined(items, CatalogDependencyDto::getCatalogKey),
                         "releaseVersions", joined(items, CatalogDependencyDto::getReleaseVersion),
-                        "versionIds", joined(items, dependency -> String.valueOf(dependency.getVersionId()))));
+                        "versionIds", joined(items, dependency -> String.valueOf(dependency.getVersionId())));
     }
 
     private static void createCatalogDraft(String baseUrl, JsonObject config) {
-        CatalogVersionDto version = clients(baseUrl, config)
+        try (Response response = clients(baseUrl, config)
                 .api(CatalogsApi.class)
-                .createCatalogDraft(
+                .createCatalogDraftWithHttpInfo(
                         config.getString("tenantKey"),
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         new CreateCatalogDraftRequest()
                                 .name(config.getString("name"))
-                                .from(optional(config, "from")));
-        report(
-                baseUrl,
-                Map.of(
-                        "releaseVersion", String.valueOf(version.getReleaseVersion()),
-                        "versionId", String.valueOf(version.getVersionId()),
-                        "name", String.valueOf(version.getName()),
-                        "status", String.valueOf(version.getStatus()),
-                        "base", String.valueOf(version.getBase()),
-                        "createdFrom", String.valueOf(version.getCreatedFrom()),
-                        "releasedAt", instant(version.getReleasedAt())));
+                                .from(optional(config, "from")))) {
+            CatalogVersionDto version = response.readEntity(CatalogVersionDto.class);
+            report(
+                    baseUrl,
+                    Map.of(
+                            "releaseVersion", String.valueOf(version.getReleaseVersion()),
+                            "versionId", String.valueOf(version.getVersionId()),
+                            "name", String.valueOf(version.getName()),
+                            "status", String.valueOf(version.getStatus()),
+                            "base", String.valueOf(version.getBase()),
+                            "createdFrom", String.valueOf(version.getCreatedFrom()),
+                            "releasedAt", instant(version.getReleasedAt()),
+                            "location", String.valueOf(response.getHeaderString("Location"))));
+        }
     }
 
     private static void listCatalogVersions(String baseUrl, JsonObject config) {
@@ -791,24 +852,28 @@ public final class Driver {
     }
 
     /** Renames a draft; only the name is sent, to its unchanged address. */
-    private static void renameCatalogDraft(String baseUrl, JsonObject config) {
-        CatalogVersionDto version = clients(baseUrl, config)
-                .api(CatalogsApi.class)
-                .renameCatalogDraft(
-                        config.getString("tenantKey"),
-                        config.getString("registry"),
-                        config.getString("namespace"),
-                        config.getString("catalogKey"),
-                        config.getString("catalogVersion"),
-                        new RenameCatalogDraftRequest().name(config.getString("name")));
-        report(
+    private static void updateCatalogDraft(String baseUrl, JsonObject config) {
+        conditionalUpdate(
                 baseUrl,
-                Map.of(
-                        "releaseVersion", String.valueOf(version.getReleaseVersion()),
-                        "versionId", String.valueOf(version.getVersionId()),
-                        "name", String.valueOf(version.getName()),
-                        "status", String.valueOf(version.getStatus()),
-                        "base", String.valueOf(version.getBase())));
+                () -> clients(baseUrl, config)
+                        .api(CatalogsApi.class)
+                        .updateCatalogDraftWithHttpInfo(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("catalogVersion"),
+                                new UpdateCatalogDraftRequest().name(config.getString("name")),
+                                optional(config, "ifMatch")),
+                response -> {
+                    CatalogVersionDto version = response.readEntity(CatalogVersionDto.class);
+                    return Map.of(
+                            "releaseVersion", String.valueOf(version.getReleaseVersion()),
+                            "versionId", String.valueOf(version.getVersionId()),
+                            "name", String.valueOf(version.getName()),
+                            "status", String.valueOf(version.getStatus()),
+                            "base", String.valueOf(version.getBase()));
+                });
     }
 
     /** Sets a draft's default theme and presets; no name goes out, and an unset qualifier stays off the wire. */
@@ -822,17 +887,18 @@ public final class Driver {
                 .collect(Collectors.toList());
         CatalogVersionDto version = clients(baseUrl, config)
                 .api(CatalogsApi.class)
-                .renameCatalogDraft(
+                .updateCatalogDraft(
                         config.getString("tenantKey"),
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
                         config.getString("catalogVersion"),
-                        new RenameCatalogDraftRequest()
+                        new UpdateCatalogDraftRequest()
                                 .defaultTheme(new CatalogThemeReference()
                                         .key(config.getString("defaultThemeKey"))
                                         .catalogKey(optional(config, "defaultThemeCatalogKey")))
-                                .presets(presets));
+                                .presets(presets),
+                        null);
         List<CatalogPresetDto> parsed = version.getPresets() == null ? List.of() : version.getPresets();
         CatalogThemeReference defaultTheme = version.getDefaultTheme();
         report(
@@ -1242,7 +1308,7 @@ public final class Driver {
                                 .map(usage -> String.join("|", usage.getProblems()))
                                 .collect(Collectors.joining(";")),
                         "pageNumber", String.valueOf(response.getPage().getNumber()),
-                        "totalElements", String.valueOf(response.getPage().getTotalElements())));
+                        "total", String.valueOf(response.getPage().getTotal())));
     }
 
     private static void getCatalogChanges(String baseUrl, JsonObject config) {
@@ -1320,20 +1386,24 @@ public final class Driver {
                         "draftNames", items.stream().map(event -> String.valueOf(event.getDraftName())).collect(Collectors.joining("|")),
                         "changedAt", joined(items, event -> instant(event.getChangedAt())),
                         "changedBy", items.stream().map(event -> String.valueOf(event.getChangedBy())).collect(Collectors.joining("|")),
-                        "totalElements", String.valueOf(response.getPage().getTotalElements())));
+                        "total", String.valueOf(response.getPage().getTotal())));
     }
 
     /** Creates an environment; {@code production} is sent only when the scenario names it. */
     private static void createEnvironment(String baseUrl, JsonObject config) {
-        EnvironmentDto environment = clients(baseUrl, config)
+        try (Response response = clients(baseUrl, config)
                 .api(EnvironmentsApi.class)
-                .createEnvironment(
+                .createEnvironmentWithHttpInfo(
                         config.getString("tenantKey"),
                         new CreateEnvironmentRequest()
                                 .key(config.getString("key"))
                                 .name(config.getString("name"))
-                                .production(optionalBoolean(config, "production")));
-        reportEnvironment(baseUrl, environment);
+                                .production(optionalBoolean(config, "production")))) {
+            Map<String, Object> values = new java.util.LinkedHashMap<>(
+                    environmentFields(response.readEntity(EnvironmentDto.class)));
+            values.put("location", String.valueOf(response.getHeaderString("Location")));
+            report(baseUrl, values);
+        }
     }
 
     /**
@@ -1341,34 +1411,67 @@ public final class Driver {
      * by its problem.
      */
     private static void updateEnvironment(String baseUrl, JsonObject config) {
-        EnvironmentDto environment;
-        try {
-            environment = clients(baseUrl, config)
-                    .api(EnvironmentsApi.class)
-                    .updateEnvironment(
-                            config.getString("tenantKey"),
-                            config.getString("environmentKey"),
-                            new UpdateEnvironmentRequest()
-                                    .name(optional(config, "name"))
-                                    .production(optionalBoolean(config, "production")));
-        } catch (ProblemDetailException e) {
-            report(
-                    baseUrl,
-                    Map.of(
-                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
-                            "problemStatus", e.getStatusCode()));
-            return;
-        }
-        reportEnvironment(baseUrl, environment);
+        conditionalUpdate(
+                baseUrl,
+                () -> clients(baseUrl, config)
+                        .api(EnvironmentsApi.class)
+                        .updateEnvironmentWithHttpInfo(
+                                config.getString("tenantKey"),
+                                config.getString("environmentKey"),
+                                new UpdateEnvironmentRequest()
+                                        .name(optional(config, "name"))
+                                        .production(optionalBoolean(config, "production")),
+                                optional(config, "ifMatch")),
+                response -> environmentFields(response.readEntity(EnvironmentDto.class)));
     }
 
-    private static void reportEnvironment(String baseUrl, EnvironmentDto environment) {
-        report(
+    private static Map<String, Object> environmentFields(EnvironmentDto environment) {
+        return Map.of(
+                "key", String.valueOf(environment.getKey()),
+                "name", String.valueOf(environment.getName()),
+                "production", String.valueOf(environment.getProduction()));
+    }
+
+    /** Renames a tenant, sending {@code config.ifMatch} as {@code If-Match} when present. */
+    private static void updateTenant(String baseUrl, JsonObject config) {
+        conditionalUpdate(
                 baseUrl,
-                Map.of(
-                        "key", String.valueOf(environment.getKey()),
-                        "name", String.valueOf(environment.getName()),
-                        "production", String.valueOf(environment.getProduction())));
+                () -> clients(baseUrl, config)
+                        .api(TenantsApi.class)
+                        .updateTenantWithHttpInfo(
+                                config.getString("tenantKey"),
+                                new UpdateTenantRequest().name(config.getString("name")),
+                                optional(config, "ifMatch")),
+                response -> {
+                    TenantDto tenant = response.readEntity(TenantDto.class);
+                    return Map.of(
+                            "key", String.valueOf(tenant.getKey()),
+                            "name", String.valueOf(tenant.getName()));
+                });
+    }
+
+    /** Hides or shows a code-list entry, conditional on the code list's {@code ETag} when given. */
+    private static void updateCodeListEntryHidden(String baseUrl, JsonObject config) {
+        conditionalUpdate(
+                baseUrl,
+                () -> clients(baseUrl, config)
+                        .api(CodeListsApi.class)
+                        .updateCodeListEntryHiddenWithHttpInfo(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("catalogVersion"),
+                                config.getString("codeListKey"),
+                                config.getString("code"),
+                                new UpdateCodeListEntryHiddenRequest().hidden(config.getBoolean("hidden")),
+                                optional(config, "ifMatch")),
+                response -> {
+                    CodeListEntryDto entry = response.readEntity(CodeListEntryDto.class);
+                    return Map.of(
+                            "code", String.valueOf(entry.getCode()),
+                            "hidden", String.valueOf(entry.getHidden()));
+                });
     }
 
     private static Boolean optionalBoolean(JsonObject config, String key) {

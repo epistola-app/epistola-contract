@@ -34,7 +34,7 @@ script:
     contentType: application/vnd.epistola.v2+json
     body:
       items: []
-      page: { number: 0, size: 20, totalElements: 0, totalPages: 0 }
+      page: { number: 0, size: 20, total: 0, totalPages: 0 }
 
 expect:
   requestCount: 1

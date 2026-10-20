@@ -46,6 +46,10 @@ tenants:
     responses:
       '201':
         description: Tenant created successfully
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The tenant's address (`getTenant`)
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -81,6 +85,9 @@ tenants-id:
     responses:
       '200':
         description: Tenant details
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -95,10 +102,15 @@ tenants-id:
   patch:
     operationId: updateTenant
     summary: Update a tenant
-    description: Update the name of an existing tenant.
+    description: |
+      Update the name of an existing tenant.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - Tenants
     x-required-permissions: [TENANT_SETTINGS]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
       required: true
       content:
@@ -108,6 +120,9 @@ tenants-id:
     responses:
       '200':
         description: Tenant updated successfully
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -120,6 +135,8 @@ tenants-id:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
   delete:
     operationId: deleteTenant
     summary: Delete a tenant

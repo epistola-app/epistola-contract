@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: update-tenant
+title: Renaming a tenant sends the ETag it read as If-Match, and reads the new one back
+why: >
+  A tenant carries a revision, which `getTenant` and `updateTenant` return as a strong `ETag`.
+  An update that sends it back as `If-Match` is refused with 412 if the tenant changed since, so
+  two administrators renaming it at once cannot silently overwrite each other. The client must send
+  the tag byte for byte, quotes included, and expose the new one from the response: without it the
+  next conditional update has nothing to send.
+
+action:
+  name: update-tenant
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    name: Acme Holding
+    ifMatch: '"7"'
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      ETag: '"8"'
+    body:
+      key: acme-corp
+      name: Acme Holding
+      createdAt: "2026-01-15T09:00:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PATCH
+      path: /api/tenants/acme-corp
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
+        if-match: '"7"'
+      body:
+        json:
+          name: Acme Holding
+  report:
+    key: acme-corp
+    name: Acme Holding
+    etag: '"8"'

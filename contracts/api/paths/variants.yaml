@@ -69,6 +69,10 @@ variants:
     responses:
       '201':
         description: Variant created successfully
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The variant's address (`getVariant`)
         content:
           application/vnd.epistola.v2+json:
             schema:

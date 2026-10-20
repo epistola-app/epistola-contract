@@ -12,9 +12,9 @@ why: >
   hand rather than through a generated model, and a field added to the contract reaches their
   consumers only if the collector was taught it.
 
-  A result accepted before contract 2.0 rendered a template version, not a release, and has none of
-  the four. They are null, and a collector must surface that as missing, not as an empty string or
-  a failure to parse the line.
+  A result rendered from a draft, deployed to the environment the request named, has no release:
+  its `releaseVersion` is null and its `versionId` names the draft. A collector must surface that
+  null as missing, not as an empty string or a failure to parse the line.
 
 action:
   name: collect
@@ -31,17 +31,17 @@ script:
   - status: 200
     contentType: application/vnd.epistola.v2+ndjson
     ndjson:
-      - { sequence: 601, requestId: 11111111-1111-4111-8111-000000000601, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: letters, templateKey: invoice, releaseVersion: 1.4.0, status: COMPLETED, documentId: 22222222-2222-4222-8222-000000000601, correlationId: rel-1, completedAt: "2026-02-01T08:05:00Z" }
-      - { sequence: 602, requestId: 11111111-1111-4111-8111-000000000602, registry: null, namespace: null, catalogKey: null, templateKey: invoice, releaseVersion: null, status: COMPLETED, documentId: 22222222-2222-4222-8222-000000000602, correlationId: rel-2, completedAt: "2026-02-01T08:05:00Z" }
-      - { _meta: true, hasMore: false, lastSequence: 602, count: 2, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
+      - { sequence: 601, requestId: 11111111-1111-4111-8111-000000000601, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: letters, templateKey: invoice, releaseVersion: 1.4.0, status: completed, documentId: 22222222-2222-4222-8222-000000000601, correlationId: rel-1, completedAt: "2026-02-01T08:05:00Z" }
+      - { sequence: 602, requestId: 11111111-1111-4111-8111-000000000602, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: letters, templateKey: invoice, releaseVersion: null, versionId: h3v9p6db, draftLabel: Redesign 2027, status: completed, documentId: 22222222-2222-4222-8222-000000000602, correlationId: rel-2, completedAt: "2026-02-01T08:05:00Z" }
+      - { _meta: true, hasMore: false, lastSequence: 602, resultCount: 2, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
   - status: 200
     contentType: application/vnd.epistola.v2+ndjson
     ndjson:
-      - { _meta: true, hasMore: false, lastSequence: 602, count: 0, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
+      - { _meta: true, hasMore: false, lastSequence: 602, resultCount: 0, partitions: { total: 8, mine: [0, 3], hash: murmur3 } }
 
 expect:
   requestCountAtLeast: 1
   report:
     resultsHandled: 2
-    # Each result as registry/namespace/catalogKey@releaseVersion, a missing value written as null.
-    releases: exchange.epistola.app/acme-corp/letters@1.4.0,null/null/null@null
+    # Each result as registry/namespace/catalogKey@releaseVersion, a null release written as null.
+    releases: exchange.epistola.app/acme-corp/letters@1.4.0,exchange.epistola.app/acme-corp/letters@null

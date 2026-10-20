@@ -108,7 +108,7 @@ class EpistolaClientTest {
     @Test
     fun `apiKey and jwtSigner are mutually exclusive, whichever was set last wins`() {
         var headers: com.sun.net.httpserver.Headers? = null
-        val server = jsonServer(200, """{"status":"UP","timestamp":"2026-01-01T00:00:00Z"}""") { headers = it.requestHeaders }
+        val server = jsonServer(200, """{"status":"up","timestamp":"2026-01-01T00:00:00Z"}""") { headers = it.requestHeaders }
         try {
             val signer = JwtSigner.builder().consumerId("svc").privateKey(rsaKey()).build()
 
@@ -127,7 +127,7 @@ class EpistolaClientTest {
     @Test
     fun `no auth configured means no Authorization header`() {
         var headers: com.sun.net.httpserver.Headers? = null
-        val server = jsonServer(200, """{"status":"UP","timestamp":"2026-01-01T00:00:00Z"}""") { headers = it.requestHeaders }
+        val server = jsonServer(200, """{"status":"up","timestamp":"2026-01-01T00:00:00Z"}""") { headers = it.requestHeaders }
         try {
             val restClient = EpistolaClient.builder(baseUrl(server)).build()
             SystemApi(restClient).ping(null)
@@ -146,7 +146,7 @@ class EpistolaClientTest {
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
             createContext("/") { exchange ->
                 Thread.sleep(delay.toMillis())
-                val body = """{"status":"UP","timestamp":"2026-01-01T00:00:00Z"}""".toByteArray()
+                val body = """{"status":"up","timestamp":"2026-01-01T00:00:00Z"}""".toByteArray()
                 exchange.responseHeaders.add("Content-Type", "application/vnd.epistola.v2+json")
                 exchange.sendResponseHeaders(200, body.size.toLong())
                 exchange.responseBody.use { it.write(body) }
@@ -163,7 +163,7 @@ class EpistolaClientTest {
 
             val unbounded = builder.readTimeout(null).build()
             val pong = SystemApi(unbounded).ping(null)
-            assertEquals("UP", pong.status.toString())
+            assertEquals("up", pong.status.toString())
         } finally {
             server.stop(0)
         }

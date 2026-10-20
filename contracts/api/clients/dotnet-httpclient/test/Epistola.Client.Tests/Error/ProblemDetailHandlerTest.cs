@@ -166,9 +166,9 @@ public class ProblemDetailHandlerTest
               "detail": "letters 1.4.0 renders with releases production does not serve",
               "missingDependencies": [
                 {"registry": "exchange.epistola.app", "namespace": "epistola", "catalogKey": "system",
-                 "releaseVersion": "3.2.0", "reason": "UNAVAILABLE"},
+                 "releaseVersion": "3.2.0", "reason": "unavailable"},
                 {"registry": "registry.gemeente-x.nl", "namespace": "huisstijl", "catalogKey": "branding",
-                 "releaseVersion": "1.4.2", "reason": "UNAVAILABLE"}
+                 "releaseVersion": "1.4.2", "reason": "unavailable"}
               ]
             }
             """;
@@ -185,7 +185,7 @@ public class ProblemDetailHandlerTest
         Assert.Equal("system", first.CatalogKey);
         Assert.Equal("3.2.0", first.ReleaseVersion);
         Assert.Equal(MissingDependency.Reasons.Unavailable, first.Reason);
-        Assert.Equal("registry.gemeente-x.nl/huisstijl/branding@1.4.2:UNAVAILABLE", ex.MissingDependencies[1].ToString());
+        Assert.Equal("registry.gemeente-x.nl/huisstijl/branding@1.4.2:unavailable", ex.MissingDependencies[1].ToString());
     }
 
     [Fact]
@@ -208,14 +208,14 @@ public class ProblemDetailHandlerTest
               "title": "Release dependencies missing",
               "status": 409,
               "missingDependencies": [
-                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": "1.0.0", "reason": "SOME_FUTURE_REASON"}
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": "1.0.0", "reason": "some-future-reason"}
               ]
             }
             """);
 
         Assert.NotNull(parsed);
         Assert.Single(parsed!.MissingDependencies);
-        Assert.Equal("SOME_FUTURE_REASON", parsed.MissingDependencies[0].Reason);
+        Assert.Equal("some-future-reason", parsed.MissingDependencies[0].Reason);
     }
 
     [Fact]
@@ -230,8 +230,8 @@ public class ProblemDetailHandlerTest
               "missingDependencies": [
                 "not an object",
                 {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": "1.0.0"},
-                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": 1, "reason": "UNAVAILABLE"},
-                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": "2.0.0", "reason": "UNAVAILABLE"}
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": 1, "reason": "unavailable"},
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": "2.0.0", "reason": "unavailable"}
               ]
             }
             """);

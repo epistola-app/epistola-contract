@@ -4,7 +4,7 @@ StencilDto:
     Full stencil with all details.
     A stencil is a reusable template component that can be inserted into any template. Its content
     is edited in a draft of its catalog and marked ready. A template holds an instance of it by
-    reference (ADR 0006), and renders the stencil's content as it is in the same catalog version
+    reference, not a copy, and renders the stencil's content as it is in the same catalog version
     (or, for a stencil in another catalog, in the release that dependency pins), whatever its
     status: marking it ready is a review checkpoint, not what makes templates use it.
   required:
@@ -228,7 +228,7 @@ StencilUsageDto:
   type: object
   description: |
     A template variant that uses the stencil, and whether its instance fits the stencil's content in
-    this catalog version (ADR 0006). An instance renders the stencil as it is; one that does not fit
+    this catalog version. An instance refers to the stencil and renders the stencil as it is; one that does not fit
     (it fills a placeholder the stencil no longer has, or leaves a required parameter unbound) blocks
     the catalog release until its template variant is edited.
   required:
@@ -302,7 +302,7 @@ StencilListResponse:
     page:
       number: 0
       size: 20
-      totalElements: 1
+      total: 1
       totalPages: 1
 
 StencilUsageListResponse:
@@ -329,7 +329,7 @@ StencilUsageListResponse:
     page:
       number: 0
       size: 20
-      totalElements: 1
+      total: 1
       totalPages: 1
 
 UpdateStencilContentRequest:
@@ -365,7 +365,7 @@ StencilContentDto:
   type: object
   description: |
     A stencil's content in one catalog version: the TemplateDocument fragment that every instance
-    of the stencil renders (instances refer to it, ADR 0006), its parameters, and how it stands
+    of the stencil renders (instances refer to it rather than copy it), its parameters, and how it stands
     against that version's base.
   required:
     - stencilKey
@@ -405,8 +405,8 @@ MarkStencilReadyResponse:
   description: |
     The stencil, now ready, and the instances of it that do not fit its content.
 
-    Marking a stencil ready records that its content is reviewed, and nothing else (ADR 0006): every
-    instance already renders the stencil as it is. An instance the content breaks (it fills a
+    Marking a stencil ready records that its content is reviewed, and nothing else: every instance
+    refers to the stencil, so it already renders the stencil as it is. An instance the content breaks (it fills a
     placeholder the stencil no longer has, or leaves a required parameter unbound) is listed in
     `notFitting`, and the catalog release refuses until its template variant is edited.
   required:

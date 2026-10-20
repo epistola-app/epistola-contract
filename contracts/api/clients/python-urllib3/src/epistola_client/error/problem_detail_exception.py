@@ -27,7 +27,7 @@ class MissingDependency:
     server could not serve (one entry of a ``release-dependencies-missing`` problem's
     ``missingDependencies`` member).
 
-    :attr:`reason` is the wire value as sent (``UNAVAILABLE``), kept as a plain string so a reason
+    :attr:`reason` is the wire value as sent (``unavailable``), kept as a plain string so a reason
     a later contract adds is reported rather than lost.
     """
 

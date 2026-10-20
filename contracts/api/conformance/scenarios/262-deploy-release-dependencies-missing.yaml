@@ -8,7 +8,7 @@ why: >
   Deploying a release whose pinned dependency releases cannot be had (the tenant does not have
   them, and they could not be fetched from their registry or a mirror, or not verified) is refused
   with `release-dependencies-missing`. Its `missingDependencies` member is the reason: each release
-  the deployed one renders with, named in full, and why it is missing (`UNAVAILABLE`, the one
+  the deployed one renders with, named in full, and why it is missing (`unavailable`, the one
   reason the contract names). Without it a caller knows only that something conflicted, and cannot
   tell which registry or mirror to fix.
 
@@ -40,12 +40,12 @@ script:
           namespace: epistola
           catalogKey: system
           releaseVersion: 3.2.0
-          reason: UNAVAILABLE
+          reason: unavailable
         - registry: registry.gemeente-x.nl
           namespace: huisstijl
           catalogKey: branding
           releaseVersion: 1.4.2
-          reason: UNAVAILABLE
+          reason: unavailable
 
 expect:
   requestCount: 1
@@ -56,4 +56,4 @@ expect:
   report:
     problemTypeSlug: release-dependencies-missing
     problemStatus: 409
-    problemMissingDependencies: exchange.epistola.app/epistola/system@3.2.0:UNAVAILABLE,registry.gemeente-x.nl/huisstijl/branding@1.4.2:UNAVAILABLE
+    problemMissingDependencies: exchange.epistola.app/epistola/system@3.2.0:unavailable,registry.gemeente-x.nl/huisstijl/branding@1.4.2:unavailable

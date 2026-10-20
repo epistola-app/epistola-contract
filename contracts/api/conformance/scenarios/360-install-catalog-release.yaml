@@ -5,7 +5,7 @@
 id: install-catalog-release
 title: Installing a release a subscribed catalog's source offers puts it beside the others, with its pins
 why: >
-  Nothing is upgraded in contract 2.0: installing a release of a SUBSCRIBED catalog fetches it from
+  Nothing is upgraded in contract 2.0: installing a release of a subscribed catalog fetches it from
   the catalog's source and installs it as an import installs the release an archive carries, beside
   the releases the tenant has, nothing updated in place, nothing removed. The release is named in
   the path, `…/available-releases/1.5.0/install`, here rather than the newer `2.0.0` the source also

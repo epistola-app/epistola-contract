@@ -76,7 +76,7 @@ An event type is `{resourceType}.{action}`, both in kebab-case. The triggers bel
 | `catalog.release-installed` | `installCatalogRelease` |
 | `catalog.dependencies-updated` | `updateCatalogDependencies` |
 | `catalog-version.draft-created` | `createCatalogDraft` |
-| `catalog-version.draft-renamed` | `renameCatalogDraft` (also when it changes only the default theme or the presets) |
+| `catalog-version.draft-updated` | `updateCatalogDraft` (its name, default theme or presets) |
 | `catalog-version.draft-discarded` | `deleteCatalogDraft` |
 | `catalog-version.marked-ready` | `markCatalogReady` (every changed resource of a draft) |
 | `catalog-version.released` | `releaseCatalogDraft` (a draft is numbered and becomes immutable; one event per release, including drafts of other catalogs released along with it) |
@@ -96,9 +96,9 @@ An event type is `{resourceType}.{action}`, both in kebab-case. The triggers bel
 |---|---|
 | `document.generated` | A generation item completes and its document is stored |
 | `document.deleted` | `deleteDocument` |
-| `generation.completed` | Job transitions to `COMPLETED` |
-| `generation.failed` | Job transitions to `FAILED` |
-| `generation.cancelled` | `cancelGenerationJob` (job transitions to `CANCELLED`) |
+| `generation.completed` | Job transitions to `completed` |
+| `generation.failed` | Job transitions to `failed` |
+| `generation.cancelled` | `cancelGenerationJob` (job transitions to `cancelled`) |
 
 Most events about resources inside a catalog happen in a draft, which generation never renders, with two exceptions: preview, and an environment a draft is deployed to (`deployCatalogVersion`, never a production environment). A consumer that caches what it renders therefore mostly needs `catalog-version.released` and the `environment.*` events; editors and environments serving a draft need the rest.
 
@@ -886,7 +886,7 @@ For Epistola's current use-cases (cache invalidation, workflow orchestration, au
 
 ## Appendix A: Cursor-Based vs Offset-Based Pagination
 
-The existing API uses offset-based pagination: `page` and `size` query parameters, and a `page` object (`PageMeta`: `number`, `size`, `totalElements`, `totalPages`) in the response. The event feed uses cursor-based pagination (`after` + `limit` + `hasMore`). This is intentional:
+The existing API uses offset-based pagination: `page` and `size` query parameters, and a `page` object (`PageMeta`: `number`, `size`, `total`, `totalPages`) in the response. The event feed uses cursor-based pagination (`after` + `limit` + `hasMore`). This is intentional:
 
 - **Offset pagination** is appropriate for relatively stable datasets (template lists, catalog version lists) where items are rarely inserted or deleted while paginating.
 - **Cursor pagination** is required for append-only logs where new entries are continuously added. Offset-based pagination over a growing log would cause items to shift between pages, leading to duplicates or missed events.

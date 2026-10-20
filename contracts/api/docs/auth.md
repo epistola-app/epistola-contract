@@ -9,18 +9,12 @@ The Epistola API accepts authentication through the `Authorization` header. **AP
 Tenant API keys are static credentials issued by a tenant manager. Each key belongs to one tenant and carries the tenant roles it was issued with. Send the key through the `Authorization` header:
 
 ```bash
-curl https://api.example.com/api/tenants/acme-corp/templates \
+curl https://api.example.com/api/tenants/acme-corp/catalogs \
   -H "Authorization: ApiKey epk_..." \
   -H "Accept: application/vnd.epistola.v2+json"
 ```
 
-The legacy `X-API-Key` header remains supported for existing integrations, but is deprecated. Only the header is deprecated, not API keys themselves:
-
-```bash
-curl https://api.example.com/api/tenants/acme-corp/templates \
-  -H "X-API-Key: epk_..." \
-  -H "Accept: application/vnd.epistola.v2+json"
-```
+`Authorization` is the only header that carries an API key; the contract defines no other.
 
 The `ApiKey` authorization scheme name is case-insensitive as defined by HTTP authentication rules; examples use `ApiKey` for readability.
 
@@ -51,7 +45,7 @@ curl -X POST https://your-idp.example.com/realms/epistola/protocol/openid-connec
 #### API Request
 
 ```bash
-curl https://api.example.com/api/tenants/acme-corp/templates \
+curl https://api.example.com/api/tenants/acme-corp/catalogs \
   -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." \
   -H "Accept: application/vnd.epistola.v2+json"
 ```
@@ -118,7 +112,7 @@ curl -X POST https://api.example.com/api/tenants/acme-corp/consumers/register \
 5. Sign and send:
 
 ```bash
-curl https://api.example.com/api/tenants/acme-corp/templates \
+curl https://api.example.com/api/tenants/acme-corp/catalogs \
   -H "Authorization: Bearer <self-signed-jwt>" \
   -H "Accept: application/vnd.epistola.v2+json"
 ```
@@ -195,14 +189,14 @@ provisioning flows.
 > **Experimental.** The Consumers API that manages this lifecycle may not be implemented by Epistola Suite yet.
 
 ```
-Self-signed JWT:  POST /tenants/{tenantKey}/consumers/register → PENDING
-OAuth:            First authenticated request → PENDING
-API key:          Issued by a tenant manager → ACTIVE
+Self-signed JWT:  POST /tenants/{tenantKey}/consumers/register → pending
+OAuth:            First authenticated request → pending
+API key:          Issued by a tenant manager → active
 
-PENDING → approve → ACTIVE → (expiresAt passes) → EXPIRED
-PENDING → reject  → REJECTED
-ACTIVE  → deactivate (via PATCH) → INACTIVE
-INACTIVE → reactivate (via PATCH) → ACTIVE
+pending → approve → active → (expiresAt passes) → expired
+pending → reject  → rejected
+active  → deactivate (via PATCH) → inactive
+inactive → reactivate (via PATCH) → active
 ```
 
 Consumers in any status other than `active` cannot access API resources (except the registration endpoint).
@@ -256,7 +250,7 @@ Common causes:
 ## Best Practices
 
 1. **Use an API key for production** — the supported method; the JWT methods are experimental
-2. **Send it as `Authorization: ApiKey <key>`** — `X-API-Key` remains supported but is deprecated
+2. **Send it as `Authorization: ApiKey <key>`**, the one header the contract defines for it
 3. **Issue each key with the fewest roles it needs** — a service that generates and downloads documents needs `DOCUMENT_GENERATOR` and `CONTENT_VIEWER`, not `TENANT_ADMINISTRATOR`
 4. **Set an expiry on keys** — and rotate by issuing a new key before revoking the old one
 

@@ -46,14 +46,14 @@ PongResponse:
     status:
       type: string
       enum:
-        - UP
-        - DEGRADED
+        - up
+        - degraded
       description: |
         Current health status of the server.
-        - `UP`: All systems operational.
-        - `DEGRADED`: Service is running but with reduced capability.
-        A server that is completely down cannot respond, so there is no `DOWN` value.
-      example: UP
+        - `up`: All systems operational.
+        - `degraded`: Service is running but with reduced capability.
+        A server that is completely down cannot respond, so there is no `down` value.
+      example: up
     timestamp:
       type: string
       format: date-time

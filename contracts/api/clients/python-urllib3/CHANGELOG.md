@@ -28,6 +28,13 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
+- **BREAKING:** `GenerationResult.registry`, `namespace` and `catalog_key` are `str`, no longer
+  `Optional[str]`: every collected result names its catalog. `release_version` stays `None` for a
+  document rendered from a draft. `GenerationResult.status` carries the wire value as sent, now
+  `completed` or `failed`.
+- `MissingDependency.reason` carries the wire value as sent, now `unavailable`.
+- The README no longer mentions the `X-API-Key` header, which the contract no longer defines;
+  `.api_key(...)` sends `Authorization: ApiKey <key>`, as before.
 - **BREAKING:** the HTTP client and the result collector send `application/vnd.epistola.v2+json` and
   `application/vnd.epistola.v2+ndjson`, the contract 2.x media types. A 2.x server refuses the 1.x
   ones.

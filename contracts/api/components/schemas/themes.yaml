@@ -42,7 +42,7 @@ ThemeDto:
         $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
       description: |
         Named block style presets (like CSS classes). Key is the preset name, which the catalog's
-        declared presets name (ADR 0007). Absent when the theme styles none (as after an update
+        declared presets name (`CatalogVersionDto.presets`). Absent when the theme styles none (as after an update
         sends null).
       example:
         heading:
@@ -253,5 +253,5 @@ ThemeListResponse:
     page:
       number: 0
       size: 20
-      totalElements: 1
+      total: 1
       totalPages: 1

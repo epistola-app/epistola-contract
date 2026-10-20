@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: render-target
-title: A generation request names its catalog by namespace and key, leaves the default registry implicit, and narrows the release by version range and environment together
+title: A generation request names its catalog by namespace and key, leaves the default registry implicit, narrows the release by version range and environment together, and reads back the job
 why: >
   A catalog is identified by its registry, its namespace and its key; the key alone can name two
   different catalogs from two publishers. A client that drops the namespace renders a template from
@@ -16,6 +16,11 @@ why: >
   the environment serves that satisfies the range. They used to be mutually exclusive, so a client
   that still enforces that, or drops one when the other is set, renders a different release than
   the caller asked for.
+
+  The answer is a job: the client reads its `requestId`, its lowercase `status` and `jobType`, the
+  number of items it holds (`total`), and the job's address from the `Location` header, which is
+  where a caller polls it. A client that cannot read the header leaves the caller to assemble that
+  URL from the body.
 
   `versionRange` is a range, not a release number. The contract keeps it unconstrained so that SemVer ranges
   can be enabled without a client release; a client that validates it as `MAJOR.MINOR.PATCH` refuses
@@ -37,11 +42,13 @@ action:
 script:
   - status: 202
     contentType: application/vnd.epistola.v2+json
+    headers:
+      Location: /api/tenants/acme-corp/documents/jobs/88888888-8888-4888-8888-000000000002
     body:
       requestId: 88888888-8888-4888-8888-000000000002
-      status: PENDING
-      jobType: SINGLE
-      totalCount: 1
+      status: pending
+      jobType: single
+      total: 1
       createdAt: "2026-02-01T08:00:00Z"
 
 expect:
@@ -59,3 +66,9 @@ expect:
           data:
             customerName: Acme B.V.
         jsonNullOrAbsent: [registry]
+  report:
+    requestId: 88888888-8888-4888-8888-000000000002
+    status: pending
+    jobType: single
+    total: 1
+    location: /api/tenants/acme-corp/documents/jobs/88888888-8888-4888-8888-000000000002

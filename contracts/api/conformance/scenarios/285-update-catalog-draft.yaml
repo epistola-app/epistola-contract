@@ -2,21 +2,25 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: rename-catalog-draft
-title: Renaming a draft sends only the new name, to its unchanged address
+id: update-catalog-draft
+title: Renaming a draft sends only the new name, to its unchanged address, conditional on the ETag it read
 why: >
   A draft is named, and addressed by its `versionId`, not by its name (ADR 0002).
-  Renaming it is a PATCH to that address carrying the new `name`, and the address does not change:
-  the response is the same draft under its new name. A client that still sends a `version`, or an
-  `acknowledgeWarnings` flag from the renumber this replaced, sends members the contract no longer
-  has.
+  Renaming it is a PATCH (`updateCatalogDraft`) to that address carrying the new `name`, and the
+  address does not change: the response is the same draft under its new name. A client that still
+  sends a `version`, or an `acknowledgeWarnings` flag from the renumber this replaced, sends members
+  the contract no longer has.
+
+  The update is conditional: the client sends the `ETag` it read as `If-Match`, byte for byte,
+  quotes included, and reads the new `ETag` back from the response, which it needs for the next
+  update. A client that drops either turns the next edit back into last-write-wins.
 
   This catalog was never released, so the draft has no base: it was copied from another draft
   (`createdFrom`), which had none either. A client that cannot read a null `base` cannot rename a
   draft of a new catalog.
 
 action:
-  name: rename-catalog-draft
+  name: update-catalog-draft
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
@@ -25,10 +29,13 @@ action:
     catalogKey: onboarding
     catalogVersion: h3v9p6db
     name: Redesign 2028
+    ifMatch: '"3"'
 
 script:
   - status: 200
     contentType: application/vnd.epistola.v2+json
+    headers:
+      ETag: '"4"'
     body:
       releaseVersion: null
       versionId: h3v9p6db
@@ -48,6 +55,7 @@ expect:
       headers:
         Content-Type:
           matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
+        if-match: '"3"'
       body:
         json:
           name: Redesign 2028
@@ -58,3 +66,4 @@ expect:
     name: Redesign 2028
     status: draft
     base: 'null'
+    etag: '"4"'

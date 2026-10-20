@@ -758,16 +758,6 @@ UpdateTemplateRequest:
       description: Updated data examples
       items:
         $ref: '#/DataExampleDto'
-    forceUpdate:
-      type: boolean
-      default: false
-      description: >-
-        Has no effect, and is kept so 1.x requests still parse. A template is edited in a
-        draft catalog version, which nothing renders, so a backwards-incompatible
-        (breaking) data-model change is saved without confirmation; it is weighed when the
-        draft is numbered and released (ADR 0002). Data examples are always validated
-        against the schema — an incompatible example is rejected (422).
-      example: false
 
 TemplateListResponse:
   description: List of templates
@@ -793,5 +783,5 @@ TemplateListResponse:
     page:
       number: 0
       size: 20
-      totalElements: 1
+      total: 1
       totalPages: 1

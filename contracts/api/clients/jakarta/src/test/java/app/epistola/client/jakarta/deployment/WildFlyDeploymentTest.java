@@ -53,10 +53,10 @@ class WildFlyDeploymentTest {
     private static final String WAR_NAME = "epistola-smoke";
 
     private static final String PONG =
-            "{\"status\":\"UP\",\"timestamp\":\"2026-09-02T10:00:00Z\"}";
+            "{\"status\":\"up\",\"timestamp\":\"2026-09-02T10:00:00Z\"}";
 
     private static final String IMAGE = "{\"key\":\"logo\",\"tenantKey\":\"acme-corp\",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"main\","
-            + "\"catalogType\":\"AUTHORED\",\"readOnly\":false,\"name\":\"Logo\",\"mediaType\":\"image/png\","
+            + "\"catalogType\":\"authored\",\"readOnly\":false,\"name\":\"Logo\",\"mediaType\":\"image/png\","
             + "\"sizeBytes\":16,\"createdAt\":\"2026-09-02T10:00:00Z\"}";
 
     @Test
@@ -100,7 +100,7 @@ class WildFlyDeploymentTest {
                                 HttpResponse.BodyHandlers.ofString());
 
                 assertEquals(200, response.statusCode(), response.body());
-                assertEquals("UP", response.body().trim());
+                assertEquals("up", response.body().trim());
 
                 StubServer.RecordedRequest seen = epistola.onlyRequest();
                 assertEquals("/api/ping", seen.path());

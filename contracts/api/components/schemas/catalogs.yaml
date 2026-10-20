@@ -38,36 +38,30 @@ CatalogDto:
       type: [string, "null"]
       description: Optional description
     type:
-      type: string
-      enum: [AUTHORED, SUBSCRIBED]
-      description: Catalog type
-      example: AUTHORED
+      $ref: '#/CatalogType'
     highestReleaseVersion:
       type: [string, "null"]
       pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: >-
-        The number of the catalog's highest release. For AUTHORED catalogs null until
-        first released. For SUBSCRIBED catalogs the highest installed release.
+        The number of the catalog's highest release. For authored catalogs null until
+        first released. For subscribed catalogs the highest installed release.
       example: "1.4.0"
     drafts:
       type: array
       description: >-
         The catalog's open drafts, oldest first. A draft has no number until it is released. Empty
-        for a SUBSCRIBED catalog, and for an AUTHORED catalog with no draft open.
+        for a subscribed catalog, and for an authored catalog with no draft open.
       items:
         $ref: '#/CatalogDraftSummary'
     fingerprint:
       type: [string, "null"]
-      pattern: '^(v[1-9][0-9]*:)?[0-9a-f]{64}$'
+      pattern: '^v[1-9][0-9]*:[0-9a-f]{64}$'
       description: |
         The canonical fingerprint of the content of the highest release (`highestReleaseVersion`;
         deterministic, excludes volatile fields), which identifies content independently of the
-        release number. It names the
-        algorithm that computed it, as the catalog archive does: `v5:` and lowercase SHA-256 hex.
-        A bare hex value is a fingerprint recorded before contract 2.0 whose algorithm was not
-        recorded; it cannot be checked against content. Null when never released or produced before
-        fingerprinting.
+        release number. It names the algorithm that computed it, as the catalog archive does:
+        `v5:` and lowercase SHA-256 hex. Null when the catalog has no release.
       example: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
 
 CatalogListResponse:
@@ -86,7 +80,7 @@ CatalogListResponse:
 AvailableCatalogReleases:
   type: object
   description: |
-    The releases the source of a SUBSCRIBED catalog offers that the tenant has not installed, older
+    The releases the source of a subscribed catalog offers that the tenant has not installed, older
     lines included, each with what it changed against the closest installed release below it and
     whether the releases it pins are present. Nothing is installed by reading it.
   required:
@@ -128,7 +122,7 @@ AvailableCatalogReleases:
 
 AvailableReleaseDto:
   type: object
-  description: A release the source of a SUBSCRIBED catalog offers, which the tenant does not have
+  description: A release the source of a subscribed catalog offers, which the tenant does not have
   required:
     - releaseVersion
     - comparedTo
@@ -207,7 +201,7 @@ AvailableReleaseDependencyDto:
 InstallCatalogReleaseResponse:
   type: object
   description: |
-    Result of installing a release of a SUBSCRIBED catalog from its source: the release it
+    Result of installing a release of a subscribed catalog from its source: the release it
     installed, or found already present, reported as `ImportCatalogResponse` reports an import.
     Nothing was updated in place or removed. A schema of its own rather than
     `ImportCatalogResponse`: it carries no `catalogName` (the catalog exists already), and its
@@ -415,8 +409,7 @@ CatalogDependencyRequirement:
       pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: |
-        The exact release of the catalog depended on that this catalog renders with, not a range.
-        Ranges (such as `^1.0.0`) may come in a later 2.x, as an addition.
+        The exact release of the catalog depended on that this catalog renders with, never a range.
       example: "1.3.0"
     versionId:
       type: [string, "null"]
@@ -424,7 +417,7 @@ CatalogDependencyRequirement:
       minLength: 4
       maxLength: 36
       description: |
-        A draft of the catalog depended on, by its `versionId` (a `CatalogVersionId`), an AUTHORED
+        A draft of the catalog depended on, by its `versionId` (a `CatalogVersionId`), an authored
         catalog of this tenant, that this draft renders with live, unreleased changes included. A release never pins a draft: releasing
         this draft is refused (`release-dependencies-unreleased`) unless the request releases the
         named draft along with it (`releaseDependencies`). Released on its own, the draft becomes a
@@ -526,7 +519,7 @@ CatalogVersionId:
   minLength: 4
   maxLength: 36
   description: |
-    The id of one catalog version (ADR 0002), opaque and assigned by the server, unique within its
+    The id of one catalog version, opaque and assigned by the server, unique within its
     catalog. A version gets it when it is started as a draft and keeps it when it is released; a
     release installed by import or from its source gets one when it is installed. It
     addresses the version (`…/versions/{versionId}`) for as long as the version exists, as a draft
@@ -538,6 +531,22 @@ CatalogVersionId:
     to use a short random id instead, about 8 characters from a lowercase alphabet without
     look-alikes (no `0`/`o`, `1`/`l`/`i`), such as `k7m2x9qa`, which people can read and type.
   example: k7m2x9qa
+
+CatalogType:
+  type: string
+  enum:
+    - authored
+    - subscribed
+  description: |
+    Where a catalog's releases come from:
+
+    - `authored`: the tenant writes it. Drafts are started, edited and released here.
+    - `subscribed`: published elsewhere. The tenant only installs its releases, from an archive or
+      from its source (`installCatalogRelease`), and its resources are read-only: every write to
+      one is refused with 409.
+
+    The import that creates a catalog names its type, and nothing changes it afterwards.
+  example: authored
 
 CatalogVersionStatus:
   type: string
@@ -576,7 +585,7 @@ CatalogDraftSummary:
 CatalogVersionDto:
   type: object
   description: |
-    One version of a catalog: a draft or a released version (ADR 0002). A catalog has any number of
+    One version of a catalog: a draft or a released version. A catalog has any number of
     drafts, each named, each on a fixed base, and each released on its own; a draft is numbered when
     it is released, and keeps its `versionId`. Each draft is an independent copy, and nothing is
     merged between them.
@@ -656,12 +665,11 @@ CatalogVersionDto:
       example: null
     fingerprint:
       type: [string, "null"]
-      pattern: '^(v[1-9][0-9]*:)?[0-9a-f]{64}$'
+      pattern: '^v[1-9][0-9]*:[0-9a-f]{64}$'
       description: |
         The canonical fingerprint of the released content, naming the algorithm that computed it
         (`v5:` and lowercase SHA-256 hex), the same value as `release.fingerprint` in the release's
-        catalog archive. A bare hex value is a fingerprint recorded before contract 2.0 whose
-        algorithm was not recorded. Null for a draft.
+        catalog archive. Null for a draft.
       example: null
     dependencies:
       type: array
@@ -683,7 +691,7 @@ CatalogVersionDto:
     defaultTheme:
       $ref: '#/CatalogThemeReference'
       description: |
-        The version's default theme (ADR 0007). A render uses the variant's own theme when its
+        The version's default theme. A render uses the variant's own theme when its
         template model overrides it (`themeRef`), else the theme its template names (part of the
         template's catalog content, `themeKey` in the archive; this API does not expose it), else
         this one. It is part of the version's content, as
@@ -693,7 +701,7 @@ CatalogVersionDto:
     presets:
       type: array
       description: |
-        The block style presets the version declares (ADR 0007), as `catalog.presets` in its
+        The block style presets the version declares, as `catalog.presets` in its
         catalog archive: what a block's `stylePreset` may name, together with the presets of the
         catalogs it depends on. A theme's `blockStylePresets` supplies their styles. Empty when the
         version declares none; an editor then offers the presets its themes style.
@@ -723,7 +731,7 @@ ReleasedChangeDto:
   type: object
   description: |
     A resource a release added, modified or removed against another release: its base, for a release
-    a draft is behind; `comparedTo`, for a release the source of a SUBSCRIBED catalog offers
+    a draft is behind; `comparedTo`, for a release the source of a subscribed catalog offers
   required:
     - type
     - key
@@ -787,11 +795,11 @@ CreateCatalogDraftRequest:
         catalog has no release.
       example: "1.4.0"
 
-RenameCatalogDraftRequest:
+UpdateCatalogDraftRequest:
   type: object
   description: |
-    A partial update of a draft: its name and its theme settings (ADR 0007). A member that is
-    omitted keeps its current value.
+    A partial update of a draft's own settings: its name, its default theme and its declared
+    presets. A member that is omitted keeps its current value.
   properties:
     name:
       type: string
@@ -861,7 +869,7 @@ CatalogThemeReference:
 CatalogPresetDto:
   type: object
   description: |
-    A block style preset a catalog version declares (ADR 0007): what a block's `stylePreset` names,
+    A block style preset a catalog version declares: what a block's `stylePreset` names,
     and the key a theme's `blockStylePresets` styles it under.
   required:
     - key
@@ -889,8 +897,10 @@ CatalogPresetDto:
 CatalogDraftReleasePreview:
   type: object
   description: |
-    The number a draft would be released as (ADR 0002): from the kind of change it holds against
-    its base, by ADR 0001's rule of what breaks. A release may be numbered higher, never lower.
+    The number a draft would be released as, from the kind of change it holds against its base. A
+    change is breaking when something a caller of the base relies on is removed or narrowed: a
+    resource, a variant, a value, or what a data contract or a stencil's interface accepts. A
+    release may be numbered higher, never lower.
   required:
     - reasons
     - needed

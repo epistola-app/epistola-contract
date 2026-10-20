@@ -3,8 +3,7 @@ ConsumerDto:
   description: |
     Represents a consumer application registered within a tenant.
 
-    **Experimental** — part of the Consumers API, which Epistola Suite may not
-    implement yet.
+    **Experimental**, as the whole Consumers API is (see the Consumers tag).
 
     Consumers are tenant-scoped — each tenant independently manages which
     applications can access their resources. The same application can register
@@ -77,8 +76,7 @@ ConsumerDto:
         - `self-signed-jwt` (**experimental**): Short-lived JWTs signed with the
           consumer's private key.
         - `api-key`: Long-lived static key provisioned by a tenant manager, sent as
-          `Authorization: ApiKey <key>` (or the deprecated `X-API-Key` header). This
-          is the supported method. The consumer cannot self-rotate an api key —
+          `Authorization: ApiKey <key>`. This is the supported method. The consumer cannot self-rotate an api key —
           `PUT /tenants/{tenantKey}/consumers/{consumerId}/public-key` does not apply; rotation requires
           a tenant manager to issue a new key and revoke the old one out of
           band.
@@ -125,10 +123,10 @@ ConsumerDto:
       format: date-time
       description: When the server last received a request from this consumer
       example: "2026-04-22T14:30:00Z"
-    updatedAt:
+    lastModified:
       type: ['string', 'null']
       format: date-time
-      description: When the consumer record was last modified
+      description: When the consumer record was last changed; null when it has not changed since it was registered
       example: null
 
 ConsumerPermissions:

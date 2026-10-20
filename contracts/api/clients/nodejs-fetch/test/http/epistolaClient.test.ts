@@ -21,8 +21,8 @@ import { json, startServer, type TestServer } from '../helpers/server.js'
 
 const VENDOR_JSON = 'application/vnd.epistola.v2+json'
 const PROBLEM_JSON = 'application/problem+json'
-const EMPTY_PAGE = { items: [], page: { number: 0, size: 20, totalElements: 0, totalPages: 0 } }
-const PONG = { status: 'UP', timestamp: '2026-04-21T10:30:00Z' }
+const EMPTY_PAGE = { items: [], page: { number: 0, size: 20, total: 0, totalPages: 0 } }
+const PONG = { status: 'up', timestamp: '2026-04-21T10:30:00Z' }
 
 function client(server: TestServer): EpistolaClient {
   return EpistolaClient.builder(`${server.url}/api`)
@@ -35,7 +35,7 @@ test('a generated call carries identity, the declared Accept, the vendor Content
   const server = await startServer((_, res) => json(res, 200, VENDOR_JSON, PONG))
   try {
     const pong = await new SystemApi(client(server)).ping({ pingRequest: { name: 'Test' } })
-    assert.equal(pong.status, 'UP')
+    assert.equal(pong.status, 'up')
     const [request] = server.requests
     assert.equal(request.method, 'POST')
     assert.equal(request.path, '/api/ping')
@@ -44,7 +44,6 @@ test('a generated call carries identity, the declared Accept, the vendor Content
     assert.match(request.headers['content-type'], /^application\/vnd\.epistola\.v2\+json(;.*)?$/)
     assert.equal(request.headers.accept, VENDOR_JSON)
     assert.equal(request.headers.authorization, 'ApiKey epk_test')
-    assert.equal(request.headers['x-api-key'], undefined)
     assert.deepEqual(JSON.parse(request.body.toString('utf8')), { name: 'Test' })
   } finally {
     await server.close()

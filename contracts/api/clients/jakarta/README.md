@@ -158,8 +158,6 @@ X-EP-Node-Id: my-pod-123
 ## Authentication
 
 Static tenant API keys are the supported method. They are sent as `Authorization: ApiKey <key>`.
-The legacy `X-API-Key` header remains supported by the API but is deprecated and is not sent by this
-client.
 
 `JwtSigner` (**experimental**) mints short-lived self-signed JWTs (RSA-2048+ → RS256, EC P-256 →
 ES256) with `iss`, `iat`, `exp` and a fresh `jti` per request. It signs with the JDK's own
@@ -220,11 +218,13 @@ Some Epistola Suite deployments disable API-key authentication entirely; that ar
 
 ## Optimistic locking
 
-Templates, variants, themes, stencils, code lists and attributes carry a revision, which a read
-(and an update) returns as the `ETag` response header. Send it back as `If-Match` and the update is
+Tenants, environments, consumers, catalog drafts and their dependencies, templates, variants,
+themes, stencils, code lists (and their entries' hidden flag) and attributes carry a revision, which
+a read (and an update) returns as the `ETag` response header. Send it back as `If-Match` and the update is
 refused with 412 `resource-modified` if someone changed the resource since you read it.
 
-A generated method returns the body alone, so each operation that answers with an `ETag` has a
+A generated method returns the body alone, so each operation that answers with an `ETag` or a
+`Location` (every create, and the accepted `generateDocument` / `generateDocumentBatch` jobs) has a
 sibling, `…WithHttpInfo`, with the same parameters, that returns the whole `Response`: read the
 header from it and the body with `readEntity`, and close it when done. An error still arrives as a
 `ProblemDetailException`.
@@ -306,7 +306,7 @@ ResultCollector collector = ResultCollector.builder()
         .handler(result -> {
             switch (result.getStatus()) {
                 // result.getRegistry()/getNamespace()/getCatalogKey()/getReleaseVersion() name
-                // the release rendered; all four are null for a result accepted before contract 2.0.
+                // the release rendered; getReleaseVersion() is null for a draft rendered through an environment.
                 case COMPLETED -> download(result.getDocumentId(), result.getCorrelationId());
                 case FAILED -> logFailure(result.getCorrelationId(), result.getError());
             }

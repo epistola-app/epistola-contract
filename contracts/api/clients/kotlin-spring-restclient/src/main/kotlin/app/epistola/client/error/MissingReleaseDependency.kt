@@ -32,7 +32,7 @@ data class MissingReleaseDependency(
          * The tenant does not have the release, and it could not be fetched from its registry or
          * any configured mirror, or the copy did not match its recorded fingerprint.
          */
-        const val UNAVAILABLE: String = "UNAVAILABLE"
+        const val UNAVAILABLE: String = "unavailable"
     }
 
     internal companion object {

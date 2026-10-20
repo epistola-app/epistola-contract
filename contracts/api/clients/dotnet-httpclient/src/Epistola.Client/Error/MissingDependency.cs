@@ -52,7 +52,7 @@ public sealed class MissingDependency
         /// The tenant does not have the release, and it could not be fetched from its registry or
         /// any configured mirror, or the copy did not match its recorded fingerprint.
         /// </summary>
-        public const string Unavailable = "UNAVAILABLE";
+        public const string Unavailable = "unavailable";
     }
 
     /// <summary>

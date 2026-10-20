@@ -81,7 +81,7 @@ const generatedThemeRef = `    ThemeRef:
               pattern: ^[a-z0-9]+(-[a-z0-9]+)*$
               minLength: 3
               maxLength: 50
-              description: 'Key of the theme resource: the same rule as every resource key (catalog wire v8).'
+              description: 'Key of the theme resource: the same rule as every resource key.'
             catalogKey:
               type: string
               pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
@@ -93,12 +93,12 @@ const generatedThemeRef = `    ThemeRef:
               minLength: 3
               maxLength: 63
               pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
-              description: Namespace of the catalog containing the theme. Omitted means the owning template's catalog namespace. Added with catalog wire v8.
+              description: Namespace of the catalog containing the theme. Omitted means the owning template's catalog namespace.
             registry:
               type: string
               maxLength: 253
               pattern: ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$
-              description: Registry of the catalog containing the theme. Omitted means the owning template's catalog registry, never an installation default. Requires namespace. Added with catalog wire v8.
+              description: Registry of the catalog containing the theme. Omitted means the owning template's catalog registry, never an installation default. Requires namespace.
           required:
             - type
             - themeKey
@@ -121,7 +121,7 @@ const generatorCompatibleThemeRef = `    ThemeRef:
           pattern: ^[a-z0-9]+(-[a-z0-9]+)*$
           minLength: 3
           maxLength: 50
-          description: 'Key of the theme resource: the same rule as every resource key (catalog wire v8).'
+          description: 'Key of the theme resource: the same rule as every resource key.'
         catalogKey:
           type: string
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
@@ -133,12 +133,12 @@ const generatorCompatibleThemeRef = `    ThemeRef:
           minLength: 3
           maxLength: 63
           pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
-          description: Namespace of the catalog containing the theme. Omitted means the owning template's catalog namespace. Added with catalog wire v8.
+          description: Namespace of the catalog containing the theme. Omitted means the owning template's catalog namespace.
         registry:
           type: string
           maxLength: 253
           pattern: ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$
-          description: Registry of the catalog containing the theme. Omitted means the owning template's catalog registry, never an installation default. Requires namespace. Added with catalog wire v8.
+          description: Registry of the catalog containing the theme. Omitted means the owning template's catalog registry, never an installation default. Requires namespace.
       dependentRequired:
         registry:
           - namespace

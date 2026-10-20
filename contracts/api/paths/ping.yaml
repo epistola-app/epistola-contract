@@ -39,7 +39,6 @@ ping:
       - {}
       - bearerAuth: []
       - authorizationApiKeyAuth: []
-      - apiKeyAuth: []
     requestBody:
       required: false
       content:

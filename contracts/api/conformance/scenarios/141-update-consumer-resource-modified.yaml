@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: update-consumer-resource-modified
+title: Updating a consumer sends If-Match as given, and a stale one surfaces as resource-modified
+why: >
+  A consumer's record holds what a tenant manager granted it. Two managers changing it at once, one
+  narrowing the permissions and one renaming, would otherwise each write over the other. With the
+  `ETag` the client read sent back as `If-Match`, the second update is refused with 412
+  `resource-modified` and changes nothing. A client must send the tag byte for byte and surface
+  that slug, so the caller reads the consumer again instead of retrying blind.
+
+action:
+  name: update-consumer
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    consumerId: billing-service
+    name: Billing Service
+    ifMatch: '"12"'
+
+script:
+  - status: 412
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/resource-modified
+      title: Resource Modified
+      status: 412
+      detail: "The consumer changed since revision 12 was read; it is now at revision 13"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PATCH
+      path: /api/tenants/acme-corp/consumers/billing-service
+      headers:
+        if-match: '"12"'
+      body:
+        json:
+          name: Billing Service
+  report:
+    problemTypeSlug: resource-modified
+    problemStatus: 412

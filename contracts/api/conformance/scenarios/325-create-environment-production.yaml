@@ -21,6 +21,8 @@ action:
 script:
   - status: 201
     contentType: application/vnd.epistola.v2+json
+    headers:
+      Location: /api/tenants/acme-corp/environments/production
     body:
       key: production
       tenantKey: acme-corp
@@ -46,3 +48,4 @@ expect:
     key: production
     name: Production
     production: 'true'
+    location: /api/tenants/acme-corp/environments/production

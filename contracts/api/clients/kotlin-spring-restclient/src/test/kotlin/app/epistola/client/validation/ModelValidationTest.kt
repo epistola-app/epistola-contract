@@ -6,6 +6,8 @@ package app.epistola.client.validation
 
 import app.epistola.client.model.BatchGenerationItem
 import app.epistola.client.model.CatalogDependencyRequirement
+import app.epistola.client.model.CatalogVersionDto
+import app.epistola.client.model.CatalogVersionStatus
 import app.epistola.client.model.CreateEnvironmentRequest
 import app.epistola.client.model.CreateTemplateRequest
 import app.epistola.client.model.CreateTenantRequest
@@ -425,6 +427,27 @@ class ModelValidationTest {
         assertEquals("items: must have at least 1 item(s)", ex.message)
     }
 
+    // --- A fingerprint names the algorithm that computed it ---
+
+    @Test
+    fun `a fingerprint must name its algorithm, a bare hex value is rejected`() {
+        val hex = "0123456789abcdef".repeat(4)
+        val version = CatalogVersionDto(
+            releaseVersion = "1.0.0",
+            versionId = "v1x9q2",
+            status = CatalogVersionStatus.released,
+            behind = emptyList(),
+            dependencies = emptyList(),
+            deployedTo = emptyList(),
+            fingerprint = "v1:$hex",
+        )
+        assertEquals(version, version.validate())
+
+        val ex = assertFailsWith<IllegalArgumentException> { version.copy(fingerprint = hex).validate() }
+        assertEquals(true, ex.message?.startsWith("fingerprint: must match pattern"))
+        assertFailsWith<IllegalArgumentException> { version.copy(fingerprint = "v0:$hex").validate() }
+    }
+
     // --- DocumentDto: many slug fields + integer range in one DTO ---
 
     @Test
@@ -432,6 +455,9 @@ class ModelValidationTest {
         val doc = DocumentDto(
             id = UUID.randomUUID(),
             tenantKey = "acme-corp",
+            registry = "exchange.epistola.app",
+            namespace = "acme",
+            catalogKey = "invoices",
             templateKey = "monthly-invoice",
             variantKey = "english",
             releaseVersion = "1.4.0",
@@ -450,6 +476,9 @@ class ModelValidationTest {
         val base = DocumentDto(
             id = UUID.randomUUID(),
             tenantKey = "acme-corp",
+            registry = "exchange.epistola.app",
+            namespace = "acme",
+            catalogKey = "invoices",
             templateKey = "invoice",
             variantKey = "english",
             releaseVersion = "1.0.0",

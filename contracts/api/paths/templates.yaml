@@ -63,6 +63,10 @@ templates:
     responses:
       '201':
         description: Template created successfully
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The template's address (`getTemplate`)
         content:
           application/vnd.epistola.v2+json:
             schema:

@@ -33,7 +33,7 @@ test('a catalog version is addressed by a draft id or by its number, and its sub
   assert.equal(findOperation('POST', base)!.operationId, 'createCatalogDraft')
   assert.equal(findOperation('GET', `${base}/1.4.0`)!.operationId, 'getCatalogVersion')
   assert.equal(findOperation('GET', `${base}/${versionId}`)!.operationId, 'getCatalogVersion')
-  assert.equal(findOperation('PATCH', `${base}/${versionId}`)!.operationId, 'renameCatalogDraft')
+  assert.equal(findOperation('PATCH', `${base}/${versionId}`)!.operationId, 'updateCatalogDraft')
   assert.equal(findOperation('DELETE', `${base}/${versionId}`)!.operationId, 'deleteCatalogDraft')
   assert.equal(findOperation('GET', `${base}/${versionId}/release-preview`)!.operationId, 'previewCatalogDraftRelease')
   // Any draft is released at its own address (ADR 0002); there is no promotion.

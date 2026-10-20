@@ -18,6 +18,7 @@ const CLIENT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../client
 const {
   CatalogsApi,
   ClientIdentity,
+  CodeListsApi,
   ConsumersApi,
   EnvironmentsApi,
   EpistolaClient,
@@ -31,6 +32,7 @@ const {
   TemplateDataValidationException,
   TemplateSchemaValidator,
   TemplatesApi,
+  TenantsApi,
   VariantsApi,
 } = await import(CLIENT)
 
@@ -57,7 +59,7 @@ const ACTIONS = {
   'create-catalog-draft': createCatalogDraft,
   'list-catalog-versions': listCatalogVersions,
   'get-catalog-version': getCatalogVersion,
-  'rename-catalog-draft': renameCatalogDraft,
+  'update-catalog-draft': updateCatalogDraft,
   'set-catalog-draft-theme-settings': setCatalogDraftThemeSettings,
   'preview-catalog-draft-release': previewCatalogDraftRelease,
   'delete-catalog-draft': deleteCatalogDraft,
@@ -66,6 +68,8 @@ const ACTIONS = {
   'undeploy-catalog-version': undeployCatalogVersion,
   'create-environment': createEnvironment,
   'update-environment': updateEnvironment,
+  'update-tenant': updateTenant,
+  'update-code-list-entry-hidden': updateCodeListEntryHidden,
   'update-variant-content': updateVariantContent,
   'get-variant-content': getVariantContent,
   'mark-variant-ready': markVariantReady,
@@ -230,9 +234,17 @@ async function generateDocument(baseUrl, config) {
   if (config.variantKey !== undefined) request.variantKey = config.variantKey
   if (config.versionRange !== undefined) request.versionRange = config.versionRange
   if (config.environmentKey !== undefined) request.environmentKey = config.environmentKey
-  await new GenerationApi(client(baseUrl, config)).generateDocument({
+  const response = await new GenerationApi(client(baseUrl, config)).generateDocumentRaw({
     tenantKey: config.tenantKey,
     generateDocumentRequest: request,
+  })
+  const job = await response.value()
+  await report(baseUrl, {
+    requestId: show(job.requestId),
+    status: show(job.status),
+    jobType: show(job.jobType),
+    total: job.total ?? 'null',
+    location: show(response.raw.headers.get('Location')),
   })
 }
 
@@ -450,40 +462,49 @@ async function listCatalogDependencies(baseUrl, config) {
  * parsed.
  */
 async function updateCatalogDependencies(baseUrl, config) {
-  const response = await new CatalogsApi(client(baseUrl, config)).updateCatalogDependencies({
-    tenantKey: config.tenantKey,
-    registry: config.registry,
-    namespace: config.namespace,
-    catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
-    // Each entry as given: a `registry`, `releaseVersion` or `versionId` the scenario leaves out stays
-    // undefined, which the generated serializer keeps off the wire.
-    updateCatalogDependenciesRequest: { dependencies: config.dependencies },
-  })
-  await reportDependencies(baseUrl, response.items)
+  await conditionalUpdate(
+    baseUrl,
+    () => new CatalogsApi(client(baseUrl, config)).updateCatalogDependenciesRaw({
+      tenantKey: config.tenantKey,
+      registry: config.registry,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      catalogVersion: config.catalogVersion,
+      // Each entry as given: a `registry`, `releaseVersion` or `versionId` the scenario leaves out stays
+      // undefined, which the generated serializer keeps off the wire.
+      updateCatalogDependenciesRequest: { dependencies: config.dependencies },
+      ...ifMatch(config),
+    }),
+    (response) => dependencyFields(response.items),
+  )
 }
 
 function reportDependencies(baseUrl, items) {
-  return report(baseUrl, {
+  return report(baseUrl, dependencyFields(items))
+}
+
+function dependencyFields(items) {
+  return {
     registries: items.map((d) => show(d.registry)).join(','),
     namespaces: items.map((d) => show(d.namespace)).join(','),
     catalogKeys: items.map((d) => show(d.catalogKey)).join(','),
     releaseVersions: items.map((d) => show(d.releaseVersion)).join(','),
     versionIds: items.map((d) => show(d.versionId)).join(','),
-  })
+  }
 }
 
 /** Starts a draft; `from` (a release number or a draft id) goes out only when the scenario names one. */
 async function createCatalogDraft(baseUrl, config) {
   const request = { name: config.name }
   if (config.from !== undefined) request.from = config.from
-  const version = await new CatalogsApi(client(baseUrl, config)).createCatalogDraft({
+  const response = await new CatalogsApi(client(baseUrl, config)).createCatalogDraftRaw({
     tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     createCatalogDraftRequest: request,
   })
+  const version = await response.value()
   await report(baseUrl, {
     releaseVersion: show(version.releaseVersion),
     versionId: show(version.versionId),
@@ -492,6 +513,7 @@ async function createCatalogDraft(baseUrl, config) {
     base: show(version.base),
     createdFrom: show(version.createdFrom),
     releasedAt: showInstant(version.releasedAt),
+    location: show(response.raw.headers.get('Location')),
   })
 }
 
@@ -535,23 +557,27 @@ async function getCatalogVersion(baseUrl, config) {
   })
 }
 
-/** Renames a draft; only the name goes out, to its unchanged address. */
-async function renameCatalogDraft(baseUrl, config) {
-  const version = await new CatalogsApi(client(baseUrl, config)).renameCatalogDraft({
-    tenantKey: config.tenantKey,
-    registry: config.registry,
-    namespace: config.namespace,
-    catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
-    renameCatalogDraftRequest: { name: config.name },
-  })
-  await report(baseUrl, {
-    releaseVersion: show(version.releaseVersion),
-    versionId: show(version.versionId),
-    name: show(version.name),
-    status: show(version.status),
-    base: show(version.base),
-  })
+/** Renames a draft (`updateCatalogDraft`); only the name goes out, to its unchanged address. */
+async function updateCatalogDraft(baseUrl, config) {
+  await conditionalUpdate(
+    baseUrl,
+    () => new CatalogsApi(client(baseUrl, config)).updateCatalogDraftRaw({
+      tenantKey: config.tenantKey,
+      registry: config.registry,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      catalogVersion: config.catalogVersion,
+      updateCatalogDraftRequest: { name: config.name },
+      ...ifMatch(config),
+    }),
+    (version) => ({
+      releaseVersion: show(version.releaseVersion),
+      versionId: show(version.versionId),
+      name: show(version.name),
+      status: show(version.status),
+      base: show(version.base),
+    }),
+  )
 }
 
 /** Sets a draft's default theme and presets; no name goes out, and an unset qualifier stays off the wire. */
@@ -563,13 +589,13 @@ async function setCatalogDraftThemeSettings(baseUrl, config) {
     if (entry.description != null) preset.description = entry.description
     return preset
   })
-  const version = await new CatalogsApi(client(baseUrl, config)).renameCatalogDraft({
+  const version = await new CatalogsApi(client(baseUrl, config)).updateCatalogDraft({
     tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     catalogVersion: config.catalogVersion,
-    renameCatalogDraftRequest: { defaultTheme, presets },
+    updateCatalogDraftRequest: { defaultTheme, presets },
   })
   const parsed = version.presets ?? []
   await report(baseUrl, {
@@ -872,7 +898,7 @@ async function listStencilUsage(baseUrl, config) {
     fits: response.items.map((u) => show(u.fits)).join(','),
     problems: response.items.map((u) => u.problems.join('|')).join(';'),
     pageNumber: show(response.page.number),
-    totalElements: show(response.page.totalElements),
+    total: show(response.page.total),
   })
 }
 
@@ -928,7 +954,7 @@ async function listDeploymentHistory(baseUrl, config) {
     draftNames: items.map((e) => show(e.draftName)).join('|'),
     changedAt: items.map((e) => showInstant(e.changedAt)).join(','),
     changedBy: items.map((e) => show(e.changedBy)).join('|'),
-    totalElements: show(response.page.totalElements),
+    total: show(response.page.total),
   })
 }
 
@@ -947,11 +973,11 @@ function oneNodeModel() {
 async function createEnvironment(baseUrl, config) {
   const body = { key: config.key, name: config.name }
   if (config.production !== undefined) body.production = config.production
-  const environment = await new EnvironmentsApi(client(baseUrl, config)).createEnvironment({
+  const response = await new EnvironmentsApi(client(baseUrl, config)).createEnvironmentRaw({
     tenantKey: config.tenantKey,
     createEnvironmentRequest: body,
   })
-  await reportEnvironment(baseUrl, environment)
+  await report(baseUrl, { ...environmentFields(await response.value()), location: show(response.raw.headers.get('Location')) })
 }
 
 /** A partial update: each member goes out only when the scenario sets it. A refusal is reported by its problem. */
@@ -959,23 +985,73 @@ async function updateEnvironment(baseUrl, config) {
   const body = {}
   if (config.name !== undefined) body.name = config.name
   if (config.production !== undefined) body.production = config.production
-  let environment
-  try {
-    environment = await new EnvironmentsApi(client(baseUrl, config)).updateEnvironment({
+  await conditionalUpdate(
+    baseUrl,
+    () => new EnvironmentsApi(client(baseUrl, config)).updateEnvironmentRaw({
       tenantKey: config.tenantKey,
       environmentKey: config.environmentKey,
       updateEnvironmentRequest: body,
-    })
+      ...ifMatch(config),
+    }),
+    environmentFields,
+  )
+}
+
+function environmentFields(environment) {
+  return { key: show(environment.key), name: show(environment.name), production: show(environment.production) }
+}
+
+/** Renames a tenant, conditionally when the scenario gives an `ifMatch`. */
+async function updateTenant(baseUrl, config) {
+  await conditionalUpdate(
+    baseUrl,
+    () => new TenantsApi(client(baseUrl, config)).updateTenantRaw({
+      tenantKey: config.tenantKey,
+      updateTenantRequest: { name: config.name },
+      ...ifMatch(config),
+    }),
+    (tenant) => ({ key: show(tenant.key), name: show(tenant.name) }),
+  )
+}
+
+/** Hides or shows a code-list entry, conditional on the code list's `ETag` when the scenario gives one. */
+async function updateCodeListEntryHidden(baseUrl, config) {
+  await conditionalUpdate(
+    baseUrl,
+    () => new CodeListsApi(client(baseUrl, config)).updateCodeListEntryHiddenRaw({
+      tenantKey: config.tenantKey,
+      registry: config.registry,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      catalogVersion: config.catalogVersion,
+      codeListKey: config.codeListKey,
+      code: config.code,
+      updateCodeListEntryHiddenRequest: { hidden: config.hidden },
+      ...ifMatch(config),
+    }),
+    (entry) => ({ code: show(entry.code), hidden: show(entry.hidden) }),
+  )
+}
+
+/** `If-Match` only when the scenario gives one: an unset tag must stay off the wire. */
+function ifMatch(config) {
+  return config.ifMatch !== undefined ? { ifMatch: config.ifMatch } : {}
+}
+
+/**
+ * Runs a conditional update through its `Raw` method and reports the fields it parsed plus the
+ * `ETag` exactly as received, or, when the server refuses it, the problem's slug and status.
+ */
+async function conditionalUpdate(baseUrl, call, fields) {
+  let response
+  try {
+    response = await call()
   } catch (error) {
     if (!(error instanceof ProblemDetailException)) throw error
     await report(baseUrl, { problemTypeSlug: error.typeSlug ?? '<null>', problemStatus: error.statusCode })
     return
   }
-  await reportEnvironment(baseUrl, environment)
-}
-
-async function reportEnvironment(baseUrl, environment) {
-  await report(baseUrl, { key: show(environment.key), name: show(environment.name), production: show(environment.production) })
+  await report(baseUrl, { ...fields(await response.value()), etag: show(response.raw.headers.get('ETag')) })
 }
 
 async function reportBytes(baseUrl, blob) {
@@ -988,11 +1064,16 @@ async function reportBytes(baseUrl, blob) {
  * the wire: the contract reads a null on these as "clear this".
  */
 async function updateConsumer(baseUrl, config) {
-  await new ConsumersApi(client(baseUrl, config)).updateConsumer({
-    tenantKey: config.tenantKey,
-    consumerId: config.consumerId,
-    updateConsumerRequest: { name: config.name },
-  })
+  await conditionalUpdate(
+    baseUrl,
+    () => new ConsumersApi(client(baseUrl, config)).updateConsumerRaw({
+      tenantKey: config.tenantKey,
+      consumerId: config.consumerId,
+      updateConsumerRequest: { name: config.name },
+      ...ifMatch(config),
+    }),
+    (consumer) => ({ id: show(consumer.id), name: show(consumer.name) }),
+  )
 }
 
 /**
