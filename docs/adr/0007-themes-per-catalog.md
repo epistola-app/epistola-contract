@@ -105,8 +105,9 @@ the report in decision 2 says when one does not.
 
 ## Consequences
 
-- Wire v9 (or the next catalog wire version): `defaultTheme` and `presets` on the catalog manifest;
-  `stylePreset` described as a reference to an available preset. Older archives carry neither and
+- Catalog wire v8, since 2.0 is unreleased: `defaultTheme` and `presets` are added to the v8
+  catalog manifest as optional members rather than in a new wire version; `stylePreset` described as
+  a reference to an available preset. Older archives carry neither and
   read as "no default theme" and "no declared presets"; until a catalog declares presets, the editor
   falls back to the presets its themes style, so nothing breaks on upgrade.
 - The API exposes and sets both on a catalog version. The tenant default theme stays as the house

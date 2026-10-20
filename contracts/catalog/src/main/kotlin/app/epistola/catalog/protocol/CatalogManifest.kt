@@ -8,6 +8,7 @@ import app.epistola.catalog.canonical.QualifiedCatalogFingerprint
 import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
@@ -188,8 +189,8 @@ sealed class DependencyRef {
  *
  * A catalog is identified by [registry], [namespace] and [key] together. The
  * three-argument constructor preserves source compatibility for existing producers. Use [create],
- * [copyWithMetadata] or [withNamespace] when setting discovery metadata or the registry and
- * namespace.
+ * [copyWithMetadata] or [withNamespace] when setting discovery metadata, the default theme and
+ * declared presets, or the registry and namespace.
  */
 class CatalogInfo private constructor(
     /**
@@ -218,6 +219,14 @@ class CatalogInfo private constructor(
      * Nullable in the model for the same reason as [namespace].
      */
     val registry: String?,
+    /**
+     * The theme a template that names none renders with, after the variant's own theme and the
+     * template's (wire v8, ADR 0007); null means none, and such a template renders with the
+     * rendering defaults alone. Omitted from the JSON when null.
+     */
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val defaultTheme: CatalogThemeRef?,
+    presets: List<CatalogPresetDeclaration>,
 ) {
     /** Immutable attributes applied to this catalog, preserving authored order. */
     val attributes: List<AttributeAssignment> = Collections.unmodifiableList(attributes.toList())
@@ -230,23 +239,33 @@ class CatalogInfo private constructor(
      */
     val keywords: Set<String> = immutableSortedSet(keywords)
 
+    /**
+     * The block style presets the catalog declares (wire v8, ADR 0007), immutable, in authored order;
+     * empty when it declares none, and then omitted from the JSON. Keys must be unique
+     * ([CatalogPresets]); the migrator and validator enforce that, not this model.
+     */
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    val presets: List<CatalogPresetDeclaration> = Collections.unmodifiableList(presets.toList())
+
     /** Source-compatible constructor retained from catalog 1.0.1. */
     constructor(key: String, name: String, description: String? = null) :
-        this(key, name, description, emptyList(), emptySet(), null, null, null, null)
+        this(key, name, description, emptyList(), emptySet(), null, null, null, null, null, emptyList())
 
-    /** Copies the catalog while replacing any discovery metadata. */
+    /** Copies the catalog while replacing any discovery metadata, its default theme or its declared presets. */
     fun copyWithMetadata(
         attributes: List<AttributeAssignment> = this.attributes,
         keywords: Set<String> = this.keywords,
         presentation: CatalogPresentation? = this.presentation,
         license: CatalogLicense? = this.license,
-    ): CatalogInfo = CatalogInfo(key, name, description, attributes, keywords, presentation, license, namespace, registry)
+        defaultTheme: CatalogThemeRef? = this.defaultTheme,
+        presets: List<CatalogPresetDeclaration> = this.presets,
+    ): CatalogInfo = CatalogInfo(key, name, description, attributes, keywords, presentation, license, namespace, registry, defaultTheme, presets)
 
     /** Copies the catalog with [registry] and [namespace] in place of its current ones. */
     fun withNamespace(
         registry: String?,
         namespace: String?,
-    ): CatalogInfo = CatalogInfo(key, name, description, attributes, keywords, presentation, license, namespace, registry)
+    ): CatalogInfo = CatalogInfo(key, name, description, attributes, keywords, presentation, license, namespace, registry, defaultTheme, presets)
 
     override fun equals(other: Any?): Boolean = this === other ||
         other is CatalogInfo &&
@@ -258,7 +277,9 @@ class CatalogInfo private constructor(
         attributes == other.attributes &&
         keywords == other.keywords &&
         presentation == other.presentation &&
-        license == other.license
+        license == other.license &&
+        defaultTheme == other.defaultTheme &&
+        presets == other.presets
 
     override fun hashCode(): Int {
         var result = key.hashCode()
@@ -270,11 +291,13 @@ class CatalogInfo private constructor(
         result = 31 * result + keywords.hashCode()
         result = 31 * result + (presentation?.hashCode() ?: 0)
         result = 31 * result + (license?.hashCode() ?: 0)
+        result = 31 * result + (defaultTheme?.hashCode() ?: 0)
+        result = 31 * result + presets.hashCode()
         return result
     }
 
     override fun toString(): String = "CatalogInfo(registry=$registry, namespace=$namespace, key=$key, name=$name, description=$description, " +
-        "attributes=$attributes, keywords=$keywords, presentation=$presentation, license=$license)"
+        "attributes=$attributes, keywords=$keywords, presentation=$presentation, license=$license, defaultTheme=$defaultTheme, presets=$presets)"
 
     companion object {
         /** Creates a catalog identity with optional discovery metadata. */
@@ -290,6 +313,8 @@ class CatalogInfo private constructor(
             @JsonProperty("license") license: CatalogLicense? = null,
             @JsonProperty("namespace") namespace: String? = null,
             @JsonProperty("registry") registry: String? = null,
+            @JsonProperty("defaultTheme") defaultTheme: CatalogThemeRef? = null,
+            @JsonProperty("presets") presets: List<CatalogPresetDeclaration>? = null,
         ): CatalogInfo = CatalogInfo(
             key,
             name,
@@ -300,6 +325,8 @@ class CatalogInfo private constructor(
             license,
             namespace,
             registry,
+            defaultTheme,
+            presets.orEmpty(),
         )
 
         private fun immutableSortedSet(values: Set<String>): Set<String> = when {
@@ -308,6 +335,49 @@ class CatalogInfo private constructor(
         }
     }
 }
+
+/**
+ * A reference to a theme resource from the catalog manifest: a catalog's [CatalogInfo.defaultTheme]
+ * (wire v8, ADR 0007).
+ *
+ * Qualified like every other cross-catalog reference: an omitted [catalogKey], [namespace] or
+ * [registry] means the owning catalog's own. A theme in another catalog lives in a catalog the
+ * owning catalog depends on. Absent qualifiers are omitted from the JSON.
+ *
+ * @property key key of the theme resource ([CatalogKeys.RESOURCE]).
+ * @property catalogKey key of the catalog holding the theme; null means the owning catalog.
+ * @property namespace namespace of that catalog ([CatalogNamespaces.PATTERN]); null means the owning
+ *   catalog's.
+ * @property registry registry of that catalog, written in full ([CatalogNamespaces.REGISTRY_PATTERN]);
+ *   null means the owning catalog's, never an installation default. Naming one requires [namespace].
+ */
+data class CatalogThemeRef(
+    val key: String,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val catalogKey: String? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val namespace: String? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val registry: String? = null,
+)
+
+/**
+ * A block style preset a catalog declares (wire v8, ADR 0007): what a block's `stylePreset` names.
+ * A theme's `blockStylePresets` supplies the styles under the same [key].
+ *
+ * The rules ([CatalogPresets]) are enforced by the migrator's wire check and the validator, not by
+ * this model.
+ *
+ * @property key the preset's key, unique within the catalog ([CatalogPresets.KEY_PATTERN]).
+ * @property name display name shown to authors.
+ * @property description optional description shown to authors; omitted from the JSON when null.
+ */
+data class CatalogPresetDeclaration(
+    val key: String,
+    val name: String,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val description: String? = null,
+)
 
 /**
  * A qualified attribute value applied to a catalog.

@@ -26,6 +26,18 @@ assert.equal(catalog.MAX_CATALOG_KEYWORD_LENGTH, keywordSchema.maxLength, 'npm a
 assert.equal(catalog.CATALOG_KEYWORD_PATTERN, keywordSchema.pattern, 'npm and schema keyword patterns must agree');
 assert.equal(catalog.MAX_CATALOG_KEYWORDS, keywordsSchema.maxItems, 'npm and schema keyword count limits must agree');
 
+const presetSchema = manifestSchema.$defs.CatalogPresetDeclaration.properties;
+assert.equal(catalog.CATALOG_PRESET_KEY_PATTERN, presetSchema.key.pattern, 'npm and schema preset key patterns must agree');
+assert.equal(catalog.MAX_CATALOG_PRESET_KEY_LENGTH, presetSchema.key.maxLength, 'npm and schema preset key lengths must agree');
+assert.equal(catalog.MAX_CATALOG_PRESET_NAME_LENGTH, presetSchema.name.maxLength, 'npm and schema preset name lengths must agree');
+assert.equal(
+  catalog.MAX_CATALOG_PRESET_DESCRIPTION_LENGTH,
+  presetSchema.description.maxLength,
+  'npm and schema preset description lengths must agree',
+);
+const defaultThemeKey = manifestSchema.$defs.CatalogThemeRef.properties.key;
+assert.equal(catalog.CATALOG_RESOURCE_KEY_PATTERN, defaultThemeKey.pattern, 'a default theme names a theme by its resource key');
+
 const namespaceSchema = manifestSchema.$defs.CatalogNamespace;
 assert.equal(catalog.CATALOG_NAMESPACE_PATTERN, namespaceSchema.pattern, 'npm and schema namespace patterns must agree');
 assert.equal(catalog.MIN_CATALOG_NAMESPACE_LENGTH, namespaceSchema.minLength, 'npm and schema namespace minimum lengths must agree');

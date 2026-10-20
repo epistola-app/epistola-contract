@@ -6,6 +6,8 @@ package app.epistola.catalog.validation
 
 import app.epistola.catalog.protocol.CatalogArchivePaths
 import app.epistola.catalog.protocol.CatalogKeys
+import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.CatalogPresets
 import app.epistola.catalog.protocol.CatalogVariantMetadata
 import app.epistola.catalog.protocol.TemplateResource
 import com.networknt.schema.InputFormat
@@ -15,6 +17,7 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jsonMapper
+import tools.jackson.module.kotlin.kotlinModule
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -129,6 +132,70 @@ class CatalogV8WireSchemaTest {
             edit(detail["resource"] as ObjectNode)
             assertEquals(emptyList(), detailErrors(detail), "v8 schema rejected $description")
         }
+    }
+
+    @Test
+    fun `a catalog's default theme and declared presets follow the v8 schema and the exported rules`() {
+        val defs = tree("schemas/catalog-manifest-v8.schema.json")["\$defs"]
+        val themeRef = defs["CatalogThemeRef"]["properties"]
+        assertEquals(CatalogKeys.RESOURCE, CatalogKeys.Rule(themeRef["key"]["pattern"].asString(), themeRef["key"]["minLength"].asInt(), themeRef["key"]["maxLength"].asInt()))
+        assertEquals(
+            CatalogKeys.CATALOG,
+            CatalogKeys.Rule(themeRef["catalogKey"]["pattern"].asString(), themeRef["catalogKey"]["minLength"].asInt(), themeRef["catalogKey"]["maxLength"].asInt()),
+        )
+        val preset = defs["CatalogPresetDeclaration"]["properties"]
+        assertEquals(CatalogPresets.KEY_PATTERN, preset["key"]["pattern"].asString())
+        assertEquals(CatalogPresets.KEY_MAX_LENGTH, preset["key"]["maxLength"].asInt())
+        assertEquals(CatalogPresets.NAME_MAX_LENGTH, preset["name"]["maxLength"].asInt())
+        assertEquals(CatalogPresets.DESCRIPTION_MAX_LENGTH, preset["description"]["maxLength"].asInt())
+
+        fun errors(edit: (ObjectNode) -> Unit): List<String> {
+            val manifest = tree("fixtures/v1/wire-v8/catalog.json") as ObjectNode
+            edit(manifest["catalog"] as ObjectNode)
+            return manifestSchema.validate(mapper.writeValueAsString(manifest), InputFormat.JSON).map { it.toString() }
+        }
+        val valid = mapOf<String, (ObjectNode) -> Unit>(
+            "neither member" to { },
+            "a null default theme" to { it.putNull("defaultTheme") },
+            "an empty preset list" to { it.putArray("presets") },
+            "a default theme in the catalog itself" to { it.putObject("defaultTheme").put("key", "default") },
+            "a default theme in another catalog" to {
+                it.putObject("defaultTheme").put("key", "corporate").put("catalogKey", "shared").put("namespace", "acme").put("registry", "acme.com")
+            },
+            "presets" to { catalog ->
+                catalog.putArray("presets").apply {
+                    addObject().put("key", "muted").put("name", "Muted")
+                    addObject().put("key", "h1").put("name", "Heading").put("description", "Top-level heading")
+                    addObject().put("key", "label").put("name", "Label").putNull("description")
+                }
+            },
+        )
+        valid.forEach { (what, edit) -> assertEquals(emptyList(), errors(edit), "v8 schema rejected $what") }
+        val invalid = mapOf<String, (ObjectNode) -> Unit>(
+            "a default theme without a key" to { it.putObject("defaultTheme").put("catalogKey", "shared") },
+            "a default theme naming a registry without a namespace" to { it.putObject("defaultTheme").put("key", "corporate").put("registry", "acme.com") },
+            "a default theme with an unknown member" to { it.putObject("defaultTheme").put("key", "corporate").put("version", "1.0.0") },
+            "a default theme given as a string" to { it.put("defaultTheme", "corporate") },
+            "a preset without a name" to { it.putArray("presets").addObject().put("key", "muted") },
+            "an uppercase preset key" to { it.putArray("presets").addObject().put("key", "Muted").put("name", "Muted") },
+            "a preset key with a leading digit" to { it.putArray("presets").addObject().put("key", "1-col").put("name", "One column") },
+            "a 501-character preset description" to { it.putArray("presets").addObject().put("key", "muted").put("name", "Muted").put("description", "d".repeat(501)) },
+            "null presets" to { it.putNull("presets") },
+        )
+        invalid.forEach { (what, edit) -> assertTrue(errors(edit).isNotEmpty(), "v8 schema accepted $what") }
+
+        val withBoth = tree("fixtures/v1/wire-v8/catalog.json") as ObjectNode
+        valid.getValue("a default theme in another catalog")(withBoth["catalog"] as ObjectNode)
+        valid.getValue("presets")(withBoth["catalog"] as ObjectNode)
+        val kotlinMapper = jsonMapper { addModule(kotlinModule()) }
+        val bound = kotlinMapper.treeToValue(withBoth, CatalogManifest::class.java)
+        assertEquals(withBoth["catalog"]["defaultTheme"], kotlinMapper.valueToTree<JsonNode>(bound.catalog)["defaultTheme"])
+        assertEquals(bound, kotlinMapper.readValue(kotlinMapper.writeValueAsBytes(bound), CatalogManifest::class.java))
+        assertEquals(
+            emptyList(),
+            manifestSchema.validate(kotlinMapper.writeValueAsString(bound), InputFormat.JSON).map { it.toString() },
+            "the model writes what the schema accepts",
+        )
     }
 
     private fun manifestErrors(entry: (ObjectNode) -> ObjectNode): (String) -> List<String> = { detailUrl ->

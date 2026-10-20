@@ -412,3 +412,29 @@ for (const { keys } of exampleKeys.cases) {
     assert.equal(validateV8Detail(editLetter((r) => { r.dataExamples[0].key = key; })), true, `derived example key is not a valid v8 key: ${key}`);
   }
 }
+
+// A catalog's default theme and declared presets (wire v8, ADR 0007): optional members of CatalogInfo.
+const validateV8ThemeSettings = ajv.getSchema('https://epistola.app/schemas/catalog-manifest-v8.schema.json');
+const editCatalog = async (edit) => {
+  const manifest = await readJson('fixtures/v1/wire-v8/catalog.json');
+  edit(manifest.catalog);
+  return manifest;
+};
+for (const [description, edit] of [
+  ['a null default theme', (c) => { c.defaultTheme = null; }],
+  ['a default theme in the catalog itself', (c) => { c.defaultTheme = { key: 'default' }; }],
+  ['a default theme in another catalog', (c) => { c.defaultTheme = { key: 'corporate', catalogKey: 'shared', namespace: 'acme', registry: 'acme.com' }; }],
+  ['an empty preset list', (c) => { c.presets = []; }],
+  ['presets', (c) => { c.presets = [{ key: 'muted', name: 'Muted' }, { key: 'h1', name: 'Heading', description: null }]; }],
+]) {
+  assert.equal(validateV8ThemeSettings(await editCatalog(edit)), true, `v8 manifest rejected ${description}: ${ajv.errorsText(validateV8ThemeSettings.errors)}`);
+}
+for (const [description, edit] of [
+  ['a default theme without a key', (c) => { c.defaultTheme = { catalogKey: 'shared' }; }],
+  ['a default theme naming a registry without a namespace', (c) => { c.defaultTheme = { key: 'corporate', registry: 'acme.com' }; }],
+  ['a preset without a name', (c) => { c.presets = [{ key: 'muted' }]; }],
+  ['an uppercase preset key', (c) => { c.presets = [{ key: 'Muted', name: 'Muted' }]; }],
+  ['null presets', (c) => { c.presets = null; }],
+]) {
+  assert.equal(validateV8ThemeSettings(await editCatalog(edit)), false, `v8 manifest accepted ${description}`);
+}

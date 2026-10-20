@@ -24,14 +24,17 @@ import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogNamespaces
+import app.epistola.catalog.protocol.CatalogPresets
 import app.epistola.catalog.protocol.CatalogReleaseVersions
 import app.epistola.catalog.protocol.CatalogResource
+import app.epistola.catalog.protocol.CatalogThemeRef
 import app.epistola.catalog.protocol.CatalogVariantMetadata
 import app.epistola.catalog.protocol.CodeListResource
 import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.FontResource
 import app.epistola.catalog.protocol.ImageResource
 import app.epistola.catalog.protocol.KeywordRule
+import app.epistola.catalog.protocol.PresetRule
 import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.ResourceEntry
 import app.epistola.catalog.protocol.StencilResource
@@ -243,6 +246,18 @@ object CatalogValidationCodes {
     const val TEMPLATE_DATA_EXAMPLE_INVALID = "CATALOG_TEMPLATE_DATA_EXAMPLE_INVALID"
     const val TEMPLATE_VARIANT_KEY_DUPLICATE = "CATALOG_TEMPLATE_VARIANT_KEY_DUPLICATE"
     const val TEMPLATE_VARIANT_DEFAULT_INVALID = "CATALOG_TEMPLATE_VARIANT_DEFAULT_INVALID"
+
+    /** A declared preset's key breaks [app.epistola.catalog.protocol.CatalogPresets.KEY_PATTERN] (wire v8, ADR 0007). */
+    const val PRESET_KEY_INVALID = "CATALOG_PRESET_KEY_INVALID"
+
+    /** The catalog declares the same preset key more than once (wire v8, ADR 0007). */
+    const val PRESET_DUPLICATE = "CATALOG_PRESET_DUPLICATE"
+
+    /** A declared preset's name is blank or too long (wire v8, ADR 0007). */
+    const val PRESET_NAME_INVALID = "CATALOG_PRESET_NAME_INVALID"
+
+    /** A declared preset's description is too long (wire v8, ADR 0007). */
+    const val PRESET_DESCRIPTION_INVALID = "CATALOG_PRESET_DESCRIPTION_INVALID"
 }
 
 /**
@@ -675,6 +690,29 @@ object ResourceValidator {
         }
     }
 
+    /**
+     * The catalog's default theme (wire v8, ADR 0007): a theme reference qualified like a template's,
+     * resolved in the catalog itself or, when it names another catalog, through the resolver.
+     */
+    internal fun validateDefaultTheme(
+        theme: CatalogThemeRef,
+        context: ResourceValidationContext,
+        path: String,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        theme.catalogKey?.let { catalogKey ->
+            if (!CatalogKeys.matches(CatalogKeys.CATALOG, catalogKey)) {
+                findings.error(
+                    CatalogValidationCodes.RESOURCE_KEY_INVALID,
+                    "$path.catalogKey",
+                    "catalogKey must be ${CatalogKeys.CATALOG.minLength} to ${CatalogKeys.CATALOG.maxLength} characters matching ${CatalogKeys.CATALOG.pattern}",
+                )
+            }
+        }
+        validateContentIdentity(theme.registry, "$path.registry", theme.namespace, "$path.namespace", findings)
+        validateReference(CatalogResourceReference("theme", theme.key, theme.catalogKey, theme.namespace, theme.registry), context, "$path.key", findings)
+    }
+
     private fun validateReference(
         reference: CatalogResourceReference,
         context: ResourceValidationContext,
@@ -879,6 +917,7 @@ object CatalogValidator {
             registry = manifest.catalog.registry,
             sourceSchemaVersion = catalog.sourceSchemaVersion,
         )
+        manifest.catalog.defaultTheme?.let { validateDefaultTheme(manifest, it, context, findings) }
         catalog.resourceDetails.toSortedMap().forEach { (key, detail) ->
             findings += ResourceValidator.validate(detail, context, "resources/$key.json").findings
         }
@@ -1081,11 +1120,47 @@ object CatalogValidator {
         }
     }
 
+    /**
+     * A default theme in another catalog lives in a catalog this one depends on (ADR 0007), so that
+     * catalog must be declared in catalogDependencies, which pins the release it renders with.
+     */
+    private fun validateDefaultTheme(
+        manifest: CatalogManifest,
+        theme: CatalogThemeRef,
+        context: ResourceValidationContext,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        val path = "catalog.json.catalog.defaultTheme"
+        ResourceValidator.validateDefaultTheme(theme, context, path, findings)
+        val own = CatalogIdentity(manifest.catalog.registry, manifest.catalog.namespace, manifest.catalog.key)
+        val named = CatalogIdentity(theme.registry ?: own.registry, theme.namespace ?: own.namespace, theme.catalogKey ?: own.catalogKey)
+        val declared = manifest.catalogDependencies.orEmpty().mapTo(mutableSetOf()) { CatalogIdentity(it.registry, it.namespace, it.catalogKey) }
+        if (named != own && named !in declared) {
+            findings.error(
+                CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED,
+                path,
+                "defaultTheme names catalog $named, which catalogDependencies does not declare",
+            )
+        }
+    }
+
     private fun validateCatalogInfo(
         catalog: CatalogInfo,
         resources: Map<String, CatalogResource>,
         findings: MutableList<CatalogValidationFinding>,
     ) {
+        CatalogPresets.violations(catalog.presets).forEach { violation ->
+            findings.error(
+                when (violation.rule) {
+                    PresetRule.KEY_INVALID -> CatalogValidationCodes.PRESET_KEY_INVALID
+                    PresetRule.NAME_INVALID -> CatalogValidationCodes.PRESET_NAME_INVALID
+                    PresetRule.DESCRIPTION_TOO_LONG -> CatalogValidationCodes.PRESET_DESCRIPTION_INVALID
+                    PresetRule.DUPLICATE -> CatalogValidationCodes.PRESET_DUPLICATE
+                },
+                "catalog.json.catalog.presets[${violation.index}].${violation.member}",
+                violation.message,
+            )
+        }
         val seenAttributes = mutableSetOf<Pair<String, String>>()
         catalog.attributes.forEachIndexed { index, attribute ->
             val path = "catalog.json.catalog.attributes[$index]"

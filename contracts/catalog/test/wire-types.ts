@@ -12,6 +12,8 @@ import type {
   CatalogLicense,
   CatalogManifest,
   CatalogPresentation,
+  CatalogPresetDeclaration,
+  CatalogThemeRef,
   ResourceDetail,
   StencilResource,
   TemplateResource,
@@ -30,6 +32,10 @@ import {
   MAX_CATALOG_VARIANT_METADATA_NAMESPACES,
   MAX_TEMPLATE_DESCRIPTION_LENGTH,
   MIN_CATALOG_RESOURCE_KEY_LENGTH,
+  CATALOG_PRESET_KEY_PATTERN,
+  MAX_CATALOG_PRESET_KEY_LENGTH,
+  MAX_CATALOG_PRESET_NAME_LENGTH,
+  MAX_CATALOG_PRESET_DESCRIPTION_LENGTH,
 } from '../ts/index.js'
 
 const manifest: CatalogManifest = {
@@ -123,6 +129,25 @@ const scalarMetadata: VariantEntry = { key: 'english', metadata: { 'app.epistola
 const description: TemplateResource['description'] = 'A one-page letter.'
 const noDescription: TemplateResource['description'] = null
 
+// A catalog may name a default theme and declare its presets (ADR 0007); both are optional.
+const ownTheme: CatalogThemeRef = { key: 'corporate' }
+const sharedTheme: CatalogThemeRef = { key: 'corporate', catalogKey: 'shared', namespace: 'acme', registry: 'acme.com' }
+// @ts-expect-error a default theme names its theme by key
+const unkeyedTheme: CatalogThemeRef = { catalogKey: 'shared' }
+const presets: CatalogPresetDeclaration[] = [{ key: 'muted', name: 'Muted' }, { key: 'label', name: 'Label', description: null }]
+// @ts-expect-error a declared preset has a name
+const unnamedPreset: CatalogPresetDeclaration = { key: 'muted' }
+const themedCatalog: CatalogInfo = { registry: 'acme.com', namespace: 'acme', key: 'fixture', name: 'Fixture', defaultTheme: sharedTheme, presets }
+const unthemedCatalog: CatalogInfo = { registry: 'acme.com', namespace: 'acme', key: 'fixture', name: 'Fixture', defaultTheme: null }
+const defaultThemeOf = (catalog: CatalogInfo): CatalogThemeRef | null | undefined => catalog.defaultTheme
+const presetKeysOf = (catalog: CatalogInfo): string[] => (catalog.presets ?? []).map((preset) => preset.key)
+const presetRules: Array<string | number> = [
+  CATALOG_PRESET_KEY_PATTERN,
+  MAX_CATALOG_PRESET_KEY_LENGTH,
+  MAX_CATALOG_PRESET_NAME_LENGTH,
+  MAX_CATALOG_PRESET_DESCRIPTION_LENGTH,
+]
+
 const v8Rules: Array<string | number> = [
   CATALOG_ARCHIVE_PATH_PATTERN,
   CATALOG_RESOURCE_KEY_PATTERN,
@@ -168,3 +193,13 @@ void presentation
 void detail
 void acceptsTemplate
 void pdfaEnabled
+void ownTheme
+void sharedTheme
+void unkeyedTheme
+void presets
+void unnamedPreset
+void themedCatalog
+void unthemedCatalog
+void defaultThemeOf
+void presetKeysOf
+void presetRules

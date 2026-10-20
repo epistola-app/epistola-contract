@@ -8,6 +8,8 @@ import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogManifest
+import app.epistola.catalog.protocol.CatalogPresetDeclaration
+import app.epistola.catalog.protocol.CatalogThemeRef
 import app.epistola.catalog.protocol.PublisherInfo
 import app.epistola.catalog.protocol.ReleaseInfo
 import app.epistola.catalog.protocol.StencilResource
@@ -335,6 +337,73 @@ class CatalogSchemaMigratorTest {
         )
         assertEquals(REGISTRY, assertNotNull(native.value).catalog.registry)
         assertEquals(NAMESPACE, native.value.catalog.namespace)
+    }
+
+    @Test
+    fun `a catalog from before wire v8 migrates without a default theme or declared presets`() {
+        listOf(
+            resource("wire-v5/catalog.json") to OPTIONS_ACME,
+            resource("wire-v6/catalog.json") to OPTIONS_ACME,
+            resource("migrations/v7-to-v8/manifest-input.json") to OPTIONS_ACME,
+        ).forEach { (input, options) ->
+            val result = CatalogSchemaMigrator.migrateManifest(input, options)
+            val catalog = assertNotNull(result.value, result.findings.toString()).catalog
+
+            assertNull(catalog.defaultTheme)
+            assertEquals(emptyList(), catalog.presets)
+            val written = mapper.valueToTree<tools.jackson.databind.JsonNode>(catalog)
+            assertFalse(written.has("defaultTheme"))
+            assertFalse(written.has("presets"))
+        }
+    }
+
+    @Test
+    fun `a v8 manifest's default theme and declared presets bind, and its presets are checked before binding`() {
+        fun migrate(edit: (ObjectNode) -> Unit): CatalogMigrationResult<CatalogManifest> {
+            val tree = resource("wire-v8/catalog.json").use(mapper::readTree) as ObjectNode
+            edit(tree["catalog"] as ObjectNode)
+            return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(mapper.writeValueAsBytes(tree)), OPTIONS_ACME)
+        }
+        fun ObjectNode.preset(key: Any, name: Any = "Name"): ObjectNode = (this["presets"] as? ArrayNode ?: putArray("presets")).addObject().also {
+            if (key is String) it.put("key", key) else it.put("key", key as Int)
+            if (name is String) it.put("name", name) else it.put("name", name as Int)
+        }
+
+        val bound = migrate { catalog ->
+            catalog.putObject("defaultTheme").put("key", "corporate").put("catalogKey", "shared")
+            catalog.preset("muted", "Muted")
+            catalog.preset("label", "Label").put("description", "Small caps")
+        }
+        val catalog = assertNotNull(bound.value, bound.findings.toString()).catalog
+        assertEquals(CatalogThemeRef("corporate", "shared"), catalog.defaultTheme)
+        assertEquals(listOf(CatalogPresetDeclaration("muted", "Muted"), CatalogPresetDeclaration("label", "Label", "Small caps")), catalog.presets)
+
+        assertEquals(
+            listOf(CatalogMigrationCodes.PRESET_DUPLICATE to "catalog.json.catalog.presets[1].key"),
+            migrate {
+                it.preset("muted")
+                it.preset("muted")
+            }.findings.map { it.code to it.path },
+        )
+        assertEquals(
+            listOf(CatalogMigrationCodes.PRESET_KEY_INVALID to "catalog.json.catalog.presets[0].key"),
+            migrate { it.preset("Muted") }.findings.map { it.code to it.path },
+        )
+        assertEquals(
+            listOf(CatalogMigrationCodes.PRESET_KEY_INVALID to "catalog.json.catalog.presets[0].key"),
+            migrate { it.preset(7) }.findings.map { it.code to it.path },
+        )
+        assertEquals(
+            listOf(CatalogMigrationCodes.PRESET_NAME_INVALID to "catalog.json.catalog.presets[1].name"),
+            migrate {
+                it.preset("muted")
+                it.preset("label", 7)
+            }.findings.map { it.code to it.path },
+        )
+        assertEquals(
+            listOf(CatalogMigrationCodes.PRESET_DESCRIPTION_INVALID to "catalog.json.catalog.presets[0].description"),
+            migrate { it.preset("muted").put("description", "d".repeat(501)) }.findings.map { it.code to it.path },
+        )
     }
 
     @Test

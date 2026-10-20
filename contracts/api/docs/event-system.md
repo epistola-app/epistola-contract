@@ -76,7 +76,7 @@ An event type is `{resourceType}.{action}`, both in kebab-case. The triggers bel
 | `catalog.release-installed` | `installCatalogRelease` |
 | `catalog.dependencies-updated` | `updateCatalogDependencies` |
 | `catalog-version.draft-created` | `createCatalogDraft` |
-| `catalog-version.draft-renamed` | `renameCatalogDraft` |
+| `catalog-version.draft-renamed` | `renameCatalogDraft` (also when it changes only the default theme or the presets) |
 | `catalog-version.draft-discarded` | `deleteCatalogDraft` |
 | `catalog-version.marked-ready` | `markCatalogReady` (every changed resource of a draft) |
 | `catalog-version.released` | `releaseCatalogDraft` (a draft is numbered and becomes immutable; one event per release, including drafts of other catalogs released along with it) |

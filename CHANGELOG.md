@@ -11,6 +11,21 @@ libraries.
 
 ### Added
 
+- **A catalog's default theme and declared presets** (ADR 0007). The catalog manifest's `CatalogInfo`
+  gains two optional wire-v8 members, added to v8 because 2.0 is unreleased: `defaultTheme`
+  (`CatalogThemeRef`: `key`, and `catalogKey`, `namespace`, `registry` qualified like every other
+  cross-catalog reference), the theme a template that names none renders with; and `presets`
+  (`CatalogPresetDeclaration`: `key`, `name`, `description`), the block style presets the catalog's
+  content may use, keys unique (`CatalogPresets`, exported to TypeScript as
+  `CATALOG_PRESET_KEY_PATTERN` and the `MAX_CATALOG_PRESET_*` limits). Both are omitted when absent,
+  and V5 covers them only when present, so every published fingerprint stays valid; presets are
+  canonicalized by key. The validator resolves the default theme in the catalog or a declared
+  dependency and checks the presets (`CATALOG_PRESET_KEY_INVALID`, `CATALOG_PRESET_DUPLICATE`,
+  `CATALOG_PRESET_NAME_INVALID`, `CATALOG_PRESET_DESCRIPTION_INVALID`); the migrator's wire check
+  applies the preset rules; archives from wire v7 and earlier carry neither. In the API,
+  `CatalogVersionDto` gains `defaultTheme` (`CatalogThemeReference`) and `presets`
+  (`CatalogPresetDto`), and `renameCatalogDraft` also sets them: an omitted member keeps its value,
+  null (or an empty preset array) clears it.
 - **Optimistic locking with `ETag` and `If-Match`.** Templates, variants, themes, stencils, code
   lists and attributes carry a revision, returned as a strong `ETag` response header (a quoted
   decimal integer, e.g. `"7"`) by `getTemplate`, `getVariant`, `getVariantContent`, `getTheme`,
@@ -192,6 +207,11 @@ libraries.
 
 ### Changed
 
+- **`stylePreset` names an available preset** (ADR 0007). The template document schema describes a
+  block's `stylePreset` as one of the catalog's available presets (its declared `presets` plus those
+  of the catalogs it depends on), falling back to the presets its themes style while it declares
+  none. `RenameCatalogDraftRequest.name` is now optional, since the request also carries the theme
+  settings.
 - **`updateStencilContent` keeps the parameter schema when `parameterSchema` is left out.**
   Omitted or null used to clear it, so a client saving only the content silently removed the
   parameters every template using the stencil binds. Now a schema replaces it, and a schema that

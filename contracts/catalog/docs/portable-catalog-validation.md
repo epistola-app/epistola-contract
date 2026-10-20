@@ -128,6 +128,19 @@ The catalog icon (`iconImageKey`) and the ordered gallery keys (`imageKeys`) res
 missing resources, non-assets, non-image media types, and duplicate gallery entries have separate
 stable finding codes. The icon may also appear in the gallery.
 
+From wire v8 (ADR 0007) a catalog may name a `defaultTheme` and declare `presets`. The default theme
+is a theme reference qualified like a template's theme: it resolves against the catalog's own theme
+resources (`CATALOG_RESOURCE_REFERENCE_MISSING`) or, when it names another catalog, through the
+dependency resolver, and that catalog must be declared in `catalogDependencies`
+(`CATALOG_DEPENDENCY_CATALOG_UNDECLARED`). Its key follows the resource key rule, its `catalogKey` the
+catalog key syntax, and a `registry` needs a `namespace`. A declared preset's key is a leading
+lowercase letter, then lowercase letters and digits in hyphen-separated parts, at most 50 characters
+(`CATALOG_PRESET_KEY_INVALID`), unique within the catalog (`CATALOG_PRESET_DUPLICATE`); its name is
+nonblank and at most 100 characters (`CATALOG_PRESET_NAME_INVALID`), its description at most 500
+(`CATALOG_PRESET_DESCRIPTION_INVALID`). The migrator's wire check applies the preset rules before
+binding. An archive from wire v7 or earlier has neither member and reads as "no default theme" and
+"no declared presets".
+
 From wire v8 a catalog names its `registry`, in full, and its `namespace`, and so does every
 resource dependency and `catalogDependencies` entry (`CATALOG_REGISTRY_INVALID`,
 `CATALOG_NAMESPACE_INVALID`, also raised by the migrator's wire check).

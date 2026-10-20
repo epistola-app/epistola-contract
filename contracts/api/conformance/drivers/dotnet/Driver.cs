@@ -65,6 +65,7 @@ public static class Driver
                 case "list-catalog-versions": ListCatalogVersions(baseUrl, config); break;
                 case "get-catalog-version": GetCatalogVersion(baseUrl, config); break;
                 case "rename-catalog-draft": RenameCatalogDraft(baseUrl, config); break;
+                case "set-catalog-draft-theme-settings": SetCatalogDraftThemeSettings(baseUrl, config); break;
                 case "preview-catalog-draft-release": PreviewCatalogDraftRelease(baseUrl, config); break;
                 case "delete-catalog-draft": DeleteCatalogDraft(baseUrl, config); break;
                 case "release-catalog-draft": ReleaseCatalogDraft(baseUrl, config); break;
@@ -616,6 +617,32 @@ public static class Driver
             ["name"] = Show(version.Name),
             ["status"] = Show(Wire(version.Status)),
             ["base"] = Show(version.Base),
+        });
+    }
+
+    /// <summary>Sets a draft's default theme and presets; no name is sent, and an unset qualifier stays off the wire.</summary>
+    private static void SetCatalogDraftThemeSettings(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var presets = config.GetProperty("presets").EnumerateArray()
+            .Select(p => new CatalogPresetDto(key: Str(p, "key"), name: Str(p, "name"), description: OptStr(p, "description")!))
+            .ToList();
+        var version = new CatalogsApi(http, apiBase).RenameCatalogDraft(
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            new RenameCatalogDraftRequest(
+                defaultTheme: new CatalogThemeReference(key: Str(config, "defaultThemeKey"), catalogKey: OptStr(config, "defaultThemeCatalogKey")!),
+                presets: presets));
+
+        var parsed = version.Presets ?? new List<CatalogPresetDto>();
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["versionId"] = Show(version.VersionId),
+            ["name"] = Show(version.Name),
+            ["defaultThemeKey"] = Show(version.DefaultTheme?.Key),
+            ["defaultThemeCatalogKey"] = Show(version.DefaultTheme?.CatalogKey),
+            ["presetKeys"] = string.Join(",", parsed.Select(p => Show(p.Key))),
+            ["presetNames"] = string.Join("|", parsed.Select(p => Show(p.Name))),
+            ["presetDescriptions"] = string.Join("|", parsed.Select(p => Show(p.Description))),
         });
     }
 

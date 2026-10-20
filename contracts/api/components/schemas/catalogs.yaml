@@ -679,6 +679,24 @@ CatalogVersionDto:
       items:
         type: string
       example: []
+    defaultTheme:
+      $ref: '#/CatalogThemeReference'
+      description: |
+        The version's default theme (ADR 0007): the theme a template that names none renders with,
+        after the variant's own theme and the template's. It is part of the version's content, as
+        `catalog.defaultTheme` in its catalog archive, so a released version renders with exactly
+        this theme. Absent when the version has none: such a template renders with the rendering
+        defaults alone. No render reads a tenant-wide default theme.
+    presets:
+      type: array
+      description: |
+        The block style presets the version declares (ADR 0007), as `catalog.presets` in its
+        catalog archive: what a block's `stylePreset` may name, together with the presets of the
+        catalogs it depends on. A theme's `blockStylePresets` supplies their styles. Empty when the
+        version declares none; an editor then offers the presets its themes style.
+      items:
+        $ref: '#/CatalogPresetDto'
+      example: []
 
 BehindReleaseDto:
   type: object
@@ -768,15 +786,102 @@ CreateCatalogDraftRequest:
 
 RenameCatalogDraftRequest:
   type: object
-  required:
-    - name
+  description: |
+    A partial update of a draft: its name and its theme settings (ADR 0007). A member that is
+    omitted keeps its current value.
   properties:
     name:
       type: string
       minLength: 1
       maxLength: 100
-      description: The draft's new name, under the same rules as when it was started
+      description: The draft's new name, under the same rules as when it was started. Omitted keeps it.
       example: Redesign 2028
+    defaultTheme:
+      oneOf:
+        - $ref: '#/CatalogThemeReference'
+        - type: 'null'
+      description: |
+        The draft's new default theme: a theme in the catalog itself or in a catalog the draft
+        declares as a dependency. Omitted keeps the current one; null clears it, so that a template
+        that names no theme renders with the rendering defaults alone. A theme that cannot be found,
+        or a catalog the draft does not declare, is refused with 400.
+    presets:
+      type: [array, 'null']
+      description: |
+        The draft's declared presets, replacing the current list as a whole. Omitted keeps the
+        current list; null or an empty array clears it. Keys are unique within the list, which is
+        refused with 400 otherwise.
+      items:
+        $ref: '#/CatalogPresetDto'
+
+CatalogThemeReference:
+  type: object
+  description: |
+    A reference to a theme from a catalog version, qualified like every other cross-catalog
+    reference: an omitted `catalogKey`, `namespace` or `registry` means the referring catalog's own.
+  required:
+    - key
+  properties:
+    key:
+      type: string
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Key of the theme
+      example: corporate
+    catalogKey:
+      type: [string, 'null']
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Key of the catalog holding the theme. Omitted or null means the referring catalog.
+      example: brand
+    namespace:
+      type: [string, 'null']
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 63
+      description: |
+        Namespace of the catalog holding the theme, within its registry. Omitted or null means the
+        referring catalog's namespace.
+      example: acme-corp
+    registry:
+      type: [string, 'null']
+      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+      maxLength: 253
+      description: |
+        Registry of the catalog holding the theme, written in full. Omitted or null means the
+        referring catalog's registry, never an installation default. Naming one requires a
+        `namespace`.
+      example: exchange.epistola.app
+
+CatalogPresetDto:
+  type: object
+  description: |
+    A block style preset a catalog version declares (ADR 0007): what a block's `stylePreset` names,
+    and the key a theme's `blockStylePresets` styles it under.
+  required:
+    - key
+    - name
+  properties:
+    key:
+      type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 1
+      maxLength: 50
+      description: The preset's key, unique within the version's presets
+      example: muted
+    name:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: Display name shown to authors
+      example: Muted
+    description:
+      type: [string, 'null']
+      maxLength: 500
+      description: Optional description shown to authors
+      example: Grey, smaller text for asides
 
 CatalogDraftReleasePreview:
   type: object

@@ -51,7 +51,7 @@ expect:
       body:
         json:
           name: Redesign 2028
-        jsonAbsent: [version, acknowledgeWarnings]
+        jsonAbsent: [version, acknowledgeWarnings, defaultTheme, presets]
   report:
     releaseVersion: 'null'
     versionId: h3v9p6db

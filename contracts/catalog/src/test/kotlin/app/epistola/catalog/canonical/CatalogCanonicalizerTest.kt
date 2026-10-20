@@ -13,6 +13,8 @@ import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogLicense
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogPresentation
+import app.epistola.catalog.protocol.CatalogPresetDeclaration
+import app.epistola.catalog.protocol.CatalogThemeRef
 import app.epistola.catalog.protocol.CompatibilityInfo
 import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.IncludeEntry
@@ -282,6 +284,50 @@ class CatalogCanonicalizerTest {
             CatalogCanonicalizer.currentFingerprint(changed { it.copy(catalogDependencies = listOf(brand, shared)) }),
         )
         assertEquals(CatalogCanonicalizer.fingerprint(base, CatalogFingerprintVersion.V5), CatalogCanonicalizer.currentFingerprint(base))
+    }
+
+    @Test
+    fun `a catalog without a default theme or declared presets keeps the fingerprints published before they existed`() {
+        val expected = resource("fingerprints.json").use(mapper::readTree)
+        val v8 = wireV8Archive()
+        val explicit = v8.copyWithManifest(
+            v8.manifest.copy(catalog = v8.manifest.catalog.copyWithMetadata(defaultTheme = null, presets = emptyList())),
+        )
+
+        assertEquals(expected["currentWireV8CatalogFingerprint"].asString(), CatalogCanonicalizer.currentFingerprint(explicit).value)
+        assertEquals(expected["currentCatalogFingerprint"].asString(), CatalogCanonicalizer.currentFingerprint(goldenArchive()).value)
+    }
+
+    @Test
+    fun `v5 covers the catalog's default theme and declared presets, in any preset order, and the legacy algorithms do not`() {
+        val base = wireV8Archive()
+        fun changed(edit: (CatalogInfo) -> CatalogInfo) = base.copyWithManifest(base.manifest.copy(catalog = edit(base.manifest.catalog)))
+        val muted = CatalogPresetDeclaration("muted", "Muted")
+        val label = CatalogPresetDeclaration("label", "Label", "Small caps for labels")
+        val withPresets = changed { it.copyWithMetadata(presets = listOf(muted, label)) }
+        val variants = mapOf(
+            "default theme" to changed { it.copyWithMetadata(defaultTheme = CatalogThemeRef("default")) },
+            "default theme in another catalog" to changed { it.copyWithMetadata(defaultTheme = CatalogThemeRef("default", "shared")) },
+            "presets" to withPresets,
+            "a preset's name" to changed { it.copyWithMetadata(presets = listOf(muted.copy(name = "Quiet"), label)) },
+            "a preset's description" to changed { it.copyWithMetadata(presets = listOf(muted, label.copy(description = null))) },
+        )
+
+        variants.forEach { (what, variant) ->
+            assertNotEquals(CatalogCanonicalizer.currentFingerprint(base), CatalogCanonicalizer.currentFingerprint(variant), what)
+            CatalogFingerprintVersion.entries.filter { it != CatalogFingerprintVersion.V5 }.forEach { version ->
+                assertEquals(CatalogCanonicalizer.fingerprint(base, version), CatalogCanonicalizer.fingerprint(variant, version), "$what under $version")
+            }
+        }
+        assertNotEquals(
+            CatalogCanonicalizer.currentFingerprint(variants.getValue("default theme")),
+            CatalogCanonicalizer.currentFingerprint(variants.getValue("default theme in another catalog")),
+        )
+        assertEquals(
+            CatalogCanonicalizer.currentFingerprint(withPresets),
+            CatalogCanonicalizer.currentFingerprint(changed { it.copyWithMetadata(presets = listOf(label, muted)) }),
+            "preset order carries no meaning",
+        )
     }
 
     @Test

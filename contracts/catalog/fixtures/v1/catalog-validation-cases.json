@@ -56,5 +56,9 @@
   "CATALOG_VARIANT_METADATA_INVALID": "variant metadata is empty, names more than 16 namespaces, or names one that is not a reverse-DNS namespace (wire v8)",
   "CATALOG_VARIANT_METADATA_TOO_LARGE": "variant metadata exceeds 8 KiB serialized (wire v8)",
   "CATALOG_ASSET_CONTENT_HASH_INVALID": "binary contentHash is not a lowercase hex sha-256",
-  "CATALOG_ASSET_CONTENT_HASH_MISMATCH": "binary contentHash is not what its bytes hash to"
+  "CATALOG_ASSET_CONTENT_HASH_MISMATCH": "binary contentHash is not what its bytes hash to",
+  "CATALOG_PRESET_KEY_INVALID": "a declared preset's key is outside the preset key rule (wire v8)",
+  "CATALOG_PRESET_DUPLICATE": "the catalog declares the same preset key more than once (wire v8)",
+  "CATALOG_PRESET_NAME_INVALID": "a declared preset's name is blank or longer than 100 characters (wire v8)",
+  "CATALOG_PRESET_DESCRIPTION_INVALID": "a declared preset's description is longer than 500 characters (wire v8)"
 }

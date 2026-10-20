@@ -147,6 +147,24 @@
               "type": "null"
             }
           ]
+        },
+        "defaultTheme": {
+          "description": "The theme a template that names none renders with, after the variant's own theme and the template's (ADR 0007). It names a theme in this catalog or in a catalog it depends on. Absent or null means no default theme: such a template renders with the rendering defaults alone. No render reads a tenant-wide default theme.",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/CatalogThemeRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "presets": {
+          "description": "The block style presets this catalog's content may use (ADR 0007), each declared once by key; a theme's blockStylePresets supplies their styles. A catalog's available presets are these plus those of the catalogs it depends on. Absent or empty means the catalog declares none. Keys are unique within the list; order carries no meaning.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CatalogPresetDeclaration"
+          }
         }
       },
       "required": [
@@ -261,6 +279,74 @@
         }
       },
       "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "CatalogThemeRef": {
+      "description": "A reference to a theme resource, qualified like every other cross-catalog reference: an omitted catalogKey, namespace or registry means this catalog's own.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "description": "Key of the theme resource.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "catalogKey": {
+          "description": "Key of the catalog holding the theme. Omitted means this catalog. A theme in another catalog is in a catalog this catalog depends on.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
+        "namespace": {
+          "description": "Namespace of the catalog holding the theme. Omitted means this catalog's namespace.",
+          "$ref": "#/$defs/CatalogNamespace"
+        },
+        "registry": {
+          "description": "Registry of the catalog holding the theme. Omitted means this catalog's registry, never an installation default. Requires namespace.",
+          "$ref": "#/$defs/CatalogRegistry"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "dependentRequired": {
+        "registry": [
+          "namespace"
+        ]
+      },
+      "additionalProperties": false
+    },
+    "CatalogPresetDeclaration": {
+      "description": "A block style preset the catalog declares: the name a block's stylePreset uses, shown to authors with its display name and description.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "description": "The preset's key: the value a block's stylePreset names, and the key a theme's blockStylePresets styles it under.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "name": {
+          "description": "Display name.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500
+        }
+      },
+      "required": [
+        "key",
         "name"
       ],
       "additionalProperties": false

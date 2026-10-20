@@ -766,6 +766,10 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CreateCatalogDraftRequest'
     RenameCatalogDraftRequest:
       $ref: './components/schemas/catalogs.yaml#/RenameCatalogDraftRequest'
+    CatalogThemeReference:
+      $ref: './components/schemas/catalogs.yaml#/CatalogThemeReference'
+    CatalogPresetDto:
+      $ref: './components/schemas/catalogs.yaml#/CatalogPresetDto'
     CatalogDraftReleasePreview:
       $ref: './components/schemas/catalogs.yaml#/CatalogDraftReleasePreview'
     ReleaseCatalogDraftRequest:
