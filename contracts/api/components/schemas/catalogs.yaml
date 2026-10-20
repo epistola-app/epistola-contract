@@ -1,12 +1,14 @@
 CatalogDto:
   type: object
+  description: |
+    A catalog: its identity, type and highest release. It does not list the catalog's releases or
+    drafts; `listCatalogReleases` does, each with its `status` (`?status=draft` for the drafts only).
   required:
     - registry
     - namespace
     - catalogKey
     - name
     - type
-    - drafts
   properties:
     registry:
       $ref: './identifiers.yaml#/Registry'
@@ -39,13 +41,6 @@ CatalogDto:
         The version of the catalog's highest release. For authored catalogs null until
         first released. For subscribed catalogs the highest installed release.
       example: "1.4.0"
-    drafts:
-      type: array
-      description: >-
-        The catalog's drafts, oldest first. A draft has no version until it is released. Empty
-        for a subscribed catalog, and for an authored catalog with no draft.
-      items:
-        $ref: '#/CatalogDraftReleaseSummary'
     fingerprint:
       oneOf:
         - $ref: './identifiers.yaml#/Fingerprint'
@@ -474,28 +469,6 @@ CatalogReleaseStatus:
     - `released`: immutable, with a version. A draft gets its version when it is released, and
       keeps its `releaseId` and its name.
   example: draft
-
-CatalogDraftReleaseSummary:
-  type: object
-  description: A draft release of a catalog, as `CatalogDto` lists it
-  required:
-    - releaseId
-    - name
-  properties:
-    releaseId:
-      $ref: './identifiers.yaml#/CatalogReleaseId'
-      description: The draft's id, which addresses it, and keeps addressing it once it is released
-    name:
-      type: string
-      maxLength: 100
-      description: The draft's name, unique among the catalog's drafts
-      example: Redesign 2027
-    base:
-      oneOf:
-        - $ref: './identifiers.yaml#/ReleaseVersion'
-        - type: 'null'
-      description: The release the draft started from; null when the catalog had no release then
-      example: "1.4.0"
 
 CatalogReleaseDto:
   type: object

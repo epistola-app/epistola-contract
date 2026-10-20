@@ -173,8 +173,8 @@ libraries.
   exist, a fix becomes `1.4.1` and a breaking change `3.0.0`, so an older line is fixed by an
   ordinary release. The draft becomes released at that version, immutable, and keeps its
   `releaseId` and its name: it is addressed by either, and a write through either is refused with
-  409. `ReleaseCatalogDraftResponse.release` is the released release. `CatalogDto` lists its
-  `drafts` (`CatalogDraftReleaseSummary`: `releaseId`, `name`, `base`). Preview renders a draft
+  409. `ReleaseCatalogDraftResponse.release` is the released release. A catalog's drafts are
+  listed only by `listCatalogReleases` (`?status=draft`); `CatalogDto` does not list them. Preview renders a draft
   named as `draft` (its `releaseId`). "Publish" keeps its one meaning, making a catalog available in
   a registry; releasing is not publishing, and a draft is never published.
 - **The changes of a release, and deployments.** A released release also carries the releases of
@@ -572,7 +572,7 @@ libraries.
   release request (`version`, `acknowledgedBehind`), a dependency declaration, and every
   response member that names a version (`CatalogDto.highestVersion`, which replaces
   `releasedVersion` and is the version of the catalog's highest release, `CatalogReleaseDto.version` and
-  `base`, `CatalogDraftReleaseSummary.base`, `BehindReleaseDto.version`, `CatalogChangesDto.base`,
+  `base`, `BehindReleaseDto.version`, `CatalogChangesDto.base`,
   `CatalogDraftReleasePreview.base`, `needed` and `suggested`, `ReleasedDependencyDto`,
   `ReleaseDependencyDto`, `CatalogDependencyDto`, `AvailableReleaseDto.version` and `comparedTo`,
   `AvailableReleaseDependencyDto.version`, `InstallCatalogReleaseResponse.version` and

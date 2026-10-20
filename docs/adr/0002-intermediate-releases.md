@@ -273,7 +273,8 @@ Deployments (ADR 0003, "Deploying"):
   are `getCatalogChanges`, `markCatalogReady` and the dependency operations. Reads work on any
   release. Writes and ready marks work on drafts only, and are refused with `409` on a released
   release.
-- `CatalogDto.drafts` lists the drafts (`CatalogDraftReleaseSummary`: `releaseId`, name, base).
+- A catalog's drafts are listed by `listCatalogReleases`, with the released releases, each with its
+  `status`; `?status=draft` lists only the drafts. `CatalogDto` does not list them.
   `CatalogReleaseDto` carries `releaseId`, `status` (`draft` or `released`) and `name` for every
   release, and `version` once released. A release keeps its `releaseId` and its name when it is
   released; a release installed by import or from its source has no name.
