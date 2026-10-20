@@ -172,7 +172,7 @@ CreateAttributeRequest:
       - Omit both `allowedValues` and `codeListBinding` for free-format.
       - Provide a non-empty `allowedValues` for inline values.
       - Provide `codeListBinding` for code-list-bound (and leave `allowedValues` empty).
-    Mixing the two is rejected with 422.
+    Mixing the two is refused with 400 `validation-error`.
   required:
     - key
     - displayName
@@ -231,6 +231,10 @@ CreateAttributeRequest:
           example: system
         key:
           type: string
+          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+          minLength: 3
+          maxLength: 50
+          description: Key of the bound code list
           example: iso-639-1
 
 UpdateAttributeRequest:
@@ -284,6 +288,10 @@ UpdateAttributeRequest:
           maxLength: 50
         key:
           type: string
+          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+          minLength: 3
+          maxLength: 50
+          description: Key of the bound code list
 
 AttributeListResponse:
   description: List of attribute definitions

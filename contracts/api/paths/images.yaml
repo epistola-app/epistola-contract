@@ -54,10 +54,11 @@ images:
     operationId: uploadImage
     summary: Upload an image
     description: |
-      Upload an image into an AUTHORED catalog. The suite currently limits image content to
-      5 MiB. Supported image types are deployment-configured; common ones are `image/png`,
-      `image/jpeg`, `image/svg+xml`, and `image/webp`. Content whose media type is not a
-      supported image type is rejected with 400.
+      Upload an image into an AUTHORED catalog. The contract sets no size limit; a server may set
+      one (Epistola Suite may limit image content to 5 MiB), and refuses content over it with 400.
+      Supported image types are deployment-configured; common ones are `image/png`, `image/jpeg`,
+      `image/svg+xml`, and `image/webp`. Content whose media type is not a supported image type is
+      rejected with 400.
 
       The response carries the new image's generated `key`.
     tags:

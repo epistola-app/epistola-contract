@@ -15,9 +15,9 @@ attributes:
     - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
   get:
     operationId: listAttributes
-    summary: List attribute definitions for a tenant
+    summary: List the attribute definitions in a catalog version
     description: >-
-      Retrieve all attribute definitions configured for a specific tenant.
+      Retrieve the attribute definitions of this catalog version.
       Attribute definitions describe the keys that can be used for variant selection.
     tags:
       - Attributes
@@ -45,7 +45,7 @@ attributes:
   post:
     operationId: createAttribute
     summary: Create a new attribute definition
-    description: Create a new attribute definition for the specified tenant.
+    description: Create an attribute definition in the draft.
     tags:
       - Attributes
     x-required-permissions: [REFERENCE_EDIT]
@@ -124,7 +124,11 @@ attributes-key:
     operationId: updateAttribute
     summary: Update an attribute definition
     description: |
-      Update the description of an existing attribute definition.
+      Update an attribute definition's `displayName`, `description` and constraint: its inline
+      `allowedValues`, or the code list it binds (`codeListBinding`). Omitted members are left as
+      they are. The constraint may switch kind, as `UpdateAttributeRequest` describes; mixing both
+      kinds is refused with 400 `validation-error`, and an attribute of a SUBSCRIBED catalog with
+      409.
       Send the `ETag` from a read as `If-Match` to have the update refused with 412
       `resource-modified` if the resource changed since; without it, the last write wins.
     tags:

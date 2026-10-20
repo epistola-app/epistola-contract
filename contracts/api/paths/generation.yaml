@@ -54,7 +54,19 @@ generate-document:
   post:
     operationId: generateDocument
     summary: Generate a single document asynchronously
-    description: Submit a request to generate a single PDF document. Returns immediately with a job ID for tracking progress.
+    description: |
+      Submit a request to generate a single PDF document. Returns immediately with a job ID for
+      tracking progress.
+
+      The target is resolved when the request is accepted, and each item is bound to the version it
+      renders (`releaseVersion`, or `versionId` for a deployed draft). Refused with 404
+      `not-found`, and nothing is accepted, when the tenant, the catalog, the template, the named
+      variant or the environment does not exist, when no variant matches the `attributes`, or when
+      no version matches: no release satisfies `versionRange`, or the environment serves no
+      version of the catalog that matches. The template data is not checked against the
+      template's data contract here; it is checked when the item renders, and an item whose data
+      breaks the contract fails (`FAILED`, with its `errorMessage`). Check it first with
+      `validateTemplateData` to find out before submitting.
     tags:
       - Generation
     x-required-permissions: [DOCUMENT_GENERATE]
@@ -87,12 +99,29 @@ generate-document:
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '429':
+        $ref: '../components/responses/problem-responses.yaml#/RateLimitedError'
 
 generate-batch:
   post:
     operationId: generateDocumentBatch
     summary: Generate multiple documents in a batch
-    description: Submit a batch request to generate multiple PDF documents. Returns immediately with a job ID for tracking progress.
+    description: |
+      Submit a batch request to generate multiple PDF documents. Returns immediately with a job ID
+      for tracking progress.
+
+      The target is resolved when the request is accepted, and each item is bound to the version it
+      renders (`releaseVersion`, or `versionId` for a deployed draft). Refused with 404
+      `not-found`, and nothing is accepted, when the tenant, the catalog, the template, the named
+      variant or the environment does not exist, when no variant matches the `attributes`, or when
+      no version matches: no release satisfies `versionRange`, or the environment serves no
+      version of the catalog that matches. The template data is not checked against the
+      template's data contract here; it is checked when the item renders, and an item whose data
+      breaks the contract fails (`FAILED`, with its `errorMessage`). Check it first with
+      `validateTemplateData` to find out before submitting. A batch is
+      accepted whole or not at all: an item that cannot be resolved refuses the batch.
     tags:
       - Generation
     x-required-permissions: [DOCUMENT_GENERATE]
@@ -125,6 +154,10 @@ generate-batch:
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '429':
+        $ref: '../components/responses/problem-responses.yaml#/RateLimitedError'
 
 jobs:
   get:
@@ -165,6 +198,8 @@ jobs:
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 job-detail:
   parameters:
@@ -229,7 +264,9 @@ documents:
   get:
     operationId: listDocuments
     summary: List generated documents
-    description: List all generated documents for a tenant with optional filtering
+    description: |
+      List the tenant's generated documents, optionally filtered by catalog (`registry`,
+      `namespace`, `catalogKey`), template within that catalog (`templateKey`) and correlation ID.
     tags:
       - Generation
     x-required-permissions: [DOCUMENT_VIEW]
@@ -245,7 +282,10 @@ documents:
           maxLength: 63
       - name: templateKey
         in: query
-        description: Filter by template key
+        description: |
+          Filter by template key. A template key is unique only within its catalog, so it is
+          given together with `namespace` and `catalogKey` (and `registry` when the catalog is not
+          in the default registry); without them the request is refused with 400.
         schema:
           type: string
           pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
@@ -259,6 +299,38 @@ documents:
           maxLength: 255
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
+      - name: registry
+        in: query
+        description: |
+          Filter by the registry of the template's catalog, together with `namespace` and
+          `catalogKey`. Omitted or `~`: the default registry. Given without
+          `namespace` and `catalogKey`, the request is refused with 400. Documents generated before
+          contract 2.0 record no catalog and match no catalog filter.
+        schema:
+          type: string
+          pattern: '^(~|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)$'
+          minLength: 1
+          maxLength: 253
+      - name: namespace
+        in: query
+        description: |
+          Filter by the namespace of the template's catalog. Given with `catalogKey`, or alone to
+          list the documents of every catalog in that namespace.
+        schema:
+          type: string
+          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+          minLength: 3
+          maxLength: 63
+      - name: catalogKey
+        in: query
+        description: |
+          Filter by the key of the template's catalog. Requires `namespace`; without it the request
+          is refused with 400.
+        schema:
+          type: string
+          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+          minLength: 3
+          maxLength: 50
     responses:
       '200':
         description: List of documents
@@ -272,6 +344,8 @@ documents:
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
 document-detail:
   parameters:

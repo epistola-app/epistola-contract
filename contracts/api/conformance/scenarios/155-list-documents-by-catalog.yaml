@@ -1,0 +1,74 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: list-documents-by-catalog
+title: Documents are filtered by template within its catalog, never by template key alone
+why: >
+  A template key is unique only within its catalog: two catalogs can each hold an `invoice`. The
+  document listing filtered on `templateKey` alone, so it mixed the documents of every catalog's
+  `invoice` together. It now takes the catalog as `registry`, `namespace` and `catalogKey`, and a
+  client that leaves one out asks for a different catalog's documents, or for a listing the server
+  refuses. Each filter goes out exactly as given; one the caller did not set stays off the wire
+  rather than going out empty.
+
+action:
+  name: list-documents
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    registry: exchange.example.org
+    namespace: team-a
+    catalogKey: letters
+    templateKey: invoice
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      items:
+        - id: 77777777-7777-4777-8777-000000000001
+          tenantKey: acme-corp
+          registry: exchange.example.org
+          namespace: team-a
+          catalogKey: letters
+          templateKey: invoice
+          variantKey: 2026-invoice
+          releaseVersion: "1.4.0"
+          filename: invoice-2026-001.pdf
+          contentType: application/pdf
+          sizeBytes: 184320
+          createdAt: "2026-02-01T08:00:03Z"
+        - id: 77777777-7777-4777-8777-000000000002
+          tenantKey: acme-corp
+          registry: exchange.example.org
+          namespace: team-a
+          catalogKey: letters
+          templateKey: invoice
+          variantKey: english
+          releaseVersion: "1.3.0"
+          filename: invoice-2026-002.pdf
+          contentType: application/pdf
+          sizeBytes: 120000
+          createdAt: "2026-02-02T08:00:03Z"
+      page: { number: 0, size: 20, totalElements: 2, totalPages: 1 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/documents
+      queryParams:
+        registry: exchange.example.org
+        namespace: team-a
+        catalogKey: letters
+        templateKey: invoice
+        correlationId: { absent: true }
+        page: { whenPresent: '0' }
+        size: { whenPresent: '20' }
+  report:
+    catalogs: exchange.example.org/team-a/letters,exchange.example.org/team-a/letters
+    templateKeys: invoice,invoice
+    variantKeys: 2026-invoice,english

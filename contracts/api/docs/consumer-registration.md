@@ -200,12 +200,12 @@ Higher levels imply lower ones, and every level defaults to `none`:
 
 | Resource | Levels | Meaning |
 |---|---|---|
-| `templates` | `none`, `read`, `write` | read: list and get templates, their variants' working copies and data contracts. write: create, update and delete templates, edit working copies, mark ready |
+| `templates` | `none`, `read`, `write` | read: list and get templates, their variants' content and data contracts. write: create, update and delete templates, edit their content in drafts, mark ready |
 | `variants` | `none`, `read`, `write` | read: list and get variants. write: create, update, delete |
 | `themes` | `none`, `read`, `write` | read: list and get themes. write: create, update, delete |
-| `environments` | `none`, `read`, `write`, `deploy` | read: list and get environments, what they serve and their deployment history. write: create, update, delete environments. deploy: deploy and undeploy catalog releases |
-| `stencils` | `none`, `read`, `write` | read: list and get stencils and their usage. write: create, update, edit working copies, mark ready |
-| `catalogs` | `none`, `read`, `write`, `release` | read: list catalogs, their releases and working-copy changes. write: import catalogs. release: cut catalog releases |
+| `environments` | `none`, `read`, `write`, `deploy` | read: list and get environments, what they serve and their deployment history. write: create, update, delete environments. deploy: deploy and undeploy catalog versions (releases and drafts) |
+| `stencils` | `none`, `read`, `write` | read: list and get stencils and their usage. write: create, update, edit their content in drafts, mark ready |
+| `catalogs` | `none`, `read`, `write`, `release` | read: list catalogs, their versions and a draft's changes. write: import catalogs. release: cut catalog releases |
 | `generation` | `none`, `read`, `write` | read: view jobs and documents, and collect results through `collectGenerationResults`. write: submit generation and preview |
 | `consumers` | `none`, `read`, `manage` | read: list and view consumers. manage: approve, reject, update and delete consumers |
 
@@ -341,8 +341,10 @@ Every request and response body uses `application/vnd.epistola.v2+json`.
 **Authorization**: `listConsumers`, `getConsumer`, `updateConsumer`, `deleteConsumer`,
 `approveConsumer` and `rejectConsumer` require the Suite permission `TENANT_USERS`
 (`x-required-permissions`). `registerConsumer` requires no authentication (`security: []`): the
-public key in the request establishes the consumer's identity. `rotatePublicKey` must be
-authenticated with a JWT signed by the current key.
+public key in the request establishes the consumer's identity. `rotatePublicKey` admits only the
+consumer itself: it declares `security: bearerAuth` alone and `x-required-authentication`, and the
+request must carry a self-signed JWT issued by the consumer in the path and signed with its current
+key. No permission admits anyone else; an API key or another consumer's JWT is refused with 403.
 
 #### Register a consumer
 
@@ -955,10 +957,9 @@ with the consumer ID when the server can identify the calling consumer.
 This is fully backwards compatible — the field already exists and is nullable. Consumers that don't
 check `createdBy` are unaffected.
 
-**Note**: The current field description in `generation.yaml` reads "User who generated the document
-(future feature)". This must be updated when implementing attribution to reflect that `createdBy`
-contains a **consumer identifier** (e.g., `invoice-service`), not a human user identifier. The field
-semantics change from "which person" to "which system" — a deliberate choice since document
+**Note**: The field description in `generation.yaml` already says that `createdBy` contains a
+**consumer identifier** (e.g., `invoice-service`), not a human user identifier, kept when the
+consumer is deleted: "which system", not "which person" — a deliberate choice since document
 generation is typically triggered by automated systems, not individual users.
 
 ### 6.3 Authentication

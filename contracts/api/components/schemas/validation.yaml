@@ -12,7 +12,7 @@ ValidateTemplateDataRequest:
   properties:
     variantKey:
       type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the variant to check against. If omitted, the default variant of the template in the resolved release is used.

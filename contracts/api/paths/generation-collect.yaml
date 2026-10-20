@@ -24,8 +24,10 @@ generation-collect:
       Results are routed to nodes using consistent hashing on the `routingKey`
       from the generation request:
 
-      1. Each result is assigned to a **partition**: `murmur3(routingKey) % totalPartitions`.
-         If no routing key was provided, the request ID is used.
+      1. Each result is assigned to a **partition**:
+         `(murmur3_x86_32(utf8(routingKey), seed=0) & 0x7FFFFFFF) % total`, as
+         `PartitionAssignment.hash` states it. If no routing key was provided, the request ID is
+         used, in its canonical lowercase form.
       2. Partitions are **assigned to nodes** via consistent hashing. The server
          tracks which nodes are active based on poll frequency.
       3. Each node receives results from its **assigned partitions** only.
@@ -126,5 +128,7 @@ generation-collect:
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '429':
         $ref: '../components/responses/problem-responses.yaml#/RateLimitedError'

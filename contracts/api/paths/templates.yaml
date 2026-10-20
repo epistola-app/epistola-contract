@@ -16,8 +16,8 @@ templates:
 
   get:
     operationId: listTemplates
-    summary: List templates for a tenant
-    description: Retrieve all document templates belonging to a specific tenant.
+    summary: List the templates in a catalog version
+    description: Retrieve the document templates of this catalog version.
     tags:
       - Templates
     x-required-permissions: [TEMPLATE_VIEW]
@@ -50,7 +50,7 @@ templates:
   post:
     operationId: createTemplate
     summary: Create a new template
-    description: Create a new document template for the specified tenant.
+    description: Create a document template in the draft.
     tags:
       - Templates
     x-required-permissions: [TEMPLATE_EDIT]
@@ -105,7 +105,7 @@ templates-id:
 
   get:
     operationId: getTemplate
-    summary: Get template by ID
+    summary: Get a template by key
     description: Retrieve details of a specific document template including its model and data examples.
     tags:
       - Templates
@@ -131,8 +131,7 @@ templates-id:
     operationId: updateTemplate
     summary: Update a template
     description: |
-      Update an existing document template's properties, data model or data examples in the working
-      copy. The data contract is part of the template: an edit clears the template's ready mark, and
+      Update a document template's properties, data model or data examples in the draft. The data contract is part of the template: an edit clears the template's ready mark, and
       a change that breaks callers is reported when the catalog is released, not here.
       Send the `ETag` from a read as `If-Match` to have the update refused with 412
       `resource-modified` if the resource changed since; without it, the last write wins.

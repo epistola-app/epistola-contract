@@ -25,10 +25,10 @@ FontDto:
     A family from a SUBSCRIBED catalog (e.g. the bundled `system` catalog's
     `inter`, `roboto`, …) is flagged `readOnly: true`.
 
-    **Read-only over REST.** Like image assets, font families and their
-    binaries are managed through the UI and catalog exchange only — there is
-    no create/update/delete via this API. (Write access may be revisited
-    later.)
+    **Read-only over REST.** Font families and their binaries are managed
+    through the UI and catalog exchange only — there is no create/update/delete
+    via this API, unlike images, which can be uploaded (`uploadImage`) and
+    deleted (`deleteImage`). (Write access may be revisited later.)
   required:
     - key
     - name

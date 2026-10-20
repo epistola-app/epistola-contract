@@ -204,10 +204,10 @@ info:
     `ETag`. Without `If-Match` an update is applied unconditionally, and the last
     write wins.
 
-    A template's `ETag` covers its own properties (name, theme, data contract); a
-    variant's covers its title, attributes and template model, so `getVariant` and
-    `getVariantContent` return the same `ETag` for a variant, and either can be sent
-    to `updateVariant` or `updateVariantContent`.
+    A template's `ETag` covers its own properties (name, description, data contract and
+    data examples); a variant's covers its title, description, attributes and template
+    model, so `getVariant` and `getVariantContent` return the same `ETag` for a variant,
+    and either can be sent to `updateVariant` or `updateVariantContent`.
 
     ## Authorization
     Access is controlled via Suite permissions such as `TEMPLATE_VIEW`,
@@ -394,7 +394,7 @@ tags:
   - name: Variants
     description: Template variant operations (language, brand variations)
   - name: Stencils
-    description: Reusable template component operations (CRUD, versioning, usage tracking)
+    description: Reusable template component operations (CRUD, content, readiness, usage tracking); stencils are versioned with their catalog
   - name: Catalogs
     description: Catalog import and management operations
   - name: CodeLists

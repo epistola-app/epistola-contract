@@ -85,9 +85,10 @@ PongDetailsDto:
     partitions:
       description: |
         Partition assignment for generation result collection, if available.
-        Included when the authenticated consumer has an active partition
-        assignment in this tenant. Null for new consumers that have not
-        yet polled the collect endpoint, or when the request is unauthenticated.
+        Included when the caller's credentials belong to one tenant (as an API key does) and the
+        calling node has an active partition assignment there; `/ping` names no tenant, so it is
+        that tenant's. Absent for a node that has not yet polled the collect endpoint, for
+        credentials that span several tenants, and when the request is unauthenticated.
 
         Clients can use this on startup to compute routing keys that target
         their own node before submitting generation requests.

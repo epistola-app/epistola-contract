@@ -61,14 +61,15 @@ These actions cover the scenarios. A driver implements these, and nothing else:
 
 | Action | What the driver does |
 | --- | --- |
-| `ping` | `POST /ping` with client metadata, through the generated API |
+| `ping` | `POST /ping` with client metadata, through the generated API, with the credentials `config.auth` configures (none when absent) |
 | `list-templates` | `GET …/templates`, `config.repeat` times, reporting the keys it parsed from the last response (`templateKeys`, comma-joined) and their descriptions (`templateDescriptions`, joined with `\|`, a missing one as `null`) |
 | `collect` | build a `ResultCollector` from `config`, run it for `config.runForMs`, stop it, report what it handled, including each result's catalog and release as `releases` (`registry/namespace/catalogKey@releaseVersion`, a missing value as `null`) |
 | `problem` | make a request the server answers with a problem, report the parsed slug and members |
 | `validate-template-data` | validate `config.data` for a template through `TemplateSchemaValidator`, reporting the paths and keywords of the failures it surfaced |
-| `generate-document` | `POST …/documents/generate` with a real body, through the generated API; `config.registry`, `config.versionRange` and `config.environmentKey` are sent when present, and left unset otherwise |
+| `generate-document` | `POST …/documents/generate` with a real body, through the generated API; `config.registry`, `config.variantKey`, `config.versionRange` and `config.environmentKey` are sent when present, and left unset otherwise |
 | `routing` | poll once for a partition assignment, then report what the routing helpers compute |
 | `update-consumer` | `PATCH …/consumers/{id}` setting exactly one field |
+| `list-documents` | `GET …/documents` with `config.templateKey`, `config.registry`, `config.namespace` and `config.catalogKey` each sent only when present, reporting the `catalogs` (`registry/namespace/catalogKey`, a null value as `null`), `templateKeys` and `variantKeys` it parsed, comma-joined, in order |
 | `download-document` | `GET …/documents/{id}`, reporting the SHA-256 and length of the bytes |
 | `list-images` | `GET …/images?search=…`, reporting the keys, widths, heights and media types it parsed |
 | `upload-image` | `POST …/images` with the file from `config` (bytes, filename, content type) and a name, reporting the returned key and name |

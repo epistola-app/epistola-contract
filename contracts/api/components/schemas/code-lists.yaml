@@ -9,7 +9,7 @@ CodeListDto:
     PATCH, DELETE, and entry hide-toggles on it return 409.
 
     Sources: `INLINE` (entries baked into this row) or `URL` (entries fetched
-    over HTTPS via the manual "refresh" action). Catalog-imported code lists
+    from `sourceUrl` via the manual "refresh" action). Catalog-imported code lists
     always land as `INLINE` because the entries ship in the catalog manifest.
   required:
     - key
@@ -35,6 +35,8 @@ CodeListDto:
     tenantKey:
       type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 63
       example: acme-corp
     registry:
       type: string

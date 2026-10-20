@@ -355,11 +355,19 @@ consumer-public-key:
     description: |
       **Experimental** — Epistola Suite may not implement this operation yet.
 
-      Replace the public key for a self-signed JWT consumer. Must authenticate
-      with a valid JWT signed by the current key. After rotation, the old key
-      is immediately invalidated.
+      Replace the public key for a self-signed JWT consumer. Only the consumer itself may rotate
+      it: the request must carry a self-signed JWT (`Authorization: Bearer`) issued by the consumer
+      named in the path (`iss`) and signed with its current key. No permission and no API key
+      admits anyone else, a tenant manager included: an API key, or a JWT of another consumer, is
+      refused with 403. After rotation, the old key is immediately invalidated.
+
+      An API-key consumer cannot rotate this way; a tenant manager issues a new key and revokes the
+      old one out of band.
     tags:
       - Consumers
+    x-required-authentication: true
+    security:
+      - bearerAuth: []
     requestBody:
       required: true
       content:

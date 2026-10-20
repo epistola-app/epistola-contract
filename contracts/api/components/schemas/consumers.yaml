@@ -40,7 +40,10 @@ ConsumerDto:
       example: invoice-service
     tenantKey:
       type: string
-      description: Tenant this consumer is registered in
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 63
+      description: Key of the tenant this consumer is registered in
       example: acme-corp
     name:
       type: string
@@ -148,8 +151,8 @@ ConsumerPermissions:
       enum: [none, read, write]
       default: none
       description: |
-        read = list/get templates, their variants' working copies and data contracts.
-        write = create/update/delete templates, edit working copies, mark ready + read.
+        read = list/get templates, their variants' content and data contracts.
+        write = create/update/delete templates, edit their content in drafts, mark ready + read.
     variants:
       type: string
       enum: [none, read, write]
@@ -167,18 +170,18 @@ ConsumerPermissions:
       description: |
         read = list/get environments, what they serve and their deployment history.
         write = create/update/delete environments + read.
-        deploy = deploy and undeploy catalog releases + write.
+        deploy = deploy and undeploy catalog versions (releases and drafts) + write.
     stencils:
       type: string
       enum: [none, read, write]
       default: none
-      description: "read = list/get stencils and their usage, write = create/update, edit working copies, mark ready + read"
+      description: "read = list/get stencils and their usage, write = create/update, edit their content in drafts, mark ready + read"
     catalogs:
       type: string
       enum: [none, read, write, release]
       default: none
       description: |
-        read = list catalogs, their releases and working-copy changes.
+        read = list catalogs, their versions and a draft's changes.
         write = import catalogs + read.
         release = cut catalog releases + write.
     generation:

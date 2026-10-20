@@ -50,7 +50,7 @@ PreviewDocumentRequest:
       example: invoice
     variantKey:
       type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the variant to use (mutually exclusive with attributes)
@@ -82,8 +82,8 @@ PreviewDocumentRequest:
         environment is rendered live if there is one (the document then carries `versionId` and
         `draftLabel`), else the highest release of the template's catalog the environment serves.
         With a `versionRange`, the highest served release that satisfies it; a draft never matches
-        a range (`deployCatalogVersion`). The request is refused when the environment serves no such
-        version.
+        a range (`deployCatalogVersion`). The request is refused with 404 `not-found` when the
+        environment serves no such version.
       example: null
     draft:
       type: [string, "null"]
@@ -174,9 +174,13 @@ VariantSelectionAttribute:
       example: system
     key:
       type: string
+      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*\.)?[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 101
       description: |
-        Attribute key. May be a bare slug (`locale`) or a dotted qualifier
-        (`system.locale`). Must match an attribute definition for the tenant.
+        Attribute key. May be a bare key (`locale`) or qualified by a catalog key
+        (`system.locale`); each part follows its own key rule. Must match an attribute definition
+        for the tenant.
       example: locale
     value:
       type: string
@@ -228,7 +232,7 @@ GenerateDocumentRequest:
       example: invoice
     variantKey:
       type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the variant to use (mutually exclusive with attributes)
@@ -260,8 +264,8 @@ GenerateDocumentRequest:
         environment is rendered live if there is one (the document then carries `versionId` and
         `draftLabel`), else the highest release of the template's catalog the environment serves.
         With a `versionRange`, the highest served release that satisfies it; a draft never matches
-        a range (`deployCatalogVersion`). The request is refused when the environment serves no such
-        version.
+        a range (`deployCatalogVersion`). The request is refused with 404 `not-found` when the
+        environment serves no such version.
       example: null
     data:
       type: object
@@ -363,7 +367,7 @@ BatchGenerationItem:
       example: invoice
     variantKey:
       type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
       description: Key of the variant to use (mutually exclusive with attributes)
@@ -395,8 +399,8 @@ BatchGenerationItem:
         environment is rendered live if there is one (the document then carries `versionId` and
         `draftLabel`), else the highest release of the template's catalog the environment serves.
         With a `versionRange`, the highest served release that satisfies it; a draft never matches
-        a range (`deployCatalogVersion`). The request is refused when the environment serves no such
-        version.
+        a range (`deployCatalogVersion`). The request is refused with 404 `not-found` when the
+        environment serves no such version.
       example: null
     data:
       type: object
@@ -1003,7 +1007,10 @@ DocumentDto:
       example: "2026-02-01T08:00:03Z"
     createdBy:
       type: [string, "null"]
-      description: User who generated the document (future feature)
+      description: |
+        Who requested the document: the `id` of the consumer whose request generated it (see the
+        Consumers API, experimental). It is kept when that consumer is deleted. Null when the
+        server records none; Epistola Suite may not record it yet.
       example: null
   example:
     id: "770e8400-e29b-41d4-a716-446655440002"

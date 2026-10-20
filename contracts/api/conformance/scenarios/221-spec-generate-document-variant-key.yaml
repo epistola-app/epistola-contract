@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: spec-generate-document-variant-key
+title: A generation request names a variant whose key starts with a digit
+why: >
+  A variant key follows the catalog resource key rule, `^[a-z0-9]+(-[a-z0-9]+)*$`, 3 to 50
+  characters, a leading digit allowed, in the API and in catalog wire v8 alike. The generation
+  requests carried the catalog key rule instead, which demands a letter first, so a variant the API
+  had created, such as `2026-invoice`, could not be named in a generation request: a client that
+  checks patterns refused it before sending, and a server that checks them refused it on arrival.
+
+  Prism holds the request to the spec, and the body check holds the client to sending the key as
+  given, so a client that drops or rewrites it fails here too.
+
+backend: prism
+
+action:
+  name: generate-document
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    namespace: acme-corp
+    catalogKey: letters
+    templateKey: invoice
+    variantKey: 2026-invoice
+    data:
+      customerName: Acme B.V.
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/documents/generate
+      body:
+        json:
+          templateKey: invoice
+          variantKey: 2026-invoice

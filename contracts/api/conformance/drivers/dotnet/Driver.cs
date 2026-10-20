@@ -52,6 +52,7 @@ public static class Driver
                 case "generate-document": GenerateDocument(baseUrl, config); break;
                 case "update-consumer": UpdateConsumer(baseUrl, config); break;
                 case "download-document": DownloadDocument(baseUrl, config); break;
+                case "list-documents": ListDocuments(baseUrl, config); break;
                 case "list-images": ListImages(baseUrl, config); break;
                 case "upload-image": UploadImage(baseUrl, config); break;
                 case "import-catalog": ImportCatalog(baseUrl, config); break;
@@ -246,6 +247,7 @@ public static class Driver
                 templateKey: Str(config, "templateKey"),
                 // Optional, and left unset when the scenario does not name them: an unset optional
                 // must stay off the wire (scenario 120), not go out as null.
+                variantKey: OptStr(config, "variantKey"),
                 versionRange: OptStr(config, "versionRange"),
                 environmentKey: OptStr(config, "environmentKey"),
                 // Parsed with Newtonsoft, not System.Text.Json: the generated models serialize
@@ -318,6 +320,30 @@ public static class Driver
             Str(config, "tenantKey"), Guid.Parse(Str(config, "documentId")));
 
         ReportBytes(baseUrl, file);
+    }
+
+    /// <summary>
+    /// Lists documents with the catalog and template filters the scenario sets, each sent only
+    /// when set, and reports what the client made of the page.
+    /// </summary>
+    private static void ListDocuments(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var documents = new GenerationApi(http, apiBase)
+            .ListDocuments(
+                Str(config, "tenantKey"),
+                templateKey: OptStr(config, "templateKey"),
+                registry: OptStr(config, "registry"),
+                varNamespace: OptStr(config, "namespace"),
+                catalogKey: OptStr(config, "catalogKey"))
+            .Items;
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["catalogs"] = string.Join(",", documents.Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}")),
+            ["templateKeys"] = string.Join(",", documents.Select(d => d.TemplateKey)),
+            ["variantKeys"] = string.Join(",", documents.Select(d => d.VariantKey)),
+        });
     }
 
     /// <summary>
