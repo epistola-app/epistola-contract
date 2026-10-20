@@ -249,8 +249,9 @@ stencil-content:
     operationId: updateStencilContent
     summary: Update the stencil's content in a draft
     description: |
-      Replaces the stencil's content and parameters in the draft. Templates keep rendering the
-      stencil's ready content until this content is marked ready.
+      Replaces the stencil's content in the draft, and its parameters when `parameterSchema` is
+      given: left out, they stay; `{}` removes them. Templates keep rendering the stencil's ready
+      content until this content is marked ready.
       Send the `ETag` from a read as `If-Match` to have the update refused with 412
       `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
