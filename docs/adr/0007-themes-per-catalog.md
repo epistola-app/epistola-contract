@@ -48,10 +48,24 @@ A render chooses its theme in this order:
 3. the catalog's `defaultTheme`;
 4. none: the rendering defaults alone.
 
-There is no tenant-wide default theme. Nothing in a render depends on any catalog other than the
-template's and those its version pins; in particular nothing assumes a catalog named `default`
+No render reads a tenant-wide default theme. Nothing in a render depends on any catalog other than
+the template's and those its version pins; in particular nothing assumes a catalog named `default`
 exists. The system catalog's `default` theme is a theme like any other, chosen explicitly where
 wanted.
+
+### 1a. A tenant's house theme is a starting value, not a render input
+
+A tenant may keep a **house theme**: one place to say "this is our theme". It is never read while
+rendering. It is used in two explicit ways:
+
+- a catalog created in the tenant starts with it as its `defaultTheme`, declared and pinned like any
+  other reference, so its published versions carry it;
+- an "apply to all catalogs" action sets it as the `defaultTheme` of the tenant's existing authored
+  catalogs; each one takes it into a published version on its next publish.
+
+Changing the house theme therefore changes no document until a catalog that uses it is published
+and deployed. Copying it into a version automatically at publish time was considered and rejected:
+a catalog's look would then depend on when it happened to be published, without anyone choosing it.
 
 ### 2. A catalog declares its presets; each theme styles them
 
@@ -95,11 +109,12 @@ the report in decision 2 says when one does not.
   `stylePreset` described as a reference to an available preset. Older archives carry neither and
   read as "no default theme" and "no declared presets"; until a catalog declares presets, the editor
   falls back to the presets its themes style, so nothing breaks on upgrade.
-- The API exposes and sets both on a catalog version; the tenant default theme endpoints and fields
-  are withdrawn.
+- The API exposes and sets both on a catalog version. The tenant default theme stays as the house
+  theme (decision 1a): its fields remain, described as a starting value, and an operation applies it
+  to every authored catalog.
 - **Migration (suite):** every authored catalog with templates that inherit their theme gets the
-  tenant's current default theme as its `defaultTheme`, so nothing renders differently; then the
-  tenant default theme goes. Each catalog's `presets` are seeded from the preset keys its themes
+  tenant's current default theme as its `defaultTheme`, so nothing renders differently; the tenant
+  default theme stays as the house theme, no longer read while rendering. Each catalog's `presets` are seeded from the preset keys its themes
   style.
 - Catalog deletion no longer treats "the tenant's default theme" as a use; the catalog that holds a
   theme some other catalog's `defaultTheme` names is in use through that dependency, as for any
