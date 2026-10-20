@@ -20,10 +20,7 @@ ImageDto:
     - createdAt
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
         The image's key, unique within its catalog. It is the value a template references as
         `props.imageKey`, the image's key in a catalog export, and the `{imageKey}` that addresses
@@ -34,31 +31,20 @@ ImageDto:
         opaque string either way.
       example: "4a64f2f9-2c7a-4d26-9cf7-d34c7ce92280"
     tenantKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/TenantKey'
       example: acme-corp
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the catalog: the exchange or domain its namespace lives in. Always written in
         full, the default registry by its name, never `~`.
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog, within its registry
       example: acme-corp
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog this resource lives in, unique within its registry and namespace
       example: default
     catalogType:

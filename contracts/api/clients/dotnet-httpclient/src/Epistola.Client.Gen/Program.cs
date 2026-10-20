@@ -134,6 +134,19 @@ static IDictionary<object, object>? StringAlias(IDictionary<object, object> sche
     return target.TryGetValue("type", out var type) && type as string == "string" && !target.ContainsKey("enum") ? target : null;
 }
 
+// The string schema a nullable use of a named rule references, `oneOf: [{$ref: Rule}, {type: 'null'}]`
+// (the generator renders it as a nullable string); null for anything else.
+static IDictionary<object, object>? NullableStringAlias(IDictionary<object, object> schemas, IDictionary<object, object> declared)
+{
+    if (!(declared.TryGetValue("oneOf", out var b) || declared.TryGetValue("anyOf", out b)) || b is not IList<object> branches || branches.Count != 2)
+        return null;
+    var maps = branches.OfType<IDictionary<object, object>>().ToList();
+    if (maps.Count != 2) return null;
+    if (!maps.Any(m => m.Count == 1 && m.TryGetValue("type", out var t) && t as string == "null")) return null;
+    var reference = maps.FirstOrDefault(m => m.ContainsKey("$ref"))?["$ref"] as string;
+    return reference == null ? null : StringAlias(schemas, reference);
+}
+
 static string GenerateModelValidation(IDictionary<object, object> root)
 {
     var components = (IDictionary<object, object>)root["components"];
@@ -160,13 +173,15 @@ static string GenerateModelValidation(IDictionary<object, object> root)
             // A $ref to an object or enum is a type with its own Validate(): skip it. A $ref to a
             // plain string schema (ReleaseVersion) is generated as a string, so its constraints are
             // checked here, as if written inline.
-            var prop = declared.ContainsKey("$ref") ? StringAlias(schemas, declared["$ref"] as string) : declared;
+            // `oneOf: [{$ref}, {type: 'null'}]`, a nullable use of a named rule, is the same, and nullable.
+            var nullableAlias = declared.ContainsKey("$ref") ? null : NullableStringAlias(schemas, declared);
+            var prop = declared.ContainsKey("$ref") ? StringAlias(schemas, declared["$ref"] as string) : nullableAlias ?? declared;
             if (prop == null) continue;
 
             var propName = (string)propNameObj;
             var (baseType, isNullableType) = ResolveType(prop);
             if (baseType == null) continue;
-            var isNullable = !required.Contains(propName) || isNullableType;
+            var isNullable = !required.Contains(propName) || isNullableType || nullableAlias != null;
             var member = Pascal(propName);
 
             var checks = new List<string>();

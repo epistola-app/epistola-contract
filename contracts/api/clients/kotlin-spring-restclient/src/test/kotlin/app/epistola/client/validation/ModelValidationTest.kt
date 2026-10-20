@@ -22,6 +22,7 @@ import app.epistola.client.model.TemplateDocument
 import app.epistola.client.model.ThemeRef
 import app.epistola.client.model.UpdateTenantRequest
 import app.epistola.client.model.VariantContentDto
+import app.epistola.client.model.VariantSelectionAttribute
 import java.time.OffsetDateTime
 import java.util.UUID
 import kotlin.test.Test
@@ -30,7 +31,7 @@ import kotlin.test.assertFailsWith
 
 class ModelValidationTest {
 
-    // --- A referenced plain string schema (ReleaseVersion) is checked as if inline ---
+    // --- A named rule (ReleaseVersion), referenced as nullable, is checked as if inline ---
 
     @Test
     fun `a dependency declaration pins an exact release`() {
@@ -40,6 +41,19 @@ class ModelValidationTest {
             assertFailsWith<IllegalArgumentException>("Expected '$release' to fail") {
                 pinned.copy(releaseVersion = release).validate()
             }
+        }
+    }
+
+    // --- An attribute criterion: a resource key, its catalog in members of its own ---
+
+    @Test
+    fun `an attribute criterion names its attribute by resource key, never dotted`() {
+        val qualified = VariantSelectionAttribute(key = "locale", `value` = "nl-NL", catalogKey = "system", namespace = "epistola")
+        assertEquals(qualified, qualified.validate())
+        val ownCatalog = VariantSelectionAttribute(key = "2026-campaign", `value` = "spring")
+        assertEquals(ownCatalog, ownCatalog.validate())
+        assertFailsWith<IllegalArgumentException> {
+            VariantSelectionAttribute(key = "system.locale", `value` = "nl-NL").validate()
         }
     }
 

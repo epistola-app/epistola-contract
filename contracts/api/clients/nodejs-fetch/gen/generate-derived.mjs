@@ -153,10 +153,12 @@ function specModel(root) {
       // A $ref to an object or enum is a type of its own: skip it. A $ref to a plain string schema
       // (`ReleaseVersion`) is generated as a string, so its constraints are checked here, as if
       // written inline.
-      const property = '$ref' in declared ? stringAlias(schemas, declared.$ref) : declared
+      // `oneOf: [{$ref}, {type: 'null'}]`, a nullable use of a named rule, is the same, and nullable.
+      const nullableAlias = nullableStringAlias(schemas, declared)
+      const property = '$ref' in declared ? stringAlias(schemas, declared.$ref) : nullableAlias ?? declared
       if (!property) continue
       const declaredType = property.type
-      const explicitlyNullable = Array.isArray(declaredType) && declaredType.includes('null')
+      const explicitlyNullable = nullableAlias !== undefined || (Array.isArray(declaredType) && declaredType.includes('null'))
       const baseType = typeof declaredType === 'string'
         ? declaredType
         : Array.isArray(declaredType) ? declaredType.find((t) => t !== 'null') : undefined
@@ -503,6 +505,18 @@ function stringAlias(schemas, ref) {
   if (typeof ref !== 'string' || !ref.startsWith(prefix)) return undefined
   const target = schemas[ref.slice(prefix.length)]
   return isObject(target) && target.type === 'string' && !('enum' in target) ? target : undefined
+}
+
+/**
+ * The string schema a nullable use of a named rule references, `oneOf: [{$ref: Rule}, {type: 'null'}]`
+ * (the generators render it as a nullable string); undefined for anything else.
+ */
+function nullableStringAlias(schemas, declared) {
+  const branches = declared.oneOf ?? declared.anyOf
+  if (!Array.isArray(branches) || branches.length !== 2 || !branches.every(isObject)) return undefined
+  if (!branches.some((b) => b.type === 'null' && Object.keys(b).length === 1)) return undefined
+  const ref = branches.find((b) => '$ref' in b)?.$ref
+  return ref === undefined ? undefined : stringAlias(schemas, ref)
 }
 
 /** Follows a local `$ref` (`#/components/...`) to its target; returns other nodes unchanged. */

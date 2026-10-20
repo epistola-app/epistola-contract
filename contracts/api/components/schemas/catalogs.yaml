@@ -9,25 +9,17 @@ CatalogDto:
     - drafts
   properties:
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the catalog: the exchange or domain its namespace lives in. Always written in
         full, the default registry by its name, never `~`.
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog, within its registry
       example: acme-corp
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog, unique within its registry and namespace
       example: municipality-demo
     name:
@@ -40,9 +32,9 @@ CatalogDto:
     type:
       $ref: '#/CatalogType'
     highestReleaseVersion:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: >-
         The number of the catalog's highest release. For authored catalogs null until
         first released. For subscribed catalogs the highest installed release.
@@ -55,8 +47,9 @@ CatalogDto:
       items:
         $ref: '#/CatalogDraftSummary'
     fingerprint:
-      type: [string, "null"]
-      pattern: '^v[1-9][0-9]*:[0-9a-f]{64}$'
+      oneOf:
+        - $ref: './identifiers.yaml#/Fingerprint'
+        - type: 'null'
       description: |
         The canonical fingerprint of the content of the highest release (`highestReleaseVersion`;
         deterministic, excludes volatile fields), which identifies content independently of the
@@ -90,25 +83,17 @@ AvailableCatalogReleases:
     - available
   properties:
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the catalog: the exchange or domain its namespace lives in. Always written in
         full, the default registry by its name, never `~`.
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog, within its registry
       example: acme-corp
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog, unique within its registry and namespace
       example: letters
     available:
@@ -130,12 +115,12 @@ AvailableReleaseDto:
     - dependencies
   properties:
     releaseVersion:
-      $ref: '#/ReleaseVersion'
+      $ref: './identifiers.yaml#/ReleaseVersion'
       description: The release's number
     comparedTo:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: |
         The release `changes` is measured against: the closest release the tenant has installed
         numbered below this one. Null when the tenant has no release numbered below it.
@@ -167,29 +152,21 @@ AvailableReleaseDependencyDto:
     - present
   properties:
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the catalog depended on. Always written in full, the default registry by its
         name, never `~`.
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog depended on, within its registry
       example: epistola
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog depended on, unique within its registry and namespace
       example: system
     releaseVersion:
-      $ref: '#/ReleaseVersion'
+      $ref: './identifiers.yaml#/ReleaseVersion'
       description: The release of the catalog depended on that the pin names
     present:
       type: boolean
@@ -216,29 +193,21 @@ InstallCatalogReleaseResponse:
     - total
   properties:
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the catalog: the exchange or domain its namespace lives in. Always written in
         full, the default registry by its name, never `~`.
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog, within its registry
       example: acme-corp
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog, unique within its registry and namespace
       example: letters
     releaseVersion:
-      $ref: '#/ReleaseVersion'
+      $ref: './identifiers.yaml#/ReleaseVersion'
       description: The release installed, which the tenant now has
     newlyInstalled:
       type: boolean
@@ -278,29 +247,21 @@ ReleaseDependencyDto:
     - direct
   properties:
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the catalog depended on: the exchange or domain its namespace lives in. Always
         written in full, the default registry by its name, never `~`.
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog depended on, within its registry
       example: epistola
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog, unique within its registry and namespace
       example: letters
     releaseVersion:
-      $ref: '#/ReleaseVersion'
+      $ref: './identifiers.yaml#/ReleaseVersion'
       description: The release of the catalog the release renders with
     direct:
       type: boolean
@@ -316,9 +277,9 @@ CatalogChangesDto:
     - changes
   properties:
     base:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: |
         The release the draft started from (for a released version, the base of the draft it was);
         null when there is none
@@ -352,10 +313,7 @@ ResourceChangeDto:
       description: The resource type, as the portable catalog format names it
       example: template
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       example: monthly-invoice
     change:
       type: string
@@ -382,40 +340,33 @@ CatalogDependencyRequirement:
     - catalogKey
   properties:
     registry:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      oneOf:
+        - $ref: './identifiers.yaml#/Registry'
+        - type: 'null'
       description: |
         Registry of the catalog depended on: the exchange or domain its namespace lives in. Omitted
         or null: the default registry, which the server configures. A response always names it in
         full.
       example: null
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog depended on, within its registry
       example: epistola
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog depended on, unique within its registry and namespace
       example: system
     releaseVersion:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: |
         The exact release of the catalog depended on that this catalog renders with, never a range.
       example: "1.3.0"
     versionId:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 4
-      maxLength: 36
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogVersionId'
+        - type: 'null'
       description: |
         A draft of the catalog depended on, by its `versionId` (a `CatalogVersionId`), an authored
         catalog of this tenant, that this draft renders with live, unreleased changes included. A release never pins a draft: releasing
@@ -437,31 +388,23 @@ CatalogDependencyDto:
     - versionId
   properties:
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the catalog depended on: the exchange or domain its namespace lives in. Always
         written in full, the default registry by its name, never `~`.
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog depended on, within its registry
       example: epistola
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog depended on, unique within its registry and namespace
       example: system
     releaseVersion:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: |
         The exact release of the catalog depended on that this catalog version renders with, as
         declared. Null when the declaration names a draft (`versionId`), and for a declaration that
@@ -469,10 +412,9 @@ CatalogDependencyDto:
         releasing the draft is refused until one is declared.
       example: "1.3.0"
     versionId:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 4
-      maxLength: 36
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogVersionId'
+        - type: 'null'
       description: |
         The draft of the catalog depended on that this draft renders with, by its `versionId` (a
         `CatalogVersionId`), as declared. Null when
@@ -503,34 +445,6 @@ UpdateCatalogDependenciesRequest:
         named must be a draft of the catalog the entry names.
       items:
         $ref: '#/CatalogDependencyRequirement'
-
-ReleaseVersion:
-  type: string
-  pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-  maxLength: 50
-  description: |
-    The number of one released catalog version: a SemVer core version, `MAJOR.MINOR.PATCH` without
-    leading zeros, unique in its catalog. Not a version range.
-  example: "1.4.0"
-
-CatalogVersionId:
-  type: string
-  pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-  minLength: 4
-  maxLength: 36
-  description: |
-    The id of one catalog version, opaque and assigned by the server, unique within its
-    catalog. A version gets it when it is started as a draft and keeps it when it is released; a
-    release installed by import or from its source gets one when it is installed. It
-    addresses the version (`…/versions/{versionId}`) for as long as the version exists, as a draft
-    and as a release alike: a released version is addressed by its `versionId` or by its number,
-    interchangeably.
-
-    Lowercase letters, digits and single hyphens, 4 to 36 characters. It never contains a dot, so
-    it cannot be mistaken for a release number. A UUID fits; a server is recommended, not required,
-    to use a short random id instead, about 8 characters from a lowercase alphabet without
-    look-alikes (no `0`/`o`, `1`/`l`/`i`), such as `k7m2x9qa`, which people can read and type.
-  example: k7m2x9qa
 
 CatalogType:
   type: string
@@ -568,7 +482,7 @@ CatalogDraftSummary:
     - name
   properties:
     versionId:
-      $ref: '#/CatalogVersionId'
+      $ref: './identifiers.yaml#/CatalogVersionId'
       description: The draft's id, which addresses it, and the release it becomes
     name:
       type: string
@@ -576,9 +490,9 @@ CatalogDraftSummary:
       description: The draft's name, unique among the catalog's drafts
       example: Redesign 2027
     base:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: The release the draft started from; null when the catalog had no release then
       example: "1.4.0"
 
@@ -598,13 +512,13 @@ CatalogVersionDto:
     - behind
   properties:
     releaseVersion:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: A released version's SemVer number, unique in its catalog. Null for a draft.
       example: "2.0.0"
     versionId:
-      $ref: '#/CatalogVersionId'
+      $ref: './identifiers.yaml#/CatalogVersionId'
       description: |
         The version's id, which addresses it (`…/versions/{versionId}`), as a draft and, once
         released, as the release, which its `releaseVersion` number addresses too.
@@ -616,9 +530,9 @@ CatalogVersionDto:
     status:
       $ref: '#/CatalogVersionStatus'
     base:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: |
         The release a draft started from, which its changes are measured against and its number
         follows from; for a released version, the base of the draft it was. It is fixed: it does
@@ -626,10 +540,9 @@ CatalogVersionDto:
         draft was started.
       example: "1.4.0"
     createdFrom:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 4
-      maxLength: 36
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogVersionId'
+        - type: 'null'
       description: |
         The `versionId` of the draft this draft was copied from, unreleased changes included, when it was
         started from another draft (it then has that draft's base); null when it was started from a
@@ -664,8 +577,9 @@ CatalogVersionDto:
       description: The release notes; null for a draft
       example: null
     fingerprint:
-      type: [string, "null"]
-      pattern: '^v[1-9][0-9]*:[0-9a-f]{64}$'
+      oneOf:
+        - $ref: './identifiers.yaml#/Fingerprint'
+        - type: 'null'
       description: |
         The canonical fingerprint of the released content, naming the algorithm that computed it
         (`v5:` and lowercase SHA-256 hex), the same value as `release.fingerprint` in the release's
@@ -717,7 +631,7 @@ BehindReleaseDto:
     - changes
   properties:
     releaseVersion:
-      $ref: '#/ReleaseVersion'
+      $ref: './identifiers.yaml#/ReleaseVersion'
       description: The released version's number
     changes:
       type: array
@@ -742,10 +656,7 @@ ReleasedChangeDto:
       description: The resource type, as the portable catalog format names it
       example: template
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: The resource's key within its type
       example: invoice
     change:
@@ -783,10 +694,9 @@ CreateCatalogDraftRequest:
         drafts, ignoring case.
       example: Redesign 2027
     from:
-      type: [string, "null"]
-      pattern: '^([a-z0-9]+(-[a-z0-9]+)*|(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$'
-      minLength: 4
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogVersionRef'
+        - type: 'null'
       description: |
         What the draft starts as a copy of, by its `versionId` or, for a release, its number: a
         released version, which becomes its base; or another draft, unreleased changes included, on
@@ -834,32 +744,27 @@ CatalogThemeReference:
     - key
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the theme
       example: corporate
     catalogKey:
-      type: [string, 'null']
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogKey'
+        - type: 'null'
       description: Key of the catalog holding the theme. Omitted or null means the referring catalog.
       example: brand
     namespace:
-      type: [string, 'null']
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      oneOf:
+        - $ref: './identifiers.yaml#/Namespace'
+        - type: 'null'
       description: |
         Namespace of the catalog holding the theme, within its registry. Omitted or null means the
         referring catalog's namespace.
       example: acme-corp
     registry:
-      type: [string, 'null']
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      oneOf:
+        - $ref: './identifiers.yaml#/Registry'
+        - type: 'null'
       description: |
         Registry of the catalog holding the theme, written in full. Omitted or null means the
         referring catalog's registry, never an installation default. Naming one requires a
@@ -876,10 +781,7 @@ CatalogPresetDto:
     - name
   properties:
     key:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 1
-      maxLength: 50
+      $ref: './identifiers.yaml#/PresetKey'
       description: The preset's key, unique within the version's presets
       example: muted
     name:
@@ -907,9 +809,9 @@ CatalogDraftReleasePreview:
     - suggested
   properties:
     base:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: The draft's base, which it is measured against; null when it has none
       example: "1.4.0"
     changeKind:
@@ -928,12 +830,12 @@ CatalogDraftReleasePreview:
         type: string
       example: ["template 'reminder': added"]
     needed:
-      $ref: '#/ReleaseVersion'
+      $ref: './identifiers.yaml#/ReleaseVersion'
       description: |
         The number the changes need: the base raised by the kind of change (its patch, minor or
         major), or `1.0.0` without a base. Equal to `suggested` unless another release already has it.
     suggested:
-      $ref: '#/ReleaseVersion'
+      $ref: './identifiers.yaml#/ReleaseVersion'
       description: |
         The number releasing without a `releaseVersion` gives: `needed`, or, when another release already
         has it, the next free number of the same kind (from `1.4.0`, a fix is `1.4.1`, or `1.4.2`
@@ -944,9 +846,9 @@ ReleaseCatalogDraftRequest:
   type: object
   properties:
     releaseVersion:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: |
         The number to release it as: one no release of the catalog has, above its base, and no
         lower than its changes need (`needed` in `previewCatalogDraftRelease`), or the request is
@@ -964,7 +866,7 @@ ReleaseCatalogDraftRequest:
         409 unless this names every version it is behind for the number it is released as; naming
         others changes nothing.
       items:
-        $ref: '#/ReleaseVersion'
+        $ref: './identifiers.yaml#/ReleaseVersion'
       example: ["1.5.0"]
     releaseDependencies:
       type: boolean
@@ -1023,32 +925,24 @@ ReleasedDependencyDto:
     - releaseVersion
   properties:
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the catalog: the exchange or domain its namespace lives in. Always written in
         full, the default registry by its name, never `~`.
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog, within its registry
       example: acme-corp
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog, unique within its registry and namespace
       example: branding
     versionId:
-      $ref: '#/CatalogVersionId'
+      $ref: './identifiers.yaml#/CatalogVersionId'
       description: The draft that was released, which now addresses the release it became
     releaseVersion:
-      $ref: '#/ReleaseVersion'
+      $ref: './identifiers.yaml#/ReleaseVersion'
       description: The release it became, which the new release pins
 
 UnreleasedCatalogDependency:
@@ -1064,29 +958,21 @@ UnreleasedCatalogDependency:
     - draftName
   properties:
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the catalog depended on. Always written in full, the default registry by its
         name, never `~`.
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog depended on, within its registry
       example: acme-corp
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog depended on, unique within its registry and namespace
       example: branding
     versionId:
-      $ref: '#/CatalogVersionId'
+      $ref: './identifiers.yaml#/CatalogVersionId'
       description: The draft the declaration names
     draftName:
       type: string

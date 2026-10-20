@@ -52,3 +52,9 @@ test('a dependency declaration pins an exact release, checked through the Releas
   // In a draft a declaration may name a draft instead; exactly one of the two is a server-side rule.
   validateModel('CatalogDependencyRequirement', { namespace: 'acme-corp', catalogKey: 'branding', versionId: 'r4t8w2nc' })
 })
+
+test('an attribute criterion names its attribute by resource key, never dotted', () => {
+  validateModel('VariantSelectionAttribute', { key: 'locale', value: 'nl-NL', catalogKey: 'system', namespace: 'epistola' })
+  validateModel('VariantSelectionAttribute', { key: '2026-campaign', value: 'spring' })
+  assert.throws(() => validateModel('VariantSelectionAttribute', { key: 'system.locale', value: 'nl-NL' }), /key: must match pattern/)
+})

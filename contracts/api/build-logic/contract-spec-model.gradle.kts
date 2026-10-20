@@ -139,6 +139,18 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
         return target.takeIf { it["type"] == "string" && !it.containsKey("enum") }
     }
 
+    // A nullable use of a named rule (`identifiers.yaml`) is `oneOf: [{$ref: Rule}, {type: 'null'}]`,
+    // which the generators render as a nullable String: the rule's constraints, and null allowed.
+    // Returns the referenced string schema, or null for anything else.
+    fun nullableStringAlias(declared: Map<String, Any>): Map<String, Any>? {
+        val branches = (declared["oneOf"] ?: declared["anyOf"]) as? List<*> ?: return null
+        if (branches.size != 2) return null
+        val maps = branches.map { it as? Map<*, *> ?: return null }
+        if (maps.none { it["type"] == "null" && it.size == 1 }) return null
+        val ref = maps.firstOrNull { it.containsKey("\$ref") }?.get("\$ref") as? String ?: return null
+        return stringAlias(ref)
+    }
+
     // The members each problem schema adds to the RFC 9457 base. `ProblemDetail` is the base by
     // name — it is the RFC's own, and the spec's plain problem schema — so anything a registered
     // problem schema declares beyond it is an extension member.
@@ -186,14 +198,16 @@ val epistolaSpecModel: (Map<String, Any>) -> Map<String, Any> = { document ->
             // A $ref to an object or enum is a type of its own, with its own constraints and its own
             // generated validator: skip it. A $ref to a plain string schema (`ReleaseVersion`) is
             // generated as a String, so its constraints are checked here, as if written inline.
-            val property = if (declared.containsKey("\$ref")) {
-                stringAlias(declared["\$ref"] as? String) ?: continue
-            } else {
-                declared
+            // `oneOf: [{$ref}, {type: 'null'}]` is the same, and nullable.
+            val nullableAlias = nullableStringAlias(declared)
+            val property = when {
+                declared.containsKey("\$ref") -> stringAlias(declared["\$ref"] as? String) ?: continue
+                nullableAlias != null -> nullableAlias
+                else -> declared
             }
 
             val declaredType = property["type"]
-            val explicitlyNullable = declaredType is List<*> && declaredType.contains("null")
+            val explicitlyNullable = nullableAlias != null || (declaredType is List<*> && declaredType.contains("null"))
             val baseType = when (declaredType) {
                 is String -> declaredType
                 is List<*> -> declaredType.firstOrNull { it != "null" }?.toString()

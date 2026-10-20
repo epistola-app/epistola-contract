@@ -16,10 +16,7 @@ Registry:
     of this contract. The default registry may also be named in full, and both address the same
     catalog. A client may send `~` as it is or percent-encoded as `%7E`; the server accepts both.
   schema:
-    type: string
-    pattern: '^(~|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)$'
-    minLength: 1
-    maxLength: 253
+    $ref: '../schemas/identifiers.yaml#/RegistryOrDefault'
   example: '~'
 
 Namespace:
@@ -30,10 +27,7 @@ Namespace:
     Namespace of the catalog, within its registry. The same namespace in two registries is two
     different namespaces.
   schema:
-    type: string
-    pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-    minLength: 3
-    maxLength: 63
+    $ref: '../schemas/identifiers.yaml#/Namespace'
   example: acme-corp
 
 CatalogKey:
@@ -42,10 +36,7 @@ CatalogKey:
   required: true
   description: Key of the catalog, unique within its registry and namespace
   schema:
-    type: string
-    pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-    minLength: 3
-    maxLength: 50
+    $ref: '../schemas/identifiers.yaml#/CatalogKey'
   example: letters
 
 CatalogVersion:
@@ -60,8 +51,5 @@ CatalogVersion:
     way it is addressed. A `versionId` never contains a dot, so the two cannot be confused. A
     discarded draft's id addresses nothing (404).
   schema:
-    type: string
-    pattern: '^([a-z0-9]+(-[a-z0-9]+)*|(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$'
-    minLength: 4
-    maxLength: 50
+    $ref: '../schemas/identifiers.yaml#/CatalogVersionRef'
   example: k7m2x9qa

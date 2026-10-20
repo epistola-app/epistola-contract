@@ -51,6 +51,7 @@ import app.epistola.client.jakarta.model.UpdateCodeListEntryHiddenRequest;
 import app.epistola.client.jakarta.model.UpdateTenantRequest;
 import app.epistola.client.jakarta.model.UpdateEnvironmentRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
+import app.epistola.client.jakarta.model.VariantSelectionAttribute;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.ImageDto;
 import app.epistola.client.jakarta.model.ImportCatalogResponse;
@@ -327,21 +328,34 @@ public final class Driver {
      */
     /** Reports the accepted job as parsed, and the {@code Location} of the job exactly as received. */
     private static void generateDocument(String baseUrl, JsonObject config) {
+        GenerateDocumentRequest request = new GenerateDocumentRequest()
+                .registry(optional(config, "registry"))
+                .namespace(config.getString("namespace"))
+                .catalogKey(config.getString("catalogKey"))
+                .templateKey(config.getString("templateKey"))
+                .variantKey(optional(config, "variantKey"))
+                .data(config.getJsonObject("data"))
+                .versionRange(optional(config, "versionRange"))
+                .environmentKey(optional(config, "environmentKey"))
+                .correlationId(optional(config, "correlationId"))
+                .routingKey(optional(config, "routingKey"));
+        // Attribute criteria, only when the scenario names them: an unset optional stays off the wire.
+        if (config.containsKey("attributes") && !config.isNull("attributes")) {
+            request.attributes(config.getJsonArray("attributes").getValuesAs(JsonObject.class).stream()
+                    .map(attribute -> new VariantSelectionAttribute()
+                            .registry(optional(attribute, "registry"))
+                            .namespace(optional(attribute, "namespace"))
+                            .catalogKey(optional(attribute, "catalogKey"))
+                            .key(attribute.getString("key"))
+                            .value(attribute.getString("value"))
+                            .required(attribute.containsKey("required") && !attribute.isNull("required")
+                                    ? attribute.getBoolean("required")
+                                    : null))
+                    .collect(Collectors.toList()));
+        }
         try (Response response = clients(baseUrl, config)
                 .api(GenerationApi.class)
-                .generateDocumentWithHttpInfo(
-                        config.getString("tenantKey"),
-                        new GenerateDocumentRequest()
-                                .registry(optional(config, "registry"))
-                                .namespace(config.getString("namespace"))
-                                .catalogKey(config.getString("catalogKey"))
-                                .templateKey(config.getString("templateKey"))
-                                .variantKey(optional(config, "variantKey"))
-                                .data(config.getJsonObject("data"))
-                                .versionRange(optional(config, "versionRange"))
-                                .environmentKey(optional(config, "environmentKey"))
-                                .correlationId(optional(config, "correlationId"))
-                                .routingKey(optional(config, "routingKey")))) {
+                .generateDocumentWithHttpInfo(config.getString("tenantKey"), request)) {
             GenerationJobResponse job = response.readEntity(GenerationJobResponse.class);
             Map<String, Object> values = new java.util.LinkedHashMap<>();
             values.put("requestId", String.valueOf(job.getRequestId()));

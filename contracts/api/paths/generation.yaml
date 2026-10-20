@@ -21,10 +21,7 @@ preview-document:
         required: true
         description: Unique key of the tenant (e.g., "acme-corp")
         schema:
-          type: string
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 63
+          $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     requestBody:
       required: true
       content:
@@ -76,10 +73,7 @@ generate-document:
         required: true
         description: Unique key of the tenant (e.g., "acme-corp")
         schema:
-          type: string
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 63
+          $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     requestBody:
       required: true
       content:
@@ -135,10 +129,7 @@ generate-batch:
         required: true
         description: Unique key of the tenant (e.g., "acme-corp")
         schema:
-          type: string
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 63
+          $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     requestBody:
       required: true
       content:
@@ -181,10 +172,7 @@ jobs:
         required: true
         description: Unique key of the tenant (e.g., "acme-corp")
         schema:
-          type: string
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 63
+          $ref: '../components/schemas/identifiers.yaml#/TenantKey'
       - name: status
         in: query
         description: Filter by job status
@@ -216,10 +204,7 @@ job-detail:
       required: true
       description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - name: requestId
       in: path
       required: true
@@ -284,10 +269,7 @@ documents:
         required: true
         description: Unique key of the tenant (e.g., "acme-corp")
         schema:
-          type: string
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 63
+          $ref: '../components/schemas/identifiers.yaml#/TenantKey'
       - name: templateKey
         in: query
         description: |
@@ -295,10 +277,7 @@ documents:
           given together with `namespace` and `catalogKey` (and `registry` when the catalog is not
           in the default registry); without them the request is refused with 400.
         schema:
-          type: string
-          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 50
+          $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
       - name: correlationId
         in: query
         description: Filter by client-provided correlation ID
@@ -314,30 +293,21 @@ documents:
           `catalogKey`. Omitted or `~`: the default registry. Given without
           `namespace` and `catalogKey`, the request is refused with 400.
         schema:
-          type: string
-          pattern: '^(~|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)$'
-          minLength: 1
-          maxLength: 253
+          $ref: '../components/schemas/identifiers.yaml#/RegistryOrDefault'
       - name: namespace
         in: query
         description: |
           Filter by the namespace of the template's catalog. Given with `catalogKey`, or alone to
           list the documents of every catalog in that namespace.
         schema:
-          type: string
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 63
+          $ref: '../components/schemas/identifiers.yaml#/Namespace'
       - name: catalogKey
         in: query
         description: |
           Filter by the key of the template's catalog. Requires `namespace`; without it the request
           is refused with 400.
         schema:
-          type: string
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 50
+          $ref: '../components/schemas/identifiers.yaml#/CatalogKey'
     responses:
       '200':
         description: List of documents
@@ -361,10 +331,7 @@ document-detail:
       required: true
       description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - name: documentId
       in: path
       required: true

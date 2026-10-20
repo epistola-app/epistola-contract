@@ -1,0 +1,150 @@
+# The rules for keys, ids and numbers, each defined once and referenced by name wherever the API
+# takes or returns one: in paths, in parameters and in schemas.
+#
+# A nullable use references the rule as `oneOf: [{$ref: …}, {type: 'null'}]`, the form the generators
+# turn into a plain nullable string. The clients' derived validators read the rule through the
+# reference, so a pattern or a length changed here changes everywhere at once.
+#
+# Two key rules exist. Keys that address a tenant, a namespace, a catalog, an environment or a
+# consumer start with a letter. Keys of the resources in a catalog version may start with a digit,
+# because those keys used to be UUIDs. Both allow lowercase letters, digits and single hyphens only.
+
+TenantKey:
+  type: string
+  pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+  minLength: 3
+  maxLength: 63
+  description: |
+    The key of a tenant: lowercase letters, digits and single hyphens, starting with a letter, 3 to
+    63 characters.
+  example: acme-corp
+
+Namespace:
+  type: string
+  pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+  minLength: 3
+  maxLength: 63
+  description: |
+    The namespace of a catalog, its publisher within its registry: lowercase letters, digits and
+    single hyphens, starting with a letter, 3 to 63 characters.
+  example: acme-corp
+
+CatalogKey:
+  type: string
+  pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+  minLength: 3
+  maxLength: 50
+  description: |
+    The key of a catalog, unique within its registry and namespace: lowercase letters, digits and
+    single hyphens, starting with a letter, 3 to 50 characters.
+  example: letters
+
+EnvironmentKey:
+  type: string
+  pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+  minLength: 3
+  maxLength: 30
+  description: |
+    The key of an environment, unique within its tenant: lowercase letters, digits and single
+    hyphens, starting with a letter, 3 to 30 characters.
+  example: production
+
+ConsumerId:
+  type: string
+  pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+  minLength: 3
+  maxLength: 63
+  description: |
+    The id of a consumer, unique within its tenant: lowercase letters, digits and single hyphens,
+    starting with a letter, 3 to 63 characters.
+  example: invoice-service
+
+ResourceKey:
+  type: string
+  pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+  minLength: 3
+  maxLength: 50
+  description: |
+    The key of a resource in a catalog version (a template, variant, stencil, theme, attribute,
+    code list, font, image or data example), unique among its kind: lowercase letters, digits and
+    single hyphens, 3 to 50 characters. It may start with a digit, because resource keys used to be
+    UUIDs. The same rule as in the catalog archive.
+  example: invoice
+
+PresetKey:
+  type: string
+  pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+  minLength: 1
+  maxLength: 50
+  description: |
+    The key of a block style preset, unique within a catalog version's presets: lowercase letters,
+    digits and single hyphens, starting with a letter, 1 to 50 characters. The same rule as in the
+    catalog archive.
+  example: muted
+
+Registry:
+  type: string
+  pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+  maxLength: 253
+  description: |
+    A registry, the DNS name of where a catalog is published (`exchange.epistola.app`, or a domain
+    that publishes its own, `acme.com`): lowercase labels of letters, digits and inner hyphens,
+    joined by at least one dot, at most 253 characters.
+  example: exchange.epistola.app
+
+RegistryOrDefault:
+  type: string
+  pattern: '^(~|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)$'
+  minLength: 1
+  maxLength: 253
+  description: |
+    A registry as a path or a query names it: a `Registry`, or `~` for the server's default
+    registry, which the server configures. A client may send `~` percent-encoded as `%7E`.
+  example: '~'
+
+ReleaseVersion:
+  type: string
+  pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+  maxLength: 50
+  description: |
+    The number of one released catalog version: a SemVer core version, `MAJOR.MINOR.PATCH` without
+    leading zeros, unique in its catalog. Not a version range.
+  example: "1.4.0"
+
+CatalogVersionId:
+  type: string
+  pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+  minLength: 4
+  maxLength: 36
+  description: |
+    The id of one catalog version, opaque and assigned by the server, unique within its
+    catalog. A version gets it when it is started as a draft and keeps it when it is released; a
+    release installed by import or from its source gets one when it is installed. It
+    addresses the version (`…/versions/{versionId}`) for as long as the version exists, as a draft
+    and as a release alike: a released version is addressed by its `versionId` or by its number,
+    interchangeably.
+
+    Lowercase letters, digits and single hyphens, 4 to 36 characters. It never contains a dot, so
+    it cannot be mistaken for a release number. A UUID fits; a server is recommended, not required,
+    to use a short random id instead, about 8 characters from a lowercase alphabet without
+    look-alikes (no `0`/`o`, `1`/`l`/`i`), such as `k7m2x9qa`, which people can read and type.
+  example: k7m2x9qa
+
+CatalogVersionRef:
+  type: string
+  pattern: '^([a-z0-9]+(-[a-z0-9]+)*|(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$'
+  minLength: 4
+  maxLength: 50
+  description: |
+    One catalog version, by its `CatalogVersionId` or, once it is released, by its
+    `ReleaseVersion`: both name the same version, and as an id never contains a dot, the two cannot
+    be confused. The pattern is the two rules' patterns joined.
+  example: k7m2x9qa
+
+Fingerprint:
+  type: string
+  pattern: '^v[1-9][0-9]*:[0-9a-f]{64}$'
+  description: |
+    The canonical fingerprint of a release's content, as its catalog archive carries it: the
+    version of the algorithm that computed it (`v5`), a colon, and the lowercase hex SHA-256.
+  example: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70

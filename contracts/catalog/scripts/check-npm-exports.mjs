@@ -74,18 +74,29 @@ for (const [where, property] of [
   assert.equal(catalog.CATALOG_RELEASE_VERSION_PATTERN, property.pattern, `npm and schema ${where} patterns must agree`);
   assert.equal(catalog.MAX_CATALOG_RELEASE_VERSION_LENGTH, property.maxLength, `npm and schema ${where} maximum lengths must agree`);
 }
-const apiCatalogSchemas = await readFile(new URL('../../api/components/schemas/catalogs.yaml', import.meta.url), 'utf8');
-const apiReleaseVersion = apiCatalogSchemas.slice(apiCatalogSchemas.indexOf('\nReleaseVersion:\n'));
-assert.equal(
-  apiReleaseVersion.match(/\n  pattern: '([^']+)'/)?.[1],
-  catalog.CATALOG_RELEASE_VERSION_PATTERN,
-  "npm release number pattern and the API's ReleaseVersion must agree",
-);
-assert.equal(
-  Number(apiReleaseVersion.match(/\n  maxLength: (\d+)/)?.[1]),
-  catalog.MAX_CATALOG_RELEASE_VERSION_LENGTH,
-  "npm release number limit and the API's ReleaseVersion must agree",
-);
+// The API defines each key and number rule once, by name, in identifiers.yaml. Those the catalog
+// archive shares must be the catalog's own.
+const apiIdentifiers = await readFile(new URL('../../api/components/schemas/identifiers.yaml', import.meta.url), 'utf8');
+const apiRule = (name) => {
+  const start = apiIdentifiers.indexOf(`\n${name}:\n`);
+  assert.notEqual(start, -1, `identifiers.yaml defines no ${name}`);
+  const end = apiIdentifiers.indexOf('\n\n', start + 1);
+  const rule = apiIdentifiers.slice(start, end === -1 ? undefined : end);
+  const number = (key) => {
+    const value = rule.match(new RegExp(`\\n  ${key}: (\\d+)`))?.[1];
+    return value === undefined ? undefined : Number(value);
+  };
+  return { pattern: rule.match(/\n  pattern: '([^']+)'/)?.[1], minLength: number('minLength'), maxLength: number('maxLength') };
+};
+for (const [name, pattern, minLength, maxLength] of [
+  ['ReleaseVersion', catalog.CATALOG_RELEASE_VERSION_PATTERN, undefined, catalog.MAX_CATALOG_RELEASE_VERSION_LENGTH],
+  ['ResourceKey', catalog.CATALOG_RESOURCE_KEY_PATTERN, catalog.MIN_CATALOG_RESOURCE_KEY_LENGTH, catalog.MAX_CATALOG_RESOURCE_KEY_LENGTH],
+  ['Namespace', catalog.CATALOG_NAMESPACE_PATTERN, catalog.MIN_CATALOG_NAMESPACE_LENGTH, catalog.MAX_CATALOG_NAMESPACE_LENGTH],
+  ['Registry', catalog.CATALOG_REGISTRY_PATTERN, undefined, catalog.MAX_CATALOG_REGISTRY_LENGTH],
+  ['Fingerprint', catalog.CATALOG_RELEASE_FINGERPRINT_PATTERN, undefined, undefined],
+]) {
+  assert.deepEqual(apiRule(name), { pattern, minLength, maxLength }, `the npm rule and the API's ${name} must agree`);
+}
 
 const detailSchema = JSON.parse(
   await readFile(new URL('../schemas/resource-detail-v8.schema.json', import.meta.url), 'utf8'),

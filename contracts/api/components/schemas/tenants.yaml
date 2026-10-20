@@ -7,10 +7,7 @@ TenantDto:
     - createdAt
   properties:
     key:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/TenantKey'
       description: |
         Unique key of the tenant (e.g., "acme-corp")
       example: acme-corp
@@ -36,14 +33,9 @@ CreateTenantRequest:
     - name
   properties:
     key:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/TenantKey'
       description: |
-        Client-chosen unique key for the tenant.
-        Must be 3-63 characters, start with a letter, contain only lowercase letters,
-        numbers, and non-consecutive hyphens, and not end with a hyphen.
+        Client-chosen unique key for the tenant, by the `TenantKey` rule.
         Reserved words (admin, api, www, system, internal, null, undefined) are not allowed.
       example: acme-corp
     name:

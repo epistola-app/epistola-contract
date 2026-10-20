@@ -134,10 +134,7 @@ example-collection:
       in: path
       required: true
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
   get:
     operationId: listExamples
     tags:
@@ -164,12 +161,15 @@ All endpoints use versioned media type: `application/vnd.epistola.v2+json`
 - **Version, release, range**: a catalog *version* is the object (draft or release, by `versionId`);
   a release's number is always `releaseVersion`, a range always `versionRange`; no API member is
   called plain `version`
-- **Catalog resource keys** (template, variant, stencil, theme, attribute, code list, font, image,
-  data example): `^[a-z0-9]+(-[a-z0-9]+)*$`, 3–50 characters, a leading digit allowed, the same in
-  the API and in catalog wire v8
-- **Other keys have their own rule**: tenant keys and namespaces `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`
-  3–63, environment keys the same pattern 3–30, catalog keys the same pattern 3–50; a registry is a
-  DNS name with a dot
+- **Key and number rules are named, in `components/schemas/identifiers.yaml`**: `ResourceKey`
+  (template, variant, stencil, theme, attribute, code list, font, image, data example; 3–50, a
+  leading digit allowed because these keys used to be UUIDs; the same in catalog wire v8),
+  `TenantKey` and `Namespace` (letter first, 3–63), `CatalogKey` (3–50), `EnvironmentKey` (3–30),
+  `Registry` (a DNS name with a dot) and `RegistryOrDefault` (or `~`), `ReleaseVersion`,
+  `CatalogVersionId`, `CatalogVersionRef`, `Fingerprint`
+- **Never write a key or number pattern inline**: reference `identifiers.yaml#/<Rule>`; a nullable
+  use is `oneOf: [{$ref: …}, {type: 'null'}]`. The bundle inlines the rules inside
+  `multipart/form-data` bodies only (`normalize-bundle.mjs`), because generators mishandle refs there
 - **Error responses**: Reference the problem responses in
   `../components/responses/problem-responses.yaml` (e.g. `#/NotFoundError`, `#/ConflictError`) and
   `../components/responses/auth-errors.yaml`

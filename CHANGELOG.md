@@ -223,6 +223,33 @@ libraries.
 
 ### Changed
 
+- **BREAKING: an attribute criterion names its attribute one way.** `VariantSelectionAttribute`
+  (the `attributes` of a generation, batch item or preview request) names the attribute by its key
+  and the catalog that defines it, each in a member of its own: `key` is the attribute's resource
+  key (`ResourceKey`, 3–50 characters), and `catalogKey`, `namespace` and `registry` name its
+  catalog. Without `catalogKey` the attribute is the template's own catalog's; with it, the catalog
+  must be the template's or one it declares as a dependency, and an omitted `namespace` or
+  `registry` is the template's catalog's (`namespace` only with `catalogKey`, `registry` only with
+  `namespace`). In 1.4 `key` also took a dotted `<catalog>.<key>`, and a bare key without a catalog
+  was looked up tenant-wide, picking one catalog's attribute when several had it; both forms are
+  removed, and a dotted key is refused by the key's pattern. Conformance scenario
+  `spec-generate-document-attributes` sends a qualified criterion and a bare one; the
+  `generate-document` driver action sends `config.attributes` in all five clients.
+
+- **Every key and number rule is defined once, by name.** The OpenAPI document names its rules in
+  `components/schemas/identifiers.yaml` and references them wherever a path, a parameter or a
+  schema takes one, instead of repeating the pattern inline (about 280 copies): `TenantKey`,
+  `Namespace`, `CatalogKey`, `EnvironmentKey`, `ConsumerId`, `ResourceKey` (a leading digit
+  allowed, because resource keys used to be UUIDs), `PresetKey`, `Registry`, `RegistryOrDefault`
+  (a registry or `~`, in paths and queries), `ReleaseVersion`, `CatalogVersionId`,
+  `CatalogVersionRef` (a `versionId` or a release number, the `{catalogVersion}` path form) and
+  `Fingerprint`. Each has a description, which the rendered API documentation shows. No pattern or
+  length changed, and the generated clients and server stubs are unchanged apart from
+  documentation: every member stays a plain string. A nullable member references its rule as
+  `oneOf: [{$ref}, {type: 'null'}]`, which every client's generated model validation now reads as
+  the rule's constraints, null allowed. In a `multipart/form-data` body (`importCatalog`), where the
+  Node.js and Python generators would take a reference for a model, the bundle inlines the rule.
+
 - **A document, a job item and a collected result always name their catalog version.**
   `versionId` (`DocumentDto`, `DocumentGenerationItemDto`, `GenerationResult`) is the id of the
   catalog version rendered, a release's as well as a draft's, rather than a draft's only; it is null
@@ -309,8 +336,8 @@ libraries.
   `^[a-z0-9]+(-[a-z0-9]+)*$`, 3–50 characters, a leading digit allowed (migrated images keep their
   UUID keys), in the API and in wire v8 alike: in path parameters and in every body, including the
   `variantKey` of a generation, preview or validation request and of a `GenerationResult`, and the
-  code list `key` of an attribute's `codeListBinding`. `VariantSelectionAttribute.key` takes an
-  attribute key, optionally qualified by a catalog key (3–101 characters). A preset declared by a
+  code list `key` of an attribute's `codeListBinding`, and the `key` of an attribute criterion
+  (`VariantSelectionAttribute`, see below). A preset declared by a
   catalog (`CatalogPresetDto.key`) is not a resource and keeps the wire's preset rule (1–50, a
   letter first). Every `tenantKey` is 3–63 characters and every `catalogKey`, including
   `ImportCatalogResponse.catalogKey` and the template model's `ThemeRef.catalogKey`, follows the

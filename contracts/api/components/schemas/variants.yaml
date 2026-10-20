@@ -12,18 +12,12 @@ VariantDto:
     - lastModified
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
         Key of the variant
       example: english
     templateKey:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the template this variant belongs to
       example: invoice
     title:
@@ -86,10 +80,7 @@ VariantSummaryDto:
     - status
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
         Key of the variant
       example: english
@@ -130,10 +121,7 @@ CreateVariantRequest:
     - title
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Client-chosen key for the variant
       example: english
     title:
@@ -238,10 +226,7 @@ VariantContentDto:
     - lastModified
   properties:
     variantKey:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the variant
       example: english
     templateModel:

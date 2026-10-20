@@ -26,38 +26,24 @@ CodeListDto:
     - lastModified
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Key (unique within `tenant + catalog`).
       example: bcp-47
     tenantKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/TenantKey'
       example: acme-corp
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the catalog: the exchange or domain its namespace lives in. Always written in
         full, the default registry by its name, never `~`.
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog, within its registry
       example: epistola
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog this resource lives in, unique within its registry and namespace
       example: system
     displayName:
@@ -220,10 +206,7 @@ CreateCodeListRequest:
     - sourceType
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       example: priorities
     displayName:
       type: string

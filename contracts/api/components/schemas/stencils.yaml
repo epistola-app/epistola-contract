@@ -16,18 +16,12 @@ StencilDto:
     - lastModified
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
         Key of the stencil (e.g., "corporate-header")
       example: corporate-header
     tenantKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/TenantKey'
       description: Key of the tenant this stencil belongs to
       example: acme-corp
     name:
@@ -84,18 +78,12 @@ StencilSummaryDto:
     - lastModified
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
         Key of the stencil
       example: corporate-header
     tenantKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/TenantKey'
       description: Key of the tenant this stencil belongs to
       example: acme-corp
     name:
@@ -148,10 +136,7 @@ CreateStencilRequest:
     - name
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Client-chosen key for the stencil
       example: corporate-header
     name:
@@ -239,10 +224,7 @@ StencilUsageDto:
     - problems
   properties:
     templateKey:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the template using this stencil
       example: monthly-invoice
     templateName:
@@ -250,10 +232,7 @@ StencilUsageDto:
       description: Display name of the template
       example: Monthly Invoice
     variantKey:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the variant
       example: english
     fits:
@@ -374,10 +353,7 @@ StencilContentDto:
     - lastModified
   properties:
     stencilKey:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the stencil
       example: corporate-header
     content:

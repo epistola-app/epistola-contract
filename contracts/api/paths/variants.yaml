@@ -5,10 +5,7 @@ variants:
       required: true
       description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
@@ -18,10 +15,7 @@ variants:
       required: true
       description: Key of the template
       schema:
-        type: string
-        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
 
   get:
     operationId: listVariants
@@ -95,10 +89,7 @@ variants-id:
       required: true
       description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
@@ -108,19 +99,13 @@ variants-id:
       required: true
       description: Key of the template
       schema:
-        type: string
-        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
     - name: variantKey
       in: path
       required: true
       description: Key of the variant
       schema:
-        type: string
-        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
 
   get:
     operationId: getVariant
@@ -215,10 +200,7 @@ variant-set-default:
       required: true
       description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
@@ -228,19 +210,13 @@ variant-set-default:
       required: true
       description: Key of the template
       schema:
-        type: string
-        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
     - name: variantKey
       in: path
       required: true
       description: Key of the variant
       schema:
-        type: string
-        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
 
   post:
     operationId: setDefaultVariant
@@ -282,10 +258,7 @@ variant-content:
       required: true
       description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
@@ -295,19 +268,13 @@ variant-content:
       required: true
       description: Key of the template
       schema:
-        type: string
-        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
     - name: variantKey
       in: path
       required: true
       description: Key of the variant
       schema:
-        type: string
-        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
 
   get:
     operationId: getVariantContent
@@ -386,10 +353,7 @@ variant-mark-ready:
       required: true
       description: Unique key of the tenant (e.g., "acme-corp")
       schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 63
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
@@ -399,19 +363,13 @@ variant-mark-ready:
       required: true
       description: Key of the template
       schema:
-        type: string
-        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
     - name: variantKey
       in: path
       required: true
       description: Key of the variant
       schema:
-        type: string
-        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-        minLength: 3
-        maxLength: 50
+        $ref: '../components/schemas/identifiers.yaml#/ResourceKey'
 
   post:
     operationId: markVariantReady

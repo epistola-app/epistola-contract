@@ -250,6 +250,7 @@ public static class Driver
                 // Optional, and left unset when the scenario does not name them: an unset optional
                 // must stay off the wire (scenario 120), not go out as null.
                 variantKey: OptStr(config, "variantKey"),
+                attributes: OptAttributes(config),
                 versionRange: OptStr(config, "versionRange"),
                 environmentKey: OptStr(config, "environmentKey"),
                 // Parsed with Newtonsoft, not System.Text.Json: the generated models serialize
@@ -1336,6 +1337,18 @@ public static class Driver
 
     private static string? OptStr(JsonElement config, string name) =>
         config.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? value.GetString() : null;
+
+    // Attribute criteria, null when the scenario names none so they stay off the wire.
+    private static List<VariantSelectionAttribute>? OptAttributes(JsonElement config) =>
+        config.TryGetProperty("attributes", out var value) && value.ValueKind != JsonValueKind.Null
+            ? value.EnumerateArray().Select(attribute => new VariantSelectionAttribute(
+                registry: OptStr(attribute, "registry")!,
+                varNamespace: OptStr(attribute, "namespace")!,
+                catalogKey: OptStr(attribute, "catalogKey")!,
+                key: Str(attribute, "key"),
+                value: Str(attribute, "value"),
+                required: !attribute.TryGetProperty("required", out var required) || required.GetBoolean())).ToList()
+            : null;
 
     private static List<string>? OptStrList(JsonElement config, string name) =>
         config.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null

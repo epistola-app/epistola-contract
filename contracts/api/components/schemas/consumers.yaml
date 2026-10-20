@@ -28,10 +28,7 @@ ConsumerDto:
     - lastModified
   properties:
     id:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/ConsumerId'
       description: |
         Unique slug identifier of the consumer within this tenant.
         For self-signed JWT consumers, this is self-chosen at registration
@@ -39,10 +36,7 @@ ConsumerDto:
         from the JWT `client_id` claim.
       example: invoice-service
     tenantKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/TenantKey'
       description: Key of the tenant this consumer is registered in
       example: acme-corp
     name:
@@ -246,10 +240,7 @@ RegisterConsumerRequest:
     - requestedPermissions
   properties:
     id:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/ConsumerId'
       description: |
         Self-chosen unique slug identifier for the consumer within this tenant.
         Used as the `iss` claim in self-signed JWTs.

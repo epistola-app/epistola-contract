@@ -19,40 +19,30 @@ PreviewDocumentRequest:
     - data
   properties:
     registry:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      oneOf:
+        - $ref: './identifiers.yaml#/Registry'
+        - type: 'null'
       description: |
         Registry of the catalog containing the template: the exchange or domain its namespace lives
         in. Omitted or null: the default registry, which the server configures. A response always
         names it in full.
       example: null
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog containing the template, within its registry
       example: acme-corp
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog containing the template, unique within its registry and namespace
       example: letters
     templateKey:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the template to use for preview
       example: invoice
     variantKey:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ResourceKey'
+        - type: 'null'
       description: Key of the variant to use (mutually exclusive with attributes)
       example: english
     attributes:
@@ -73,10 +63,9 @@ PreviewDocumentRequest:
         else the highest release it serves.
       example: null
     environmentKey:
-      type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
+      oneOf:
+        - $ref: './identifiers.yaml#/EnvironmentKey'
+        - type: 'null'
       description: |
         Key of an environment. With no `versionRange`, the catalog's draft deployed to the
         environment is rendered live if there is one (the document then carries `versionId` and
@@ -86,10 +75,9 @@ PreviewDocumentRequest:
         environment serves no such version.
       example: null
     draft:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 4
-      maxLength: 36
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogVersionId'
+        - type: 'null'
       description: |
         Render a draft of the template's catalog, including changes not yet released, by its
         `versionId` (a `CatalogVersionId`; mutually exclusive with versionRange and environmentKey). A
@@ -131,56 +119,43 @@ PreviewDocumentRequest:
 VariantSelectionAttribute:
   type: object
   description: |
-    Attribute criterion for variant selection.
+    An attribute criterion for variant selection: the attribute, by its key and the catalog that
+    defines it, and the value a variant must have for it.
 
-    `key` may take three forms (server resolves in this order):
-      1. Explicit qualifier: provide `catalogKey` (and `namespace`, and `registry`, for a catalog
-         in another namespace or registry than the template's) + a bare `key`. Recommended.
-      2. Dotted form: `key = "<catalogKey>.<key>"`, for a catalog in the template's registry and
-         namespace.
-         The catalog key grammar excludes `.`, so the split is unambiguous.
-      3. Bare key: tenant-wide lookup (legacy). If the same key exists in
-         multiple catalogs of the tenant, the validator silently picks one.
+    Without `catalogKey`, `key` names an attribute of the template's own catalog. With `catalogKey`,
+    it names an attribute of that catalog, which must be the template's own catalog or one it
+    declares as a dependency; `namespace` and `registry` default to those of the template's catalog,
+    as in every reference relative to another catalog (see "Catalog identity").
   required:
     - key
     - value
   properties:
     registry:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      oneOf:
+        - $ref: './identifiers.yaml#/Registry'
+        - type: 'null'
       description: |
-        Registry of the catalog qualifier. Omitted or null: the registry of the template's catalog
-        (not the default registry). Set only together with `namespace`.
+        Registry of the catalog that defines the attribute. Omitted or null: the registry of the
+        template's catalog (not the default registry). Set only together with `namespace`.
       example: null
     namespace:
-      type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      oneOf:
+        - $ref: './identifiers.yaml#/Namespace'
+        - type: 'null'
       description: |
-        Namespace of the catalog qualifier, within its registry. Omitted or null: the
-        namespace of the template's catalog.
+        Namespace of the catalog that defines the attribute, within its registry. Omitted or null:
+        the namespace of the template's catalog. Set only together with `catalogKey`.
       example: null
     catalogKey:
-      type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogKey'
+        - type: 'null'
       description: |
-        Optional catalog qualifier. When set, the server resolves the attribute as `(registry,
-        namespace, catalogKey, key)`. When omitted, `key` may be dotted (`"system.locale"`) or a bare slug
-        (legacy).
+        Key of the catalog that defines the attribute. Omitted or null: the template's own catalog.
       example: system
     key:
-      type: string
-      pattern: '^([a-z][a-z0-9]*(-[a-z0-9]+)*\.)?[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 101
-      description: |
-        Attribute key. May be a bare key (`locale`) or qualified by a catalog key
-        (`system.locale`); each part follows its own key rule. Must match an attribute definition
-        for the tenant.
+      $ref: './identifiers.yaml#/ResourceKey'
+      description: Key of the attribute, in the catalog that defines it.
       example: locale
     value:
       type: string
@@ -201,40 +176,30 @@ GenerateDocumentRequest:
     - data
   properties:
     registry:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      oneOf:
+        - $ref: './identifiers.yaml#/Registry'
+        - type: 'null'
       description: |
         Registry of the catalog containing the template: the exchange or domain its namespace lives
         in. Omitted or null: the default registry, which the server configures. A response always
         names it in full.
       example: null
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog containing the template, within its registry
       example: acme-corp
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog containing the template, unique within its registry and namespace
       example: letters
     templateKey:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the template to use for generation
       example: invoice
     variantKey:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ResourceKey'
+        - type: 'null'
       description: Key of the variant to use (mutually exclusive with attributes)
       example: english
     attributes:
@@ -255,10 +220,9 @@ GenerateDocumentRequest:
         else the highest release it serves.
       example: null
     environmentKey:
-      type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
+      oneOf:
+        - $ref: './identifiers.yaml#/EnvironmentKey'
+        - type: 'null'
       description: |
         Key of an environment. With no `versionRange`, the catalog's draft deployed to the
         environment is rendered live if there is one (the document then carries `versionId` and
@@ -336,40 +300,30 @@ BatchGenerationItem:
     - data
   properties:
     registry:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      oneOf:
+        - $ref: './identifiers.yaml#/Registry'
+        - type: 'null'
       description: |
         Registry of the catalog containing the template: the exchange or domain its namespace lives
         in. Omitted or null: the default registry, which the server configures. A response always
         names it in full.
       example: null
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog containing the template, within its registry
       example: acme-corp
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog containing the template, unique within its registry and namespace
       example: letters
     templateKey:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the template to use for generation
       example: invoice
     variantKey:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ResourceKey'
+        - type: 'null'
       description: Key of the variant to use (mutually exclusive with attributes)
       example: english
     attributes:
@@ -390,10 +344,9 @@ BatchGenerationItem:
         else the highest release it serves.
       example: null
     environmentKey:
-      type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
+      oneOf:
+        - $ref: './identifiers.yaml#/EnvironmentKey'
+        - type: 'null'
       description: |
         Key of an environment. With no `versionRange`, the catalog's draft deployed to the
         environment is rendered live if there is one (the document then carries `versionId` and
@@ -541,54 +494,39 @@ DocumentGenerationItemDto:
       description: Unique identifier of this item
       example: "660e8400-e29b-41d4-a716-446655440001"
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the template's catalog, written in full (the default registry by its name, never
         `~`)
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the template's catalog, within its registry
       example: acme-corp
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the template's catalog, unique within its registry and namespace
       example: letters
     templateKey:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the template used for generation
       example: invoice
     variantKey:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the variant used for generation
       example: english
     releaseVersion:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: |
         Release of the template's catalog this item renders, bound when the request was accepted.
         Null when it renders a draft.
       example: "1.4.0"
     versionId:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 4
-      maxLength: 36
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogVersionId'
+        - type: 'null'
       description: |
         The id of the catalog version rendered (`CatalogVersionId`), always given from 2.0 on:
         a release's, which it keeps from the draft it was released from, or a draft's, when an
@@ -602,10 +540,9 @@ DocumentGenerationItemDto:
         The name of that draft at render time. Null when rendered from a release.
       example: null
     environmentKey:
-      type: [string, "null"]
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 30
+      oneOf:
+        - $ref: './identifiers.yaml#/EnvironmentKey'
+        - type: 'null'
       description: Key of the environment (if specified)
       example: null
     data:
@@ -920,61 +857,43 @@ DocumentDto:
       description: Unique identifier of the document
       example: "770e8400-e29b-41d4-a716-446655440002"
     tenantKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/TenantKey'
       description: Key of the tenant that owns this document
       example: acme-corp
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the template's catalog, written in full (the default registry by its name, never
         `~`)
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the template's catalog, within its registry
       example: acme-corp
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the template's catalog, unique within its registry and namespace
       example: letters
     templateKey:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the template used to generate this document
       example: invoice
     variantKey:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the variant used to generate this document
       example: english
     releaseVersion:
-      type: [string, "null"]
-      pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-      maxLength: 50
+      oneOf:
+        - $ref: './identifiers.yaml#/ReleaseVersion'
+        - type: 'null'
       description: |
         Release of the template's catalog this document was generated from. Null when it was
         rendered from a draft.
       example: "1.4.0"
     versionId:
-      type: [string, "null"]
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 4
-      maxLength: 36
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogVersionId'
+        - type: 'null'
       description: |
         The id of the catalog version rendered (`CatalogVersionId`), always given from 2.0 on:
         a release's, which it keeps from the draft it was released from, or a draft's, when an

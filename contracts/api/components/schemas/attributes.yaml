@@ -24,40 +24,26 @@ AttributeDto:
     - lastModified
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       description: |
         Key of the attribute (unique within `tenant + catalog`).
       example: locale
     tenantKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/TenantKey'
       description: Key of the tenant this attribute belongs to.
       example: acme-corp
     registry:
-      type: string
-      pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-      maxLength: 253
+      $ref: './identifiers.yaml#/Registry'
       description: |
         Registry of the catalog: the exchange or domain its namespace lives in. Always written in
         full, the default registry by its name, never `~`.
       example: exchange.epistola.app
     namespace:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 63
+      $ref: './identifiers.yaml#/Namespace'
       description: Namespace of the catalog, within its registry
       example: epistola
     catalogKey:
-      type: string
-      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog this resource lives in, unique within its registry and namespace
       example: system
     displayName:
@@ -95,30 +81,19 @@ AttributeDto:
         - key
       properties:
         registry:
-          type: string
-          pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-          maxLength: 253
+          $ref: './identifiers.yaml#/Registry'
           description: Registry of the catalog the bound code list belongs to, written in full
           example: exchange.epistola.app
         namespace:
-          type: string
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 63
+          $ref: './identifiers.yaml#/Namespace'
           description: Namespace of the catalog the bound code list belongs to, within its registry
           example: epistola
         catalogKey:
-          type: string
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 50
+          $ref: './identifiers.yaml#/CatalogKey'
           description: Key of the catalog the bound code list belongs to.
           example: system
         key:
-          type: string
-          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 50
+          $ref: './identifiers.yaml#/ResourceKey'
           description: Code list key within that catalog.
           example: bcp-47
     catalogType:
@@ -172,10 +147,7 @@ CreateAttributeRequest:
     - displayName
   properties:
     key:
-      type: string
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-      minLength: 3
-      maxLength: 50
+      $ref: './identifiers.yaml#/ResourceKey'
       example: priority
     displayName:
       type: string
@@ -200,34 +172,27 @@ CreateAttributeRequest:
         - key
       properties:
         registry:
-          type: [string, "null"]
-          pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-          maxLength: 253
+          oneOf:
+            - $ref: './identifiers.yaml#/Registry'
+            - type: 'null'
           description: |
             Registry of the catalog the bound code list belongs to. Omitted or null: the registry of
             the attribute's own catalog (not the default registry). Set only together with
             `namespace`.
           example: null
         namespace:
-          type: [string, "null"]
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 63
+          oneOf:
+            - $ref: './identifiers.yaml#/Namespace'
+            - type: 'null'
           description: |
             Namespace of the catalog the bound code list belongs to, within its registry. Omitted or
             null: the namespace of the attribute's own catalog.
           example: null
         catalogKey:
-          type: string
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 50
+          $ref: './identifiers.yaml#/CatalogKey'
           example: system
         key:
-          type: string
-          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 50
+          $ref: './identifiers.yaml#/ResourceKey'
           description: Key of the bound code list
           example: iso-639-1
 
@@ -258,33 +223,26 @@ UpdateAttributeRequest:
         - key
       properties:
         registry:
-          type: [string, "null"]
-          pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
-          maxLength: 253
+          oneOf:
+            - $ref: './identifiers.yaml#/Registry'
+            - type: 'null'
           description: |
             Registry of the catalog the bound code list belongs to. Omitted or null: the registry of
             the attribute's own catalog (not the default registry). Set only together with
             `namespace`.
           example: null
         namespace:
-          type: [string, "null"]
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 63
+          oneOf:
+            - $ref: './identifiers.yaml#/Namespace'
+            - type: 'null'
           description: |
             Namespace of the catalog the bound code list belongs to, within its registry. Omitted or
             null: the namespace of the attribute's own catalog.
           example: null
         catalogKey:
-          type: string
-          pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 50
+          $ref: './identifiers.yaml#/CatalogKey'
         key:
-          type: string
-          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
-          minLength: 3
-          maxLength: 50
+          $ref: './identifiers.yaml#/ResourceKey'
           description: Key of the bound code list
 
 AttributeListResponse:
