@@ -86,7 +86,7 @@ class ClientIdentityTest {
     void both_identity_headers_reach_the_server() {
         try (StubServer stub = StubServer.start(request ->
                 StubServer.StubResponse.of(
-                        200, "application/vnd.epistola.v2+json", "{\"status\":\"UP\",\"timestamp\":\"2026-09-02T10:00:00Z\"}"))) {
+                        200, "application/vnd.epistola.v2+json", "{\"status\":\"up\",\"timestamp\":\"2026-09-02T10:00:00Z\"}"))) {
 
             SystemApi system = EpistolaRestClients.builder()
                     .baseUri(stub.baseUri())

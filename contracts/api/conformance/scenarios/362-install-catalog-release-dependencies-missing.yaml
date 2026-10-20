@@ -35,7 +35,7 @@ script:
           namespace: epistola
           catalogKey: system
           releaseVersion: 4.0.0
-          reason: UNAVAILABLE
+          reason: unavailable
 
 expect:
   requestCount: 1
@@ -46,4 +46,4 @@ expect:
   report:
     problemTypeSlug: release-dependencies-missing
     problemStatus: 409
-    problemMissingDependencies: exchange.epistola.app/epistola/system@4.0.0:UNAVAILABLE
+    problemMissingDependencies: exchange.epistola.app/epistola/system@4.0.0:unavailable

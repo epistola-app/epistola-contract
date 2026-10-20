@@ -58,6 +58,10 @@ attributes:
     responses:
       '201':
         description: Attribute definition created successfully
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The attribute's address (`getAttribute`)
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -127,7 +131,7 @@ attributes-key:
       Update an attribute definition's `displayName`, `description` and constraint: its inline
       `allowedValues`, or the code list it binds (`codeListBinding`). Omitted members are left as
       they are. The constraint may switch kind, as `UpdateAttributeRequest` describes; mixing both
-      kinds is refused with 400 `validation-error`, and an attribute of a SUBSCRIBED catalog with
+      kinds is refused with 400 `validation-error`, and an attribute of a subscribed catalog with
       409.
       Send the `ETag` from a read as `If-Match` to have the update refused with 412
       `resource-modified` if the resource changed since; without it, the last write wins.

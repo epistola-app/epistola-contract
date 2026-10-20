@@ -167,7 +167,7 @@ class JwtSignerTest {
     void the_bearer_token_reaches_the_server_and_a_second_request_carries_a_new_one() {
         try (StubServer stub = StubServer.start(request -> StubServer.StubResponse.of(
                 200, "application/vnd.epistola.v2+json",
-                "{\"status\":\"UP\",\"timestamp\":\"2026-09-02T10:00:00Z\"}"))) {
+                "{\"status\":\"up\",\"timestamp\":\"2026-09-02T10:00:00Z\"}"))) {
 
             SystemApi system = EpistolaRestClients.builder()
                     .baseUri(stub.baseUri())

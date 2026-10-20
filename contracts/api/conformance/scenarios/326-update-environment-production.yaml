@@ -36,6 +36,8 @@ expect:
       headers:
         Content-Type:
           matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
+        # The caller gave no ETag: the update is unconditional, and no If-Match goes out.
+        if-match: { absent: true }
       body:
         json:
           production: false
@@ -45,3 +47,5 @@ expect:
     key: staging
     name: Staging
     production: 'false'
+    # The response carried no ETag, and a client must not invent one.
+    etag: 'null'

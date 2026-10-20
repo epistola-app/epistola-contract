@@ -70,7 +70,7 @@ script:
           draftName: null
           changedAt: "2026-10-02T07:30:00Z"
           changedBy: null
-      page: { number: 0, size: 50, totalElements: 4, totalPages: 1 }
+      page: { number: 0, size: 50, total: 4, totalPages: 1 }
 
 expect:
   requestCount: 1
@@ -93,4 +93,4 @@ expect:
     draftNames: Spring fixes|Redesign 2027|Spring fixes|null
     changedAt: 2026-10-18T09:00:00Z,2026-10-17T16:00:00Z,2026-10-17T16:00:00Z,2026-10-02T07:30:00Z
     changedBy: Jane Smith|null|Jane Smith|null
-    totalElements: "4"
+    total: "4"

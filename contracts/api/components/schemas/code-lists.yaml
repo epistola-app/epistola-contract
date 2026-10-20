@@ -4,13 +4,13 @@ CodeListDto:
     A reusable `{code, label}` collection that an attribute can bind to.
 
     Code lists are tenant + catalog scoped — the same shape attributes follow.
-    A code list from a SUBSCRIBED catalog (e.g. the bundled `system` catalog's
+    A code list from a subscribed catalog (e.g. the bundled `system` catalog's
     `bcp-47`, `iso-639-1`, `iso-3166-1-alpha2`) is flagged `readOnly: true`;
     PATCH, DELETE, and entry hide-toggles on it return 409.
 
-    Sources: `INLINE` (entries baked into this row) or `URL` (entries fetched
+    Sources: `inline` (entries baked into this row) or `url` (entries fetched
     from `sourceUrl` via the manual "refresh" action). Catalog-imported code lists
-    always land as `INLINE` because the entries ship in the catalog manifest.
+    always land as `inline` because the entries ship in the catalog manifest.
   required:
     - key
     - tenantKey
@@ -71,41 +71,38 @@ CodeListDto:
     sourceType:
       type: string
       enum:
-        - INLINE
-        - URL
+        - inline
+        - url
       description: Origin of entries — inline (this row) or fetched from a URL.
-      example: INLINE
+      example: inline
     sourceUrl:
       type:
         - string
         - 'null'
-      description: Set only when `sourceType=URL`. HTTPS, file, or classpath.
+      description: Set only when `sourceType` is `url`. HTTPS, file, or classpath.
       example: null
     authType:
       type: string
       enum:
-        - NONE
-        - API_KEY
-        - BEARER
-      description: Auth scheme for the URL source. Ignored for INLINE.
-      default: NONE
-      example: NONE
+        - none
+        - api-key
+        - bearer
+      description: Auth scheme for the URL source. Ignored for inline.
+      default: none
+      example: none
     catalogType:
-      type: string
-      enum:
-        - AUTHORED
-        - SUBSCRIBED
-      example: SUBSCRIBED
+      $ref: './catalogs.yaml#/CatalogType'
+      description: The type of the code list's catalog; a subscribed catalog's code lists are read-only.
     readOnly:
       type: boolean
-      description: True when `catalogType == SUBSCRIBED`.
+      description: True when `catalogType` is `subscribed`.
       example: true
     lastRefreshedAt:
       type:
         - string
         - 'null'
       format: date-time
-      description: Timestamp of the last successful URL refresh. Null for INLINE.
+      description: Timestamp of the last successful URL refresh. Null for inline.
       example: null
     lastRefreshError:
       type:
@@ -129,10 +126,10 @@ CodeListDto:
     catalogKey: system
     displayName: BCP-47 Language Tags
     description: Curated subset of common BCP-47 language + region tags.
-    sourceType: INLINE
+    sourceType: inline
     sourceUrl: null
-    authType: NONE
-    catalogType: SUBSCRIBED
+    authType: none
+    catalogType: subscribed
     readOnly: true
     lastRefreshedAt: null
     lastRefreshError: null
@@ -212,11 +209,11 @@ CreateCodeListRequest:
   description: |
     Request body for creating a new code list.
 
-    `entries` is required when `sourceType == INLINE` and must contain at least
-    one entry with a unique `code`. For `sourceType == URL`, omit `entries` —
+    `entries` is required when `sourceType == inline` and must contain at least
+    one entry with a unique `code`. For `sourceType == url`, omit `entries` —
     they'll be populated by the first manual refresh.
 
-    Writing to a SUBSCRIBED catalog (e.g. `system`) returns 409.
+    Writing to a subscribed catalog (e.g. `system`) returns 409.
   required:
     - key
     - displayName
@@ -239,9 +236,9 @@ CreateCodeListRequest:
     sourceType:
       type: string
       enum:
-        - INLINE
-        - URL
-      example: INLINE
+        - inline
+        - url
+      example: inline
     sourceUrl:
       type:
         - string
@@ -250,10 +247,10 @@ CreateCodeListRequest:
     authType:
       type: string
       enum:
-        - NONE
-        - API_KEY
-        - BEARER
-      default: NONE
+        - none
+        - api-key
+        - bearer
+      default: none
     credential:
       type:
         - string
@@ -278,7 +275,7 @@ UpdateCodeListRequest:
   description: |
     Request body for updating a code list. All fields optional (PATCH semantics).
     Omitting `entries` leaves them untouched; providing `entries` replaces them
-    atomically. Updates to SUBSCRIBED-catalog code lists return 409.
+    atomically. Updates to subscribed-catalog code lists return 409.
   properties:
     displayName:
       type: string
@@ -293,9 +290,9 @@ UpdateCodeListRequest:
     authType:
       type: string
       enum:
-        - NONE
-        - API_KEY
-        - BEARER
+        - none
+        - api-key
+        - bearer
     credential:
       type:
         - string

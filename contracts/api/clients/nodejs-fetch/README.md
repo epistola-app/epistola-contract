@@ -62,8 +62,7 @@ const template = await templates.getTemplate({ tenantKey: 'acme', registry: '~',
 A catalog is addressed by its `registry`, `namespace` and `catalogKey`. `registry: '~'` addresses the
 server's default registry; any other registry is named in full (`registry: 'acme.com'`).
 
-`EpistolaClient.builder(baseUrl, apiKey)` is a shorthand for the same thing. The legacy `X-API-Key`
-header is not sent: it remains supported server-side but is deprecated. Some Epistola Suite
+`EpistolaClient.builder(baseUrl, apiKey)` is a shorthand for the same thing. Some Epistola Suite
 deployments disable API-key authentication entirely; switch on
 `e.typeSlug === KnownProblemSlugs.API_KEY_AUTH_DISABLED` and guide the caller to JWT auth.
 

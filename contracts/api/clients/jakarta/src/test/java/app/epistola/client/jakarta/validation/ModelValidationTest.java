@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
+import app.epistola.client.jakarta.model.CatalogDto;
 import app.epistola.client.jakarta.model.FontVariantDto;
 import app.epistola.client.jakarta.model.BatchGenerationItem;
 import app.epistola.client.jakarta.model.CreateCatalogDraftRequest;
@@ -20,7 +21,7 @@ import app.epistola.client.jakarta.model.GenerateBatchRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.PreviewDocumentRequest;
 import app.epistola.client.jakarta.model.ReleaseCatalogDraftRequest;
-import app.epistola.client.jakarta.model.RenameCatalogDraftRequest;
+import app.epistola.client.jakarta.model.UpdateCatalogDraftRequest;
 import app.epistola.client.jakarta.model.UpdateTenantRequest;
 import app.epistola.client.jakarta.model.ResourceStatus;
 import app.epistola.client.jakarta.model.VariantContentDto;
@@ -211,7 +212,7 @@ class ModelValidationTest {
         ModelValidation.validate(new CreateCatalogDraftRequest().name("Fixes 1.4").from("1.4.0"));
         ModelValidation.validate(
                 new CreateCatalogDraftRequest().name("Redesign 2027").from("k7m2x9qa"));
-        ModelValidation.validate(new RenameCatalogDraftRequest().name("Redesign 2028"));
+        ModelValidation.validate(new UpdateCatalogDraftRequest().name("Redesign 2028"));
 
         assertTrue(assertThrows(
                         IllegalArgumentException.class,
@@ -232,9 +233,33 @@ class ModelValidationTest {
                     "expected a draft named '" + name + "' to fail");
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> ModelValidation.validate(new RenameCatalogDraftRequest().name(name)),
-                    "expected a rename to '" + name + "' to fail");
+                    () -> ModelValidation.validate(new UpdateCatalogDraftRequest().name(name)),
+                    "expected an update to '" + name + "' to fail");
         }
+    }
+
+    @Test
+    void a_fingerprint_names_its_algorithm() {
+        String hex = "0123456789abcdef".repeat(4);
+        ModelValidation.validate(catalogWithFingerprint("v1:" + hex));
+        ModelValidation.validate(catalogWithFingerprint("v12:" + hex));
+        for (String fingerprint : List.of(hex, "v0:" + hex, "V1:" + hex, "v1:" + hex.toUpperCase(), "v1:" + hex.substring(1))) {
+            assertTrue(assertThrows(
+                            IllegalArgumentException.class,
+                            () -> ModelValidation.validate(catalogWithFingerprint(fingerprint)),
+                            "expected the fingerprint '" + fingerprint + "' to fail")
+                    .getMessage()
+                    .startsWith("fingerprint: must match pattern"));
+        }
+    }
+
+    private static CatalogDto catalogWithFingerprint(String fingerprint) {
+        CatalogDto catalog = new CatalogDto();
+        catalog.setRegistry("exchange.epistola.app");
+        catalog.setNamespace("acme-corp");
+        catalog.setCatalogKey("letters");
+        catalog.setFingerprint(fingerprint);
+        return catalog;
     }
 
     @Test

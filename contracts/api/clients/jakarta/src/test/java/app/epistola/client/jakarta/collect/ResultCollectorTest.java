@@ -45,11 +45,13 @@ class ResultCollectorTest {
         return "{\"sequence\":" + sequence
                 + ",\"requestId\":\"11111111-1111-1111-1111-11111111111" + (sequence % 10) + "\""
                 + ",\"status\":\"" + status + "\""
+                + ",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"letters\""
+                + ",\"releaseVersion\":\"1.4.0\""
                 + ",\"correlationId\":\"" + correlationId + "\"}";
     }
 
     private static String meta(boolean hasMore) {
-        return "{\"_meta\":true,\"hasMore\":" + hasMore + ",\"count\":0}";
+        return "{\"_meta\":true,\"hasMore\":" + hasMore + ",\"resultCount\":0}";
     }
 
     private static String metaWithPartitions(boolean hasMore, String mine, int total) {
@@ -64,8 +66,8 @@ class ResultCollectorTest {
         List<GenerationResult> handled = new ArrayList<>();
         String body = String.join(
                 "\n",
-                result(501, "COMPLETED", "order-1"),
-                result(502, "FAILED", "order-2"),
+                result(501, "completed", "order-1"),
+                result(502, "failed", "order-2"),
                 meta(false));
 
         try (StubServer stub = StubServer.start(request -> StubServer.StubResponse.of(200, NDJSON, body))) {
@@ -95,7 +97,7 @@ class ResultCollectorTest {
     @Test
     void has_more_is_carried_out_of_the_meta_line() {
         try (StubServer stub = StubServer.start(request ->
-                StubServer.StubResponse.of(200, NDJSON, result(1, "COMPLETED", "a") + "\n" + meta(true)))) {
+                StubServer.StubResponse.of(200, NDJSON, result(1, "completed", "a") + "\n" + meta(true)))) {
             assertTrue(collector(stub, r -> {}).collectOnce().isHasMore());
         }
     }
@@ -103,7 +105,7 @@ class ResultCollectorTest {
     @Test
     void blank_lines_are_skipped() {
         List<GenerationResult> handled = new ArrayList<>();
-        String body = result(1, "COMPLETED", "a") + "\n\n\n" + result(2, "COMPLETED", "b") + "\n" + meta(false);
+        String body = result(1, "completed", "a") + "\n\n\n" + result(2, "completed", "b") + "\n" + meta(false);
 
         try (StubServer stub = StubServer.start(request -> StubServer.StubResponse.of(200, NDJSON, body))) {
             assertEquals(2, collector(stub, handled::add).collectOnce().getCount());
@@ -115,8 +117,8 @@ class ResultCollectorTest {
     @Test
     void the_first_poll_acknowledges_nothing_and_the_next_acknowledges_the_last_sequence() {
         Deque<String> bodies = new ArrayDeque<>(List.of(
-                result(501, "COMPLETED", "a") + "\n" + result(502, "COMPLETED", "b") + "\n" + meta(false),
-                result(503, "COMPLETED", "c") + "\n" + meta(false)));
+                result(501, "completed", "a") + "\n" + result(502, "completed", "b") + "\n" + meta(false),
+                result(503, "completed", "c") + "\n" + meta(false)));
 
         try (StubServer stub = StubServer.start(request ->
                 StubServer.StubResponse.of(200, NDJSON, bodies.poll()))) {
@@ -138,8 +140,8 @@ class ResultCollectorTest {
     void a_batch_whose_handler_threw_is_redelivered_rather_than_acknowledged() {
         List<Long> handled = new ArrayList<>();
         Deque<String> bodies = new ArrayDeque<>(List.of(
-                result(501, "COMPLETED", "a") + "\n" + result(502, "COMPLETED", "b") + "\n" + meta(false),
-                result(501, "COMPLETED", "a") + "\n" + meta(false)));
+                result(501, "completed", "a") + "\n" + result(502, "completed", "b") + "\n" + meta(false),
+                result(501, "completed", "a") + "\n" + meta(false)));
 
         try (StubServer stub = StubServer.start(request ->
                 StubServer.StubResponse.of(200, NDJSON, bodies.poll()))) {
@@ -199,7 +201,7 @@ class ResultCollectorTest {
     @Test
     void a_gzip_encoded_body_is_decompressed() {
         List<GenerationResult> handled = new ArrayList<>();
-        byte[] body = gzip(result(1, "COMPLETED", "a") + "\n" + result(2, "COMPLETED", "b") + "\n" + meta(false));
+        byte[] body = gzip(result(1, "completed", "a") + "\n" + result(2, "completed", "b") + "\n" + meta(false));
 
         try (StubServer stub = StubServer.start(request ->
                 StubServer.StubResponse.of(200, NDJSON, body).contentEncoding("gzip"))) {
@@ -213,7 +215,7 @@ class ResultCollectorTest {
         // The magic bytes are trusted over the header on purpose — an application server may have
         // decoded the body already, or forwarded it without re-declaring the encoding.
         List<GenerationResult> handled = new ArrayList<>();
-        byte[] body = gzip(result(1, "COMPLETED", "a") + "\n" + meta(false));
+        byte[] body = gzip(result(1, "completed", "a") + "\n" + meta(false));
 
         try (StubServer stub = StubServer.start(request -> StubServer.StubResponse.of(200, NDJSON, body))) {
             assertEquals(1, collector(stub, handled::add).collectOnce().getCount());
@@ -294,7 +296,7 @@ class ResultCollectorTest {
     void the_metrics_listener_sees_polls_and_partition_changes() {
         List<String> events = new CopyOnWriteArrayList<>();
         Deque<String> bodies = new ArrayDeque<>(List.of(
-                result(1, "COMPLETED", "a") + "\n" + metaWithPartitions(true, "[0]", 4),
+                result(1, "completed", "a") + "\n" + metaWithPartitions(true, "[0]", 4),
                 metaWithPartitions(false, "[0,1]", 4)));
 
         try (StubServer stub = StubServer.start(request ->
@@ -397,7 +399,7 @@ class ResultCollectorTest {
             polls.incrementAndGet();
             // One burst, then nothing: hasMore first, empty from then on.
             if (drained.compareAndSet(false, true)) {
-                return StubServer.StubResponse.of(200, NDJSON, result(1, "COMPLETED", "a") + "\n" + meta(true));
+                return StubServer.StubResponse.of(200, NDJSON, result(1, "completed", "a") + "\n" + meta(true));
             }
             return StubServer.StubResponse.of(200, NDJSON, meta(false));
         })) {

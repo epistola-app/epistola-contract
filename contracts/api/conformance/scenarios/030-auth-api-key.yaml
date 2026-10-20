@@ -3,11 +3,12 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: auth-api-key
-title: "API keys go in Authorization: ApiKey, not the deprecated X-API-Key header"
+title: "An API key goes in Authorization: ApiKey, the one header the contract defines for it"
 why: >
-  The API still accepts the legacy X-API-Key header, so a client that sends it keeps working and
-  nobody notices — until the legacy header is withdrawn and every consumer of that one client
-  breaks at once. A test that only asserts "the call succeeded" cannot tell the two apart.
+  The contract defines one way to send an API key: the `Authorization` header with the `ApiKey`
+  scheme. A key sent in any other header, such as the `X-API-Key` some APIs use, is not
+  authentication here, and a test that only asserts "the call succeeded" against a lenient server
+  cannot tell the two apart. So the key must arrive in `Authorization`, and nowhere else.
 
 action:
   name: list-templates
@@ -26,7 +27,7 @@ script:
     contentType: application/vnd.epistola.v2+json
     body:
       items: []
-      page: { number: 0, size: 20, totalElements: 0, totalPages: 0 }
+      page: { number: 0, size: 20, total: 0, totalPages: 0 }
 
 expect:
   requestCount: 1

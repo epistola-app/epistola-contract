@@ -39,7 +39,7 @@ script:
           name: Reminder letter
           createdAt: '2026-08-20T10:00:00Z'
           lastModified: '2026-08-21T09:30:00Z'
-      page: { number: 0, size: 20, totalElements: 2, totalPages: 1 }
+      page: { number: 0, size: 20, total: 2, totalPages: 1 }
 
 expect:
   requestCount: 1

@@ -65,7 +65,7 @@ public static class Driver
                 case "create-catalog-draft": CreateCatalogDraft(baseUrl, config); break;
                 case "list-catalog-versions": ListCatalogVersions(baseUrl, config); break;
                 case "get-catalog-version": GetCatalogVersion(baseUrl, config); break;
-                case "rename-catalog-draft": RenameCatalogDraft(baseUrl, config); break;
+                case "update-catalog-draft": UpdateCatalogDraft(baseUrl, config); break;
                 case "set-catalog-draft-theme-settings": SetCatalogDraftThemeSettings(baseUrl, config); break;
                 case "preview-catalog-draft-release": PreviewCatalogDraftRelease(baseUrl, config); break;
                 case "delete-catalog-draft": DeleteCatalogDraft(baseUrl, config); break;
@@ -74,6 +74,8 @@ public static class Driver
                 case "undeploy-catalog-version": UndeployCatalogVersion(baseUrl, config); break;
                 case "create-environment": CreateEnvironment(baseUrl, config); break;
                 case "update-environment": UpdateEnvironment(baseUrl, config); break;
+                case "update-tenant": UpdateTenant(baseUrl, config); break;
+                case "update-code-list-entry-hidden": UpdateCodeListEntryHidden(baseUrl, config); break;
                 case "update-variant-content": UpdateVariantContent(baseUrl, config); break;
                 case "get-variant-content": GetVariantContent(baseUrl, config); break;
                 case "mark-variant-ready": MarkVariantReady(baseUrl, config); break;
@@ -236,7 +238,7 @@ public static class Driver
     private static void GenerateDocument(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        new GenerationApi(http, apiBase).GenerateDocument(
+        var response = new GenerationApi(http, apiBase).GenerateDocumentWithHttpInfo(
             Str(config, "tenantKey"),
             new GenerateDocumentRequest(
                 // Left unset when the scenario does not name it: omitted means the default registry, which
@@ -256,6 +258,16 @@ public static class Driver
                 data: Newtonsoft.Json.JsonConvert.DeserializeObject(config.GetProperty("data").GetRawText()),
                 correlationId: OptStr(config, "correlationId"),
                 routingKey: OptStr(config, "routingKey")));
+        var job = response.Data;
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["requestId"] = Show(job?.RequestId),
+            ["status"] = job == null ? "null" : Wire(job.Status),
+            ["jobType"] = job == null ? "null" : Wire(job.JobType),
+            ["total"] = job == null ? "null" : job.Total,
+            ["location"] = Header(response, "Location"),
+        });
     }
 
     /// <summary>
@@ -267,11 +279,94 @@ public static class Driver
     private static void UpdateConsumer(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        new ConsumersApi(http, apiBase).UpdateConsumer(
-            Str(config, "tenantKey"),
-            Str(config, "consumerId"),
-            new UpdateConsumerRequest(name: Str(config, "name")));
+        ApiResponse<ConsumerDto> response;
+        try
+        {
+            response = new ConsumersApi(http, apiBase).UpdateConsumerWithHttpInfo(
+                Str(config, "tenantKey"),
+                Str(config, "consumerId"),
+                new UpdateConsumerRequest(name: Str(config, "name")),
+                ifMatch: OptStr(config, "ifMatch"));
+        }
+        catch (ProblemDetailException e)
+        {
+            ReportProblem(baseUrl, e);
+            return;
+        }
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["id"] = Show(response.Data.Id),
+            ["name"] = Show(response.Data.Name),
+            ["etag"] = Header(response, "ETag"),
+        });
     }
+
+    /// <summary>
+    /// Renames a tenant, sending <c>config.ifMatch</c> as <c>If-Match</c> when present, and reports
+    /// the new <c>ETag</c> exactly as received.
+    /// </summary>
+    private static void UpdateTenant(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        ApiResponse<TenantDto> response;
+        try
+        {
+            response = new TenantsApi(http, apiBase).UpdateTenantWithHttpInfo(
+                Str(config, "tenantKey"),
+                new UpdateTenantRequest(name: Str(config, "name")),
+                ifMatch: OptStr(config, "ifMatch"));
+        }
+        catch (ProblemDetailException e)
+        {
+            ReportProblem(baseUrl, e);
+            return;
+        }
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["key"] = Show(response.Data.Key),
+            ["name"] = Show(response.Data.Name),
+            ["etag"] = Header(response, "ETag"),
+        });
+    }
+
+    /// <summary>
+    /// Hides or shows one code-list entry, conditional on the code list's <c>ETag</c> when
+    /// <c>config.ifMatch</c> is present, and reports the code list's new <c>ETag</c>.
+    /// </summary>
+    private static void UpdateCodeListEntryHidden(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        ApiResponse<CodeListEntryDto> response;
+        try
+        {
+            response = new CodeListsApi(http, apiBase).UpdateCodeListEntryHiddenWithHttpInfo(
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+                Str(config, "codeListKey"), Str(config, "code"),
+                new UpdateCodeListEntryHiddenRequest(hidden: config.GetProperty("hidden").GetBoolean()),
+                ifMatch: OptStr(config, "ifMatch"));
+        }
+        catch (ProblemDetailException e)
+        {
+            ReportProblem(baseUrl, e);
+            return;
+        }
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["code"] = Show(response.Data.Code),
+            ["hidden"] = Bool(response.Data.Hidden),
+            ["etag"] = Header(response, "ETag"),
+        });
+    }
+
+    private static void ReportProblem(string baseUrl, ProblemDetailException e) =>
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
+            ["problemStatus"] = (int)e.StatusCode,
+        });
 
     /// <summary>
     /// One poll to learn the partition assignment from the _meta line, then the routing helpers.
@@ -400,7 +495,7 @@ public static class Driver
                 new FileParameter(Str(config, "filename"), Str(config, "fileContentType"), content),
                 registry: OptStr(config, "registry"),
                 varNamespace: OptStr(config, "namespace"),
-                catalogType: OptStr(config, "catalogType"));
+                catalogType: OptStr(config, "catalogType") is { } catalogType ? Parse<CatalogType>(catalogType) : null);
         }
         catch (ProblemDetailException e)
         {
@@ -542,22 +637,35 @@ public static class Driver
                 releaseVersion: OptStr(d, "releaseVersion")!,
                 versionId: OptStr(d, "versionId")))
             .ToList();
-        ReportDependencies(baseUrl, new CatalogsApi(http, apiBase).UpdateCatalogDependencies(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
-            new UpdateCatalogDependenciesRequest(dependencies: dependencies)));
+        ApiResponse<CatalogDependencyListResponse> response;
+        try
+        {
+            response = new CatalogsApi(http, apiBase).UpdateCatalogDependenciesWithHttpInfo(
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+                new UpdateCatalogDependenciesRequest(dependencies: dependencies),
+                ifMatch: OptStr(config, "ifMatch"));
+        }
+        catch (ProblemDetailException e)
+        {
+            ReportProblem(baseUrl, e);
+            return;
+        }
+        ReportDependencies(baseUrl, response.Data, Header(response, "ETag"));
     }
 
-    private static void ReportDependencies(string baseUrl, CatalogDependencyListResponse response)
+    private static void ReportDependencies(string baseUrl, CatalogDependencyListResponse response, string? etag = null)
     {
         var items = response.Items;
-        Report(baseUrl, new Dictionary<string, object>
+        var values = new Dictionary<string, object>
         {
             ["registries"] = string.Join(",", items.Select(d => Show(d.Registry))),
             ["namespaces"] = string.Join(",", items.Select(d => Show(d.Namespace))),
             ["catalogKeys"] = string.Join(",", items.Select(d => Show(d.CatalogKey))),
             ["releaseVersions"] = string.Join(",", items.Select(d => Show(d.ReleaseVersion))),
             ["versionIds"] = string.Join(",", items.Select(d => Show(d.VersionId))),
-        });
+        };
+        if (etag != null) values["etag"] = etag;
+        Report(baseUrl, values);
     }
 
     // --- Catalog versions ---
@@ -569,9 +677,10 @@ public static class Driver
     private static void CreateCatalogDraft(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        var version = new CatalogsApi(http, apiBase).CreateCatalogDraft(
+        var response = new CatalogsApi(http, apiBase).CreateCatalogDraftWithHttpInfo(
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
             new CreateCatalogDraftRequest(name: Str(config, "name"), from: OptStr(config, "from")!));
+        var version = response.Data;
 
         Report(baseUrl, new Dictionary<string, object>
         {
@@ -582,6 +691,7 @@ public static class Driver
             ["base"] = Show(version.Base),
             ["createdFrom"] = Show(version.CreatedFrom),
             ["releasedAt"] = Show(Iso(version.ReleasedAt)),
+            ["location"] = Header(response, "Location"),
         });
     }
 
@@ -628,13 +738,27 @@ public static class Driver
         });
     }
 
-    /// <summary>Renames a draft; only the name is sent, to its unchanged address.</summary>
-    private static void RenameCatalogDraft(string baseUrl, JsonElement config)
+    /// <summary>
+    /// Renames a draft; only the name is sent, to its unchanged address, with <c>config.ifMatch</c>
+    /// as <c>If-Match</c> when present. Reports the new <c>ETag</c> exactly as received.
+    /// </summary>
+    private static void UpdateCatalogDraft(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        var version = new CatalogsApi(http, apiBase).RenameCatalogDraft(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
-            new RenameCatalogDraftRequest(name: Str(config, "name")));
+        ApiResponse<CatalogVersionDto> response;
+        try
+        {
+            response = new CatalogsApi(http, apiBase).UpdateCatalogDraftWithHttpInfo(
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+                new UpdateCatalogDraftRequest(name: Str(config, "name")),
+                ifMatch: OptStr(config, "ifMatch"));
+        }
+        catch (ProblemDetailException e)
+        {
+            ReportProblem(baseUrl, e);
+            return;
+        }
+        var version = response.Data;
 
         Report(baseUrl, new Dictionary<string, object>
         {
@@ -643,6 +767,7 @@ public static class Driver
             ["name"] = Show(version.Name),
             ["status"] = Show(Wire(version.Status)),
             ["base"] = Show(version.Base),
+            ["etag"] = Header(response, "ETag"),
         });
     }
 
@@ -653,9 +778,9 @@ public static class Driver
         var presets = config.GetProperty("presets").EnumerateArray()
             .Select(p => new CatalogPresetDto(key: Str(p, "key"), name: Str(p, "name"), description: OptStr(p, "description")!))
             .ToList();
-        var version = new CatalogsApi(http, apiBase).RenameCatalogDraft(
+        var version = new CatalogsApi(http, apiBase).UpdateCatalogDraft(
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
-            new RenameCatalogDraftRequest(
+            new UpdateCatalogDraftRequest(
                 defaultTheme: new CatalogThemeReference(key: Str(config, "defaultThemeKey"), catalogKey: OptStr(config, "defaultThemeCatalogKey")!),
                 presets: presets));
 
@@ -939,7 +1064,10 @@ public static class Driver
 
     /// <summary>A response header as received, the first value when there are several.</summary>
     private static string Header<T>(ApiResponse<T> response, string name) =>
-        response.Headers.TryGetValue(name, out var values) && values.Count > 0 ? values[0] : "null";
+        response.Headers
+            .Where(header => string.Equals(header.Key, name, StringComparison.OrdinalIgnoreCase) && header.Value.Count > 0)
+            .Select(header => header.Value[0])
+            .FirstOrDefault() ?? "null";
 
     /// <summary>
     /// Reads a variant's content through <c>…WithHttpInfo</c>, which is how a caller reaches the
@@ -1082,7 +1210,7 @@ public static class Driver
             ["fits"] = string.Join(",", items.Select(u => Bool(u.Fits))),
             ["problems"] = string.Join(";", items.Select(u => string.Join("|", u.Problems ?? new List<string>()))),
             ["pageNumber"] = Show(response.Page?.Number),
-            ["totalElements"] = Show(response.Page?.TotalElements),
+            ["total"] = Show(response.Page?.Total),
         });
     }
 
@@ -1149,7 +1277,7 @@ public static class Driver
             ["draftNames"] = string.Join("|", items.Select(e => Show(e.DraftName))),
             ["changedAt"] = string.Join(",", items.Select(e => Show(Iso(e.ChangedAt)))),
             ["changedBy"] = string.Join("|", items.Select(e => Show(e.ChangedBy))),
-            ["totalElements"] = Show(response.Page?.TotalElements),
+            ["total"] = Show(response.Page?.Total),
         });
     }
 
@@ -1157,13 +1285,13 @@ public static class Driver
     private static void CreateEnvironment(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        var environment = new EnvironmentsApi(http, apiBase).CreateEnvironment(
+        var response = new EnvironmentsApi(http, apiBase).CreateEnvironmentWithHttpInfo(
             Str(config, "tenantKey"),
             new CreateEnvironmentRequest(
                 key: Str(config, "key"),
                 name: Str(config, "name"),
                 production: OptBool(config, "production") ?? false));
-        ReportEnvironment(baseUrl, environment);
+        ReportEnvironment(baseUrl, response.Data, "location", Header(response, "Location"));
     }
 
     /// <summary>
@@ -1173,33 +1301,32 @@ public static class Driver
     private static void UpdateEnvironment(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        EnvironmentDto environment;
+        ApiResponse<EnvironmentDto> response;
         try
         {
-            environment = new EnvironmentsApi(http, apiBase).UpdateEnvironment(
+            response = new EnvironmentsApi(http, apiBase).UpdateEnvironmentWithHttpInfo(
                 Str(config, "tenantKey"), Str(config, "environmentKey"),
                 new UpdateEnvironmentRequest(
                     name: OptStr(config, "name")!,
-                    production: OptBool(config, "production")));
+                    production: OptBool(config, "production")),
+                ifMatch: OptStr(config, "ifMatch"));
         }
         catch (ProblemDetailException e)
         {
-            Report(baseUrl, new Dictionary<string, object>
-            {
-                ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
-                ["problemStatus"] = (int)e.StatusCode,
-            });
+            ReportProblem(baseUrl, e);
             return;
         }
-        ReportEnvironment(baseUrl, environment);
+        ReportEnvironment(baseUrl, response.Data, "etag", Header(response, "ETag"));
     }
 
-    private static void ReportEnvironment(string baseUrl, EnvironmentDto environment) =>
+    /// <summary>The environment as parsed, plus one response header (<c>location</c> or <c>etag</c>) exactly as received.</summary>
+    private static void ReportEnvironment(string baseUrl, EnvironmentDto environment, string headerKey, string headerValue) =>
         Report(baseUrl, new Dictionary<string, object>
         {
             ["key"] = Show(environment.Key),
             ["name"] = Show(environment.Name),
             ["production"] = Bool(environment.Production),
+            [headerKey] = headerValue,
         });
 
     private static string Str(JsonElement config, string name, string? fallback = null) =>

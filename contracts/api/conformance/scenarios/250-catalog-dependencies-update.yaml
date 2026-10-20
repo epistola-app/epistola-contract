@@ -47,6 +47,7 @@ expect:
       headers:
         Content-Type:
           matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
+        if-match: { absent: true }
       body:
         json:
           dependencies:

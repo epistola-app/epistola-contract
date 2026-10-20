@@ -6,7 +6,7 @@ id: list-available-catalog-releases
 title: The available releases are every release the source offers that the tenant lacks, each against the closest one below
 why: >
   Releases are immutable and installed side by side (contract 2.0), so nothing is upgraded: the
-  source of a SUBSCRIBED catalog offers releases, and the tenant installs the ones it wants. The
+  source of a subscribed catalog offers releases, and the tenant installs the ones it wants. The
   list is every release the source offers that the tenant has not installed, lowest first, not only
   those above the highest installed: here the tenant has `1.4.0` and `2.0.0`, and the fix `1.4.1`
   is offered alongside `2.1.0`, and `0.9.0`, below anything installed.

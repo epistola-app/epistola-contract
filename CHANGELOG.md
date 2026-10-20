@@ -24,20 +24,36 @@ libraries.
   `CATALOG_PRESET_NAME_INVALID`, `CATALOG_PRESET_DESCRIPTION_INVALID`); the migrator's wire check
   applies the preset rules; archives from wire v7 and earlier carry neither. In the API,
   `CatalogVersionDto` gains `defaultTheme` (`CatalogThemeReference`) and `presets`
-  (`CatalogPresetDto`), and `renameCatalogDraft` also sets them: an omitted member keeps its value,
+  (`CatalogPresetDto`), and `updateCatalogDraft` also sets them: an omitted member keeps its value,
   null (or an empty preset array) clears it.
-- **Optimistic locking with `ETag` and `If-Match`.** Templates, variants, themes, stencils, code
-  lists and attributes carry a revision, returned as a strong `ETag` response header (a quoted
-  decimal integer, e.g. `"7"`) by `getTemplate`, `getVariant`, `getVariantContent`, `getTheme`,
-  `getStencil`, `getStencilContent`, `getCodeList` and `getAttribute`, and on the 200 of a
-  successful update. `updateTemplate`, `updateVariant`, `updateVariantContent`, `setDefaultVariant`
-  (the `ETag` of the variant being made default), `updateTheme`, `updateStencil`,
-  `updateStencilContent`, `updateCodeList` and `updateAttribute` take an optional `If-Match` header:
+- **Optimistic locking with `ETag` and `If-Match`, on every update.** Templates, variants, themes,
+  stencils, code lists, attributes, catalog versions, environments, tenants and consumers carry a
+  revision, returned as a strong `ETag` response header (a quoted decimal integer, e.g. `"7"`) by
+  `getTemplate`, `getVariant`, `getVariantContent`, `getTheme`, `getStencil`, `getStencilContent`,
+  `getCodeList`, `getAttribute`, `getCatalogVersion`, `listCatalogDependencies`, `getEnvironment`,
+  `getTenant` and `getConsumer`, and on the 200 of a successful update. `updateTemplate`,
+  `updateVariant`, `updateVariantContent`, `setDefaultVariant` (the `ETag` of the variant being
+  made default), `updateTheme`, `updateStencil`, `updateStencilContent`, `updateCodeList`,
+  `updateCodeListEntryHidden` (the code list's `ETag`), `updateAttribute`, `updateCatalogDraft`,
+  `updateCatalogDependencies` (both the version's `ETag`, which covers its name, default theme,
+  presets and dependency declarations), `updateEnvironment` (its name and production mark),
+  `updateTenant` and `updateConsumer` take an optional `If-Match` header:
   when it no longer matches, the update is refused with 412 `resource-modified` (a new problem type,
   `ResourceModifiedError`) and nothing changes. Without `If-Match` an update applies as before, last
   write wins. A template's `ETag` covers its own properties; a variant's covers its title,
   attributes and template model, whether read through `getVariant` or `getVariantContent`. New
-  reusable components: the `IfMatch` parameter and the `ETag` response header.
+  reusable components: the `IfMatch` parameter and the `ETag` response header. Conformance
+  scenarios `update-tenant`, `update-environment-if-match`, `update-consumer-resource-modified`,
+  `update-catalog-draft`, `catalog-dependencies-update-resource-modified` and
+  `update-code-list-entry-hidden`, with the new driver actions `update-tenant` and
+  `update-code-list-entry-hidden`.
+- **`Location` on every create.** Every 201 (`createTenant`, `createEnvironment`,
+  `registerConsumer`, `createTemplate`, `createVariant`, `createStencil`, `createTheme`,
+  `createAttribute`, `createCodeList`, `uploadImage`, `createCatalogDraft`) carries the created
+  resource's address in `Location`, and the 202 of `generateDocument` and
+  `generateDocumentBatch` the job's (`getGenerationJobStatus`). New reusable component: the
+  `Location` response header. The `create-catalog-draft`, `create-environment` and
+  `generate-document` driver actions report the header as received.
 - **Releasing takes along the drafts it uses** (ADR 0002). In a draft, a dependency declaration
   names either an exact release or a draft of the other catalog: `CatalogDependencyRequirement` and
   `CatalogDependencyDto` gain a nullable `versionId`, exactly one of it and `releaseVersion` (400
@@ -140,7 +156,7 @@ libraries.
   draft has no number until it is released. `listCatalogVersions`, `createCatalogDraft`
   (`{name, from?}`: from a release number or another version's `versionId`, by default the highest
   release), `getCatalogVersion` (`CatalogVersionDto` with the required `versionId`, `name`,
-  `createdFrom`, and a `releaseVersion` that is null for a draft), `renameCatalogDraft`,
+  `createdFrom`, and a `releaseVersion` that is null for a draft), `updateCatalogDraft`,
   `deleteCatalogDraft`, `previewCatalogDraftRelease` (`CatalogDraftReleasePreview`: the `base`, the
   kind of change against it and why, the number the changes need, `needed`, and the number the draft
   gets, `suggested`) and `releaseCatalogDraft`, which releases any draft. Its number follows from the
@@ -190,7 +206,7 @@ libraries.
   environment use them without deploying them. A dependency release that cannot be had refuses the
   deployment with the new problem type `release-dependencies-missing` (409), whose
   `missingDependencies` member lists each release (`MissingReleaseDependency`) and its `reason`
-  (`MissingReleaseDependencyReason`, whose one value is `UNAVAILABLE`). The new `deployCatalogVersion`
+  (`MissingReleaseDependencyReason`, whose one value is `unavailable`). The new `deployCatalogVersion`
   query parameter `includeDependencies` (default false) also
   deploys them explicitly, all or nothing. Every client's problem parser surfaces
   `missingDependencies`; the server stubs add `ProblemDetails.releaseDependenciesMissing`.
@@ -207,11 +223,41 @@ libraries.
 
 ### Changed
 
+- **BREAKING: every API enum value is lowercase, kebab-case when it has several words.** Generation
+  job and item `status` (`pending`, `in-progress`, `completed`, `failed`, `cancelled`, and the
+  `listGenerationJobs` `status` filter), `jobType` (`single`, `batch`), `GenerationResult.status`
+  (`completed`, `failed`), code-list `sourceType` (`inline`, `url`) and `authType` (`none`,
+  `api-key`, `bearer`), `MissingReleaseDependencyReason` (`unavailable`), `PongResponse.status`
+  (`up`, `degraded`) and the catalog type (`authored`, `subscribed`), which is one shared schema,
+  `CatalogType`, instead of six inlined copies (`CatalogDto.type`, the `catalogType` of
+  `AttributeDto`, `CodeListDto`, `FontDto` and `ImageDto`, and `importCatalog`'s `catalogType`
+  field). `PageFormat` (`A4`, `Letter`, `Custom`) keeps its values: it belongs to the catalog wire
+  format. Every client's result collector, problem parser and driver read the new values; the
+  clients' missing-dependency reason constant is `unavailable`. The Kotlin client's generated
+  `ApiClient` sends an enum multipart part (`importCatalog`'s `catalogType`, now the top-level
+  `CatalogType`) as its plain value: Spring wrote it as a quoted JSON string, which the
+  `import-catalog` scenarios caught.
+- **BREAKING (client libraries): a collected result always names its catalog.** The hand-written
+  `GenerationResult` of every result collector types `registry`, `namespace` and `catalogKey` as
+  non-null, as the contract now requires them; `releaseVersion` is null for a draft.
+- **BREAKING: a count is `total`, a last change `lastModified`.** `PageMeta.totalElements`,
+  `GenerationJobResponse.totalCount` and `DocumentGenerationJobDto.totalCount` are `total`;
+  `CollectMeta.count`, the number of result lines in one collect response, is `resultCount`;
+  `ConsumerDto.updatedAt` is `lastModified`.
+- **BREAKING: `renameCatalogDraft` is `updateCatalogDraft`**, with `UpdateCatalogDraftRequest`: the
+  same PATCH, which sets a draft's name, default theme and presets. The conformance action
+  `rename-catalog-draft` is `update-catalog-draft`.
+- **The API description is rewritten for a newcomer**: what Epistola is, a glossary, a getting
+  started path (API key, headers, find a template, generate, poll the job, download; collecting
+  results as the high-volume path), then the catalog model, authentication and errors. The spec
+  refers to no ADR and no repository file: each rule is stated where it applies, and the guides are
+  linked by absolute URL. Tag descriptions say what each group covers, and the Epistola Suite
+  support hedge is stated once ("Experimental parts and server support").
+
 - **`stylePreset` names an available preset** (ADR 0007). The template document schema describes a
   block's `stylePreset` as one of the catalog's available presets (its declared `presets` plus those
   of the catalogs it depends on), falling back to the presets its themes style while it declares
-  none. `RenameCatalogDraftRequest.name` is now optional, since the request also carries the theme
-  settings.
+  none.
 - **`updateStencilContent` keeps the parameter schema when `parameterSchema` is left out.**
   Omitted or null used to clear it, so a client saving only the content silently removed the
   parameters every template using the stencil binds. Now a schema replaces it, and a schema that
@@ -223,11 +269,6 @@ libraries.
   server now fails on its first request, instead of having `releaseVersion` or `versionId` ignored
   and being served a release it did not ask for. Every client sends the new media type; the
   `media-types`, `error-accept` and request-shape conformance scenarios hold all five to it.
-
-- **`UpdateTemplateRequest.forceUpdate` has no effect.** A template is edited in a draft catalog
-  version, which nothing renders, so a breaking data-model change is saved without confirmation and
-  is no longer refused with `409`; it is weighed when the draft is numbered and released (ADR 0002).
-  The field stays so 1.x requests parse. Data examples are still always validated (`422`).
 
 - **A variant attribute key may name another catalog's attribute.** Wire v8 gave variant
   attribute keys the resource key rule, which refused the qualified form `<catalogKey>.<key>`
@@ -336,8 +377,7 @@ libraries.
 
 - **BREAKING: an API fingerprint names its algorithm.** `CatalogDto.fingerprint` and
   `CatalogVersionDto.fingerprint` are `v5:<hex>`, the value in the release's catalog archive
-  (pattern `^(v[1-9][0-9]*:)?[0-9a-f]{64}$`). A bare hex value is a fingerprint recorded before
-  contract 2.0 whose algorithm was not recorded.
+  (pattern `^v[1-9][0-9]*:[0-9a-f]{64}$`); a bare hex value is not a fingerprint any more.
 
 - **BREAKING: portable catalog wire v8.** A catalog archive identifies its catalog by registry,
   namespace and key (ADR 0003) and versions catalogs as a whole;
@@ -480,7 +520,8 @@ libraries.
   `InstallCatalogReleaseResponse`,
   `DeploymentDto`, `DeploymentEventDto`, `AttributeDto` (and its `codeListBinding`), `CodeListDto`,
   `FontDto`, `ImageDto` and `ImportCatalogResponse`. Generated documents, generation items and
-  collected results add nullable `registry`, `namespace` and `catalogKey` next to `releaseVersion`.
+  collected results (`DocumentDto`, `DocumentGenerationItemDto`, `GenerationResult`) add the
+  required `registry`, `namespace` and `catalogKey` next to `releaseVersion`.
   `importCatalog` takes an optional `registry` and `namespace`. The client libraries' template data
   validators take `registry` before `namespace` (`DEFAULT_REGISTRY = "~"`).
 
@@ -551,8 +592,8 @@ libraries.
   "a release is selected by a version range"); with neither, the catalog's latest release is
   rendered, never unreleased changes. Preview can render a draft instead (`draft`: its
   `versionId`). Jobs, documents and collected results
-  report `releaseVersion` in place of the template version's `versionId`; it is null for anything
-  generated before 2.0. A `versionId` in 2.0 is a catalog version's id (`CatalogVersionId`), never
+  report `releaseVersion` in place of the template version's `versionId`; it is null for a
+  draft rendered through an environment. A `versionId` in 2.0 is a catalog version's id (`CatalogVersionId`), never
   a template version's: a document rendered from a draft carries the draft's.
 
 - **The clients no longer bundle a JSON Schema library.** Every client validated template data
@@ -583,6 +624,12 @@ libraries.
 
 ### Removed
 
+- **BREAKING: the `X-API-Key` header** (`apiKeyAuth` security scheme). An API key is sent as
+  `Authorization: ApiKey <key>`, the only API-key transport the contract defines; no client sent
+  `X-API-Key`, and their READMEs no longer mention it.
+- **BREAKING: `UpdateTemplateRequest.forceUpdate`.** A template is edited in a draft, which nothing
+  renders, so a breaking data-model change needs no confirmation; it is weighed when the draft is
+  numbered and released. Data examples are still always validated (`422`).
 - **BREAKING: `upgradeCatalog`, `previewCatalogUpgrade` and the 1.x reconciliation of a subscribed
   catalog** (see "nothing is upgraded" under Changed; `installCatalogRelease` and
   `listAvailableCatalogReleases` replace them): `CatalogUpgradeDiff`,
@@ -652,12 +699,14 @@ libraries.
   `release` and `manage` where they exist), and the `bearerAuth` and `ConsumerDto.authMethod`
   descriptions name the consumer paths with their tenant prefix.
 
-- **The Jakarta EE client can read an `ETag`.** Its generated MicroProfile Rest Client methods
-  return the body alone, so a caller could send `If-Match` but never read the tag to send. Every
-  operation whose success response declares `ETag` now has a sibling `<operation>WithHttpInfo`
-  returning `jakarta.ws.rs.core.Response` (17 operations: get and update of attributes, code lists,
-  stencils and their content, templates, themes, variants and their content, and
-  `setDefaultVariant`); the build fails if one stops matching. The other clients already exposed
+- **The Jakarta EE client can read an `ETag` and a `Location`.** Its generated MicroProfile Rest
+  Client methods return the body alone, so a caller could send `If-Match` but never read the tag to
+  send, nor the address of what it created. Every operation whose success response declares `ETag`
+  or `Location` now has a sibling `<operation>WithHttpInfo` returning `jakarta.ws.rs.core.Response`
+  (41 operations: every get and update that answers with an `ETag`, every create, and
+  `generateDocument` and `generateDocumentBatch`), `uploadImageWithHttpInfo` with its one-argument-
+  per-field overload; the build fails if one stops matching. `importCatalog`'s convenience overload
+  takes the shared `CatalogType` enum. The other clients already exposed
   it (`…WithHttpInfo`, `…_with_http_info`, `…Raw`).
 - **Conformance covers every operation contract 2.0 adds.** New scenarios drive
   `getVariantContent` and `getStencilContent` (reading the `ETag` exactly, quotes included),

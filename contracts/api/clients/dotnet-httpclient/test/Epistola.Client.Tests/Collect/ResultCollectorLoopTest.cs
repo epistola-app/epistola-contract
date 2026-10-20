@@ -29,7 +29,7 @@ public class ResultCollectorLoopTest
     public async Task StartPollsUntilStopped()
     {
         var ndjson =
-            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"COMPLETED\"}\n" +
+            "{\"sequence\":1,\"requestId\":\"r1\",\"status\":\"completed\",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"letters\"}\n" +
             "{\"_meta\":true,\"hasMore\":false}\n";
 
         var received = new List<ResultCollector.GenerationResult>();
@@ -58,7 +58,7 @@ public class ResultCollectorLoopTest
         await loop; // Stop() must break the loop promptly
 
         Assert.True(received.Count >= 1);
-        Assert.Equal("COMPLETED", received[0].Status);
+        Assert.Equal("completed", received[0].Status);
     }
 
     [Fact]

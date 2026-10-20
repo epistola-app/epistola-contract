@@ -59,11 +59,10 @@ template = templates.get_template("acme", "~", "acme", "invoices", "1.4.0", "inv
 Everything in a catalog is addressed through one of its versions, by its `version_id` or, once
 released, by its exact SemVer number: a version keeps its id when it is released. A catalog can have any number of drafts, and a draft is numbered
 when it is released. `CatalogsApi` lists and reads those versions, starts drafts (from a release or
-another draft), renames and discards them, and previews and releases any of them
+another draft), updates (`update_catalog_draft`) and discards them, and previews and releases any of them
 (`create_catalog_draft`, `preview_catalog_draft_release`, `release_catalog_draft`, …).
 
-`.api_key(...)` sends `Authorization: ApiKey <key>`. The legacy `X-API-Key` header remains
-supported for existing integrations, but is deprecated. Some Epistola Suite deployments may disable
+`.api_key(...)` sends `Authorization: ApiKey <key>`. Some Epistola Suite deployments may disable
 API-key authentication entirely; with `.install_problem_detail_handler()`, switch on
 `e.type_slug == KnownProblemSlugs.API_KEY_AUTH_DISABLED` and guide the caller to JWT auth.
 
@@ -147,13 +146,31 @@ collector = (
     .tenant_key("acme")
     .handler(lambda result: print(
         result.request_id,
-        result.status,
-        # The catalog release it was generated from; None for results from before contract 2.0.
+        result.status,  # "completed" or "failed", as sent
+        # The catalog it was generated from; release_version is None when rendered from a draft.
         f"{result.registry}/{result.namespace}/{result.catalog_key}@{result.release_version}",
     ))
     .build()
 )
 collector.start()   # blocks; adaptive polling until collector.stop()
+```
+
+## Response headers
+
+Each operation has a `…_with_http_info` variant that returns the response headers next to the
+parsed body. Updates that take `if_match` answer with the new `ETag`, and a stale one is refused
+with `412` (`KnownProblemSlugs.RESOURCE_MODIFIED`); a create answers with the `Location` of what
+it made:
+
+```python
+from epistola_client import EnvironmentsApi, UpdateEnvironmentRequest
+
+environments = EnvironmentsApi(http)
+current = environments.get_environment_with_http_info("acme", "staging")
+updated = environments.update_environment_with_http_info(
+    "acme", "staging", UpdateEnvironmentRequest(name="Staging"),
+    if_match=current.headers["ETag"],
+)
 ```
 
 ## Uploading files

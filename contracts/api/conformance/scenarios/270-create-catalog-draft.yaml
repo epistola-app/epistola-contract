@@ -66,6 +66,7 @@ expect:
     versionId: r4t8w2nc
     name: Fixes 1.4
     status: draft
+    location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/r4t8w2nc
     base: 1.4.0
     createdFrom: 'null'
     releasedAt: 'null'

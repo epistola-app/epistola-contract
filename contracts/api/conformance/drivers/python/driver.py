@@ -5,8 +5,8 @@
 """The Python client's conformance driver.
 
 Asks the conformance server what to do, does it with the published client, and reports back. It
-asserts nothing — the server judges the requests, so the four clients are held to one set of
-expectations rather than four that drift. See ../../README.md for the driver contract.
+asserts nothing — the server judges the requests, so the five clients are held to one set of
+expectations rather than five that drift. See ../../README.md for the driver contract.
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ from epistola_client import (
     CatalogThemeReference,
     CatalogsApi,
     ClientIdentity,
+    CodeListsApi,
     ConsumersApi,
     CreateCatalogDraftRequest,
     CreateEnvironmentRequest,
@@ -39,17 +40,20 @@ from epistola_client import (
     PingRequest,
     ProblemDetailException,
     ReleaseCatalogDraftRequest,
-    RenameCatalogDraftRequest,
     ResultCollector,
     StencilsApi,
     SystemApi,
     TemplateDataValidationError,
     TemplateSchemaValidator,
     TemplatesApi,
+    TenantsApi,
     UpdateCatalogDependenciesRequest,
+    UpdateCatalogDraftRequest,
+    UpdateCodeListEntryHiddenRequest,
     UpdateConsumerRequest,
     UpdateEnvironmentRequest,
     UpdateStencilContentRequest,
+    UpdateTenantRequest,
     UpdateVariantContentRequest,
     VariantsApi,
 )
@@ -87,7 +91,7 @@ def main() -> int:
         "create-catalog-draft": _create_catalog_draft,
         "list-catalog-versions": _list_catalog_versions,
         "get-catalog-version": _get_catalog_version,
-        "rename-catalog-draft": _rename_catalog_draft,
+        "update-catalog-draft": _update_catalog_draft,
         "set-catalog-draft-theme-settings": _set_catalog_draft_theme_settings,
         "preview-catalog-draft-release": _preview_catalog_draft_release,
         "delete-catalog-draft": _delete_catalog_draft,
@@ -96,6 +100,8 @@ def main() -> int:
         "undeploy-catalog-version": _undeploy_catalog_version,
         "create-environment": _create_environment,
         "update-environment": _update_environment,
+        "update-tenant": _update_tenant,
+        "update-code-list-entry-hidden": _update_code_list_entry_hidden,
         "update-variant-content": _update_variant_content,
         "get-variant-content": _get_variant_content,
         "mark-variant-ready": _mark_variant_ready,
@@ -278,7 +284,7 @@ def _generate_document(base_url: str, config: dict) -> None:
         )
         if name in config
     }
-    GenerationApi(_client(base_url, config)).generate_document(
+    response = GenerationApi(_client(base_url, config)).generate_document_with_http_info(
         config["tenantKey"],
         GenerateDocumentRequest(
             namespace=config["namespace"],
@@ -287,6 +293,17 @@ def _generate_document(base_url: str, config: dict) -> None:
             data=config["data"],
             **optional,
         ),
+    )
+    job = response.data
+    _report(
+        base_url,
+        {
+            "requestId": _show(job.request_id),
+            "status": _show(_enum(job.status)),
+            "jobType": _show(_enum(job.job_type)),
+            "total": job.total,
+            "location": _header(response, "Location"),
+        },
     )
 
 
@@ -516,33 +533,38 @@ def _list_catalog_dependencies(base_url: str, config: dict) -> None:
 
 
 def _update_catalog_dependencies(base_url: str, config: dict) -> None:
-    response = CatalogsApi(_client(base_url, config)).update_catalog_dependencies(
-        config["tenantKey"],
-        config["registry"],
-        config["namespace"],
-        config["catalogKey"],
-        config["catalogVersion"],
-        UpdateCatalogDependenciesRequest(
-            dependencies=[
-                CatalogDependencyRequirement(
-                    # Only when the entry names one: omitted means the server's default registry.
-                    **({"registry": dependency["registry"]} if "registry" in dependency else {}),
-                    namespace=dependency["namespace"],
-                    catalogKey=dependency["catalogKey"],
-                    # Exactly one of these names what the declaration uses: only the one given.
-                    **{name: dependency[name] for name in ("releaseVersion", "versionId") if name in dependency},
-                )
-                for dependency in config["dependencies"]
-            ]
-        ),
+    """Replaces a version's dependency declarations, conditional on ``ifMatch`` when the scenario
+    sets it. A refusal is reported by its problem."""
+    request = UpdateCatalogDependenciesRequest(
+        dependencies=[
+            CatalogDependencyRequirement(
+                # Only when the entry names one: omitted means the server's default registry.
+                **({"registry": dependency["registry"]} if "registry" in dependency else {}),
+                namespace=dependency["namespace"],
+                catalogKey=dependency["catalogKey"],
+                # Exactly one of these names what the declaration uses: only the one given.
+                **{name: dependency[name] for name in ("releaseVersion", "versionId") if name in dependency},
+            )
+            for dependency in config["dependencies"]
+        ]
     )
-    _report_dependencies(base_url, response.items)
+    try:
+        response = CatalogsApi(_client(base_url, config)).update_catalog_dependencies_with_http_info(
+            *_catalog_version_address(config),
+            request,
+            if_match=config.get("ifMatch"),
+        )
+    except ProblemDetailException as exc:
+        _report_problem(base_url, exc)
+        return
+    _report_dependencies(base_url, response.data.items, {"etag": _header(response, "ETag")})
 
 
-def _report_dependencies(base_url: str, dependencies) -> None:
+def _report_dependencies(base_url: str, dependencies, extra: dict | None = None) -> None:
     _report(
         base_url,
         {
+            **(extra or {}),
             "registries": ",".join(_show(d.registry) for d in dependencies),
             "namespaces": ",".join(_show(d.namespace) for d in dependencies),
             "catalogKeys": ",".join(_show(d.catalog_key) for d in dependencies),
@@ -561,13 +583,14 @@ def _create_catalog_draft(base_url: str, config: dict) -> None:
     """Starts a draft. ``from`` is a Python keyword, so the generated model names the member
     ``var_from``; it is passed by its alias, and only when the scenario sets it."""
     optional = {"from": config["from"]} if "from" in config else {}
-    created = CatalogsApi(_client(base_url, config)).create_catalog_draft(
+    response = CatalogsApi(_client(base_url, config)).create_catalog_draft_with_http_info(
         config["tenantKey"],
         config["registry"],
         config["namespace"],
         config["catalogKey"],
         CreateCatalogDraftRequest(name=config["name"], **optional),
     )
+    created = response.data
     _report(
         base_url,
         {
@@ -578,6 +601,7 @@ def _create_catalog_draft(base_url: str, config: dict) -> None:
             "base": _show(created.base),
             "createdFrom": _show(created.created_from),
             "releasedAt": _show_instant(created.released_at),
+            "location": _header(response, "Location"),
         },
     )
 
@@ -632,11 +656,19 @@ def _get_catalog_version(base_url: str, config: dict) -> None:
     )
 
 
-def _rename_catalog_draft(base_url: str, config: dict) -> None:
-    version = CatalogsApi(_client(base_url, config)).rename_catalog_draft(
-        *_catalog_version_address(config),
-        RenameCatalogDraftRequest(name=config["name"]),
-    )
+def _update_catalog_draft(base_url: str, config: dict) -> None:
+    """Renames a draft, conditional on ``ifMatch`` when the scenario sets it. A refusal is
+    reported by its problem."""
+    try:
+        response = CatalogsApi(_client(base_url, config)).update_catalog_draft_with_http_info(
+            *_catalog_version_address(config),
+            UpdateCatalogDraftRequest(name=config["name"]),
+            if_match=config.get("ifMatch"),
+        )
+    except ProblemDetailException as exc:
+        _report_problem(base_url, exc)
+        return
+    version = response.data
     _report(
         base_url,
         {
@@ -645,6 +677,7 @@ def _rename_catalog_draft(base_url: str, config: dict) -> None:
             "name": _show(version.name),
             "status": _show(_enum(version.status)),
             "base": _show(version.base),
+            "etag": _header(response, "ETag"),
         },
     )
 
@@ -661,9 +694,9 @@ def _set_catalog_draft_theme_settings(base_url: str, config: dict) -> None:
         )
         for entry in config["presets"]
     ]
-    version = CatalogsApi(_client(base_url, config)).rename_catalog_draft(
+    version = CatalogsApi(_client(base_url, config)).update_catalog_draft(
         *_catalog_version_address(config),
-        RenameCatalogDraftRequest(default_theme=default_theme, presets=presets),
+        UpdateCatalogDraftRequest(default_theme=default_theme, presets=presets),
     )
     parsed = version.presets or []
     theme = version.default_theme
@@ -977,7 +1010,7 @@ def _list_stencil_usage(base_url: str, config: dict) -> None:
             "fits": ",".join(_show_bool(u.fits) for u in response.items),
             "problems": ";".join("|".join(u.problems) for u in response.items),
             "pageNumber": _show(response.page.number),
-            "totalElements": _show(response.page.total_elements),
+            "total": _show(response.page.total),
         },
     )
 
@@ -1040,7 +1073,7 @@ def _list_deployment_history(base_url: str, config: dict) -> None:
             "draftNames": "|".join(_show(e.draft_name) for e in items),
             "changedAt": ",".join(_show_instant(e.changed_at) for e in items),
             "changedBy": "|".join(_show(e.changed_by) for e in items),
-            "totalElements": _show(response.page.total_elements),
+            "total": _show(response.page.total),
         },
     )
 
@@ -1048,33 +1081,75 @@ def _list_deployment_history(base_url: str, config: dict) -> None:
 def _create_environment(base_url: str, config: dict) -> None:
     """Creates an environment; ``production`` goes out only when the scenario sets it."""
     optional = {"production": config["production"]} if "production" in config else {}
-    environment = EnvironmentsApi(_client(base_url, config)).create_environment(
+    response = EnvironmentsApi(_client(base_url, config)).create_environment_with_http_info(
         config["tenantKey"],
         CreateEnvironmentRequest(key=config["key"], name=config["name"], **optional),
     )
-    _report_environment(base_url, environment)
+    _report_environment(base_url, response.data, {"location": _header(response, "Location")})
 
 
 def _update_environment(base_url: str, config: dict) -> None:
-    """A partial update: each member goes out only when the scenario sets it. A refusal is
-    reported by its problem."""
+    """A partial update: each member goes out only when the scenario sets it, conditional on
+    ``ifMatch`` when the scenario sets it. A refusal is reported by its problem."""
     optional = {name: config[name] for name in ("name", "production") if name in config}
     try:
-        environment = EnvironmentsApi(_client(base_url, config)).update_environment(
+        response = EnvironmentsApi(_client(base_url, config)).update_environment_with_http_info(
             config["tenantKey"],
             config["environmentKey"],
             UpdateEnvironmentRequest(**optional),
+            if_match=config.get("ifMatch"),
         )
     except ProblemDetailException as exc:
-        _report(base_url, {"problemTypeSlug": exc.type_slug or "<null>", "problemStatus": exc.status_code})
+        _report_problem(base_url, exc)
         return
-    _report_environment(base_url, environment)
+    _report_environment(base_url, response.data, {"etag": _header(response, "ETag")})
 
 
-def _report_environment(base_url: str, environment) -> None:
+def _update_tenant(base_url: str, config: dict) -> None:
+    """Renames a tenant, conditional on ``ifMatch`` when the scenario sets it. A refusal is
+    reported by its problem."""
+    try:
+        response = TenantsApi(_client(base_url, config)).update_tenant_with_http_info(
+            config["tenantKey"],
+            UpdateTenantRequest(name=config["name"]),
+            if_match=config.get("ifMatch"),
+        )
+    except ProblemDetailException as exc:
+        _report_problem(base_url, exc)
+        return
+    tenant = response.data
+    _report(
+        base_url,
+        {"key": _show(tenant.key), "name": _show(tenant.name), "etag": _header(response, "ETag")},
+    )
+
+
+def _update_code_list_entry_hidden(base_url: str, config: dict) -> None:
+    """Hides or shows one code-list entry, conditional on the code list's ``ifMatch`` when the
+    scenario sets it. A refusal is reported by its problem."""
+    try:
+        response = CodeListsApi(_client(base_url, config)).update_code_list_entry_hidden_with_http_info(
+            *_catalog_version_address(config),
+            config["codeListKey"],
+            config["code"],
+            UpdateCodeListEntryHiddenRequest(hidden=config["hidden"]),
+            if_match=config.get("ifMatch"),
+        )
+    except ProblemDetailException as exc:
+        _report_problem(base_url, exc)
+        return
+    entry = response.data
+    _report(
+        base_url,
+        {"code": _show(entry.code), "hidden": _show_bool(entry.hidden), "etag": _header(response, "ETag")},
+    )
+
+
+def _report_environment(base_url: str, environment, extra: dict | None = None) -> None:
     _report(
         base_url,
         {
+            **(extra or {}),
             "key": _show(environment.key),
             "name": _show(environment.name),
             "production": _show_bool(environment.production),
@@ -1093,17 +1168,27 @@ def _update_consumer(base_url: str, config: dict) -> None:
     "clear this", so a serializer that writes nulls for unset properties turns "rename this
     consumer" into "rename it and erase its description, contact and expiry".
     """
-    ConsumersApi(_client(base_url, config)).update_consumer(
-        config["tenantKey"],
-        config["consumerId"],
-        UpdateConsumerRequest(name=config["name"]),
+    try:
+        response = ConsumersApi(_client(base_url, config)).update_consumer_with_http_info(
+            config["tenantKey"],
+            config["consumerId"],
+            UpdateConsumerRequest(name=config["name"]),
+            if_match=config.get("ifMatch"),
+        )
+    except ProblemDetailException as exc:
+        _report_problem(base_url, exc)
+        return
+    consumer = response.data
+    _report(
+        base_url,
+        {"id": _show(consumer.id), "name": _show(consumer.name), "etag": _header(response, "ETag")},
     )
 
 
 def _routing(base_url: str, config: dict) -> None:
     """One poll to learn the partition assignment from the ``_meta`` line, then the routing helpers.
 
-    The values are reported rather than asserted here: the harness holds all four clients to the
+    The values are reported rather than asserted here: the harness holds all five clients to the
     same answers, which is the only way four independent murmur3 implementations stay in step.
     """
     collector = (
@@ -1133,6 +1218,16 @@ def _routing(base_url: str, config: dict) -> None:
             ),
         },
     )
+
+
+def _report_problem(base_url: str, exc: ProblemDetailException) -> None:
+    _report(base_url, {"problemTypeSlug": exc.type_slug or "<null>", "problemStatus": exc.status_code})
+
+
+def _header(response, name: str) -> str:
+    """A response header exactly as received, quotes included; ``null`` when absent. urllib3's
+    header dict matches names case-insensitively."""
+    return _show((response.headers or {}).get(name))
 
 
 def _show(value) -> str:

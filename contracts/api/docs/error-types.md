@@ -89,7 +89,7 @@ unconditionally, and the last write wins.
 
 ## Catalog source unavailable
 
-`listAvailableCatalogReleases` and `installCatalogRelease` need a SUBSCRIBED catalog's source: its
+`listAvailableCatalogReleases` and `installCatalogRelease` need a subscribed catalog's source: its
 registry, through the mirrors configured for it (ADR 0003). When the source cannot be used, the
 request fails with `catalog-source-unavailable`, and nothing is installed. The status says why:
 

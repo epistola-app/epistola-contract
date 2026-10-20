@@ -95,7 +95,7 @@ const ACTION_OPERATIONS = {
   'create-catalog-draft': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions' },
   'list-catalog-versions': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions' },
   'get-catalog-version': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}' },
-  'rename-catalog-draft': { method: 'patch', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}' },
+  'update-catalog-draft': { method: 'patch', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}' },
   'set-catalog-draft-theme-settings': { method: 'patch', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}' },
   'preview-catalog-draft-release': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/release-preview' },
   'delete-catalog-draft': { method: 'delete', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}' },
@@ -105,6 +105,11 @@ const ACTION_OPERATIONS = {
     path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/available-releases/{releaseVersion}/install',
   },
   'list-available-catalog-releases': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/available-releases' },
+  'update-tenant': { method: 'patch', path: '/tenants/{tenantKey}' },
+  'update-code-list-entry-hidden': {
+    method: 'patch',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/code-lists/{codeListKey}/entries/{code}/hidden',
+  },
   collect: { method: 'post', path: '/tenants/{tenantKey}/generation/collect' },
   routing: { method: 'post', path: '/tenants/{tenantKey}/generation/collect' },
 }

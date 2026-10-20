@@ -78,7 +78,7 @@ generation-collect:
       ## NDJSON response format
 
       - **Result lines**: `GenerationResult` objects, one per line
-      - **Meta line**: Last line, identified by `_meta: true`, contains `hasMore` and `count`
+      - **Meta line**: Last line, identified by `_meta: true`, contains `hasMore` and `resultCount`
 
       ## Adaptive polling
 

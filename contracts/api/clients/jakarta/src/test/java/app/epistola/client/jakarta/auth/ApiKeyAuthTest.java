@@ -16,10 +16,10 @@ import org.junit.jupiter.api.Test;
 class ApiKeyAuthTest {
 
     private static final String PONG =
-            "{\"status\":\"UP\",\"timestamp\":\"2026-09-02T10:00:00Z\"}";
+            "{\"status\":\"up\",\"timestamp\":\"2026-09-02T10:00:00Z\"}";
 
     @Test
-    void the_key_is_sent_as_an_authorization_scheme_not_the_legacy_header() {
+    void the_key_is_sent_as_an_authorization_scheme() {
         try (StubServer stub = StubServer.start(
                 request -> StubServer.StubResponse.of(200, "application/vnd.epistola.v2+json", PONG))) {
 
@@ -32,7 +32,6 @@ class ApiKeyAuthTest {
 
             StubServer.RecordedRequest request = stub.onlyRequest();
             assertEquals("ApiKey epk_live_abc123", request.header("Authorization"));
-            assertEquals(null, request.header("X-API-Key"), "the legacy header is deprecated and not sent");
         }
     }
 

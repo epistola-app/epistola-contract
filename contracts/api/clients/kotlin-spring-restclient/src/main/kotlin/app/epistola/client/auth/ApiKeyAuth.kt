@@ -12,8 +12,7 @@ import org.springframework.http.client.ClientHttpRequestInterceptor
 /**
  * Static API-key authentication helper.
  *
- * New integrations should send API keys through `Authorization: ApiKey <key>`.
- * The legacy `X-API-Key` header is still supported by the API but deprecated.
+ * Sends the key as `Authorization: ApiKey <key>`, the only way the API accepts an API key.
  */
 class ApiKeyAuth private constructor(
     private val apiKey: String,

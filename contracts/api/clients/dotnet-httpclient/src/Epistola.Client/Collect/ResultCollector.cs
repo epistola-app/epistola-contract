@@ -383,15 +383,20 @@ public sealed class ResultCollector
         RoutingKey: node["routingKey"]?.Value<string>(),
         TemplateKey: node["templateKey"]?.Value<string>(),
         VariantKey: node["variantKey"]?.Value<string>(),
-        Registry: node["registry"]?.Value<string>(),
-        Namespace: node["namespace"]?.Value<string>(),
-        CatalogKey: node["catalogKey"]?.Value<string>(),
+        Registry: Required(node, "registry"),
+        Namespace: Required(node, "namespace"),
+        CatalogKey: Required(node, "catalogKey"),
         ReleaseVersion: node["releaseVersion"]?.Value<string>(),
         Filename: node["filename"]?.Value<string>(),
         ContentType: node["contentType"]?.Value<string>(),
         SizeBytes: node["sizeBytes"]?.Value<long?>(),
         Error: node["error"]?.Value<string>(),
         CompletedAt: node["completedAt"]?.Value<string>());
+
+    /// <summary>A member the contract requires on every result line; a line without it is malformed.</summary>
+    private static string Required(JObject node, string member) =>
+        node[member]?.Value<string>()
+        ?? throw new FormatException($"result line {node["sequence"]} has no {member}, which the contract requires");
 
     private static string SupportedEncodings()
     {
@@ -516,8 +521,9 @@ public sealed class ResultCollector
     /// <see cref="Registry"/>, <see cref="Namespace"/>, <see cref="CatalogKey"/> and
     /// <see cref="ReleaseVersion"/> name the catalog release the document was rendered from; a
     /// release version means nothing without its catalog. <see cref="Registry"/> is always named in
-    /// full (<c>exchange.epistola.app</c>), never <c>~</c>. All four are null for a result accepted
-    /// before contract 2.0, which rendered a template version.
+    /// full (<c>exchange.epistola.app</c>), never <c>~</c>. The catalog is always named;
+    /// <see cref="ReleaseVersion"/> is null when the document was rendered from a draft.
+    /// <see cref="Status"/> is the wire value, <c>completed</c> or <c>failed</c>.
     /// </remarks>
     public sealed record GenerationResult(
         long Sequence,
@@ -529,9 +535,9 @@ public sealed class ResultCollector
         string? RoutingKey,
         string? TemplateKey,
         string? VariantKey,
-        string? Registry,
-        string? Namespace,
-        string? CatalogKey,
+        string Registry,
+        string Namespace,
+        string CatalogKey,
         string? ReleaseVersion,
         string? Filename,
         string? ContentType,

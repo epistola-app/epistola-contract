@@ -25,7 +25,7 @@ RESULTS = [
     {
         "sequence": 501,
         "requestId": "11111111-1111-4111-8111-000000000501",
-        "status": "COMPLETED",
+        "status": "completed",
         "registry": "exchange.example.org",
         "namespace": "team-a",
         "catalogKey": "invoices",
@@ -33,10 +33,26 @@ RESULTS = [
         "templateKey": "invoice",
         "variantKey": "nl-nl",
     },
-    {"sequence": 502, "requestId": "11111111-1111-4111-8111-000000000502", "status": "FAILED"},
-    {"sequence": 503, "requestId": "11111111-1111-4111-8111-000000000503", "status": "COMPLETED"},
+    {
+        "sequence": 502,
+        "requestId": "11111111-1111-4111-8111-000000000502",
+        "status": "failed",
+        "registry": "exchange.example.org",
+        "namespace": "team-a",
+        "catalogKey": "invoices",
+        "releaseVersion": None,
+    },
+    {
+        "sequence": 503,
+        "requestId": "11111111-1111-4111-8111-000000000503",
+        "status": "completed",
+        "registry": "exchange.example.org",
+        "namespace": "team-a",
+        "catalogKey": "invoices",
+        "releaseVersion": "1.4.2",
+    },
 ]
-META = {"_meta": True, "hasMore": True, "count": 3, "partitions": {"total": 8, "mine": [0, 3], "hash": "murmur3"}}
+META = {"_meta": True, "hasMore": True, "resultCount": 3, "partitions": {"total": 8, "mine": [0, 3], "hash": "murmur3"}}
 
 
 def _ndjson() -> bytes:
@@ -122,14 +138,22 @@ def test_each_result_names_the_catalog_release_it_was_generated_from(server):
         "invoices",
         "1.4.2",
     )
-    # A result from before contract 2.0 carries none of the four; that is null, not an error.
+    # A document rendered from a draft names its catalog but no release; that is null, not an error.
     second = handled[1]
     assert (second.registry, second.namespace, second.catalog_key, second.release_version) == (
-        None,
-        None,
-        None,
+        "exchange.example.org",
+        "team-a",
+        "invoices",
         None,
     )
+
+
+def test_each_status_is_the_wire_value_as_sent(server):
+    handled = []
+
+    _collector(server, handled).collect_once()
+
+    assert [r.status for r in handled] == ["completed", "failed", "completed"]
 
 
 def test_each_result_names_its_template_and_variant_by_key(server):

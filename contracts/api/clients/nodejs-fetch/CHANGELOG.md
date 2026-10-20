@@ -49,8 +49,10 @@ records contract changes; this file records changes to the hand-written library 
   generation by release. It may be combined with `environmentKey`; without either, the catalog's
   latest release is checked.
 - Results handed to a `ResultCollector` handler carry the template's catalog as `registry`,
-  `namespace` and `catalogKey` next to `releaseVersion`; all four are null for a result accepted
-  before contract 2.0.
+  `namespace` and `catalogKey`, always set, next to `releaseVersion`, which is null for a result
+  rendered from a draft.
+- The README no longer mentions the `X-API-Key` header: the contract dropped it, and the client
+  only ever sent `Authorization: ApiKey <key>`.
 
 - **Template data is validated by the server, not by a bundled schema compiler.**
   `TemplateSchemaValidator` and `ValidatingGenerationApi` now call `validateTemplateData` through a

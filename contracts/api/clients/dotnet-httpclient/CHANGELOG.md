@@ -32,6 +32,18 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Changed
 
+- **BREAKING:** the result collector's `GenerationResult.Registry`, `Namespace` and `CatalogKey`
+  are non-nullable `string`s: every result line names its catalog. A line without one of them is
+  malformed and `CollectOnce()` throws a `FormatException`. `ReleaseVersion` stays nullable (null
+  for a document rendered from a draft). `Status` carries the lowercase wire value, `completed` or
+  `failed`; compare against those, not `COMPLETED` / `FAILED`.
+- **BREAKING:** `MissingDependency.Reasons.Unavailable` is `"unavailable"`, the lowercase wire
+  value, in place of `"UNAVAILABLE"`.
+- The README no longer mentions the `X-API-Key` header, which the contract no longer defines; the
+  client never sent it. API keys go out as `Authorization: ApiKey <key>`, as before.
+- The README documents the `…WithHttpInfo` variants for reading the `Location` and `ETag` response
+  headers, and conditional updates with `ifMatch`, using `UpdateCatalogDraft` (formerly
+  `RenameCatalogDraft`).
 - **BREAKING:** `EpistolaMediaTypeHandler.VendorJson` and the result collector send
   `application/vnd.epistola.v2+json` and `application/vnd.epistola.v2+ndjson`, the contract 2.x media
   types. A 2.x server refuses the 1.x ones.
@@ -52,8 +64,7 @@ records contract changes; this file records changes to the hand-written library 
   (`acme.com`). The namespace is a plain slug. `ValidatingGenerationApi` hands a validator `~` for
   a request whose `registry` is unset and passes a named registry on as given. It no longer
   converts `host/name` namespaces to `host~name`, because neither form exists any more.
-- **BREAKING:** the result collector's `GenerationResult` gained `Registry` (null for results from
-  before contract 2.0), before `Namespace`. `GenerationResult` is a positional record, so code
+- **BREAKING:** the result collector's `GenerationResult` gained `Registry`, before `Namespace`. `GenerationResult` is a positional record, so code
   constructing it positionally must add the argument.
 
 - The reference in-process validator to copy, `NJsonSchemaTemplateDataValidator` under
@@ -62,8 +73,8 @@ records contract changes; this file records changes to the hand-written library 
   validators are unchanged: `validateTemplateData` is not addressed by version.
 - **BREAKING:** `ServerTemplateDataValidator`'s `releaseVersion` parameter is now `versionRange`,
   a version range sent as the request's `versionRange`; it may be combined with `environmentKey`.
-- The result collector's `GenerationResult` gained `Namespace` and `CatalogKey` (null for results
-  from before contract 2.0), next to `ReleaseVersion`. `GenerationResult` is a positional record, so
+- The result collector's `GenerationResult` gained `Namespace` and `CatalogKey`, next to
+  `ReleaseVersion`. `GenerationResult` is a positional record, so
   code constructing it positionally must add the two arguments.
 - The derived-source generator names a constrained `version` property `VarVersion`, as the
   OpenAPI generator does, so `Validate()` compiles for models that carry one.

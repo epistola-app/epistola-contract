@@ -40,7 +40,8 @@ MAX_ROUTING_KEY_ATTEMPTS = 1000
 
 @dataclass(frozen=True)
 class GenerationResult:
-    """A completed or failed generation result."""
+    """A completed or failed generation result. ``status`` is the wire value as sent:
+    ``completed`` or ``failed``."""
 
     sequence: int
     request_id: str
@@ -51,13 +52,13 @@ class GenerationResult:
     routing_key: Optional[str]
     template_key: Optional[str]
     variant_key: Optional[str]
-    #: The catalog's registry, named in full (never ``~``); ``None`` for results from before
-    #: contract 2.0.
-    registry: Optional[str]
-    #: The catalog's namespace within its registry; ``None`` for results from before contract 2.0.
-    namespace: Optional[str]
-    #: The catalog's key within its namespace; ``None`` for results from before contract 2.0.
-    catalog_key: Optional[str]
+    #: The catalog's registry, named in full (never ``~``).
+    registry: str
+    #: The catalog's namespace within its registry.
+    namespace: str
+    #: The catalog's key within its namespace.
+    catalog_key: str
+    #: The release the document was rendered from; ``None`` when it was rendered from a draft.
     release_version: Optional[str]
     filename: Optional[str]
     content_type: Optional[str]
@@ -486,9 +487,9 @@ def _parse_result(node: dict) -> GenerationResult:
         routing_key=node.get("routingKey"),
         template_key=node.get("templateKey"),
         variant_key=node.get("variantKey"),
-        registry=node.get("registry"),
-        namespace=node.get("namespace"),
-        catalog_key=node.get("catalogKey"),
+        registry=node.get("registry") or "",
+        namespace=node.get("namespace") or "",
+        catalog_key=node.get("catalogKey") or "",
         release_version=node.get("releaseVersion"),
         filename=node.get("filename"),
         content_type=node.get("contentType"),

@@ -58,7 +58,7 @@ stencils:
     description: |
       Create a stencil in the draft. `content` and `parameterSchema`, when given, are its initial
       content and parameters; the stencil starts with status `new`. A stencil has no versions of
-      its own: it is versioned with its catalog (ADR 0002).
+      its own: it is versioned with its catalog, as every resource in it is.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_EDIT]
@@ -71,6 +71,10 @@ stencils:
     responses:
       '201':
         description: Stencil created successfully
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The stencil's address (`getStencil`)
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -181,7 +185,7 @@ stencils-id:
     summary: Delete a stencil
     description: |
       Delete the stencil from the draft. The templates and stencils that use it hold a reference,
-      not a copy (ADR 0006), so their instances then name a stencil that does not exist: they are
+      not a copy, so their instances then name a stencil that does not exist: they are
       not changed, and the draft cannot be released until they are edited (`listStencilUsage`
       lists them beforehand). Refused with 409 in a released version.
     tags:
@@ -255,7 +259,7 @@ stencil-content:
       Replaces the stencil's content in the draft, and its parameters when `parameterSchema` is
       given: left out, they stay; `{}` removes them. Every template and stencil in the draft that
       uses the stencil renders the new content at once: an instance refers to the stencil and holds
-      no copy of it (ADR 0006). The edit clears the stencil's ready mark; instances the new content
+      no copy of it. The edit clears the stencil's ready mark; instances the new content
       no longer fits are reported (`listStencilUsage`, `markStencilReady`) and block the release.
       Send the `ETag` from a read as `If-Match` to have the update refused with 412
       `resource-modified` if the resource changed since; without it, the last write wins.
@@ -323,7 +327,7 @@ stencil-mark-ready:
     summary: Mark the stencil ready
     description: |
       Records that the stencil's current content is reviewed, and nothing else: every instance
-      already renders the stencil as it is (ADR 0006). The response names the instances that do not
+      already renders the stencil as it is, since an instance refers to it rather than copying it. The response names the instances that do not
       fit the content, which block the catalog release.
     tags:
       - Stencils

@@ -74,8 +74,7 @@ X-EP-Node-Id: my-pod-123
 ## Authentication
 
 Static tenant API keys are the supported method. `.ApiKey("epk_...")` sets
-`Authorization: ApiKey <key>`. The legacy `X-API-Key` header remains supported for existing
-integrations, but is deprecated. Some Epistola Suite deployments may disable API-key authentication
+`Authorization: ApiKey <key>`. Some Epistola Suite deployments may disable API-key authentication
 entirely; with `InstallProblemDetailHandler()`, switch on `ProblemDetailException.TypeSlug ==
 KnownProblemSlugs.API_KEY_AUTH_DISABLED` and guide the caller to JWT auth.
 
@@ -130,7 +129,7 @@ catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.RELEASE_D
 {
     foreach (var d in e.MissingDependencies)
         Console.WriteLine($"{d.Registry}/{d.Namespace}/{d.CatalogKey}@{d.ReleaseVersion}: {d.Reason}");
-    // UNAVAILABLE: the release could not be fetched from its registry or a mirror, or not verified
+    // "unavailable": the release could not be fetched from its registry or a mirror, or not verified
 }
 ```
 
@@ -181,9 +180,9 @@ var collector = ResultCollector.Builder()
     {
         switch (result.Status)
         {
-            // Registry, Namespace, CatalogKey and ReleaseVersion name the release rendered (null before contract 2.0).
-            case "COMPLETED": Download(result.DocumentId, result.CorrelationId); break;
-            case "FAILED":    LogFailure(result.CorrelationId, result.Error);    break;
+            // Registry, Namespace and CatalogKey name the catalog rendered; ReleaseVersion is null for a draft.
+            case "completed": Download(result.DocumentId, result.CorrelationId); break;
+            case "failed":    LogFailure(result.CorrelationId, result.Error);    break;
         }
     })
     .Build();
@@ -241,6 +240,21 @@ foreach (var dependency in released.ReleasedDependencies)
 The generator names a `base` member `Base` (constructor argument `varBase`), because it collides
 with a C# name. A draft's `ReleaseVersion` is null, and a preview's `ChangeKind` is null when the
 draft has no base to compare with.
+
+## Response headers and conditional updates
+
+Each operation also has a `…WithHttpInfo` variant whose `ApiResponse<T>.Headers` carries the
+response headers: the `Location` of what a create made (and of the job `GenerateDocument` and
+`GenerateDocumentBatch` accepted), and the `ETag` of a resource. Pass that `ETag` back unchanged as
+`ifMatch` on its update; when someone changed the resource in between, the update is refused with a
+412 `resource-modified` problem:
+
+```csharp
+var read = catalogs.GetCatalogVersionWithHttpInfo("my-tenant", "~", "acme-corp", "default", id);
+var etag = read.Headers["ETag"][0];
+catalogs.UpdateCatalogDraft("my-tenant", "~", "acme-corp", "default", id,
+    new UpdateCatalogDraftRequest(name: "Fixes 1.4 (spring)"), ifMatch: etag);
+```
 
 ## Uploading files
 

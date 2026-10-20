@@ -5,6 +5,7 @@
 package app.epistola.client.jakarta.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -163,9 +164,10 @@ class GeneratedApiContractTest {
         }
 
         assertEquals(
-                2,
+                3,
                 multipartOperations,
-                "expected the contract's two uploads (uploadImage, importCatalog)");
+                "expected the contract's two uploads (uploadImage, importCatalog) and uploadImage's"
+                        + " WithHttpInfo sibling");
     }
 
     /**
@@ -323,7 +325,7 @@ class GeneratedApiContractTest {
         assertOperation("listCatalogVersions", GET.class, CatalogVersionListResponse.class, catalog);
         assertOperation("createCatalogDraft", POST.class, CatalogVersionDto.class, catalog);
         assertOperation("getCatalogVersion", GET.class, CatalogVersionDto.class, version);
-        assertOperation("renameCatalogDraft", PATCH.class, CatalogVersionDto.class, version);
+        assertOperation("updateCatalogDraft", PATCH.class, CatalogVersionDto.class, version);
         assertOperation("deleteCatalogDraft", DELETE.class, void.class, version);
         assertOperation("previewCatalogDraftRelease", GET.class, CatalogDraftReleasePreview.class, version);
         assertOperation("releaseCatalogDraft", POST.class, ReleaseCatalogDraftResponse.class, version);
@@ -339,7 +341,7 @@ class GeneratedApiContractTest {
                 "previewCatalogDraftRelease takes no query parameters");
 
         for (String withBody :
-                List.of("createCatalogDraft", "renameCatalogDraft", "releaseCatalogDraft")) {
+                List.of("createCatalogDraft", "updateCatalogDraft", "releaseCatalogDraft")) {
             assertEquals(
                     List.of(VENDOR_JSON),
                     List.of(method(CatalogsApi.class, withBody).getAnnotation(Consumes.class).value()),
@@ -473,41 +475,74 @@ class GeneratedApiContractTest {
     }
 
     /**
-     * Optimistic locking needs the {@code ETag} a read answers with, and a MicroProfile Rest Client
-     * method returns its body alone. The build gives every operation that answers with an
-     * {@code ETag} a {@code WithHttpInfo} sibling returning the {@link Response}; this fails if one
-     * goes missing or stops matching its operation.
+     * Optimistic locking needs the {@code ETag} a read answers with, and a created resource or an
+     * accepted generation job is addressed by the {@code Location} it answers with, but a
+     * MicroProfile Rest Client method returns its body alone. The build gives every operation that
+     * answers with an {@code ETag} or a {@code Location} a {@code WithHttpInfo} sibling returning the
+     * {@link Response}; this fails if one goes missing or stops matching its operation.
      */
     @Test
-    void every_operation_answering_with_an_etag_has_a_response_returning_sibling() {
+    void every_operation_answering_with_an_etag_or_a_location_has_a_response_returning_sibling() {
         List<String> operations = List.of(
+                // ETag: reads and conditional updates
                 "AttributesApi.getAttribute", "AttributesApi.updateAttribute",
-                "CodeListsApi.getCodeList", "CodeListsApi.updateCodeList",
+                "CatalogsApi.getCatalogVersion", "CatalogsApi.updateCatalogDraft",
+                "CatalogsApi.listCatalogDependencies", "CatalogsApi.updateCatalogDependencies",
+                "CodeListsApi.getCodeList", "CodeListsApi.updateCodeList", "CodeListsApi.updateCodeListEntryHidden",
+                "ConsumersApi.getConsumer", "ConsumersApi.updateConsumer",
+                "EnvironmentsApi.getEnvironment", "EnvironmentsApi.updateEnvironment",
                 "StencilsApi.getStencil", "StencilsApi.updateStencil",
                 "StencilsApi.getStencilContent", "StencilsApi.updateStencilContent",
                 "TemplatesApi.getTemplate", "TemplatesApi.updateTemplate",
+                "TenantsApi.getTenant", "TenantsApi.updateTenant",
                 "ThemesApi.getTheme", "ThemesApi.updateTheme",
                 "VariantsApi.getVariant", "VariantsApi.updateVariant", "VariantsApi.setDefaultVariant",
-                "VariantsApi.getVariantContent", "VariantsApi.updateVariantContent");
+                "VariantsApi.getVariantContent", "VariantsApi.updateVariantContent",
+                // Location: creates, and the accepted generation jobs
+                "AttributesApi.createAttribute", "CatalogsApi.createCatalogDraft", "CodeListsApi.createCodeList",
+                "ConsumersApi.registerConsumer", "EnvironmentsApi.createEnvironment",
+                "GenerationApi.generateDocument", "GenerationApi.generateDocumentBatch",
+                "ImagesApi.uploadImage", "StencilsApi.createStencil", "TemplatesApi.createTemplate",
+                "TenantsApi.createTenant", "ThemesApi.createTheme", "VariantsApi.createVariant");
+        assertEquals(
+                operations.stream().sorted().collect(Collectors.toList()),
+                GENERATED_APIS.stream()
+                        .flatMap(api -> Arrays.stream(api.getMethods())
+                                .filter(method -> method.getName().endsWith("WithHttpInfo"))
+                                .map(method -> api.getSimpleName() + "."
+                                        + method.getName().substring(0, method.getName().length() - "WithHttpInfo".length())))
+                        .distinct()
+                        .sorted()
+                        .collect(Collectors.toList()),
+                "the operations with a WithHttpInfo sibling");
         for (String qualified : operations) {
             Class<?> api = GENERATED_APIS.stream()
                     .filter(candidate -> qualified.startsWith(candidate.getSimpleName() + "."))
                     .findFirst()
                     .orElseThrow();
-            Method operation = method(api, qualified.substring(qualified.indexOf('.') + 1));
-            Method sibling = method(api, operation.getName() + "WithHttpInfo");
-            assertEquals(Response.class, sibling.getReturnType(), qualified + "WithHttpInfo should return the Response");
-            assertEquals(
-                    List.of(operation.getParameterTypes()),
-                    List.of(sibling.getParameterTypes()),
-                    qualified + "WithHttpInfo should take the operation's parameters");
-            assertEquals(pathParams(operation), pathParams(sibling), qualified + "WithHttpInfo has other path parameters");
-            for (Class<? extends java.lang.annotation.Annotation> annotation :
-                    List.of(GET.class, PUT.class, PATCH.class, POST.class, Path.class, Consumes.class, Produces.class)) {
-                assertEquals(
-                        String.valueOf(operation.getAnnotation(annotation)),
-                        String.valueOf(sibling.getAnnotation(annotation)),
-                        qualified + "WithHttpInfo differs from it in @" + annotation.getSimpleName());
+            String name = qualified.substring(qualified.indexOf('.') + 1);
+            // An upload has a convenience overload too; each overload has its own sibling.
+            List<Method> overloads = Arrays.stream(api.getMethods())
+                    .filter(candidate -> candidate.getName().equals(name))
+                    .collect(Collectors.toList());
+            assertFalse(overloads.isEmpty(), api.getSimpleName() + " has no method " + name);
+            for (Method operation : overloads) {
+                Method sibling = Arrays.stream(api.getMethods())
+                        .filter(candidate -> candidate.getName().equals(name + "WithHttpInfo"))
+                        .filter(candidate -> Arrays.equals(candidate.getParameterTypes(), operation.getParameterTypes()))
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError(
+                                qualified + "WithHttpInfo should take the parameters of " + operation));
+                assertEquals(Response.class, sibling.getReturnType(), qualified + "WithHttpInfo should return the Response");
+                assertEquals(operation.isDefault(), sibling.isDefault(), qualified + "WithHttpInfo differs in being a default method");
+                assertEquals(pathParams(operation), pathParams(sibling), qualified + "WithHttpInfo has other path parameters");
+                for (Class<? extends java.lang.annotation.Annotation> annotation :
+                        List.of(GET.class, PUT.class, PATCH.class, POST.class, Path.class, Consumes.class, Produces.class)) {
+                    assertEquals(
+                            String.valueOf(operation.getAnnotation(annotation)),
+                            String.valueOf(sibling.getAnnotation(annotation)),
+                            qualified + "WithHttpInfo differs from it in @" + annotation.getSimpleName());
+                }
             }
         }
     }
@@ -527,6 +562,22 @@ class GeneratedApiContractTest {
                     "acme-corp", "~", "acme-corp", "letters", "k7m2x9qa", "invoice", "english")) {
                 assertEquals("\"7\"", response.getHeaderString("ETag"));
                 assertEquals("english", response.readEntity(VariantContentDto.class).getVariantKey());
+            }
+        }
+    }
+
+    @Test
+    void the_location_of_a_created_resource_is_readable_exactly_as_sent() {
+        try (StubServer stub = StubServer.start(request ->
+                StubServer.StubResponse.of(201, VENDOR_JSON, "{\"key\":\"acme-corp\",\"name\":\"Acme\"}")
+                        .header("Location", "/api/tenants/acme-corp"))) {
+
+            TenantsApi tenants = EpistolaRestClients.builder().baseUri(stub.baseUri()).build().api(TenantsApi.class);
+
+            try (Response response = tenants.createTenantWithHttpInfo(new CreateTenantRequest().key("acme-corp").name("Acme"))) {
+                assertEquals(201, response.getStatus());
+                assertEquals("/api/tenants/acme-corp", response.getHeaderString("Location"));
+                assertEquals("acme-corp", response.readEntity(TenantDto.class).getKey());
             }
         }
     }

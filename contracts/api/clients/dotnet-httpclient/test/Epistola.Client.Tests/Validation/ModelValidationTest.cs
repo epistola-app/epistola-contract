@@ -128,7 +128,7 @@ public class ModelValidationTest
         Assert.Same(request, request.Validate());
     }
 
-    // A release number is a plain MAJOR.MINOR.PATCH (ADR 0002): there are no pre-release numbers.
+    // A release number is a plain MAJOR.MINOR.PATCH: there are no pre-release numbers.
     [Fact]
     public void ReleaseNumberAcceptsAPlainSemVerNumber()
     {
@@ -185,5 +185,28 @@ public class ModelValidationTest
     {
         var request = new CreateTenantRequest(key: "acme-corp", name: "Acme Corporation");
         Assert.Same(request, request.Validate());
+    }
+
+    private static CatalogDto CatalogWithFingerprint(string fingerprint) => new(
+        registry: "exchange.epistola.app", varNamespace: "acme-corp", catalogKey: "letters", name: "Letters",
+        type: CatalogType.Authored, drafts: new List<CatalogDraftSummary>(), fingerprint: fingerprint);
+
+    // A fingerprint names its algorithm version: v<N>:<64 lowercase hex>.
+    [Fact]
+    public void FingerprintAcceptsAVersionedDigest()
+    {
+        var catalog = CatalogWithFingerprint("v1:" + new string('a', 64));
+        Assert.Same(catalog, catalog.Validate());
+    }
+
+    [Theory]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("v0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+    [InlineData("v1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")]
+    [InlineData("v1:aaaa")]
+    public void FingerprintRejectsABareOrMalformedDigest(string fingerprint)
+    {
+        var ex = Assert.Throws<ArgumentException>(() => CatalogWithFingerprint(fingerprint).Validate());
+        Assert.Contains("fingerprint", ex.Message);
     }
 }

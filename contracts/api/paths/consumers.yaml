@@ -17,7 +17,7 @@ consumer-register:
     x-experimental: true
     summary: Register a new consumer in this tenant
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
       Self-service registration for consumer applications using self-signed JWT
       authentication. The consumer is created in `pending` status within this
@@ -44,6 +44,10 @@ consumer-register:
     responses:
       '201':
         description: Consumer registered (status = pending)
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The consumer's address (`getConsumer`)
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -72,7 +76,7 @@ consumer-collection:
     x-experimental: true
     summary: List consumers in this tenant
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
       Retrieve a paginated list of consumers registered in this tenant
       with optional filtering by status.
@@ -133,7 +137,7 @@ consumer-resource:
     x-experimental: true
     summary: Get consumer by ID
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
       Retrieve details of a specific consumer in this tenant.
     tags:
@@ -142,6 +146,9 @@ consumer-resource:
     responses:
       '200':
         description: Consumer details
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -158,12 +165,16 @@ consumer-resource:
     x-experimental: true
     summary: Update consumer metadata or permissions
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
       Update a consumer's metadata or permissions within this tenant.
+      Send the `ETag` from a read as `If-Match` to have the update refused with 412
+      `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
       - Consumers
     x-required-permissions: [TENANT_USERS]
+    parameters:
+      - $ref: '../components/parameters/concurrency.yaml#/IfMatch'
     requestBody:
       required: true
       content:
@@ -173,6 +184,9 @@ consumer-resource:
     responses:
       '200':
         description: Consumer updated
+        headers:
+          ETag:
+            $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -185,13 +199,15 @@ consumer-resource:
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
+      '412':
+        $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
 
   delete:
     operationId: deleteConsumer
     x-experimental: true
     summary: Delete a consumer
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
       Permanently remove a consumer from this tenant.
 
@@ -242,7 +258,7 @@ consumer-approve:
     x-experimental: true
     summary: Approve a pending consumer
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
       Approve a consumer registration within this tenant. Sets the granted
       permissions and optional expiry. The consumer transitions from `pending`
@@ -298,7 +314,7 @@ consumer-reject:
     x-experimental: true
     summary: Reject a pending consumer
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
       Reject a consumer registration. The consumer transitions from `pending`
       to `rejected`. Optionally provide a reason.
@@ -353,7 +369,7 @@ consumer-public-key:
     x-experimental: true
     summary: Rotate public key
     description: |
-      **Experimental** — Epistola Suite may not implement this operation yet.
+      **Experimental** (see the Consumers tag).
 
       Replace the public key for a self-signed JWT consumer. Only the consumer itself may rotate
       it: the request must carry a self-signed JWT (`Authorization: Bearer`) issued by the consumer

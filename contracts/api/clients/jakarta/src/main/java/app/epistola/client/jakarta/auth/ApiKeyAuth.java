@@ -11,8 +11,7 @@ import jakarta.ws.rs.core.HttpHeaders;
 /**
  * Static API-key authentication.
  *
- * <p>New integrations should send API keys through {@code Authorization: ApiKey <key>}. The legacy
- * {@code X-API-Key} header is still accepted by the API but deprecated.
+ * <p>The key is sent as {@code Authorization: ApiKey <key>}.
  *
  * <p>Some Epistola Suite deployments disable API-key authentication entirely; that surfaces as a
  * {@code ProblemDetailException} whose {@code typeSlug} is

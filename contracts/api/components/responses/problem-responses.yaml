@@ -91,7 +91,7 @@ ReleaseDependenciesMissingError:
             namespace: epistola
             catalogKey: system
             releaseVersion: 3.2.0
-            reason: UNAVAILABLE
+            reason: unavailable
 
 ReleaseDependenciesUnreleasedError:
   description: >-
@@ -163,7 +163,7 @@ EnvironmentDeploymentConflictError:
                 namespace: epistola
                 catalogKey: system
                 releaseVersion: 3.2.0
-                reason: UNAVAILABLE
+                reason: unavailable
 
 TemplateDataInvalidError:
   description: >-
@@ -227,7 +227,7 @@ RateLimitedError:
 
 CatalogSourceBadGatewayError:
   description: >-
-    The catalog's source, its registry or the mirrors configured for it (ADR 0003), answered with an
+    The catalog's source, its registry or a mirror of it the server is configured with, answered with an
     error or with something that is not a valid answer, so the request could not be carried out and
     nothing was installed. The problem is `catalog-source-unavailable`.
   content:
@@ -242,7 +242,7 @@ CatalogSourceBadGatewayError:
 
 CatalogSourceUnavailableError:
   description: >-
-    The catalog's source, its registry or the mirrors configured for it (ADR 0003), could not be
+    The catalog's source, its registry or a mirror of it the server is configured with, could not be
     reached or did not answer in time, so the request could not be carried out and nothing was
     installed. The problem is `catalog-source-unavailable`. `Retry-After`, when present, says how
     long to wait before trying again.

@@ -183,41 +183,6 @@ $partBuilders
 tasks.openApiGenerate {
     val apiDir = generatedDir.map { it.dir("src/main/java/app/epistola/client/jakarta/api") }
 
-    doLast {
-        var rewritten = 0
-        fileTree(apiDir) { include("**/*Api.java") }.forEach { apiFile ->
-            val source = apiFile.readText()
-            if (!source.contains("@FormParam")) {
-                return@forEach
-            }
-            check(source.contains("""@Consumes({ "multipart/form-data" })""")) {
-                "${apiFile.name} has form parameters but does not consume multipart/form-data — " +
-                    "the contract gained a form-urlencoded operation, which this rewrite does not cover"
-            }
-            val body = rewriteMultipartMethods(source)
-            check(!body.contains("@FormParam")) {
-                "${apiFile.name} still has @FormParam after the multipart rewrite — the generator's " +
-                    "emitted method shape changed; update rewriteMultipartMethods in this build file"
-            }
-            apiFile.writeText(
-                body.replaceFirst(
-                    "import jakarta.ws.rs.core.Response;",
-                    "import jakarta.ws.rs.core.EntityPart;\n" +
-                        "import jakarta.ws.rs.core.Response;\n" +
-                        "import app.epistola.client.jakarta.multipart.MultipartForm;",
-                ),
-            )
-            rewritten++
-        }
-        if (rewritten == 0) {
-            throw GradleException(
-                "the multipart rewrite matched no generated API — the contract's upload operations " +
-                    "are gone, or the generator no longer emits them as @FormParam",
-            )
-        }
-        logger.lifecycle("Rewrote multipart uploads onto EntityPart in $rewritten API interface(s)")
-    }
-
     // A JSON null for an enum member. The generator's JSON-B enum deserializer reads every value
     // with `parser.getString()`, which JSON-P refuses on VALUE_NULL, so a nullable enum such as
     // `CatalogDraftReleasePreview.changeKind` failed the whole response instead of reading as null
@@ -261,10 +226,11 @@ tasks.openApiGenerate {
         logger.lifecycle("Taught $deserializers enum deserializer(s) to read a JSON null as null")
     }
 
-    // The response headers of an operation that answers with an `ETag`. A MicroProfile Rest Client
-    // method returns its body alone, and the generator has no option to return the Response as
-    // well, so a caller had no way to read the `ETag` of a read and send it back as `If-Match`:
-    // optimistic locking was unusable from this client. Each such operation gains a sibling,
+    // The response headers of an operation that answers with an `ETag` or a `Location`. A
+    // MicroProfile Rest Client method returns its body alone, and the generator has no option to
+    // return the Response as well, so a caller had no way to read the `ETag` of a read and send it
+    // back as `If-Match` (optimistic locking was unusable from this client), nor the `Location` a
+    // create or an accepted generation answers with. Each such operation gains a sibling,
     // `<operation>WithHttpInfo`, with the same annotations and parameters, returning the
     // `jakarta.ws.rs.core.Response` (the name the other generated clients give the same thing).
     // Found by the `get-variant-content` conformance scenario.
@@ -272,25 +238,26 @@ tasks.openApiGenerate {
     doLast {
         @Suppress("UNCHECKED_CAST")
         val paths = (org.yaml.snakeyaml.Yaml().load<Map<String, Any>>(spec.readText())["paths"] as Map<String, Map<String, Any>>)
-        val etagOperations = paths.values
+        val exposedHeaders = setOf("etag", "location")
+        val headerOperations = paths.values
             .flatMap { pathItem -> pathItem.values.filterIsInstance<Map<String, Any>>() }
             .filter { operation ->
                 @Suppress("UNCHECKED_CAST")
                 val responses = operation["responses"] as? Map<String, Map<String, Any>> ?: emptyMap()
                 responses.any { (status, response) ->
-                    status.startsWith("2") && (response["headers"] as? Map<*, *>)?.keys?.any { "$it".equals("ETag", ignoreCase = true) } == true
+                    status.startsWith("2") && (response["headers"] as? Map<*, *>)?.keys?.any { "$it".lowercase() in exposedHeaders } == true
                 }
             }
             .map { it["operationId"] as String }
             .toSortedSet()
-        check(etagOperations.isNotEmpty()) {
-            "no operation in the spec answers with an ETag header any more — remove the WithHttpInfo rewrite"
+        check(headerOperations.isNotEmpty()) {
+            "no operation in the spec answers with an ETag or a Location header any more — remove the WithHttpInfo rewrite"
         }
 
         val rewritten = mutableSetOf<String>()
         fileTree(apiDir) { include("**/*Api.java") }.forEach { apiFile ->
             var source = apiFile.readText()
-            for (operation in etagOperations) {
+            for (operation in headerOperations) {
                 // The annotations directly above the declaration, which the generator emits one per
                 // line (an absent @Path leaves an indented blank line), and the declaration itself.
                 val declaration = Regex(
@@ -303,7 +270,8 @@ tasks.openApiGenerate {
 
     /**
      * {@code $operation}, answering with the whole {@link Response} rather than its body alone: its
-     * status, its headers (the {@code ETag} to send back as {@code If-Match} among them), and its
+     * status, its headers (the {@code ETag} to send back as {@code If-Match}, or the {@code Location}
+     * of what it created, among them), and its
      * body, read with {@code readEntity($returnType.class)}. Close the response when done with it.
      * An error response still arrives as a {@code ProblemDetailException}.
      */
@@ -313,12 +281,49 @@ $annotations    Response ${operation}WithHttpInfo($parameters) throws ApiExcepti
             }
             apiFile.writeText(source)
         }
-        val missing = etagOperations - rewritten
+        val missing = headerOperations - rewritten
         check(missing.isEmpty()) {
             "the WithHttpInfo rewrite found no generated method for $missing — the generator's emitted " +
                 "method shape changed; update this rewrite"
         }
-        logger.lifecycle("Gave ${rewritten.size} operation(s) answering with an ETag a WithHttpInfo sibling")
+        logger.lifecycle("Gave ${rewritten.size} operation(s) answering with an ETag or a Location a WithHttpInfo sibling")
+    }
+
+    // After the WithHttpInfo rewrite, so an upload's sibling is rewritten onto EntityPart too and
+    // gains the same one-argument-per-field convenience overload.
+    doLast {
+        var rewritten = 0
+        fileTree(apiDir) { include("**/*Api.java") }.forEach { apiFile ->
+            val source = apiFile.readText()
+            if (!source.contains("@FormParam")) {
+                return@forEach
+            }
+            check(source.contains("""@Consumes({ "multipart/form-data" })""")) {
+                "${apiFile.name} has form parameters but does not consume multipart/form-data — " +
+                    "the contract gained a form-urlencoded operation, which this rewrite does not cover"
+            }
+            val body = rewriteMultipartMethods(source)
+            check(!body.contains("@FormParam")) {
+                "${apiFile.name} still has @FormParam after the multipart rewrite — the generator's " +
+                    "emitted method shape changed; update rewriteMultipartMethods in this build file"
+            }
+            apiFile.writeText(
+                body.replaceFirst(
+                    "import jakarta.ws.rs.core.Response;",
+                    "import jakarta.ws.rs.core.EntityPart;\n" +
+                        "import jakarta.ws.rs.core.Response;\n" +
+                        "import app.epistola.client.jakarta.multipart.MultipartForm;",
+                ),
+            )
+            rewritten++
+        }
+        if (rewritten == 0) {
+            throw GradleException(
+                "the multipart rewrite matched no generated API — the contract's upload operations " +
+                    "are gone, or the generator no longer emits them as @FormParam",
+            )
+        }
+        logger.lifecycle("Rewrote multipart uploads onto EntityPart in $rewritten API interface(s)")
     }
 }
 

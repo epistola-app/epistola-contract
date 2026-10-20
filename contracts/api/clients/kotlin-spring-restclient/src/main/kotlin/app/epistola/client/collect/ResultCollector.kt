@@ -47,8 +47,8 @@ import kotlin.concurrent.withLock
  *     .tenantKey("acme-corp")
  *     .handler { result ->
  *         when (result.status) {
- *             "COMPLETED" -> downloadAndProcess(result.documentId, result.correlationId)
- *             "FAILED" -> logFailure(result.correlationId, result.error)
+ *             "completed" -> downloadAndProcess(result.documentId, result.correlationId)
+ *             "failed" -> logFailure(result.correlationId, result.error)
  *         }
  *     }
  *     .build()
@@ -118,13 +118,13 @@ class ResultCollector private constructor(
         val routingKey: String?,
         val templateKey: String?,
         val variantKey: String?,
-        /** Registry of the template's catalog, in full; null for a result accepted before contract 2.0. */
-        val registry: String?,
-        /** Namespace of the template's catalog; null for a result accepted before contract 2.0. */
-        val namespace: String?,
-        /** Key of the template's catalog; null for a result accepted before contract 2.0. */
-        val catalogKey: String?,
-        /** Release of the template's catalog used; null for a result accepted before contract 2.0. */
+        /** Registry of the template's catalog, in full. */
+        val registry: String,
+        /** Namespace of the template's catalog. */
+        val namespace: String,
+        /** Key of the template's catalog. */
+        val catalogKey: String,
+        /** Release of the template's catalog used; null when the document was rendered from a draft. */
         val releaseVersion: String?,
         val filename: String?,
         val contentType: String?,
@@ -375,9 +375,9 @@ class ResultCollector private constructor(
         routingKey = node["routingKey"]?.asText(),
         templateKey = node["templateKey"]?.asText(),
         variantKey = node["variantKey"]?.asText(),
-        registry = node["registry"]?.takeUnless { it.isNull }?.asText(),
-        namespace = node["namespace"]?.takeUnless { it.isNull }?.asText(),
-        catalogKey = node["catalogKey"]?.takeUnless { it.isNull }?.asText(),
+        registry = node["registry"].asText(),
+        namespace = node["namespace"].asText(),
+        catalogKey = node["catalogKey"].asText(),
         releaseVersion = node["releaseVersion"]?.takeUnless { it.isNull }?.asText(),
         filename = node["filename"]?.asText(),
         contentType = node["contentType"]?.asText(),

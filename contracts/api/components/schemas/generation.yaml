@@ -487,7 +487,7 @@ GenerationJobResponse:
     - requestId
     - status
     - jobType
-    - totalCount
+    - total
     - createdAt
   properties:
     requestId:
@@ -497,15 +497,15 @@ GenerationJobResponse:
       example: "550e8400-e29b-41d4-a716-446655440000"
     status:
       type: string
-      enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED, CANCELLED]
+      enum: [pending, in-progress, completed, failed, cancelled]
       description: Current status of the request
-      example: PENDING
+      example: pending
     jobType:
       type: string
-      enum: [SINGLE, BATCH]
+      enum: [single, batch]
       description: Type of generation job
-      example: SINGLE
-    totalCount:
+      example: single
+    total:
       type: integer
       description: Total number of items to generate
       example: 1
@@ -516,9 +516,9 @@ GenerationJobResponse:
       example: "2026-02-01T08:00:00Z"
   example:
     requestId: "550e8400-e29b-41d4-a716-446655440000"
-    status: PENDING
-    jobType: SINGLE
-    totalCount: 1
+    status: pending
+    jobType: single
+    total: 1
     createdAt: "2026-02-01T08:00:00Z"
 
 DocumentGenerationItemDto:
@@ -526,6 +526,9 @@ DocumentGenerationItemDto:
   description: Individual item in a generation batch
   required:
     - id
+    - registry
+    - namespace
+    - catalogKey
     - templateKey
     - variantKey
     - data
@@ -538,28 +541,26 @@ DocumentGenerationItemDto:
       description: Unique identifier of this item
       example: "660e8400-e29b-41d4-a716-446655440001"
     registry:
-      type: [string, "null"]
+      type: string
       pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
       maxLength: 253
       description: |
         Registry of the template's catalog, written in full (the default registry by its name, never
-        `~`). Null for a result accepted before contract 2.0.
+        `~`)
       example: exchange.epistola.app
     namespace:
-      type: [string, "null"]
+      type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
-      description: |
-        Namespace of the template's catalog, within its registry. Null for a result accepted before
-        contract 2.0.
+      description: Namespace of the template's catalog, within its registry
       example: acme-corp
     catalogKey:
-      type: [string, "null"]
+      type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Key of the template's catalog, unique within its registry and namespace. Null for a result accepted before contract 2.0
+      description: Key of the template's catalog, unique within its registry and namespace
       example: letters
     templateKey:
       type: string
@@ -581,8 +582,7 @@ DocumentGenerationItemDto:
       maxLength: 50
       description: |
         Release of the template's catalog this item renders, bound when the request was accepted.
-        Null for an item accepted before contract 2.0, which rendered a template version, and for
-        one that renders a draft (`versionId`).
+        Null when it renders a draft (`versionId`).
       example: "1.4.0"
     versionId:
       type: [string, "null"]
@@ -647,9 +647,9 @@ DocumentGenerationItemDto:
       example: "order-7890"
     status:
       type: string
-      enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED]
+      enum: [pending, in-progress, completed, failed]
       description: Status of this item
-      example: COMPLETED
+      example: completed
     errorMessage:
       type: [string, "null"]
       description: Error message if processing failed
@@ -713,7 +713,7 @@ DocumentGenerationItemDto:
       currency: EUR
     filename: "invoice-2026-001.pdf"
     correlationId: "order-7890"
-    status: COMPLETED
+    status: completed
     errorMessage: null
     documentId: "770e8400-e29b-41d4-a716-446655440002"
     createdAt: "2026-02-01T08:00:00Z"
@@ -727,7 +727,7 @@ DocumentGenerationJobDto:
     - id
     - jobType
     - status
-    - totalCount
+    - total
     - completedCount
     - failedCount
     - createdAt
@@ -739,15 +739,15 @@ DocumentGenerationJobDto:
       example: "550e8400-e29b-41d4-a716-446655440000"
     jobType:
       type: string
-      enum: [SINGLE, BATCH]
+      enum: [single, batch]
       description: Type of generation job
-      example: SINGLE
+      example: single
     status:
       type: string
-      enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED, CANCELLED]
+      enum: [pending, in-progress, completed, failed, cancelled]
       description: Current status of the request
-      example: COMPLETED
-    totalCount:
+      example: completed
+    total:
       type: integer
       description: Total number of items to generate
       example: 1
@@ -785,9 +785,9 @@ DocumentGenerationJobDto:
       example: 100.0
   example:
     id: "550e8400-e29b-41d4-a716-446655440000"
-    jobType: SINGLE
-    status: COMPLETED
-    totalCount: 1
+    jobType: single
+    status: completed
+    total: 1
     completedCount: 1
     failedCount: 0
     errorMessage: null
@@ -813,9 +813,9 @@ GenerationJobDetail:
   example:
     request:
       id: "550e8400-e29b-41d4-a716-446655440000"
-      jobType: SINGLE
-      status: COMPLETED
-      totalCount: 1
+      jobType: single
+      status: completed
+      total: 1
       completedCount: 1
       failedCount: 0
       errorMessage: null
@@ -855,7 +855,7 @@ GenerationJobDetail:
           currency: EUR
         filename: "invoice-2026-001.pdf"
         correlationId: "order-7890"
-        status: COMPLETED
+        status: completed
         errorMessage: null
         documentId: "770e8400-e29b-41d4-a716-446655440002"
         createdAt: "2026-02-01T08:00:00Z"
@@ -879,9 +879,9 @@ GenerationJobListResponse:
   example:
     items:
       - id: "550e8400-e29b-41d4-a716-446655440000"
-        jobType: SINGLE
-        status: COMPLETED
-        totalCount: 1
+        jobType: single
+        status: completed
+        total: 1
         completedCount: 1
         failedCount: 0
         errorMessage: null
@@ -892,7 +892,7 @@ GenerationJobListResponse:
     page:
       number: 0
       size: 20
-      totalElements: 1
+      total: 1
       totalPages: 1
 
 DocumentDto:
@@ -901,6 +901,9 @@ DocumentDto:
   required:
     - id
     - tenantKey
+    - registry
+    - namespace
+    - catalogKey
     - templateKey
     - variantKey
     - releaseVersion
@@ -922,28 +925,26 @@ DocumentDto:
       description: Key of the tenant that owns this document
       example: acme-corp
     registry:
-      type: [string, "null"]
+      type: string
       pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
       maxLength: 253
       description: |
         Registry of the template's catalog, written in full (the default registry by its name, never
-        `~`). Null for a result accepted before contract 2.0.
+        `~`)
       example: exchange.epistola.app
     namespace:
-      type: [string, "null"]
+      type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 63
-      description: |
-        Namespace of the template's catalog, within its registry. Null for a result accepted before
-        contract 2.0.
+      description: Namespace of the template's catalog, within its registry
       example: acme-corp
     catalogKey:
-      type: [string, "null"]
+      type: string
       pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
       minLength: 3
       maxLength: 50
-      description: Key of the template's catalog, unique within its registry and namespace. Null for a result accepted before contract 2.0
+      description: Key of the template's catalog, unique within its registry and namespace
       example: letters
     templateKey:
       type: string
@@ -964,9 +965,8 @@ DocumentDto:
       pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
       maxLength: 50
       description: |
-        Release of the template's catalog this document was generated from. Null for a document
-        generated before contract 2.0, which rendered a template version, and for one rendered from
-        a draft (`versionId`).
+        Release of the template's catalog this document was generated from. Null when it was
+        rendered from a draft (`versionId`).
       example: "1.4.0"
     versionId:
       type: [string, "null"]
@@ -1010,7 +1010,7 @@ DocumentDto:
       description: |
         Who requested the document: the `id` of the consumer whose request generated it (see the
         Consumers API, experimental). It is kept when that consumer is deleted. Null when the
-        server records none; Epistola Suite may not record it yet.
+        server records none.
       example: null
   example:
     id: "770e8400-e29b-41d4-a716-446655440002"
@@ -1061,5 +1061,5 @@ DocumentListResponse:
     page:
       number: 0
       size: 20
-      totalElements: 1
+      total: 1
       totalPages: 1

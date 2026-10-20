@@ -20,7 +20,8 @@ import-catalog:
       An import never touches a draft. It installs **the archive's release**, at its number
       (`release.version`), as an immutable release of the catalog the archive names (registry +
       namespace + key), side by side with the releases of that catalog the tenant already has, the
-      same way installing from an exchange does (ADR 0003). Nothing is merged, no resource is
+      same way installing from an exchange does: releases are immutable and live side by side, and
+      deploying chooses which one is used. Nothing is merged, no resource is
       updated in place, and no draft is created or changed.
 
       - **A release the tenant does not have** is installed. The catalog's other releases, and every
@@ -33,13 +34,13 @@ import-catalog:
       - **A new catalog** is created by the import, of type `catalogType`, holding that release and
         no draft. The import that creates a catalog must give `catalogType`: there is no default,
         and without it the import is refused with 400 `bad-request`. To edit the catalog, an author
-        starts a draft from the release (`createCatalogDraft` with `from`), which only an AUTHORED
+        starts a draft from the release (`createCatalogDraft` with `from`), which only an authored
         catalog allows.
       - **A catalog the tenant has** keeps its type: an import never changes it. `catalogType` may
         be omitted, or given as the catalog's type; given as the other type, the import is refused
-        with 409 `conflict` and nothing is installed. Importing into an AUTHORED catalog adds the
+        with 409 `conflict` and nothing is installed. Importing into an authored catalog adds the
         release beside its others, which is how an author moves the catalog's own releases from one
-        installation to another. Changing a catalog's type is not an operation of contract 2.0.
+        installation to another. No operation changes a catalog's type.
 
       The fingerprint compared is the release's `release.fingerprint`, or the fingerprint of its
       content when the archive records none. Every catalog wire version requires `release.version`,
@@ -50,20 +51,21 @@ import-catalog:
       The archive may also carry the releases its catalog pins (`catalogDependencies`), each an
       ordinary catalog archive at `dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip`,
       found from the pin alone: every release reachable through the pins, a dependency's own pins
-      included, once, in the outer archive (see `contracts/catalog/docs/catalog-archive.md`). An
+      included, once, in the outer archive, and none in the archives it carries. An
       embedded release must match its pin's `releaseFingerprint` and name that catalog and number,
       or the archive is refused with 400 `bad-request`, as is a file under `dependencies/` that no
       pin reaches. The embedded releases this tenant lacks are installed first, each before every
-      release that pins it, each in a SUBSCRIBED catalog when the tenant does not have that catalog
+      release that pins it, each in a subscribed catalog when the tenant does not have that catalog
       (`installedDependencies`); those it has already, with the same fingerprint, are left alone
       (`presentDependencies`). Each is installed side by side with the releases of that catalog the
       tenant has, which are left as they are. A release the tenant has with the same number but a
       different fingerprint refuses the whole import with 409 `conflict`, naming each, and nothing
       changes. A pin the archive does not carry is resolved from what the tenant has or the server
-      can fetch from its registry, through the mirrors configured for it (ADR 0003); one that
+      can fetch from its registry, or from the mirrors of that registry the server is configured
+      with; one that
       cannot be had, because its source could not be reached, answered with an error, or offered
       a copy that does not match its pin's `releaseFingerprint`, refuses the import with 409
-      `release-dependencies-missing`, listing each (`UNAVAILABLE`), as `installCatalogRelease`
+      `release-dependencies-missing`, listing each (`unavailable`), as `installCatalogRelease`
       treats the releases a release pins. An import therefore never fails with
       `catalog-source-unavailable` (502/503): the archive's own release is never fetched. The
       archive's own release is then installed as above, all in one transaction. `catalogType`
@@ -103,11 +105,10 @@ import-catalog:
                   version 8 names none, and the server then chooses one (typically the tenant's
                   own).
               catalogType:
-                type: string
-                enum: [AUTHORED, SUBSCRIBED]
+                $ref: '../components/schemas/catalogs.yaml#/CatalogType'
                 description: |
-                  Type of the catalog the import creates when the tenant does not have it: AUTHORED
-                  allows drafts to be started from its releases (`createCatalogDraft`); SUBSCRIBED
+                  Type of the catalog the import creates when the tenant does not have it: `authored`
+                  allows drafts to be started from its releases (`createCatalogDraft`); `subscribed`
                   only installs releases, and installs those its source offers
                   (`installCatalogRelease`). Required when the import creates the catalog: there is no
                   default, and an import that creates a catalog without it is refused with 400

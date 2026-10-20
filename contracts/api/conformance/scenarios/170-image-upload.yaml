@@ -48,13 +48,15 @@ action:
 script:
   - status: 201
     contentType: application/vnd.epistola.v2+json
+    headers:
+      Location: /api/tenants/acme-corp/catalogs/~/acme-corp/main/versions/k7m2x9qa/images/municipality-mark
     body:
       key: municipality-mark
       tenantKey: acme-corp
       registry: exchange.epistola.app
       namespace: acme-corp
       catalogKey: main
-      catalogType: AUTHORED
+      catalogType: authored
       readOnly: false
       name: Municipality mark
       mediaType: image/png

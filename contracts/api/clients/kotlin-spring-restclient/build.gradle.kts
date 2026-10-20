@@ -111,6 +111,24 @@ openApiGenerate {
     )
 }
 
+// A multipart form field typed by a shared enum schema (importCatalog's `catalogType`, a
+// `CatalogType`) reaches the part as the enum itself, and Spring writes a non-String part with the
+// first converter that takes it: Jackson, which honours the enum's @JsonValue and sends the JSON
+// string `"subscribed"`, quotes included — a value the server cannot match. A form field is text, so
+// the generated ApiClient is patched to send an enum part as its wire value (`toString()` returns
+// it on every generated enum). Fails the build if the generator's output stops matching.
+tasks.openApiGenerate {
+    doLast {
+        val apiClient = generatedDir.get().asFile.resolve("src/main/kotlin/app/epistola/client/infrastructure/ApiClient.kt")
+        val anchor = "parts.add(name, part.body)"
+        val source = apiClient.readText()
+        check(source.contains(anchor)) {
+            "ApiClient.kt no longer contains `$anchor`; the multipart enum patch in build.gradle.kts needs updating"
+        }
+        apiClient.writeText(source.replace(anchor, "parts.add(name, (part.body as? Enum<*>)?.toString() ?: part.body)"))
+    }
+}
+
 // The spec-walking these three tasks share with the Jakarta client lives in build-logic; only the
 // emitted syntax differs, so only the emitted syntax is here.
 apply(from = "$rootDir/../../build-logic/contract-spec-model.gradle.kts")

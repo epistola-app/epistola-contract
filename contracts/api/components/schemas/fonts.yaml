@@ -22,7 +22,7 @@ FontDto:
     weight/italic faces it ships. Faces are backed by uploaded assets or
     bundled classpath files; this view exposes metadata only (no binaries).
 
-    A family from a SUBSCRIBED catalog (e.g. the bundled `system` catalog's
+    A family from a subscribed catalog (e.g. the bundled `system` catalog's
     `inter`, `roboto`, …) is flagged `readOnly: true`.
 
     **Read-only over REST.** Font families and their binaries are managed
@@ -81,12 +81,11 @@ FontDto:
       description: Key of the catalog this resource lives in, unique within its registry and namespace
       example: system
     catalogType:
-      type: string
-      enum: [AUTHORED, SUBSCRIBED]
-      description: Catalog ownership; SUBSCRIBED catalogs are read-only.
+      $ref: './catalogs.yaml#/CatalogType'
+      description: The type of the family's catalog; a subscribed catalog's fonts are read-only.
     readOnly:
       type: boolean
-      description: True when the owning catalog is SUBSCRIBED.
+      description: True when the owning catalog is subscribed.
     variants:
       type: array
       description: The weight/italic faces this family ships.

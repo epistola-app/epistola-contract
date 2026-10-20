@@ -208,7 +208,7 @@ WidgetListResponse:
     - items
     - page
     - size
-    - totalElements
+    - total
     - totalPages
   properties:
     items:
@@ -219,7 +219,7 @@ WidgetListResponse:
       type: integer
     size:
       type: integer
-    totalElements:
+    total:
       type: integer
       format: int64
     totalPages:
@@ -393,7 +393,7 @@ page:
   type: integer
 size:
   type: integer
-totalElements:
+total:
   type: integer
   format: int64
 totalPages:

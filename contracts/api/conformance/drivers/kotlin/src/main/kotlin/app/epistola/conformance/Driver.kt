@@ -6,6 +6,7 @@ package app.epistola.conformance
 
 import app.epistola.client.epistolaMessageConverters
 import app.epistola.client.api.CatalogsApi
+import app.epistola.client.api.CodeListsApi
 import app.epistola.client.api.ConsumersApi
 import app.epistola.client.api.EnvironmentsApi
 import app.epistola.client.api.GenerationApi
@@ -13,6 +14,7 @@ import app.epistola.client.api.ImagesApi
 import app.epistola.client.api.StencilsApi
 import app.epistola.client.api.SystemApi
 import app.epistola.client.api.TemplatesApi
+import app.epistola.client.api.TenantsApi
 import app.epistola.client.api.VariantsApi
 import app.epistola.client.auth.ApiKeyAuth
 import app.epistola.client.auth.JwtSigner
@@ -25,16 +27,19 @@ import app.epistola.client.model.CatalogDependencyDto
 import app.epistola.client.model.CatalogDependencyRequirement
 import app.epistola.client.model.CatalogPresetDto
 import app.epistola.client.model.CatalogThemeReference
+import app.epistola.client.model.CatalogType
 import app.epistola.client.model.CatalogVersionStatus
 import app.epistola.client.model.CreateCatalogDraftRequest
 import app.epistola.client.model.CreateEnvironmentRequest
 import app.epistola.client.model.EnvironmentDto
 import app.epistola.client.model.UpdateEnvironmentRequest
 import app.epistola.client.model.ReleaseCatalogDraftRequest
-import app.epistola.client.model.RenameCatalogDraftRequest
 import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.PingRequest
 import app.epistola.client.model.UpdateCatalogDependenciesRequest
+import app.epistola.client.model.UpdateCatalogDraftRequest
+import app.epistola.client.model.UpdateCodeListEntryHiddenRequest
+import app.epistola.client.model.UpdateTenantRequest
 import app.epistola.client.model.UpdateConsumerRequest
 import app.epistola.client.model.Node
 import app.epistola.client.model.TemplateDocument
@@ -47,6 +52,8 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.springframework.core.io.ByteArrayResource
+import org.springframework.http.HttpHeaders
+import org.springframework.http.ResponseEntity
 import org.springframework.web.client.RestClient
 import java.net.URI
 import java.net.http.HttpClient
@@ -104,7 +111,7 @@ object Driver {
                 "create-catalog-draft" -> createCatalogDraft(baseUrl, config)
                 "list-catalog-versions" -> listCatalogVersions(baseUrl, config)
                 "get-catalog-version" -> getCatalogVersion(baseUrl, config)
-                "rename-catalog-draft" -> renameCatalogDraft(baseUrl, config)
+                "update-catalog-draft" -> updateCatalogDraft(baseUrl, config)
                 "set-catalog-draft-theme-settings" -> setCatalogDraftThemeSettings(baseUrl, config)
                 "preview-catalog-draft-release" -> previewCatalogDraftRelease(baseUrl, config)
                 "delete-catalog-draft" -> deleteCatalogDraft(baseUrl, config)
@@ -113,6 +120,8 @@ object Driver {
                 "undeploy-catalog-version" -> undeployCatalogVersion(baseUrl, config)
                 "create-environment" -> createEnvironment(baseUrl, config)
                 "update-environment" -> updateEnvironment(baseUrl, config)
+                "update-tenant" -> updateTenant(baseUrl, config)
+                "update-code-list-entry-hidden" -> updateCodeListEntryHidden(baseUrl, config)
                 "update-variant-content" -> updateVariantContent(baseUrl, config)
                 "get-variant-content" -> getVariantContent(baseUrl, config)
                 "mark-variant-ready" -> markVariantReady(baseUrl, config)
@@ -251,7 +260,7 @@ object Driver {
                 "handledSequences" to handled.joinToString(",") { it.sequence.toString() },
                 "partitionTotal" to (collector.partitionAssignment?.total ?: -1),
                 "releases" to handled.joinToString(",") {
-                    "${it.registry ?: "null"}/${it.namespace ?: "null"}/${it.catalogKey ?: "null"}@${it.releaseVersion ?: "null"}"
+                    "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion ?: "null"}"
                 },
             ),
         )
@@ -264,7 +273,7 @@ object Driver {
      * tests inspect.
      */
     private fun generateDocument(baseUrl: String, config: ObjectNode) {
-        GenerationApi(restClient(baseUrl, config)).generateDocument(
+        val response = GenerationApi(restClient(baseUrl, config)).generateDocumentWithHttpInfo(
             config["tenantKey"].asText(),
             GenerateDocumentRequest(
                 registry = config.optionalText("registry"),
@@ -279,6 +288,17 @@ object Driver {
                 routingKey = config.optionalText("routingKey"),
             ),
         )
+        val job = response.body!!
+        report(
+            baseUrl,
+            mapOf(
+                "requestId" to job.requestId.toString(),
+                "status" to job.status.value,
+                "jobType" to job.jobType.value,
+                "total" to job.total,
+                "location" to (response.headers.getFirst(HttpHeaders.LOCATION) ?: "null"),
+            ),
+        )
     }
 
     /**
@@ -287,12 +307,56 @@ object Driver {
      * nulls for unset properties turns "rename this consumer" into "rename it and erase its
      * description, contact and expiry".
      */
-    private fun updateConsumer(baseUrl: String, config: ObjectNode) {
-        ConsumersApi(restClient(baseUrl, config)).updateConsumer(
+    private fun updateConsumer(baseUrl: String, config: ObjectNode) = conditionalUpdate(baseUrl, {
+        ConsumersApi(restClient(baseUrl, config)).updateConsumerWithHttpInfo(
             config["tenantKey"].asText(),
             config["consumerId"].asText(),
             UpdateConsumerRequest(name = config["name"].asText()),
+            ifMatch = config.optionalText("ifMatch"),
         )
+    }) { consumer -> mapOf("id" to consumer.id.toString(), "name" to consumer.name) }
+
+    /** Renames the tenant, conditionally when `config.ifMatch` is set. */
+    private fun updateTenant(baseUrl: String, config: ObjectNode) = conditionalUpdate(baseUrl, {
+        TenantsApi(restClient(baseUrl, config)).updateTenantWithHttpInfo(
+            config["tenantKey"].asText(),
+            UpdateTenantRequest(name = config.optionalText("name")),
+            ifMatch = config.optionalText("ifMatch"),
+        )
+    }) { tenant -> mapOf("key" to tenant.key, "name" to tenant.name) }
+
+    /** Hides or shows one code list entry, conditionally when `config.ifMatch` is set. */
+    private fun updateCodeListEntryHidden(baseUrl: String, config: ObjectNode) = conditionalUpdate(baseUrl, {
+        CodeListsApi(restClient(baseUrl, config)).updateCodeListEntryHiddenWithHttpInfo(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+            config["codeListKey"].asText(),
+            config["code"].asText(),
+            UpdateCodeListEntryHiddenRequest(hidden = config["hidden"].asBoolean()),
+            ifMatch = config.optionalText("ifMatch"),
+        )
+    }) { entry -> mapOf("code" to entry.code, "hidden" to (entry.hidden?.toString() ?: "null")) }
+
+    /**
+     * The shape every conditional update shares: call the operation's `…WithHttpInfo` variant, report
+     * the fields it parsed plus the `ETag` response header exactly as received (quotes included,
+     * `null` when absent), or the problem when the server refused it.
+     */
+    private fun <T : Any> conditionalUpdate(
+        baseUrl: String,
+        call: () -> ResponseEntity<T>,
+        fields: (T) -> Map<String, Any>,
+    ) {
+        val response = try {
+            call()
+        } catch (e: ProblemDetailException) {
+            report(baseUrl, mapOf("problemTypeSlug" to (e.typeSlug ?: "<null>"), "problemStatus" to e.statusCode.value()))
+            return
+        }
+        report(baseUrl, fields(response.body!!) + ("etag" to (response.headers.getFirst(HttpHeaders.ETAG) ?: "null")))
     }
 
     /**
@@ -431,7 +495,7 @@ object Driver {
                 file,
                 registry = config.optionalText("registry"),
                 namespace = config.optionalText("namespace"),
-                catalogType = config.optionalText("catalogType")?.let { CatalogsApi.CatalogTypeImportCatalog.valueOf(it) },
+                catalogType = config.optionalText("catalogType")?.let { CatalogType.decode(it) },
             )
         } catch (e: ProblemDetailException) {
             report(baseUrl, mapOf("problemTypeSlug" to (e.typeSlug ?: "<null>"), "problemStatus" to e.statusCode.value()))
@@ -566,8 +630,8 @@ object Driver {
      * configured (an unconfigured `releaseVersion` or `versionId` stays off the wire) and reports what
      * came back, in order, a null value as `null`.
      */
-    private fun updateCatalogDependencies(baseUrl: String, config: ObjectNode) {
-        val dependencies = CatalogsApi(restClient(baseUrl, config)).updateCatalogDependencies(
+    private fun updateCatalogDependencies(baseUrl: String, config: ObjectNode) = conditionalUpdate(baseUrl, {
+        CatalogsApi(restClient(baseUrl, config)).updateCatalogDependenciesWithHttpInfo(
             config["tenantKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
@@ -584,32 +648,34 @@ object Driver {
                     )
                 },
             ),
-        ).items
-        reportDependencies(baseUrl, dependencies)
-    }
+            ifMatch = config.optionalText("ifMatch"),
+        )
+    }) { dependencyFields(it.items) }
 
-    private fun reportDependencies(baseUrl: String, dependencies: List<CatalogDependencyDto>) = report(
-        baseUrl,
+    private fun reportDependencies(baseUrl: String, dependencies: List<CatalogDependencyDto>) = report(baseUrl, dependencyFields(dependencies))
+
+    private fun dependencyFields(dependencies: List<CatalogDependencyDto>): Map<String, Any> = (
         mapOf(
             "registries" to dependencies.joinToString(",") { it.registry },
             "namespaces" to dependencies.joinToString(",") { it.namespace },
             "catalogKeys" to dependencies.joinToString(",") { it.catalogKey },
             "releaseVersions" to dependencies.joinToString(",") { it.releaseVersion ?: "null" },
             "versionIds" to dependencies.joinToString(",") { it.versionId ?: "null" },
-        ),
-    )
+        )
+        )
 
     // --- Catalog versions ---
 
     /** Starts a draft; `from` (a release number or a draft id) is sent only when configured, so an absent one stays off the wire. */
     private fun createCatalogDraft(baseUrl: String, config: ObjectNode) {
-        val version = CatalogsApi(restClient(baseUrl, config)).createCatalogDraft(
+        val response = CatalogsApi(restClient(baseUrl, config)).createCatalogDraftWithHttpInfo(
             config["tenantKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             CreateCatalogDraftRequest(name = config["name"].asText(), from = config.optionalText("from")),
         )
+        val version = response.body!!
         report(
             baseUrl,
             mapOf(
@@ -620,6 +686,7 @@ object Driver {
                 "base" to (version.base ?: "null"),
                 "createdFrom" to (version.createdFrom?.toString() ?: "null"),
                 "releasedAt" to timestamp(version.releasedAt),
+                "location" to (response.headers.getFirst(HttpHeaders.LOCATION) ?: "null"),
             ),
         )
     }
@@ -675,37 +742,36 @@ object Driver {
         )
     }
 
-    /** Renames a draft; only the name is sent, to its unchanged address. */
-    private fun renameCatalogDraft(baseUrl: String, config: ObjectNode) {
-        val version = CatalogsApi(restClient(baseUrl, config)).renameCatalogDraft(
+    /** Renames a draft, conditionally when `config.ifMatch` is set; only the name is sent, to its unchanged address. */
+    private fun updateCatalogDraft(baseUrl: String, config: ObjectNode) = conditionalUpdate(baseUrl, {
+        CatalogsApi(restClient(baseUrl, config)).updateCatalogDraftWithHttpInfo(
             config["tenantKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
-            RenameCatalogDraftRequest(name = config["name"].asText()),
+            UpdateCatalogDraftRequest(name = config["name"].asText()),
+            ifMatch = config.optionalText("ifMatch"),
         )
-        report(
-            baseUrl,
-            mapOf(
-                "releaseVersion" to (version.releaseVersion ?: "null"),
-                "versionId" to version.versionId,
-                "name" to (version.name ?: "null"),
-                "status" to version.status.value,
-                "base" to (version.base ?: "null"),
-            ),
+    }) { version ->
+        mapOf(
+            "releaseVersion" to (version.releaseVersion ?: "null"),
+            "versionId" to version.versionId,
+            "name" to (version.name ?: "null"),
+            "status" to version.status.value,
+            "base" to (version.base ?: "null"),
         )
     }
 
     /** Sets a draft's default theme and presets; no name goes out, and an unset qualifier stays off the wire. */
     private fun setCatalogDraftThemeSettings(baseUrl: String, config: ObjectNode) {
-        val version = CatalogsApi(restClient(baseUrl, config)).renameCatalogDraft(
+        val version = CatalogsApi(restClient(baseUrl, config)).updateCatalogDraft(
             config["tenantKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             config["catalogVersion"].asText(),
-            RenameCatalogDraftRequest(
+            UpdateCatalogDraftRequest(
                 defaultTheme = CatalogThemeReference(
                     key = config["defaultThemeKey"].asText(),
                     catalogKey = config.optionalText("defaultThemeCatalogKey"),
@@ -1079,7 +1145,7 @@ object Driver {
                 "fits" to response.items.joinToString(",") { it.fits.toString() },
                 "problems" to response.items.joinToString(";") { it.problems.joinToString("|") },
                 "pageNumber" to response.page.number.toString(),
-                "totalElements" to response.page.totalElements.toString(),
+                "total" to response.page.total.toString(),
             ),
         )
     }
@@ -1155,14 +1221,14 @@ object Driver {
                 "draftNames" to events.joinToString("|") { it.draftName ?: "null" },
                 "changedAt" to events.joinToString(",") { timestamp(it.changedAt) },
                 "changedBy" to events.joinToString("|") { it.changedBy ?: "null" },
-                "totalElements" to response.page.totalElements.toString(),
+                "total" to response.page.total.toString(),
             ),
         )
     }
 
     /** Creates an environment; `production` is sent only when configured. */
     private fun createEnvironment(baseUrl: String, config: ObjectNode) {
-        val environment = EnvironmentsApi(restClient(baseUrl, config)).createEnvironment(
+        val response = EnvironmentsApi(restClient(baseUrl, config)).createEnvironmentWithHttpInfo(
             config["tenantKey"].asText(),
             CreateEnvironmentRequest(
                 key = config["key"].asText(),
@@ -1170,31 +1236,24 @@ object Driver {
                 production = config.get("production")?.takeUnless { it.isNull }?.asBoolean(),
             ),
         )
-        reportEnvironment(baseUrl, environment)
+        report(baseUrl, environmentFields(response.body!!) + ("location" to (response.headers.getFirst(HttpHeaders.LOCATION) ?: "null")))
     }
 
-    /** A partial update: each member is sent only when configured. */
-    private fun updateEnvironment(baseUrl: String, config: ObjectNode) {
-        val environment = try {
-            EnvironmentsApi(restClient(baseUrl, config)).updateEnvironment(
-                config["tenantKey"].asText(),
-                config["environmentKey"].asText(),
-                UpdateEnvironmentRequest(
-                    name = config.optionalText("name"),
-                    production = config.get("production")?.takeUnless { it.isNull }?.asBoolean(),
-                ),
-            )
-        } catch (e: ProblemDetailException) {
-            report(baseUrl, mapOf("problemTypeSlug" to (e.typeSlug ?: "<null>"), "problemStatus" to e.statusCode.value()))
-            return
-        }
-        reportEnvironment(baseUrl, environment)
-    }
+    /** A partial update: each member is sent only when configured, and `If-Match` only when `config.ifMatch` is. */
+    private fun updateEnvironment(baseUrl: String, config: ObjectNode) = conditionalUpdate(baseUrl, {
+        EnvironmentsApi(restClient(baseUrl, config)).updateEnvironmentWithHttpInfo(
+            config["tenantKey"].asText(),
+            config["environmentKey"].asText(),
+            UpdateEnvironmentRequest(
+                name = config.optionalText("name"),
+                production = config.get("production")?.takeUnless { it.isNull }?.asBoolean(),
+            ),
+            ifMatch = config.optionalText("ifMatch"),
+        )
+    }, ::environmentFields)
 
-    private fun reportEnvironment(baseUrl: String, environment: EnvironmentDto) = report(
-        baseUrl,
-        mapOf("key" to environment.key, "name" to environment.name, "production" to environment.production.toString()),
-    )
+    private fun environmentFields(environment: EnvironmentDto): Map<String, Any> =
+        mapOf("key" to environment.key, "name" to environment.name, "production" to environment.production.toString())
 
     /** An optional value from `config`: absent or null stays null, so the request omits it. */
     private fun JsonNode.optionalText(name: String): String? = get(name)?.takeUnless { it.isNull }?.asText()

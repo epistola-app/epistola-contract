@@ -120,7 +120,7 @@ EnvironmentListResponse:
     page:
       number: 0
       size: 20
-      totalElements: 2
+      total: 2
       totalPages: 1
 
 DeploymentDto:
@@ -260,11 +260,11 @@ MissingReleaseDependencyReason:
   description: |
     Why a dependency release cannot be used:
 
-    - `UNAVAILABLE`: the tenant does not have the release, and it could not be fetched from its
+    - `unavailable`: the tenant does not have the release, and it could not be fetched from its
       registry or any configured mirror, or the copy did not match its recorded fingerprint.
   enum:
-    - UNAVAILABLE
-  example: UNAVAILABLE
+    - unavailable
+  example: unavailable
 
 DeploymentListResponse:
   type: object

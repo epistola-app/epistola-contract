@@ -65,7 +65,7 @@ generate-document:
       no version matches: no release satisfies `versionRange`, or the environment serves no
       version of the catalog that matches. The template data is not checked against the
       template's data contract here; it is checked when the item renders, and an item whose data
-      breaks the contract fails (`FAILED`, with its `errorMessage`). Check it first with
+      breaks the contract fails (`failed`, with its `errorMessage`). Check it first with
       `validateTemplateData` to find out before submitting.
     tags:
       - Generation
@@ -89,6 +89,10 @@ generate-document:
     responses:
       '202':
         description: Generation request accepted
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The job's address (`getGenerationJobStatus`), by its `requestId`
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -119,7 +123,7 @@ generate-batch:
       no version matches: no release satisfies `versionRange`, or the environment serves no
       version of the catalog that matches. The template data is not checked against the
       template's data contract here; it is checked when the item renders, and an item whose data
-      breaks the contract fails (`FAILED`, with its `errorMessage`). Check it first with
+      breaks the contract fails (`failed`, with its `errorMessage`). Check it first with
       `validateTemplateData` to find out before submitting. A batch is
       accepted whole or not at all: an item that cannot be resolved refuses the batch.
     tags:
@@ -144,6 +148,10 @@ generate-batch:
     responses:
       '202':
         description: Batch generation request accepted
+        headers:
+          Location:
+            $ref: '../components/headers/location.yaml#/Location'
+            description: The job's address (`getGenerationJobStatus`), by its `requestId`
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -182,7 +190,7 @@ jobs:
         description: Filter by job status
         schema:
           type: string
-          enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED, CANCELLED]
+          enum: [pending, in-progress, completed, failed, cancelled]
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
     responses:
@@ -304,8 +312,7 @@ documents:
         description: |
           Filter by the registry of the template's catalog, together with `namespace` and
           `catalogKey`. Omitted or `~`: the default registry. Given without
-          `namespace` and `catalogKey`, the request is refused with 400. Documents generated before
-          contract 2.0 record no catalog and match no catalog filter.
+          `namespace` and `catalogKey`, the request is refused with 400.
         schema:
           type: string
           pattern: '^(~|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)$'

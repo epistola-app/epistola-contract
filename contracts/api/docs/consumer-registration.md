@@ -140,7 +140,7 @@ no cross-tenant view of one application, and so no cross-tenant impact analysis.
 | `totalPartitions` | integer or null | Partitions for generation result collection; null until the consumer has polled `collectGenerationResults` |
 | **`createdAt`** | date-time | When the consumer was registered |
 | `lastSeenAt` | date-time or null | When the server last received a request from the consumer |
-| `updatedAt` | date-time or null | When the consumer record was last modified |
+| `lastModified` | date-time or null | When the consumer record was last changed; null when it has not changed since it was registered |
 
 `ConsumerNodeDto` describes one instance of the application:
 
@@ -162,7 +162,7 @@ consumer from its credentials:
   private key. The `iss` claim is the consumer ID, and the server verifies the signature with the
   registered `publicKey`.
 - **`api-key`**: a long-lived key provisioned by a tenant manager, sent as
-  `Authorization: ApiKey <key>` (or the deprecated `X-API-Key` header). This is the supported
+  `Authorization: ApiKey <key>`. This is the supported
   method. Which key belongs to which consumer is server configuration.
 
 In every case the credential proves identity only. What the consumer may do is its
@@ -298,7 +298,7 @@ TemplateDependencyDto:
       format: date-time
       description: When this dependency was declared
       example: "2026-10-17T10:00:00Z"
-    updatedAt:
+    lastModified:
       type: [string, "null"]
       format: date-time
       description: When this dependency was last updated
@@ -394,7 +394,7 @@ Content-Type: application/vnd.epistola.v2+json
   "totalPartitions": null,
   "createdAt": "2026-10-17T10:00:00Z",
   "lastSeenAt": null,
-  "updatedAt": null
+  "lastModified": null
 }
 ```
 
@@ -441,7 +441,7 @@ Content-Type: application/vnd.epistola.v2+json
   "page": {
     "number": 0,
     "size": 20,
-    "totalElements": 1,
+    "total": 1,
     "totalPages": 1
   }
 }
@@ -553,7 +553,7 @@ Content-Type: application/vnd.epistola.v2+json
   "versionRange": "^1.4.0",
   "purpose": "Generates monthly PDF invoices for B2B customers",
   "createdAt": "2026-10-17T10:30:00Z",
-  "updatedAt": null
+  "lastModified": null
 }
 ```
 
@@ -613,7 +613,7 @@ Content-Type: application/vnd.epistola.v2+json
       "versionRange": "^1.4.0",
       "purpose": "Generates monthly PDF invoices for B2B customers",
       "createdAt": "2026-10-17T10:30:00Z",
-      "updatedAt": null
+      "lastModified": null
     },
     {
       "consumerId": "invoice-service",
@@ -626,7 +626,7 @@ Content-Type: application/vnd.epistola.v2+json
       "versionRange": null,
       "purpose": "Generates credit notes when invoices are reversed",
       "createdAt": "2026-10-17T10:35:00Z",
-      "updatedAt": null
+      "lastModified": null
     }
   ]
 }
@@ -689,7 +689,7 @@ Content-Type: application/vnd.epistola.v2+json
       "versionRange": "^1.4.0",
       "purpose": "Generates monthly PDF invoices for B2B customers",
       "createdAt": "2026-10-17T10:30:00Z",
-      "updatedAt": null
+      "lastModified": null
     },
     {
       "consumerId": "report-generator",
@@ -702,7 +702,7 @@ Content-Type: application/vnd.epistola.v2+json
       "versionRange": null,
       "purpose": "Generates monthly summary reports including invoice copies",
       "createdAt": "2026-10-18T09:00:00Z",
-      "updatedAt": null
+      "lastModified": null
     }
   ]
 }

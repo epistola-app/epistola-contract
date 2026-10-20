@@ -54,7 +54,7 @@ public final class MissingDependency {
     }
 
     /**
-     * Why the release is missing, as the server sent it: {@code UNAVAILABLE}, or a reason a later
+     * Why the release is missing, as the server sent it: {@code unavailable}, or a reason a later
      * contract added.
      */
     public String getReason() {

@@ -35,7 +35,7 @@ script:
       items:
         - { releaseVersion: null, versionId: k7m2x9qa, name: Spring fixes, status: draft, base: 1.5.0, createdFrom: null, behind: [], dependencies: [], deployedTo: [] }
         - { releaseVersion: null, versionId: r4t8w2nc, name: Redesign 2027, status: draft, base: 1.4.0, createdFrom: w6n4c8ze, behind: [{ releaseVersion: 1.5.0, changes: [{ type: template, key: invoice, change: modified }] }], dependencies: [], deployedTo: [] }
-      page: { number: 0, size: 20, totalElements: 2, totalPages: 1 }
+      page: { number: 0, size: 20, total: 2, totalPages: 1 }
 
 expect:
   requestCount: 1

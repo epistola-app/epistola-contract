@@ -62,14 +62,11 @@ ImageDto:
       description: Key of the catalog this resource lives in, unique within its registry and namespace
       example: default
     catalogType:
-      type: string
-      enum:
-        - AUTHORED
-        - SUBSCRIBED
-      example: AUTHORED
+      $ref: './catalogs.yaml#/CatalogType'
+      description: The type of the image's catalog; a subscribed catalog's images are read-only.
     readOnly:
       type: boolean
-      description: True when the image belongs to a SUBSCRIBED catalog.
+      description: True when the image belongs to a subscribed catalog.
       example: false
     name:
       type: string

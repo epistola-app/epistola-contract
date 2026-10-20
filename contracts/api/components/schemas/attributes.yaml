@@ -8,7 +8,7 @@ AttributeDto:
       - **Inline values** — `allowedValues` is non-empty; `codeListBinding` is null.
       - **Bound to a code list** — `codeListBinding` is set; `allowedValues` is empty.
 
-    Attributes from a SUBSCRIBED catalog (e.g. the bundled `system` catalog)
+    Attributes from a subscribed catalog (e.g. the bundled `system` catalog)
     are flagged `readOnly: true`. Writes to them via this API return 409.
   required:
     - key
@@ -122,18 +122,12 @@ AttributeDto:
           description: Code list key within that catalog.
           example: bcp-47
     catalogType:
-      type: string
-      enum:
-        - AUTHORED
-        - SUBSCRIBED
-      description: |
-        Origin of the attribute's catalog. AUTHORED catalogs are tenant-managed;
-        SUBSCRIBED catalogs are read-only mirrors of an upstream source.
-      example: SUBSCRIBED
+      $ref: './catalogs.yaml#/CatalogType'
+      description: The type of the attribute's catalog; a subscribed catalog's attributes are read-only.
     readOnly:
       type: boolean
       description: |
-        True when `catalogType == SUBSCRIBED`. Clients should disable editing
+        True when `catalogType` is `subscribed`. Clients should disable editing
         affordances; PATCH and DELETE on these attributes return 409.
       example: true
     createdAt:
@@ -158,7 +152,7 @@ AttributeDto:
       namespace: epistola
       catalogKey: system
       key: bcp-47
-    catalogType: SUBSCRIBED
+    catalogType: subscribed
     readOnly: true
     createdAt: "2026-01-16T10:00:00Z"
     lastModified: "2026-05-11T12:00:00Z"
@@ -243,7 +237,7 @@ UpdateAttributeRequest:
     Request body for updating an attribute definition. All fields are optional
     (PATCH semantics). Constraint kind may switch — e.g. unset `codeListBinding`
     and provide `allowedValues` to move from bound to inline. Attempting to
-    update an attribute from a SUBSCRIBED catalog returns 409.
+    update an attribute from a subscribed catalog returns 409.
   properties:
     displayName:
       type: string
@@ -317,7 +311,7 @@ AttributeListResponse:
         displayName: Locale
         allowedValues: []
         codeListBinding: { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, key: bcp-47 }
-        catalogType: SUBSCRIBED
+        catalogType: subscribed
         readOnly: true
         createdAt: "2026-01-16T10:00:00Z"
         lastModified: "2026-05-11T12:00:00Z"
@@ -329,12 +323,12 @@ AttributeListResponse:
         displayName: Priority
         allowedValues: [low, normal, high]
         codeListBinding: null
-        catalogType: AUTHORED
+        catalogType: authored
         readOnly: false
         createdAt: "2026-01-16T10:30:00Z"
         lastModified: "2026-01-16T10:30:00Z"
     page:
       number: 0
       size: 20
-      totalElements: 2
+      total: 2
       totalPages: 1

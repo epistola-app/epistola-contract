@@ -174,6 +174,12 @@ All endpoints use versioned media type: `application/vnd.epistola.v2+json`
   `../components/responses/problem-responses.yaml` (e.g. `#/NotFoundError`, `#/ConflictError`) and
   `../components/responses/auth-errors.yaml`
 - **Validation errors**: Reference `../components/responses/problem-responses.yaml#/ValidationFailedError`
+- **Enum values** are lowercase, kebab-case when multiword (`in-progress`, `api-key`), except values
+  owned by the catalog wire format (such as `PageFormat`)
+- **Counts and timestamps**: a count of items is `total`; a last change is `lastModified`
+- **Created resources**: a 201 carries `Location`; a 202 that starts a job carries the job's `Location`
+- **Concurrency**: every update returns `ETag` and accepts `If-Match` (412 `resource-modified`); Jakarta
+  has a `…WithHttpInfo` sibling for every operation declaring `ETag` or `Location`
 
 ## API Domain Model
 
@@ -200,7 +206,7 @@ The Epistola API manages:
    (`listAvailableCatalogReleases`, older lines included) and installs one fetched from its source
    the same way (`installCatalogRelease`), with nothing updated in place or removed; a source that
    cannot be used is 503/502 `catalog-source-unavailable`. The import that creates a catalog names its type
-   (AUTHORED or SUBSCRIBED, no default); an import never changes it (ADR 0003)
+   (`authored` or `subscribed`, no default); an import never changes it (ADR 0003)
 7. **Generation** - Async document generation with batch support, from a release, or from a draft
    deployed to the environment the request names
 

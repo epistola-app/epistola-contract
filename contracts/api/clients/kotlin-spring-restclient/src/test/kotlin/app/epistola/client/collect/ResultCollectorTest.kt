@@ -35,7 +35,7 @@ class ResultCollectorTest {
     private fun resultLine(
         sequence: Long = 100,
         requestId: String = "req-1",
-        status: String = "COMPLETED",
+        status: String = "completed",
         documentId: String? = "doc-1",
         correlationId: String? = "corr-1",
     ): String = objectMapper.writeValueAsString(
@@ -46,13 +46,17 @@ class ResultCollectorTest {
             "documentId" to documentId,
             "correlationId" to correlationId,
             "templateKey" to "invoice",
+            "registry" to "exchange.example.org",
+            "namespace" to "team-a",
+            "catalogKey" to "letters",
+            "releaseVersion" to "1.4.0",
             "completedAt" to "2026-04-24T10:00:00Z",
         ),
     )
 
     @Suppress("ktlint:standard:function-signature")
     private fun metaLine(hasMore: Boolean, count: Int, lastSequence: Long = 0) =
-        """{"_meta":true,"hasMore":$hasMore,"count":$count,"lastSequence":$lastSequence,"partitions":{"total":12,"mine":[0,1,2,3],"hash":"murmur3"}}"""
+        """{"_meta":true,"hasMore":$hasMore,"resultCount":$count,"lastSequence":$lastSequence,"partitions":{"total":12,"mine":[0,1,2,3],"hash":"murmur3"}}"""
 
     @Test
     fun `parses NDJSON results correctly`() {
@@ -60,8 +64,8 @@ class ResultCollectorTest {
 
         val restClient = mockRestClient(
             ndjsonResponse(
-                resultLine(sequence = 100, requestId = "r1", status = "COMPLETED", documentId = "d1"),
-                resultLine(sequence = 101, requestId = "r2", status = "FAILED", documentId = null),
+                resultLine(sequence = 100, requestId = "r1", status = "completed", documentId = "d1"),
+                resultLine(sequence = 101, requestId = "r2", status = "failed", documentId = null),
                 metaLine(hasMore = false, count = 2, lastSequence = 101),
             ),
         )
@@ -73,38 +77,38 @@ class ResultCollectorTest {
         assertFalse(result.hasMore)
         assertEquals(100, results[0].sequence)
         assertEquals("r1", results[0].requestId)
-        assertEquals("COMPLETED", results[0].status)
+        assertEquals("completed", results[0].status)
         assertEquals(101, results[1].sequence)
         assertEquals("r2", results[1].requestId)
-        assertEquals("FAILED", results[1].status)
+        assertEquals("failed", results[1].status)
     }
 
     @Test
-    fun `parses the release a result rendered, and null for a result from before contract 2_0`() {
+    fun `parses the catalog a result rendered, and a null release for a result rendered from a draft`() {
         val results = mutableListOf<ResultCollector.GenerationResult>()
         val current = objectMapper.writeValueAsString(
             mapOf(
                 "sequence" to 100,
                 "requestId" to "r1",
-                "status" to "COMPLETED",
+                "status" to "completed",
                 "registry" to "exchange.example.org",
                 "namespace" to "team-a",
                 "catalogKey" to "letters",
                 "releaseVersion" to "1.4.0",
             ),
         )
-        val legacy = objectMapper.writeValueAsString(
+        val fromDraft = objectMapper.writeValueAsString(
             mapOf(
                 "sequence" to 101,
                 "requestId" to "r2",
-                "status" to "COMPLETED",
-                "registry" to null,
-                "namespace" to null,
-                "catalogKey" to null,
+                "status" to "completed",
+                "registry" to "exchange.example.org",
+                "namespace" to "team-a",
+                "catalogKey" to "letters",
                 "releaseVersion" to null,
             ),
         )
-        val restClient = mockRestClient(ndjsonResponse(current, legacy, metaLine(hasMore = false, count = 2, lastSequence = 101)))
+        val restClient = mockRestClient(ndjsonResponse(current, fromDraft, metaLine(hasMore = false, count = 2, lastSequence = 101)))
 
         buildCollector(restClient) { results.add(it) }.collectOnce()
 
@@ -112,9 +116,9 @@ class ResultCollectorTest {
         assertEquals("team-a", results[0].namespace)
         assertEquals("letters", results[0].catalogKey)
         assertEquals("1.4.0", results[0].releaseVersion)
-        assertNull(results[1].registry)
-        assertNull(results[1].namespace)
-        assertNull(results[1].catalogKey)
+        assertEquals("exchange.example.org", results[1].registry)
+        assertEquals("team-a", results[1].namespace)
+        assertEquals("letters", results[1].catalogKey)
         assertNull(results[1].releaseVersion)
     }
 

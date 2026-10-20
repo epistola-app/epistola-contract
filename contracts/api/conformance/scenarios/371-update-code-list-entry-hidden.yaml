@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: update-code-list-entry-hidden
+title: Hiding a code-list entry is conditional on the code list's ETag, and answers with its new one
+why: >
+  An entry has no revision of its own: hiding or showing it changes its code list, so the update
+  takes the code list's `ETag` (from `getCodeList`) as `If-Match` and answers with the code
+  list's new one. A client must send the tag byte for byte, quotes included, and expose the new one,
+  or the next edit of the code list, conditional on a stale tag, is refused for no visible reason.
+  The entry's code goes in the path as given: `en-US`, not lowercased.
+
+action:
+  name: update-code-list-entry-hidden
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    catalogVersion: k7m2x9qa
+    codeListKey: languages
+    code: en-US
+    hidden: true
+    ifMatch: '"9"'
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      ETag: '"10"'
+    body:
+      code: en-US
+      label: English (United States)
+      sortOrder: 10
+      hidden: true
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PATCH
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/k7m2x9qa/code-lists/languages/entries/en-US/hidden
+      headers:
+        if-match: '"9"'
+      body:
+        json:
+          hidden: true
+  report:
+    code: en-US
+    hidden: 'true'
+    etag: '"10"'

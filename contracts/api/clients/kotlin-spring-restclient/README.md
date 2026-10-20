@@ -153,7 +153,7 @@ val archive = object : ByteArrayResource(bytes) {
 catalogsApi.importCatalog(
     tenantKey,
     archive,
-    catalogType = CatalogsApi.CatalogTypeImportCatalog.SUBSCRIBED,
+    catalogType = CatalogType.subscribed,
 )
 ```
 
@@ -197,7 +197,6 @@ val restClient = RestClient.builder()
     .build()
 ```
 
-The legacy `X-API-Key` header remains supported for existing integrations, but is deprecated.
 Some Epistola Suite deployments may disable API-key authentication entirely. When that happens,
 the API returns a Problem Details response with `type` slug `api-key-auth-disabled`; switch on the
 slug in `ProblemDetailException` and guide the caller to JWT auth.
@@ -430,12 +429,12 @@ val collector = ResultCollector.builder()
     .maxInterval(Duration.ofSeconds(30))               // max backoff when idle
     .handler { result ->
         when (result.status) {
-            "COMPLETED" -> {
+            "completed" -> {
                 println("Document ready: ${result.documentId}")
                 println("Correlation: ${result.correlationId}")
                 downloadDocument(result.documentId!!)
             }
-            "FAILED" -> {
+            "failed" -> {
                 println("Generation failed: ${result.error}")
             }
         }
@@ -539,7 +538,7 @@ val pong = systemApi.ping(PingRequest(
     name = "Invoice Service",
     contact = "billing-team@acme-corp.com",
 ))
-println("Server status: ${pong.status}")  // UP or DEGRADED
+println("Server status: ${pong.status}")  // up or degraded
 
 // Authenticated ping includes server details + partition assignment
 println("Server version: ${pong.details?.serverVersion}")
@@ -585,7 +584,7 @@ fun main() {
         .restClient(pollingClient)
         .tenantKey("acme-corp")
         .handler { result ->
-            if (result.status == "COMPLETED") {
+            if (result.status == "completed") {
                 println("Document ${result.documentId} ready for ${result.correlationId}")
             }
         }
