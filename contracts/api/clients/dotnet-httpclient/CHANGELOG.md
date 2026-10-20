@@ -27,11 +27,20 @@ records contract changes; this file records changes to the hand-written library 
   absent member is an empty list. The constructor takes it as a new optional
   `unreleasedDependencies` parameter.
 - The generated `Validate()` extensions check a member that references a plain string schema, such
-  as `CatalogDependencyRequirement.VarVersion` (`ReleaseVersion`), as if its constraints were
+  as `CatalogDependencyRequirement.Version` (`ReleaseVersion`), as if its constraints were
   written inline. Before, every referenced member was skipped.
 
 ### Changed
 
+- **BREAKING:** generated members and parameters carry their plain name, never a `Var`/`var`
+  prefix. A `version` member is `Version`, renamed from 1.4's `VarVersion` (constructor argument
+  `version`, from `varVersion`); 1.4 had it on `ReleaseCatalogResponse`, `ImportTemplateDto` and
+  `ImportTemplateResultDto`. The `base` and `namespace` members, new in 2.0, are `Base` and
+  `Namespace`; their parameters, in model constructors and API operations alike, are `@base` and
+  `@namespace`, since both are C# keywords. Only code that passes them as named arguments sees the
+  `@`. JSON names are unchanged. `generate.sh` maps the parameters (`--parameter-name-mappings`),
+  renames the `Var`-prefixed properties the generator's reserved-word escaping leaves, and fails
+  when any `Var`-prefixed identifier remains.
 - **BREAKING:** the result collector's `GenerationResult.Registry`, `Namespace` and `CatalogKey`
   are non-nullable `string`s: every result line names its catalog. A line without one of them is
   malformed and `CollectOnce()` throws a `FormatException`. `Version` stays nullable (null
@@ -75,8 +84,6 @@ records contract changes; this file records changes to the hand-written library 
 - The result collector's `GenerationResult` gained `Namespace` and `CatalogKey`, next to
   `Version`. `GenerationResult` is a positional record, so
   code constructing it positionally must add the two arguments.
-- The derived-source generator names a constrained `version` property `VarVersion`, as the
-  OpenAPI generator does, so `Validate()` compiles for models that carry one.
 
 - **BREAKING:** the server-side template data validator no longer takes a `versionId`, matching
   contract 2.0's generation by release; without a version range or an environment, the catalog's

@@ -244,7 +244,7 @@ public static class Driver
                 // Left unset when the scenario does not name it: omitted means the default registry, which
                 // only the server knows, so the client must not fill one in.
                 registry: OptStr(config, "registry")!,
-                varNamespace: Str(config, "namespace"),
+                @namespace: Str(config, "namespace"),
                 catalogKey: Str(config, "catalogKey"),
                 templateKey: Str(config, "templateKey"),
                 // Optional, and left unset when the scenario does not name them: an unset optional
@@ -431,7 +431,7 @@ public static class Driver
                 Str(config, "tenantKey"),
                 templateKey: OptStr(config, "templateKey"),
                 registry: OptStr(config, "registry"),
-                varNamespace: OptStr(config, "namespace"),
+                @namespace: OptStr(config, "namespace"),
                 catalogKey: OptStr(config, "catalogKey"))
             .Items;
 
@@ -496,7 +496,7 @@ public static class Driver
                 Str(config, "tenantKey"),
                 new FileParameter(Str(config, "filename"), Str(config, "fileContentType"), content),
                 registry: OptStr(config, "registry"),
-                varNamespace: OptStr(config, "namespace"),
+                @namespace: OptStr(config, "namespace"),
                 catalogType: OptStr(config, "catalogType") is { } catalogType ? Parse<CatalogType>(catalogType) : null);
         }
         catch (ProblemDetailException e)
@@ -514,7 +514,7 @@ public static class Driver
             ["registry"] = Show(imported.Registry),
             ["namespace"] = Show(imported.Namespace),
             ["catalogKey"] = Show(imported.CatalogKey),
-            ["version"] = Show(imported.VarVersion),
+            ["version"] = Show(imported.Version),
             ["newlyInstalled"] = Bool(imported.NewlyInstalled),
             ["total"] = Show(imported.Total),
         });
@@ -551,7 +551,7 @@ public static class Driver
             ["registry"] = Show(installed.Registry),
             ["namespace"] = Show(installed.Namespace),
             ["catalogKey"] = Show(installed.CatalogKey),
-            ["version"] = Show(installed.VarVersion),
+            ["version"] = Show(installed.Version),
             ["newlyInstalled"] = Bool(installed.NewlyInstalled),
             ["total"] = Show(installed.Total),
             ["installedDependencies"] = string.Join(",", installed.InstalledDependencies ?? new List<string>()),
@@ -588,13 +588,13 @@ public static class Driver
             ["registry"] = Show(releases.Registry),
             ["namespace"] = Show(releases.Namespace),
             ["catalogKey"] = Show(releases.CatalogKey),
-            ["availableComparedTo"] = string.Join(";", available.Select(r => $"{Show(r.VarVersion)}={Show(r.ComparedTo)}")),
+            ["availableComparedTo"] = string.Join(";", available.Select(r => $"{Show(r.Version)}={Show(r.ComparedTo)}")),
             ["availableChanges"] = string.Join(";", available
-                .Select(r => $"{Show(r.VarVersion)}=" + string.Join("+", (r.Changes ?? new List<ReleasedChangeDto>())
+                .Select(r => $"{Show(r.Version)}=" + string.Join("+", (r.Changes ?? new List<ReleasedChangeDto>())
                     .Select(c => $"{Show(c.Type)}/{Show(c.Key)}:{Wire(c.Change)}")))),
             ["availableDependencies"] = string.Join(";", available
-                .Select(r => $"{Show(r.VarVersion)}=" + string.Join("+", (r.Dependencies ?? new List<AvailableReleaseDependencyDto>())
-                    .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.VarVersion)}:{Bool(d.Present)}")))),
+                .Select(r => $"{Show(r.Version)}=" + string.Join("+", (r.Dependencies ?? new List<AvailableReleaseDependencyDto>())
+                    .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.Version)}:{Bool(d.Present)}")))),
         });
     }
 
@@ -634,9 +634,9 @@ public static class Driver
             .Select(d => new CatalogDependencyRequirement(
                 // Set only when the entry names one: omitted means the default registry.
                 registry: OptStr(d, "registry")!,
-                varNamespace: Str(d, "namespace"),
+                @namespace: Str(d, "namespace"),
                 catalogKey: Str(d, "catalogKey"),
-                varVersion: OptStr(d, "version")!,
+                version: OptStr(d, "version")!,
                 releaseId: OptStr(d, "releaseId")))
             .ToList();
         ApiResponse<CatalogDependencyListResponse> response;
@@ -663,7 +663,7 @@ public static class Driver
             ["registries"] = string.Join(",", items.Select(d => Show(d.Registry))),
             ["namespaces"] = string.Join(",", items.Select(d => Show(d.Namespace))),
             ["catalogKeys"] = string.Join(",", items.Select(d => Show(d.CatalogKey))),
-            ["versions"] = string.Join(",", items.Select(d => Show(d.VarVersion))),
+            ["versions"] = string.Join(",", items.Select(d => Show(d.Version))),
             ["releaseIds"] = string.Join(",", items.Select(d => Show(d.ReleaseId))),
         };
         if (etag != null) values["etag"] = etag;
@@ -686,7 +686,7 @@ public static class Driver
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["version"] = Show(release.VarVersion),
+            ["version"] = Show(release.Version),
             ["releaseId"] = Show(release.ReleaseId),
             ["name"] = Show(release.Name),
             ["status"] = Show(Wire(release.Status)),
@@ -707,7 +707,7 @@ public static class Driver
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["versions"] = string.Join(",", items.Select(v => Show(v.VarVersion))),
+            ["versions"] = string.Join(",", items.Select(v => Show(v.Version))),
             ["releaseIds"] = string.Join(",", items.Select(v => Show(v.ReleaseId))),
             ["names"] = string.Join("|", items.Select(v => Show(v.Name))),
             ["statuses"] = string.Join(",", items.Select(v => Show(Wire(v.Status)))),
@@ -725,17 +725,17 @@ public static class Driver
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["version"] = Show(release.VarVersion),
+            ["version"] = Show(release.Version),
             ["releaseId"] = Show(release.ReleaseId),
             ["name"] = Show(release.Name),
             ["status"] = Show(Wire(release.Status)),
             ["releasedAt"] = Show(Iso(release.ReleasedAt)),
             ["fingerprint"] = Show(release.Fingerprint),
             ["dependencies"] = string.Join(",", (release.Dependencies ?? new List<ReleaseDependencyDto>())
-                .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.VarVersion)}")),
+                .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.Version)}")),
             ["deployedTo"] = string.Join(",", release.DeployedTo ?? new List<string>()),
             ["behind"] = string.Join(";", (release.Behind ?? new List<BehindReleaseDto>())
-                .Select(b => $"{Show(b.VarVersion)}=" + string.Join("+", (b.Changes ?? new List<ReleasedChangeDto>())
+                .Select(b => $"{Show(b.Version)}=" + string.Join("+", (b.Changes ?? new List<ReleasedChangeDto>())
                     .Select(c => $"{Show(c.Type)}/{Show(c.Key)}:{Wire(c.Change)}")))),
         });
     }
@@ -764,7 +764,7 @@ public static class Driver
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["version"] = Show(release.VarVersion),
+            ["version"] = Show(release.Version),
             ["releaseId"] = Show(release.ReleaseId),
             ["name"] = Show(release.Name),
             ["status"] = Show(Wire(release.Status)),
@@ -836,7 +836,7 @@ public static class Driver
             response = new CatalogsApi(http, apiBase).ReleaseCatalogDraft(
                 Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
                 new ReleaseCatalogDraftRequest(
-                    varVersion: OptStr(config, "version")!,
+                    version: OptStr(config, "version")!,
                     notes: OptStr(config, "notes")!,
                     acknowledgedBehind: OptStrList(config, "acknowledgedBehind")!,
                     // The generated model has a plain bool with the contract's default, false, and
@@ -857,12 +857,12 @@ public static class Driver
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["version"] = Show(response.Release?.VarVersion),
+            ["version"] = Show(response.Release?.Version),
             ["status"] = Show(response.Release == null ? null : Wire(response.Release.Status)),
             ["releaseId"] = Show(response.Release?.ReleaseId),
             ["draftsBehind"] = string.Join("|", response.DraftsBehind ?? new List<string>()),
             ["releasedDependencies"] = string.Join(",", (response.ReleasedDependencies ?? new List<ReleasedDependencyDto>())
-                .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.VarVersion)}")),
+                .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.Version)}")),
         });
     }
 
@@ -923,7 +923,7 @@ public static class Driver
             ["catalogKey"] = Show(deployment.CatalogKey),
             ["releaseId"] = Show(deployment.ReleaseId),
             ["status"] = Wire(deployment.Status),
-            ["version"] = Show(deployment.VarVersion),
+            ["version"] = Show(deployment.Version),
             ["releaseName"] = Show(deployment.ReleaseName),
             ["lastUsedAt"] = Show(Iso(deployment.LastUsedAt)),
             ["documentsRequested"] = Show(deployment.DocumentsRequested),
@@ -1252,7 +1252,7 @@ public static class Driver
             ["catalogKeys"] = string.Join(",", items.Select(d => Show(d.CatalogKey))),
             ["releaseIds"] = string.Join(",", items.Select(d => Show(d.ReleaseId))),
             ["statuses"] = string.Join(",", items.Select(d => Wire(d.Status))),
-            ["versions"] = string.Join(",", items.Select(d => Show(d.VarVersion))),
+            ["versions"] = string.Join(",", items.Select(d => Show(d.Version))),
             ["releaseNames"] = string.Join("|", items.Select(d => Show(d.ReleaseName))),
             ["deployedAt"] = string.Join(",", items.Select(d => Show(Iso(d.DeployedAt)))),
             ["lastUsedAt"] = string.Join(",", items.Select(d => Show(Iso(d.LastUsedAt)))),
@@ -1275,7 +1275,7 @@ public static class Driver
             ["actions"] = string.Join(",", items.Select(e => Wire(e.Action))),
             ["releaseIds"] = string.Join(",", items.Select(e => Show(e.ReleaseId))),
             ["statuses"] = string.Join(",", items.Select(e => Wire(e.Status))),
-            ["versions"] = string.Join(",", items.Select(e => Show(e.VarVersion))),
+            ["versions"] = string.Join(",", items.Select(e => Show(e.Version))),
             ["releaseNames"] = string.Join("|", items.Select(e => Show(e.ReleaseName))),
             ["changedAt"] = string.Join(",", items.Select(e => Show(Iso(e.ChangedAt)))),
             ["changedBy"] = string.Join("|", items.Select(e => Show(e.ChangedBy))),
@@ -1343,7 +1343,7 @@ public static class Driver
         config.TryGetProperty("attributes", out var value) && value.ValueKind != JsonValueKind.Null
             ? value.EnumerateArray().Select(attribute => new VariantSelectionAttribute(
                 registry: OptStr(attribute, "registry")!,
-                varNamespace: OptStr(attribute, "namespace")!,
+                @namespace: OptStr(attribute, "namespace")!,
                 catalogKey: OptStr(attribute, "catalogKey")!,
                 key: Str(attribute, "key"),
                 value: Str(attribute, "value"),
