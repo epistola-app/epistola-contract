@@ -1072,7 +1072,11 @@ async function updateConsumer(baseUrl, config) {
       updateConsumerRequest: { name: config.name },
       ...ifMatch(config),
     }),
-    (consumer) => ({ id: show(consumer.id), name: show(consumer.name) }),
+    (consumer) => ({
+      id: show(consumer.id),
+      name: show(consumer.name),
+      lastModified: showInstant(consumer.lastModified),
+    }),
   )
 }
 

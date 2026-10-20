@@ -298,6 +298,7 @@ public static class Driver
         {
             ["id"] = Show(response.Data.Id),
             ["name"] = Show(response.Data.Name),
+            ["lastModified"] = Show(Iso(response.Data.LastModified)),
             ["etag"] = Header(response, "ETag"),
         });
     }

@@ -1181,7 +1181,12 @@ def _update_consumer(base_url: str, config: dict) -> None:
     consumer = response.data
     _report(
         base_url,
-        {"id": _show(consumer.id), "name": _show(consumer.name), "etag": _header(response, "ETag")},
+        {
+            "id": _show(consumer.id),
+            "name": _show(consumer.name),
+            "lastModified": _show_instant(consumer.last_modified),
+            "etag": _header(response, "ETag"),
+        },
     )
 
 

@@ -314,7 +314,13 @@ object Driver {
             UpdateConsumerRequest(name = config["name"].asText()),
             ifMatch = config.optionalText("ifMatch"),
         )
-    }) { consumer -> mapOf("id" to consumer.id.toString(), "name" to consumer.name) }
+    }) { consumer ->
+        mapOf(
+            "id" to consumer.id.toString(),
+            "name" to consumer.name,
+            "lastModified" to timestamp(consumer.lastModified),
+        )
+    }
 
     /** Renames the tenant, conditionally when `config.ifMatch` is set. */
     private fun updateTenant(baseUrl: String, config: ObjectNode) = conditionalUpdate(baseUrl, {

@@ -248,7 +248,9 @@ libraries.
 - **BREAKING: a count is `total`, a last change `lastModified`.** `PageMeta.totalElements`,
   `GenerationJobResponse.totalCount` and `DocumentGenerationJobDto.totalCount` are `total`;
   `CollectMeta.count`, the number of result lines in one collect response, is `resultCount`;
-  `ConsumerDto.updatedAt` is `lastModified`.
+  `ConsumerDto.updatedAt` is `lastModified`, now required and never null like every other
+  resource's: it equals `createdAt` at registration and moves with every change to the consumer.
+  The `update-consumer` conformance action reports the `lastModified` it parsed.
 - **BREAKING: `renameCatalogDraft` is `updateCatalogDraft`**, with `UpdateCatalogDraftRequest`: the
   same PATCH, which sets a draft's name, default theme and presets. The conformance action
   `rename-catalog-draft` is `update-catalog-draft`.

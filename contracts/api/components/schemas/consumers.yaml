@@ -25,6 +25,7 @@ ConsumerDto:
     - grantedPermissions
     - nodes
     - createdAt
+    - lastModified
   properties:
     id:
       type: string
@@ -124,10 +125,13 @@ ConsumerDto:
       description: When the server last received a request from this consumer
       example: "2026-04-22T14:30:00Z"
     lastModified:
-      type: ['string', 'null']
+      type: string
       format: date-time
-      description: When the consumer record was last changed; null when it has not changed since it was registered
-      example: null
+      description: |
+        When the consumer record was last changed. At registration it equals `createdAt`; every
+        change to the consumer (an update, approval, rejection, key rotation, or a status change
+        such as expiry) moves it forward.
+      example: "2026-04-22T11:15:00Z"
 
 ConsumerPermissions:
   type: object
