@@ -192,6 +192,10 @@ libraries.
 
 ### Changed
 
+- **`updateStencilContent` keeps the parameter schema when `parameterSchema` is left out.**
+  Omitted or null used to clear it, so a client saving only the content silently removed the
+  parameters every template using the stencil binds. Now a schema replaces it, and a schema that
+  declares no parameters (`{}`) removes it. `createStencil` treats such an empty schema as none too.
 - **BREAKING: the media type is `application/vnd.epistola.v2+json`** (and
   `application/vnd.epistola.v2+ndjson` for result collection), in `Accept` and `Content-Type`. The
   media type carries the API's major version, and contract 2.0 changes most request and response

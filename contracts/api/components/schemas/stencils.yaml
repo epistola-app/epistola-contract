@@ -182,8 +182,8 @@ CreateStencilRequest:
         Optional typed input parameters for the stencil's initial draft version, as a
         JSON Schema object (`{ "type": "object", "properties": {...}, "required": [...] }`).
         Property types are limited to string / number / integer / boolean (optionally
-        `format: date`/`date-time`) or arrays of those primitives. Omit or send null to
-        declare no parameters.
+        `format: date`/`date-time`) or arrays of those primitives. Omit it, send null, or send
+        a schema that declares no parameters (`{}`) to declare none.
       example:
         type: object
         properties:
@@ -346,9 +346,10 @@ UpdateStencilContentRequest:
         types are limited to string / number / integer / boolean (optionally
         `format: date`/`date-time`) or arrays of those primitives.
 
-        Updating the content is a **full replacement**: this field is applied as-is, so
-        omitting it (or sending null) clears any parameter schema currently on the
-        stencil. Send the complete schema (alongside the complete `content`) to keep it.
+        Omitted or null, the stencil keeps the parameter schema it has, so a client that only
+        changes the content cannot drop the parameters the templates using it bind. A schema
+        replaces it whole. A schema that declares no parameters (`{}`, or an object schema
+        without properties) removes it: the stencil then has no parameters, and reports none.
       example:
         type: object
         properties:
