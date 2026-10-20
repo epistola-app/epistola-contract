@@ -3,7 +3,10 @@ StencilDto:
   description: |
     Full stencil with all details.
     A stencil is a reusable template component that can be inserted into any template. Its content
-    is edited in a draft of its catalog and marked ready; templates render its ready content.
+    is edited in a draft of its catalog and marked ready. A template holds an instance of it by
+    reference (ADR 0006), and renders the stencil's content as it is in the same catalog version
+    (or, for a stencil in another catalog, in the release that dependency pins), whatever its
+    status: marking it ready is a review checkpoint, not what makes templates use it.
   required:
     - key
     - tenantKey
@@ -179,7 +182,7 @@ CreateStencilRequest:
         - object
         - 'null'
       description: |
-        Optional typed input parameters for the stencil's initial draft version, as a
+        Optional typed input parameters for the stencil's initial content, as a
         JSON Schema object (`{ "type": "object", "properties": {...}, "required": [...] }`).
         Property types are limited to string / number / integer / boolean (optionally
         `format: date`/`date-time`) or arrays of those primitives. Omit it, send null, or send
@@ -361,8 +364,9 @@ UpdateStencilContentRequest:
 StencilContentDto:
   type: object
   description: |
-    A stencil's content in one catalog version: the TemplateDocument fragment that is inserted into
-    templates, its parameters, and how it stands against that version's base.
+    A stencil's content in one catalog version: the TemplateDocument fragment that every instance
+    of the stencil renders (instances refer to it, ADR 0006), its parameters, and how it stands
+    against that version's base.
   required:
     - stencilKey
     - content

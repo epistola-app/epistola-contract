@@ -16,8 +16,8 @@ themes:
 
   get:
     operationId: listThemes
-    summary: List themes for a tenant
-    description: Retrieve all themes configured for a specific tenant.
+    summary: List the themes in a catalog version
+    description: Retrieve the themes of this catalog version.
     tags:
       - Themes
     x-required-permissions: [THEME_VIEW]
@@ -50,7 +50,7 @@ themes:
   post:
     operationId: createTheme
     summary: Create a new theme
-    description: Create a new theme for the specified tenant.
+    description: Create a theme in the draft.
     tags:
       - Themes
     x-required-permissions: [THEME_EDIT]
@@ -105,7 +105,7 @@ themes-id:
 
   get:
     operationId: getTheme
-    summary: Get theme by ID
+    summary: Get a theme by key
     description: Retrieve details of a specific theme.
     tags:
       - Themes
@@ -171,7 +171,11 @@ themes-id:
   delete:
     operationId: deleteTheme
     summary: Delete a theme
-    description: Delete a theme. Templates referencing this theme will fall back to their own styles.
+    description: |
+      Delete the theme from the draft. Refused with 409 in a released version, and while anything
+      in the draft still uses it: a template or variant that names it, or the version's default
+      theme (`defaultTheme`, ADR 0007). A render never falls back to other styles because a theme
+      it names is missing; change those references first.
     tags:
       - Themes
     x-required-permissions: [THEME_EDIT]

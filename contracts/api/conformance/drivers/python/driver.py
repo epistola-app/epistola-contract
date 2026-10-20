@@ -74,6 +74,7 @@ def main() -> int:
         "generate-document": _generate_document,
         "update-consumer": _update_consumer,
         "download-document": _download_document,
+        "list-documents": _list_documents,
         "list-images": _list_images,
         "upload-image": _upload_image,
         "import-catalog": _import_catalog,
@@ -267,7 +268,14 @@ def _generate_document(base_url: str, config: dict) -> None:
     """
     optional = {
         name: config[name]
-        for name in ("registry", "versionRange", "environmentKey", "correlationId", "routingKey")
+        for name in (
+            "registry",
+            "variantKey",
+            "versionRange",
+            "environmentKey",
+            "correlationId",
+            "routingKey",
+        )
         if name in config
     }
     GenerationApi(_client(base_url, config)).generate_document(
@@ -294,6 +302,35 @@ def _download_document(base_url: str, config: dict) -> None:
         config["tenantKey"], config["documentId"]
     )
     _report_bytes(base_url, bytes(content))
+
+
+def _list_documents(base_url: str, config: dict) -> None:
+    """Lists documents with the catalog and template filters the scenario sets, each sent only
+    when set, and reports what the client made of the page.
+    """
+    filters = {
+        python_name: config[name]
+        for name, python_name in (
+            ("templateKey", "template_key"),
+            ("registry", "registry"),
+            ("namespace", "namespace"),
+            ("catalogKey", "catalog_key"),
+        )
+        if name in config
+    }
+    documents = (
+        GenerationApi(_client(base_url, config)).list_documents(config["tenantKey"], **filters).items
+    )
+    _report(
+        base_url,
+        {
+            "catalogs": ",".join(
+                f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}" for d in documents
+            ),
+            "templateKeys": ",".join(d.template_key for d in documents),
+            "variantKeys": ",".join(d.variant_key for d in documents),
+        },
+    )
 
 
 def _list_images(base_url: str, config: dict) -> None:

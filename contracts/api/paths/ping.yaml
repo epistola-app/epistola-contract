@@ -7,7 +7,8 @@ ping:
 
       ## Two-tier response
 
-      This endpoint supports both unauthenticated and authenticated requests:
+      Authentication is optional. A client configured with credentials sends them, as on every
+      other operation; without them the request is still answered:
 
       - **Unauthenticated**: Returns only `status` and `timestamp` — useful for load balancers,
         monitoring probes, and basic liveness checks.
@@ -31,7 +32,14 @@ ping:
       to log which clients are connected or to enable future compatibility features.
     tags:
       - System
-    security: []
+    # Authentication is optional: `{}` admits an unauthenticated probe, and the schemes after it
+    # tell generated clients to send the credentials they are configured with, which is what
+    # unlocks `details`. `security: []` would make them send none, and `details` unreachable.
+    security:
+      - {}
+      - bearerAuth: []
+      - authorizationApiKeyAuth: []
+      - apiKeyAuth: []
     requestBody:
       required: false
       content:

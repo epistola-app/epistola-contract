@@ -37,6 +37,7 @@ import app.epistola.client.jakarta.model.CreateEnvironmentRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
 import app.epistola.client.jakarta.model.DeploymentEventDto;
 import app.epistola.client.jakarta.model.DeploymentHistoryResponse;
+import app.epistola.client.jakarta.model.DocumentDto;
 import app.epistola.client.jakarta.model.EnvironmentDto;
 import app.epistola.client.jakarta.model.UpdateEnvironmentRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
@@ -122,6 +123,7 @@ public final class Driver {
                 case "generate-document" -> generateDocument(baseUrl, config);
                 case "update-consumer" -> updateConsumer(baseUrl, config);
                 case "download-document" -> downloadDocument(baseUrl, config);
+                case "list-documents" -> listDocuments(baseUrl, config);
                 case "list-images" -> listImages(baseUrl, config);
                 case "upload-image" -> uploadImage(baseUrl, config);
                 case "import-catalog" -> importCatalog(baseUrl, config);
@@ -321,6 +323,7 @@ public final class Driver {
                                 .namespace(config.getString("namespace"))
                                 .catalogKey(config.getString("catalogKey"))
                                 .templateKey(config.getString("templateKey"))
+                                .variantKey(optional(config, "variantKey"))
                                 .data(config.getJsonObject("data"))
                                 .versionRange(optional(config, "versionRange"))
                                 .environmentKey(optional(config, "environmentKey"))
@@ -396,6 +399,34 @@ public final class Driver {
                 .api(GenerationApi.class)
                 .downloadDocument(config.getString("tenantKey"), UUID.fromString(config.getString("documentId")));
         reportBytes(baseUrl, Files.readAllBytes(file.toPath()));
+    }
+
+    /**
+     * Lists documents with the catalog and template filters the scenario sets, each sent only when
+     * set, and reports what the client made of the page.
+     */
+    private static void listDocuments(String baseUrl, JsonObject config) {
+        List<DocumentDto> documents = clients(baseUrl, config)
+                .api(GenerationApi.class)
+                .listDocuments(
+                        config.getString("tenantKey"),
+                        optional(config, "templateKey"),
+                        null,
+                        null,
+                        null,
+                        optional(config, "registry"),
+                        optional(config, "namespace"),
+                        optional(config, "catalogKey"))
+                .getItems();
+
+        report(
+                baseUrl,
+                Map.of(
+                        "catalogs", documents.stream()
+                                .map(document -> document.getRegistry() + "/" + document.getNamespace() + "/" + document.getCatalogKey())
+                                .collect(Collectors.joining(",")),
+                        "templateKeys", documents.stream().map(DocumentDto::getTemplateKey).collect(Collectors.joining(",")),
+                        "variantKeys", documents.stream().map(DocumentDto::getVariantKey).collect(Collectors.joining(","))));
     }
 
     /**

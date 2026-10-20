@@ -29,6 +29,9 @@ ImportCatalogResponse:
       example: acme-corp
     catalogKey:
       type: string
+      pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
       description: Key of the imported catalog, unique within its registry and namespace
       example: valtimo-demo
     catalogName:

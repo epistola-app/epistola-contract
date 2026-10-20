@@ -61,8 +61,9 @@ CatalogDto:
       type: [string, "null"]
       pattern: '^(v[1-9][0-9]*:)?[0-9a-f]{64}$'
       description: |
-        The canonical fingerprint of the latest release's content (deterministic, excludes volatile
-        fields), which identifies content independently of the release number. It names the
+        The canonical fingerprint of the content of the highest release (`highestReleaseVersion`;
+        deterministic, excludes volatile fields), which identifies content independently of the
+        release number. It names the
         algorithm that computed it, as the catalog archive does: `v5:` and lowercase SHA-256 hex.
         A bare hex value is a fingerprint recorded before contract 2.0 whose algorithm was not
         recorded; it cannot be checked against content. Null when never released or produced before
@@ -682,8 +683,10 @@ CatalogVersionDto:
     defaultTheme:
       $ref: '#/CatalogThemeReference'
       description: |
-        The version's default theme (ADR 0007): the theme a template that names none renders with,
-        after the variant's own theme and the template's. It is part of the version's content, as
+        The version's default theme (ADR 0007). A render uses the variant's own theme when its
+        template model overrides it (`themeRef`), else the theme its template names (part of the
+        template's catalog content, `themeKey` in the archive; this API does not expose it), else
+        this one. It is part of the version's content, as
         `catalog.defaultTheme` in its catalog archive, so a released version renders with exactly
         this theme. Absent when the version has none: such a template renders with the rendering
         defaults alone. No render reads a tenant-wide default theme.

@@ -115,7 +115,10 @@ GenerationResult:
       example: invoice
     variantKey:
       type: ['string', 'null']
-      description: Variant used for generation
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 3
+      maxLength: 50
+      description: Key of the variant used for generation
       example: english
     releaseVersion:
       type: ['string', 'null']
@@ -208,28 +211,22 @@ PartitionAssignment:
     leave, partitions are reassigned with minimal disruption.
 
     Clients can use this information to compute routing keys that target
-    specific nodes: `hash(routingKey) % total` determines the partition,
+    specific nodes: the partition of a routing key is
+    `(murmur3_x86_32(utf8(routingKey), seed=0) & 0x7FFFFFFF) % total` (see `hash`),
     and `mine` lists the partitions assigned to this node.
 
-    ## Affinity during rebalance (v0.3 — eventual affinity, immediate correctness)
+    ## Affinity during a rebalance
 
-    When a new consumer node joins the active set, partition ownership rebalances
-    **immediately** on the server. The new node sees its share on its first poll;
-    existing nodes see their reduced share on their *next* poll. Between those
-    two events — bounded by one poll interval (≤ 1s at the default `minInterval`) —
-    an existing node's cached `mine` is stale.
+    When a node joins or leaves the active set, the server reassigns partitions at
+    once. Each node learns its new share on its next poll, so until then the
+    `mine` a node holds can be stale, for at most one of its poll intervals.
 
-    During that brief window, a `routingKeyToMe(...)` call on an existing node
-    may return a routing key whose partition is already owned by the new node.
-    The result still flows (at-least-once delivery is preserved) but is
-    collected by the new owner rather than the submitting node. BPMN
-    processes that depend on submitter-affinity for cache locality may briefly
-    advance on a different node than the one that submitted the request; they
-    still complete correctly.
-
-    Coordinated cutover with a `pending` assignment and a wall-clock `cutoverAt`
-    is planned for v0.4 — see `docs/v04-coordinated-rebalance.md` in the
-    epistola-suite repository.
+    In that window a routing key computed from a stale `mine` (such as
+    `routingKeyToMe(...)` in the client libraries) may land on a partition another
+    node now owns. The result is still delivered, at least once, to the partition's
+    current owner, so nothing is lost; only the affinity to the submitting node is.
+    A process that relies on that affinity for locality must tolerate a result
+    arriving on another node.
   required:
     - total
     - mine

@@ -84,8 +84,10 @@ const generatedThemeRef = `    ThemeRef:
               description: 'Key of the theme resource: the same rule as every resource key (catalog wire v8).'
             catalogKey:
               type: string
-              minLength: 1
-              description: Catalog containing the theme. Omitted means the same catalog as the owning template.
+              pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+              minLength: 3
+              maxLength: 50
+              description: 'Key of the catalog containing the theme: the catalog key rule. Omitted means the same catalog as the owning template.'
             namespace:
               type: string
               minLength: 3
@@ -122,8 +124,10 @@ const generatorCompatibleThemeRef = `    ThemeRef:
           description: 'Key of the theme resource: the same rule as every resource key (catalog wire v8).'
         catalogKey:
           type: string
-          minLength: 1
-          description: Catalog containing the theme. Omitted means the same catalog as the owning template.
+          pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+          minLength: 3
+          maxLength: 50
+          description: 'Key of the catalog containing the theme: the catalog key rule. Omitted means the same catalog as the owning template.'
         namespace:
           type: string
           minLength: 3

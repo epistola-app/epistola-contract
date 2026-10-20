@@ -91,6 +91,7 @@ object Driver {
                 "generate-document" -> generateDocument(baseUrl, config)
                 "update-consumer" -> updateConsumer(baseUrl, config)
                 "download-document" -> downloadDocument(baseUrl, config)
+                "list-documents" -> listDocuments(baseUrl, config)
                 "list-images" -> listImages(baseUrl, config)
                 "upload-image" -> uploadImage(baseUrl, config)
                 "import-catalog" -> importCatalog(baseUrl, config)
@@ -270,6 +271,7 @@ object Driver {
                 namespace = config["namespace"].asText(),
                 catalogKey = config["catalogKey"].asText(),
                 templateKey = config["templateKey"].asText(),
+                variantKey = config.optionalText("variantKey"),
                 data = mapper.convertValue(config["data"], Map::class.java),
                 versionRange = config.optionalText("versionRange"),
                 environmentKey = config.optionalText("environmentKey"),
@@ -335,6 +337,31 @@ object Driver {
         val resource = GenerationApi(restClient(baseUrl, config))
             .downloadDocument(config["tenantKey"].asText(), UUID.fromString(config["documentId"].asText()))
         reportBytes(baseUrl, resource.inputStream.use { it.readBytes() })
+    }
+
+    /**
+     * Lists documents with the catalog and template filters the scenario sets, each sent only when
+     * set, and reports what the client made of the page.
+     */
+    private fun listDocuments(baseUrl: String, config: ObjectNode) {
+        val documents = GenerationApi(restClient(baseUrl, config))
+            .listDocuments(
+                config["tenantKey"].asText(),
+                templateKey = config.optionalText("templateKey"),
+                registry = config.optionalText("registry"),
+                namespace = config.optionalText("namespace"),
+                catalogKey = config.optionalText("catalogKey"),
+            )
+            .items
+
+        report(
+            baseUrl,
+            mapOf(
+                "catalogs" to documents.joinToString(",") { "${it.registry}/${it.namespace}/${it.catalogKey}" },
+                "templateKeys" to documents.joinToString(",") { it.templateKey },
+                "variantKeys" to documents.joinToString(",") { it.variantKey },
+            ),
+        )
     }
 
     /**

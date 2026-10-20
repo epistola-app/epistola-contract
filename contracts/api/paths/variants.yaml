@@ -54,7 +54,9 @@ variants:
   post:
     operationId: createVariant
     summary: Create a new variant
-    description: Create a new variant for the specified template with optional tags.
+    description: |
+      Create a variant of the template in the draft, with its `key`, `title`, and optionally a
+      `description` and the `attributes` that select it. It starts with status `new`.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_EDIT]
@@ -118,8 +120,8 @@ variants-id:
 
   get:
     operationId: getVariant
-    summary: Get variant by ID
-    description: Retrieve details of a specific variant including version summary.
+    summary: Get a variant by key
+    description: Retrieve a variant's details in this catalog version, with its status against the version's base.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_VIEW]
@@ -144,7 +146,9 @@ variants-id:
     operationId: updateVariant
     summary: Update a variant
     description: |
-      Update a variant's tags.
+      Update a variant's metadata in the draft: its `title` (required), `description` and the
+      `attributes` that select it. Its content is updated with `updateVariantContent`, and which
+      variant is the default with `setDefaultVariant`.
       Send the `ETag` from a read as `If-Match` to have the update refused with 412
       `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
@@ -184,7 +188,7 @@ variants-id:
   delete:
     operationId: deleteVariant
     summary: Delete a variant
-    description: Delete a variant and all its versions. Cannot delete the default variant — reassign default first.
+    description: Delete the variant from the draft. Cannot delete the default variant — reassign default first. Refused with 409 in a released version.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_EDIT]
@@ -305,8 +309,10 @@ variant-content:
     operationId: getVariantContent
     summary: Get the variant's content
     description: |
-      The variant's content as it is being edited, with its status against the catalog's latest
-      release. Editing never changes what is generated: generation renders a release.
+      The variant's content in this catalog version, with its status against the version's base
+      (the release the draft started from). Editing a draft changes what is generated only where
+      the draft is rendered: generation renders a release, or a draft deployed to the environment
+      a request names (see "Deploying"), and preview can name a draft.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_VIEW]

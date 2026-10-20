@@ -60,8 +60,12 @@ import-catalog:
       tenant has, which are left as they are. A release the tenant has with the same number but a
       different fingerprint refuses the whole import with 409 `conflict`, naming each, and nothing
       changes. A pin the archive does not carry is resolved from what the tenant has or the server
-      can fetch (ADR 0003); one that cannot be had refuses the import with 409
-      `release-dependencies-missing`, listing each (`UNAVAILABLE`). The
+      can fetch from its registry, through the mirrors configured for it (ADR 0003); one that
+      cannot be had, because its source could not be reached, answered with an error, or offered
+      a copy that does not match its pin's `releaseFingerprint`, refuses the import with 409
+      `release-dependencies-missing`, listing each (`UNAVAILABLE`), as `installCatalogRelease`
+      treats the releases a release pins. An import therefore never fails with
+      `catalog-source-unavailable` (502/503): the archive's own release is never fetched. The
       archive's own release is then installed as above, all in one transaction. `catalogType`
       applies to the archive's own catalog only; a dependency's existing catalog keeps its type.
     tags:

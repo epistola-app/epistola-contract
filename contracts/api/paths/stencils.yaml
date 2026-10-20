@@ -16,8 +16,8 @@ stencils:
 
   get:
     operationId: listStencils
-    summary: List stencils for a tenant
-    description: Retrieve all stencils belonging to a specific tenant, optionally filtered by search term or tags.
+    summary: List the stencils in a catalog version
+    description: Retrieve the stencils of this catalog version, optionally filtered by search term or tags.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_VIEW]
@@ -56,8 +56,9 @@ stencils:
     operationId: createStencil
     summary: Create a new stencil
     description: |
-      Create a new stencil for the specified tenant. If content is provided,
-      a draft version (version 1) is automatically created with that content.
+      Create a stencil in the draft. `content` and `parameterSchema`, when given, are its initial
+      content and parameters; the stencil starts with status `new`. A stencil has no versions of
+      its own: it is versioned with its catalog (ADR 0002).
     tags:
       - Stencils
     x-required-permissions: [STENCIL_EDIT]
@@ -112,8 +113,8 @@ stencils-id:
 
   get:
     operationId: getStencil
-    summary: Get stencil by ID
-    description: Retrieve details of a specific stencil including its version summaries.
+    summary: Get a stencil by key
+    description: Retrieve a stencil's details in this catalog version, with its status against the version's base.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_VIEW]
@@ -179,8 +180,10 @@ stencils-id:
     operationId: deleteStencil
     summary: Delete a stencil
     description: |
-      Delete a stencil and all its versions. Templates that already contain
-      copies of this stencil's content are not affected (the embedded content remains).
+      Delete the stencil from the draft. The templates and stencils that use it hold a reference,
+      not a copy (ADR 0006), so their instances then name a stencil that does not exist: they are
+      not changed, and the draft cannot be released until they are edited (`listStencilUsage`
+      lists them beforehand). Refused with 409 in a released version.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_EDIT]
@@ -250,8 +253,10 @@ stencil-content:
     summary: Update the stencil's content in a draft
     description: |
       Replaces the stencil's content in the draft, and its parameters when `parameterSchema` is
-      given: left out, they stay; `{}` removes them. Templates keep rendering the stencil's ready
-      content until this content is marked ready.
+      given: left out, they stay; `{}` removes them. Every template and stencil in the draft that
+      uses the stencil renders the new content at once: an instance refers to the stencil and holds
+      no copy of it (ADR 0006). The edit clears the stencil's ready mark; instances the new content
+      no longer fits are reported (`listStencilUsage`, `markStencilReady`) and block the release.
       Send the `ETag` from a read as `If-Match` to have the update refused with 412
       `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
@@ -381,6 +386,8 @@ stencil-usage:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/stencils.yaml#/StencilUsageListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

@@ -33,7 +33,7 @@ tenants:
   post:
     operationId: createTenant
     summary: Create a new tenant
-    description: Create a new tenant with the given name.
+    description: Create a new tenant with the given key and name. A key another tenant already has is refused with 409.
     tags:
       - Tenants
     x-required-platform-roles: [TENANT_MANAGER]
@@ -56,6 +56,8 @@ tenants:
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
         $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
 tenants-id:
   parameters:
@@ -71,7 +73,7 @@ tenants-id:
 
   get:
     operationId: getTenant
-    summary: Get tenant by ID
+    summary: Get a tenant by key
     description: Retrieve details of a specific tenant.
     tags:
       - Tenants

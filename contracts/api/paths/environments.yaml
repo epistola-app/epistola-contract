@@ -94,7 +94,7 @@ environments-id:
 
   get:
     operationId: getEnvironment
-    summary: Get environment by ID
+    summary: Get an environment by key
     description: Retrieve details of a specific environment.
     tags:
       - Environments
@@ -324,6 +324,8 @@ environment-deployment-version:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/DeploymentDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -402,6 +404,8 @@ environment-deployment-history:
           application/vnd.epistola.v2+json:
             schema:
               $ref: '../components/schemas/environments.yaml#/DeploymentHistoryResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

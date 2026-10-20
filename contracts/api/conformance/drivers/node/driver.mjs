@@ -44,6 +44,7 @@ const ACTIONS = {
   'generate-document': generateDocument,
   'update-consumer': updateConsumer,
   'download-document': downloadDocument,
+  'list-documents': listDocuments,
   'list-images': listImages,
   'upload-image': uploadImage,
   'import-catalog': importCatalog,
@@ -226,6 +227,7 @@ async function generateDocument(baseUrl, config) {
   // Only what the scenario sets: an unset optional must stay off the wire, not go out as null. An
   // unset registry means the server's default, which only the server knows.
   if (config.registry !== undefined) request.registry = config.registry
+  if (config.variantKey !== undefined) request.variantKey = config.variantKey
   if (config.versionRange !== undefined) request.versionRange = config.versionRange
   if (config.environmentKey !== undefined) request.environmentKey = config.environmentKey
   await new GenerationApi(client(baseUrl, config)).generateDocument({
@@ -242,6 +244,23 @@ async function generateDocument(baseUrl, config) {
 async function downloadDocument(baseUrl, config) {
   const blob = await new GenerationApi(client(baseUrl, config)).downloadDocument({ tenantKey: config.tenantKey, documentId: config.documentId })
   await reportBytes(baseUrl, blob)
+}
+
+/**
+ * Lists documents with the catalog and template filters the scenario sets, each sent only when set,
+ * and reports what the client made of the page.
+ */
+async function listDocuments(baseUrl, config) {
+  const request = { tenantKey: config.tenantKey }
+  for (const name of ['templateKey', 'registry', 'namespace', 'catalogKey']) {
+    if (config[name] !== undefined) request[name] = config[name]
+  }
+  const { items } = await new GenerationApi(client(baseUrl, config)).listDocuments(request)
+  await report(baseUrl, {
+    catalogs: items.map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}`).join(','),
+    templateKeys: items.map((d) => d.templateKey).join(','),
+    variantKeys: items.map((d) => d.variantKey).join(','),
+  })
 }
 
 /**

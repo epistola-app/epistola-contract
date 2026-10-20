@@ -259,7 +259,15 @@ libraries.
 - **BREAKING: one key rule for every catalog resource.** The key of a template, variant, stencil,
   theme, attribute, code list, font, image or data example, and every reference to one, is
   `^[a-z0-9]+(-[a-z0-9]+)*$`, 3–50 characters, a leading digit allowed (migrated images keep their
-  UUID keys), in the API and in wire v8 alike. Before, the API had a rule per type (themes at most
+  UUID keys), in the API and in wire v8 alike: in path parameters and in every body, including the
+  `variantKey` of a generation, preview or validation request and of a `GenerationResult`, and the
+  code list `key` of an attribute's `codeListBinding`. `VariantSelectionAttribute.key` takes an
+  attribute key, optionally qualified by a catalog key (3–101 characters). A preset declared by a
+  catalog (`CatalogPresetDto.key`) is not a resource and keeps the wire's preset rule (1–50, a
+  letter first). Every `tenantKey` is 3–63 characters and every `catalogKey`, including
+  `ImportCatalogResponse.catalogKey` and the template model's `ThemeRef.catalogKey`, follows the
+  catalog key rule. Conformance scenario `spec-generate-document-variant-key` generates with a
+  variant key that starts with a digit. Before, the API had a rule per type (themes at most
   20 characters, fonts from 2, code lists and attributes from 1, images and archive keys up to 64)
   and wire v7 allowed 1–64, so a valid archive could hold resources the API could not address.
   The catalog's own key keeps 3–50, letter first; tenant and environment keys are unchanged. The
@@ -594,6 +602,48 @@ libraries.
   before 1.3.0, is replaced by `template-listing-by-key`.
 
 ### Fixed
+
+- **`ping` sends credentials.** It declared `security: []`, which tells a generated client the
+  operation takes none, so the authenticated `details` were unreachable. Authentication is now
+  optional (`{}` and every scheme). `PongDetailsDto.partitions` no longer speaks of "this tenant"
+  for an endpoint that names none. Conformance scenario `ping-sends-credentials`.
+- **`rotatePublicKey` says who may call it**: only the consumer itself, with a self-signed JWT
+  signed by its current key (`security: bearerAuth`, `x-required-authentication`), as the consumer
+  documentation already said. It had no marker at all.
+- **Responses the descriptions imply are declared.** `generateDocument` and
+  `generateDocumentBatch`: 404 (an unknown tenant, catalog, template, variant or environment, no
+  variant matching the attributes, or no version matching; the target is resolved when the request
+  is accepted) and 429. Template data is checked when an item renders, not on submission, so
+  neither declares `template-data-invalid`. 404 on `listGenerationJobs`, `listDocuments` and
+  `collectGenerationResults`, as on the other tenant-scoped operations; 400 on
+  `listDeploymentHistory`, `listStencilUsage` and `deployCatalogVersion`, which take query
+  parameters; 409 on `createTenant` for a key another tenant has.
+- **BREAKING: `listDocuments` filters by catalog.** A template key is unique only within its catalog, so the
+  listing gains `registry`, `namespace` and `catalogKey` filters, and `templateKey` now needs
+  `namespace` and `catalogKey` (400 otherwise). New `list-documents` driver action and conformance
+  scenario `list-documents-by-catalog`.
+- **`importCatalog` and dependencies it fetches.** A pin the archive does not carry is fetched as
+  before; one that cannot be had, whatever the reason, refuses the import with 409
+  `release-dependencies-missing`, as `installCatalogRelease` treats pinned releases. The text now
+  says so, and that an import never answers `catalog-source-unavailable`.
+- **The partition formula is stated once, exactly**: `collectGenerationResults` and
+  `PartitionAssignment` give `(murmur3_x86_32(utf8(routingKey), seed=0) & 0x7FFFFFFF) % total`, as
+  `PartitionRouting` computes it. `PartitionAssignment` no longer refers to v0.3/v0.4,
+  `minInterval`, a `pending`/`cutoverAt` assignment or a document in another repository.
+- **Descriptions that contradicted the operations.** `createVariant` and `updateVariant` spoke of
+  tags they do not take, and `updateAttribute` of its description alone; each now names the members
+  it takes. `CreateAttributeRequest` refused a mixed constraint with a 422 no operation declares; it
+  is 400 `validation-error`. `deleteTheme` no longer says templates "fall back to their own styles":
+  it is refused with 409 while the draft still uses the theme, as `deleteCatalogDraft` is. Resources
+  have no versions of their own (`deleteVariant`, `deleteStencil`, `getVariant`, `getStencil`,
+  `createStencil`, `CreateStencilRequest.parameterSchema`, the Stencils tag). Catalog-version-scoped
+  operations no longer say "for a tenant", and resources addressed by key are got "by key".
+  `FontDto` no longer calls images read-only, `DocumentDto.createdBy` is the consumer's id rather
+  than a "future feature", `CodeListDto` names `sourceUrl` rather than "HTTPS",
+  `ConsumerPermissions.environments` deploys catalog versions, and `uploadImage` states no size
+  limit of its own, hedging Epistola Suite's. An unset `spacingUnit` or `blockStylePresets` is
+  absent from `ThemeDto`, as an update's null leaves it, instead of a null the schema does not
+  allow.
 
 - **Documentation names the real permissions and paths.** `docs/auth.md`'s role table lists
   `CATALOG_RELEASE` and `ENVIRONMENT_DEPLOY` (granted by `CONTENT_PUBLISHER`) in place of the removed

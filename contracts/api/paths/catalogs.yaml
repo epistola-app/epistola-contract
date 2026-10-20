@@ -528,8 +528,8 @@ catalog-version:
 
       Refused with 409 for a released version, while a dependency declaration in a draft of another
       catalog names this draft, and while the draft alone holds a resource something outside it
-      still uses (a theme another catalog's template uses or names as its default theme, a code list
-      another catalog's attribute binds).
+      still uses (a theme another catalog's templates or variants name, or another catalog names
+      as its default theme, `defaultTheme`; a code list another catalog's attribute binds).
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_RELEASE]

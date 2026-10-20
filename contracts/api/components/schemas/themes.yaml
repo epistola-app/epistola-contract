@@ -40,7 +40,10 @@ ThemeDto:
       type: object
       additionalProperties:
         $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
-      description: Named block style presets (like CSS classes). Key is the preset name.
+      description: |
+        Named block style presets (like CSS classes). Key is the preset name, which the catalog's
+        declared presets name (ADR 0007). Absent when the theme styles none (as after an update
+        sends null).
       example:
         heading:
           label: Heading
@@ -61,7 +64,8 @@ ThemeDto:
       description: |
         Base spacing unit in points for the spacing scale system. All sp values
         are multiples of this value (e.g., with spacingUnit=4, 2sp resolves
-        to 8pt). Null means default (4pt).
+        to 8pt). Absent when the theme sets none (as after an update sends null); the
+        rendering default (4pt) then applies.
       example: 4
     createdAt:
       type: string
@@ -155,7 +159,7 @@ CreateThemeRequest:
       type: number
       minimum: 1
       maximum: 16
-      description: Base spacing unit in points. Null means default (4pt).
+      description: Base spacing unit in points. Omitted, the theme sets none and the rendering default (4pt) applies.
       example: 4
 
 UpdateThemeRequest:
