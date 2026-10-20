@@ -23,6 +23,8 @@ import urllib.request
 
 from epistola_client import (
     CatalogDependencyRequirement,
+    CatalogPresetDto,
+    CatalogThemeReference,
     CatalogsApi,
     ClientIdentity,
     ConsumersApi,
@@ -85,6 +87,7 @@ def main() -> int:
         "list-catalog-versions": _list_catalog_versions,
         "get-catalog-version": _get_catalog_version,
         "rename-catalog-draft": _rename_catalog_draft,
+        "set-catalog-draft-theme-settings": _set_catalog_draft_theme_settings,
         "preview-catalog-draft-release": _preview_catalog_draft_release,
         "delete-catalog-draft": _delete_catalog_draft,
         "release-catalog-draft": _release_catalog_draft,
@@ -605,6 +608,38 @@ def _rename_catalog_draft(base_url: str, config: dict) -> None:
             "name": _show(version.name),
             "status": _show(_enum(version.status)),
             "base": _show(version.base),
+        },
+    )
+
+
+def _set_catalog_draft_theme_settings(base_url: str, config: dict) -> None:
+    """Sets a draft's default theme and presets; no name goes out, and an unset qualifier stays off the wire."""
+    theme_qualifiers = {"catalog_key": config["defaultThemeCatalogKey"]} if config.get("defaultThemeCatalogKey") is not None else {}
+    default_theme = CatalogThemeReference(key=config["defaultThemeKey"], **theme_qualifiers)
+    presets = [
+        CatalogPresetDto(
+            key=entry["key"],
+            name=entry["name"],
+            **({"description": entry["description"]} if entry.get("description") is not None else {}),
+        )
+        for entry in config["presets"]
+    ]
+    version = CatalogsApi(_client(base_url, config)).rename_catalog_draft(
+        *_catalog_version_address(config),
+        RenameCatalogDraftRequest(default_theme=default_theme, presets=presets),
+    )
+    parsed = version.presets or []
+    theme = version.default_theme
+    _report(
+        base_url,
+        {
+            "versionId": _show(version.version_id),
+            "name": _show(version.name),
+            "defaultThemeKey": _show(theme.key if theme else None),
+            "defaultThemeCatalogKey": _show(theme.catalog_key if theme else None),
+            "presetKeys": ",".join(p.key for p in parsed),
+            "presetNames": "|".join(p.name for p in parsed),
+            "presetDescriptions": "|".join(_show(p.description) for p in parsed),
         },
     )
 

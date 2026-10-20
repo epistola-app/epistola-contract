@@ -73,7 +73,9 @@ data class QualifiedCatalogFingerprint(
  * catalog v6, includes authored discovery metadata. V5 is the current algorithm, introduced with
  * catalog v8, and also covers the catalog's identity and declared dependencies: its registry and
  * namespace, the registry and namespace of every resource dependency, and every catalog dependency
- * with its registry, namespace, pinned release and that release's fingerprint.
+ * with its registry, namespace, pinned release and that release's fingerprint. It covers the
+ * catalog's default theme and declared presets (ADR 0007) too, each only when present, so a catalog
+ * that has neither keeps the V5 fingerprint it had before they existed.
  * Registry and namespace are separate members, never joined into one string.
  *
  * V5 is also the only algorithm that names a resource's address `key`, as wire v8 does. V1 to V4
@@ -443,6 +445,7 @@ object CatalogCanonicalizer {
                 if (includeV8Identity) {
                     it["registry"] = info.registry
                     it["namespace"] = info.namespace
+                    putThemeSettings(it, info)
                 }
             },
             "publisher" to manifest.publisher,
@@ -474,6 +477,31 @@ object CatalogCanonicalizer {
                 }
         }
         return mapper.writeValueAsString(sortKeys(mapper.valueToTree(canonical)))
+    }
+
+    /**
+     * V5 covers the catalog's default theme and declared presets (wire v8, ADR 0007): which theme an
+     * inheriting template renders with, and which presets content may name, are content. Each is
+     * written only when present, so a catalog without them keeps the V5 bytes it had before they
+     * existed. Presets are sorted by key: their order carries no meaning.
+     */
+    private fun putThemeSettings(
+        catalog: MutableMap<String, Any?>,
+        info: CatalogInfo,
+    ) {
+        info.defaultTheme?.let { theme ->
+            catalog["defaultTheme"] = linkedMapOf(
+                "key" to theme.key,
+                "catalogKey" to theme.catalogKey,
+                "namespace" to theme.namespace,
+                "registry" to theme.registry,
+            )
+        }
+        if (info.presets.isNotEmpty()) {
+            catalog["presets"] = info.presets
+                .sortedWith(compareBy({ it.key }, { it.name }, { it.description }))
+                .map { preset -> linkedMapOf("key" to preset.key, "name" to preset.name, "description" to preset.description) }
+        }
     }
 
     private fun canonicalCatalogInfo(

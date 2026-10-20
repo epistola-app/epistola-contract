@@ -57,6 +57,7 @@ const ACTIONS = {
   'list-catalog-versions': listCatalogVersions,
   'get-catalog-version': getCatalogVersion,
   'rename-catalog-draft': renameCatalogDraft,
+  'set-catalog-draft-theme-settings': setCatalogDraftThemeSettings,
   'preview-catalog-draft-release': previewCatalogDraftRelease,
   'delete-catalog-draft': deleteCatalogDraft,
   'release-catalog-draft': releaseCatalogDraft,
@@ -531,6 +532,35 @@ async function renameCatalogDraft(baseUrl, config) {
     name: show(version.name),
     status: show(version.status),
     base: show(version.base),
+  })
+}
+
+/** Sets a draft's default theme and presets; no name goes out, and an unset qualifier stays off the wire. */
+async function setCatalogDraftThemeSettings(baseUrl, config) {
+  const defaultTheme = { key: config.defaultThemeKey }
+  if (config.defaultThemeCatalogKey != null) defaultTheme.catalogKey = config.defaultThemeCatalogKey
+  const presets = config.presets.map((entry) => {
+    const preset = { key: entry.key, name: entry.name }
+    if (entry.description != null) preset.description = entry.description
+    return preset
+  })
+  const version = await new CatalogsApi(client(baseUrl, config)).renameCatalogDraft({
+    tenantKey: config.tenantKey,
+    registry: config.registry,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    catalogVersion: config.catalogVersion,
+    renameCatalogDraftRequest: { defaultTheme, presets },
+  })
+  const parsed = version.presets ?? []
+  await report(baseUrl, {
+    versionId: show(version.versionId),
+    name: show(version.name),
+    defaultThemeKey: show(version.defaultTheme?.key),
+    defaultThemeCatalogKey: show(version.defaultTheme?.catalogKey),
+    presetKeys: parsed.map((preset) => preset.key).join(','),
+    presetNames: parsed.map((preset) => preset.name).join('|'),
+    presetDescriptions: parsed.map((preset) => show(preset.description)).join('|'),
   })
 }
 

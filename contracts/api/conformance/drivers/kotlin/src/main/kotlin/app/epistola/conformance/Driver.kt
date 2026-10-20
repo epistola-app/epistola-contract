@@ -23,6 +23,8 @@ import app.epistola.client.identity.ClientIdentity
 import app.epistola.client.model.CatalogChangesDto
 import app.epistola.client.model.CatalogDependencyDto
 import app.epistola.client.model.CatalogDependencyRequirement
+import app.epistola.client.model.CatalogPresetDto
+import app.epistola.client.model.CatalogThemeReference
 import app.epistola.client.model.CatalogVersionStatus
 import app.epistola.client.model.CreateCatalogDraftRequest
 import app.epistola.client.model.CreateEnvironmentRequest
@@ -102,6 +104,7 @@ object Driver {
                 "list-catalog-versions" -> listCatalogVersions(baseUrl, config)
                 "get-catalog-version" -> getCatalogVersion(baseUrl, config)
                 "rename-catalog-draft" -> renameCatalogDraft(baseUrl, config)
+                "set-catalog-draft-theme-settings" -> setCatalogDraftThemeSettings(baseUrl, config)
                 "preview-catalog-draft-release" -> previewCatalogDraftRelease(baseUrl, config)
                 "delete-catalog-draft" -> deleteCatalogDraft(baseUrl, config)
                 "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config)
@@ -663,6 +666,39 @@ object Driver {
                 "name" to (version.name ?: "null"),
                 "status" to version.status.value,
                 "base" to (version.base ?: "null"),
+            ),
+        )
+    }
+
+    /** Sets a draft's default theme and presets; no name goes out, and an unset qualifier stays off the wire. */
+    private fun setCatalogDraftThemeSettings(baseUrl: String, config: ObjectNode) {
+        val version = CatalogsApi(restClient(baseUrl, config)).renameCatalogDraft(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["catalogVersion"].asText(),
+            RenameCatalogDraftRequest(
+                defaultTheme = CatalogThemeReference(
+                    key = config["defaultThemeKey"].asText(),
+                    catalogKey = config.optionalText("defaultThemeCatalogKey"),
+                ),
+                presets = config.path("presets").map {
+                    CatalogPresetDto(key = it["key"].asText(), name = it["name"].asText(), description = it.optionalText("description"))
+                },
+            ),
+        )
+        val presets = version.presets.orEmpty()
+        report(
+            baseUrl,
+            mapOf(
+                "versionId" to version.versionId,
+                "name" to (version.name ?: "null"),
+                "defaultThemeKey" to (version.defaultTheme?.key ?: "null"),
+                "defaultThemeCatalogKey" to (version.defaultTheme?.catalogKey ?: "null"),
+                "presetKeys" to presets.joinToString(",") { it.key },
+                "presetNames" to presets.joinToString("|") { it.name },
+                "presetDescriptions" to presets.joinToString("|") { it.description ?: "null" },
             ),
         )
     }

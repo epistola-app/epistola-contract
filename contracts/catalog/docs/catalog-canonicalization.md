@@ -82,6 +82,12 @@ the stored value, not of what is hashed: V5's own domain prefix is unchanged. Se
   `TemplateResource.themeRegistry`/`.themeNamespace`) are omitted from the canonical resource JSON
   when absent, so resources that do not use them hash exactly as before.
 
+**The catalog's default theme and presets (ADR 0007).** V5 covers `catalog.defaultTheme` (its `key`,
+`catalogKey`, `namespace` and `registry`, absent qualifiers as null) and `catalog.presets` (each
+`key`, `name` and `description`, sorted by key, so their order carries no meaning). Each is written
+into the canonical catalog section only when present: a catalog without a default theme and with no
+declared presets hashes exactly as it did before the members existed. V1 to V4 never cover them.
+
 **Names.** Wire v8 calls a resource's address its `key` (`slug` until v7; likewise `themeKey`,
 `stencilKey`, `imageKey`, `iconImageKey` and `imageKeys` for `themeId`, `stencilId`, `assetId`,
 `iconAssetSlug` and `imageAssetSlugs`; a font reference's `slug` becomes `key`, and an attribute

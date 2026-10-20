@@ -17,6 +17,9 @@ import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogLicense
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogPresentation
+import app.epistola.catalog.protocol.CatalogPresetDeclaration
+import app.epistola.catalog.protocol.CatalogPresets
+import app.epistola.catalog.protocol.CatalogThemeRef
 import app.epistola.catalog.protocol.CatalogVariantMetadata
 import app.epistola.catalog.protocol.CodeListBindingRef
 import app.epistola.catalog.protocol.CodeListEntryEntry
@@ -32,6 +35,7 @@ import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.ResourceEntry
 import app.epistola.catalog.protocol.StencilResource
 import app.epistola.catalog.protocol.TemplateResource
+import app.epistola.catalog.protocol.ThemeResource
 import app.epistola.catalog.protocol.VariantEntry
 import app.epistola.template.model.Node
 import app.epistola.template.model.Slot
@@ -407,6 +411,103 @@ class CatalogValidatorTest {
         val report = CatalogValidator.validate(archive(manifest(catalog = catalog), emptyMap()))
 
         assertTrue(report.valid, report.findings.toString())
+    }
+
+    @Test
+    fun `a catalog's declared presets have well-formed, unique keys, a name and a bounded description`() {
+        fun findings(vararg presets: CatalogPresetDeclaration) = CatalogValidator.validate(
+            archive(manifest(catalog = CatalogInfo("fixture", "Fixture").copyWithMetadata(presets = presets.toList())), emptyMap()),
+        ).findings.map { it.code to it.path }
+
+        assertEquals(
+            emptyList(),
+            findings(
+                CatalogPresetDeclaration("muted", "Muted"),
+                CatalogPresetDeclaration("h", "Heading", "A heading"),
+                CatalogPresetDeclaration("a".repeat(CatalogPresets.KEY_MAX_LENGTH), "n".repeat(CatalogPresets.NAME_MAX_LENGTH), "d".repeat(CatalogPresets.DESCRIPTION_MAX_LENGTH)),
+            ),
+        )
+        listOf("Muted", "1-col", "info_box", "-a", "a-", "a--b", "", "a".repeat(CatalogPresets.KEY_MAX_LENGTH + 1)).forEach { key ->
+            assertEquals(
+                listOf(CatalogValidationCodes.PRESET_KEY_INVALID to "catalog.json.catalog.presets[0].key"),
+                findings(CatalogPresetDeclaration(key, "Name")),
+                key,
+            )
+        }
+        assertEquals(
+            listOf(CatalogValidationCodes.PRESET_DUPLICATE to "catalog.json.catalog.presets[1].key"),
+            findings(CatalogPresetDeclaration("muted", "Muted"), CatalogPresetDeclaration("muted", "Also muted")),
+        )
+        assertEquals(
+            listOf(
+                CatalogValidationCodes.PRESET_NAME_INVALID to "catalog.json.catalog.presets[0].name",
+                CatalogValidationCodes.PRESET_NAME_INVALID to "catalog.json.catalog.presets[1].name",
+            ),
+            findings(CatalogPresetDeclaration("muted", " "), CatalogPresetDeclaration("label", "n".repeat(CatalogPresets.NAME_MAX_LENGTH + 1))),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.PRESET_DESCRIPTION_INVALID to "catalog.json.catalog.presets[0].description"),
+            findings(CatalogPresetDeclaration("muted", "Muted", "d".repeat(CatalogPresets.DESCRIPTION_MAX_LENGTH + 1))),
+        )
+    }
+
+    @Test
+    fun `a catalog's default theme resolves in the catalog itself or in a catalog it declares as a dependency`() {
+        val theme = ResourceDetail(CURRENT_VERSION, ThemeResource("corporate", "Corporate"))
+        val shared = CatalogDependency(REGISTRY, NAMESPACE, "shared", "1.4.0", "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42")
+        fun findings(
+            defaultTheme: CatalogThemeRef,
+            catalogDependencies: List<CatalogDependency>? = null,
+        ) = CatalogValidator.validate(
+            archive(
+                manifest(
+                    resources = listOf(ResourceEntry("theme", "corporate", "Corporate", detailUrl = "./resources/theme/corporate.json")),
+                    catalog = CatalogInfo("fixture", "Fixture").copyWithMetadata(defaultTheme = defaultTheme),
+                    catalogDependencies = catalogDependencies,
+                ),
+                mapOf("theme/corporate" to theme),
+            ),
+        ).findings.map { it.code to it.path }
+
+        assertEquals(emptyList(), findings(CatalogThemeRef("corporate")))
+        assertEquals(emptyList(), findings(CatalogThemeRef("corporate", "fixture", NAMESPACE, REGISTRY)), "naming the catalog itself in full")
+        assertEquals(emptyList(), findings(CatalogThemeRef("brand", "shared"), listOf(shared)))
+        assertEquals(
+            listOf(CatalogValidationCodes.RESOURCE_REFERENCE_MISSING to "catalog.json.catalog.defaultTheme.key"),
+            findings(CatalogThemeRef("missing")),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.RESOURCE_KEY_INVALID to "catalog.json.catalog.defaultTheme.key"),
+            findings(CatalogThemeRef("Corporate")),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "catalog.json.catalog.defaultTheme"),
+            findings(CatalogThemeRef("brand", "shared")),
+        )
+        assertEquals(
+            listOf(
+                CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED to "catalog.json.catalog.defaultTheme",
+                CatalogValidationCodes.NAMESPACE_INVALID to "catalog.json.catalog.defaultTheme.namespace",
+            ),
+            findings(CatalogThemeRef("brand", "shared", registry = "acme.com"), listOf(shared)),
+        )
+        assertTrue(
+            CatalogValidationCodes.RESOURCE_KEY_INVALID to "catalog.json.catalog.defaultTheme.catalogKey" in findings(CatalogThemeRef("corporate", "x")),
+        )
+        assertEquals(
+            listOf(CatalogValidationCodes.RESOURCE_REFERENCE_MISSING to "catalog.json.catalog.defaultTheme.key"),
+            CatalogValidator.validate(
+                archive(
+                    manifest(
+                        catalog = CatalogInfo("fixture", "Fixture").copyWithMetadata(defaultTheme = CatalogThemeRef("brand", "shared")),
+                        catalogDependencies = listOf(shared),
+                    ),
+                    emptyMap(),
+                ),
+                CatalogValidationPolicy(dependencyResolver = { ResourceResolution.MISSING }),
+            ).findings.map { it.code to it.path },
+            "a default theme in a dependency resolves through the resolver",
+        )
     }
 
     @Test

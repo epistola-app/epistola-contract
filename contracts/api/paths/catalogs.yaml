@@ -484,10 +484,14 @@ catalog-version:
 
   patch:
     operationId: renameCatalogDraft
-    summary: Rename a draft
+    summary: Rename a draft or change its theme settings
     description: |
-      Gives a draft another name. Its address, its `versionId`, does not change. Refused with 409 for a name
-      another draft of the catalog has, and for a released version.
+      Changes a draft's name, its default theme or its declared presets (ADR 0007), each only when
+      the request names it: an omitted member keeps its value, and null clears a default theme or
+      the presets (an empty array clears the presets too). Its address, its `versionId`, does not
+      change. Refused with 409 for a name another draft of the catalog has, and for a released
+      version; with 400 for a default theme that cannot be found or names a catalog the draft does
+      not declare, and for presets that repeat a key.
     tags:
       - Catalogs
     x-required-permissions: [TEMPLATE_EDIT]
@@ -499,7 +503,7 @@ catalog-version:
             $ref: '../components/schemas/catalogs.yaml#/RenameCatalogDraftRequest'
     responses:
       '200':
-        description: The draft, under its new name
+        description: The draft, as changed
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -524,8 +528,8 @@ catalog-version:
 
       Refused with 409 for a released version, while a dependency declaration in a draft of another
       catalog names this draft, and while the draft alone holds a resource something outside it
-      still uses (the tenant's default theme, a code list another catalog's attribute binds, a theme
-      another catalog's template uses).
+      still uses (a theme another catalog's template uses or names as its default theme, a code list
+      another catalog's attribute binds).
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_RELEASE]

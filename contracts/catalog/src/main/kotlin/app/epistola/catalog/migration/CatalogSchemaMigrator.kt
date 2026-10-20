@@ -10,8 +10,11 @@ import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogNamespaces
+import app.epistola.catalog.protocol.CatalogPresetDeclaration
+import app.epistola.catalog.protocol.CatalogPresets
 import app.epistola.catalog.protocol.CatalogReleaseVersions
 import app.epistola.catalog.protocol.KeywordRule
+import app.epistola.catalog.protocol.PresetRule
 import app.epistola.catalog.protocol.ResourceDetail
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.node.ArrayNode
@@ -122,6 +125,18 @@ object CatalogMigrationCodes {
     const val KEYWORD_DUPLICATE = "CATALOG_KEYWORD_DUPLICATE"
     const val KEYWORD_TOO_LONG = "CATALOG_KEYWORD_TOO_LONG"
     const val KEYWORD_LIMIT_EXCEEDED = "CATALOG_KEYWORD_LIMIT_EXCEEDED"
+
+    /** A declared preset's key is not a string or breaks [CatalogPresets.KEY_PATTERN] (wire v8, ADR 0007). */
+    const val PRESET_KEY_INVALID = "CATALOG_PRESET_KEY_INVALID"
+
+    /** The catalog declares the same preset key more than once (wire v8, ADR 0007). */
+    const val PRESET_DUPLICATE = "CATALOG_PRESET_DUPLICATE"
+
+    /** A declared preset's name is not a nonblank string within [CatalogPresets.NAME_MAX_LENGTH] (wire v8). */
+    const val PRESET_NAME_INVALID = "CATALOG_PRESET_NAME_INVALID"
+
+    /** A declared preset's description is longer than [CatalogPresets.DESCRIPTION_MAX_LENGTH] (wire v8). */
+    const val PRESET_DESCRIPTION_INVALID = "CATALOG_PRESET_DESCRIPTION_INVALID"
 
     /**
      * `release.version` is not a wire-v8 release number ([CatalogReleaseVersions]:
@@ -385,6 +400,7 @@ object CatalogSchemaMigrator {
         releaseVersionFindings(tree) +
         releaseFingerprintFindings(tree) +
         keywordFindings(tree) +
+        presetFindings(tree) +
         detailUrlFindings(tree, source)
 
     /**
@@ -561,6 +577,40 @@ object CatalogSchemaMigrator {
                 message = violation.message,
             )
         }
+    }
+
+    /**
+     * The presets a catalog declares (wire v8, ADR 0007) follow [CatalogPresets]. Binding would coerce
+     * a number to a string and keep a repeated key, so they are checked here. A manifest from before
+     * wire v8 declares none.
+     */
+    private fun presetFindings(tree: ObjectNode): List<CatalogMigrationFinding> {
+        val presets = tree["catalog"]?.get("presets") as? ArrayNode ?: return emptyList()
+        val findings = mutableListOf<CatalogMigrationFinding>()
+        val declared = mutableListOf<Pair<Int, CatalogPresetDeclaration>>()
+        presets.forEachIndexed { index, node ->
+            val path = "catalog.json.catalog.presets[$index]"
+            val key = node["key"]
+            val name = node["name"]
+            when {
+                key == null || !key.isString -> findings += CatalogMigrationFinding(CatalogMigrationCodes.PRESET_KEY_INVALID, "$path.key", "preset key must be a string")
+                name == null || !name.isString -> findings += CatalogMigrationFinding(CatalogMigrationCodes.PRESET_NAME_INVALID, "$path.name", "preset name must be a string")
+                else -> declared += index to CatalogPresetDeclaration(key.asString(), name.asString(), node["description"]?.takeIf { it.isString }?.asString())
+            }
+        }
+        CatalogPresets.violations(declared.map { it.second }).forEach { violation ->
+            findings += CatalogMigrationFinding(
+                code = when (violation.rule) {
+                    PresetRule.KEY_INVALID -> CatalogMigrationCodes.PRESET_KEY_INVALID
+                    PresetRule.NAME_INVALID -> CatalogMigrationCodes.PRESET_NAME_INVALID
+                    PresetRule.DESCRIPTION_TOO_LONG -> CatalogMigrationCodes.PRESET_DESCRIPTION_INVALID
+                    PresetRule.DUPLICATE -> CatalogMigrationCodes.PRESET_DUPLICATE
+                },
+                path = "catalog.json.catalog.presets[${declared[violation.index].first}].${violation.member}",
+                message = violation.message,
+            )
+        }
+        return findings
     }
 
     /** The wire version from which every path into the catalog is held to [CatalogArchivePaths]. */

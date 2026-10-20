@@ -116,7 +116,9 @@ data class TemplateDocument(
  * @property type Component type key (e.g. "text", "container", "columns", "root").
  * @property slots Ordered slot IDs owned by this node.
  * @property styles Inline CSS-like style overrides.
- * @property stylePreset Reference to a named preset in the theme's block style presets.
+ * @property stylePreset Names one of the catalog's available block style presets: those its manifest
+ *   declares ([app.epistola.catalog.protocol.CatalogInfo.presets]) plus those of the catalogs it depends on
+ *   (ADR 0007). The rendering theme's block style presets supply the styles.
  * @property props Type-specific properties (content, expression, column config, etc.).
  */
 data class Node(

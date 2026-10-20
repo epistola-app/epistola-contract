@@ -25,6 +25,8 @@ import app.epistola.client.jakarta.model.AvailableCatalogReleases;
 import app.epistola.client.jakarta.model.AvailableReleaseDto;
 import app.epistola.client.jakarta.model.BehindReleaseDto;
 import app.epistola.client.jakarta.model.CatalogChangesDto;
+import app.epistola.client.jakarta.model.CatalogPresetDto;
+import app.epistola.client.jakarta.model.CatalogThemeReference;
 import app.epistola.client.jakarta.model.CatalogDependencyDto;
 import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
 import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
@@ -133,6 +135,7 @@ public final class Driver {
                 case "list-catalog-versions" -> listCatalogVersions(baseUrl, config);
                 case "get-catalog-version" -> getCatalogVersion(baseUrl, config);
                 case "rename-catalog-draft" -> renameCatalogDraft(baseUrl, config);
+                case "set-catalog-draft-theme-settings" -> setCatalogDraftThemeSettings(baseUrl, config);
                 case "preview-catalog-draft-release" -> previewCatalogDraftRelease(baseUrl, config);
                 case "delete-catalog-draft" -> deleteCatalogDraft(baseUrl, config);
                 case "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config);
@@ -775,6 +778,42 @@ public final class Driver {
                         "name", String.valueOf(version.getName()),
                         "status", String.valueOf(version.getStatus()),
                         "base", String.valueOf(version.getBase())));
+    }
+
+    /** Sets a draft's default theme and presets; no name goes out, and an unset qualifier stays off the wire. */
+    private static void setCatalogDraftThemeSettings(String baseUrl, JsonObject config) {
+        List<CatalogPresetDto> presets = config.getJsonArray("presets").stream()
+                .map(JsonValue::asJsonObject)
+                .map(preset -> new CatalogPresetDto()
+                        .key(preset.getString("key"))
+                        .name(preset.getString("name"))
+                        .description(optional(preset, "description")))
+                .collect(Collectors.toList());
+        CatalogVersionDto version = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                .renameCatalogDraft(
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("catalogVersion"),
+                        new RenameCatalogDraftRequest()
+                                .defaultTheme(new CatalogThemeReference()
+                                        .key(config.getString("defaultThemeKey"))
+                                        .catalogKey(optional(config, "defaultThemeCatalogKey")))
+                                .presets(presets));
+        List<CatalogPresetDto> parsed = version.getPresets() == null ? List.of() : version.getPresets();
+        CatalogThemeReference defaultTheme = version.getDefaultTheme();
+        report(
+                baseUrl,
+                Map.of(
+                        "versionId", String.valueOf(version.getVersionId()),
+                        "name", String.valueOf(version.getName()),
+                        "defaultThemeKey", defaultTheme == null ? "null" : String.valueOf(defaultTheme.getKey()),
+                        "defaultThemeCatalogKey", defaultTheme == null ? "null" : String.valueOf(defaultTheme.getCatalogKey()),
+                        "presetKeys", parsed.stream().map(CatalogPresetDto::getKey).collect(Collectors.joining(",")),
+                        "presetNames", parsed.stream().map(CatalogPresetDto::getName).collect(Collectors.joining("|")),
+                        "presetDescriptions", parsed.stream().map(p -> String.valueOf(p.getDescription())).collect(Collectors.joining("|"))));
     }
 
     /** The number a draft would be released as, and every reason, in order. */

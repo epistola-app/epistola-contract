@@ -51,6 +51,8 @@ export type {
   AttributeAssignment,
   CatalogPresentation,
   CatalogLicense,
+  CatalogThemeRef,
+  CatalogPresetDeclaration,
   PublisherInfo,
   ReleaseInfo,
   CompatibilityInfo,
@@ -175,6 +177,22 @@ export const CATALOG_ATTRIBUTE_KEY_PATTERN = '^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\
 
 /** Longest variant attribute key (wire v8): a catalog key, the separator and a resource key. */
 export const MAX_CATALOG_ATTRIBUTE_KEY_LENGTH = 101
+
+/**
+ * Pattern a declared preset's key must match (wire v8, ADR 0007): what a block's `stylePreset` names
+ * and what a theme's `blockStylePresets` styles it under. A leading lowercase letter, then lowercase
+ * letters and digits in hyphen-separated parts. Keys are unique within one catalog's `presets`.
+ */
+export const CATALOG_PRESET_KEY_PATTERN = '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$'
+
+/** Longest declared preset key (wire v8). */
+export const MAX_CATALOG_PRESET_KEY_LENGTH = 50
+
+/** Longest declared preset name (wire v8). */
+export const MAX_CATALOG_PRESET_NAME_LENGTH = 100
+
+/** Longest declared preset description (wire v8). */
+export const MAX_CATALOG_PRESET_DESCRIPTION_LENGTH = 500
 
 /** Longest template description, in characters (wire v8). */
 export const MAX_TEMPLATE_DESCRIPTION_LENGTH = 2000

@@ -60,7 +60,7 @@
         },
         "stylePreset": {
           "type": "string",
-          "description": "Reference to a named preset in the theme's block style presets."
+          "description": "Names one of the catalog's available block style presets: the presets its manifest declares (catalog.presets) plus those of the catalogs it depends on. The rendering theme's blockStylePresets supplies the styles; a theme that does not style it leaves the block with its own styles only. While a catalog declares no presets, the presets its themes style stand in for the list."
         },
         "props": {
           "type": "object",
