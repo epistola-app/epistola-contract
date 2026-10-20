@@ -3,11 +3,11 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: release-catalog-draft-version
-title: Releasing a draft under a number the author chose sends that number, and nothing else
+title: Releasing a draft under a version the author chose sends that version, and nothing else
 why: >
-  The server numbers a release from its changes against the draft's base, but the author may raise
-  the number, for example to mark a major on purpose (ADR 0002). The number travels as `releaseVersion` in
-  the body of `…/versions/{versionId}/release`; the server refuses one lower than the changes need,
+  The server chooses a release's version from its changes against the draft's base, but the author may raise
+  the version, for example to mark a major on purpose (ADR 0002). The version travels as `version` in
+  the body of `…/releases/{releaseId}/release`; the server refuses one lower than the changes need,
   not above the base, or one another release has. A client that drops it releases `1.5.0` where the
   author asked for `2.0.0`.
 
@@ -23,17 +23,17 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: k7m2x9qa
-    releaseVersion: 2.0.0
+    release: k7m2x9qa
+    version: 2.0.0
 
 script:
   - status: 200
     contentType: application/vnd.epistola.v2+json
     body:
-      catalogVersion:
-        releaseVersion: 2.0.0
-        versionId: k7m2x9qa
-        name: null
+      release:
+        version: 2.0.0
+        releaseId: k7m2x9qa
+        name: Redesign 2027
         status: released
         base: 1.4.0
         createdFrom: null
@@ -51,16 +51,16 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/k7m2x9qa/release
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/release
       body:
         json:
-          releaseVersion: 2.0.0
+          version: 2.0.0
           # Its default is false, so a client may send `false` or leave it out, never `true`.
           releaseDependencies: { whenPresent: { equals: false } }
         jsonAbsent: [notes, acknowledgedBehind]
   report:
-    releaseVersion: 2.0.0
+    version: 2.0.0
     status: released
-    versionId: k7m2x9qa
+    releaseId: k7m2x9qa
     draftsBehind: ""
     releasedDependencies: ""

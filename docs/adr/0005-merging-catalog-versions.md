@@ -3,14 +3,14 @@
 - **Status:** Proposed — not part of contract 2.0.0; a later alpha
 - **Date:** 2026-10-16
 - **Scope:** API contract (`contracts/api`) and portable catalog contract (`contracts/catalog`)
-- **Related:** [ADR 0002](0002-intermediate-releases.md) (catalog versions; drafts are independent
+- **Related:** [ADR 0002](0002-intermediate-releases.md) (drafts and releases; drafts are independent
   copies), [ADR 0004](0004-resource-identity-within-a-catalog.md) (resource identity)
 
 ## Context
 
 In contract 2.0.0 a draft is an independent copy of the release it started from (ADR 0002). Nothing
 is merged. A draft is **behind** releases made from other drafts that are numbered below the number
-it would be released as (above its base, or published after it started), and releasing it requires
+it would be released as (above its base, or released after it started), and releasing it requires
 acknowledging them. Porting a change released in `1.5.0` into another draft ("Redesign 2027") is the
 author's work: they apply it again by hand.
 
@@ -39,7 +39,7 @@ older line) leaves the base as it is and only drops that release off `behind`.
 
 The same operation can bring in changes from any other version, not only releases, which covers
 "take the finished templates from Redesign 2027 into Spring fixes":
-`POST …/versions/{catalogVersion}/merge` `{from, resources?}`.
+`POST …/releases/{release}/merge` `{from, resources?}`.
 
 ### A three-way merge, first per resource
 

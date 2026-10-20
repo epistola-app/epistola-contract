@@ -3,18 +3,18 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: undeploy-catalog-draft
-title: Undeploying a draft addresses it by its versionId, and its empty answer is a success
+title: Undeploying a draft addresses it by its releaseId, and its empty answer is a success
 why: >
   An environment stops serving a draft the same way it stops serving a release: by undeploying
-  that catalog version (ADR 0003, "Deploying"). A draft has no number, so the path ends in its
-  `versionId`, exactly as given, and the request has no body. Requests through the environment
+  that release (ADR 0003, "Deploying"). A draft has no version, so the path ends in its
+  `releaseId`, exactly as given, and the request has no body. Requests through the environment
   then render the highest release it serves again.
 
   The answer is a 204 with no body and no content type, which a client must treat as success
   rather than fail to deserialize.
 
 action:
-  name: undeploy-catalog-version
+  name: undeploy-catalog-release
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
@@ -22,7 +22,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: k7m2x9qa
+    release: k7m2x9qa
 
 script:
   - status: 204

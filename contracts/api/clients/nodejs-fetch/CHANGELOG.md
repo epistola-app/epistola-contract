@@ -12,19 +12,19 @@ records contract changes; this file records changes to the hand-written library 
 ### Added
 
 - `ProblemDetailException.missingDependencies` lists the releases a `release-dependencies-missing`
-  problem (409, from `deployCatalogVersion`) reports cannot be had, each a `MissingDependency`
-  (`registry`, `namespace`, `catalogKey`, `releaseVersion`, `reason`). `reason` is kept as the
+  problem (409, from `deployCatalogRelease`) reports cannot be had, each a `MissingDependency`
+  (`registry`, `namespace`, `catalogKey`, `version`, `reason`). `reason` is kept as the
   string the server sent, so a reason added later is not lost; entries missing a member are
   dropped, and the list is empty for any other problem. `isReleaseDependenciesMissingProblem` is
   true when it is not empty.
 - `ProblemDetailException.unreleasedDependencies` lists the drafts of other catalogs a
   `release-dependencies-unreleased` problem (409, from `releaseCatalogDraft`) reports the released
   draft's dependency declarations name, each an `UnreleasedDependency` (`registry`, `namespace`,
-  `catalogKey`, `versionId`, `draftName`); entries missing a member are dropped, and the list is
+  `catalogKey`, `releaseId`, `releaseName`); entries missing a member are dropped, and the list is
   empty for any other problem. `isReleaseDependenciesUnreleasedProblem` is true when it is not
   empty.
 - The generated model validators check a member that references a plain string schema, such as
-  `CatalogDependencyRequirement.releaseVersion` (`ReleaseVersion`), as if its constraints were
+  `CatalogDependencyRequirement.version` (`ReleaseVersion`), as if its constraints were
   written inline. Before, every referenced member was skipped.
 
 ### Changed
@@ -49,7 +49,7 @@ records contract changes; this file records changes to the hand-written library 
   generation by release. It may be combined with `environmentKey`; without either, the catalog's
   latest release is checked.
 - Results handed to a `ResultCollector` handler carry the template's catalog as `registry`,
-  `namespace` and `catalogKey`, always set, next to `releaseVersion`, which is null for a result
+  `namespace` and `catalogKey`, always set, next to `version`, which is null for a result
   rendered from a draft.
 - The README no longer mentions the `X-API-Key` header: the contract dropped it, and the client
   only ever sent `Authorization: ApiKey <key>`.

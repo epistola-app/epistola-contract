@@ -46,7 +46,7 @@ class ResultCollectorTest {
                 + ",\"requestId\":\"11111111-1111-1111-1111-11111111111" + (sequence % 10) + "\""
                 + ",\"status\":\"" + status + "\""
                 + ",\"registry\":\"exchange.epistola.app\",\"namespace\":\"acme-corp\",\"catalogKey\":\"letters\""
-                + ",\"releaseVersion\":\"1.4.0\""
+                + ",\"version\":\"1.4.0\""
                 + ",\"correlationId\":\"" + correlationId + "\"}";
     }
 

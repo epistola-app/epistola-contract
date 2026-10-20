@@ -108,9 +108,9 @@ class ProblemDetailErrorHandlerTest {
              "title":"Release dependencies missing","status":409,
              "missingDependencies":[
                {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system",
-                "releaseVersion":"3.2.0","reason":"unavailable"},
+                "version":"3.2.0","reason":"unavailable"},
                {"registry":"registry.gemeente-x.nl","namespace":"huisstijl","catalogKey":"branding",
-                "releaseVersion":"1.4.2","reason":"SOME_FUTURE_REASON"}]}
+                "version":"1.4.2","reason":"SOME_FUTURE_REASON"}]}
         """.trimIndent()
 
         val ex = assertFailsWith<ProblemDetailException> {
@@ -146,10 +146,10 @@ class ProblemDetailErrorHandlerTest {
              "title":"Release dependencies missing","status":409,
              "missingDependencies":[
                "not an object",
-               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system","releaseVersion":"3.2.0"},
-               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system","releaseVersion":3,"reason":"unavailable"},
+               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system","version":"3.2.0"},
+               {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system","version":3,"reason":"unavailable"},
                {"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"system",
-                "releaseVersion":"3.2.0","reason":"unavailable"}]}
+                "version":"3.2.0","reason":"unavailable"}]}
         """.trimIndent()
 
         val ex = assertFailsWith<ProblemDetailException> {
@@ -175,11 +175,11 @@ class ProblemDetailErrorHandlerTest {
              "title":"Release dependencies unreleased","status":409,
              "unreleasedDependencies":[
                {"registry":"exchange.epistola.app","namespace":"acme-corp","catalogKey":"branding",
-                "versionId":"r4t8w2nc","draftName":"House style 2027"},
+                "releaseId":"r4t8w2nc","releaseName":"House style 2027"},
                "not an object",
-               {"registry":"exchange.epistola.app","namespace":"acme-corp","catalogKey":"fonts","versionId":"x"},
+               {"registry":"exchange.epistola.app","namespace":"acme-corp","catalogKey":"fonts","releaseId":"x"},
                {"registry":"registry.gemeente-x.nl","namespace":"huisstijl","catalogKey":"fonts",
-                "versionId":"h3v9p6db","draftName":"New typefaces, round 2"}]}
+                "releaseId":"h3v9p6db","releaseName":"New typefaces, round 2"}]}
         """.trimIndent()
 
         val ex = assertFailsWith<ProblemDetailException> {

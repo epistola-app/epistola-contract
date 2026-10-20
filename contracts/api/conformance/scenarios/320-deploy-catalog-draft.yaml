@@ -3,18 +3,18 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: deploy-catalog-draft
-title: Deploying a draft addresses it by its versionId, and reads back a deployment with no release
+title: Deploying a draft addresses it by its releaseId, and reads back a deployment with no release
 why: >
   A draft is tried by deploying it to a non-production environment, which then renders it live
-  with no release (ADR 0003, "Deploying"). It has no number, so the path ends in its `versionId`,
+  with no release (ADR 0003, "Deploying"). It has no version, so the path ends in its `releaseId`,
   exactly as given; the request has no body, and no query string when no flag is set.
 
-  The answer is a deployment of kind `draft`: `releaseVersion` is null and `draftName` names the
-  draft. A client that requires `releaseVersion`, or reads `kind` into a closed type that does not
+  The answer is a deployment with status `draft`: `version` is null and `releaseName` names the
+  draft. A client that requires `version`, or reads `status` into a closed type that does not
   know `draft`, cannot read what an environment serves.
 
 action:
-  name: deploy-catalog-version
+  name: deploy-catalog-release
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
@@ -22,7 +22,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: k7m2x9qa
+    release: k7m2x9qa
 
 script:
   - status: 200
@@ -31,10 +31,10 @@ script:
       registry: exchange.epistola.app
       namespace: acme-corp
       catalogKey: letters
-      versionId: k7m2x9qa
-      kind: draft
-      releaseVersion: null
-      draftName: Spring fixes
+      releaseId: k7m2x9qa
+      status: draft
+      version: null
+      releaseName: Spring fixes
       deployedAt: "2026-10-18T09:00:00Z"
       lastUsedAt: null
       documentsRequested: 0
@@ -49,10 +49,10 @@ expect:
     registry: exchange.epistola.app
     namespace: acme-corp
     catalogKey: letters
-    versionId: k7m2x9qa
-    kind: draft
-    releaseVersion: 'null'
+    releaseId: k7m2x9qa
+    status: draft
+    version: 'null'
     # Names are free text, so a driver reports them as given.
-    draftName: Spring fixes
+    releaseName: Spring fixes
     lastUsedAt: 'null'
     documentsRequested: "0"

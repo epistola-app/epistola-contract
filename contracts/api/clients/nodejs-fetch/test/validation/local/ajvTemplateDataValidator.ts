@@ -8,7 +8,7 @@ import { loadAjv, type AjvErrorLike, type AjvInstanceLike, type AjvRuntime, type
 
 /** The one call on `TemplatesApi` this adapter needs. */
 export interface TemplateSchemaSource {
-  getTemplate(requestParameters: { tenantKey: string; registry: string; namespace: string; catalogKey: string; catalogVersion: string; templateKey: string }): Promise<{ schema?: object }>
+  getTemplate(requestParameters: { tenantKey: string; registry: string; namespace: string; catalogKey: string; release: string; templateKey: string }): Promise<{ schema?: object }>
 }
 
 /**
@@ -28,9 +28,9 @@ export interface TemplateSchemaSource {
  *   which is also where the server reports it (`missingFields[].path`).
  * - **The schema is fetched, so it is cached.** A validator is only "local" after a round trip for
  *   the template; without a cache this is slower than asking the server.
- * - **The schema is read from one catalog version**, the one given at construction. Templates live
- *   in catalog versions, so there is no version-less address to fetch a schema from. Name the
- *   released version you will render, or the adapter checks against a schema that does not apply.
+ * - **The schema is read from one release**, the one given at construction. Templates live in
+ *   releases of their catalog, so there is no release-less address to fetch a schema from. Name the
+ *   release you will render, or the adapter checks against a schema that does not apply.
  *
  * And one thing a copy cannot fix, which is the argument for the default being the server: **a
  * local compiler's verdict is its own.** Ajv asserts `format` only with `ajv-formats` installed and
@@ -44,13 +44,13 @@ export class AjvTemplateDataValidator implements TemplateDataValidator {
 
   constructor(
     private readonly templatesApi: TemplateSchemaSource,
-    private readonly catalogVersion: string,
+    private readonly release: string,
     private readonly cache: SchemaCache = new TtlSchemaCache(),
   ) {}
 
   async validate(tenantKey: string, registry: string, namespace: string, catalogKey: string, templateKey: string, data: unknown): Promise<readonly ValidationFailure[]> {
     const schema = await this.cache.getOrLoad(tenantKey, registry, namespace, catalogKey, templateKey, async () => {
-      const template = await this.templatesApi.getTemplate({ tenantKey, registry, namespace, catalogKey, catalogVersion: this.catalogVersion, templateKey })
+      const template = await this.templatesApi.getTemplate({ tenantKey, registry, namespace, catalogKey, release: this.release, templateKey })
       return template.schema ?? undefined
     })
     // No schema on the template means nothing is claimed about the data, so nothing is wrong with

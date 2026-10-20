@@ -131,12 +131,12 @@ test('the schema is fetched once and reused', async () => {
   assert.equal(templates.fetches, 1)
 })
 
-test('the schema is read from the catalog version the adapter was given', async () => {
+test('the schema is read from the release the adapter was given', async () => {
   const templates = new StubTemplatesApi(INVOICE_SCHEMA)
 
   await new AjvTemplateDataValidator(templates, '1.4.0').validate('acme-corp', '~', 'acme-corp', 'default', 'invoice', VALID_DATA)
 
-  assert.deepEqual(templates.requested, [{ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'default', catalogVersion: '1.4.0', templateKey: 'invoice' }])
+  assert.deepEqual(templates.requested, [{ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'default', release: '1.4.0', templateKey: 'invoice' }])
 })
 
 test('it takes the generation pre-flight, unlike the server-backed default', async () => {

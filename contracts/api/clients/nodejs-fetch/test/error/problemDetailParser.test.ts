@@ -78,16 +78,16 @@ test('parses a release-dependencies-missing problem with its missingDependencies
     title: 'Release dependencies missing',
     status: 409,
     missingDependencies: [
-      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0', reason: 'unavailable' },
-      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'legal', releaseVersion: '2.0.0', reason: 'unavailable' },
+      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', version: '1.2.0', reason: 'unavailable' },
+      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'legal', version: '2.0.0', reason: 'unavailable' },
     ],
   }, 409)!
   assert.equal(problem.typeSlug, KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING)
   assert.ok(problem.isReleaseDependenciesMissingProblem)
   assert.equal(problem.isValidationProblem, false)
   assert.deepEqual(problem.missingDependencies, [
-    { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0', reason: MissingReleaseDependencyReason.Unavailable },
-    { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'legal', releaseVersion: '2.0.0', reason: MissingReleaseDependencyReason.Unavailable },
+    { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', version: '1.2.0', reason: MissingReleaseDependencyReason.Unavailable },
+    { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'legal', version: '2.0.0', reason: MissingReleaseDependencyReason.Unavailable },
   ])
 })
 
@@ -106,13 +106,13 @@ test('malformed missingDependencies entries are dropped and an unknown reason is
       'not-an-object',
       null,
       ['registry.epistola.app'],
-      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0' },
-      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: 3, reason: 'unavailable' },
-      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0', reason: 'quarantined' },
+      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', version: '1.2.0' },
+      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', version: 3, reason: 'unavailable' },
+      { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', version: '1.2.0', reason: 'quarantined' },
     ],
   }, 409)!
   assert.deepEqual(problem.missingDependencies, [
-    { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', releaseVersion: '1.2.0', reason: 'quarantined' },
+    { registry: 'registry.epistola.app', namespace: 'acme', catalogKey: 'brand', version: '1.2.0', reason: 'quarantined' },
   ])
   assert.ok(problem.isReleaseDependenciesMissingProblem)
 
@@ -126,14 +126,14 @@ test('parses a release-dependencies-unreleased problem with its unreleasedDepend
     title: 'Release dependencies unreleased',
     status: 409,
     unreleasedDependencies: [
-      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'branding', versionId: 'r4t8w2nc', draftName: 'House style 2027' },
-      { registry: 'registry.gemeente-x.nl', namespace: 'huisstijl', catalogKey: 'fonts', versionId: 'h3v9p6db', draftName: 'New typefaces, round 2' },
+      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'branding', releaseId: 'r4t8w2nc', releaseName: 'House style 2027' },
+      { registry: 'registry.gemeente-x.nl', namespace: 'huisstijl', catalogKey: 'fonts', releaseId: 'h3v9p6db', releaseName: 'New typefaces, round 2' },
     ],
   }, 409)!
   assert.equal(problem.typeSlug, KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED)
   assert.ok(problem.isReleaseDependenciesUnreleasedProblem)
   assert.equal(problem.isReleaseDependenciesMissingProblem, false)
-  assert.deepEqual(problem.unreleasedDependencies.map((d) => `${d.catalogKey}#${d.versionId}=${d.draftName}`), [
+  assert.deepEqual(problem.unreleasedDependencies.map((d) => `${d.catalogKey}#${d.releaseId}=${d.releaseName}`), [
     'branding#r4t8w2nc=House style 2027',
     'fonts#h3v9p6db=New typefaces, round 2',
   ])
@@ -146,8 +146,8 @@ test('malformed unreleasedDependencies entries are dropped, and other problems r
     status: 409,
     unreleasedDependencies: [
       'not-an-object',
-      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'branding', versionId: 'r4t8w2nc' },
-      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'fonts', versionId: 'h3v9p6db', draftName: 'Typefaces' },
+      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'branding', releaseId: 'r4t8w2nc' },
+      { registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'fonts', releaseId: 'h3v9p6db', releaseName: 'Typefaces' },
     ],
   }, 409)!
   assert.deepEqual(problem.unreleasedDependencies.map((d) => d.catalogKey), ['fonts'])

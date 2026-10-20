@@ -9,12 +9,12 @@ themes:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
 
   get:
     operationId: listThemes
-    summary: List the themes in a catalog version
-    description: Retrieve the themes of this catalog version.
+    summary: List the themes in a release of a catalog
+    description: Retrieve the themes of this release.
     tags:
       - Themes
     x-required-permissions: [THEME_VIEW]
@@ -90,7 +90,7 @@ themes-id:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: themeKey
       in: path
       required: true
@@ -167,8 +167,8 @@ themes-id:
     operationId: deleteTheme
     summary: Delete a theme
     description: |
-      Delete the theme from the draft. Refused with 409 in a released version, and while anything
-      in the draft still uses it: a template or variant that names it, or the version's default
+      Delete the theme from the draft. Refused with 409 outside a draft, and while anything
+      in the draft still uses it: a template or variant that names it, or the draft's default
       theme (`defaultTheme`). A render never falls back to other styles because a theme
       it names is missing; change those references first.
     tags:

@@ -48,9 +48,9 @@ it asks non-developers to understand branching: merges in any direction, branch 
 
 ### C. Drafts, each released on its own
 
-A catalog consists of **versions**, each a draft or released. A catalog has any number of drafts,
+A catalog consists of **releases**, each a draft or released. A catalog has any number of drafts,
 all alike: each named, each started from a release it is measured against, and each released on its
-own, numbered when it is released from what it changed. Nothing is merged. This is the decision
+own, given its version when it is released, from what it changed. Nothing is merged. This is the decision
 below.
 
 ### D. Keep "release everything"
@@ -83,26 +83,28 @@ simple, but it pushes the problem onto the authors. **Rejected.**
 
 Adopt **option C**.
 
-### A version is a draft or released
+### A release is a draft or released
 
-- A **draft** is editable. A **released** version is immutable: every write to it is refused with
-  `409`.
-- Every version has an opaque **`versionId`**, assigned by the server when it is started as a draft
-  and kept when it is released; a release installed by import or from its source gets one when it is
-  installed. A draft has no number yet, so it is identified by its `versionId` alone. A released
-  version is identified by its `versionId` or by its SemVer number, `MAJOR.MINOR.PATCH`, unique in
-  its catalog, interchangeably: both address the same version.
-- Only released versions are exported or published, and version ranges (`^1.4.0`) never match a
+- A catalog's releases are one object, in status **draft** (a draft release, or draft: editable)
+  or **released** (immutable: every write to it, its name included, is refused with `409`).
+- Every release has an opaque **`releaseId`**, assigned by the server when it is started as a draft
+  and kept when it is released, as is its name; a release installed by import or from its source
+  gets one when it is installed, and has no name. A draft has no version yet, so it is identified by
+  its `releaseId` alone. A released release is identified by its `releaseId` or by its **version**,
+  `MAJOR.MINOR.PATCH`, unique in its catalog, interchangeably: both address the same release.
+  "Version" only ever means that number.
+- Only released releases are exported or published to a registry, and version ranges (`^1.4.0`) never match a
   draft. A draft is rendered only by preview and by an environment it is deployed to (see "Trying
   work: deploying a draft").
 
 ### Drafts
 
 - An authored catalog has **any number of drafts**, none special. A subscribed catalog has none.
-- A draft has a `versionId` (its address), a **name** unique among the catalog's drafts, and a fixed
+- A draft has a `releaseId` (its address), a **name** unique among the catalog's drafts, kept when
+  it is released, and a fixed
   **base**: the release it started from, which its changes are measured against and its number
   follows from. The base is null when the catalog had no release yet.
-- A draft is started (`createCatalogDraft {name, from?}`) as a copy of a **release**, which becomes
+- A draft is started (`createCatalogRelease {name, from?}`) as a copy of a **release**, which becomes
   its base, or of **another draft**, unreleased changes included, on that draft's base. Without
   `from` it starts from the catalog's highest release, or empty when there is none.
 - Any draft can be renamed and discarded. Discarding ends its deployments.
@@ -133,8 +135,8 @@ Adopt **option C**.
   change, and moving to another release of a dependency is breaking only when that release breaks a
   resource this catalog uses (see "Dependencies are exact"), whatever the step in the dependency's
   number.
-- **The released draft becomes the released version** at that number, immutable. Its `versionId`
-  stays and addresses the release, as the number does: a write through either is refused with
+- **The draft becomes released** at that version, immutable. Its `releaseId` and its name stay,
+  and the id addresses it as the version does: a write through either is refused with
   `409`, never `404`. Where the draft was deployed, the environment now serves the release.
 
 ### A draft can be behind
@@ -144,15 +146,15 @@ them by hand, which the server cannot tell. Relative to the number it would be r
 is **behind** every release that is:
 
 - (a) numbered above its base and below that number, or
-- (b) published after the draft was started and numbered below that number (other than its base).
+- (b) released after the draft was started and numbered below that number (other than its base).
 
 Examples:
 
-- A draft on `2.0.0` is behind a fix `1.4.1` published after it was started (b).
+- A draft on `2.0.0` is behind a fix `1.4.1` released after it was started (b).
 - "Redesign", started from `1.4.0` and released as `2.0.0`, is behind `1.5.0` (a).
 - A fix `1.4.1` from `1.4.0` is behind nothing: `1.5.0` and `2.0.0` are above its number.
 
-`CatalogVersionDto.behind` lists them against the number the release preview gives, each with the
+`CatalogReleaseDto.behind` lists them against the number the release preview gives, each with the
 resources it changed against its own base. **Leaving a release out must be acknowledged**: releasing
 a draft that is behind names every one of those releases in `acknowledgedBehind`, recomputed for the
 number it is actually released as, or it is refused with `409`. A fix shipped in `1.5.0` can still
@@ -162,7 +164,7 @@ release puts behind (`draftsBehind`).
 ### Trying work: deploying a draft
 
 A draft is tried where it is authored, by deploying it to an environment, not by releasing it
-(`deployCatalogVersion`, addressed by its `versionId`; ADR 0003, "Deploying"):
+(`deployCatalogRelease`, addressed by its `releaseId`; ADR 0003, "Deploying"):
 
 - The environment renders the draft live, with no release. It serves at most one draft per
   catalog; deploying another replaces it. Deploying is a deployment change: the same permission,
@@ -176,16 +178,16 @@ A draft is tried where it is authored, by deploying it to an environment, not by
   (`environment-deployment-refused`).
 - A document rendered from a draft records the draft's id and its name at render time, and its PDF
   carries a preview watermark.
-- The deployment follows the draft: releasing it keeps the `versionId`, so the environment then
-  serves the release (`released` in the history); discarding it ends the deployment (`undeployed`).
+- The deployment follows the draft: releasing it keeps the `releaseId`, so the environment then
+  serves it as released (`released` in the history); discarding it ends the deployment (`undeployed`).
 
 ### Releasing takes along the drafts it uses
 
 A release pins exact releases of the catalogs it uses (ADR 0003). While authoring, a draft may build
 on another catalog's work that is not released yet:
 
-- In a **draft**, a dependency declaration names either a release (`releaseVersion`) or a draft of
-  the other catalog (`versionId`), exactly one. The draft then renders with that draft, live.
+- In a **draft**, a dependency declaration names either a release (`version`) or a draft of
+  the other catalog (`releaseId`), exactly one. The draft then renders with that draft, live.
 - A **release never pins a draft**, so the catalog archive and exchanges only ever carry releases.
 - Releasing a draft whose declarations name drafts is refused with `409`
   (`release-dependencies-unreleased`), listing each such draft, directly or through those drafts'
@@ -233,67 +235,68 @@ on another catalog's work that is not released yet:
 
 ## API
 
-A catalog version is addressed by one path segment, `{catalogVersion}`:
+A release of a catalog, draft or released, is addressed by one path segment, `{release}`:
 
 ```
-/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions
-/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}
-/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateKey}
-/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilKey}
+/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases
+/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}
+/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}
+/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/stencils/{stencilKey}
 …
 ```
 
-`{catalogVersion}` is a `versionId` (a draft, or a released version) or an exact SemVer number (a
-released version); a released version is read-only whichever way it is addressed. A `versionId`
+`{release}` is a `releaseId` (a draft, or a released release) or an exact version (a released
+release); a released release is read-only whichever way it is addressed. A `releaseId`
 never contains a dot and a SemVer number always does, so they never collide: drafts and releases
-share one segment and every resource path stays where it is. A `versionId` is lowercase letters,
-digits and single hyphens, 4 to 36 characters (`CatalogVersionId`); a UUID fits, but a short random
+share one segment and every resource path stays where it is. A `releaseId` is lowercase letters,
+digits and single hyphens, 4 to 36 characters (`CatalogReleaseId`); a UUID fits, but a short random
 id such as `k7m2x9qa` is recommended, because people read and type it.
 
 | Operation | Request | Notes |
 | --- | --- | --- |
-| `listCatalogVersions` | `GET …/versions?status=` | Drafts (oldest first), then released versions (highest first) |
-| `createCatalogDraft` | `POST …/versions` `{name, from?}` | `from` a release number or a `versionId`; default the highest release |
-| `getCatalogVersion` | `GET …/versions/{catalogVersion}` | Status, base, name, what a draft is behind; for a release its dependencies and the environments that serve it |
-| `renameCatalogDraft` | `PATCH …/versions/{catalogVersion}` `{name}` | Any draft |
-| `deleteCatalogDraft` | `DELETE …/versions/{catalogVersion}` | Any draft |
-| `previewCatalogDraftRelease` | `GET …/versions/{catalogVersion}/release-preview` | `base`, `changeKind`, `reasons`, `needed`, `suggested` |
-| `releaseCatalogDraft` | `POST …/versions/{catalogVersion}/release` `{version?, notes?, acknowledgedBehind?, releaseDependencies?}` | Any draft. Returns the release, `draftsBehind` and `releasedDependencies`; refused with `release-dependencies-unreleased` when declarations name drafts and `releaseDependencies` is not set |
+| `listCatalogReleases` | `GET …/releases?status=` | Drafts (oldest first), then released releases (highest version first) |
+| `createCatalogRelease` | `POST …/releases` `{name, from?}` | Always a draft; `from` a version or a `releaseId`; default the highest release |
+| `getCatalogRelease` | `GET …/releases/{release}` | Status, base, name, what a draft is behind; for a released release its dependencies; the environments that serve it |
+| `updateCatalogRelease` | `PATCH …/releases/{release}` `{name?, defaultTheme?, presets?}` | Any draft; a released release, its name included, is refused with `409` |
+| `deleteCatalogRelease` | `DELETE …/releases/{release}` | Any draft |
+| `previewCatalogDraftRelease` | `GET …/releases/{release}/release-preview` | `base`, `changeKind`, `reasons`, `needed`, `suggested` |
+| `releaseCatalogDraft` | `POST …/releases/{release}/release` `{version?, notes?, acknowledgedBehind?, releaseDependencies?}` | Any draft. Returns the release, `draftsBehind` and `releasedDependencies`; refused with `release-dependencies-unreleased` when declarations name drafts and `releaseDependencies` is not set |
 
 Deployments (ADR 0003, "Deploying"):
 
 | Operation | Request | Notes |
 | --- | --- | --- |
-| `deployCatalogVersion` | `PUT …/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{catalogVersion}` | A release number or a `versionId`; at most one draft per catalog; a draft on a production environment is refused (`environment-deployment-refused`) |
-| `undeployCatalogVersion` | `DELETE …/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{catalogVersion}` | Only an explicit deployment |
+| `deployCatalogRelease` | `PUT …/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{release}` | A version or a `releaseId`; at most one draft per catalog; a draft on a production environment is refused (`environment-deployment-refused`) |
+| `undeployCatalogRelease` | `DELETE …/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{release}` | Only an explicit deployment |
 
-- **Every resource path of the catalog's content is under `…/versions/{catalogVersion}/`,** and so
+- **Every resource path of the catalog's content is under `…/releases/{release}/`,** and so
   are `getCatalogChanges`, `markCatalogReady` and the dependency operations. Reads work on any
-  version. Writes and ready marks work on drafts only, and are refused with `409` on a released
-  version.
-- `CatalogDto.drafts` lists the open drafts (`CatalogDraftSummary`: `versionId`, name, base).
-  `CatalogVersionDto` carries `versionId` for every version and `releaseVersion`, its number, once
-  released.
-- `CatalogDependencyRequirement` and `CatalogDependencyDto` carry `releaseVersion` or, in a draft,
-  `versionId`.
+  release. Writes and ready marks work on drafts only, and are refused with `409` on a released
+  release.
+- `CatalogDto.drafts` lists the drafts (`CatalogDraftReleaseSummary`: `releaseId`, name, base).
+  `CatalogReleaseDto` carries `releaseId`, `status` (`draft` or `released`) and `name` for every
+  release, and `version` once released. A release keeps its `releaseId` and its name when it is
+  released; a release installed by import or from its source has no name.
+- `CatalogDependencyRequirement` and `CatalogDependencyDto` carry `version` or, in a draft,
+  `releaseId`.
 - `EnvironmentDto.production` marks a production environment.
-- Generation and results address released versions by number, and keep the name `releaseVersion`
-  where they mean one. A deployment names a version by `versionId` or number, with its `kind`
-  (`release` or `draft`), and a null `releaseVersion` for a draft. A document rendered from a draft
-  carries `versionId` and `draftLabel` with a null `releaseVersion`. `validateTemplateData` stays on the catalog, because
+- Generation and results address released releases by version, and every member named `version`
+  is one. A deployment names a release by `releaseId` or version, with its `status` (`draft` or
+  `released`), its `releaseName`, and a null `version` for a draft. A document rendered from a draft
+  carries `releaseId` and `draftLabel` with a null `version`. `validateTemplateData` stays on the catalog, because
   it selects a release by version range and environment, as generation does.
-- Preview renders a draft named by its `versionId`.
-- `importCatalog` never touches a draft. It installs the release the archive carries, at its number,
+- Preview renders a draft named by its `releaseId`.
+- `importCatalog` never touches a draft. It installs the release the archive carries, at its version,
   next to the catalog's other releases (ADR 0003): already present with the same fingerprint, nothing
   changes; the same number with a different fingerprint is refused with 409. A catalog the import
   creates holds that release and no draft; an author starts one from the release
-  (`createCatalogDraft` with `from`).
+  (`createCatalogRelease` with `from`).
 
 ## Consequences
 
-- **Contract change:** the working-copy operations gain a version segment, and the release
-  operations become version operations. Every client follows, and the conformance suite has
-  scenarios for the version operations, including a draft that is behind, an acknowledged release,
+- **Contract change:** the working-copy operations gain a release segment, and a catalog's drafts
+  and released releases become one object, the release. Every client follows, and the conformance
+  suite has scenarios for the release operations, including a draft that is behind, an acknowledged release,
   and a release that takes its dependency drafts along.
 - **No merge in 2.0.0.** Porting a change from one draft to another is the author's work, made
   visible by `behind` and by the acknowledgement. ADR 0005 proposes a merge on request.
@@ -301,7 +304,7 @@ Deployments (ADR 0003, "Deploying"):
   number is decided once, at release.
 - **Older lines are fixed by ordinary releases.** ADR 0001 is narrowed to an installation that does
   not author the catalog.
-- **Archives:** unchanged by drafts. Only released versions are exported, a release pins only
+- **Archives:** unchanged by drafts. Only released releases are exported, a release pins only
   releases, and importing an archive installs its release: an archive never becomes a draft.
 - **Not in the API yet:** the per-use check when moving to a newer dependency release.
 
@@ -326,10 +329,10 @@ this one:
   releases the draft is behind, offers to release the drafts of other catalogs it uses along with
   it, and afterwards lists the drafts now behind it.
 - **Trying work** is "deploy to environment…" on a draft.
-- **Deployments** become a catalog-level page: environments × catalog versions, releases and the
+- **Deployments** become a catalog-level page: environments × releases, released ones and the
   draft each environment serves.
 
 ## Open questions
 
-- Should a released version be withdrawable (still installed, never selected), or is undeploying
+- Should a released release be withdrawable (still installed, never selected), or is undeploying
   enough?

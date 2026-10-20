@@ -386,7 +386,7 @@ public sealed class ResultCollector
         Registry: Required(node, "registry"),
         Namespace: Required(node, "namespace"),
         CatalogKey: Required(node, "catalogKey"),
-        ReleaseVersion: node["releaseVersion"]?.Value<string>(),
+        Version: node["version"]?.Value<string>(),
         Filename: node["filename"]?.Value<string>(),
         ContentType: node["contentType"]?.Value<string>(),
         SizeBytes: node["sizeBytes"]?.Value<long?>(),
@@ -519,10 +519,10 @@ public sealed class ResultCollector
     /// <summary>A completed or failed generation result.</summary>
     /// <remarks>
     /// <see cref="Registry"/>, <see cref="Namespace"/>, <see cref="CatalogKey"/> and
-    /// <see cref="ReleaseVersion"/> name the catalog release the document was rendered from; a
-    /// release version means nothing without its catalog. <see cref="Registry"/> is always named in
+    /// <see cref="Version"/> name the catalog release the document was rendered from; a
+    /// version means nothing without its catalog. <see cref="Registry"/> is always named in
     /// full (<c>exchange.epistola.app</c>), never <c>~</c>. The catalog is always named;
-    /// <see cref="ReleaseVersion"/> is null when the document was rendered from a draft.
+    /// <see cref="Version"/> is null when the document was rendered from a draft.
     /// <see cref="Status"/> is the wire value, <c>completed</c> or <c>failed</c>.
     /// </remarks>
     public sealed record GenerationResult(
@@ -538,7 +538,7 @@ public sealed class ResultCollector
         string Registry,
         string Namespace,
         string CatalogKey,
-        string? ReleaseVersion,
+        string? Version,
         string? Filename,
         string? ContentType,
         long? SizeBytes,

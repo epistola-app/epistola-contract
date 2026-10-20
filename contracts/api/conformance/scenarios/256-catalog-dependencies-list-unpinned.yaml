@@ -3,11 +3,11 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: catalog-dependencies-list-unpinned
-title: A declaration that pins no release is listed with a null releaseVersion, not dropped
+title: A declaration that pins no release is listed with a null version, not dropped
 why: >
-  A declaration names the exact release it pins (`releaseVersion`). The one exception is a
+  A declaration names the exact release it pins (`version`). The one exception is a
   declaration that came from a catalog archive migrated from wire v7, which never said which
-  release it meant: it pins nothing until an author declares one, and `releaseVersion` is null.
+  release it meant: it pins nothing until an author declares one, and `version` is null.
   That is the state that blocks a release, so a client that turns null into an empty string, fails
   to parse the list, or drops the entry hides exactly the thing the caller needs to see.
 
@@ -21,24 +21,24 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: k7m2x9qa
+    release: k7m2x9qa
 
 script:
   - status: 200
     contentType: application/vnd.epistola.v2+json
     body:
       items:
-        - { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, releaseVersion: 1.3.0, versionId: null }
-        - { registry: acme.com, namespace: acme, catalogKey: house-style, releaseVersion: null, versionId: null }
+        - { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, version: 1.3.0, releaseId: null }
+        - { registry: acme.com, namespace: acme, catalogKey: house-style, version: null, releaseId: null }
 
 expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/k7m2x9qa/dependencies
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/dependencies
   report:
     registries: exchange.epistola.app,acme.com
     namespaces: epistola,acme
     catalogKeys: system,house-style
-    releaseVersions: 1.3.0,null
-    versionIds: null,null
+    versions: 1.3.0,null
+    releaseIds: null,null

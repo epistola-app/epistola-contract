@@ -23,7 +23,7 @@ import-catalog:
 
       - **A release the tenant does not have** is installed. The catalog's other releases, and every
         draft, deployment and catalog that uses them, are left as they are; which release an
-        environment serves is decided by deploying it (`deployCatalogVersion`).
+        environment serves is decided by deploying it (`deployCatalogRelease`).
       - **The same number with the same fingerprint** is the release the tenant already has: nothing
         changes, and the response says it was already present (`newlyInstalled: false`).
       - **The same number with a different fingerprint** is different content under one name: the
@@ -31,7 +31,7 @@ import-catalog:
       - **A new catalog** is created by the import, of type `catalogType`, holding that release and
         no draft. The import that creates a catalog must give `catalogType`: there is no default,
         and without it the import is refused with 400 `bad-request`. To edit the catalog, an author
-        starts a draft from the release (`createCatalogDraft` with `from`), which only an authored
+        starts a draft from the release (`createCatalogRelease` with `from`), which only an authored
         catalog allows.
       - **A catalog the tenant has** keeps its type: an import never changes it. `catalogType` may
         be omitted, or given as the catalog's type; given as the other type, the import is refused
@@ -46,7 +46,7 @@ import-catalog:
       resource cannot be installed, nothing is.
 
       The archive may also carry the releases its catalog pins (`catalogDependencies`), each an
-      ordinary catalog archive at `dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip`,
+      ordinary catalog archive at `dependencies/{registry}/{namespace}/{catalogKey}/{version}.zip`,
       found from the pin alone: every release reachable through the pins, a dependency's own pins
       included, once, in the outer archive, and none in the archives it carries. An
       embedded release must match its pin's `releaseFingerprint` and name that catalog and number,
@@ -100,7 +100,7 @@ import-catalog:
                 $ref: '../components/schemas/catalogs.yaml#/CatalogType'
                 description: |
                   Type of the catalog the import creates when the tenant does not have it: `authored`
-                  allows drafts to be started from its releases (`createCatalogDraft`); `subscribed`
+                  allows drafts to be started from its releases (`createCatalogRelease`); `subscribed`
                   only installs releases, and installs those its source offers
                   (`installCatalogRelease`). Required when the import creates the catalog: there is no
                   default, and an import that creates a catalog without it is refused with 400

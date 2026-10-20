@@ -70,7 +70,7 @@ class ProblemDetailsTest {
                 registry = "exchange.epistola.app",
                 namespace = "epistola",
                 catalogKey = "system",
-                releaseVersion = "3.2.0",
+                version = "3.2.0",
                 reason = MissingReleaseDependencyReason.UNAVAILABLE,
             ),
         )
@@ -87,8 +87,8 @@ class ProblemDetailsTest {
                 registry = "exchange.epistola.app",
                 namespace = "acme-corp",
                 catalogKey = "branding",
-                versionId = "r4t8w2nc",
-                draftName = "House style 2027",
+                releaseId = "r4t8w2nc",
+                releaseName = "House style 2027",
             ),
         )
         val problem = ProblemDetails.releaseDependenciesUnreleased(unreleased, detail = "letters uses drafts of other catalogs")

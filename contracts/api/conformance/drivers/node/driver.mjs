@@ -56,16 +56,16 @@ const ACTIONS = {
   'delete-image': deleteImage,
   'list-catalog-dependencies': listCatalogDependencies,
   'update-catalog-dependencies': updateCatalogDependencies,
-  'create-catalog-draft': createCatalogDraft,
-  'list-catalog-versions': listCatalogVersions,
-  'get-catalog-version': getCatalogVersion,
-  'update-catalog-draft': updateCatalogDraft,
-  'set-catalog-draft-theme-settings': setCatalogDraftThemeSettings,
+  'create-catalog-release': createCatalogRelease,
+  'list-catalog-releases': listCatalogReleases,
+  'get-catalog-release': getCatalogRelease,
+  'update-catalog-release': updateCatalogRelease,
+  'set-catalog-release-theme-settings': setCatalogReleaseThemeSettings,
   'preview-catalog-draft-release': previewCatalogDraftRelease,
-  'delete-catalog-draft': deleteCatalogDraft,
+  'delete-catalog-release': deleteCatalogRelease,
   'release-catalog-draft': releaseCatalogDraft,
-  'deploy-catalog-version': deployCatalogVersion,
-  'undeploy-catalog-version': undeployCatalogVersion,
+  'deploy-catalog-release': deployCatalogRelease,
+  'undeploy-catalog-release': undeployCatalogRelease,
   'create-environment': createEnvironment,
   'update-environment': updateEnvironment,
   'update-tenant': updateTenant,
@@ -131,7 +131,7 @@ async function listTemplates(baseUrl, config) {
       registry: config.registry,
       namespace: config.namespace,
       catalogKey: config.catalogKey,
-      catalogVersion: config.catalogVersion,
+      release: config.release,
     })
   }
   await report(baseUrl, {
@@ -147,7 +147,7 @@ async function problem(baseUrl, config) {
       registry: config.registry,
       namespace: config.namespace,
       catalogKey: config.catalogKey,
-      catalogVersion: config.catalogVersion,
+      release: config.release,
     })
     await report(baseUrl, { problemTypeSlug: '<no exception was thrown>' })
   } catch (error) {
@@ -209,7 +209,7 @@ async function collect(baseUrl, config) {
     correlationIds: handled.map((r) => r.correlationId ?? '').join(','),
     handledSequences: handled.map((r) => String(r.sequence)).join(','),
     partitionTotal: assignment ? assignment.total : -1,
-    releases: handled.map((r) => `${show(r.registry)}/${show(r.namespace)}/${show(r.catalogKey)}@${show(r.releaseVersion)}`).join(','),
+    releases: handled.map((r) => `${show(r.registry)}/${show(r.namespace)}/${show(r.catalogKey)}@${show(r.version)}`).join(','),
   })
 }
 
@@ -287,7 +287,7 @@ async function listImages(baseUrl, config) {
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
+    release: config.release,
     search: config.search,
   })
   await report(baseUrl, {
@@ -310,7 +310,7 @@ async function uploadImage(baseUrl, config) {
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
+    release: config.release,
     file,
     name: config.name,
   })
@@ -340,7 +340,7 @@ async function importCatalog(baseUrl, config) {
     registry: show(imported.registry),
     namespace: show(imported.namespace),
     catalogKey: show(imported.catalogKey),
-    releaseVersion: show(imported.releaseVersion),
+    version: show(imported.version),
     newlyInstalled: show(imported.newlyInstalled),
     total: show(imported.total),
   })
@@ -358,7 +358,7 @@ async function installCatalogRelease(baseUrl, config) {
       registry: config.registry,
       namespace: config.namespace,
       catalogKey: config.catalogKey,
-      releaseVersion: config.releaseVersion,
+      version: config.version,
     })
   } catch (error) {
     if (!(error instanceof ProblemDetailException)) throw error
@@ -366,7 +366,7 @@ async function installCatalogRelease(baseUrl, config) {
       problemTypeSlug: error.typeSlug ?? '<null>',
       problemStatus: error.statusCode,
       problemMissingDependencies: error.missingDependencies
-        .map((d) => `${d.registry}/${d.namespace}/${d.catalogKey}@${d.releaseVersion}:${d.reason}`)
+        .map((d) => `${d.registry}/${d.namespace}/${d.catalogKey}@${d.version}:${d.reason}`)
         .join(','),
     })
     return
@@ -375,7 +375,7 @@ async function installCatalogRelease(baseUrl, config) {
     registry: show(installed.registry),
     namespace: show(installed.namespace),
     catalogKey: show(installed.catalogKey),
-    releaseVersion: show(installed.releaseVersion),
+    version: show(installed.version),
     newlyInstalled: show(installed.newlyInstalled),
     total: show(installed.total),
     installedDependencies: (installed.installedDependencies ?? []).map(show).join(','),
@@ -405,15 +405,15 @@ async function listAvailableCatalogReleases(baseUrl, config) {
     registry: show(releases.registry),
     namespace: show(releases.namespace),
     catalogKey: show(releases.catalogKey),
-    availableComparedTo: releases.available.map((r) => `${show(r.releaseVersion)}=${show(r.comparedTo)}`).join(';'),
+    availableComparedTo: releases.available.map((r) => `${show(r.version)}=${show(r.comparedTo)}`).join(';'),
     availableChanges: releases.available
-      .map((r) => `${show(r.releaseVersion)}=${r.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join('+')}`)
+      .map((r) => `${show(r.version)}=${r.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join('+')}`)
       .join(';'),
     availableDependencies: releases.available
       .map(
         (r) =>
-          `${show(r.releaseVersion)}=${r.dependencies
-            .map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.releaseVersion)}:${show(d.present)}`)
+          `${show(r.version)}=${r.dependencies
+            .map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.version)}:${show(d.present)}`)
             .join('+')}`,
       )
       .join(';'),
@@ -426,7 +426,7 @@ async function downloadImage(baseUrl, config) {
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
+    release: config.release,
     imageKey: config.imageKey,
   })
   await reportBytes(baseUrl, blob)
@@ -438,7 +438,7 @@ async function deleteImage(baseUrl, config) {
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
+    release: config.release,
     imageKey: config.imageKey,
     force: config.force,
   })
@@ -451,16 +451,16 @@ async function listCatalogDependencies(baseUrl, config) {
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
+    release: config.release,
   })
   await reportDependencies(baseUrl, response.items)
 }
 
 /**
  * Declares a catalog's dependencies, each pinning an exact release or, in a draft, naming a draft
- * (`versionId`). An entry's `registry`, `releaseVersion` and `versionId` go out only when the scenario
+ * (`releaseId`). An entry's `registry`, `version` and `releaseId` go out only when the scenario
  * gives them: omitted `registry` means the server's default registry. The response writes every
- * registry in full, and a null `releaseVersion` or `versionId` as null; both are reported exactly as
+ * registry in full, and a null `version` or `releaseId` as null; both are reported exactly as
  * parsed.
  */
 async function updateCatalogDependencies(baseUrl, config) {
@@ -471,8 +471,8 @@ async function updateCatalogDependencies(baseUrl, config) {
       registry: config.registry,
       namespace: config.namespace,
       catalogKey: config.catalogKey,
-      catalogVersion: config.catalogVersion,
-      // Each entry as given: a `registry`, `releaseVersion` or `versionId` the scenario leaves out stays
+      release: config.release,
+      // Each entry as given: a `registry`, `version` or `releaseId` the scenario leaves out stays
       // undefined, which the generated serializer keeps off the wire.
       updateCatalogDependenciesRequest: { dependencies: config.dependencies },
       ...ifMatch(config),
@@ -490,43 +490,43 @@ function dependencyFields(items) {
     registries: items.map((d) => show(d.registry)).join(','),
     namespaces: items.map((d) => show(d.namespace)).join(','),
     catalogKeys: items.map((d) => show(d.catalogKey)).join(','),
-    releaseVersions: items.map((d) => show(d.releaseVersion)).join(','),
-    versionIds: items.map((d) => show(d.versionId)).join(','),
+    versions: items.map((d) => show(d.version)).join(','),
+    releaseIds: items.map((d) => show(d.releaseId)).join(','),
   }
 }
 
-/** Starts a draft; `from` (a release number or a draft id) goes out only when the scenario names one. */
-async function createCatalogDraft(baseUrl, config) {
+/** Starts a draft release; `from` (a version or a draft id) goes out only when the scenario names one. */
+async function createCatalogRelease(baseUrl, config) {
   const request = { name: config.name }
   if (config.from !== undefined) request.from = config.from
-  const response = await new CatalogsApi(client(baseUrl, config)).createCatalogDraftRaw({
+  const response = await new CatalogsApi(client(baseUrl, config)).createCatalogReleaseRaw({
     tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    createCatalogDraftRequest: request,
+    createCatalogReleaseRequest: request,
   })
-  const version = await response.value()
+  const release = await response.value()
   await report(baseUrl, {
-    releaseVersion: show(version.releaseVersion),
-    versionId: show(version.versionId),
-    name: show(version.name),
-    status: show(version.status),
-    base: show(version.base),
-    createdFrom: show(version.createdFrom),
-    releasedAt: showInstant(version.releasedAt),
+    version: show(release.version),
+    releaseId: show(release.releaseId),
+    name: show(release.name),
+    status: show(release.status),
+    base: show(release.base),
+    createdFrom: show(release.createdFrom),
+    releasedAt: showInstant(release.releasedAt),
     location: show(response.raw.headers.get('Location')),
   })
 }
 
-/** Lists a catalog's versions; the `status` filter goes out only when the scenario sets one. */
-async function listCatalogVersions(baseUrl, config) {
+/** Lists a catalog's releases, drafts included; the `status` filter goes out only when the scenario sets one. */
+async function listCatalogReleases(baseUrl, config) {
   const request = { tenantKey: config.tenantKey, registry: config.registry, namespace: config.namespace, catalogKey: config.catalogKey }
   if (config.status !== undefined) request.status = config.status
-  const { items } = await new CatalogsApi(client(baseUrl, config)).listCatalogVersions(request)
+  const { items } = await new CatalogsApi(client(baseUrl, config)).listCatalogReleases(request)
   await report(baseUrl, {
-    releaseVersions: items.map((v) => show(v.releaseVersion)).join(','),
-    versionIds: items.map((v) => show(v.versionId)).join(','),
+    versions: items.map((v) => show(v.version)).join(','),
+    releaseIds: items.map((v) => show(v.releaseId)).join(','),
     names: items.map((v) => show(v.name)).join('|'),
     statuses: items.map((v) => show(v.status)).join(','),
     bases: items.map((v) => show(v.base)).join(','),
@@ -535,55 +535,55 @@ async function listCatalogVersions(baseUrl, config) {
   })
 }
 
-/** Reads one version, with the releases it renders with and the environments that serve it. */
-async function getCatalogVersion(baseUrl, config) {
-  const version = await new CatalogsApi(client(baseUrl, config)).getCatalogVersion({
+/** Reads one release, with the releases it renders with and the environments that serve it. */
+async function getCatalogRelease(baseUrl, config) {
+  const release = await new CatalogsApi(client(baseUrl, config)).getCatalogRelease({
     tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
+    release: config.release,
   })
   await report(baseUrl, {
-    releaseVersion: show(version.releaseVersion),
-    versionId: show(version.versionId),
-    name: show(version.name),
-    status: show(version.status),
-    releasedAt: showInstant(version.releasedAt),
-    fingerprint: show(version.fingerprint),
-    dependencies: (version.dependencies ?? []).map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.releaseVersion)}`).join(','),
-    deployedTo: (version.deployedTo ?? []).map(show).join(','),
-    behind: version.behind
-      .map((r) => `${show(r.releaseVersion)}=${r.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join('+')}`)
+    version: show(release.version),
+    releaseId: show(release.releaseId),
+    name: show(release.name),
+    status: show(release.status),
+    releasedAt: showInstant(release.releasedAt),
+    fingerprint: show(release.fingerprint),
+    dependencies: (release.dependencies ?? []).map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.version)}`).join(','),
+    deployedTo: (release.deployedTo ?? []).map(show).join(','),
+    behind: release.behind
+      .map((r) => `${show(r.version)}=${r.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join('+')}`)
       .join(';'),
   })
 }
 
-/** Renames a draft (`updateCatalogDraft`); only the name goes out, to its unchanged address. */
-async function updateCatalogDraft(baseUrl, config) {
+/** Renames a draft (`updateCatalogRelease`); only the name goes out, to its unchanged address. */
+async function updateCatalogRelease(baseUrl, config) {
   await conditionalUpdate(
     baseUrl,
-    () => new CatalogsApi(client(baseUrl, config)).updateCatalogDraftRaw({
+    () => new CatalogsApi(client(baseUrl, config)).updateCatalogReleaseRaw({
       tenantKey: config.tenantKey,
       registry: config.registry,
       namespace: config.namespace,
       catalogKey: config.catalogKey,
-      catalogVersion: config.catalogVersion,
-      updateCatalogDraftRequest: { name: config.name },
+      release: config.release,
+      updateCatalogReleaseRequest: { name: config.name },
       ...ifMatch(config),
     }),
-    (version) => ({
-      releaseVersion: show(version.releaseVersion),
-      versionId: show(version.versionId),
-      name: show(version.name),
-      status: show(version.status),
-      base: show(version.base),
+    (release) => ({
+      version: show(release.version),
+      releaseId: show(release.releaseId),
+      name: show(release.name),
+      status: show(release.status),
+      base: show(release.base),
     }),
   )
 }
 
 /** Sets a draft's default theme and presets; no name goes out, and an unset qualifier stays off the wire. */
-async function setCatalogDraftThemeSettings(baseUrl, config) {
+async function setCatalogReleaseThemeSettings(baseUrl, config) {
   const defaultTheme = { key: config.defaultThemeKey }
   if (config.defaultThemeCatalogKey != null) defaultTheme.catalogKey = config.defaultThemeCatalogKey
   const presets = config.presets.map((entry) => {
@@ -591,34 +591,34 @@ async function setCatalogDraftThemeSettings(baseUrl, config) {
     if (entry.description != null) preset.description = entry.description
     return preset
   })
-  const version = await new CatalogsApi(client(baseUrl, config)).updateCatalogDraft({
+  const release = await new CatalogsApi(client(baseUrl, config)).updateCatalogRelease({
     tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
-    updateCatalogDraftRequest: { defaultTheme, presets },
+    release: config.release,
+    updateCatalogReleaseRequest: { defaultTheme, presets },
   })
-  const parsed = version.presets ?? []
+  const parsed = release.presets ?? []
   await report(baseUrl, {
-    versionId: show(version.versionId),
-    name: show(version.name),
-    defaultThemeKey: show(version.defaultTheme?.key),
-    defaultThemeCatalogKey: show(version.defaultTheme?.catalogKey),
+    releaseId: show(release.releaseId),
+    name: show(release.name),
+    defaultThemeKey: show(release.defaultTheme?.key),
+    defaultThemeCatalogKey: show(release.defaultTheme?.catalogKey),
     presetKeys: parsed.map((preset) => preset.key).join(','),
     presetNames: parsed.map((preset) => preset.name).join('|'),
     presetDescriptions: parsed.map((preset) => show(preset.description)).join('|'),
   })
 }
 
-/** Previews the number a draft would be released as, with every reason, in order. */
+/** Previews the version a draft would be released as, with every reason, in order. */
 async function previewCatalogDraftRelease(baseUrl, config) {
   const preview = await new CatalogsApi(client(baseUrl, config)).previewCatalogDraftRelease({
     tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
+    release: config.release,
   })
   await report(baseUrl, {
     base: show(preview.base),
@@ -630,24 +630,24 @@ async function previewCatalogDraftRelease(baseUrl, config) {
 }
 
 /** Discards a draft; the 204 has no body to parse. */
-async function deleteCatalogDraft(baseUrl, config) {
-  await new CatalogsApi(client(baseUrl, config)).deleteCatalogDraft({
+async function deleteCatalogRelease(baseUrl, config) {
+  await new CatalogsApi(client(baseUrl, config)).deleteCatalogRelease({
     tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
+    release: config.release,
   })
 }
 
 /**
- * Releases a draft; `releaseVersion`, `notes`, `acknowledgedBehind` and `releaseDependencies` go out only
+ * Releases a draft; `version`, `notes`, `acknowledgedBehind` and `releaseDependencies` go out only
  * when the scenario sets them. A problem answer is reported by its slug, status and the dependency
  * drafts it lists.
  */
 async function releaseCatalogDraft(baseUrl, config) {
   const request = {}
-  if (config.releaseVersion !== undefined) request.releaseVersion = config.releaseVersion
+  if (config.version !== undefined) request.version = config.version
   if (config.notes !== undefined) request.notes = config.notes
   if (config.acknowledgedBehind !== undefined) request.acknowledgedBehind = config.acknowledgedBehind
   if (config.releaseDependencies !== undefined) request.releaseDependencies = config.releaseDependencies
@@ -658,7 +658,7 @@ async function releaseCatalogDraft(baseUrl, config) {
       registry: config.registry,
       namespace: config.namespace,
       catalogKey: config.catalogKey,
-      catalogVersion: config.catalogVersion,
+      release: config.release,
       releaseCatalogDraftRequest: request,
     })
   } catch (error) {
@@ -667,48 +667,48 @@ async function releaseCatalogDraft(baseUrl, config) {
       problemTypeSlug: error.typeSlug ?? '<null>',
       problemStatus: error.statusCode,
       problemUnreleasedDependencies: error.unreleasedDependencies
-        .map((d) => `${d.registry}/${d.namespace}/${d.catalogKey}#${d.versionId}=${d.draftName}`)
+        .map((d) => `${d.registry}/${d.namespace}/${d.catalogKey}#${d.releaseId}=${d.releaseName}`)
         .join('|'),
     })
     return
   }
   await report(baseUrl, {
-    releaseVersion: show(response.catalogVersion.releaseVersion),
-    status: show(response.catalogVersion.status),
-    versionId: show(response.catalogVersion.versionId),
+    version: show(response.release.version),
+    status: show(response.release.status),
+    releaseId: show(response.release.releaseId),
     draftsBehind: response.draftsBehind.map(show).join('|'),
     releasedDependencies: response.releasedDependencies
-      .map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.releaseVersion)}`)
+      .map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.version)}`)
       .join(','),
   })
 }
 
 /**
- * Deploys one catalog version, a release by its number or a draft by its `versionId`; the path
+ * Deploys one release of a catalog, a released one by its version or a draft by its `releaseId`; the path
  * carries everything and there is no body.
  */
-async function deployCatalogVersion(baseUrl, config) {
+async function deployCatalogRelease(baseUrl, config) {
   const request = {
     tenantKey: config.tenantKey,
     environmentKey: config.environmentKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
+    release: config.release,
   }
   // Sent only when the scenario sets it, false included; otherwise the query parameter stays off.
   if (config.includeDependencies !== undefined) request.includeDependencies = config.includeDependencies
   if (config.replace !== undefined) request.replace = config.replace
   let deployment
   try {
-    deployment = await new EnvironmentsApi(client(baseUrl, config)).deployCatalogVersion(request)
+    deployment = await new EnvironmentsApi(client(baseUrl, config)).deployCatalogRelease(request)
   } catch (error) {
     if (!(error instanceof ProblemDetailException)) throw error
     await report(baseUrl, {
       problemTypeSlug: error.typeSlug ?? '<null>',
       problemStatus: error.statusCode,
       problemMissingDependencies: error.missingDependencies
-        .map((d) => `${d.registry}/${d.namespace}/${d.catalogKey}@${d.releaseVersion}:${d.reason}`)
+        .map((d) => `${d.registry}/${d.namespace}/${d.catalogKey}@${d.version}:${d.reason}`)
         .join(','),
     })
     return
@@ -717,24 +717,24 @@ async function deployCatalogVersion(baseUrl, config) {
     registry: show(deployment.registry),
     namespace: show(deployment.namespace),
     catalogKey: show(deployment.catalogKey),
-    versionId: show(deployment.versionId),
-    kind: show(deployment.kind),
-    releaseVersion: show(deployment.releaseVersion),
-    draftName: show(deployment.draftName),
+    releaseId: show(deployment.releaseId),
+    status: show(deployment.status),
+    version: show(deployment.version),
+    releaseName: show(deployment.releaseName),
     lastUsedAt: showInstant(deployment.lastUsedAt),
     documentsRequested: show(deployment.documentsRequested),
   })
 }
 
-/** Undeploys one catalog version; the 204 has no body to parse. */
-async function undeployCatalogVersion(baseUrl, config) {
-  await new EnvironmentsApi(client(baseUrl, config)).undeployCatalogVersion({
+/** Undeploys one release of a catalog; the 204 has no body to parse. */
+async function undeployCatalogRelease(baseUrl, config) {
+  await new EnvironmentsApi(client(baseUrl, config)).undeployCatalogRelease({
     tenantKey: config.tenantKey,
     environmentKey: config.environmentKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
+    release: config.release,
   })
 }
 
@@ -750,7 +750,7 @@ async function updateVariantContent(baseUrl, config) {
       registry: config.registry,
       namespace: config.namespace,
       catalogKey: config.catalogKey,
-      catalogVersion: config.catalogVersion,
+      release: config.release,
       templateKey: config.templateKey,
       variantKey: config.variantKey,
       updateVariantContentRequest: {
@@ -774,14 +774,14 @@ async function updateVariantContent(baseUrl, config) {
 
 // --- Content, ready marks and changes ---
 
-/** The catalog version a content action addresses, as the generated request objects name it. */
-function versionAddress(config) {
+/** The release a content action addresses, as the generated request objects name it. */
+function releaseAddress(config) {
   return {
     tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
-    catalogVersion: config.catalogVersion,
+    release: config.release,
   }
 }
 
@@ -791,7 +791,7 @@ function versionAddress(config) {
  */
 async function getVariantContent(baseUrl, config) {
   const response = await new VariantsApi(client(baseUrl, config)).getVariantContentRaw({
-    ...versionAddress(config),
+    ...releaseAddress(config),
     templateKey: config.templateKey,
     variantKey: config.variantKey,
   })
@@ -808,7 +808,7 @@ async function getVariantContent(baseUrl, config) {
 
 async function markVariantReady(baseUrl, config) {
   const content = await new VariantsApi(client(baseUrl, config)).markVariantReady({
-    ...versionAddress(config),
+    ...releaseAddress(config),
     templateKey: config.templateKey,
     variantKey: config.variantKey,
   })
@@ -822,7 +822,7 @@ async function markVariantReady(baseUrl, config) {
 
 async function markTemplateReady(baseUrl, config) {
   const template = await new TemplatesApi(client(baseUrl, config)).markTemplateReady({
-    ...versionAddress(config),
+    ...releaseAddress(config),
     templateKey: config.templateKey,
   })
   await report(baseUrl, {
@@ -836,7 +836,7 @@ async function markTemplateReady(baseUrl, config) {
 /** Reads a stencil's content through the `Raw` method, reporting the `ETag` exactly as received. */
 async function getStencilContent(baseUrl, config) {
   const response = await new StencilsApi(client(baseUrl, config)).getStencilContentRaw({
-    ...versionAddress(config),
+    ...releaseAddress(config),
     stencilKey: config.stencilKey,
   })
   const content = await response.value()
@@ -857,7 +857,7 @@ async function getStencilContent(baseUrl, config) {
  */
 async function updateStencilContent(baseUrl, config) {
   const response = await new StencilsApi(client(baseUrl, config)).updateStencilContentRaw({
-    ...versionAddress(config),
+    ...releaseAddress(config),
     stencilKey: config.stencilKey,
     updateStencilContentRequest: { content: oneNodeModel(), parameterSchema: config.parameterSchema },
     ...(config.ifMatch !== undefined ? { ifMatch: config.ifMatch } : {}),
@@ -873,7 +873,7 @@ async function updateStencilContent(baseUrl, config) {
 
 async function markStencilReady(baseUrl, config) {
   const response = await new StencilsApi(client(baseUrl, config)).markStencilReady({
-    ...versionAddress(config),
+    ...releaseAddress(config),
     stencilKey: config.stencilKey,
   })
   await report(baseUrl, {
@@ -888,7 +888,7 @@ async function markStencilReady(baseUrl, config) {
 
 async function listStencilUsage(baseUrl, config) {
   const response = await new StencilsApi(client(baseUrl, config)).listStencilUsage({
-    ...versionAddress(config),
+    ...releaseAddress(config),
     stencilKey: config.stencilKey,
     page: config.page,
     size: config.size,
@@ -905,11 +905,11 @@ async function listStencilUsage(baseUrl, config) {
 }
 
 async function getCatalogChanges(baseUrl, config) {
-  await reportChanges(baseUrl, await new CatalogsApi(client(baseUrl, config)).getCatalogChanges(versionAddress(config)))
+  await reportChanges(baseUrl, await new CatalogsApi(client(baseUrl, config)).getCatalogChanges(releaseAddress(config)))
 }
 
 async function markCatalogReady(baseUrl, config) {
-  await reportChanges(baseUrl, await new CatalogsApi(client(baseUrl, config)).markCatalogReady(versionAddress(config)))
+  await reportChanges(baseUrl, await new CatalogsApi(client(baseUrl, config)).markCatalogReady(releaseAddress(config)))
 }
 
 function reportChanges(baseUrl, changes) {
@@ -929,10 +929,10 @@ async function listEnvironmentDeployments(baseUrl, config) {
   await report(baseUrl, {
     registries: items.map((d) => show(d.registry)).join(','),
     catalogKeys: items.map((d) => show(d.catalogKey)).join(','),
-    versionIds: items.map((d) => show(d.versionId)).join(','),
-    kinds: items.map((d) => show(d.kind)).join(','),
-    releaseVersions: items.map((d) => show(d.releaseVersion)).join(','),
-    draftNames: items.map((d) => show(d.draftName)).join('|'),
+    releaseIds: items.map((d) => show(d.releaseId)).join(','),
+    statuses: items.map((d) => show(d.status)).join(','),
+    versions: items.map((d) => show(d.version)).join(','),
+    releaseNames: items.map((d) => show(d.releaseName)).join('|'),
     deployedAt: items.map((d) => showInstant(d.deployedAt)).join(','),
     lastUsedAt: items.map((d) => showInstant(d.lastUsedAt)).join(','),
     documentsRequested: items.map((d) => show(d.documentsRequested)).join(','),
@@ -950,10 +950,10 @@ async function listDeploymentHistory(baseUrl, config) {
   await report(baseUrl, {
     catalogKeys: items.map((e) => show(e.catalogKey)).join(','),
     actions: items.map((e) => show(e.action)).join(','),
-    versionIds: items.map((e) => show(e.versionId)).join(','),
-    kinds: items.map((e) => show(e.kind)).join(','),
-    releaseVersions: items.map((e) => show(e.releaseVersion)).join(','),
-    draftNames: items.map((e) => show(e.draftName)).join('|'),
+    releaseIds: items.map((e) => show(e.releaseId)).join(','),
+    statuses: items.map((e) => show(e.status)).join(','),
+    versions: items.map((e) => show(e.version)).join(','),
+    releaseNames: items.map((e) => show(e.releaseName)).join('|'),
     changedAt: items.map((e) => showInstant(e.changedAt)).join(','),
     changedBy: items.map((e) => show(e.changedBy)).join('|'),
     total: show(response.page.total),
@@ -1025,7 +1025,7 @@ async function updateCodeListEntryHidden(baseUrl, config) {
       registry: config.registry,
       namespace: config.namespace,
       catalogKey: config.catalogKey,
-      catalogVersion: config.catalogVersion,
+      release: config.release,
       codeListKey: config.codeListKey,
       code: config.code,
       updateCodeListEntryHiddenRequest: { hidden: config.hidden },

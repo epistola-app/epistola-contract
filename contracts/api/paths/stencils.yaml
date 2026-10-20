@@ -9,12 +9,12 @@ stencils:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
 
   get:
     operationId: listStencils
-    summary: List the stencils in a catalog version
-    description: Retrieve the stencils of this catalog version, optionally filtered by search term or tags.
+    summary: List the stencils in a release of a catalog
+    description: Retrieve the stencils of this release, optionally filtered by search term or tags.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_VIEW]
@@ -54,8 +54,8 @@ stencils:
     summary: Create a new stencil
     description: |
       Create a stencil in the draft. `content` and `parameterSchema`, when given, are its initial
-      content and parameters; the stencil starts with status `new`. A stencil has no versions of
-      its own: it is versioned with its catalog, as every resource in it is.
+      content and parameters; the stencil starts with status `new`. A stencil has no releases of
+      its own: it is released with its catalog, as every resource in it is.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_EDIT]
@@ -98,7 +98,7 @@ stencils-id:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: stencilKey
       in: path
       required: true
@@ -109,7 +109,7 @@ stencils-id:
   get:
     operationId: getStencil
     summary: Get a stencil by key
-    description: Retrieve a stencil's details in this catalog version, with its status against the version's base.
+    description: Retrieve a stencil's details in this release, with its status against the release's base.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_VIEW]
@@ -178,7 +178,7 @@ stencils-id:
       Delete the stencil from the draft. The templates and stencils that use it hold a reference,
       not a copy, so their instances then name a stencil that does not exist: they are
       not changed, and the draft cannot be released until they are edited (`listStencilUsage`
-      lists them beforehand). Refused with 409 in a released version.
+      lists them beforehand). Refused with 409 outside a draft.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_EDIT]
@@ -205,7 +205,7 @@ stencil-content:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: stencilKey
       in: path
       required: true
@@ -216,7 +216,7 @@ stencil-content:
   get:
     operationId: getStencilContent
     summary: Get the stencil's content
-    description: The stencil's content in this catalog version, with its status against the version's base.
+    description: The stencil's content in this release, with its status against the release's base.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_VIEW]
@@ -293,7 +293,7 @@ stencil-mark-ready:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: stencilKey
       in: path
       required: true
@@ -338,7 +338,7 @@ stencil-usage:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: stencilKey
       in: path
       required: true
@@ -349,7 +349,7 @@ stencil-usage:
   get:
     operationId: listStencilUsage
     summary: List the template variants that use the stencil
-    description: Every template variant in this catalog version with an instance of the stencil, and whether that instance fits the stencil.
+    description: Every template variant in this release with an instance of the stencil, and whether that instance fits the stencil.
     tags:
       - Stencils
     x-required-permissions: [STENCIL_VIEW]

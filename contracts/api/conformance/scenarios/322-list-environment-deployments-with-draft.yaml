@@ -6,9 +6,9 @@ id: list-environment-deployments-with-draft
 title: Listing what an environment serves reads a draft beside releases, in order
 why: >
   An environment serves releases and at most one draft per catalog (ADR 0003, "Deploying"). The
-  list mixes both, so a client must read a null `releaseVersion` beside set ones, and a null
-  `draftName` beside a set one, without refusing the response or inventing values. `kind` says
-  which each is; every entry has a `versionId`, a release's as much as a draft's.
+  list mixes both, so a client must read a null `version` beside set ones, and a null
+  `releaseName` beside a set one, without refusing the response or inventing values. `status` says
+  which each is; every entry has a `releaseId`, a release's as much as a draft's.
 
 action:
   name: list-environment-deployments
@@ -25,20 +25,20 @@ script:
         - registry: exchange.epistola.app
           namespace: acme-corp
           catalogKey: letters
-          versionId: r4t8w2nc
-          kind: draft
-          releaseVersion: null
-          draftName: Redesign 2027
+          releaseId: r4t8w2nc
+          status: draft
+          version: null
+          releaseName: Redesign 2027
           deployedAt: "2026-10-18T09:00:00Z"
           lastUsedAt: "2026-10-18T10:15:00Z"
           documentsRequested: 12
         - registry: exchange.epistola.app
           namespace: acme-corp
           catalogKey: letters
-          versionId: m3q8v5tw
-          kind: release
-          releaseVersion: 1.4.0
-          draftName: null
+          releaseId: m3q8v5tw
+          status: released
+          version: 1.4.0
+          releaseName: null
           deployedAt: "2026-10-02T07:30:00Z"
           lastUsedAt: null
           documentsRequested: 0
@@ -52,11 +52,11 @@ expect:
   report:
     registries: exchange.epistola.app,exchange.epistola.app
     catalogKeys: letters,letters
-    versionIds: r4t8w2nc,m3q8v5tw
-    kinds: draft,release
-    releaseVersions: null,1.4.0
+    releaseIds: r4t8w2nc,m3q8v5tw
+    statuses: draft,released
+    versions: null,1.4.0
     # Names are free text, so they are joined with `|`.
-    draftNames: Redesign 2027|null
+    releaseNames: Redesign 2027|null
     deployedAt: 2026-10-18T09:00:00Z,2026-10-02T07:30:00Z
     lastUsedAt: 2026-10-18T10:15:00Z,null
     documentsRequested: 12,0

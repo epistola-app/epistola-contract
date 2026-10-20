@@ -52,15 +52,17 @@ http = (
 )
 
 templates = TemplatesApi(http)
-# tenant, catalog registry ("~" = the server's default), namespace, key, catalog version, template
+# tenant, catalog registry ("~" = the server's default), namespace, key, release, template
 template = templates.get_template("acme", "~", "acme", "invoices", "1.4.0", "invoice")
 ```
 
-Everything in a catalog is addressed through one of its versions, by its `version_id` or, once
-released, by its exact SemVer number: a version keeps its id when it is released. A catalog can have any number of drafts, and a draft is numbered
-when it is released. `CatalogsApi` lists and reads those versions, starts drafts (from a release or
-another draft), updates (`update_catalog_draft`) and discards them, and previews and releases any of them
-(`create_catalog_draft`, `preview_catalog_draft_release`, `release_catalog_draft`, …).
+Everything in a catalog is addressed through one of its releases, by its `release_id` or, once
+released, by its exact version: a release keeps its id and its name when it is released. A catalog
+can have any number of drafts, and a draft gets its version when it is released. `CatalogsApi`
+lists and reads those releases (`list_catalog_releases`, `get_catalog_release`), starts drafts
+(`create_catalog_release`, from a release or another draft), updates (`update_catalog_release`) and
+discards (`delete_catalog_release`) them, and previews and releases any of them
+(`preview_catalog_draft_release`, `release_catalog_draft`).
 
 `.api_key(...)` sends `Authorization: ApiKey <key>`. Some Epistola Suite deployments may disable
 API-key authentication entirely; with `.install_problem_detail_handler()`, switch on
@@ -109,13 +111,13 @@ except ProblemDetailException as e:
                 for f in failures:
                     log.warning("%s %s: %s", example, f.path, f.message)
         case KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING:
-            for d in e.missing_dependencies:   # 409 from deploy_catalog_version
+            for d in e.missing_dependencies:   # 409 from deploy_catalog_release
                 log.warning("%s/%s/%s@%s: %s", d.registry, d.namespace,
-                            d.catalog_key, d.release_version, d.reason)
+                            d.catalog_key, d.version, d.reason)
         case KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED:
             for d in e.unreleased_dependencies:  # 409 from release_catalog_draft
                 log.warning("%s/%s/%s uses draft %s (%s)", d.registry, d.namespace,
-                            d.catalog_key, d.draft_name, d.version_id)
+                            d.catalog_key, d.release_name, d.release_id)
         case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
             # install_catalog_release / list_available_catalog_releases: 503 when the catalog's
             # source could not be reached (Retry-After may say when), 502 when it answered badly
@@ -132,7 +134,7 @@ except ProblemDetailException as e:
 `is_release_dependencies_missing_problem` and `is_release_dependencies_unreleased_problem`. Each
 `missing_dependencies` entry is a `MissingDependency` whose `reason` is the wire string, so a
 reason a later contract adds is reported rather than lost. Each `unreleased_dependencies` entry is
-an `UnreleasedDependency(registry, namespace, catalog_key, version_id, draft_name)`: a draft of
+an `UnreleasedDependency(registry, namespace, catalog_key, release_id, release_name)`: a draft of
 another catalog to release first, or along with the release (`releaseDependencies`).
 
 ## Result collection
@@ -147,8 +149,8 @@ collector = (
     .handler(lambda result: print(
         result.request_id,
         result.status,  # "completed" or "failed", as sent
-        # The catalog it was generated from; release_version is None when rendered from a draft.
-        f"{result.registry}/{result.namespace}/{result.catalog_key}@{result.release_version}",
+        # The catalog it was generated from; version is None when rendered from a draft.
+        f"{result.registry}/{result.namespace}/{result.catalog_key}@{result.version}",
     ))
     .build()
 )
@@ -189,7 +191,7 @@ with open("logo.png", "rb") as f:
 ```
 
 A catalog is addressed by its registry, namespace and key — here the server's default registry
-`~`, namespace `acme-corp`, key `main` — and an image belongs to one of its versions, here the
+`~`, namespace `acme-corp`, key `main` — and an image belongs to one of its releases, here the
 draft with that id. A registry other than the default is named in full (`exchange.example.org`,
 `acme.com`). In a request body, leave `registry` unset for the default registry; responses always
 name it in full.

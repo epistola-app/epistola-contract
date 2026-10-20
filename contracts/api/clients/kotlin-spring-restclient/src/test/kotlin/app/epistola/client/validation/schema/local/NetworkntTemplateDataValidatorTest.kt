@@ -65,7 +65,7 @@ class NetworkntTemplateDataValidatorTest {
         "lineItems" to listOf(mapOf("quantity" to 3)),
     )
 
-    private fun validator() = NetworkntTemplateDataValidator(templatesApi, catalogVersion = { _, _, _, _ -> "1.2.0" })
+    private fun validator() = NetworkntTemplateDataValidator(templatesApi, release = { _, _, _, _ -> "1.2.0" })
 
     @Test
     fun `valid data yields no findings`() {

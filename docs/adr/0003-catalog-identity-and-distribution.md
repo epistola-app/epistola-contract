@@ -5,7 +5,7 @@
 - **Scope:** API contract (`contracts/api`) and portable catalog contract (`contracts/catalog`, wire
   v8), contract 2.0
 - **Related:** [ADR 0001](0001-hotfixing-a-released-catalog.md) (hotfix releases),
-  [ADR 0002](0002-intermediate-releases.md) (catalog versions)
+  [ADR 0002](0002-intermediate-releases.md) (drafts and releases)
 
 ## Context
 
@@ -181,7 +181,7 @@ fetch.
 ### Nothing is upgraded: a subscribed catalog installs the releases its source offers
 
 Nothing is upgraded in contract 2.0. A subscribed catalog's source offers releases, and installing
-one (`installCatalogRelease`, `POST …/available-releases/{releaseVersion}/install`) fetches that
+one (`installCatalogRelease`, `POST …/available-releases/{version}/install`) fetches that
 release from the source and installs it exactly as installing does, with the releases it
 pins installed first by the steps above. The release is named in the path: there is no "the
 highest" default. It is installed side by side with the catalog's other releases, numbered above
@@ -221,11 +221,11 @@ another release goes into a SUBSCRIBED catalog when the tenant does not have tha
 
 Changing a catalog's type is not part of contract 2.0. It could be an operation of its own later.
 
-### Deploying: an environment serves catalog versions, a release or a draft
+### Deploying: an environment serves releases, released ones or a draft
 
 An environment answers one question per catalog: what does a request through it render? It answers
-it with one concept, the **deployment** (`deployCatalogVersion`), which names a catalog version by
-its `versionId` or its release number. A draft can be deployed; it renders live, with no release.
+it with one concept, the **deployment** (`deployCatalogRelease`), which names a release of the catalog by
+its `releaseId` or its version. A draft can be deployed; it renders live, with no version.
 A separate environment override, picking one served release or following a draft, would answer the
 same question a second way; there is none.
 
@@ -239,8 +239,8 @@ same question a second way; there is none.
 - **Production serves only releases.** A production environment refuses deploying a draft, and
   marking an environment production while it serves a draft is refused, both with
   `environment-deployment-refused` (409).
-- **A draft's lifecycle carries through.** Releasing the draft keeps its `versionId` on the release,
-  so the deployment becomes an explicit deployment of that release, logged as `released` in the
+- **A draft's lifecycle carries through.** Releasing the draft keeps its `releaseId`,
+  so the deployment stays, an explicit deployment of the released release, logged as `released` in the
   history. Discarding the draft ends the deployment, logged as `undeployed`.
 - **Rollback is undeploying the newer release**, and holding a newer release back is not deploying
   it. That is why an override that picked one of the served releases is not needed either.
@@ -249,13 +249,13 @@ same question a second way; there is none.
   `includeDependencies` deploys the pinned releases along, never drafts.
 
 Rejected: deploying "the next version", following whichever draft Suite marks as such across
-releases. The contract does not know Suite's mark; the `versionId` kept on release is the hand-off.
+releases. The contract does not know Suite's mark; the `releaseId` kept on release is the hand-off.
 
 ### Deploying uses dependencies implicitly; deploying them too is a choice
 
 A release renders with the dependency releases it was cut with, direct and transitive: it is pinned
 to them, and renders them from the tenant's copy whatever the environment serves. So deploying a
-release (`deployCatalogVersion`) makes the environment use its dependency releases **implicitly**:
+release (`deployCatalogRelease`) makes the environment use its dependency releases **implicitly**:
 they are not deployed, and nothing else the environment serves changes. Deploying one of them as well, so
 that the environment also serves that catalog's own templates, is an explicit deployment of its own,
 or the flag `includeDependencies`, default false:
@@ -274,13 +274,13 @@ render with the releases they pin.
 
 ### Undeploying removes only an explicit deployment
 
-`undeployCatalogVersion` removes an explicit deployment: the environment no longer serves that
-catalog's own templates through that version, a release or a draft. It is never refused because
-another version the environment serves renders with it. That version is pinned to it and renders it
+`undeployCatalogRelease` removes an explicit deployment: the environment no longer serves that
+catalog's own templates through that release, released or a draft. It is never refused because
+another release the environment serves renders with it. That release is pinned to it and renders it
 from the tenant's copy, so it keeps rendering it: the undeployed release stays in use implicitly.
 
 A release the environment uses only implicitly, as a dependency, is not deployed, so it cannot be
-undeployed: `undeployCatalogVersion` answers 404, as for a release the environment does not use at all.
+undeployed: `undeployCatalogRelease` answers 404, as for a release the environment does not use at all.
 Deploying and undeploying are therefore not symmetrical: deploying is refused when a dependency
 cannot be had, because the release could not render; undeploying never takes away what another
 release renders with.

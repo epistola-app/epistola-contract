@@ -29,7 +29,7 @@ from epistola_client import (
     ClientIdentity,
     CodeListsApi,
     ConsumersApi,
-    CreateCatalogDraftRequest,
+    CreateCatalogReleaseRequest,
     CreateEnvironmentRequest,
     EnvironmentsApi,
     EpistolaClientBuilder,
@@ -48,7 +48,7 @@ from epistola_client import (
     TemplatesApi,
     TenantsApi,
     UpdateCatalogDependenciesRequest,
-    UpdateCatalogDraftRequest,
+    UpdateCatalogReleaseRequest,
     UpdateCodeListEntryHiddenRequest,
     UpdateConsumerRequest,
     UpdateEnvironmentRequest,
@@ -89,16 +89,16 @@ def main() -> int:
         "delete-image": _delete_image,
         "list-catalog-dependencies": _list_catalog_dependencies,
         "update-catalog-dependencies": _update_catalog_dependencies,
-        "create-catalog-draft": _create_catalog_draft,
-        "list-catalog-versions": _list_catalog_versions,
-        "get-catalog-version": _get_catalog_version,
-        "update-catalog-draft": _update_catalog_draft,
-        "set-catalog-draft-theme-settings": _set_catalog_draft_theme_settings,
+        "create-catalog-release": _create_catalog_release,
+        "list-catalog-releases": _list_catalog_releases,
+        "get-catalog-release": _get_catalog_release,
+        "update-catalog-release": _update_catalog_release,
+        "set-catalog-release-theme-settings": _set_catalog_release_theme_settings,
         "preview-catalog-draft-release": _preview_catalog_draft_release,
-        "delete-catalog-draft": _delete_catalog_draft,
+        "delete-catalog-release": _delete_catalog_release,
         "release-catalog-draft": _release_catalog_draft,
-        "deploy-catalog-version": _deploy_catalog_version,
-        "undeploy-catalog-version": _undeploy_catalog_version,
+        "deploy-catalog-release": _deploy_catalog_release,
+        "undeploy-catalog-release": _undeploy_catalog_release,
         "create-environment": _create_environment,
         "update-environment": _update_environment,
         "update-tenant": _update_tenant,
@@ -151,7 +151,7 @@ def _list_templates(base_url: str, config: dict) -> None:
     api = TemplatesApi(_client(base_url, config))
     for _ in range(config.get("repeat", 1)):
         response = api.list_templates(
-            config["tenantKey"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"]
+            config["tenantKey"], config["registry"], config["namespace"], config["catalogKey"], config["release"]
         )
     _report(
         base_url,
@@ -165,7 +165,7 @@ def _list_templates(base_url: str, config: dict) -> None:
 def _problem(base_url: str, config: dict) -> None:
     try:
         TemplatesApi(_client(base_url, config)).list_templates(
-            config["tenantKey"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"]
+            config["tenantKey"], config["registry"], config["namespace"], config["catalogKey"], config["release"]
         )
         _report(base_url, {"problemTypeSlug": "<no exception was thrown>"})
     except ProblemDetailException as exc:
@@ -257,7 +257,7 @@ def _collect(base_url: str, config: dict) -> None:
             "handledSequences": ",".join(str(result.sequence) for result in handled),
             "partitionTotal": assignment.total if assignment is not None else -1,
             "releases": ",".join(
-                f"{_show(r.registry)}/{_show(r.namespace)}/{_show(r.catalog_key)}@{_show(r.release_version)}"
+                f"{_show(r.registry)}/{_show(r.namespace)}/{_show(r.catalog_key)}@{_show(r.version)}"
                 for r in handled
             ),
         },
@@ -375,7 +375,7 @@ def _list_images(base_url: str, config: dict) -> None:
             config["registry"],
             config["namespace"],
             config["catalogKey"],
-            config["catalogVersion"],
+            config["release"],
             search=config["search"],
         )
         .items
@@ -400,7 +400,7 @@ def _upload_image(base_url: str, config: dict) -> None:
         config["registry"],
         config["namespace"],
         config["catalogKey"],
-        config["catalogVersion"],
+        config["release"],
         (config["filename"], base64.b64decode(config["fileBase64"])),
         name=config["name"],
     )
@@ -431,7 +431,7 @@ def _import_catalog(base_url: str, config: dict) -> None:
             "registry": _show(imported.registry),
             "namespace": _show(imported.namespace),
             "catalogKey": _show(imported.catalog_key),
-            "releaseVersion": _show(imported.release_version),
+            "version": _show(imported.version),
             "newlyInstalled": _show_bool(imported.newly_installed),
             "total": _show(imported.total),
         },
@@ -447,7 +447,7 @@ def _install_catalog_release(base_url: str, config: dict) -> None:
             config["registry"],
             config["namespace"],
             config["catalogKey"],
-            config["releaseVersion"],
+            config["version"],
         )
     except ProblemDetailException as exc:
         _report(
@@ -456,7 +456,7 @@ def _install_catalog_release(base_url: str, config: dict) -> None:
                 "problemTypeSlug": exc.type_slug or "<null>",
                 "problemStatus": exc.status_code,
                 "problemMissingDependencies": ",".join(
-                    f"{d.registry}/{d.namespace}/{d.catalog_key}@{d.release_version}:{d.reason}"
+                    f"{d.registry}/{d.namespace}/{d.catalog_key}@{d.version}:{d.reason}"
                     for d in exc.missing_dependencies
                 ),
             },
@@ -468,7 +468,7 @@ def _install_catalog_release(base_url: str, config: dict) -> None:
             "registry": _show(installed.registry),
             "namespace": _show(installed.namespace),
             "catalogKey": _show(installed.catalog_key),
-            "releaseVersion": _show(installed.release_version),
+            "version": _show(installed.version),
             "newlyInstalled": _show_bool(installed.newly_installed),
             "total": _show(installed.total),
             "installedDependencies": ",".join(installed.installed_dependencies or []),
@@ -496,17 +496,17 @@ def _list_available_catalog_releases(base_url: str, config: dict) -> None:
             "registry": _show(releases.registry),
             "namespace": _show(releases.namespace),
             "catalogKey": _show(releases.catalog_key),
-            "availableComparedTo": ";".join(f"{_show(r.release_version)}={_show(r.compared_to)}" for r in releases.available),
+            "availableComparedTo": ";".join(f"{_show(r.version)}={_show(r.compared_to)}" for r in releases.available),
             "availableChanges": ";".join(
-                f"{_show(r.release_version)}="
+                f"{_show(r.version)}="
                 + "+".join(f"{_show(c.type)}/{_show(c.key)}:{_show(_enum(c.change))}" for c in r.changes)
                 for r in releases.available
             ),
             "availableDependencies": ";".join(
-                f"{_show(r.release_version)}="
+                f"{_show(r.version)}="
                 + "+".join(
                     f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}"
-                    f"@{_show(d.release_version)}:{_show_bool(d.present)}"
+                    f"@{_show(d.version)}:{_show_bool(d.present)}"
                     for d in r.dependencies
                 )
                 for r in releases.available
@@ -521,7 +521,7 @@ def _download_image(base_url: str, config: dict) -> None:
         config["registry"],
         config["namespace"],
         config["catalogKey"],
-        config["catalogVersion"],
+        config["release"],
         config["imageKey"],
     )
     _report_bytes(base_url, bytes(content))
@@ -533,7 +533,7 @@ def _delete_image(base_url: str, config: dict) -> None:
         config["registry"],
         config["namespace"],
         config["catalogKey"],
-        config["catalogVersion"],
+        config["release"],
         config["imageKey"],
         force=config["force"],
     )
@@ -541,13 +541,13 @@ def _delete_image(base_url: str, config: dict) -> None:
 
 def _list_catalog_dependencies(base_url: str, config: dict) -> None:
     response = CatalogsApi(_client(base_url, config)).list_catalog_dependencies(
-        config["tenantKey"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"]
+        config["tenantKey"], config["registry"], config["namespace"], config["catalogKey"], config["release"]
     )
     _report_dependencies(base_url, response.items)
 
 
 def _update_catalog_dependencies(base_url: str, config: dict) -> None:
-    """Replaces a version's dependency declarations, conditional on ``ifMatch`` when the scenario
+    """Replaces a release's dependency declarations, conditional on ``ifMatch`` when the scenario
     sets it. A refusal is reported by its problem."""
     request = UpdateCatalogDependenciesRequest(
         dependencies=[
@@ -557,14 +557,14 @@ def _update_catalog_dependencies(base_url: str, config: dict) -> None:
                 namespace=dependency["namespace"],
                 catalogKey=dependency["catalogKey"],
                 # Exactly one of these names what the declaration uses: only the one given.
-                **{name: dependency[name] for name in ("releaseVersion", "versionId") if name in dependency},
+                **{name: dependency[name] for name in ("version", "releaseId") if name in dependency},
             )
             for dependency in config["dependencies"]
         ]
     )
     try:
         response = CatalogsApi(_client(base_url, config)).update_catalog_dependencies_with_http_info(
-            *_catalog_version_address(config),
+            *_release_address(config),
             request,
             if_match=config.get("ifMatch"),
         )
@@ -583,33 +583,33 @@ def _report_dependencies(base_url: str, dependencies, extra: dict | None = None)
             "namespaces": ",".join(_show(d.namespace) for d in dependencies),
             "catalogKeys": ",".join(_show(d.catalog_key) for d in dependencies),
             # A declaration that pins no release (migrated from wire v7) reports ``null``.
-            "releaseVersions": ",".join(_show(d.release_version) for d in dependencies),
-            "versionIds": ",".join(_show(d.version_id) for d in dependencies),
+            "versions": ",".join(_show(d.version) for d in dependencies),
+            "releaseIds": ",".join(_show(d.release_id) for d in dependencies),
         },
     )
 
 
-def _catalog_version_address(config: dict) -> tuple:
-    return (config["tenantKey"], config["registry"], config["namespace"], config["catalogKey"], config["catalogVersion"])
+def _release_address(config: dict) -> tuple:
+    return (config["tenantKey"], config["registry"], config["namespace"], config["catalogKey"], config["release"])
 
 
-def _create_catalog_draft(base_url: str, config: dict) -> None:
+def _create_catalog_release(base_url: str, config: dict) -> None:
     """Starts a draft. ``from`` is a Python keyword, so the generated model names the member
     ``var_from``; it is passed by its alias, and only when the scenario sets it."""
     optional = {"from": config["from"]} if "from" in config else {}
-    response = CatalogsApi(_client(base_url, config)).create_catalog_draft_with_http_info(
+    response = CatalogsApi(_client(base_url, config)).create_catalog_release_with_http_info(
         config["tenantKey"],
         config["registry"],
         config["namespace"],
         config["catalogKey"],
-        CreateCatalogDraftRequest(name=config["name"], **optional),
+        CreateCatalogReleaseRequest(name=config["name"], **optional),
     )
     created = response.data
     _report(
         base_url,
         {
-            "releaseVersion": _show(created.release_version),
-            "versionId": _show(created.version_id),
+            "version": _show(created.version),
+            "releaseId": _show(created.release_id),
             "name": _show(created.name),
             "status": _show(_enum(created.status)),
             "base": _show(created.base),
@@ -620,11 +620,11 @@ def _create_catalog_draft(base_url: str, config: dict) -> None:
     )
 
 
-def _list_catalog_versions(base_url: str, config: dict) -> None:
+def _list_catalog_releases(base_url: str, config: dict) -> None:
     optional = {"status": config["status"]} if "status" in config else {}
-    versions = (
+    releases = (
         CatalogsApi(_client(base_url, config))
-        .list_catalog_versions(
+        .list_catalog_releases(
             config["tenantKey"], config["registry"], config["namespace"], config["catalogKey"], **optional
         )
         .items
@@ -632,71 +632,71 @@ def _list_catalog_versions(base_url: str, config: dict) -> None:
     _report(
         base_url,
         {
-            "releaseVersions": ",".join(_show(v.release_version) for v in versions),
-            "versionIds": ",".join(_show(v.version_id) for v in versions),
-            "names": "|".join(_show(v.name) for v in versions),
-            "statuses": ",".join(_show(_enum(v.status)) for v in versions),
-            "bases": ",".join(_show(v.base) for v in versions),
-            "createdFrom": ",".join(_show(v.created_from) for v in versions),
-            "behindCounts": ",".join(str(len(v.behind)) for v in versions),
+            "versions": ",".join(_show(v.version) for v in releases),
+            "releaseIds": ",".join(_show(v.release_id) for v in releases),
+            "names": "|".join(_show(v.name) for v in releases),
+            "statuses": ",".join(_show(_enum(v.status)) for v in releases),
+            "bases": ",".join(_show(v.base) for v in releases),
+            "createdFrom": ",".join(_show(v.created_from) for v in releases),
+            "behindCounts": ",".join(str(len(v.behind)) for v in releases),
         },
     )
 
 
-def _get_catalog_version(base_url: str, config: dict) -> None:
-    version = CatalogsApi(_client(base_url, config)).get_catalog_version(
-        *_catalog_version_address(config)
+def _get_catalog_release(base_url: str, config: dict) -> None:
+    release = CatalogsApi(_client(base_url, config)).get_catalog_release(
+        *_release_address(config)
     )
     _report(
         base_url,
         {
-            "releaseVersion": _show(version.release_version),
-            "versionId": _show(version.version_id),
-            "name": _show(version.name),
-            "status": _show(_enum(version.status)),
-            "releasedAt": _show_instant(version.released_at),
-            "fingerprint": _show(version.fingerprint),
+            "version": _show(release.version),
+            "releaseId": _show(release.release_id),
+            "name": _show(release.name),
+            "status": _show(_enum(release.status)),
+            "releasedAt": _show_instant(release.released_at),
+            "fingerprint": _show(release.fingerprint),
             "dependencies": ",".join(
-                f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}@{_show(d.release_version)}"
-                for d in version.dependencies
+                f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}@{_show(d.version)}"
+                for d in release.dependencies
             ),
-            "deployedTo": ",".join(version.deployed_to),
+            "deployedTo": ",".join(release.deployed_to),
             "behind": ";".join(
-                f"{_show(b.release_version)}="
+                f"{_show(b.version)}="
                 + "+".join(f"{_show(c.type)}/{_show(c.key)}:{_show(_enum(c.change))}" for c in b.changes)
-                for b in version.behind
+                for b in release.behind
             ),
         },
     )
 
 
-def _update_catalog_draft(base_url: str, config: dict) -> None:
+def _update_catalog_release(base_url: str, config: dict) -> None:
     """Renames a draft, conditional on ``ifMatch`` when the scenario sets it. A refusal is
     reported by its problem."""
     try:
-        response = CatalogsApi(_client(base_url, config)).update_catalog_draft_with_http_info(
-            *_catalog_version_address(config),
-            UpdateCatalogDraftRequest(name=config["name"]),
+        response = CatalogsApi(_client(base_url, config)).update_catalog_release_with_http_info(
+            *_release_address(config),
+            UpdateCatalogReleaseRequest(name=config["name"]),
             if_match=config.get("ifMatch"),
         )
     except ProblemDetailException as exc:
         _report_problem(base_url, exc)
         return
-    version = response.data
+    release = response.data
     _report(
         base_url,
         {
-            "releaseVersion": _show(version.release_version),
-            "versionId": _show(version.version_id),
-            "name": _show(version.name),
-            "status": _show(_enum(version.status)),
-            "base": _show(version.base),
+            "version": _show(release.version),
+            "releaseId": _show(release.release_id),
+            "name": _show(release.name),
+            "status": _show(_enum(release.status)),
+            "base": _show(release.base),
             "etag": _header(response, "ETag"),
         },
     )
 
 
-def _set_catalog_draft_theme_settings(base_url: str, config: dict) -> None:
+def _set_catalog_release_theme_settings(base_url: str, config: dict) -> None:
     """Sets a draft's default theme and presets; no name goes out, and an unset qualifier stays off the wire."""
     theme_qualifiers = {"catalog_key": config["defaultThemeCatalogKey"]} if config.get("defaultThemeCatalogKey") is not None else {}
     default_theme = CatalogThemeReference(key=config["defaultThemeKey"], **theme_qualifiers)
@@ -708,17 +708,17 @@ def _set_catalog_draft_theme_settings(base_url: str, config: dict) -> None:
         )
         for entry in config["presets"]
     ]
-    version = CatalogsApi(_client(base_url, config)).update_catalog_draft(
-        *_catalog_version_address(config),
-        UpdateCatalogDraftRequest(default_theme=default_theme, presets=presets),
+    release = CatalogsApi(_client(base_url, config)).update_catalog_release(
+        *_release_address(config),
+        UpdateCatalogReleaseRequest(default_theme=default_theme, presets=presets),
     )
-    parsed = version.presets or []
-    theme = version.default_theme
+    parsed = release.presets or []
+    theme = release.default_theme
     _report(
         base_url,
         {
-            "versionId": _show(version.version_id),
-            "name": _show(version.name),
+            "releaseId": _show(release.release_id),
+            "name": _show(release.name),
             "defaultThemeKey": _show(theme.key if theme else None),
             "defaultThemeCatalogKey": _show(theme.catalog_key if theme else None),
             "presetKeys": ",".join(p.key for p in parsed),
@@ -730,7 +730,7 @@ def _set_catalog_draft_theme_settings(base_url: str, config: dict) -> None:
 
 def _preview_catalog_draft_release(base_url: str, config: dict) -> None:
     preview = CatalogsApi(_client(base_url, config)).preview_catalog_draft_release(
-        *_catalog_version_address(config)
+        *_release_address(config)
     )
     _report(
         base_url,
@@ -744,8 +744,8 @@ def _preview_catalog_draft_release(base_url: str, config: dict) -> None:
     )
 
 
-def _delete_catalog_draft(base_url: str, config: dict) -> None:
-    CatalogsApi(_client(base_url, config)).delete_catalog_draft(*_catalog_version_address(config))
+def _delete_catalog_release(base_url: str, config: dict) -> None:
+    CatalogsApi(_client(base_url, config)).delete_catalog_release(*_release_address(config))
 
 
 def _release_catalog_draft(base_url: str, config: dict) -> None:
@@ -753,12 +753,12 @@ def _release_catalog_draft(base_url: str, config: dict) -> None:
     reported by its problem, with the dependency drafts it names."""
     optional = {
         name: config[name]
-        for name in ("releaseVersion", "notes", "acknowledgedBehind", "releaseDependencies")
+        for name in ("version", "notes", "acknowledgedBehind", "releaseDependencies")
         if name in config
     }
     try:
         response = CatalogsApi(_client(base_url, config)).release_catalog_draft(
-            *_catalog_version_address(config),
+            *_release_address(config),
             ReleaseCatalogDraftRequest(**optional),
         )
     except ProblemDetailException as exc:
@@ -768,7 +768,7 @@ def _release_catalog_draft(base_url: str, config: dict) -> None:
                 "problemTypeSlug": exc.type_slug or "<null>",
                 "problemStatus": exc.status_code,
                 "problemUnreleasedDependencies": "|".join(
-                    f"{d.registry}/{d.namespace}/{d.catalog_key}#{d.version_id}={d.draft_name}"
+                    f"{d.registry}/{d.namespace}/{d.catalog_key}#{d.release_id}={d.release_name}"
                     for d in exc.unreleased_dependencies
                 ),
             },
@@ -777,21 +777,21 @@ def _release_catalog_draft(base_url: str, config: dict) -> None:
     _report(
         base_url,
         {
-            "releaseVersion": _show(response.catalog_version.release_version),
-            "status": _show(_enum(response.catalog_version.status)),
-            "versionId": _show(response.catalog_version.version_id),
+            "version": _show(response.release.version),
+            "status": _show(_enum(response.release.status)),
+            "releaseId": _show(response.release.release_id),
             "draftsBehind": "|".join(response.drafts_behind),
             "releasedDependencies": ",".join(
-                f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}@{_show(d.release_version)}"
+                f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}@{_show(d.version)}"
                 for d in response.released_dependencies
             ),
         },
     )
 
 
-def _deploy_catalog_version(base_url: str, config: dict) -> None:
-    """Deploys one catalog version; the request has no body, the version (a release number or a
-    draft's ``versionId``) is the last path segment.
+def _deploy_catalog_release(base_url: str, config: dict) -> None:
+    """Deploys one release of a catalog; the request has no body, the release (a version or a
+    draft's ``releaseId``) is the last path segment.
 
     ``includeDependencies`` and ``replace`` are passed only when the scenario sets them, so an unset
     one sends no query parameter. A refusal is reported by the dependency releases it names.
@@ -802,13 +802,13 @@ def _deploy_catalog_version(base_url: str, config: dict) -> None:
     if "replace" in config:
         optional["replace"] = config["replace"]
     try:
-        deployment = EnvironmentsApi(_client(base_url, config)).deploy_catalog_version(
+        deployment = EnvironmentsApi(_client(base_url, config)).deploy_catalog_release(
             config["tenantKey"],
             config["environmentKey"],
             config["registry"],
             config["namespace"],
             config["catalogKey"],
-            config["catalogVersion"],
+            config["release"],
             **optional,
         )
     except ProblemDetailException as exc:
@@ -818,7 +818,7 @@ def _deploy_catalog_version(base_url: str, config: dict) -> None:
                 "problemTypeSlug": exc.type_slug or "<null>",
                 "problemStatus": exc.status_code,
                 "problemMissingDependencies": ",".join(
-                    f"{d.registry}/{d.namespace}/{d.catalog_key}@{d.release_version}:{d.reason}"
+                    f"{d.registry}/{d.namespace}/{d.catalog_key}@{d.version}:{d.reason}"
                     for d in exc.missing_dependencies
                 ),
             },
@@ -830,24 +830,24 @@ def _deploy_catalog_version(base_url: str, config: dict) -> None:
             "registry": _show(deployment.registry),
             "namespace": _show(deployment.namespace),
             "catalogKey": _show(deployment.catalog_key),
-            "versionId": _show(deployment.version_id),
-            "kind": _show(_enum(deployment.kind)),
-            "releaseVersion": _show(deployment.release_version),
-            "draftName": _show(deployment.draft_name),
+            "releaseId": _show(deployment.release_id),
+            "status": _show(_enum(deployment.status)),
+            "version": _show(deployment.version),
+            "releaseName": _show(deployment.release_name),
             "lastUsedAt": _show_instant(deployment.last_used_at),
             "documentsRequested": _show(deployment.documents_requested),
         },
     )
 
 
-def _undeploy_catalog_version(base_url: str, config: dict) -> None:
-    EnvironmentsApi(_client(base_url, config)).undeploy_catalog_version(
+def _undeploy_catalog_release(base_url: str, config: dict) -> None:
+    EnvironmentsApi(_client(base_url, config)).undeploy_catalog_release(
         config["tenantKey"],
         config["environmentKey"],
         config["registry"],
         config["namespace"],
         config["catalogKey"],
-        config["catalogVersion"],
+        config["release"],
     )
 
 
@@ -871,7 +871,7 @@ def _update_variant_content(base_url: str, config: dict) -> None:
             config["registry"],
             config["namespace"],
             config["catalogKey"],
-            config["catalogVersion"],
+            config["release"],
             config["templateKey"],
             config["variantKey"],
             request,
@@ -898,7 +898,7 @@ def _get_variant_content(base_url: str, config: dict) -> None:
     """Reads a variant's content through ``*_with_http_info``, which is how a caller reaches the
     response headers: the ``ETag`` is reported exactly as received, quotes included."""
     response = VariantsApi(_client(base_url, config)).get_variant_content_with_http_info(
-        *_catalog_version_address(config), config["templateKey"], config["variantKey"]
+        *_release_address(config), config["templateKey"], config["variantKey"]
     )
     content = response.data
     _report(
@@ -916,7 +916,7 @@ def _get_variant_content(base_url: str, config: dict) -> None:
 
 def _mark_variant_ready(base_url: str, config: dict) -> None:
     content = VariantsApi(_client(base_url, config)).mark_variant_ready(
-        *_catalog_version_address(config), config["templateKey"], config["variantKey"]
+        *_release_address(config), config["templateKey"], config["variantKey"]
     )
     _report(
         base_url,
@@ -931,7 +931,7 @@ def _mark_variant_ready(base_url: str, config: dict) -> None:
 
 def _mark_template_ready(base_url: str, config: dict) -> None:
     template = TemplatesApi(_client(base_url, config)).mark_template_ready(
-        *_catalog_version_address(config), config["templateKey"]
+        *_release_address(config), config["templateKey"]
     )
     _report(
         base_url,
@@ -951,7 +951,7 @@ def _schema_type(schema) -> str:
 def _get_stencil_content(base_url: str, config: dict) -> None:
     """Reads a stencil's content through ``*_with_http_info``, reporting the ``ETag`` as received."""
     response = StencilsApi(_client(base_url, config)).get_stencil_content_with_http_info(
-        *_catalog_version_address(config), config["stencilKey"]
+        *_release_address(config), config["stencilKey"]
     )
     content = response.data
     _report(
@@ -975,7 +975,7 @@ def _update_stencil_content(base_url: str, config: dict) -> None:
         {"content": _ONE_NODE_MODEL, "parameterSchema": config["parameterSchema"]}
     )
     response = StencilsApi(_client(base_url, config)).update_stencil_content_with_http_info(
-        *_catalog_version_address(config),
+        *_release_address(config),
         config["stencilKey"],
         request,
         if_match=config.get("ifMatch"),
@@ -994,7 +994,7 @@ def _update_stencil_content(base_url: str, config: dict) -> None:
 
 def _mark_stencil_ready(base_url: str, config: dict) -> None:
     response = StencilsApi(_client(base_url, config)).mark_stencil_ready(
-        *_catalog_version_address(config), config["stencilKey"]
+        *_release_address(config), config["stencilKey"]
     )
     _report(
         base_url,
@@ -1013,7 +1013,7 @@ def _mark_stencil_ready(base_url: str, config: dict) -> None:
 
 def _list_stencil_usage(base_url: str, config: dict) -> None:
     response = StencilsApi(_client(base_url, config)).list_stencil_usage(
-        *_catalog_version_address(config), config["stencilKey"], page=config["page"], size=config["size"]
+        *_release_address(config), config["stencilKey"], page=config["page"], size=config["size"]
     )
     _report(
         base_url,
@@ -1030,11 +1030,11 @@ def _list_stencil_usage(base_url: str, config: dict) -> None:
 
 
 def _get_catalog_changes(base_url: str, config: dict) -> None:
-    _report_changes(base_url, CatalogsApi(_client(base_url, config)).get_catalog_changes(*_catalog_version_address(config)))
+    _report_changes(base_url, CatalogsApi(_client(base_url, config)).get_catalog_changes(*_release_address(config)))
 
 
 def _mark_catalog_ready(base_url: str, config: dict) -> None:
-    _report_changes(base_url, CatalogsApi(_client(base_url, config)).mark_catalog_ready(*_catalog_version_address(config)))
+    _report_changes(base_url, CatalogsApi(_client(base_url, config)).mark_catalog_ready(*_release_address(config)))
 
 
 def _report_changes(base_url: str, changes) -> None:
@@ -1060,10 +1060,10 @@ def _list_environment_deployments(base_url: str, config: dict) -> None:
         {
             "registries": ",".join(_show(d.registry) for d in items),
             "catalogKeys": ",".join(_show(d.catalog_key) for d in items),
-            "versionIds": ",".join(_show(d.version_id) for d in items),
-            "kinds": ",".join(_show(_enum(d.kind)) for d in items),
-            "releaseVersions": ",".join(_show(d.release_version) for d in items),
-            "draftNames": "|".join(_show(d.draft_name) for d in items),
+            "releaseIds": ",".join(_show(d.release_id) for d in items),
+            "statuses": ",".join(_show(_enum(d.status)) for d in items),
+            "versions": ",".join(_show(d.version) for d in items),
+            "releaseNames": "|".join(_show(d.release_name) for d in items),
             "deployedAt": ",".join(_show_instant(d.deployed_at) for d in items),
             "lastUsedAt": ",".join(_show_instant(d.last_used_at) for d in items),
             "documentsRequested": ",".join(_show(d.documents_requested) for d in items),
@@ -1081,10 +1081,10 @@ def _list_deployment_history(base_url: str, config: dict) -> None:
         {
             "catalogKeys": ",".join(_show(e.catalog_key) for e in items),
             "actions": ",".join(_show(_enum(e.action)) for e in items),
-            "versionIds": ",".join(_show(e.version_id) for e in items),
-            "kinds": ",".join(_show(_enum(e.kind)) for e in items),
-            "releaseVersions": ",".join(_show(e.release_version) for e in items),
-            "draftNames": "|".join(_show(e.draft_name) for e in items),
+            "releaseIds": ",".join(_show(e.release_id) for e in items),
+            "statuses": ",".join(_show(_enum(e.status)) for e in items),
+            "versions": ",".join(_show(e.version) for e in items),
+            "releaseNames": "|".join(_show(e.release_name) for e in items),
             "changedAt": ",".join(_show_instant(e.changed_at) for e in items),
             "changedBy": "|".join(_show(e.changed_by) for e in items),
             "total": _show(response.page.total),
@@ -1143,7 +1143,7 @@ def _update_code_list_entry_hidden(base_url: str, config: dict) -> None:
     scenario sets it. A refusal is reported by its problem."""
     try:
         response = CodeListsApi(_client(base_url, config)).update_code_list_entry_hidden_with_http_info(
-            *_catalog_version_address(config),
+            *_release_address(config),
             config["codeListKey"],
             config["code"],
             UpdateCodeListEntryHiddenRequest(hidden=config["hidden"]),

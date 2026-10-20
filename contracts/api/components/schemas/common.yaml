@@ -38,13 +38,13 @@ ResourceStatus:
     - ready
     - released
   description: |
-    How a resource in a catalog version stands against the version's **base**: the released version
-    it started from (see `CatalogVersionDto.base`).
+    How a resource in a release of a catalog stands against the release's **base**: the released
+    release it started from (see `CatalogReleaseDto.base`).
 
     - `new`: not in the base, and not marked ready.
     - `modified`: changed since the base, and not marked ready since.
     - `ready`: changed since the base (or new), and marked ready since its last edit.
-    - `released`: the same as in the base. Every resource of a released version has this status.
+    - `released`: the same as in the base. Every resource of a released one has this status.
 
     Releasing a draft is refused while any resource is `new` or `modified`; a release contains the
     whole draft, so marking ready is a review checkpoint, not a filter.

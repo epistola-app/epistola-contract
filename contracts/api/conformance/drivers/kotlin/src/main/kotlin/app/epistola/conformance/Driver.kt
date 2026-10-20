@@ -28,8 +28,8 @@ import app.epistola.client.model.CatalogDependencyRequirement
 import app.epistola.client.model.CatalogPresetDto
 import app.epistola.client.model.CatalogThemeReference
 import app.epistola.client.model.CatalogType
-import app.epistola.client.model.CatalogVersionStatus
-import app.epistola.client.model.CreateCatalogDraftRequest
+import app.epistola.client.model.CatalogReleaseStatus
+import app.epistola.client.model.CreateCatalogReleaseRequest
 import app.epistola.client.model.CreateEnvironmentRequest
 import app.epistola.client.model.EnvironmentDto
 import app.epistola.client.model.UpdateEnvironmentRequest
@@ -38,7 +38,7 @@ import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.VariantSelectionAttribute
 import app.epistola.client.model.PingRequest
 import app.epistola.client.model.UpdateCatalogDependenciesRequest
-import app.epistola.client.model.UpdateCatalogDraftRequest
+import app.epistola.client.model.UpdateCatalogReleaseRequest
 import app.epistola.client.model.UpdateCodeListEntryHiddenRequest
 import app.epistola.client.model.UpdateTenantRequest
 import app.epistola.client.model.UpdateConsumerRequest
@@ -109,16 +109,16 @@ object Driver {
                 "delete-image" -> deleteImage(baseUrl, config)
                 "list-catalog-dependencies" -> listCatalogDependencies(baseUrl, config)
                 "update-catalog-dependencies" -> updateCatalogDependencies(baseUrl, config)
-                "create-catalog-draft" -> createCatalogDraft(baseUrl, config)
-                "list-catalog-versions" -> listCatalogVersions(baseUrl, config)
-                "get-catalog-version" -> getCatalogVersion(baseUrl, config)
-                "update-catalog-draft" -> updateCatalogDraft(baseUrl, config)
-                "set-catalog-draft-theme-settings" -> setCatalogDraftThemeSettings(baseUrl, config)
+                "create-catalog-release" -> createCatalogRelease(baseUrl, config)
+                "list-catalog-releases" -> listCatalogReleases(baseUrl, config)
+                "get-catalog-release" -> getCatalogRelease(baseUrl, config)
+                "update-catalog-release" -> updateCatalogRelease(baseUrl, config)
+                "set-catalog-release-theme-settings" -> setCatalogReleaseThemeSettings(baseUrl, config)
                 "preview-catalog-draft-release" -> previewCatalogDraftRelease(baseUrl, config)
-                "delete-catalog-draft" -> deleteCatalogDraft(baseUrl, config)
+                "delete-catalog-release" -> deleteCatalogRelease(baseUrl, config)
                 "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config)
-                "deploy-catalog-version" -> deployCatalogVersion(baseUrl, config)
-                "undeploy-catalog-version" -> undeployCatalogVersion(baseUrl, config)
+                "deploy-catalog-release" -> deployCatalogRelease(baseUrl, config)
+                "undeploy-catalog-release" -> undeployCatalogRelease(baseUrl, config)
                 "create-environment" -> createEnvironment(baseUrl, config)
                 "update-environment" -> updateEnvironment(baseUrl, config)
                 "update-tenant" -> updateTenant(baseUrl, config)
@@ -161,7 +161,7 @@ object Driver {
     private fun listTemplates(baseUrl: String, config: ObjectNode) {
         val api = TemplatesApi(restClient(baseUrl, config))
         val templates = List(config.path("repeat").asInt(1)) {
-            api.listTemplates(config["tenantKey"].asText(), config["registry"].asText(), config["namespace"].asText(), config["catalogKey"].asText(), config["catalogVersion"].asText())
+            api.listTemplates(config["tenantKey"].asText(), config["registry"].asText(), config["namespace"].asText(), config["catalogKey"].asText(), config["release"].asText())
         }.last().items
 
         report(
@@ -181,7 +181,7 @@ object Driver {
                     config["registry"].asText(),
                     config["namespace"].asText(),
                     config["catalogKey"].asText(),
-                    config["catalogVersion"].asText(),
+                    config["release"].asText(),
                 )
             report(baseUrl, mapOf("problemTypeSlug" to "<no exception was thrown>"))
         } catch (e: ProblemDetailException) {
@@ -261,7 +261,7 @@ object Driver {
                 "handledSequences" to handled.joinToString(",") { it.sequence.toString() },
                 "partitionTotal" to (collector.partitionAssignment?.total ?: -1),
                 "releases" to handled.joinToString(",") {
-                    "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion ?: "null"}"
+                    "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version ?: "null"}"
                 },
             ),
         )
@@ -349,7 +349,7 @@ object Driver {
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
             config["codeListKey"].asText(),
             config["code"].asText(),
             UpdateCodeListEntryHiddenRequest(hidden = config["hidden"].asBoolean()),
@@ -456,7 +456,7 @@ object Driver {
                 config["registry"].asText(),
                 config["namespace"].asText(),
                 config["catalogKey"].asText(),
-                config["catalogVersion"].asText(),
+                config["release"].asText(),
                 search = config["search"].asText(),
             )
             .items
@@ -487,7 +487,7 @@ object Driver {
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
             file,
             name = config["name"].asText(),
         )
@@ -524,7 +524,7 @@ object Driver {
                 "registry" to imported.registry,
                 "namespace" to imported.namespace,
                 "catalogKey" to imported.catalogKey,
-                "releaseVersion" to imported.releaseVersion,
+                "version" to imported.version,
                 "newlyInstalled" to imported.newlyInstalled.toString(),
                 "total" to imported.total.toString(),
             ),
@@ -542,7 +542,7 @@ object Driver {
                 config["registry"].asText(),
                 config["namespace"].asText(),
                 config["catalogKey"].asText(),
-                config["releaseVersion"].asText(),
+                config["version"].asText(),
             )
         } catch (e: ProblemDetailException) {
             report(
@@ -551,7 +551,7 @@ object Driver {
                     "problemTypeSlug" to (e.typeSlug ?: "<null>"),
                     "problemStatus" to e.statusCode.value(),
                     "problemMissingDependencies" to e.missingDependencies.joinToString(",") {
-                        "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}:${it.reason}"
+                        "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version}:${it.reason}"
                     },
                 ),
             )
@@ -563,7 +563,7 @@ object Driver {
                 "registry" to installed.registry,
                 "namespace" to installed.namespace,
                 "catalogKey" to installed.catalogKey,
-                "releaseVersion" to installed.releaseVersion,
+                "version" to installed.version,
                 "newlyInstalled" to installed.newlyInstalled.toString(),
                 "total" to installed.total.toString(),
                 "installedDependencies" to installed.installedDependencies.orEmpty().joinToString(","),
@@ -594,13 +594,13 @@ object Driver {
                 "registry" to releases.registry,
                 "namespace" to releases.namespace,
                 "catalogKey" to releases.catalogKey,
-                "availableComparedTo" to releases.available.joinToString(";") { "${it.releaseVersion}=${it.comparedTo ?: "null"}" },
+                "availableComparedTo" to releases.available.joinToString(";") { "${it.version}=${it.comparedTo ?: "null"}" },
                 "availableChanges" to releases.available.joinToString(";") { release ->
-                    "${release.releaseVersion}=" + release.changes.joinToString("+") { "${it.type}/${it.key}:${it.change.value}" }
+                    "${release.version}=" + release.changes.joinToString("+") { "${it.type}/${it.key}:${it.change.value}" }
                 },
                 "availableDependencies" to releases.available.joinToString(";") { release ->
-                    "${release.releaseVersion}=" + release.dependencies.joinToString("+") {
-                        "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}:${it.present}"
+                    "${release.version}=" + release.dependencies.joinToString("+") {
+                        "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version}:${it.present}"
                     }
                 },
             ),
@@ -613,7 +613,7 @@ object Driver {
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
             config["imageKey"].asText(),
         )
         reportBytes(baseUrl, resource.inputStream.use { it.readBytes() })
@@ -625,7 +625,7 @@ object Driver {
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
             config["imageKey"].asText(),
             force = config["force"].asBoolean(),
         )
@@ -637,14 +637,14 @@ object Driver {
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
         ).items
         reportDependencies(baseUrl, dependencies)
     }
 
     /**
      * Sends the declared dependencies, each pinning an exact release or naming a draft, exactly as
-     * configured (an unconfigured `releaseVersion` or `versionId` stays off the wire) and reports what
+     * configured (an unconfigured `version` or `releaseId` stays off the wire) and reports what
      * came back, in order, a null value as `null`.
      */
     private fun updateCatalogDependencies(baseUrl: String, config: ObjectNode) = conditionalUpdate(baseUrl, {
@@ -653,15 +653,15 @@ object Driver {
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
             UpdateCatalogDependenciesRequest(
                 dependencies = config.path("dependencies").map {
                     CatalogDependencyRequirement(
                         registry = it.optionalText("registry"),
                         namespace = it["namespace"].asText(),
                         catalogKey = it["catalogKey"].asText(),
-                        releaseVersion = it.optionalText("releaseVersion"),
-                        versionId = it.optionalText("versionId"),
+                        version = it.optionalText("version"),
+                        releaseId = it.optionalText("releaseId"),
                     )
                 },
             ),
@@ -676,119 +676,119 @@ object Driver {
             "registries" to dependencies.joinToString(",") { it.registry },
             "namespaces" to dependencies.joinToString(",") { it.namespace },
             "catalogKeys" to dependencies.joinToString(",") { it.catalogKey },
-            "releaseVersions" to dependencies.joinToString(",") { it.releaseVersion ?: "null" },
-            "versionIds" to dependencies.joinToString(",") { it.versionId ?: "null" },
+            "versions" to dependencies.joinToString(",") { it.version ?: "null" },
+            "releaseIds" to dependencies.joinToString(",") { it.releaseId ?: "null" },
         )
         )
 
-    // --- Catalog versions ---
+    // --- Catalog releases ---
 
-    /** Starts a draft; `from` (a release number or a draft id) is sent only when configured, so an absent one stays off the wire. */
-    private fun createCatalogDraft(baseUrl: String, config: ObjectNode) {
-        val response = CatalogsApi(restClient(baseUrl, config)).createCatalogDraftWithHttpInfo(
+    /** Starts a draft release; `from` (a version or a draft id) is sent only when configured, so an absent one stays off the wire. */
+    private fun createCatalogRelease(baseUrl: String, config: ObjectNode) {
+        val response = CatalogsApi(restClient(baseUrl, config)).createCatalogReleaseWithHttpInfo(
             config["tenantKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            CreateCatalogDraftRequest(name = config["name"].asText(), from = config.optionalText("from")),
+            CreateCatalogReleaseRequest(name = config["name"].asText(), from = config.optionalText("from")),
         )
-        val version = response.body!!
+        val release = response.body!!
         report(
             baseUrl,
             mapOf(
-                "releaseVersion" to (version.releaseVersion ?: "null"),
-                "versionId" to version.versionId,
-                "name" to (version.name ?: "null"),
-                "status" to version.status.value,
-                "base" to (version.base ?: "null"),
-                "createdFrom" to (version.createdFrom?.toString() ?: "null"),
-                "releasedAt" to timestamp(version.releasedAt),
+                "version" to (release.version ?: "null"),
+                "releaseId" to release.releaseId,
+                "name" to (release.name ?: "null"),
+                "status" to release.status.value,
+                "base" to (release.base ?: "null"),
+                "createdFrom" to (release.createdFrom?.toString() ?: "null"),
+                "releasedAt" to timestamp(release.releasedAt),
                 "location" to (response.headers.getFirst(HttpHeaders.LOCATION) ?: "null"),
             ),
         )
     }
 
-    private fun listCatalogVersions(baseUrl: String, config: ObjectNode) {
-        val versions = CatalogsApi(restClient(baseUrl, config)).listCatalogVersions(
+    private fun listCatalogReleases(baseUrl: String, config: ObjectNode) {
+        val releases = CatalogsApi(restClient(baseUrl, config)).listCatalogReleases(
             config["tenantKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            status = config.optionalText("status")?.let { CatalogVersionStatus.decode(it) },
+            status = config.optionalText("status")?.let { CatalogReleaseStatus.decode(it) },
         ).items
         report(
             baseUrl,
             mapOf(
-                "releaseVersions" to versions.joinToString(",") { it.releaseVersion ?: "null" },
-                "versionIds" to versions.joinToString(",") { it.versionId },
-                "names" to versions.joinToString("|") { it.name ?: "null" },
-                "statuses" to versions.joinToString(",") { it.status.value },
-                "bases" to versions.joinToString(",") { it.base ?: "null" },
-                "createdFrom" to versions.joinToString(",") { it.createdFrom?.toString() ?: "null" },
-                "behindCounts" to versions.joinToString(",") { it.behind.size.toString() },
+                "versions" to releases.joinToString(",") { it.version ?: "null" },
+                "releaseIds" to releases.joinToString(",") { it.releaseId },
+                "names" to releases.joinToString("|") { it.name ?: "null" },
+                "statuses" to releases.joinToString(",") { it.status.value },
+                "bases" to releases.joinToString(",") { it.base ?: "null" },
+                "createdFrom" to releases.joinToString(",") { it.createdFrom?.toString() ?: "null" },
+                "behindCounts" to releases.joinToString(",") { it.behind.size.toString() },
             ),
         )
     }
 
     /** Reports the release data, with each dependency named as registry/namespace/catalogKey. */
-    private fun getCatalogVersion(baseUrl: String, config: ObjectNode) {
-        val version = CatalogsApi(restClient(baseUrl, config)).getCatalogVersion(
+    private fun getCatalogRelease(baseUrl: String, config: ObjectNode) {
+        val release = CatalogsApi(restClient(baseUrl, config)).getCatalogRelease(
             config["tenantKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
         )
         report(
             baseUrl,
             mapOf(
-                "releaseVersion" to (version.releaseVersion ?: "null"),
-                "versionId" to version.versionId,
-                "name" to (version.name ?: "null"),
-                "status" to version.status.value,
-                "releasedAt" to timestamp(version.releasedAt),
-                "fingerprint" to (version.fingerprint ?: "null"),
-                "dependencies" to version.dependencies.joinToString(",") {
-                    "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}"
+                "version" to (release.version ?: "null"),
+                "releaseId" to release.releaseId,
+                "name" to (release.name ?: "null"),
+                "status" to release.status.value,
+                "releasedAt" to timestamp(release.releasedAt),
+                "fingerprint" to (release.fingerprint ?: "null"),
+                "dependencies" to release.dependencies.joinToString(",") {
+                    "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version}"
                 },
-                "deployedTo" to version.deployedTo.joinToString(","),
-                "behind" to version.behind.joinToString(";") { release ->
-                    "${release.releaseVersion}=" + release.changes.joinToString("+") { "${it.type}/${it.key}:${it.change.value}" }
+                "deployedTo" to release.deployedTo.joinToString(","),
+                "behind" to release.behind.joinToString(";") { behind ->
+                    "${behind.version}=" + behind.changes.joinToString("+") { "${it.type}/${it.key}:${it.change.value}" }
                 },
             ),
         )
     }
 
     /** Renames a draft, conditionally when `config.ifMatch` is set; only the name is sent, to its unchanged address. */
-    private fun updateCatalogDraft(baseUrl: String, config: ObjectNode) = conditionalUpdate(baseUrl, {
-        CatalogsApi(restClient(baseUrl, config)).updateCatalogDraftWithHttpInfo(
+    private fun updateCatalogRelease(baseUrl: String, config: ObjectNode) = conditionalUpdate(baseUrl, {
+        CatalogsApi(restClient(baseUrl, config)).updateCatalogReleaseWithHttpInfo(
             config["tenantKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
-            UpdateCatalogDraftRequest(name = config["name"].asText()),
+            config["release"].asText(),
+            UpdateCatalogReleaseRequest(name = config["name"].asText()),
             ifMatch = config.optionalText("ifMatch"),
         )
-    }) { version ->
+    }) { release ->
         mapOf(
-            "releaseVersion" to (version.releaseVersion ?: "null"),
-            "versionId" to version.versionId,
-            "name" to (version.name ?: "null"),
-            "status" to version.status.value,
-            "base" to (version.base ?: "null"),
+            "version" to (release.version ?: "null"),
+            "releaseId" to release.releaseId,
+            "name" to (release.name ?: "null"),
+            "status" to release.status.value,
+            "base" to (release.base ?: "null"),
         )
     }
 
     /** Sets a draft's default theme and presets; no name goes out, and an unset qualifier stays off the wire. */
-    private fun setCatalogDraftThemeSettings(baseUrl: String, config: ObjectNode) {
-        val version = CatalogsApi(restClient(baseUrl, config)).updateCatalogDraft(
+    private fun setCatalogReleaseThemeSettings(baseUrl: String, config: ObjectNode) {
+        val release = CatalogsApi(restClient(baseUrl, config)).updateCatalogRelease(
             config["tenantKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
-            UpdateCatalogDraftRequest(
+            config["release"].asText(),
+            UpdateCatalogReleaseRequest(
                 defaultTheme = CatalogThemeReference(
                     key = config["defaultThemeKey"].asText(),
                     catalogKey = config.optionalText("defaultThemeCatalogKey"),
@@ -798,14 +798,14 @@ object Driver {
                 },
             ),
         )
-        val presets = version.presets.orEmpty()
+        val presets = release.presets.orEmpty()
         report(
             baseUrl,
             mapOf(
-                "versionId" to version.versionId,
-                "name" to (version.name ?: "null"),
-                "defaultThemeKey" to (version.defaultTheme?.key ?: "null"),
-                "defaultThemeCatalogKey" to (version.defaultTheme?.catalogKey ?: "null"),
+                "releaseId" to release.releaseId,
+                "name" to (release.name ?: "null"),
+                "defaultThemeKey" to (release.defaultTheme?.key ?: "null"),
+                "defaultThemeCatalogKey" to (release.defaultTheme?.catalogKey ?: "null"),
                 "presetKeys" to presets.joinToString(",") { it.key },
                 "presetNames" to presets.joinToString("|") { it.name },
                 "presetDescriptions" to presets.joinToString("|") { it.description ?: "null" },
@@ -813,14 +813,14 @@ object Driver {
         )
     }
 
-    /** Surfaces the number a draft would be released as, and every reason, in order. */
+    /** Surfaces the version a draft would be released as, and every reason, in order. */
     private fun previewCatalogDraftRelease(baseUrl: String, config: ObjectNode) {
         val preview = CatalogsApi(restClient(baseUrl, config)).previewCatalogDraftRelease(
             config["tenantKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
         )
         report(
             baseUrl,
@@ -834,13 +834,13 @@ object Driver {
         )
     }
 
-    private fun deleteCatalogDraft(baseUrl: String, config: ObjectNode) {
-        CatalogsApi(restClient(baseUrl, config)).deleteCatalogDraft(
+    private fun deleteCatalogRelease(baseUrl: String, config: ObjectNode) {
+        CatalogsApi(restClient(baseUrl, config)).deleteCatalogRelease(
             config["tenantKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
         )
     }
 
@@ -855,9 +855,9 @@ object Driver {
                 config["registry"].asText(),
                 config["namespace"].asText(),
                 config["catalogKey"].asText(),
-                config["catalogVersion"].asText(),
+                config["release"].asText(),
                 ReleaseCatalogDraftRequest(
-                    releaseVersion = config.optionalText("releaseVersion"),
+                    version = config.optionalText("version"),
                     notes = config.optionalText("notes"),
                     acknowledgedBehind = config.get("acknowledgedBehind")?.takeUnless { it.isNull }?.map { it.asText() },
                     releaseDependencies = config.get("releaseDependencies")?.takeUnless { it.isNull }?.asBoolean(),
@@ -870,7 +870,7 @@ object Driver {
                     "problemTypeSlug" to (e.typeSlug ?: "<null>"),
                     "problemStatus" to e.statusCode.value(),
                     "problemUnreleasedDependencies" to e.unreleasedDependencies.joinToString("|") {
-                        "${it.registry}/${it.namespace}/${it.catalogKey}#${it.versionId}=${it.draftName}"
+                        "${it.registry}/${it.namespace}/${it.catalogKey}#${it.releaseId}=${it.releaseName}"
                     },
                 ),
             )
@@ -879,12 +879,12 @@ object Driver {
         report(
             baseUrl,
             mapOf(
-                "releaseVersion" to (response.catalogVersion.releaseVersion ?: "null"),
-                "status" to response.catalogVersion.status.value,
-                "versionId" to response.catalogVersion.versionId,
+                "version" to (response.release.version ?: "null"),
+                "status" to response.release.status.value,
+                "releaseId" to response.release.releaseId,
                 "draftsBehind" to response.draftsBehind.joinToString("|"),
                 "releasedDependencies" to response.releasedDependencies.joinToString(",") {
-                    "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}"
+                    "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version}"
                 },
             ),
         )
@@ -894,20 +894,20 @@ object Driver {
     private fun timestamp(value: OffsetDateTime?): String = value?.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME) ?: "null"
 
     /**
-     * Deploys one catalog version, a release by its number or a draft by its `versionId`; the
-     * registry, namespace and version go into the path as given, and `includeDependencies` and
+     * Deploys one release of a catalog, a released one by its version or a draft by its `releaseId`; the
+     * registry, namespace and release go into the path as given, and `includeDependencies` and
      * `replace` are passed only when configured, so an unset one sends nothing. A refusal is
      * reported by its problem, with each missing dependency release and why.
      */
-    private fun deployCatalogVersion(baseUrl: String, config: ObjectNode) {
+    private fun deployCatalogRelease(baseUrl: String, config: ObjectNode) {
         val deployment = try {
-            EnvironmentsApi(restClient(baseUrl, config)).deployCatalogVersion(
+            EnvironmentsApi(restClient(baseUrl, config)).deployCatalogRelease(
                 config["tenantKey"].asText(),
                 config["environmentKey"].asText(),
                 config["registry"].asText(),
                 config["namespace"].asText(),
                 config["catalogKey"].asText(),
-                config["catalogVersion"].asText(),
+                config["release"].asText(),
                 config.get("includeDependencies")?.takeUnless { it.isNull }?.asBoolean(),
                 config.get("replace")?.takeUnless { it.isNull }?.asBoolean(),
             )
@@ -918,7 +918,7 @@ object Driver {
                     "problemTypeSlug" to (e.typeSlug ?: "<null>"),
                     "problemStatus" to e.statusCode.value(),
                     "problemMissingDependencies" to e.missingDependencies.joinToString(",") {
-                        "${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}:${it.reason}"
+                        "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version}:${it.reason}"
                     },
                 ),
             )
@@ -930,24 +930,24 @@ object Driver {
                 "registry" to deployment.registry,
                 "namespace" to deployment.namespace,
                 "catalogKey" to deployment.catalogKey,
-                "versionId" to deployment.versionId,
-                "kind" to deployment.kind.value,
-                "releaseVersion" to (deployment.releaseVersion ?: "null"),
-                "draftName" to (deployment.draftName ?: "null"),
+                "releaseId" to deployment.releaseId,
+                "status" to deployment.status.value,
+                "version" to (deployment.version ?: "null"),
+                "releaseName" to (deployment.releaseName ?: "null"),
                 "lastUsedAt" to timestamp(deployment.lastUsedAt),
                 "documentsRequested" to deployment.documentsRequested.toString(),
             ),
         )
     }
 
-    private fun undeployCatalogVersion(baseUrl: String, config: ObjectNode) {
-        EnvironmentsApi(restClient(baseUrl, config)).undeployCatalogVersion(
+    private fun undeployCatalogRelease(baseUrl: String, config: ObjectNode) {
+        EnvironmentsApi(restClient(baseUrl, config)).undeployCatalogRelease(
             config["tenantKey"].asText(),
             config["environmentKey"].asText(),
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
         )
     }
 
@@ -962,7 +962,7 @@ object Driver {
                 config["registry"].asText(),
                 config["namespace"].asText(),
                 config["catalogKey"].asText(),
-                config["catalogVersion"].asText(),
+                config["release"].asText(),
                 config["templateKey"].asText(),
                 config["variantKey"].asText(),
                 UpdateVariantContentRequest(
@@ -1006,7 +1006,7 @@ object Driver {
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
             config["templateKey"].asText(),
             config["variantKey"].asText(),
         )
@@ -1030,7 +1030,7 @@ object Driver {
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
             config["templateKey"].asText(),
             config["variantKey"].asText(),
         )
@@ -1051,7 +1051,7 @@ object Driver {
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
             config["templateKey"].asText(),
         )
         report(
@@ -1072,7 +1072,7 @@ object Driver {
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
             config["stencilKey"].asText(),
         )
         val content = response.body!!
@@ -1100,7 +1100,7 @@ object Driver {
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
             config["stencilKey"].asText(),
             UpdateStencilContentRequest(
                 content = oneNodeModel(),
@@ -1126,7 +1126,7 @@ object Driver {
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
             config["stencilKey"].asText(),
         )
         report(
@@ -1148,7 +1148,7 @@ object Driver {
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
             config["stencilKey"].asText(),
             page = config["page"].asInt(),
             size = config["size"].asInt(),
@@ -1174,7 +1174,7 @@ object Driver {
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
         ),
     )
 
@@ -1185,7 +1185,7 @@ object Driver {
             config["registry"].asText(),
             config["namespace"].asText(),
             config["catalogKey"].asText(),
-            config["catalogVersion"].asText(),
+            config["release"].asText(),
         ),
     )
 
@@ -1208,10 +1208,10 @@ object Driver {
             mapOf(
                 "registries" to deployments.joinToString(",") { it.registry },
                 "catalogKeys" to deployments.joinToString(",") { it.catalogKey },
-                "versionIds" to deployments.joinToString(",") { it.versionId },
-                "kinds" to deployments.joinToString(",") { it.kind.value },
-                "releaseVersions" to deployments.joinToString(",") { it.releaseVersion ?: "null" },
-                "draftNames" to deployments.joinToString("|") { it.draftName ?: "null" },
+                "releaseIds" to deployments.joinToString(",") { it.releaseId },
+                "statuses" to deployments.joinToString(",") { it.status.value },
+                "versions" to deployments.joinToString(",") { it.version ?: "null" },
+                "releaseNames" to deployments.joinToString("|") { it.releaseName ?: "null" },
                 "deployedAt" to deployments.joinToString(",") { timestamp(it.deployedAt) },
                 "lastUsedAt" to deployments.joinToString(",") { timestamp(it.lastUsedAt) },
                 "documentsRequested" to deployments.joinToString(",") { it.documentsRequested.toString() },
@@ -1232,10 +1232,10 @@ object Driver {
             mapOf(
                 "catalogKeys" to events.joinToString(",") { it.catalogKey },
                 "actions" to events.joinToString(",") { it.action.value },
-                "versionIds" to events.joinToString(",") { it.versionId },
-                "kinds" to events.joinToString(",") { it.kind.value },
-                "releaseVersions" to events.joinToString(",") { it.releaseVersion ?: "null" },
-                "draftNames" to events.joinToString("|") { it.draftName ?: "null" },
+                "releaseIds" to events.joinToString(",") { it.releaseId },
+                "statuses" to events.joinToString(",") { it.status.value },
+                "versions" to events.joinToString(",") { it.version ?: "null" },
+                "releaseNames" to events.joinToString("|") { it.releaseName ?: "null" },
                 "changedAt" to events.joinToString(",") { timestamp(it.changedAt) },
                 "changedBy" to events.joinToString("|") { it.changedBy ?: "null" },
                 "total" to response.page.total.toString(),

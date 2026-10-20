@@ -30,9 +30,9 @@ import app.epistola.client.jakarta.model.CatalogThemeReference;
 import app.epistola.client.jakarta.model.CatalogDependencyDto;
 import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
 import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
-import app.epistola.client.jakarta.model.CatalogVersionDto;
-import app.epistola.client.jakarta.model.CatalogVersionStatus;
-import app.epistola.client.jakarta.model.CreateCatalogDraftRequest;
+import app.epistola.client.jakarta.model.CatalogReleaseDto;
+import app.epistola.client.jakarta.model.CatalogReleaseStatus;
+import app.epistola.client.jakarta.model.CreateCatalogReleaseRequest;
 import app.epistola.client.jakarta.model.CreateEnvironmentRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
 import app.epistola.client.jakarta.model.DeploymentEventDto;
@@ -64,7 +64,7 @@ import app.epistola.client.jakarta.model.ReleaseCatalogDraftResponse;
 import app.epistola.client.jakarta.model.ReleasedDependencyDto;
 import app.epistola.client.jakarta.model.ReleaseDependencyDto;
 import app.epistola.client.jakarta.model.ReleasedChangeDto;
-import app.epistola.client.jakarta.model.UpdateCatalogDraftRequest;
+import app.epistola.client.jakarta.model.UpdateCatalogReleaseRequest;
 import app.epistola.client.jakarta.model.StencilContentDto;
 import app.epistola.client.jakarta.model.StencilUsageDto;
 import app.epistola.client.jakarta.model.StencilUsageListResponse;
@@ -144,16 +144,16 @@ public final class Driver {
                 case "delete-image" -> deleteImage(baseUrl, config);
                 case "list-catalog-dependencies" -> listCatalogDependencies(baseUrl, config);
                 case "update-catalog-dependencies" -> updateCatalogDependencies(baseUrl, config);
-                case "create-catalog-draft" -> createCatalogDraft(baseUrl, config);
-                case "list-catalog-versions" -> listCatalogVersions(baseUrl, config);
-                case "get-catalog-version" -> getCatalogVersion(baseUrl, config);
-                case "update-catalog-draft" -> updateCatalogDraft(baseUrl, config);
-                case "set-catalog-draft-theme-settings" -> setCatalogDraftThemeSettings(baseUrl, config);
+                case "create-catalog-release" -> createCatalogRelease(baseUrl, config);
+                case "list-catalog-releases" -> listCatalogReleases(baseUrl, config);
+                case "get-catalog-release" -> getCatalogRelease(baseUrl, config);
+                case "update-catalog-release" -> updateCatalogRelease(baseUrl, config);
+                case "set-catalog-release-theme-settings" -> setCatalogReleaseThemeSettings(baseUrl, config);
                 case "preview-catalog-draft-release" -> previewCatalogDraftRelease(baseUrl, config);
-                case "delete-catalog-draft" -> deleteCatalogDraft(baseUrl, config);
+                case "delete-catalog-release" -> deleteCatalogRelease(baseUrl, config);
                 case "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config);
-                case "deploy-catalog-version" -> deployCatalogVersion(baseUrl, config);
-                case "undeploy-catalog-version" -> undeployCatalogVersion(baseUrl, config);
+                case "deploy-catalog-release" -> deployCatalogRelease(baseUrl, config);
+                case "undeploy-catalog-release" -> undeployCatalogRelease(baseUrl, config);
                 case "create-environment" -> createEnvironment(baseUrl, config);
                 case "update-environment" -> updateEnvironment(baseUrl, config);
                 case "update-tenant" -> updateTenant(baseUrl, config);
@@ -196,7 +196,7 @@ public final class Driver {
         TemplatesApi api = clients(baseUrl, config).api(TemplatesApi.class);
         TemplateListResponse response = null;
         for (int i = 0; i < config.getInt("repeat", 1); i++) {
-            response = api.listTemplates(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), null, 0, 20, null, "desc");
+            response = api.listTemplates(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), null, 0, 20, null, "desc");
         }
         List<TemplateSummaryDto> templates = response.getItems();
 
@@ -211,7 +211,7 @@ public final class Driver {
         try {
             clients(baseUrl, config)
                     .api(TemplatesApi.class)
-                    .listTemplates(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), null, 0, 20, null, "desc");
+                    .listTemplates(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), null, 0, 20, null, "desc");
             report(baseUrl, Map.of("problemTypeSlug", "<no exception was thrown>"));
         } catch (ProblemDetailException e) {
             report(
@@ -315,7 +315,7 @@ public final class Driver {
                                 handled.stream()
                                         .map(result -> result.getRegistry() + "/" + result.getNamespace() + "/"
                                                 + result.getCatalogKey() + "@"
-                                                + result.getReleaseVersion())
+                                                + result.getVersion())
                                         .collect(Collectors.joining(",")),
                         "partitionTotal", assignment == null ? -1 : assignment.getTotal()));
     }
@@ -503,7 +503,7 @@ public final class Driver {
     private static void listImages(String baseUrl, JsonObject config) {
         List<ImageDto> images = clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .listImages(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), config.getString("search"), null, null)
+                .listImages(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), config.getString("search"), null, null)
                 .getItems();
 
         report(
@@ -528,7 +528,7 @@ public final class Driver {
         try {
             ImageDto image = clients(baseUrl, config)
                     .api(ImagesApi.class)
-                    .uploadImage(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), file, config.getString("name"), null, null);
+                    .uploadImage(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), file, config.getString("name"), null, null);
             report(baseUrl, Map.of("imageKey", image.getKey(), "imageName", image.getName()));
         } finally {
             Files.deleteIfExists(file.toPath());
@@ -574,7 +574,7 @@ public final class Driver {
                             "registry", String.valueOf(imported.getRegistry()),
                             "namespace", String.valueOf(imported.getNamespace()),
                             "catalogKey", String.valueOf(imported.getCatalogKey()),
-                            "releaseVersion", String.valueOf(imported.getReleaseVersion()),
+                            "version", String.valueOf(imported.getVersion()),
                             "newlyInstalled", String.valueOf(imported.getNewlyInstalled()),
                             "total", String.valueOf(imported.getTotal())));
         } finally {
@@ -597,7 +597,7 @@ public final class Driver {
                             config.getString("registry"),
                             config.getString("namespace"),
                             config.getString("catalogKey"),
-                            config.getString("releaseVersion"));
+                            config.getString("version"));
         } catch (ProblemDetailException e) {
             report(
                     baseUrl,
@@ -609,7 +609,7 @@ public final class Driver {
                                             e.getMissingDependencies(),
                                             (MissingDependency dependency) -> dependency.getRegistry() + "/"
                                                     + dependency.getNamespace() + "/" + dependency.getCatalogKey()
-                                                    + "@" + dependency.getReleaseVersion() + ":"
+                                                    + "@" + dependency.getVersion() + ":"
                                                     + dependency.getReason())));
             return;
         }
@@ -619,7 +619,7 @@ public final class Driver {
                         "registry", String.valueOf(installed.getRegistry()),
                         "namespace", String.valueOf(installed.getNamespace()),
                         "catalogKey", String.valueOf(installed.getCatalogKey()),
-                        "releaseVersion", String.valueOf(installed.getReleaseVersion()),
+                        "version", String.valueOf(installed.getVersion()),
                         "newlyInstalled", String.valueOf(installed.getNewlyInstalled()),
                         "total", String.valueOf(installed.getTotal()),
                         "installedDependencies",
@@ -659,11 +659,11 @@ public final class Driver {
                         "catalogKey", String.valueOf(releases.getCatalogKey()),
                         "availableComparedTo",
                                 available.stream()
-                                        .map(release -> release.getReleaseVersion() + "=" + release.getComparedTo())
+                                        .map(release -> release.getVersion() + "=" + release.getComparedTo())
                                         .collect(Collectors.joining(";")),
                         "availableChanges",
                                 available.stream()
-                                        .map(release -> release.getReleaseVersion() + "="
+                                        .map(release -> release.getVersion() + "="
                                                 + orEmpty(release.getChanges()).stream()
                                                         .map(change -> change.getType() + "/" + change.getKey() + ":"
                                                                 + change.getChange())
@@ -671,13 +671,13 @@ public final class Driver {
                                         .collect(Collectors.joining(";")),
                         "availableDependencies",
                                 available.stream()
-                                        .map(release -> release.getReleaseVersion() + "="
+                                        .map(release -> release.getVersion() + "="
                                                 + orEmpty(release.getDependencies()).stream()
                                                         .map((AvailableReleaseDependencyDto dependency) ->
                                                                 dependency.getRegistry() + "/"
                                                                         + dependency.getNamespace() + "/"
                                                                         + dependency.getCatalogKey() + "@"
-                                                                        + dependency.getReleaseVersion() + ":"
+                                                                        + dependency.getVersion() + ":"
                                                                         + dependency.getPresent())
                                                         .collect(Collectors.joining("+")))
                                         .collect(Collectors.joining(";"))));
@@ -690,14 +690,14 @@ public final class Driver {
     private static void downloadImage(String baseUrl, JsonObject config) throws Exception {
         File file = clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .downloadImageContent(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), config.getString("imageKey"));
+                .downloadImageContent(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), config.getString("imageKey"));
         reportBytes(baseUrl, Files.readAllBytes(file.toPath()));
     }
 
     private static void deleteImage(String baseUrl, JsonObject config) {
         clients(baseUrl, config)
                 .api(ImagesApi.class)
-                .deleteImage(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("catalogVersion"), config.getString("imageKey"), config.getBoolean("force"));
+                .deleteImage(config.getString("tenantKey"), config.getString("registry"), config.getString("namespace"), config.getString("catalogKey"), config.getString("release"), config.getString("imageKey"), config.getBoolean("force"));
     }
 
     private static void listCatalogDependencies(String baseUrl, JsonObject config) {
@@ -710,7 +710,7 @@ public final class Driver {
                                 config.getString("registry"),
                                 config.getString("namespace"),
                                 config.getString("catalogKey"),
-                                config.getString("catalogVersion"))
+                                config.getString("release"))
                         .getItems());
     }
 
@@ -722,8 +722,8 @@ public final class Driver {
                         .registry(optional(dependency, "registry"))
                         .namespace(dependency.getString("namespace"))
                         .catalogKey(dependency.getString("catalogKey"))
-                        .releaseVersion(optional(dependency, "releaseVersion"))
-                        .versionId(optional(dependency, "versionId")))
+                        .version(optional(dependency, "version"))
+                        .releaseId(optional(dependency, "releaseId")))
                 .collect(Collectors.toList());
 
         conditionalUpdate(
@@ -735,7 +735,7 @@ public final class Driver {
                                 config.getString("registry"),
                                 config.getString("namespace"),
                                 config.getString("catalogKey"),
-                                config.getString("catalogVersion"),
+                                config.getString("release"),
                                 new UpdateCatalogDependenciesRequest().dependencies(dependencies),
                                 optional(config, "ifMatch")),
                 response -> dependencyFields(
@@ -744,8 +744,8 @@ public final class Driver {
 
     /**
      * Reports declared dependencies as parsed. A declaration that names a draft, or pins no release
-     * (migrated from wire v7), has a null {@code releaseVersion}, and one that pins a release a null
-     * {@code versionId}; each is reported as {@code null} rather than lost.
+     * (migrated from wire v7), has a null {@code version}, and one that pins a release a null
+     * {@code releaseId}; each is reported as {@code null} rather than lost.
      */
     private static void reportDependencies(String baseUrl, List<CatalogDependencyDto> items) {
         report(baseUrl, dependencyFields(items));
@@ -756,143 +756,143 @@ public final class Driver {
                         "registries", joined(items, CatalogDependencyDto::getRegistry),
                         "namespaces", joined(items, CatalogDependencyDto::getNamespace),
                         "catalogKeys", joined(items, CatalogDependencyDto::getCatalogKey),
-                        "releaseVersions", joined(items, CatalogDependencyDto::getReleaseVersion),
-                        "versionIds", joined(items, dependency -> String.valueOf(dependency.getVersionId())));
+                        "versions", joined(items, CatalogDependencyDto::getVersion),
+                        "releaseIds", joined(items, dependency -> String.valueOf(dependency.getReleaseId())));
     }
 
-    private static void createCatalogDraft(String baseUrl, JsonObject config) {
+    private static void createCatalogRelease(String baseUrl, JsonObject config) {
         try (Response response = clients(baseUrl, config)
                 .api(CatalogsApi.class)
-                .createCatalogDraftWithHttpInfo(
+                .createCatalogReleaseWithHttpInfo(
                         config.getString("tenantKey"),
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        new CreateCatalogDraftRequest()
+                        new CreateCatalogReleaseRequest()
                                 .name(config.getString("name"))
                                 .from(optional(config, "from")))) {
-            CatalogVersionDto version = response.readEntity(CatalogVersionDto.class);
+            CatalogReleaseDto release = response.readEntity(CatalogReleaseDto.class);
             report(
                     baseUrl,
                     Map.of(
-                            "releaseVersion", String.valueOf(version.getReleaseVersion()),
-                            "versionId", String.valueOf(version.getVersionId()),
-                            "name", String.valueOf(version.getName()),
-                            "status", String.valueOf(version.getStatus()),
-                            "base", String.valueOf(version.getBase()),
-                            "createdFrom", String.valueOf(version.getCreatedFrom()),
-                            "releasedAt", instant(version.getReleasedAt()),
+                            "version", String.valueOf(release.getVersion()),
+                            "releaseId", String.valueOf(release.getReleaseId()),
+                            "name", String.valueOf(release.getName()),
+                            "status", String.valueOf(release.getStatus()),
+                            "base", String.valueOf(release.getBase()),
+                            "createdFrom", String.valueOf(release.getCreatedFrom()),
+                            "releasedAt", instant(release.getReleasedAt()),
                             "location", String.valueOf(response.getHeaderString("Location"))));
         }
     }
 
-    private static void listCatalogVersions(String baseUrl, JsonObject config) {
+    private static void listCatalogReleases(String baseUrl, JsonObject config) {
         String status = optional(config, "status");
-        List<CatalogVersionDto> versions = clients(baseUrl, config)
+        List<CatalogReleaseDto> releases = clients(baseUrl, config)
                 .api(CatalogsApi.class)
-                .listCatalogVersions(
+                .listCatalogReleases(
                         config.getString("tenantKey"),
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        status == null ? null : CatalogVersionStatus.fromValue(status),
+                        status == null ? null : CatalogReleaseStatus.fromValue(status),
                         null,
                         null)
                 .getItems();
         report(
                 baseUrl,
                 Map.of(
-                        "releaseVersions", joined(versions, CatalogVersionDto::getReleaseVersion),
-                        "versionIds", joined(versions, version -> String.valueOf(version.getVersionId())),
+                        "versions", joined(releases, CatalogReleaseDto::getVersion),
+                        "releaseIds", joined(releases, release -> String.valueOf(release.getReleaseId())),
                         "names",
-                                versions.stream()
-                                        .map(version -> String.valueOf(version.getName()))
+                                releases.stream()
+                                        .map(release -> String.valueOf(release.getName()))
                                         .collect(Collectors.joining("|")),
-                        "statuses", joined(versions, version -> String.valueOf(version.getStatus())),
-                        "bases", joined(versions, CatalogVersionDto::getBase),
-                        "createdFrom", joined(versions, version -> String.valueOf(version.getCreatedFrom())),
-                        "behindCounts", joined(versions, version -> String.valueOf(behind(version).size()))));
+                        "statuses", joined(releases, release -> String.valueOf(release.getStatus())),
+                        "bases", joined(releases, CatalogReleaseDto::getBase),
+                        "createdFrom", joined(releases, release -> String.valueOf(release.getCreatedFrom())),
+                        "behindCounts", joined(releases, release -> String.valueOf(behind(release).size()))));
     }
 
-    private static void getCatalogVersion(String baseUrl, JsonObject config) {
-        CatalogVersionDto version = clients(baseUrl, config)
+    private static void getCatalogRelease(String baseUrl, JsonObject config) {
+        CatalogReleaseDto release = clients(baseUrl, config)
                 .api(CatalogsApi.class)
-                .getCatalogVersion(
+                .getCatalogRelease(
                         config.getString("tenantKey"),
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        config.getString("catalogVersion"));
+                        config.getString("release"));
         List<ReleaseDependencyDto> dependencies =
-                version.getDependencies() == null ? List.of() : version.getDependencies();
+                release.getDependencies() == null ? List.of() : release.getDependencies();
         report(
                 baseUrl,
                 Map.ofEntries(
-                        Map.entry("releaseVersion", String.valueOf(version.getReleaseVersion())),
-                        Map.entry("versionId", String.valueOf(version.getVersionId())),
-                        Map.entry("name", String.valueOf(version.getName())),
-                        Map.entry("status", String.valueOf(version.getStatus())),
-                        Map.entry("releasedAt", instant(version.getReleasedAt())),
+                        Map.entry("version", String.valueOf(release.getVersion())),
+                        Map.entry("releaseId", String.valueOf(release.getReleaseId())),
+                        Map.entry("name", String.valueOf(release.getName())),
+                        Map.entry("status", String.valueOf(release.getStatus())),
+                        Map.entry("releasedAt", instant(release.getReleasedAt())),
                         Map.entry(
                                 "fingerprint",
-                                version.getFingerprint() == null ? "null" : version.getFingerprint()),
+                                release.getFingerprint() == null ? "null" : release.getFingerprint()),
                         Map.entry(
                                 "dependencies",
                                 joined(
                                         dependencies,
                                         dependency -> dependency.getRegistry() + "/" + dependency.getNamespace() + "/"
                                                 + dependency.getCatalogKey() + "@"
-                                                + dependency.getReleaseVersion())),
+                                                + dependency.getVersion())),
                         Map.entry(
                                 "deployedTo",
-                                version.getDeployedTo() == null ? "null" : String.join(",", version.getDeployedTo())),
+                                release.getDeployedTo() == null ? "null" : String.join(",", release.getDeployedTo())),
                         Map.entry(
                                 "behind",
-                                behind(version).stream()
+                                behind(release).stream()
                                         .map(Driver::behindRelease)
                                         .collect(Collectors.joining(";")))));
     }
 
-    /** One release a draft is behind, as {@code releaseVersion=type/key:change+type/key:change}. */
+    /** One release a draft is behind, as {@code version=type/key:change+type/key:change}. */
     private static String behindRelease(BehindReleaseDto release) {
         List<ReleasedChangeDto> changes = release.getChanges() == null ? List.of() : release.getChanges();
-        return release.getReleaseVersion() + "="
+        return release.getVersion() + "="
                 + changes.stream()
                         .map(change -> change.getType() + "/" + change.getKey() + ":" + change.getChange())
                         .collect(Collectors.joining("+"));
     }
 
-    private static List<BehindReleaseDto> behind(CatalogVersionDto version) {
-        return version.getBehind() == null ? List.of() : version.getBehind();
+    private static List<BehindReleaseDto> behind(CatalogReleaseDto release) {
+        return release.getBehind() == null ? List.of() : release.getBehind();
     }
 
     /** Renames a draft; only the name is sent, to its unchanged address. */
-    private static void updateCatalogDraft(String baseUrl, JsonObject config) {
+    private static void updateCatalogRelease(String baseUrl, JsonObject config) {
         conditionalUpdate(
                 baseUrl,
                 () -> clients(baseUrl, config)
                         .api(CatalogsApi.class)
-                        .updateCatalogDraftWithHttpInfo(
+                        .updateCatalogReleaseWithHttpInfo(
                                 config.getString("tenantKey"),
                                 config.getString("registry"),
                                 config.getString("namespace"),
                                 config.getString("catalogKey"),
-                                config.getString("catalogVersion"),
-                                new UpdateCatalogDraftRequest().name(config.getString("name")),
+                                config.getString("release"),
+                                new UpdateCatalogReleaseRequest().name(config.getString("name")),
                                 optional(config, "ifMatch")),
                 response -> {
-                    CatalogVersionDto version = response.readEntity(CatalogVersionDto.class);
+                    CatalogReleaseDto release = response.readEntity(CatalogReleaseDto.class);
                     return Map.of(
-                            "releaseVersion", String.valueOf(version.getReleaseVersion()),
-                            "versionId", String.valueOf(version.getVersionId()),
-                            "name", String.valueOf(version.getName()),
-                            "status", String.valueOf(version.getStatus()),
-                            "base", String.valueOf(version.getBase()));
+                            "version", String.valueOf(release.getVersion()),
+                            "releaseId", String.valueOf(release.getReleaseId()),
+                            "name", String.valueOf(release.getName()),
+                            "status", String.valueOf(release.getStatus()),
+                            "base", String.valueOf(release.getBase()));
                 });
     }
 
     /** Sets a draft's default theme and presets; no name goes out, and an unset qualifier stays off the wire. */
-    private static void setCatalogDraftThemeSettings(String baseUrl, JsonObject config) {
+    private static void setCatalogReleaseThemeSettings(String baseUrl, JsonObject config) {
         List<CatalogPresetDto> presets = config.getJsonArray("presets").stream()
                 .map(JsonValue::asJsonObject)
                 .map(preset -> new CatalogPresetDto()
@@ -900,27 +900,27 @@ public final class Driver {
                         .name(preset.getString("name"))
                         .description(optional(preset, "description")))
                 .collect(Collectors.toList());
-        CatalogVersionDto version = clients(baseUrl, config)
+        CatalogReleaseDto release = clients(baseUrl, config)
                 .api(CatalogsApi.class)
-                .updateCatalogDraft(
+                .updateCatalogRelease(
                         config.getString("tenantKey"),
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        config.getString("catalogVersion"),
-                        new UpdateCatalogDraftRequest()
+                        config.getString("release"),
+                        new UpdateCatalogReleaseRequest()
                                 .defaultTheme(new CatalogThemeReference()
                                         .key(config.getString("defaultThemeKey"))
                                         .catalogKey(optional(config, "defaultThemeCatalogKey")))
                                 .presets(presets),
                         null);
-        List<CatalogPresetDto> parsed = version.getPresets() == null ? List.of() : version.getPresets();
-        CatalogThemeReference defaultTheme = version.getDefaultTheme();
+        List<CatalogPresetDto> parsed = release.getPresets() == null ? List.of() : release.getPresets();
+        CatalogThemeReference defaultTheme = release.getDefaultTheme();
         report(
                 baseUrl,
                 Map.of(
-                        "versionId", String.valueOf(version.getVersionId()),
-                        "name", String.valueOf(version.getName()),
+                        "releaseId", String.valueOf(release.getReleaseId()),
+                        "name", String.valueOf(release.getName()),
                         "defaultThemeKey", defaultTheme == null ? "null" : String.valueOf(defaultTheme.getKey()),
                         "defaultThemeCatalogKey", defaultTheme == null ? "null" : String.valueOf(defaultTheme.getCatalogKey()),
                         "presetKeys", parsed.stream().map(CatalogPresetDto::getKey).collect(Collectors.joining(",")),
@@ -928,7 +928,7 @@ public final class Driver {
                         "presetDescriptions", parsed.stream().map(p -> String.valueOf(p.getDescription())).collect(Collectors.joining("|"))));
     }
 
-    /** The number a draft would be released as, and every reason, in order. */
+    /** The version a draft would be released as, and every reason, in order. */
     private static void previewCatalogDraftRelease(String baseUrl, JsonObject config) {
         CatalogDraftReleasePreview preview = clients(baseUrl, config)
                 .api(CatalogsApi.class)
@@ -937,7 +937,7 @@ public final class Driver {
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        config.getString("catalogVersion"));
+                        config.getString("release"));
         List<String> reasons = preview.getReasons() == null ? List.of() : preview.getReasons();
         report(
                 baseUrl,
@@ -949,15 +949,15 @@ public final class Driver {
                         "suggested", String.valueOf(preview.getSuggested())));
     }
 
-    private static void deleteCatalogDraft(String baseUrl, JsonObject config) {
+    private static void deleteCatalogRelease(String baseUrl, JsonObject config) {
         clients(baseUrl, config)
                 .api(CatalogsApi.class)
-                .deleteCatalogDraft(
+                .deleteCatalogRelease(
                         config.getString("tenantKey"),
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        config.getString("catalogVersion"));
+                        config.getString("release"));
     }
 
     /**
@@ -974,9 +974,9 @@ public final class Driver {
                             config.getString("registry"),
                             config.getString("namespace"),
                             config.getString("catalogKey"),
-                            config.getString("catalogVersion"),
+                            config.getString("release"),
                             new ReleaseCatalogDraftRequest()
-                                    .releaseVersion(optional(config, "releaseVersion"))
+                                    .version(optional(config, "version"))
                                     .notes(optional(config, "notes"))
                                     // The generated model leaves the list null until set; null stays off the wire.
                                     .acknowledgedBehind(
@@ -995,7 +995,7 @@ public final class Driver {
                                     e.getUnreleasedDependencies().stream()
                                             .map(dependency -> dependency.getRegistry() + "/"
                                                     + dependency.getNamespace() + "/" + dependency.getCatalogKey()
-                                                    + "#" + dependency.getVersionId() + "=" + dependency.getDraftName())
+                                                    + "#" + dependency.getReleaseId() + "=" + dependency.getReleaseName())
                                             .collect(Collectors.joining("|"))));
             return;
         }
@@ -1005,16 +1005,16 @@ public final class Driver {
         report(
                 baseUrl,
                 Map.of(
-                        "releaseVersion", String.valueOf(response.getCatalogVersion().getReleaseVersion()),
-                        "status", String.valueOf(response.getCatalogVersion().getStatus()),
-                        "versionId", String.valueOf(response.getCatalogVersion().getVersionId()),
+                        "version", String.valueOf(response.getRelease().getVersion()),
+                        "status", String.valueOf(response.getRelease().getStatus()),
+                        "releaseId", String.valueOf(response.getRelease().getReleaseId()),
                         "draftsBehind", String.join("|", draftsBehind),
                         "releasedDependencies",
                                 joined(
                                         released,
                                         dependency -> dependency.getRegistry() + "/" + dependency.getNamespace() + "/"
                                                 + dependency.getCatalogKey() + "@"
-                                                + dependency.getReleaseVersion())));
+                                                + dependency.getVersion())));
     }
 
     /** A timestamp as ISO 8601 in UTC with its seconds, or {@code null}; offsets and precision vary by parser. */
@@ -1023,11 +1023,11 @@ public final class Driver {
     }
 
     /**
-     * Deploys a catalog version, a release by its number or a draft by its {@code versionId},
+     * Deploys a release of a catalog, a released one by its version or a draft by its {@code releaseId},
      * passing {@code includeDependencies} and {@code replace} only when the scenario names them. A refusal is reported as the problem it carried, with every missing
      * dependency in order.
      */
-    private static void deployCatalogVersion(String baseUrl, JsonObject config) {
+    private static void deployCatalogRelease(String baseUrl, JsonObject config) {
         Boolean includeDependencies = config.containsKey("includeDependencies") && !config.isNull("includeDependencies")
                 ? config.getBoolean("includeDependencies")
                 : null;
@@ -1038,13 +1038,13 @@ public final class Driver {
         try {
             deployment = clients(baseUrl, config)
                     .api(EnvironmentsApi.class)
-                    .deployCatalogVersion(
+                    .deployCatalogRelease(
                             config.getString("tenantKey"),
                             config.getString("environmentKey"),
                             config.getString("registry"),
                             config.getString("namespace"),
                             config.getString("catalogKey"),
-                            config.getString("catalogVersion"),
+                            config.getString("release"),
                             includeDependencies,
                             replace);
         } catch (ProblemDetailException e) {
@@ -1058,7 +1058,7 @@ public final class Driver {
                                             e.getMissingDependencies(),
                                             (MissingDependency dependency) -> dependency.getRegistry() + "/"
                                                     + dependency.getNamespace() + "/" + dependency.getCatalogKey()
-                                                    + "@" + dependency.getReleaseVersion() + ":"
+                                                    + "@" + dependency.getVersion() + ":"
                                                     + dependency.getReason())));
             return;
         }
@@ -1068,24 +1068,24 @@ public final class Driver {
                         "registry", String.valueOf(deployment.getRegistry()),
                         "namespace", String.valueOf(deployment.getNamespace()),
                         "catalogKey", String.valueOf(deployment.getCatalogKey()),
-                        "versionId", String.valueOf(deployment.getVersionId()),
-                        "kind", String.valueOf(deployment.getKind()),
-                        "releaseVersion", String.valueOf(deployment.getReleaseVersion()),
-                        "draftName", String.valueOf(deployment.getDraftName()),
+                        "releaseId", String.valueOf(deployment.getReleaseId()),
+                        "status", String.valueOf(deployment.getStatus()),
+                        "version", String.valueOf(deployment.getVersion()),
+                        "releaseName", String.valueOf(deployment.getReleaseName()),
                         "lastUsedAt", instant(deployment.getLastUsedAt()),
                         "documentsRequested", String.valueOf(deployment.getDocumentsRequested())));
     }
 
-    private static void undeployCatalogVersion(String baseUrl, JsonObject config) {
+    private static void undeployCatalogRelease(String baseUrl, JsonObject config) {
         clients(baseUrl, config)
                 .api(EnvironmentsApi.class)
-                .undeployCatalogVersion(
+                .undeployCatalogRelease(
                         config.getString("tenantKey"),
                         config.getString("environmentKey"),
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        config.getString("catalogVersion"));
+                        config.getString("release"));
     }
 
     private static <T> String joined(List<T> items, java.util.function.Function<T, String> field) {
@@ -1106,7 +1106,7 @@ public final class Driver {
                             config.getString("registry"),
                             config.getString("namespace"),
                             config.getString("catalogKey"),
-                            config.getString("catalogVersion"),
+                            config.getString("release"),
                             config.getString("templateKey"),
                             config.getString("variantKey"),
                             new UpdateVariantContentRequest()
@@ -1165,7 +1165,7 @@ public final class Driver {
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        config.getString("catalogVersion"),
+                        config.getString("release"),
                         config.getString("templateKey"),
                         config.getString("variantKey"))) {
             VariantContentDto content = response.readEntity(VariantContentDto.class);
@@ -1189,7 +1189,7 @@ public final class Driver {
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        config.getString("catalogVersion"),
+                        config.getString("release"),
                         config.getString("templateKey"),
                         config.getString("variantKey"));
         report(
@@ -1209,7 +1209,7 @@ public final class Driver {
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        config.getString("catalogVersion"),
+                        config.getString("release"),
                         config.getString("templateKey"));
         report(
                 baseUrl,
@@ -1229,7 +1229,7 @@ public final class Driver {
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        config.getString("catalogVersion"),
+                        config.getString("release"),
                         config.getString("stencilKey"))) {
             StencilContentDto content = response.readEntity(StencilContentDto.class);
             report(
@@ -1258,7 +1258,7 @@ public final class Driver {
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        config.getString("catalogVersion"),
+                        config.getString("release"),
                         config.getString("stencilKey"),
                         new UpdateStencilContentRequest()
                                 .content(oneNodeModel())
@@ -1283,7 +1283,7 @@ public final class Driver {
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        config.getString("catalogVersion"),
+                        config.getString("release"),
                         config.getString("stencilKey"));
         List<StencilUsageDto> notFitting = response.getNotFitting();
         report(
@@ -1307,7 +1307,7 @@ public final class Driver {
                         config.getString("registry"),
                         config.getString("namespace"),
                         config.getString("catalogKey"),
-                        config.getString("catalogVersion"),
+                        config.getString("release"),
                         config.getString("stencilKey"),
                         config.getInt("page"),
                         config.getInt("size"));
@@ -1336,7 +1336,7 @@ public final class Driver {
                                 config.getString("registry"),
                                 config.getString("namespace"),
                                 config.getString("catalogKey"),
-                                config.getString("catalogVersion")));
+                                config.getString("release")));
     }
 
     private static void markCatalogReady(String baseUrl, JsonObject config) {
@@ -1349,7 +1349,7 @@ public final class Driver {
                                 config.getString("registry"),
                                 config.getString("namespace"),
                                 config.getString("catalogKey"),
-                                config.getString("catalogVersion")));
+                                config.getString("release")));
     }
 
     private static void reportChanges(String baseUrl, CatalogChangesDto changes) {
@@ -1372,10 +1372,10 @@ public final class Driver {
                 Map.of(
                         "registries", joined(items, DeploymentDto::getRegistry),
                         "catalogKeys", joined(items, DeploymentDto::getCatalogKey),
-                        "versionIds", joined(items, DeploymentDto::getVersionId),
-                        "kinds", joined(items, deployment -> String.valueOf(deployment.getKind())),
-                        "releaseVersions", joined(items, DeploymentDto::getReleaseVersion),
-                        "draftNames", items.stream().map(deployment -> String.valueOf(deployment.getDraftName())).collect(Collectors.joining("|")),
+                        "releaseIds", joined(items, DeploymentDto::getReleaseId),
+                        "statuses", joined(items, deployment -> String.valueOf(deployment.getStatus())),
+                        "versions", joined(items, DeploymentDto::getVersion),
+                        "releaseNames", items.stream().map(deployment -> String.valueOf(deployment.getReleaseName())).collect(Collectors.joining("|")),
                         "deployedAt", joined(items, deployment -> instant(deployment.getDeployedAt())),
                         "lastUsedAt", joined(items, deployment -> instant(deployment.getLastUsedAt())),
                         "documentsRequested", joined(items, deployment -> String.valueOf(deployment.getDocumentsRequested()))));
@@ -1395,10 +1395,10 @@ public final class Driver {
                 Map.of(
                         "catalogKeys", joined(items, DeploymentEventDto::getCatalogKey),
                         "actions", joined(items, event -> String.valueOf(event.getAction())),
-                        "versionIds", joined(items, DeploymentEventDto::getVersionId),
-                        "kinds", joined(items, event -> String.valueOf(event.getKind())),
-                        "releaseVersions", joined(items, DeploymentEventDto::getReleaseVersion),
-                        "draftNames", items.stream().map(event -> String.valueOf(event.getDraftName())).collect(Collectors.joining("|")),
+                        "releaseIds", joined(items, DeploymentEventDto::getReleaseId),
+                        "statuses", joined(items, event -> String.valueOf(event.getStatus())),
+                        "versions", joined(items, DeploymentEventDto::getVersion),
+                        "releaseNames", items.stream().map(event -> String.valueOf(event.getReleaseName())).collect(Collectors.joining("|")),
                         "changedAt", joined(items, event -> instant(event.getChangedAt())),
                         "changedBy", items.stream().map(event -> String.valueOf(event.getChangedBy())).collect(Collectors.joining("|")),
                         "total", String.valueOf(response.getPage().getTotal())));
@@ -1476,7 +1476,7 @@ public final class Driver {
                                 config.getString("registry"),
                                 config.getString("namespace"),
                                 config.getString("catalogKey"),
-                                config.getString("catalogVersion"),
+                                config.getString("release"),
                                 config.getString("codeListKey"),
                                 config.getString("code"),
                                 new UpdateCodeListEntryHiddenRequest().hidden(config.getBoolean("hidden")),

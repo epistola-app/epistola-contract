@@ -62,16 +62,16 @@ public static class Driver
                 case "delete-image": DeleteImage(baseUrl, config); break;
                 case "list-catalog-dependencies": ListCatalogDependencies(baseUrl, config); break;
                 case "update-catalog-dependencies": UpdateCatalogDependencies(baseUrl, config); break;
-                case "create-catalog-draft": CreateCatalogDraft(baseUrl, config); break;
-                case "list-catalog-versions": ListCatalogVersions(baseUrl, config); break;
-                case "get-catalog-version": GetCatalogVersion(baseUrl, config); break;
-                case "update-catalog-draft": UpdateCatalogDraft(baseUrl, config); break;
-                case "set-catalog-draft-theme-settings": SetCatalogDraftThemeSettings(baseUrl, config); break;
+                case "create-catalog-release": CreateCatalogRelease(baseUrl, config); break;
+                case "list-catalog-releases": ListCatalogReleases(baseUrl, config); break;
+                case "get-catalog-release": GetCatalogRelease(baseUrl, config); break;
+                case "update-catalog-release": UpdateCatalogRelease(baseUrl, config); break;
+                case "set-catalog-release-theme-settings": SetCatalogReleaseThemeSettings(baseUrl, config); break;
                 case "preview-catalog-draft-release": PreviewCatalogDraftRelease(baseUrl, config); break;
-                case "delete-catalog-draft": DeleteCatalogDraft(baseUrl, config); break;
+                case "delete-catalog-release": DeleteCatalogRelease(baseUrl, config); break;
                 case "release-catalog-draft": ReleaseCatalogDraft(baseUrl, config); break;
-                case "deploy-catalog-version": DeployCatalogVersion(baseUrl, config); break;
-                case "undeploy-catalog-version": UndeployCatalogVersion(baseUrl, config); break;
+                case "deploy-catalog-release": DeployCatalogRelease(baseUrl, config); break;
+                case "undeploy-catalog-release": UndeployCatalogRelease(baseUrl, config); break;
                 case "create-environment": CreateEnvironment(baseUrl, config); break;
                 case "update-environment": UpdateEnvironment(baseUrl, config); break;
                 case "update-tenant": UpdateTenant(baseUrl, config); break;
@@ -123,7 +123,7 @@ public static class Driver
         TemplateListResponse? response = null;
         for (var i = 0; i < Int(config, "repeat", 1); i++)
         {
-            response = api.ListTemplates(Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
+            response = api.ListTemplates(Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"));
         }
         var templates = response!.Items;
 
@@ -139,7 +139,7 @@ public static class Driver
         var (http, apiBase) = Client(baseUrl, config);
         try
         {
-            new TemplatesApi(http, apiBase).ListTemplates(Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
+            new TemplatesApi(http, apiBase).ListTemplates(Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"));
             Report(baseUrl, new Dictionary<string, object> { ["problemTypeSlug"] = "<no exception was thrown>" });
         }
         catch (ProblemDetailException e)
@@ -224,7 +224,7 @@ public static class Driver
                 ["handledSequences"] = string.Join(",", handled.Select(r => r.Sequence)),
                 ["partitionTotal"] = collector.CurrentPartitionAssignment?.Total ?? -1,
                 ["releases"] = string.Join(",", handled.Select(r =>
-                    $"{Show(r.Registry)}/{Show(r.Namespace)}/{Show(r.CatalogKey)}@{Show(r.ReleaseVersion)}")),
+                    $"{Show(r.Registry)}/{Show(r.Namespace)}/{Show(r.CatalogKey)}@{Show(r.Version)}")),
             });
         }
     }
@@ -344,7 +344,7 @@ public static class Driver
         try
         {
             response = new CodeListsApi(http, apiBase).UpdateCodeListEntryHiddenWithHttpInfo(
-                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
                 Str(config, "codeListKey"), Str(config, "code"),
                 new UpdateCodeListEntryHiddenRequest(hidden: config.GetProperty("hidden").GetBoolean()),
                 ifMatch: OptStr(config, "ifMatch"));
@@ -451,7 +451,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var images = new ImagesApi(http, apiBase)
-            .ListImages(Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"), search: Str(config, "search"))
+            .ListImages(Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"), search: Str(config, "search"))
             .Items;
 
         Report(baseUrl, new Dictionary<string, object>
@@ -473,7 +473,7 @@ public static class Driver
         using var content = new MemoryStream(Convert.FromBase64String(Str(config, "fileBase64")));
         var image = new ImagesApi(http, apiBase).UploadImage(
             Str(config, "tenantKey"),
-            Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
             new FileParameter(Str(config, "filename"), Str(config, "fileContentType"), content),
             name: Str(config, "name"));
 
@@ -514,7 +514,7 @@ public static class Driver
             ["registry"] = Show(imported.Registry),
             ["namespace"] = Show(imported.Namespace),
             ["catalogKey"] = Show(imported.CatalogKey),
-            ["releaseVersion"] = Show(imported.ReleaseVersion),
+            ["version"] = Show(imported.VarVersion),
             ["newlyInstalled"] = Bool(imported.NewlyInstalled),
             ["total"] = Show(imported.Total),
         });
@@ -532,7 +532,7 @@ public static class Driver
         {
             installed = new CatalogsApi(http, apiBase).InstallCatalogRelease(
                 Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
-                Str(config, "releaseVersion"));
+                Str(config, "version"));
         }
         catch (ProblemDetailException e)
         {
@@ -541,7 +541,7 @@ public static class Driver
                 ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
                 ["problemStatus"] = (int)e.StatusCode,
                 ["problemMissingDependencies"] = string.Join(",", e.MissingDependencies.Select(d =>
-                    $"{d.Registry}/{d.Namespace}/{d.CatalogKey}@{d.ReleaseVersion}:{d.Reason}")),
+                    $"{d.Registry}/{d.Namespace}/{d.CatalogKey}@{d.Version}:{d.Reason}")),
             });
             return;
         }
@@ -551,7 +551,7 @@ public static class Driver
             ["registry"] = Show(installed.Registry),
             ["namespace"] = Show(installed.Namespace),
             ["catalogKey"] = Show(installed.CatalogKey),
-            ["releaseVersion"] = Show(installed.ReleaseVersion),
+            ["version"] = Show(installed.VarVersion),
             ["newlyInstalled"] = Bool(installed.NewlyInstalled),
             ["total"] = Show(installed.Total),
             ["installedDependencies"] = string.Join(",", installed.InstalledDependencies ?? new List<string>()),
@@ -588,13 +588,13 @@ public static class Driver
             ["registry"] = Show(releases.Registry),
             ["namespace"] = Show(releases.Namespace),
             ["catalogKey"] = Show(releases.CatalogKey),
-            ["availableComparedTo"] = string.Join(";", available.Select(r => $"{Show(r.ReleaseVersion)}={Show(r.ComparedTo)}")),
+            ["availableComparedTo"] = string.Join(";", available.Select(r => $"{Show(r.VarVersion)}={Show(r.ComparedTo)}")),
             ["availableChanges"] = string.Join(";", available
-                .Select(r => $"{Show(r.ReleaseVersion)}=" + string.Join("+", (r.Changes ?? new List<ReleasedChangeDto>())
+                .Select(r => $"{Show(r.VarVersion)}=" + string.Join("+", (r.Changes ?? new List<ReleasedChangeDto>())
                     .Select(c => $"{Show(c.Type)}/{Show(c.Key)}:{Wire(c.Change)}")))),
             ["availableDependencies"] = string.Join(";", available
-                .Select(r => $"{Show(r.ReleaseVersion)}=" + string.Join("+", (r.Dependencies ?? new List<AvailableReleaseDependencyDto>())
-                    .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.ReleaseVersion)}:{Bool(d.Present)}")))),
+                .Select(r => $"{Show(r.VarVersion)}=" + string.Join("+", (r.Dependencies ?? new List<AvailableReleaseDependencyDto>())
+                    .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.VarVersion)}:{Bool(d.Present)}")))),
         });
     }
 
@@ -602,14 +602,14 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         ReportBytes(baseUrl, new ImagesApi(http, apiBase).DownloadImageContent(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"), Str(config, "imageKey")));
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"), Str(config, "imageKey")));
     }
 
     private static void DeleteImage(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         new ImagesApi(http, apiBase).DeleteImage(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"), Str(config, "imageKey"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"), Str(config, "imageKey"),
             force: config.GetProperty("force").GetBoolean());
     }
 
@@ -617,15 +617,15 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         ReportDependencies(baseUrl, new CatalogsApi(http, apiBase).ListCatalogDependencies(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion")));
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release")));
     }
 
     /// <summary>
     /// Declares the catalog's dependencies as the scenario lists them, each pinning an exact
-    /// release or naming a draft, and reports what came back. <c>releaseVersion</c> and
-    /// <c>versionId</c> are set only when the entry names them, so the other stays off the wire. A
+    /// release or naming a draft, and reports what came back. <c>version</c> and
+    /// <c>releaseId</c> are set only when the entry names them, so the other stays off the wire. A
     /// declaration that names a draft, or pins no release (migrated from wire v7), has a null
-    /// <c>releaseVersion</c>, reported as <c>null</c> rather than lost.
+    /// <c>version</c>, reported as <c>null</c> rather than lost.
     /// </summary>
     private static void UpdateCatalogDependencies(string baseUrl, JsonElement config)
     {
@@ -636,14 +636,14 @@ public static class Driver
                 registry: OptStr(d, "registry")!,
                 varNamespace: Str(d, "namespace"),
                 catalogKey: Str(d, "catalogKey"),
-                releaseVersion: OptStr(d, "releaseVersion")!,
-                versionId: OptStr(d, "versionId")))
+                varVersion: OptStr(d, "version")!,
+                releaseId: OptStr(d, "releaseId")))
             .ToList();
         ApiResponse<CatalogDependencyListResponse> response;
         try
         {
             response = new CatalogsApi(http, apiBase).UpdateCatalogDependenciesWithHttpInfo(
-                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
                 new UpdateCatalogDependenciesRequest(dependencies: dependencies),
                 ifMatch: OptStr(config, "ifMatch"));
         }
@@ -663,52 +663,52 @@ public static class Driver
             ["registries"] = string.Join(",", items.Select(d => Show(d.Registry))),
             ["namespaces"] = string.Join(",", items.Select(d => Show(d.Namespace))),
             ["catalogKeys"] = string.Join(",", items.Select(d => Show(d.CatalogKey))),
-            ["releaseVersions"] = string.Join(",", items.Select(d => Show(d.ReleaseVersion))),
-            ["versionIds"] = string.Join(",", items.Select(d => Show(d.VersionId))),
+            ["versions"] = string.Join(",", items.Select(d => Show(d.VarVersion))),
+            ["releaseIds"] = string.Join(",", items.Select(d => Show(d.ReleaseId))),
         };
         if (etag != null) values["etag"] = etag;
         Report(baseUrl, values);
     }
 
-    // --- Catalog versions ---
+    // --- Catalog releases ---
 
     /// <summary>
-    /// Starts a draft, from a release number or another draft's id. <c>from</c> is optional and left unset when the scenario does not name
+    /// Starts a draft release, from a version or another draft's id. <c>from</c> is optional and left unset when the scenario does not name
     /// it, so it stays off the wire rather than going out as null.
     /// </summary>
-    private static void CreateCatalogDraft(string baseUrl, JsonElement config)
+    private static void CreateCatalogRelease(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        var response = new CatalogsApi(http, apiBase).CreateCatalogDraftWithHttpInfo(
+        var response = new CatalogsApi(http, apiBase).CreateCatalogReleaseWithHttpInfo(
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
-            new CreateCatalogDraftRequest(name: Str(config, "name"), from: OptStr(config, "from")!));
-        var version = response.Data;
+            new CreateCatalogReleaseRequest(name: Str(config, "name"), from: OptStr(config, "from")!));
+        var release = response.Data;
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["releaseVersion"] = Show(version.ReleaseVersion),
-            ["versionId"] = Show(version.VersionId),
-            ["name"] = Show(version.Name),
-            ["status"] = Show(Wire(version.Status)),
-            ["base"] = Show(version.Base),
-            ["createdFrom"] = Show(version.CreatedFrom),
-            ["releasedAt"] = Show(Iso(version.ReleasedAt)),
+            ["version"] = Show(release.VarVersion),
+            ["releaseId"] = Show(release.ReleaseId),
+            ["name"] = Show(release.Name),
+            ["status"] = Show(Wire(release.Status)),
+            ["base"] = Show(release.Base),
+            ["createdFrom"] = Show(release.CreatedFrom),
+            ["releasedAt"] = Show(Iso(release.ReleasedAt)),
             ["location"] = Header(response, "Location"),
         });
     }
 
-    private static void ListCatalogVersions(string baseUrl, JsonElement config)
+    private static void ListCatalogReleases(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         var status = OptStr(config, "status");
-        var items = new CatalogsApi(http, apiBase).ListCatalogVersions(
+        var items = new CatalogsApi(http, apiBase).ListCatalogReleases(
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
-            status: status == null ? null : Parse<CatalogVersionStatus>(status)).Items;
+            status: status == null ? null : Parse<CatalogReleaseStatus>(status)).Items;
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["releaseVersions"] = string.Join(",", items.Select(v => Show(v.ReleaseVersion))),
-            ["versionIds"] = string.Join(",", items.Select(v => Show(v.VersionId))),
+            ["versions"] = string.Join(",", items.Select(v => Show(v.VarVersion))),
+            ["releaseIds"] = string.Join(",", items.Select(v => Show(v.ReleaseId))),
             ["names"] = string.Join("|", items.Select(v => Show(v.Name))),
             ["statuses"] = string.Join(",", items.Select(v => Show(Wire(v.Status)))),
             ["bases"] = string.Join(",", items.Select(v => Show(v.Base))),
@@ -717,25 +717,25 @@ public static class Driver
         });
     }
 
-    private static void GetCatalogVersion(string baseUrl, JsonElement config)
+    private static void GetCatalogRelease(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        var version = new CatalogsApi(http, apiBase).GetCatalogVersion(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
+        var release = new CatalogsApi(http, apiBase).GetCatalogRelease(
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"));
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["releaseVersion"] = Show(version.ReleaseVersion),
-            ["versionId"] = Show(version.VersionId),
-            ["name"] = Show(version.Name),
-            ["status"] = Show(Wire(version.Status)),
-            ["releasedAt"] = Show(Iso(version.ReleasedAt)),
-            ["fingerprint"] = Show(version.Fingerprint),
-            ["dependencies"] = string.Join(",", (version.Dependencies ?? new List<ReleaseDependencyDto>())
-                .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.ReleaseVersion)}")),
-            ["deployedTo"] = string.Join(",", version.DeployedTo ?? new List<string>()),
-            ["behind"] = string.Join(";", (version.Behind ?? new List<BehindReleaseDto>())
-                .Select(b => $"{Show(b.ReleaseVersion)}=" + string.Join("+", (b.Changes ?? new List<ReleasedChangeDto>())
+            ["version"] = Show(release.VarVersion),
+            ["releaseId"] = Show(release.ReleaseId),
+            ["name"] = Show(release.Name),
+            ["status"] = Show(Wire(release.Status)),
+            ["releasedAt"] = Show(Iso(release.ReleasedAt)),
+            ["fingerprint"] = Show(release.Fingerprint),
+            ["dependencies"] = string.Join(",", (release.Dependencies ?? new List<ReleaseDependencyDto>())
+                .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.VarVersion)}")),
+            ["deployedTo"] = string.Join(",", release.DeployedTo ?? new List<string>()),
+            ["behind"] = string.Join(";", (release.Behind ?? new List<BehindReleaseDto>())
+                .Select(b => $"{Show(b.VarVersion)}=" + string.Join("+", (b.Changes ?? new List<ReleasedChangeDto>())
                     .Select(c => $"{Show(c.Type)}/{Show(c.Key)}:{Wire(c.Change)}")))),
         });
     }
@@ -744,15 +744,15 @@ public static class Driver
     /// Renames a draft; only the name is sent, to its unchanged address, with <c>config.ifMatch</c>
     /// as <c>If-Match</c> when present. Reports the new <c>ETag</c> exactly as received.
     /// </summary>
-    private static void UpdateCatalogDraft(string baseUrl, JsonElement config)
+    private static void UpdateCatalogRelease(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        ApiResponse<CatalogVersionDto> response;
+        ApiResponse<CatalogReleaseDto> response;
         try
         {
-            response = new CatalogsApi(http, apiBase).UpdateCatalogDraftWithHttpInfo(
-                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
-                new UpdateCatalogDraftRequest(name: Str(config, "name")),
+            response = new CatalogsApi(http, apiBase).UpdateCatalogReleaseWithHttpInfo(
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
+                new UpdateCatalogReleaseRequest(name: Str(config, "name")),
                 ifMatch: OptStr(config, "ifMatch"));
         }
         catch (ProblemDetailException e)
@@ -760,51 +760,51 @@ public static class Driver
             ReportProblem(baseUrl, e);
             return;
         }
-        var version = response.Data;
+        var release = response.Data;
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["releaseVersion"] = Show(version.ReleaseVersion),
-            ["versionId"] = Show(version.VersionId),
-            ["name"] = Show(version.Name),
-            ["status"] = Show(Wire(version.Status)),
-            ["base"] = Show(version.Base),
+            ["version"] = Show(release.VarVersion),
+            ["releaseId"] = Show(release.ReleaseId),
+            ["name"] = Show(release.Name),
+            ["status"] = Show(Wire(release.Status)),
+            ["base"] = Show(release.Base),
             ["etag"] = Header(response, "ETag"),
         });
     }
 
     /// <summary>Sets a draft's default theme and presets; no name is sent, and an unset qualifier stays off the wire.</summary>
-    private static void SetCatalogDraftThemeSettings(string baseUrl, JsonElement config)
+    private static void SetCatalogReleaseThemeSettings(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         var presets = config.GetProperty("presets").EnumerateArray()
             .Select(p => new CatalogPresetDto(key: Str(p, "key"), name: Str(p, "name"), description: OptStr(p, "description")!))
             .ToList();
-        var version = new CatalogsApi(http, apiBase).UpdateCatalogDraft(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
-            new UpdateCatalogDraftRequest(
+        var release = new CatalogsApi(http, apiBase).UpdateCatalogRelease(
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
+            new UpdateCatalogReleaseRequest(
                 defaultTheme: new CatalogThemeReference(key: Str(config, "defaultThemeKey"), catalogKey: OptStr(config, "defaultThemeCatalogKey")!),
                 presets: presets));
 
-        var parsed = version.Presets ?? new List<CatalogPresetDto>();
+        var parsed = release.Presets ?? new List<CatalogPresetDto>();
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["versionId"] = Show(version.VersionId),
-            ["name"] = Show(version.Name),
-            ["defaultThemeKey"] = Show(version.DefaultTheme?.Key),
-            ["defaultThemeCatalogKey"] = Show(version.DefaultTheme?.CatalogKey),
+            ["releaseId"] = Show(release.ReleaseId),
+            ["name"] = Show(release.Name),
+            ["defaultThemeKey"] = Show(release.DefaultTheme?.Key),
+            ["defaultThemeCatalogKey"] = Show(release.DefaultTheme?.CatalogKey),
             ["presetKeys"] = string.Join(",", parsed.Select(p => Show(p.Key))),
             ["presetNames"] = string.Join("|", parsed.Select(p => Show(p.Name))),
             ["presetDescriptions"] = string.Join("|", parsed.Select(p => Show(p.Description))),
         });
     }
 
-    /// <summary>The number a draft would be released as, and every reason, in order.</summary>
+    /// <summary>The version a draft would be released as, and every reason, in order.</summary>
     private static void PreviewCatalogDraftRelease(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         var preview = new CatalogsApi(http, apiBase).PreviewCatalogDraftRelease(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"));
 
         Report(baseUrl, new Dictionary<string, object>
         {
@@ -816,11 +816,11 @@ public static class Driver
         });
     }
 
-    private static void DeleteCatalogDraft(string baseUrl, JsonElement config)
+    private static void DeleteCatalogRelease(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        new CatalogsApi(http, apiBase).DeleteCatalogDraft(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
+        new CatalogsApi(http, apiBase).DeleteCatalogRelease(
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"));
     }
 
     /// <summary>
@@ -834,9 +834,9 @@ public static class Driver
         try
         {
             response = new CatalogsApi(http, apiBase).ReleaseCatalogDraft(
-                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
                 new ReleaseCatalogDraftRequest(
-                    releaseVersion: OptStr(config, "releaseVersion")!,
+                    varVersion: OptStr(config, "version")!,
                     notes: OptStr(config, "notes")!,
                     acknowledgedBehind: OptStrList(config, "acknowledgedBehind")!,
                     // The generated model has a plain bool with the contract's default, false, and
@@ -850,19 +850,19 @@ public static class Driver
                 ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
                 ["problemStatus"] = (int)e.StatusCode,
                 ["problemUnreleasedDependencies"] = string.Join("|", e.UnreleasedDependencies.Select(d =>
-                    $"{d.Registry}/{d.Namespace}/{d.CatalogKey}#{d.VersionId}={d.DraftName}")),
+                    $"{d.Registry}/{d.Namespace}/{d.CatalogKey}#{d.ReleaseId}={d.ReleaseName}")),
             });
             return;
         }
 
         Report(baseUrl, new Dictionary<string, object>
         {
-            ["releaseVersion"] = Show(response.CatalogVersion?.ReleaseVersion),
-            ["status"] = Show(response.CatalogVersion == null ? null : Wire(response.CatalogVersion.Status)),
-            ["versionId"] = Show(response.CatalogVersion?.VersionId),
+            ["version"] = Show(response.Release?.VarVersion),
+            ["status"] = Show(response.Release == null ? null : Wire(response.Release.Status)),
+            ["releaseId"] = Show(response.Release?.ReleaseId),
             ["draftsBehind"] = string.Join("|", response.DraftsBehind ?? new List<string>()),
             ["releasedDependencies"] = string.Join(",", (response.ReleasedDependencies ?? new List<ReleasedDependencyDto>())
-                .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.ReleaseVersion)}")),
+                .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.VarVersion)}")),
         });
     }
 
@@ -885,22 +885,22 @@ public static class Driver
         Newtonsoft.Json.JsonConvert.DeserializeObject<T>(Newtonsoft.Json.JsonConvert.SerializeObject(wire));
 
     /// <summary>
-    /// Deploys one catalog version, a release by its number or a draft by its <c>versionId</c>. The
-    /// registry and the version go into the path exactly as the scenario gives them,
+    /// Deploys one release of a catalog, a released one by its version or a draft by its <c>releaseId</c>. The
+    /// registry and the release go into the path exactly as the scenario gives them,
     /// <c>~</c> for the server's default registry or a name in full; the request has no body.
     /// <c>includeDependencies</c> and <c>replace</c> are passed only when the scenario names them, so
     /// they stay off the query otherwise. A refusal is reported as its problem and the dependency
     /// releases it lists.
     /// </summary>
-    private static void DeployCatalogVersion(string baseUrl, JsonElement config)
+    private static void DeployCatalogRelease(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         DeploymentDto deployment;
         try
         {
-            deployment = new EnvironmentsApi(http, apiBase).DeployCatalogVersion(
+            deployment = new EnvironmentsApi(http, apiBase).DeployCatalogRelease(
                 Str(config, "tenantKey"), Str(config, "environmentKey"),
-                Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+                Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
                 includeDependencies: OptBool(config, "includeDependencies"),
                 replace: OptBool(config, "replace"));
         }
@@ -911,7 +911,7 @@ public static class Driver
                 ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
                 ["problemStatus"] = (int)e.StatusCode,
                 ["problemMissingDependencies"] = string.Join(",", e.MissingDependencies.Select(d =>
-                    $"{d.Registry}/{d.Namespace}/{d.CatalogKey}@{d.ReleaseVersion}:{d.Reason}")),
+                    $"{d.Registry}/{d.Namespace}/{d.CatalogKey}@{d.Version}:{d.Reason}")),
             });
             return;
         }
@@ -921,21 +921,21 @@ public static class Driver
             ["registry"] = Show(deployment.Registry),
             ["namespace"] = Show(deployment.Namespace),
             ["catalogKey"] = Show(deployment.CatalogKey),
-            ["versionId"] = Show(deployment.VersionId),
-            ["kind"] = Wire(deployment.Kind),
-            ["releaseVersion"] = Show(deployment.ReleaseVersion),
-            ["draftName"] = Show(deployment.DraftName),
+            ["releaseId"] = Show(deployment.ReleaseId),
+            ["status"] = Wire(deployment.Status),
+            ["version"] = Show(deployment.VarVersion),
+            ["releaseName"] = Show(deployment.ReleaseName),
             ["lastUsedAt"] = Show(Iso(deployment.LastUsedAt)),
             ["documentsRequested"] = Show(deployment.DocumentsRequested),
         });
     }
 
-    private static void UndeployCatalogVersion(string baseUrl, JsonElement config)
+    private static void UndeployCatalogRelease(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        new EnvironmentsApi(http, apiBase).UndeployCatalogVersion(
+        new EnvironmentsApi(http, apiBase).UndeployCatalogRelease(
             Str(config, "tenantKey"), Str(config, "environmentKey"),
-            Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"));
+            Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"));
     }
 
     private static void ReportBytes(string baseUrl, FileParameter file)
@@ -1028,7 +1028,7 @@ public static class Driver
         {
             content = new VariantsApi(http, apiBase).UpdateVariantContent(
                 Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"),
-                Str(config, "catalogKey"), Str(config, "catalogVersion"),
+                Str(config, "catalogKey"), Str(config, "release"),
                 Str(config, "templateKey"), Str(config, "variantKey"),
                 new UpdateVariantContentRequest(new TemplateDocument(
                     modelVersion: TemplateDocument.ModelVersionEnum.NUMBER_1,
@@ -1079,7 +1079,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var response = new VariantsApi(http, apiBase).GetVariantContentWithHttpInfo(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
             Str(config, "templateKey"), Str(config, "variantKey"));
         var content = response.Data;
 
@@ -1098,7 +1098,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var content = new VariantsApi(http, apiBase).MarkVariantReady(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
             Str(config, "templateKey"), Str(config, "variantKey"));
 
         Report(baseUrl, new Dictionary<string, object>
@@ -1114,7 +1114,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var template = new TemplatesApi(http, apiBase).MarkTemplateReady(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
             Str(config, "templateKey"));
         var variants = template.Variants ?? new List<VariantSummaryDto>();
 
@@ -1132,7 +1132,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var response = new StencilsApi(http, apiBase).GetStencilContentWithHttpInfo(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
             Str(config, "stencilKey"));
         var content = response.Data;
 
@@ -1157,7 +1157,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var response = new StencilsApi(http, apiBase).UpdateStencilContentWithHttpInfo(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
             Str(config, "stencilKey"),
             new UpdateStencilContentRequest(
                 content: OneNodeModel(),
@@ -1179,7 +1179,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var response = new StencilsApi(http, apiBase).MarkStencilReady(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
             Str(config, "stencilKey"));
         var notFitting = response.NotFitting ?? new List<StencilUsageDto>();
 
@@ -1198,7 +1198,7 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         var response = new StencilsApi(http, apiBase).ListStencilUsage(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
             Str(config, "stencilKey"),
             page: Int(config, "page"),
             size: Int(config, "size"));
@@ -1220,14 +1220,14 @@ public static class Driver
     {
         var (http, apiBase) = Client(baseUrl, config);
         ReportChanges(baseUrl, new CatalogsApi(http, apiBase).GetCatalogChanges(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion")));
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release")));
     }
 
     private static void MarkCatalogReady(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
         ReportChanges(baseUrl, new CatalogsApi(http, apiBase).MarkCatalogReady(
-            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "catalogVersion")));
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release")));
     }
 
     private static void ReportChanges(string baseUrl, CatalogChangesDto changes) =>
@@ -1250,10 +1250,10 @@ public static class Driver
         {
             ["registries"] = string.Join(",", items.Select(d => Show(d.Registry))),
             ["catalogKeys"] = string.Join(",", items.Select(d => Show(d.CatalogKey))),
-            ["versionIds"] = string.Join(",", items.Select(d => Show(d.VersionId))),
-            ["kinds"] = string.Join(",", items.Select(d => Wire(d.Kind))),
-            ["releaseVersions"] = string.Join(",", items.Select(d => Show(d.ReleaseVersion))),
-            ["draftNames"] = string.Join("|", items.Select(d => Show(d.DraftName))),
+            ["releaseIds"] = string.Join(",", items.Select(d => Show(d.ReleaseId))),
+            ["statuses"] = string.Join(",", items.Select(d => Wire(d.Status))),
+            ["versions"] = string.Join(",", items.Select(d => Show(d.VarVersion))),
+            ["releaseNames"] = string.Join("|", items.Select(d => Show(d.ReleaseName))),
             ["deployedAt"] = string.Join(",", items.Select(d => Show(Iso(d.DeployedAt)))),
             ["lastUsedAt"] = string.Join(",", items.Select(d => Show(Iso(d.LastUsedAt)))),
             ["documentsRequested"] = string.Join(",", items.Select(d => d.DocumentsRequested.ToString(System.Globalization.CultureInfo.InvariantCulture))),
@@ -1273,10 +1273,10 @@ public static class Driver
         {
             ["catalogKeys"] = string.Join(",", items.Select(e => Show(e.CatalogKey))),
             ["actions"] = string.Join(",", items.Select(e => Wire(e.Action))),
-            ["versionIds"] = string.Join(",", items.Select(e => Show(e.VersionId))),
-            ["kinds"] = string.Join(",", items.Select(e => Wire(e.Kind))),
-            ["releaseVersions"] = string.Join(",", items.Select(e => Show(e.ReleaseVersion))),
-            ["draftNames"] = string.Join("|", items.Select(e => Show(e.DraftName))),
+            ["releaseIds"] = string.Join(",", items.Select(e => Show(e.ReleaseId))),
+            ["statuses"] = string.Join(",", items.Select(e => Wire(e.Status))),
+            ["versions"] = string.Join(",", items.Select(e => Show(e.VarVersion))),
+            ["releaseNames"] = string.Join("|", items.Select(e => Show(e.ReleaseName))),
             ["changedAt"] = string.Join(",", items.Select(e => Show(Iso(e.ChangedAt)))),
             ["changedBy"] = string.Join("|", items.Select(e => Show(e.ChangedBy))),
             ["total"] = Show(response.Page?.Total),

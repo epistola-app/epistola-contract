@@ -6,7 +6,7 @@ id: import-catalog
 title: Importing an archive installs its release, and the request names no draft
 why: >
   An import never fills or creates a draft (contract 2.0): it installs the release the archive
-  carries, at its number, next to the releases the tenant already has. So the request has no
+  carries, at its version, next to the releases the tenant already has. So the request has no
   `catalogVersion` and no `authoredMode`. A client generated from an older spec still sends them,
   and a server that reads them would merge the archive into a draft it was never meant to touch.
 
@@ -17,7 +17,7 @@ why: >
   names, which only the server reads. A client that fills them in, or sends `null`, imports the
   release into another catalog.
 
-  The response names the installed release (`releaseVersion`) and that this import installed it
+  The response names the installed release (`version`) and that this import installed it
   (`newlyInstalled`), which the client must read back as a boolean, not a string.
 
 action:
@@ -41,7 +41,7 @@ script:
       namespace: acme-corp
       catalogKey: letters
       catalogName: Letters
-      releaseVersion: 1.2.0
+      version: 1.2.0
       newlyInstalled: true
       total: 7
       installedDependencies: []
@@ -68,7 +68,7 @@ expect:
             absent: true
           namespace:
             absent: true
-          catalogVersion:
+          release:
             absent: true
           authoredMode:
             absent: true
@@ -76,6 +76,6 @@ expect:
     registry: exchange.epistola.app
     namespace: acme-corp
     catalogKey: letters
-    releaseVersion: 1.2.0
+    version: 1.2.0
     newlyInstalled: 'true'
     total: '7'

@@ -6,7 +6,7 @@ id: preview-catalog-draft-first-release
 title: A release preview with nothing to compare with reads a null kind of change, not a failure
 why: >
   A draft of a catalog that was never released has no base to be measured against, so the
-  preview's `base` and `changeKind` are null and there are no reasons; the number it needs and gets
+  preview's `base` and `changeKind` are null and there are no reasons; the version it needs and gets
   is `1.0.0` (ADR 0002).
 
   `changeKind` is a nullable enum, and that is where the generators differ: one that models the enum
@@ -21,7 +21,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: onboarding
-    catalogVersion: k7m2x9qa
+    release: k7m2x9qa
 
 script:
   - status: 200
@@ -37,7 +37,7 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/onboarding/versions/k7m2x9qa/release-preview
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/onboarding/releases/k7m2x9qa/release-preview
       query: ""
   report:
     base: 'null'

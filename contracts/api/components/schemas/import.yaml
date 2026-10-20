@@ -8,7 +8,7 @@ ImportCatalogResponse:
     - namespace
     - catalogKey
     - catalogName
-    - releaseVersion
+    - version
     - newlyInstalled
     - total
   properties:
@@ -30,9 +30,9 @@ ImportCatalogResponse:
       type: string
       description: Display name of the imported catalog
       example: Valtimo Demo Catalog
-    releaseVersion:
+    version:
       $ref: './identifiers.yaml#/ReleaseVersion'
-      description: The release the archive carries, which the tenant now has.
+      description: The version of the release the archive carries, which the tenant now has.
     newlyInstalled:
       type: boolean
       description: |

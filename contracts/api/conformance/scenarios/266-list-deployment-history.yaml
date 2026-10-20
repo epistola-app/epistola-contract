@@ -9,10 +9,11 @@ why: >
   "Deploying"). `action` is an enum read as the wire value, not a constant name; `released`
   records a deployed draft that was released, which the environment then serves as that release.
 
-  Every entry names the version by `versionId`, and `kind` says what it was after the change. A
-  draft deployed or undeployed has no release: `releaseVersion` is null, and `draftName` names the
-  draft as it was called at the time. A `released` entry carries both, the draft's name and the
-  release it became, under the same `versionId`. A system change has no `changedBy`: it is sent as
+  Every entry names the release by `releaseId`, and `status` says what it was after the change. A
+  draft deployed or undeployed has no version: `version` is null, and `releaseName` names the
+  draft as it was called at the time. A `released` entry carries both, the name the release kept
+  and the version it was released as, under the same `releaseId`. A release installed from
+  elsewhere has no name. A system change has no `changedBy`: it is sent as
   null on some entries and left out on others, and a client must read both as missing.
 
   The page is the caller's: `page` and `size` go out as given.
@@ -35,39 +36,39 @@ script:
           namespace: acme-corp
           catalogKey: letters
           action: released
-          versionId: k7m2x9qa
-          kind: release
-          releaseVersion: 1.5.0
-          draftName: Spring fixes
+          releaseId: k7m2x9qa
+          status: released
+          version: 1.5.0
+          releaseName: Spring fixes
           changedAt: "2026-10-18T09:00:00Z"
           changedBy: Jane Smith
         - registry: exchange.epistola.app
           namespace: acme-corp
           catalogKey: letters
           action: undeployed
-          versionId: r4t8w2nc
-          kind: draft
-          releaseVersion: null
-          draftName: Redesign 2027
+          releaseId: r4t8w2nc
+          status: draft
+          version: null
+          releaseName: Redesign 2027
           changedAt: "2026-10-17T16:00:00Z"
         - registry: exchange.epistola.app
           namespace: acme-corp
           catalogKey: letters
           action: deployed
-          versionId: k7m2x9qa
-          kind: draft
-          releaseVersion: null
-          draftName: Spring fixes
+          releaseId: k7m2x9qa
+          status: draft
+          version: null
+          releaseName: Spring fixes
           changedAt: "2026-10-17T16:00:00Z"
           changedBy: Jane Smith
         - registry: exchange.epistola.app
           namespace: acme-corp
           catalogKey: letters
           action: deployed
-          versionId: m3q8v5tw
-          kind: release
-          releaseVersion: 1.4.0
-          draftName: null
+          releaseId: m3q8v5tw
+          status: released
+          version: 1.4.0
+          releaseName: null
           changedAt: "2026-10-02T07:30:00Z"
           changedBy: null
       page: { number: 0, size: 50, total: 4, totalPages: 1 }
@@ -86,11 +87,11 @@ expect:
   report:
     catalogKeys: letters,letters,letters,letters
     actions: released,undeployed,deployed,deployed
-    versionIds: k7m2x9qa,r4t8w2nc,k7m2x9qa,m3q8v5tw
-    kinds: release,draft,draft,release
-    releaseVersions: 1.5.0,null,null,1.4.0
+    releaseIds: k7m2x9qa,r4t8w2nc,k7m2x9qa,m3q8v5tw
+    statuses: released,draft,draft,released
+    versions: 1.5.0,null,null,1.4.0
     # Names are free text, so they are joined with `|`.
-    draftNames: Spring fixes|Redesign 2027|Spring fixes|null
+    releaseNames: Spring fixes|Redesign 2027|Spring fixes|null
     changedAt: 2026-10-18T09:00:00Z,2026-10-17T16:00:00Z,2026-10-17T16:00:00Z,2026-10-02T07:30:00Z
     changedBy: Jane Smith|null|Jane Smith|null
     total: "4"

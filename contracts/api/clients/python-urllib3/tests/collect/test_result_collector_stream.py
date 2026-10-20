@@ -29,7 +29,7 @@ RESULTS = [
         "registry": "exchange.example.org",
         "namespace": "team-a",
         "catalogKey": "invoices",
-        "releaseVersion": "1.4.2",
+        "version": "1.4.2",
         "templateKey": "invoice",
         "variantKey": "nl-nl",
     },
@@ -40,7 +40,7 @@ RESULTS = [
         "registry": "exchange.example.org",
         "namespace": "team-a",
         "catalogKey": "invoices",
-        "releaseVersion": None,
+        "version": None,
     },
     {
         "sequence": 503,
@@ -49,7 +49,7 @@ RESULTS = [
         "registry": "exchange.example.org",
         "namespace": "team-a",
         "catalogKey": "invoices",
-        "releaseVersion": "1.4.2",
+        "version": "1.4.2",
     },
 ]
 META = {"_meta": True, "hasMore": True, "resultCount": 3, "partitions": {"total": 8, "mine": [0, 3], "hash": "murmur3"}}
@@ -132,7 +132,7 @@ def test_each_result_names_the_catalog_release_it_was_generated_from(server):
     _collector(server, handled).collect_once()
 
     first = handled[0]
-    assert (first.registry, first.namespace, first.catalog_key, first.release_version) == (
+    assert (first.registry, first.namespace, first.catalog_key, first.version) == (
         "exchange.example.org",
         "team-a",
         "invoices",
@@ -140,7 +140,7 @@ def test_each_result_names_the_catalog_release_it_was_generated_from(server):
     )
     # A document rendered from a draft names its catalog but no release; that is null, not an error.
     second = handled[1]
-    assert (second.registry, second.namespace, second.catalog_key, second.release_version) == (
+    assert (second.registry, second.namespace, second.catalog_key, second.version) == (
         "exchange.example.org",
         "team-a",
         "invoices",

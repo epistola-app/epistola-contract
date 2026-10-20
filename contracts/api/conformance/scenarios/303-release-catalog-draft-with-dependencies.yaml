@@ -7,12 +7,12 @@ title: Releasing a draft with its dependencies asks for it, and reads back the r
 why: >
   A release pins only releases, so a draft whose dependency declarations name drafts of other
   catalogs is released together with them when the request asks (`releaseDependencies: true`):
-  those drafts first, each numbered by its own changes, all in one transaction (ADR 0002). The flag
+  those drafts first, each released as the version its own changes need, all in one transaction (ADR 0002). The flag
   is a JSON boolean; a client that drops it, or sends it as a string, gets the release refused with
   `release-dependencies-unreleased`.
 
   The answer lists the releases made along (`releasedDependencies`), dependencies first, each with
-  the draft it was and the number it became, and the new release pins them. A client that drops
+  the draft it was and the version it became, and the new release pins them. A client that drops
   the list hides that other catalogs were released too.
 
 action:
@@ -23,7 +23,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: k7m2x9qa
+    release: k7m2x9qa
     notes: Letters in the 2027 house style.
     releaseDependencies: true
 
@@ -31,10 +31,10 @@ script:
   - status: 200
     contentType: application/vnd.epistola.v2+json
     body:
-      catalogVersion:
-        releaseVersion: 1.5.0
-        versionId: k7m2x9qa
-        name: null
+      release:
+        version: 1.5.0
+        releaseId: k7m2x9qa
+        name: Letters 2027
         status: released
         base: 1.4.0
         createdFrom: null
@@ -43,20 +43,20 @@ script:
         notes: Letters in the 2027 house style.
         fingerprint: v5:3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b
         dependencies:
-          - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: fonts, releaseVersion: 1.1.0, direct: false }
-          - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, releaseVersion: 3.0.0, direct: true }
+          - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: fonts, version: 1.1.0, direct: false }
+          - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, version: 3.0.0, direct: true }
         deployedTo: []
       unchangedContent: false
       draftsBehind: []
       releasedDependencies:
-        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: fonts, versionId: h3v9p6db, releaseVersion: 1.1.0 }
-        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, versionId: r4t8w2nc, releaseVersion: 3.0.0 }
+        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: fonts, releaseId: h3v9p6db, version: 1.1.0 }
+        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, releaseId: r4t8w2nc, version: 3.0.0 }
 
 expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/k7m2x9qa/release
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/release
       headers:
         Content-Type:
           matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
@@ -64,10 +64,10 @@ expect:
         json:
           notes: Letters in the 2027 house style.
           releaseDependencies: true
-        jsonAbsent: [releaseVersion, acknowledgedBehind]
+        jsonAbsent: [version, acknowledgedBehind]
   report:
-    releaseVersion: 1.5.0
+    version: 1.5.0
     status: released
-    versionId: k7m2x9qa
+    releaseId: k7m2x9qa
     draftsBehind: ""
     releasedDependencies: exchange.epistola.app/acme-corp/fonts@1.1.0,exchange.epistola.app/acme-corp/branding@3.0.0

@@ -125,7 +125,7 @@ class ResultCollector private constructor(
         /** Key of the template's catalog. */
         val catalogKey: String,
         /** Release of the template's catalog used; null when the document was rendered from a draft. */
-        val releaseVersion: String?,
+        val version: String?,
         val filename: String?,
         val contentType: String?,
         val sizeBytes: Long?,
@@ -378,7 +378,7 @@ class ResultCollector private constructor(
         registry = node["registry"].asText(),
         namespace = node["namespace"].asText(),
         catalogKey = node["catalogKey"].asText(),
-        releaseVersion = node["releaseVersion"]?.takeUnless { it.isNull }?.asText(),
+        version = node["version"]?.takeUnless { it.isNull }?.asText(),
         filename = node["filename"]?.asText(),
         contentType = node["contentType"]?.asText(),
         sizeBytes = node["sizeBytes"]?.asLong(),

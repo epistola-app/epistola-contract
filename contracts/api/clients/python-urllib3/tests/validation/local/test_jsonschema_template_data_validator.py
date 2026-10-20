@@ -53,9 +53,9 @@ class _StubTemplatesApi:
         self._schema = schema
         self.fetches = 0
 
-    def get_template(self, tenant_key, registry, namespace, catalog_key, catalog_version, template_key):
+    def get_template(self, tenant_key, registry, namespace, catalog_key, release, template_key):
         self.fetches += 1
-        self.addressed = (tenant_key, registry, namespace, catalog_key, catalog_version, template_key)
+        self.addressed = (tenant_key, registry, namespace, catalog_key, release, template_key)
         return SimpleNamespace(var_schema=self._schema)
 
 
@@ -131,7 +131,7 @@ def test_the_schema_is_fetched_once_and_reused():
     assert templates.fetches == 1
 
 
-def test_the_schema_is_read_from_the_configured_catalog_version():
+def test_the_schema_is_read_from_the_configured_release():
     templates = _StubTemplatesApi(_INVOICE_SCHEMA)
     validator = JsonSchemaTemplateDataValidator(templates, "1.4.0")
 

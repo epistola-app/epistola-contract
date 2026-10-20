@@ -9,7 +9,7 @@ images:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
   get:
     operationId: listImages
     summary: List images in a catalog
@@ -119,7 +119,7 @@ image-content:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: imageKey
       in: path
       required: true
@@ -178,7 +178,7 @@ image-resource:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: imageKey
       in: path
       required: true

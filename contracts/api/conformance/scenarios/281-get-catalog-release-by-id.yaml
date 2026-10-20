@@ -1,0 +1,63 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: get-catalog-release-by-id
+title: A released release read by its releaseId is the same release as by its version
+why: >
+  A release keeps its `releaseId` and its name when it is released, and the id keeps addressing
+  it: a released release is addressed by its `releaseId` or by its version, interchangeably (ADR
+  0002). A client must send the id as the `{release}` path segment exactly as given, and read back
+  a released release whose `releaseId` is that id, whose `version` is its version, and whose
+  `name` is the one it had as a draft.
+
+  A `releaseId` is opaque and never contains a dot, so it is never mistaken for a version; a
+  client that validated the segment as a SemVer version, or as a UUID, could not address it.
+
+action:
+  name: get-catalog-release
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: exchange.example.org
+    namespace: team-a
+    catalogKey: letters
+    release: m3q8v5tk
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      version: 1.4.0
+      releaseId: m3q8v5tk
+      name: Spelling fixes
+      status: released
+      base: 1.3.0
+      createdFrom: null
+      createdAt: "2026-09-01T09:00:00Z"
+      behind: []
+      releasedAt: "2026-10-01T12:00:00Z"
+      notes: Spelling fixes.
+      fingerprint: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+      dependencies:
+        - { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, version: 3.2.0, direct: true }
+      deployedTo: [acceptance, production]
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/exchange.example.org/team-a/letters/releases/m3q8v5tk
+  report:
+    version: 1.4.0
+    releaseId: m3q8v5tk
+    # A release keeps the name it had as a draft.
+    name: Spelling fixes
+    status: released
+    releasedAt: "2026-10-01T12:00:00Z"
+    # The fingerprint names its algorithm; a client must not strip or reformat the prefix.
+    fingerprint: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+    dependencies: exchange.epistola.app/epistola/system@3.2.0
+    deployedTo: acceptance,production
+    # A released release is never behind.
+    behind: ""

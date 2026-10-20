@@ -222,7 +222,7 @@ class ApiExceptionMapperTest {
                           "status": 409,
                           "missingDependencies": [
                             {"registry": "exchange.epistola.app", "namespace": "acme-corp",
-                             "catalogKey": "shared", "releaseVersion": "1.2.0", "reason": "unavailable"}
+                             "catalogKey": "shared", "version": "1.2.0", "reason": "unavailable"}
                           ]
                         }
                         """)));
@@ -247,7 +247,7 @@ class ApiExceptionMapperTest {
                           "status": 409,
                           "unreleasedDependencies": [
                             {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "branding",
-                             "versionId": "r4t8w2nc", "draftName": "House style 2027"}
+                             "releaseId": "r4t8w2nc", "releaseName": "House style 2027"}
                           ]
                         }
                         """)));

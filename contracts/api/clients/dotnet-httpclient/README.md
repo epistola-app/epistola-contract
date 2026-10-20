@@ -40,7 +40,7 @@ var http = new EpistolaHttpClientBuilder()
     .Build();
 
 var templates = new TemplatesApi(http, "https://epistola.example.com/api");
-// Catalog content is addressed by registry, namespace, catalog key and catalog version (SemVer).
+// Catalog content is addressed by registry, namespace, catalog key and release (its version, or its releaseId).
 // The registry `~` is the server's default registry; another is named in full ("acme.com").
 var template = templates.GetTemplate("my-tenant", "~", "acme-corp", "default", "1.4.0", "monthly-invoice");
 ```
@@ -122,13 +122,13 @@ with `Reason` kept as the string the server sent (compare against `MissingDepend
 ```csharp
 try
 {
-    environments.DeployCatalogVersion("my-tenant", "production", "~", "acme-corp", "letters", "1.4.0",
+    environments.DeployCatalogRelease("my-tenant", "production", "~", "acme-corp", "letters", "1.4.0",
         includeDependencies: false);
 }
 catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING)
 {
     foreach (var d in e.MissingDependencies)
-        Console.WriteLine($"{d.Registry}/{d.Namespace}/{d.CatalogKey}@{d.ReleaseVersion}: {d.Reason}");
+        Console.WriteLine($"{d.Registry}/{d.Namespace}/{d.CatalogKey}@{d.Version}: {d.Reason}");
     // "unavailable": the release could not be fetched from its registry or a mirror, or not verified
 }
 ```
@@ -141,7 +141,7 @@ each such draft:
 catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED)
 {
     foreach (var d in e.UnreleasedDependencies)
-        Console.WriteLine($"{d.Registry}/{d.Namespace}/{d.CatalogKey}: draft {d.DraftName} ({d.VersionId})");
+        Console.WriteLine($"{d.Registry}/{d.Namespace}/{d.CatalogKey}: draft {d.ReleaseName} ({d.ReleaseId})");
 }
 ```
 
@@ -180,7 +180,7 @@ var collector = ResultCollector.Builder()
     {
         switch (result.Status)
         {
-            // Registry, Namespace and CatalogKey name the catalog rendered; ReleaseVersion is null for a draft.
+            // Registry, Namespace and CatalogKey name the catalog rendered; Version is null for a draft.
             case "completed": Download(result.DocumentId, result.CorrelationId); break;
             case "failed":    LogFailure(result.CorrelationId, result.Error);    break;
         }
@@ -194,51 +194,53 @@ collector.Start();          // blocks, running the adaptive poll loop; Stop() to
 the backoff when a result is expected soon. Partition helpers: `PartitionFor`, `IsMyPartition`,
 `RoutingKeyToMe`.
 
-## Catalog versions
+## Releases
 
-A catalog consists of versions, each a `draft` or `released`. A catalog has any number of drafts,
+A catalog consists of releases, each a `draft` or `released`. A catalog has any number of drafts,
 each named, on a fixed base (the release it started from), and each released on its own. A draft
-has no number until it is released and is addressed by its `VersionId`, which it keeps when it is
-released; a release by that id or by its SemVer number. Every catalog-content operation (templates, variants, stencils, themes, images,
-dependencies, …) takes the version after the catalog key; template data validation
-(`ValidateTemplateData`) does not. The versions themselves are managed through `CatalogsApi`:
+has no version until it is released and is addressed by its `ReleaseId`; releasing it keeps its id
+and its name, and it is then addressed by that id or by its version. Every catalog-content
+operation (templates, variants, stencils, themes, images, dependencies, …) takes the release after
+the catalog key; template data validation (`ValidateTemplateData`) does not. The releases
+themselves are managed through `CatalogsApi`:
 
 ```csharp
 var catalogs = new CatalogsApi(http, "https://epistola.example.com/api");
 
 // Start a draft, named, as a copy of a release (`from`, which becomes its base), of another draft
-// (`from` its `VersionId`), or, without `from`, of the highest release. A fix to an older line is a draft
+// (`from` its `ReleaseId`), or, without `from`, of the highest release. A fix to an older line is a draft
 // from a release of that line.
-var draft = catalogs.CreateCatalogDraft("my-tenant", "~", "acme-corp", "default",
-    new CreateCatalogDraftRequest(name: "Fixes 1.4", from: "1.4.0"));
-var id = draft.VersionId;
+var draft = catalogs.CreateCatalogRelease("my-tenant", "~", "acme-corp", "default",
+    new CreateCatalogReleaseRequest(name: "Fixes 1.4", from: "1.4.0"));
+var id = draft.ReleaseId;
 
-// The number releasing it would give it, from its changes against its base: `Needed`, or the next
-// free number of the same kind when another release already has it (`Suggested`).
+// The version releasing it would give it, from its changes against its base: `Needed`, or the next
+// free version of the same kind when another release already has it (`Suggested`).
 var preview = catalogs.PreviewCatalogDraftRelease("my-tenant", "~", "acme-corp", "default", id);
 Console.WriteLine($"{preview.Suggested} (needs {preview.Needed}): {string.Join("; ", preview.Reasons)}");
 
 // A draft is an independent copy: releases it does not contain are listed in `Behind`, and
-// releasing it must acknowledge each of them. Leave `releaseVersion` out to release it as suggested.
+// releasing it must acknowledge each of them. Leave `varVersion` out to release it as suggested.
 // `releaseDependencies` releases the drafts of other catalogs its dependency declarations name
 // along with it, in one transaction.
-var current = catalogs.GetCatalogVersion("my-tenant", "~", "acme-corp", "default", id);
+var current = catalogs.GetCatalogRelease("my-tenant", "~", "acme-corp", "default", id);
 var released = catalogs.ReleaseCatalogDraft("my-tenant", "~", "acme-corp", "default", id,
     new ReleaseCatalogDraftRequest(
         notes: "Spring update",
-        acknowledgedBehind: current.Behind.Select(b => b.ReleaseVersion).ToList(),
+        acknowledgedBehind: current.Behind.Select(b => b.VarVersion).ToList(),
         releaseDependencies: true));
 
 // Releasing never changes other drafts; the answer names those now behind it, and the releases
 // made along with it.
 foreach (var behind in released.DraftsBehind)
-    Console.WriteLine($"{behind} does not contain {released.CatalogVersion.ReleaseVersion}");
+    Console.WriteLine($"{behind} does not contain {released.Release.VarVersion}");
 foreach (var dependency in released.ReleasedDependencies)
-    Console.WriteLine($"also released {dependency.CatalogKey} {dependency.ReleaseVersion}");
+    Console.WriteLine($"also released {dependency.CatalogKey} {dependency.VarVersion}");
 ```
 
-The generator names a `base` member `Base` (constructor argument `varBase`), because it collides
-with a C# name. A draft's `ReleaseVersion` is null, and a preview's `ChangeKind` is null when the
+The generator names a `base` member `Base` (constructor argument `varBase`) and a `version` member
+`VarVersion` (constructor argument `varVersion`), because they collide with its reserved words. A
+draft's `VarVersion` is null, and a preview's `ChangeKind` is null when the
 draft has no base to compare with.
 
 ## Response headers and conditional updates
@@ -250,10 +252,10 @@ response headers: the `Location` of what a create made (and of the job `Generate
 412 `resource-modified` problem:
 
 ```csharp
-var read = catalogs.GetCatalogVersionWithHttpInfo("my-tenant", "~", "acme-corp", "default", id);
+var read = catalogs.GetCatalogReleaseWithHttpInfo("my-tenant", "~", "acme-corp", "default", id);
 var etag = read.Headers["ETag"][0];
-catalogs.UpdateCatalogDraft("my-tenant", "~", "acme-corp", "default", id,
-    new UpdateCatalogDraftRequest(name: "Fixes 1.4 (spring)"), ifMatch: etag);
+catalogs.UpdateCatalogRelease("my-tenant", "~", "acme-corp", "default", id,
+    new UpdateCatalogReleaseRequest(name: "Fixes 1.4 (spring)"), ifMatch: etag);
 ```
 
 ## Uploading files
@@ -278,7 +280,7 @@ as not an image unless you also pass `mediaType`.
 Template data is checked by **Epistola**, through `validateTemplateData`. Nothing is compiled
 locally, so the package references no JSON Schema library, and the verdict cannot disagree with what
 generation will do — the server validates the same data when a job is submitted, and it also knows
-which optional fields the version being rendered actually reads.
+which optional fields the release being rendered actually reads.
 
 ```csharp
 using Epistola.Client.Validation.Schema;
@@ -305,7 +307,7 @@ To avoid a request per check — pre-flighting a large batch, say — implement
 `ITemplateDataValidator` over the library of your choice and pass it instead of the API:
 
 ```csharp
-// A template is read from a catalog version, so a local validator is told which one.
+// A template is read from a release of its catalog, so a local validator is told which one.
 var validator = new TemplateSchemaValidator(new MyNJsonSchemaValidator(templatesApi, "1.4.0"));
 ```
 

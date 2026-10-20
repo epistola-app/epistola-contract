@@ -153,6 +153,6 @@ public class ProblemDetailExceptionTest
         Assert.True(ex.IsReleaseDependenciesUnreleasedProblem);
         Assert.False(ex.IsReleaseDependenciesMissingProblem);
         Assert.Equal(KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED, ex.TypeSlug);
-        Assert.Equal("House style 2027", ex.UnreleasedDependencies[0].DraftName);
+        Assert.Equal("House style 2027", ex.UnreleasedDependencies[0].ReleaseName);
     }
 }

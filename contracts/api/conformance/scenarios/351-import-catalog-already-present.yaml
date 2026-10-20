@@ -5,7 +5,7 @@
 id: import-catalog-already-present
 title: Importing a release the tenant has reports it as already present
 why: >
-  Importing the same release twice is not an error: the same number with the same fingerprint is
+  Importing the same release twice is not an error: the same version with the same fingerprint is
   the release the tenant has, so nothing changes and the response says so with
   `newlyInstalled: false`. A client that drops a false boolean, or reads it as absent, tells its
   caller a release was installed when nothing happened.
@@ -36,7 +36,7 @@ script:
       namespace: huisstijl
       catalogKey: branding
       catalogName: Branding
-      releaseVersion: 1.4.2
+      version: 1.4.2
       newlyInstalled: false
       total: 3
 
@@ -56,7 +56,7 @@ expect:
             value: huisstijl
           catalogType:
             absent: true
-          catalogVersion:
+          release:
             absent: true
           authoredMode:
             absent: true
@@ -64,6 +64,6 @@ expect:
     registry: registry.gemeente-x.nl
     namespace: huisstijl
     catalogKey: branding
-    releaseVersion: 1.4.2
+    version: 1.4.2
     newlyInstalled: 'false'
     total: '3'

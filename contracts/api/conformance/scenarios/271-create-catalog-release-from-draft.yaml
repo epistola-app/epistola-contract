@@ -2,16 +2,16 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: create-catalog-draft-from-draft
+id: create-catalog-release-from-draft
 title: Starting a draft from another draft sends that draft's id, and reads back where it came from
 why: >
   A draft can start as a copy of another draft, unreleased changes included (ADR 0002): `from`
-  then carries that draft's id instead of a release number, in the same member. The new draft takes
+  then carries that draft's id instead of a version, in the same member. The new draft takes
   the other draft's base, and `createdFrom` names the draft it was copied from. A client that only
-  accepts a release number in `from`, or reads `createdFrom` as one, cannot copy a draft.
+  accepts a version in `from`, or reads `createdFrom` as one, cannot copy a draft.
 
 action:
-  name: create-catalog-draft
+  name: create-catalog-release
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
@@ -25,10 +25,10 @@ script:
   - status: 201
     contentType: application/vnd.epistola.v2+json
     headers:
-      Location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/r4t8w2nc
+      Location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/r4t8w2nc
     body:
-      releaseVersion: null
-      versionId: r4t8w2nc
+      version: null
+      releaseId: r4t8w2nc
       name: Redesign 2027
       status: draft
       base: 1.5.0
@@ -45,7 +45,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases
       headers:
         Content-Type:
           matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
@@ -55,11 +55,11 @@ expect:
           from: k7m2x9qa
         jsonAbsent: [version, var_from]
   report:
-    releaseVersion: 'null'
-    versionId: r4t8w2nc
+    version: 'null'
+    releaseId: r4t8w2nc
     name: Redesign 2027
     status: draft
-    location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/r4t8w2nc
+    location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/r4t8w2nc
     base: 1.5.0
     createdFrom: k7m2x9qa
     releasedAt: 'null'

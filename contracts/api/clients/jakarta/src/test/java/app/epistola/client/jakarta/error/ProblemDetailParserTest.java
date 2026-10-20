@@ -123,9 +123,9 @@ class ProblemDetailParserTest {
                   "status": 409,
                   "missingDependencies": [
                     {"registry": "exchange.epistola.app", "namespace": "acme-corp",
-                     "catalogKey": "shared", "releaseVersion": "1.2.0", "reason": "unavailable"},
+                     "catalogKey": "shared", "version": "1.2.0", "reason": "unavailable"},
                     {"registry": "acme.com", "namespace": "brand",
-                     "catalogKey": "styles", "releaseVersion": "2.0.0", "reason": "unavailable"}
+                     "catalogKey": "styles", "version": "2.0.0", "reason": "unavailable"}
                   ]
                 }
                 """);
@@ -137,7 +137,7 @@ class ProblemDetailParserTest {
         assertEquals("exchange.epistola.app", first.getRegistry());
         assertEquals("acme-corp", first.getNamespace());
         assertEquals("shared", first.getCatalogKey());
-        assertEquals("1.2.0", first.getReleaseVersion());
+        assertEquals("1.2.0", first.getVersion());
         assertEquals("unavailable", first.getReason());
         assertEquals(MissingReleaseDependencyReason.UNAVAILABLE, first.getKnownReason());
         assertEquals("acme.com/brand/styles@2.0.0:unavailable", missing.get(1).toString());
@@ -153,7 +153,7 @@ class ProblemDetailParserTest {
                   "status": 409,
                   "missingDependencies": [
                     {"registry": "acme.com", "namespace": "brand", "catalogKey": "styles",
-                     "releaseVersion": "2.0.0", "reason": "SOME_FUTURE_REASON"}
+                     "version": "2.0.0", "reason": "SOME_FUTURE_REASON"}
                   ]
                 }
                 """);
@@ -211,9 +211,9 @@ class ProblemDetailParserTest {
                   "status": 409,
                   "unreleasedDependencies": [
                     {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "branding",
-                     "versionId": "r4t8w2nc", "draftName": "House style 2027"},
+                     "releaseId": "r4t8w2nc", "releaseName": "House style 2027"},
                     {"registry": "acme.com", "namespace": "brand", "catalogKey": "fonts",
-                     "versionId": "h3v9p6db", "draftName": "New typefaces, round 2"}
+                     "releaseId": "h3v9p6db", "releaseName": "New typefaces, round 2"}
                   ]
                 }
                 """);
@@ -225,8 +225,8 @@ class ProblemDetailParserTest {
         assertEquals("exchange.epistola.app", first.getRegistry());
         assertEquals("acme-corp", first.getNamespace());
         assertEquals("branding", first.getCatalogKey());
-        assertEquals("r4t8w2nc", first.getVersionId());
-        assertEquals("House style 2027", first.getDraftName());
+        assertEquals("r4t8w2nc", first.getReleaseId());
+        assertEquals("House style 2027", first.getReleaseName());
         assertEquals(
                 "acme.com/brand/fonts#h3v9p6db=New typefaces, round 2",
                 unreleased.get(1).toString());
@@ -247,7 +247,7 @@ class ProblemDetailParserTest {
                 {
                   "title": "Conflict",
                   "status": 409,
-                  "unreleasedDependencies": ["acme.com/brand/fonts", null, {"registry": "acme.com", "draftName": 3}]
+                  "unreleasedDependencies": ["acme.com/brand/fonts", null, {"registry": "acme.com", "releaseName": 3}]
                 }
                 """);
         assertNotNull(badEntries);

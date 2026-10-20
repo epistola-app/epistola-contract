@@ -39,10 +39,10 @@ namespace Epistola.Client.Tests.Validation.Schema.Local;
 ///     keyword.
 ///   </description></item>
 ///   <item><description>
-///     <b>The schema is read from one catalog version, so the validator is given it.</b> A template
-///     is addressed by catalog version, and <see cref="ITemplateDataValidator"/> names no version:
+///     <b>The schema is read from one release, so the validator is given it.</b> A template
+///     is addressed by release, and <see cref="ITemplateDataValidator"/> names no release:
 ///     the server checks against the release that would be rendered, which a local copy cannot
-///     know. Pass the version whose data contract you mean to hold the data to.
+///     know. Pass the release whose data contract you mean to hold the data to.
 ///   </description></item>
 ///   <item><description>
 ///     <b>The schema is fetched, so it is cached.</b> A validator is only "local" after a round
@@ -60,17 +60,17 @@ namespace Epistola.Client.Tests.Validation.Schema.Local;
 public sealed class NJsonSchemaTemplateDataValidator : ITemplateDataValidator
 {
     private readonly ITemplatesApi _templatesApi;
-    private readonly string _catalogVersion;
+    private readonly string _release;
     private readonly TimeSpan _ttl;
     private readonly ConcurrentDictionary<string, (JsonSchema? Schema, DateTimeOffset StoredAt)> _cache = new();
 
     /// <param name="templatesApi">Where the template, and its schema, is read from.</param>
-    /// <param name="catalogVersion">The catalog version (SemVer) whose template schema the data is held to.</param>
+    /// <param name="release">The release, by its version or its releaseId, whose template schema the data is held to.</param>
     /// <param name="ttl">How long a fetched schema is reused.</param>
-    public NJsonSchemaTemplateDataValidator(ITemplatesApi templatesApi, string catalogVersion, TimeSpan? ttl = null)
+    public NJsonSchemaTemplateDataValidator(ITemplatesApi templatesApi, string release, TimeSpan? ttl = null)
     {
         _templatesApi = templatesApi;
-        _catalogVersion = catalogVersion;
+        _release = release;
         _ttl = ttl ?? TimeSpan.FromMinutes(5);
     }
 
@@ -134,7 +134,7 @@ public sealed class NJsonSchemaTemplateDataValidator : ITemplateDataValidator
         {
             return entry.Schema;
         }
-        var template = _templatesApi.GetTemplate(tenantKey, registry, @namespace, catalogKey, _catalogVersion, templateKey);
+        var template = _templatesApi.GetTemplate(tenantKey, registry, @namespace, catalogKey, _release, templateKey);
         var schema = template.Schema == null
             ? null
             : JsonSchema.FromJsonAsync(JsonConvert.SerializeObject(template.Schema)).GetAwaiter().GetResult();

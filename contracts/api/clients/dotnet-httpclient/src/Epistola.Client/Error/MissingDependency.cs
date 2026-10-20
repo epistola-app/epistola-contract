@@ -31,17 +31,17 @@ public sealed class MissingDependency
     public string CatalogKey { get; }
 
     /// <summary>The release of the catalog depended on that the deployed release pins.</summary>
-    public string ReleaseVersion { get; }
+    public string Version { get; }
 
     /// <summary>Why the release is missing, as the server sent it; see <see cref="Reasons"/>.</summary>
     public string Reason { get; }
 
-    public MissingDependency(string registry, string @namespace, string catalogKey, string releaseVersion, string reason)
+    public MissingDependency(string registry, string @namespace, string catalogKey, string version, string reason)
     {
         Registry = registry;
         Namespace = @namespace;
         CatalogKey = catalogKey;
-        ReleaseVersion = releaseVersion;
+        Version = version;
         Reason = reason;
     }
 
@@ -72,15 +72,15 @@ public sealed class MissingDependency
         var registry = Text("registry");
         var ns = Text("namespace");
         var catalogKey = Text("catalogKey");
-        var releaseVersion = Text("releaseVersion");
+        var version = Text("version");
         var reason = Text("reason");
-        if (registry == null || ns == null || catalogKey == null || releaseVersion == null || reason == null)
+        if (registry == null || ns == null || catalogKey == null || version == null || reason == null)
         {
             return null;
         }
-        return new MissingDependency(registry, ns, catalogKey, releaseVersion, reason);
+        return new MissingDependency(registry, ns, catalogKey, version, reason);
     }
 
     /// <inheritdoc/>
-    public override string ToString() => $"{Registry}/{Namespace}/{CatalogKey}@{ReleaseVersion}:{Reason}";
+    public override string ToString() => $"{Registry}/{Namespace}/{CatalogKey}@{Version}:{Reason}";
 }

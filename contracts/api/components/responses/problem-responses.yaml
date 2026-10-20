@@ -90,7 +90,7 @@ ReleaseDependenciesMissingError:
           - registry: exchange.epistola.app
             namespace: epistola
             catalogKey: system
-            releaseVersion: 3.2.0
+            version: 3.2.0
             reason: unavailable
 
 ReleaseDependenciesUnreleasedError:
@@ -113,8 +113,8 @@ ReleaseDependenciesUnreleasedError:
           - registry: exchange.epistola.app
             namespace: acme-corp
             catalogKey: branding
-            versionId: r4t8w2nc
-            draftName: House style 2027
+            releaseId: r4t8w2nc
+            releaseName: House style 2027
 
 EnvironmentDeploymentRefusedError:
   description: >-
@@ -133,9 +133,9 @@ EnvironmentDeploymentRefusedError:
 
 EnvironmentDeploymentConflictError:
   description: >-
-    The request conflicts with the current state of the resource. When the version cannot be
+    The request conflicts with the current state of the resource. When the release cannot be
     deployed to this environment, a draft to a production environment, the problem is
-    `environment-deployment-refused`. When the version renders with releases of other catalogs that
+    `environment-deployment-refused`. When the release renders with releases of other catalogs that
     the tenant does not have and that cannot be fetched, the problem is
     `release-dependencies-missing` and `missingDependencies` lists each one and why. Other conflicts
     use `conflict`.
@@ -162,7 +162,7 @@ EnvironmentDeploymentConflictError:
               - registry: exchange.epistola.app
                 namespace: epistola
                 catalogKey: system
-                releaseVersion: 3.2.0
+                version: 3.2.0
                 reason: unavailable
 
 TemplateDataInvalidError:

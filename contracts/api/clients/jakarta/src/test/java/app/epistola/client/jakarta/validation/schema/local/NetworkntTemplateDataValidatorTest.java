@@ -61,7 +61,7 @@ class NetworkntTemplateDataValidatorTest {
     private TemplatesApi templatesApi(Object schema) {
         return FakeApis.of(TemplatesApi.class, Map.of("getTemplate", args -> {
             fetches.incrementAndGet();
-            assertEquals("1.4.0", args[4], "the schema is read from the configured catalog version");
+            assertEquals("1.4.0", args[4], "the schema is read from the configured release");
             return new TemplateDto()
                     .key((String) args[5])
                     .tenantKey((String) args[0])

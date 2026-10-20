@@ -21,15 +21,15 @@ public final class MissingDependency {
     private final String registry;
     private final String namespace;
     private final String catalogKey;
-    private final String releaseVersion;
+    private final String version;
     private final String reason;
 
     public MissingDependency(
-            String registry, String namespace, String catalogKey, String releaseVersion, String reason) {
+            String registry, String namespace, String catalogKey, String version, String reason) {
         this.registry = registry;
         this.namespace = namespace;
         this.catalogKey = catalogKey;
-        this.releaseVersion = releaseVersion;
+        this.version = version;
         this.reason = reason;
     }
 
@@ -49,8 +49,8 @@ public final class MissingDependency {
     }
 
     /** The release of the catalog depended on that the deployed release pins. */
-    public String getReleaseVersion() {
-        return releaseVersion;
+    public String getVersion() {
+        return version;
     }
 
     /**
@@ -83,18 +83,18 @@ public final class MissingDependency {
         return Objects.equals(registry, that.registry)
                 && Objects.equals(namespace, that.namespace)
                 && Objects.equals(catalogKey, that.catalogKey)
-                && Objects.equals(releaseVersion, that.releaseVersion)
+                && Objects.equals(version, that.version)
                 && Objects.equals(reason, that.reason);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(registry, namespace, catalogKey, releaseVersion, reason);
+        return Objects.hash(registry, namespace, catalogKey, version, reason);
     }
 
-    /** {@code registry/namespace/catalogKey@releaseVersion:reason}. */
+    /** {@code registry/namespace/catalogKey@version:reason}. */
     @Override
     public String toString() {
-        return registry + "/" + namespace + "/" + catalogKey + "@" + releaseVersion + ":" + reason;
+        return registry + "/" + namespace + "/" + catalogKey + "@" + version + ":" + reason;
     }
 }

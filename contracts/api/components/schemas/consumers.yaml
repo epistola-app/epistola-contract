@@ -166,7 +166,7 @@ ConsumerPermissions:
       description: |
         read = list/get environments, what they serve and their deployment history.
         write = create/update/delete environments + read.
-        deploy = deploy and undeploy catalog versions (releases and drafts) + write.
+        deploy = deploy and undeploy releases of catalogs (drafts and released ones) + write.
     stencils:
       type: string
       enum: [none, read, write]
@@ -177,7 +177,7 @@ ConsumerPermissions:
       enum: [none, read, write, release]
       default: none
       description: |
-        read = list catalogs, their versions and a draft's changes.
+        read = list catalogs, their releases and a draft's changes.
         write = import catalogs + read.
         release = cut catalog releases + write.
     generation:

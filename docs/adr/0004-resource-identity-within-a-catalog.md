@@ -4,7 +4,7 @@
 - **Date:** 2026-10-16
 - **Scope:** API contract (`contracts/api`) and portable catalog contract (`contracts/catalog`, wire
   v8), contract 2.0
-- **Related:** [ADR 0002](0002-intermediate-releases.md) (catalog versions),
+- **Related:** [ADR 0002](0002-intermediate-releases.md) (drafts and releases),
   [ADR 0003](0003-catalog-identity-and-distribution.md) (catalog identity), issue #84 (a resource's
   address is its `key`)
 
@@ -50,7 +50,7 @@ Adopt **A**.
 
 ### Uniqueness
 
-A resource's `key` is unique among the resources **of its type** in one catalog version. A variant's
+A resource's `key` is unique among the resources **of its type** in one release of a catalog. A variant's
 `key` is unique within its template.
 
 ### The canonical name
@@ -58,7 +58,7 @@ A resource's `key` is unique among the resources **of its type** in one catalog 
 A resource is written as one string:
 
 ```
-{registry}/{namespace}/{catalogKey}@{catalogVersion}/{collection}/{key}
+{registry}/{namespace}/{catalogKey}@{release}/{collection}/{key}
 exchange.epistola.app/epistola/letters@1.4.0/stencils/letter-shell
 exchange.epistola.app/epistola/letters@1.4.0/templates/invoice/variants/english
 ```
@@ -67,17 +67,17 @@ exchange.epistola.app/epistola/letters@1.4.0/templates/invoice/variants/english
   `images`, `fonts`, `code-lists`, `attributes`. A variant follows its template, as in the API.
 - The registry is always written in full, never `~`: the name must mean the same resource in every
   installation (ADR 0003).
-- `@{catalogVersion}` may be left out to name the resource in the catalog without a version, as a
+- `@{release}` may be left out to name the resource in the catalog without a release, as a
   reference inside content does; which release (or, in a draft, which draft) it means is then
   decided by the catalog dependency that declares it.
 - The name is unambiguous without escaping: a registry is a DNS name, a namespace and a key are
-  lowercase letters, digits and hyphens, and a version is a SemVer number or a `versionId`
+  lowercase letters, digits and hyphens, and a release is a version or a `releaseId`
   (ADR 0002), none of which contains `/` or `@`.
 - The tenant is not part of the name. It is local to an installation; the REST path puts
   `/tenants/{tenantKey}` in front.
 
-The canonical name is the REST path's catalog-relative part with `/catalogs/` and `/versions/`
-dropped and the version joined with `@`, so either converts to the other mechanically.
+The canonical name is the REST path's catalog-relative part with `/catalogs/` and `/releases/`
+dropped and the release joined with `@`, so either converts to the other mechanically.
 
 Lists that mix resource types keep writing `type/key` (`theme/corporate`) within one catalog
 version; that is the tail of the canonical name.

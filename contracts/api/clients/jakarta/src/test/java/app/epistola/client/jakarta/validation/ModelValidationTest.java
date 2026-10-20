@@ -13,7 +13,7 @@ import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
 import app.epistola.client.jakarta.model.CatalogDto;
 import app.epistola.client.jakarta.model.FontVariantDto;
 import app.epistola.client.jakarta.model.BatchGenerationItem;
-import app.epistola.client.jakarta.model.CreateCatalogDraftRequest;
+import app.epistola.client.jakarta.model.CreateCatalogReleaseRequest;
 import app.epistola.client.jakarta.model.CreateEnvironmentRequest;
 import app.epistola.client.jakarta.model.CreateTemplateRequest;
 import app.epistola.client.jakarta.model.CreateTenantRequest;
@@ -21,7 +21,7 @@ import app.epistola.client.jakarta.model.GenerateBatchRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
 import app.epistola.client.jakarta.model.PreviewDocumentRequest;
 import app.epistola.client.jakarta.model.ReleaseCatalogDraftRequest;
-import app.epistola.client.jakarta.model.UpdateCatalogDraftRequest;
+import app.epistola.client.jakarta.model.UpdateCatalogReleaseRequest;
 import app.epistola.client.jakarta.model.UpdateTenantRequest;
 import app.epistola.client.jakarta.model.ResourceStatus;
 import app.epistola.client.jakarta.model.VariantContentDto;
@@ -180,7 +180,7 @@ class ModelValidationTest {
     @Test
     void a_dependency_declaration_pins_an_exact_release() {
         CatalogDependencyRequirement pinned =
-                new CatalogDependencyRequirement().namespace("epistola").catalogKey("system").releaseVersion("1.3.0");
+                new CatalogDependencyRequirement().namespace("epistola").catalogKey("system").version("1.3.0");
         assertSame(pinned, ModelValidation.validate(pinned));
         for (String release : List.of("^1.3.0", "1.x", "*", "01.3.0", "1.3.0-rc.1")) {
             assertThrows(
@@ -188,7 +188,7 @@ class ModelValidationTest {
                     () -> ModelValidation.validate(new CatalogDependencyRequirement()
                             .namespace("epistola")
                             .catalogKey("system")
-                            .releaseVersion(release)),
+                            .version(release)),
                     "expected a pinned release '" + release + "' to fail");
         }
     }
@@ -198,14 +198,14 @@ class ModelValidationTest {
         CatalogDependencyRequirement onDraft = new CatalogDependencyRequirement()
                 .namespace("acme-corp")
                 .catalogKey("branding")
-                .versionId("r4t8w2nc");
+                .releaseId("r4t8w2nc");
         assertSame(onDraft, ModelValidation.validate(onDraft));
     }
 
     @Test
     void a_release_number_is_a_plain_semver_number() {
         for (String version : List.of("0.1.0", "1.4.0", "10.20.30")) {
-            ReleaseCatalogDraftRequest request = new ReleaseCatalogDraftRequest().releaseVersion(version);
+            ReleaseCatalogDraftRequest request = new ReleaseCatalogDraftRequest().version(version);
             assertSame(request, ModelValidation.validate(request), "expected '" + version + "' to be valid");
         }
         // Omitted, the server numbers the release from its changes.
@@ -215,39 +215,39 @@ class ModelValidationTest {
                 List.of("1.4", "v1.4.0", "01.4.0", "1.4.0-rc.1", "2.0.0-redesign-2027.1", "1.4.0+build", "^1.4.0", "next")) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> ModelValidation.validate(new ReleaseCatalogDraftRequest().releaseVersion(version)),
+                    () -> ModelValidation.validate(new ReleaseCatalogDraftRequest().version(version)),
                     "expected a release as '" + version + "' to fail");
         }
     }
 
     @Test
     void a_draft_is_named_and_starts_from_a_release_or_another_draft() {
-        ModelValidation.validate(new CreateCatalogDraftRequest().name("Redesign 2027"));
-        ModelValidation.validate(new CreateCatalogDraftRequest().name("Fixes 1.4").from("1.4.0"));
+        ModelValidation.validate(new CreateCatalogReleaseRequest().name("Redesign 2027"));
+        ModelValidation.validate(new CreateCatalogReleaseRequest().name("Fixes 1.4").from("1.4.0"));
         ModelValidation.validate(
-                new CreateCatalogDraftRequest().name("Redesign 2027").from("k7m2x9qa"));
-        ModelValidation.validate(new UpdateCatalogDraftRequest().name("Redesign 2028"));
+                new CreateCatalogReleaseRequest().name("Redesign 2027").from("k7m2x9qa"));
+        ModelValidation.validate(new UpdateCatalogReleaseRequest().name("Redesign 2028"));
 
         assertTrue(assertThrows(
                         IllegalArgumentException.class,
                         () -> ModelValidation.validate(
-                                new CreateCatalogDraftRequest().name("Redesign 2027").from("Latest")))
+                                new CreateCatalogReleaseRequest().name("Redesign 2027").from("Latest")))
                 .getMessage()
                 .startsWith("from: must match pattern"));
         assertTrue(assertThrows(
                         IllegalArgumentException.class,
                         () -> ModelValidation.validate(
-                                new CreateCatalogDraftRequest().name("Redesign 2027").from("1.4.x")))
+                                new CreateCatalogReleaseRequest().name("Redesign 2027").from("1.4.x")))
                 .getMessage()
                 .startsWith("from: must match pattern"));
         for (String name : List.of("", "x".repeat(101))) {
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> ModelValidation.validate(new CreateCatalogDraftRequest().name(name)),
+                    () -> ModelValidation.validate(new CreateCatalogReleaseRequest().name(name)),
                     "expected a draft named '" + name + "' to fail");
             assertThrows(
                     IllegalArgumentException.class,
-                    () -> ModelValidation.validate(new UpdateCatalogDraftRequest().name(name)),
+                    () -> ModelValidation.validate(new UpdateCatalogReleaseRequest().name(name)),
                     "expected an update to '" + name + "' to fail");
         }
     }

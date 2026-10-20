@@ -38,9 +38,9 @@ import java.util.concurrent.ConcurrentHashMap
  *   pointers — the exact drift the interface's contract exists to prevent.
  * - **The schema is fetched, so it is cached.** A validator is only "local" after a round trip for
  *   the template; without a cache this is slower than asking the server outright.
- * - **The schema belongs to a catalog version, which the caller has to name.** Templates are read
- *   from `…/versions/{catalogVersion}/templates/{templateKey}`, and [TemplateDataValidator] carries
- *   no version, so [catalogVersion] decides which one, per catalog: the release the generation
+ * - **The schema belongs to a release of a catalog, which the caller has to name.** Templates are read
+ *   from `…/releases/{release}/templates/{templateKey}`, and [TemplateDataValidator] carries
+ *   no release, so [release] decides which one, per catalog: the release the generation
  *   request will render, typically. The server's own `validate` endpoint needs no such choice.
  *
  * And one thing a copy cannot fix, which is the argument for the default being the server:
@@ -52,7 +52,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class NetworkntTemplateDataValidator(
     private val templatesApi: TemplatesApi,
-    private val catalogVersion: (tenantKey: String, registry: String, namespace: String, catalogKey: String) -> String,
+    private val release: (tenantKey: String, registry: String, namespace: String, catalogKey: String) -> String,
     private val objectMapper: ObjectMapper = Serializer.jacksonObjectMapper,
     private val ttl: Duration = Duration.ofMinutes(5),
 ) : TemplateDataValidator {
@@ -62,7 +62,7 @@ class NetworkntTemplateDataValidator(
         val registry: String,
         val namespace: String,
         val catalogKey: String,
-        val catalogVersion: String,
+        val release: String,
         val templateKey: String,
     )
     private data class Entry(val schema: JsonSchema?, val storedAt: Instant)
@@ -79,7 +79,7 @@ class NetworkntTemplateDataValidator(
     ): List<ValidationError> {
         // No schema on the template means nothing is claimed about the data, so nothing is wrong
         // with it. Same answer the server gives.
-        val schema = schemaFor(Key(tenantKey, registry, namespace, catalogKey, catalogVersion(tenantKey, registry, namespace, catalogKey), templateKey)) ?: return emptyList()
+        val schema = schemaFor(Key(tenantKey, registry, namespace, catalogKey, release(tenantKey, registry, namespace, catalogKey), templateKey)) ?: return emptyList()
 
         return schema.validate(objectMapper.valueToTree<JsonNode>(data)).map { message ->
             ValidationError(
@@ -101,7 +101,7 @@ class NetworkntTemplateDataValidator(
     }
 
     private fun loadSchema(key: Key): JsonSchema? {
-        val template = templatesApi.getTemplate(key.tenantKey, key.registry, key.namespace, key.catalogKey, key.catalogVersion, key.templateKey)
+        val template = templatesApi.getTemplate(key.tenantKey, key.registry, key.namespace, key.catalogKey, key.release, key.templateKey)
         val schemaObject = template.schema ?: return null
         val schemaNode: JsonNode = objectMapper.valueToTree(schemaObject)
         val config = SchemaValidatorsConfig.builder().pathType(PathType.JSON_POINTER).build()

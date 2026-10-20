@@ -16,11 +16,11 @@ import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.model.AvailableCatalogReleases;
 import app.epistola.client.jakarta.model.CatalogDependencyListResponse;
 import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
-import app.epistola.client.jakarta.model.CatalogVersionDto;
-import app.epistola.client.jakarta.model.CatalogVersionListResponse;
+import app.epistola.client.jakarta.model.CatalogReleaseDto;
+import app.epistola.client.jakarta.model.CatalogReleaseListResponse;
+import app.epistola.client.jakarta.model.CatalogReleaseStatus;
 import app.epistola.client.jakarta.model.CreateTenantRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
-import app.epistola.client.jakarta.model.DeploymentKind;
 import app.epistola.client.jakarta.model.InstallCatalogReleaseResponse;
 import app.epistola.client.jakarta.model.ReleaseCatalogDraftResponse;
 import app.epistola.client.jakarta.model.TenantDto;
@@ -251,19 +251,19 @@ class GeneratedApiContractTest {
     }
 
     /**
-     * A catalog's content lives in its versions (contract 3.0): every operation on a catalog's
-     * templates, variants, stencils, themes, attributes, code lists, fonts, images, dependencies,
-     * changes and readiness takes the version it works on. Only data validation stays at the catalog,
-     * because it validates against what is released.
+     * A catalog's content lives in its releases: every operation on a catalog's templates, variants,
+     * stencils, themes, attributes, code lists, fonts, images, dependencies, changes and readiness
+     * takes the release it works on, a draft or a released one. Only data validation stays at the
+     * catalog, because it validates against what is released.
      */
     @Test
-    void catalog_content_is_addressed_through_a_catalog_version() {
+    void catalog_content_is_addressed_through_a_release() {
         List<String> catalogLevel = List.of(
-                "/versions",
-                "/versions/{catalogVersion}",
+                "/releases",
+                "/releases/{release}",
                 "/available-releases",
-                "/available-releases/{releaseVersion}/install");
-        int versionScoped = 0;
+                "/available-releases/{version}/install");
+        int releaseScoped = 0;
 
         for (Class<?> api : GENERATED_APIS) {
             String base = api.getAnnotation(Path.class) == null ? "" : api.getAnnotation(Path.class).value();
@@ -280,28 +280,34 @@ class GeneratedApiContractTest {
                 if (rest.isEmpty() || catalogLevel.contains(rest) || method.getName().equals("validateTemplateData")) {
                     continue;
                 }
-                versionScoped++;
-                assertTrue(rest.startsWith("/versions/{catalogVersion}/"), where + " is catalog content outside a version");
-                assertTrue(pathParams(method).contains("catalogVersion"), where + " does not take catalogVersion");
+                releaseScoped++;
+                assertTrue(rest.startsWith("/releases/{release}/"), where + " is catalog content outside a release");
+                assertTrue(pathParams(method).contains("release"), where + " does not take release");
             }
         }
 
-        assertTrue(versionScoped > 20, "expected the catalog's content operations to be version-scoped");
+        assertTrue(releaseScoped > 20, "expected the catalog's content operations to be release-scoped");
         assertEquals(
                 List.of("tenantKey", "registry", "namespace", "catalogKey", "templateKey"),
                 pathParams(method(TemplatesApi.class, "validateTemplateData")),
-                "validateTemplateData stays at the catalog and takes no version");
+                "validateTemplateData stays at the catalog and takes no release");
     }
 
-    /** The catalog-level release operations were replaced by releasing a draft version. */
+    /**
+     * A catalog's releases, drafts and released ones alike, are one kind of object: created as a
+     * draft, released by releasing the draft.
+     */
     @Test
-    void catalog_versions_replace_the_catalog_level_releases() {
+    void a_catalogs_releases_are_drafts_and_released_ones() {
         // Drafts are independent copies: releasing one no longer flows into higher drafts, so the
         // incoming-change operations went with forward flow.
         for (String removed : List.of(
                 "releaseCatalog",
-                "listCatalogReleases",
-                "getCatalogRelease",
+                "listCatalogVersions",
+                "getCatalogVersion",
+                "createCatalogDraft",
+                "updateCatalogDraft",
+                "deleteCatalogDraft",
                 "listIncomingChanges",
                 "resolveIncomingChange",
                 // A draft is numbered when it is released (ADR 0002): the operations
@@ -320,28 +326,29 @@ class GeneratedApiContractTest {
         }
 
         List<String> catalog = List.of("tenantKey", "registry", "namespace", "catalogKey");
-        List<String> version = List.of("tenantKey", "registry", "namespace", "catalogKey", "catalogVersion");
+        List<String> release = List.of("tenantKey", "registry", "namespace", "catalogKey", "release");
 
-        assertOperation("listCatalogVersions", GET.class, CatalogVersionListResponse.class, catalog);
-        assertOperation("createCatalogDraft", POST.class, CatalogVersionDto.class, catalog);
-        assertOperation("getCatalogVersion", GET.class, CatalogVersionDto.class, version);
-        assertOperation("updateCatalogDraft", PATCH.class, CatalogVersionDto.class, version);
-        assertOperation("deleteCatalogDraft", DELETE.class, void.class, version);
-        assertOperation("previewCatalogDraftRelease", GET.class, CatalogDraftReleasePreview.class, version);
-        assertOperation("releaseCatalogDraft", POST.class, ReleaseCatalogDraftResponse.class, version);
+        assertOperation("listCatalogReleases", GET.class, CatalogReleaseListResponse.class, catalog);
+        assertOperation("createCatalogRelease", POST.class, CatalogReleaseDto.class, catalog);
+        assertOperation("getCatalogRelease", GET.class, CatalogReleaseDto.class, release);
+        assertOperation("updateCatalogRelease", PATCH.class, CatalogReleaseDto.class, release);
+        assertOperation("deleteCatalogRelease", DELETE.class, void.class, release);
+        assertOperation("previewCatalogDraftRelease", GET.class, CatalogDraftReleasePreview.class, release);
+        assertOperation("releaseCatalogDraft", POST.class, ReleaseCatalogDraftResponse.class, release);
+        assertEquals(CatalogReleaseDto.class, method(ReleaseCatalogDraftResponse.class, "getRelease").getReturnType());
         assertTrue(
                 method(CatalogsApi.class, "previewCatalogDraftRelease")
                         .getAnnotation(Path.class)
                         .value()
-                        .endsWith("/versions/{catalogVersion}/release-preview"),
-                "previewCatalogDraftRelease is a release-preview below the version");
+                        .endsWith("/releases/{release}/release-preview"),
+                "previewCatalogDraftRelease is a release-preview below the release");
         assertTrue(
                 Arrays.stream(method(CatalogsApi.class, "previewCatalogDraftRelease").getParameters())
                         .noneMatch(parameter -> parameter.isAnnotationPresent(QueryParam.class)),
                 "previewCatalogDraftRelease takes no query parameters");
 
         for (String withBody :
-                List.of("createCatalogDraft", "updateCatalogDraft", "releaseCatalogDraft")) {
+                List.of("createCatalogRelease", "updateCatalogRelease", "releaseCatalogDraft")) {
             assertEquals(
                     List.of(VENDOR_JSON),
                     List.of(method(CatalogsApi.class, withBody).getAnnotation(Consumes.class).value()),
@@ -363,14 +370,14 @@ class GeneratedApiContractTest {
         }
 
         List<String> catalog = List.of("tenantKey", "registry", "namespace", "catalogKey");
-        List<String> release = List.of("tenantKey", "registry", "namespace", "catalogKey", "releaseVersion");
+        List<String> release = List.of("tenantKey", "registry", "namespace", "catalogKey", "version");
 
         assertOperation("listAvailableCatalogReleases", GET.class, AvailableCatalogReleases.class, catalog);
         assertOperation("installCatalogRelease", POST.class, InstallCatalogReleaseResponse.class, release);
 
         Method install = method(CatalogsApi.class, "installCatalogRelease");
         assertTrue(
-                install.getAnnotation(Path.class).value().endsWith("/available-releases/{releaseVersion}/install"),
+                install.getAnnotation(Path.class).value().endsWith("/available-releases/{version}/install"),
                 "installCatalogRelease is addressed below the available release");
         assertEquals(release.size(), install.getParameterCount(), "installCatalogRelease takes no query and no body");
         assertTrue(
@@ -394,35 +401,35 @@ class GeneratedApiContractTest {
         Method list = method(CatalogsApi.class, "listCatalogDependencies");
         assertNotNull(list.getAnnotation(GET.class), "listCatalogDependencies should be a GET");
         assertEquals(CatalogDependencyListResponse.class, list.getReturnType());
-        assertEquals(List.of("tenantKey", "registry", "namespace", "catalogKey", "catalogVersion"), pathParams(list));
+        assertEquals(List.of("tenantKey", "registry", "namespace", "catalogKey", "release"), pathParams(list));
 
         Method update = method(CatalogsApi.class, "updateCatalogDependencies");
         assertNotNull(update.getAnnotation(PUT.class), "updateCatalogDependencies should be a PUT");
         assertEquals(CatalogDependencyListResponse.class, update.getReturnType());
-        assertEquals(List.of("tenantKey", "registry", "namespace", "catalogKey", "catalogVersion"), pathParams(update));
+        assertEquals(List.of("tenantKey", "registry", "namespace", "catalogKey", "release"), pathParams(update));
         assertEquals(UpdateCatalogDependenciesRequest.class, update.getParameterTypes()[5]);
         assertEquals(List.of(VENDOR_JSON), List.of(update.getAnnotation(Consumes.class).value()));
     }
 
     /**
-     * Deploying names the catalog version, a release by its number or a draft by its
-     * {@code versionId}, entirely in the path, so the PUT carries no body; a stale generator output
+     * Deploying names the release, a released one by its version or a draft by its
+     * {@code releaseId}, entirely in the path, so the PUT carries no body; a stale generator output
      * that still expects a request body would fail here. Its two extra arguments are the optional
      * {@code includeDependencies} and {@code replace} query parameters, in that order. The
-     * deployment says what it serves ({@code kind}, {@code versionId}, a {@code releaseVersion} that
+     * deployment says what it serves ({@code status}, {@code releaseId}, a {@code version} that
      * is null for a draft) and carries its usage: {@code lastUsedAt} (null until a request uses it)
      * and {@code documentsRequested}, a count that needs 64 bits.
      */
     @Test
-    void a_catalog_version_is_deployed_and_undeployed_by_its_path_alone() {
+    void a_release_is_deployed_and_undeployed_by_its_path_alone() {
         List<String> versionPath =
-                List.of("tenantKey", "environmentKey", "registry", "namespace", "catalogKey", "catalogVersion");
+                List.of("tenantKey", "environmentKey", "registry", "namespace", "catalogKey", "release");
 
-        Method deploy = method(EnvironmentsApi.class, "deployCatalogVersion");
-        assertNotNull(deploy.getAnnotation(PUT.class), "deployCatalogVersion should be a PUT");
+        Method deploy = method(EnvironmentsApi.class, "deployCatalogRelease");
+        assertNotNull(deploy.getAnnotation(PUT.class), "deployCatalogRelease should be a PUT");
         assertEquals(DeploymentDto.class, deploy.getReturnType());
         assertEquals(versionPath, pathParams(deploy));
-        assertEquals(versionPath.size() + 2, deploy.getParameterCount(), "deployCatalogVersion should take no request body");
+        assertEquals(versionPath.size() + 2, deploy.getParameterCount(), "deployCatalogRelease should take no request body");
         Parameter includeDependencies = deploy.getParameters()[versionPath.size()];
         assertEquals(Boolean.class, includeDependencies.getType());
         assertEquals("includeDependencies", includeDependencies.getAnnotation(QueryParam.class).value());
@@ -431,17 +438,17 @@ class GeneratedApiContractTest {
         assertEquals(Boolean.class, replace.getType());
         assertEquals("replace", replace.getAnnotation(QueryParam.class).value());
         assertEquals("false", replace.getAnnotation(DefaultValue.class).value());
-        assertEquals(DeploymentKind.class, method(DeploymentDto.class, "getKind").getReturnType());
-        assertEquals(String.class, method(DeploymentDto.class, "getVersionId").getReturnType());
-        assertEquals(String.class, method(DeploymentDto.class, "getDraftName").getReturnType());
+        assertEquals(CatalogReleaseStatus.class, method(DeploymentDto.class, "getStatus").getReturnType());
+        assertEquals(String.class, method(DeploymentDto.class, "getReleaseId").getReturnType());
+        assertEquals(String.class, method(DeploymentDto.class, "getReleaseName").getReturnType());
         assertEquals(OffsetDateTime.class, method(DeploymentDto.class, "getLastUsedAt").getReturnType());
         assertEquals(Long.class, method(DeploymentDto.class, "getDocumentsRequested").getReturnType());
 
-        Method undeploy = method(EnvironmentsApi.class, "undeployCatalogVersion");
-        assertNotNull(undeploy.getAnnotation(DELETE.class), "undeployCatalogVersion should be a DELETE");
+        Method undeploy = method(EnvironmentsApi.class, "undeployCatalogRelease");
+        assertNotNull(undeploy.getAnnotation(DELETE.class), "undeployCatalogRelease should be a DELETE");
         assertEquals(void.class, undeploy.getReturnType());
         assertEquals(versionPath, pathParams(undeploy));
-        assertEquals(versionPath.size(), undeploy.getParameterCount(), "undeployCatalogVersion should take no request body");
+        assertEquals(versionPath.size(), undeploy.getParameterCount(), "undeployCatalogRelease should take no request body");
     }
 
     @Test
@@ -486,7 +493,7 @@ class GeneratedApiContractTest {
         List<String> operations = List.of(
                 // ETag: reads and conditional updates
                 "AttributesApi.getAttribute", "AttributesApi.updateAttribute",
-                "CatalogsApi.getCatalogVersion", "CatalogsApi.updateCatalogDraft",
+                "CatalogsApi.getCatalogRelease", "CatalogsApi.updateCatalogRelease",
                 "CatalogsApi.listCatalogDependencies", "CatalogsApi.updateCatalogDependencies",
                 "CodeListsApi.getCodeList", "CodeListsApi.updateCodeList", "CodeListsApi.updateCodeListEntryHidden",
                 "ConsumersApi.getConsumer", "ConsumersApi.updateConsumer",
@@ -499,7 +506,7 @@ class GeneratedApiContractTest {
                 "VariantsApi.getVariant", "VariantsApi.updateVariant", "VariantsApi.setDefaultVariant",
                 "VariantsApi.getVariantContent", "VariantsApi.updateVariantContent",
                 // Location: creates, and the accepted generation jobs
-                "AttributesApi.createAttribute", "CatalogsApi.createCatalogDraft", "CodeListsApi.createCodeList",
+                "AttributesApi.createAttribute", "CatalogsApi.createCatalogRelease", "CodeListsApi.createCodeList",
                 "ConsumersApi.registerConsumer", "EnvironmentsApi.createEnvironment",
                 "GenerationApi.generateDocument", "GenerationApi.generateDocumentBatch",
                 "ImagesApi.uploadImage", "StencilsApi.createStencil", "TemplatesApi.createTemplate",

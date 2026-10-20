@@ -9,12 +9,12 @@ templates:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
 
   get:
     operationId: listTemplates
-    summary: List the templates in a catalog version
-    description: Retrieve the document templates of this catalog version.
+    summary: List the templates in a release of a catalog
+    description: Retrieve the document templates of this release.
     tags:
       - Templates
     x-required-permissions: [TEMPLATE_VIEW]
@@ -90,7 +90,7 @@ templates-id:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: templateKey
       in: path
       required: true
@@ -252,7 +252,7 @@ template-mark-ready:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: templateKey
       in: path
       required: true

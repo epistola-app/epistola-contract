@@ -36,7 +36,7 @@ ThemeDto:
         $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
       description: |
         Named block style presets (like CSS classes). Key is the preset name, which the catalog's
-        declared presets name (`CatalogVersionDto.presets`). Absent when the theme styles none (as after an update
+        declared presets name (`CatalogReleaseDto.presets`). Absent when the theme styles none (as after an update
         sends null).
       example:
         heading:

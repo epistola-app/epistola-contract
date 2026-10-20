@@ -9,12 +9,12 @@ attributes:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
   get:
     operationId: listAttributes
-    summary: List the attribute definitions in a catalog version
+    summary: List the attribute definitions in a release of a catalog
     description: >-
-      Retrieve the attribute definitions of this catalog version.
+      Retrieve the attribute definitions of this release.
       Attribute definitions describe the keys that can be used for variant selection.
     tags:
       - Attributes
@@ -85,7 +85,7 @@ attributes-key:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: attributeKey
       in: path
       required: true

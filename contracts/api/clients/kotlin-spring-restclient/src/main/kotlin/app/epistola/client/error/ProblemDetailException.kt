@@ -116,7 +116,7 @@ class ProblemDetailException(
 
     /**
      * The releases of other catalogs a `release-dependencies-missing` problem (409, from
-     * `deployCatalogVersion`) reports cannot be had, in the order the server listed them; empty for any
+     * `deployCatalogRelease`) reports cannot be had, in the order the server listed them; empty for any
      * other problem.
      *
      * Each entry's [MissingReleaseDependency.reason] is kept as the string the server sent, so a

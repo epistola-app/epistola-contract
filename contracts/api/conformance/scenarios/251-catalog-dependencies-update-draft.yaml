@@ -5,13 +5,13 @@
 id: catalog-dependencies-update-draft
 title: A draft that builds on another catalog's draft declares it by its id, and no release
 why: >
-  In a draft, a dependency declaration may name a draft of the other catalog (`versionId`) instead of
-  a release, to build on work that is not released yet (ADR 0002). Exactly one of `releaseVersion`
-  and `versionId` is given: a client that sends a `releaseVersion` it was not given, even as an
+  In a draft, a dependency declaration may name a draft of the other catalog (`releaseId`) instead of
+  a release, to build on work that is not released yet (ADR 0002). Exactly one of `version`
+  and `releaseId` is given: a client that sends a `version` it was not given, even as an
   empty string, sends a declaration naming both, which is refused.
 
   The second entry pins a release as usual. The response names the draft for the first entry and a
-  null `releaseVersion`, and the release for the second and a null `versionId`; a client must surface
+  null `version`, and the release for the second and a null `releaseId`; a client must surface
   both nulls as null, or a draft dependency reads as a release that pins nothing.
 
 action:
@@ -22,24 +22,24 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: k7m2x9qa
+    release: k7m2x9qa
     dependencies:
-      - { namespace: acme-corp, catalogKey: branding, versionId: r4t8w2nc }
-      - { namespace: epistola, catalogKey: system, releaseVersion: 1.3.0 }
+      - { namespace: acme-corp, catalogKey: branding, releaseId: r4t8w2nc }
+      - { namespace: epistola, catalogKey: system, version: 1.3.0 }
 
 script:
   - status: 200
     contentType: application/vnd.epistola.v2+json
     body:
       items:
-        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, releaseVersion: null, versionId: r4t8w2nc }
-        - { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, releaseVersion: 1.3.0, versionId: null }
+        - { registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, version: null, releaseId: r4t8w2nc }
+        - { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, version: 1.3.0, releaseId: null }
 
 expect:
   requestCount: 1
   requests:
     - method: PUT
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/k7m2x9qa/dependencies
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/dependencies
       headers:
         Content-Type:
           matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
@@ -47,11 +47,11 @@ expect:
         json:
           dependencies:
             # Omitted or null is "not given"; any other value names a release or a draft.
-            - { registry: { whenPresent: { equals: null } }, namespace: acme-corp, catalogKey: branding, versionId: r4t8w2nc, releaseVersion: { whenPresent: { equals: null } } }
-            - { registry: { whenPresent: { equals: null } }, namespace: epistola, catalogKey: system, releaseVersion: 1.3.0, versionId: { whenPresent: { equals: null } } }
+            - { registry: { whenPresent: { equals: null } }, namespace: acme-corp, catalogKey: branding, releaseId: r4t8w2nc, version: { whenPresent: { equals: null } } }
+            - { registry: { whenPresent: { equals: null } }, namespace: epistola, catalogKey: system, version: 1.3.0, releaseId: { whenPresent: { equals: null } } }
   report:
     registries: exchange.epistola.app,exchange.epistola.app
     namespaces: acme-corp,epistola
     catalogKeys: branding,system
-    releaseVersions: null,1.3.0
-    versionIds: r4t8w2nc,null
+    versions: null,1.3.0
+    releaseIds: r4t8w2nc,null

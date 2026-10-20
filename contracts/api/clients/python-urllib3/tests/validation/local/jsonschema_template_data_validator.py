@@ -20,8 +20,8 @@ Two details are the whole reason a copyable example is worth keeping:
   under a docstring promising a pointer.
 * **The schema is fetched, so it is cached.** A validator is only "local" after a round trip for
   the template; without a cache this is slower than asking the server outright.
-* **The schema comes from one catalog version.** A template is read through a version of its
-  catalog, so the validator is given the version to read it from (``catalog_version``). The server
+* **The schema comes from one release.** A template is read through a release of its catalog, so
+  the validator is given the release to read it from (``release``). The server
   validates against the release it would render instead, which a local copy cannot resolve.
 
 And one thing a copy cannot fix, which is the argument for the default being the server: **a local
@@ -45,10 +45,10 @@ class JsonSchemaTemplateDataValidator:
     """Validates template data in-process with ``jsonschema``."""
 
     def __init__(
-        self, templates_api: Any, catalog_version: str, ttl_seconds: float = 300.0
+        self, templates_api: Any, release: str, ttl_seconds: float = 300.0
     ) -> None:
         self._templates_api = templates_api
-        self._catalog_version = catalog_version
+        self._release = release
         self._ttl = ttl_seconds
         self._lock = threading.Lock()
         self._cache: Dict[Tuple[str, str, str, str, str], Tuple[Optional[Dict[str, Any]], float]] = {}
@@ -98,7 +98,7 @@ class JsonSchemaTemplateDataValidator:
             if entry is not None and now < entry[1] + self._ttl:
                 return entry[0]
         template = self._templates_api.get_template(
-            tenant_key, registry, namespace, catalog_key, self._catalog_version, template_key
+            tenant_key, registry, namespace, catalog_key, self._release, template_key
         )
         schema = template.var_schema
         with self._lock:

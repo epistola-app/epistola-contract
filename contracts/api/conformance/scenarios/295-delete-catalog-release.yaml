@@ -2,22 +2,22 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: delete-catalog-draft
+id: delete-catalog-release
 title: Discarding a draft addresses it by its id, and its empty answer is a success
 why: >
-  A draft has no number, so discarding it is a DELETE on the address its `versionId` gives it
+  A draft has no version, so discarding it is a DELETE on the address its `releaseId` gives it
   (ADR 0002). The answer is a 204 with no body and no content type, which a
   client must treat as success rather than fail to deserialize.
 
 action:
-  name: delete-catalog-draft
+  name: delete-catalog-release
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: r4t8w2nc
+    release: r4t8w2nc
 
 script:
   - status: 204
@@ -26,4 +26,4 @@ expect:
   requestCount: 1
   requests:
     - method: DELETE
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/r4t8w2nc
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/r4t8w2nc

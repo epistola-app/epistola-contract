@@ -34,7 +34,7 @@ action:
     registry: acme.com
     namespace: acme
     catalogKey: main
-    catalogVersion: 2.0.0
+    release: 2.0.0
     imageKey: municipality-mark
 
 script:
@@ -48,7 +48,7 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/acme.com/acme/main/versions/2.0.0/images/municipality-mark/content
+      path: /api/tenants/acme-corp/catalogs/acme.com/acme/main/releases/2.0.0/images/municipality-mark/content
       headers:
         # Each declared image type is acceptable, by name or by wildcard, and so is the problem
         # document the client parses on failure.

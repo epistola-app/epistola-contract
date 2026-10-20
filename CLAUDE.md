@@ -24,7 +24,6 @@ epistola-contract/
 │   ├── paths/                     # Endpoint definitions
 │   │   ├── templates.yaml
 │   │   ├── variants.yaml
-│   │   ├── versions.yaml
 │   │   ├── generation.yaml
 │   │   └── ...
 │   └── components/
@@ -154,19 +153,20 @@ All endpoints use versioned media type: `application/vnd.epistola.v2+json`
 ### Common Patterns
 
 - **Tenant scoping**: All resources are scoped under `/tenants/{tenantKey}/` (the server prefixes
-  `/api`); a catalog's content under `…/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/`
+  `/api`); a catalog's content under `…/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/`
 - **Keys, not IDs**: a `key` is a resource's public address within its parent; an `id` is a
-  generated identifier (`documentId`, `requestId`, …). A catalog version's `versionId` is the
-  exception: server-assigned, yet it addresses the version, like its number once released
-- **Version, release, range**: a catalog *version* is the object (draft or release, by `versionId`);
-  a release's number is always `releaseVersion`, a range always `versionRange`; no API member is
-  called plain `version`
+  generated identifier (`documentId`, `requestId`, …). A release's `releaseId` is the
+  exception: server-assigned, yet it addresses the release, like its version once released
+- **Release, version, range**: a catalog's *release* is the object (status `draft` or `released`,
+  by `releaseId`, keeping its id and name when released); its number is always `version`, and every
+  member called `version` is one; a range is always `versionRange`. "Publish" only means making a
+  catalog available in a registry, never releasing
 - **Key and number rules are named, in `components/schemas/identifiers.yaml`**: `ResourceKey`
   (template, variant, stencil, theme, attribute, code list, font, image, data example; 3–50, a
   leading digit allowed because these keys used to be UUIDs; the same in catalog wire v8),
   `TenantKey` and `Namespace` (letter first, 3–63), `CatalogKey` (3–50), `EnvironmentKey` (3–30),
   `Registry` (a DNS name with a dot) and `RegistryOrDefault` (or `~`), `ReleaseVersion`,
-  `CatalogVersionId`, `CatalogVersionRef`, `Fingerprint`
+  `CatalogReleaseId`, `CatalogReleaseRef`, `Fingerprint`
 - **Never write a key or number pattern inline**: reference `identifiers.yaml#/<Rule>`; a nullable
   use is `oneOf: [{$ref: …}, {type: 'null'}]`. The bundle inlines the rules inside
   `multipart/form-data` bodies only (`normalize-bundle.mjs`), because generators mishandle refs there
@@ -188,17 +188,18 @@ The Epistola API manages:
 1. **Tenants** - Multi-tenant isolation
 2. **Templates** - Document templates with JSON Schema for input validation
 3. **Themes** - Reusable style collections
-4. **Environments** - Deployment contexts (staging, production); each serves catalog versions it deploys:
-   releases, possibly several per catalog, and at most one draft per catalog, rendered live (never in
+4. **Environments** - Deployment contexts (staging, production); each serves the releases it deploys:
+   released ones, possibly several per catalog, and at most one draft per catalog, rendered live (never in
    an environment marked `production`). A request naming no `versionRange` gets the deployed draft, else the
    highest release; a range or number matches releases only. Rollback is undeploying the newer release
-5. **Variants** - Language/brand variations of templates, edited in a draft catalog version
-6. **Catalog versions** - A draft (editable, no number) or released (immutable, numbered `releaseVersion`). Every
-   version has a `versionId`, kept when it is released; a released version is addressed by either.
+5. **Variants** - Language/brand variations of templates, edited in a draft release
+6. **Releases** - A draft (editable, no version) or released (immutable, with a `version`). Every
+   release has a `releaseId` and keeps it and its name when it is released; a released release is
+   addressed by either.
    An authored catalog has any number of drafts, all alike: each named, started from a release (its fixed **base**) or another draft, and released on its
-   own, numbered from what it changed against its base (a fix to an older line is `1.4.1` after
+   own, given its version from what it changed against its base (a fix to an older line is `1.4.1` after
    `2.0.0`). Drafts are independent copies: nothing is merged, and a draft is **behind** releases
-   numbered below the number it would get (above its base, or published after it started). In a
+   whose version is below the one it would get (above its base, or released after it started). In a
    draft, a dependency may name another catalog's draft; releasing takes such drafts along
    (`releaseDependencies`) or is refused (ADR 0002). Importing an archive (`importCatalog`) installs
    the release it carries next to the catalog's other releases, never into a draft. Nothing is
@@ -215,12 +216,12 @@ The Epistola API manages:
 ```
 Tenant
 ├── Catalog (identified by registry + namespace + key; `~` in a path = the default registry)
-│   └── Version (by `versionId`; a release also by its SemVer number): draft or released
+│   └── Release (by `releaseId`; once released also by its version): draft or released
 │       │   draft (from a release, its base, or another draft)
-│       │     ──release (numbered from what changed against the base)──▶ released (immutable)
+│       │     ──release (versioned from what changed against the base)──▶ released (immutable)
 │       └── Template (with data contract) → Variant, Stencil, Theme, …
-│           each new / modified / ready / released against the version's base
-└── Environment ─ deploys ─▶ Versions of each Catalog: releases (the highest that matches) and at
+│           each new / modified / ready / released against the release's base
+└── Environment ─ deploys ─▶ Releases of each Catalog: releases (the highest that matches) and at
                                 most one draft (rendered when a request names no `versionRange`; not in production)
 ```
 
