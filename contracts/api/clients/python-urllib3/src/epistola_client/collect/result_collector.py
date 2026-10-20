@@ -58,8 +58,8 @@ class GenerationResult:
     namespace: str
     #: The catalog's key within its namespace.
     catalog_key: str
-    #: The release the document was rendered from; ``None`` when it was rendered from a draft.
-    release_version: Optional[str]
+    #: The version of the release the document was rendered from; ``None`` for a draft.
+    version: Optional[str]
     filename: Optional[str]
     content_type: Optional[str]
     size_bytes: Optional[int]
@@ -490,7 +490,7 @@ def _parse_result(node: dict) -> GenerationResult:
         registry=node.get("registry") or "",
         namespace=node.get("namespace") or "",
         catalog_key=node.get("catalogKey") or "",
-        release_version=node.get("releaseVersion"),
+        version=node.get("version"),
         filename=node.get("filename"),
         content_type=node.get("contentType"),
         size_bytes=node.get("sizeBytes"),

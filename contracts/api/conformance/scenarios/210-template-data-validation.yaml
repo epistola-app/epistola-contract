@@ -48,7 +48,7 @@ script:
         - path: /invoiceNumber
           required: true
           schema: { type: string }
-        # Optional: the resolved version's template reads it, but leaving it out is not a failure.
+        # Optional: the resolved release's template reads it, but leaving it out is not a failure.
         # A client that reported this one would ask an employee for something nobody requires.
         - path: /customer/phone
           required: false

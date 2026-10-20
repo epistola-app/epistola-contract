@@ -308,13 +308,13 @@ try {
             e.validationErrors.forEach { (example, failures) ->
                 failures.forEach { println("$example ${it.path}: ${it.message}") }
             }
-        KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING ->   // from deployCatalogVersion
+        KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING ->   // from deployCatalogRelease
             e.missingDependencies.forEach {
-                println("${it.registry}/${it.namespace}/${it.catalogKey}@${it.releaseVersion}: ${it.reason}")
+                println("${it.registry}/${it.namespace}/${it.catalogKey}@${it.version}: ${it.reason}")
             }
         KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED -> // from releaseCatalogDraft
             e.unreleasedDependencies.forEach {
-                println("${it.registry}/${it.namespace}/${it.catalogKey}: draft ${it.draftName} (${it.versionId})")
+                println("${it.registry}/${it.namespace}/${it.catalogKey}: draft ${it.releaseName} (${it.releaseId})")
             }
         KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE ->  // installCatalogRelease, listAvailableCatalogReleases
             // 503: the source could not be reached (Retry-After may say when to try again);

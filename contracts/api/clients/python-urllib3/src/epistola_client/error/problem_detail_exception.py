@@ -37,8 +37,8 @@ class MissingDependency:
     namespace: str
     #: Key of the catalog depended on.
     catalog_key: str
-    #: The release of the catalog depended on that the deployed release pins.
-    release_version: str
+    #: The version of the release of the catalog depended on that the deployed release pins.
+    version: str
     #: Why the release could not be served; an open set of wire values.
     reason: str
 
@@ -59,9 +59,9 @@ class UnreleasedDependency:
     #: Key of the catalog depended on.
     catalog_key: str
     #: The draft the declaration names.
-    version_id: str
+    release_id: str
     #: The draft's name.
-    draft_name: str
+    release_name: str
 
 
 class ProblemDetailException(ApiException):

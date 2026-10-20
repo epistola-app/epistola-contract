@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 /**
- * Guards `x-epistola-catalog-contract`, the catalog versions the API declares it expects.
+ * Guards `x-epistola-catalog-contract`, the catalog wire and template-model versions the API declares it expects.
  *
  * Nothing generates from it, so without this test it silently falls behind the catalog: it still
  * said wire version 4 when the catalog had moved to 6. The server stubs build against the catalog

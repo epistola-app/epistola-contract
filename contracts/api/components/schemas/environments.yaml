@@ -1,6 +1,6 @@
 EnvironmentDto:
   type: object
-  description: A deployment stage (e.g., staging, production) that serves catalog versions, possibly several releases of one catalog and a draft
+  description: A deployment stage (e.g., staging, production) that serves releases of catalogs, possibly several released ones of one catalog and a draft
   required:
     - key
     - tenantKey
@@ -25,7 +25,7 @@ EnvironmentDto:
       type: boolean
       description: |
         A production environment serves only releases: deploying a draft there is refused (see
-        `deployCatalogVersion`).
+        `deployCatalogRelease`).
       example: true
     createdAt:
       type: string
@@ -117,16 +117,16 @@ EnvironmentListResponse:
 DeploymentDto:
   type: object
   description: |
-    One catalog version an environment serves: a release, or a draft rendered live. An environment
-    serves at most one draft of a catalog.
+    One release of a catalog an environment serves: a released one, or a draft rendered live. An
+    environment serves at most one draft of a catalog.
   required:
     - registry
     - namespace
     - catalogKey
-    - versionId
-    - kind
-    - releaseVersion
-    - draftName
+    - releaseId
+    - status
+    - version
+    - releaseName
     - deployedAt
     - lastUsedAt
     - documentsRequested
@@ -145,24 +145,29 @@ DeploymentDto:
       $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog, unique within its registry and namespace
       example: letters
-    versionId:
-      $ref: './identifiers.yaml#/CatalogVersionId'
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
       description: |
-        The version the environment serves, by its `versionId`. A draft keeps it when it is
-        released, so a deployed draft that is released is a deployment of that release.
-    kind:
-      $ref: '#/DeploymentKind'
-    releaseVersion:
+        The release the environment serves, by its `releaseId`. A draft keeps it when it is
+        released, so a deployed draft that is released stays deployed, as the same release.
+    status:
+      $ref: './catalogs.yaml#/CatalogReleaseStatus'
+      description: |
+        The release's status: `released`, served at its `version`; or `draft`, rendered live with no
+        version. A draft is never served by a production environment.
+    version:
       oneOf:
         - $ref: './identifiers.yaml#/ReleaseVersion'
         - type: 'null'
-      description: The release the environment serves. Null for a draft.
+      description: The version of the release the environment serves. Null for a draft.
       example: "1.4.0"
-    draftName:
+    releaseName:
       type: [string, "null"]
       maxLength: 100
-      description: The name of the draft the environment serves. Null for a release.
-      example: null
+      description: |
+        The release's name. Null for a release that has none, as one installed by import or from
+        its source.
+      example: Redesign 2027
     deployedAt:
       type: string
       format: date-time
@@ -171,34 +176,24 @@ DeploymentDto:
       type: [string, "null"]
       format: date-time
       description: |
-        When a generation request through this environment was last accepted for this version; null
+        When a generation request through this environment was last accepted for this release; null
         when none has been since it was deployed.
 
         A request is counted when it names this environment and is accepted and rendered with this
-        deployed version. Requests naming no environment are not counted. Updated within about a
-        minute of the request, and reset when the version is undeployed; a deployed draft that is
+        deployed release. Requests naming no environment are not counted. Updated within about a
+        minute of the request, and reset when the release is undeployed; a deployed draft that is
         released keeps its counts, as the same deployment. Together with `documentsRequested` it
-        shows which deployed versions nobody uses any more, before undeploying them.
+        shows which deployed releases nobody uses any more, before undeploying them.
       example: "2026-10-17T14:05:00Z"
     documentsRequested:
       type: integer
       format: int64
       minimum: 0
       description: |
-        How many generation requests through this environment were accepted for this version since
+        How many generation requests through this environment were accepted for this release since
         it was deployed. Counted, updated and reset as `lastUsedAt` describes.
       example: 1284
 
-DeploymentKind:
-  type: string
-  description: |
-    - `release`: a released version, served at its number (`releaseVersion`).
-    - `draft`: a draft, rendered live with no release (`draftName`). Never in a production
-      environment.
-  enum:
-    - release
-    - draft
-  example: release
 
 MissingReleaseDependency:
   type: object
@@ -207,7 +202,7 @@ MissingReleaseDependency:
     - registry
     - namespace
     - catalogKey
-    - releaseVersion
+    - version
     - reason
   properties:
     registry:
@@ -224,9 +219,11 @@ MissingReleaseDependency:
       $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog depended on, unique within its registry and namespace
       example: system
-    releaseVersion:
+    version:
       $ref: './identifiers.yaml#/ReleaseVersion'
-      description: The release of the catalog depended on that the deployed version renders with
+      description: |
+        The version of the release of the catalog depended on that the deployed release renders
+        with
     reason:
       $ref: '#/MissingReleaseDependencyReason'
 
@@ -258,10 +255,10 @@ DeploymentEventDto:
     - registry
     - namespace
     - catalogKey
-    - versionId
-    - kind
-    - releaseVersion
-    - draftName
+    - releaseId
+    - status
+    - version
+    - releaseName
     - action
     - changedAt
   properties:
@@ -282,40 +279,39 @@ DeploymentEventDto:
     action:
       type: string
       description: |
-        - `deployed`, `undeployed`: the environment started or stopped serving the version. A
+        - `deployed`, `undeployed`: the environment started or stopped serving the release. A
           draft replaced by deploying another, and a deployed draft that was discarded, are
           `undeployed`.
-        - `released`: the deployed draft was released; the environment now serves the release it
-          became, at `releaseVersion`, with the same `versionId`. `draftName` is the draft's name
-          at the time.
+        - `released`: the deployed draft was released; the environment now serves it as released,
+          at `version`, with the same `releaseId` and name.
       enum:
         - deployed
         - undeployed
         - released
       example: deployed
-    versionId:
-      $ref: './identifiers.yaml#/CatalogVersionId'
-      description: The version deployed, undeployed or released, by its `versionId`
-    kind:
-      $ref: '#/DeploymentKind'
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
+      description: The release deployed, undeployed or released, by its `releaseId`
+    status:
+      $ref: './catalogs.yaml#/CatalogReleaseStatus'
       description: |
-        What the version was after the change: `draft` for a draft deployed or undeployed,
-        `release` for a release, and for a draft that was `released`.
-    releaseVersion:
+        The release's status after the change: `draft` for a draft deployed or undeployed,
+        `released` for a released one, and for a draft that was `released`.
+    version:
       oneOf:
         - $ref: './identifiers.yaml#/ReleaseVersion'
         - type: 'null'
       description: |
-        The release deployed or undeployed, or the release a deployed draft became. Null for a
-        draft deployed or undeployed.
+        The version of the release deployed or undeployed, or the version a deployed draft was
+        released as. Null for a draft deployed or undeployed.
       example: "1.4.1"
-    draftName:
+    releaseName:
       type: [string, "null"]
       maxLength: 100
       description: |
-        The draft's name at the time: for a draft deployed or undeployed, and for one `released`.
-        Null for a release deployed or undeployed.
-      example: null
+        The release's name at the time of the change. Null for a release that has none, as one
+        installed by import or from its source.
+      example: Redesign 2027
     changedAt:
       type: string
       format: date-time

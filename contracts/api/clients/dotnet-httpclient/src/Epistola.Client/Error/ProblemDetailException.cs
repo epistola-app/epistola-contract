@@ -60,7 +60,7 @@ public class ProblemDetailException : ApiException
 
     /// <summary>
     /// The releases of other catalogs a <c>release-dependencies-missing</c> problem (409, from
-    /// <c>DeployCatalogVersion</c>) reports cannot be had, in the order the server listed them; empty for
+    /// <c>DeployCatalogRelease</c>) reports cannot be had, in the order the server listed them; empty for
     /// any other problem.
     ///
     /// <para>

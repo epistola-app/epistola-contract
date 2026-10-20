@@ -13,9 +13,9 @@ records contract changes; this file records changes to the hand-written library 
 
 - `ProblemDetailException.MissingDependencies` and `IsReleaseDependenciesMissingProblem` surface the
   `missingDependencies` member of a `release-dependencies-missing` problem (409 from
-  `DeployCatalogVersion`): each dependency release that cannot be had, as a hand-written
+  `DeployCatalogRelease`): each dependency release that cannot be had, as a hand-written
   `Epistola.Client.Error.MissingDependency` (`Registry`, `Namespace`, `CatalogKey`,
-  `ReleaseVersion`, `Reason`). `Reason` is the string the server sent, so a reason a later contract
+  `Version`, `Reason`). `Reason` is the string the server sent, so a reason a later contract
   adds is not lost; `MissingDependency.Reasons` holds the one named today, `Unavailable`. A malformed entry is
   skipped on its own; an absent member is an empty list. The exception's constructor takes it as a
   new optional `missingDependencies` parameter, so existing call sites compile unchanged.
@@ -23,18 +23,18 @@ records contract changes; this file records changes to the hand-written library 
   surface the `unreleasedDependencies` member of a `release-dependencies-unreleased` problem (409
   from `ReleaseCatalogDraft`): each draft of another catalog the released draft's dependency
   declarations name, as a hand-written `Epistola.Client.Error.UnreleasedDependency` (`Registry`,
-  `Namespace`, `CatalogKey`, `VersionId`, `DraftName`). A malformed entry is skipped on its own; an
+  `Namespace`, `CatalogKey`, `ReleaseId`, `ReleaseName`). A malformed entry is skipped on its own; an
   absent member is an empty list. The constructor takes it as a new optional
   `unreleasedDependencies` parameter.
 - The generated `Validate()` extensions check a member that references a plain string schema, such
-  as `CatalogDependencyRequirement.ReleaseVersion` (`ReleaseVersion`), as if its constraints were
+  as `CatalogDependencyRequirement.VarVersion` (`ReleaseVersion`), as if its constraints were
   written inline. Before, every referenced member was skipped.
 
 ### Changed
 
 - **BREAKING:** the result collector's `GenerationResult.Registry`, `Namespace` and `CatalogKey`
   are non-nullable `string`s: every result line names its catalog. A line without one of them is
-  malformed and `CollectOnce()` throws a `FormatException`. `ReleaseVersion` stays nullable (null
+  malformed and `CollectOnce()` throws a `FormatException`. `Version` stays nullable (null
   for a document rendered from a draft). `Status` carries the lowercase wire value, `completed` or
   `failed`; compare against those, not `COMPLETED` / `FAILED`.
 - **BREAKING:** `MissingDependency.Reasons.Unavailable` is `"unavailable"`, the lowercase wire
@@ -42,8 +42,7 @@ records contract changes; this file records changes to the hand-written library 
 - The README no longer mentions the `X-API-Key` header, which the contract no longer defines; the
   client never sent it. API keys go out as `Authorization: ApiKey <key>`, as before.
 - The README documents the `…WithHttpInfo` variants for reading the `Location` and `ETag` response
-  headers, and conditional updates with `ifMatch`, using `UpdateCatalogDraft` (formerly
-  `RenameCatalogDraft`).
+  headers, and conditional updates with `ifMatch`, using `UpdateCatalogRelease`.
 - **BREAKING:** `EpistolaMediaTypeHandler.VendorJson` and the result collector send
   `application/vnd.epistola.v2+json` and `application/vnd.epistola.v2+ndjson`, the contract 2.x media
   types. A 2.x server refuses the 1.x ones.
@@ -68,21 +67,21 @@ records contract changes; this file records changes to the hand-written library 
   constructing it positionally must add the argument.
 
 - The reference in-process validator to copy, `NJsonSchemaTemplateDataValidator` under
-  `test/Epistola.Client.Tests/Validation/Schema/Local/`, takes the catalog version whose template
-  schema it holds data to, because a template is now read from a catalog version. The shipped
-  validators are unchanged: `validateTemplateData` is not addressed by version.
+  `test/Epistola.Client.Tests/Validation/Schema/Local/`, takes the release whose template
+  schema it holds data to, because a template is now read from a release of its catalog. The shipped
+  validators are unchanged: `validateTemplateData` is not addressed by release.
 - **BREAKING:** `ServerTemplateDataValidator`'s `releaseVersion` parameter is now `versionRange`,
   a version range sent as the request's `versionRange`; it may be combined with `environmentKey`.
 - The result collector's `GenerationResult` gained `Namespace` and `CatalogKey`, next to
-  `ReleaseVersion`. `GenerationResult` is a positional record, so
+  `Version`. `GenerationResult` is a positional record, so
   code constructing it positionally must add the two arguments.
 - The derived-source generator names a constrained `version` property `VarVersion`, as the
   OpenAPI generator does, so `Validate()` compiles for models that carry one.
 
-- **BREAKING:** the server-side template data validator takes a `releaseVersion` (a string) in
-  place of `versionId`, matching contract 2.0's generation by release; without it or an
-  environment, the catalog's latest release is checked. The result collector reports
-  `releaseVersion` in place of `versionId`.
+- **BREAKING:** the server-side template data validator no longer takes a `versionId`, matching
+  contract 2.0's generation by release; without a version range or an environment, the catalog's
+  latest release is checked. The result collector reports `Version` (a string, the release's
+  version) in place of `VersionId`.
 
 - **Template data is validated by the server, not by a bundled library.** `TemplateSchemaValidator`
   and `ValidatingGenerationApi` now call `validateTemplateData` through a pluggable

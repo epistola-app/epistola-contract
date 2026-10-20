@@ -36,7 +36,7 @@ script:
           catalogKey: letters
           templateKey: invoice
           variantKey: 2026-invoice
-          releaseVersion: "1.4.0"
+          version: "1.4.0"
           filename: invoice-2026-001.pdf
           contentType: application/pdf
           sizeBytes: 184320
@@ -48,7 +48,7 @@ script:
           catalogKey: letters
           templateKey: invoice
           variantKey: english
-          releaseVersion: "1.3.0"
+          version: "1.3.0"
           filename: invoice-2026-002.pdf
           contentType: application/pdf
           sizeBytes: 120000

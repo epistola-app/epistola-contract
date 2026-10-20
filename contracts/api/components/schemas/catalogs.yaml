@@ -31,29 +31,29 @@ CatalogDto:
       description: Optional description
     type:
       $ref: '#/CatalogType'
-    highestReleaseVersion:
+    highestVersion:
       oneOf:
         - $ref: './identifiers.yaml#/ReleaseVersion'
         - type: 'null'
       description: >-
-        The number of the catalog's highest release. For authored catalogs null until
+        The version of the catalog's highest release. For authored catalogs null until
         first released. For subscribed catalogs the highest installed release.
       example: "1.4.0"
     drafts:
       type: array
       description: >-
-        The catalog's open drafts, oldest first. A draft has no number until it is released. Empty
-        for a subscribed catalog, and for an authored catalog with no draft open.
+        The catalog's drafts, oldest first. A draft has no version until it is released. Empty
+        for a subscribed catalog, and for an authored catalog with no draft.
       items:
-        $ref: '#/CatalogDraftSummary'
+        $ref: '#/CatalogDraftReleaseSummary'
     fingerprint:
       oneOf:
         - $ref: './identifiers.yaml#/Fingerprint'
         - type: 'null'
       description: |
-        The canonical fingerprint of the content of the highest release (`highestReleaseVersion`;
+        The canonical fingerprint of the content of the highest release (`highestVersion`;
         deterministic, excludes volatile fields), which identifies content independently of the
-        release number. It names the algorithm that computed it, as the catalog archive does:
+        version. It names the algorithm that computed it, as the catalog archive does:
         `v5:` and lowercase SHA-256 hex. Null when the catalog has no release.
       example: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
 
@@ -109,14 +109,14 @@ AvailableReleaseDto:
   type: object
   description: A release the source of a subscribed catalog offers, which the tenant does not have
   required:
-    - releaseVersion
+    - version
     - comparedTo
     - changes
     - dependencies
   properties:
-    releaseVersion:
+    version:
       $ref: './identifiers.yaml#/ReleaseVersion'
-      description: The release's number
+      description: The release's version
     comparedTo:
       oneOf:
         - $ref: './identifiers.yaml#/ReleaseVersion'
@@ -148,7 +148,7 @@ AvailableReleaseDependencyDto:
     - registry
     - namespace
     - catalogKey
-    - releaseVersion
+    - version
     - present
   properties:
     registry:
@@ -165,9 +165,9 @@ AvailableReleaseDependencyDto:
       $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog depended on, unique within its registry and namespace
       example: system
-    releaseVersion:
+    version:
       $ref: './identifiers.yaml#/ReleaseVersion'
-      description: The release of the catalog depended on that the pin names
+      description: The version of the release of the catalog depended on that the pin names
     present:
       type: boolean
       description: |
@@ -188,7 +188,7 @@ InstallCatalogReleaseResponse:
     - registry
     - namespace
     - catalogKey
-    - releaseVersion
+    - version
     - newlyInstalled
     - total
   properties:
@@ -206,9 +206,9 @@ InstallCatalogReleaseResponse:
       $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog, unique within its registry and namespace
       example: letters
-    releaseVersion:
+    version:
       $ref: './identifiers.yaml#/ReleaseVersion'
-      description: The release installed, which the tenant now has
+      description: The version of the release installed, which the tenant now has
     newlyInstalled:
       type: boolean
       description: |
@@ -243,7 +243,7 @@ ReleaseDependencyDto:
     - registry
     - namespace
     - catalogKey
-    - releaseVersion
+    - version
     - direct
   properties:
     registry:
@@ -260,9 +260,9 @@ ReleaseDependencyDto:
       $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog, unique within its registry and namespace
       example: letters
-    releaseVersion:
+    version:
       $ref: './identifiers.yaml#/ReleaseVersion'
-      description: The release of the catalog the release renders with
+      description: The version of the release of the catalog the release renders with
     direct:
       type: boolean
       description: True when the release's own resources reference the catalog; false when only reached through another dependency
@@ -270,7 +270,7 @@ ReleaseDependencyDto:
 
 CatalogChangesDto:
   type: object
-  description: How a catalog version differs from its base
+  description: How a release differs from its base
   required:
     - releasable
     - dependenciesChanged
@@ -281,13 +281,13 @@ CatalogChangesDto:
         - $ref: './identifiers.yaml#/ReleaseVersion'
         - type: 'null'
       description: |
-        The release the draft started from (for a released version, the base of the draft it was);
+        The release the draft started from (once released, the base it had as a draft);
         null when there is none
       example: "1.4.0"
     releasable:
       type: boolean
       description: |
-        True when the version is a draft, no resource is `new` or `modified`, every stencil instance
+        True when the release is a draft, no resource is `new` or `modified`, every stencil instance
         fits its stencil, every catalog a resource references is a declared dependency that pins a
         release the tenant has or names a draft (released along with it, `releaseDependencies`),
         and something changed
@@ -324,7 +324,7 @@ ResourceChangeDto:
         - removed
       description: |
         `new`, `modified` and `ready` as in ResourceStatus; `removed` for a resource in the base
-        that is no longer in this version.
+        that is no longer in this release.
       example: modified
 
 CatalogDependencyRequirement:
@@ -333,7 +333,7 @@ CatalogDependencyRequirement:
     Another catalog this catalog's resources may reference, and the exact release of it they render
     with, or, in a draft, a draft of it. A catalog declares each catalog it depends on once: every
     reference into that catalog resolves through this one declaration, so a release renders with
-    exactly the release it pins. Exactly one of `releaseVersion` and `versionId` is given (omitted
+    exactly the release it pins. Exactly one of `version` and `releaseId` is given (omitted
     and null are not given); neither, or both, is refused with 400.
   required:
     - namespace
@@ -356,23 +356,25 @@ CatalogDependencyRequirement:
       $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog depended on, unique within its registry and namespace
       example: system
-    releaseVersion:
+    version:
       oneOf:
         - $ref: './identifiers.yaml#/ReleaseVersion'
         - type: 'null'
       description: |
-        The exact release of the catalog depended on that this catalog renders with, never a range.
+        The version of the exact release of the catalog depended on that this catalog renders with,
+        never a range.
       example: "1.3.0"
-    versionId:
+    releaseId:
       oneOf:
-        - $ref: './identifiers.yaml#/CatalogVersionId'
+        - $ref: './identifiers.yaml#/CatalogReleaseId'
         - type: 'null'
       description: |
-        A draft of the catalog depended on, by its `versionId` (a `CatalogVersionId`), an authored
-        catalog of this tenant, that this draft renders with live, unreleased changes included. A release never pins a draft: releasing
-        this draft is refused (`release-dependencies-unreleased`) unless the request releases the
-        named draft along with it (`releaseDependencies`). Released on its own, the draft becomes a
-        release, and the declaration then names that release.
+        A draft of the catalog depended on, by its `releaseId` (a `CatalogReleaseId`), an authored
+        catalog of this tenant, that this draft renders with live, unreleased changes included. A
+        released release never pins a draft: releasing this draft is refused
+        (`release-dependencies-unreleased`) unless the request releases the named draft along with
+        it (`releaseDependencies`). Once the named draft is released on its own, the declaration
+        pins it at its version.
       example: null
 
 CatalogDependencyDto:
@@ -384,8 +386,8 @@ CatalogDependencyDto:
     - registry
     - namespace
     - catalogKey
-    - releaseVersion
-    - versionId
+    - version
+    - releaseId
   properties:
     registry:
       $ref: './identifiers.yaml#/Registry'
@@ -401,25 +403,24 @@ CatalogDependencyDto:
       $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog depended on, unique within its registry and namespace
       example: system
-    releaseVersion:
+    version:
       oneOf:
         - $ref: './identifiers.yaml#/ReleaseVersion'
         - type: 'null'
       description: |
-        The exact release of the catalog depended on that this catalog version renders with, as
-        declared. Null when the declaration names a draft (`versionId`), and for a declaration that
+        The version of the exact release of the catalog depended on that this release renders
+        with, as declared. Null when the declaration names a draft (`releaseId`), and for a declaration that
         came from a catalog archive migrated from wire v7 or earlier, which pins no release:
         releasing the draft is refused until one is declared.
       example: "1.3.0"
-    versionId:
+    releaseId:
       oneOf:
-        - $ref: './identifiers.yaml#/CatalogVersionId'
+        - $ref: './identifiers.yaml#/CatalogReleaseId'
         - type: 'null'
       description: |
-        The draft of the catalog depended on that this draft renders with, by its `versionId` (a
-        `CatalogVersionId`), as declared. Null when
-        the declaration pins a release, and always for a released version: a release never pins a
-        draft.
+        The draft of the catalog depended on that this draft renders with, by its `releaseId` (a
+        `CatalogReleaseId`), as declared. Null when the declaration pins a released release, and
+        always once this release is released: a released release never pins a draft.
       example: null
 
 CatalogDependencyListResponse:
@@ -462,28 +463,28 @@ CatalogType:
     The import that creates a catalog names its type, and nothing changes it afterwards.
   example: authored
 
-CatalogVersionStatus:
+CatalogReleaseStatus:
   type: string
   enum:
     - draft
     - released
   description: |
-    - `draft`: editable. Never exported or published, and never matched by a version range;
-      rendered only by preview and by an environment it is deployed to.
-    - `released`: immutable, and numbered. A draft is numbered when it is released, and is then
-      the released version at that number.
+    - `draft`: editable, with no version. Never exported, never published to a registry, and never
+      matched by a version range; rendered only by preview and by an environment it is deployed to.
+    - `released`: immutable, with a version. A draft gets its version when it is released, and
+      keeps its `releaseId` and its name.
   example: draft
 
-CatalogDraftSummary:
+CatalogDraftReleaseSummary:
   type: object
-  description: An open draft of a catalog, as `CatalogDto` lists it
+  description: A draft release of a catalog, as `CatalogDto` lists it
   required:
-    - versionId
+    - releaseId
     - name
   properties:
-    versionId:
-      $ref: './identifiers.yaml#/CatalogVersionId'
-      description: The draft's id, which addresses it, and the release it becomes
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
+      description: The draft's id, which addresses it, and keeps addressing it once it is released
     name:
       type: string
       maxLength: 100
@@ -496,55 +497,59 @@ CatalogDraftSummary:
       description: The release the draft started from; null when the catalog had no release then
       example: "1.4.0"
 
-CatalogVersionDto:
+CatalogReleaseDto:
   type: object
   description: |
-    One version of a catalog: a draft or a released version. A catalog has any number of
-    drafts, each named, each on a fixed base, and each released on its own; a draft is numbered when
-    it is released, and keeps its `versionId`. Each draft is an independent copy, and nothing is
-    merged between them.
+    One release of a catalog, in status `draft` (a draft release, or draft: editable, with no
+    version) or `released` (immutable, with a version). A catalog has any number of drafts, each
+    named, each on a fixed base, and each released on its own; a draft gets its version when it is
+    released, and keeps its `releaseId` and its name. Each draft is an independent copy, and nothing
+    is merged between them.
   required:
-    - versionId
-    - releaseVersion
+    - releaseId
+    - version
     - status
     - dependencies
     - deployedTo
     - behind
   properties:
-    releaseVersion:
+    version:
       oneOf:
         - $ref: './identifiers.yaml#/ReleaseVersion'
         - type: 'null'
-      description: A released version's SemVer number, unique in its catalog. Null for a draft.
+      description: The release's version, unique in its catalog. Null for a draft.
       example: "2.0.0"
-    versionId:
-      $ref: './identifiers.yaml#/CatalogVersionId'
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
       description: |
-        The version's id, which addresses it (`…/versions/{versionId}`), as a draft and, once
-        released, as the release, which its `releaseVersion` number addresses too.
+        The release's id, which addresses it (`…/releases/{releaseId}`), as a draft and, once
+        released, alongside its `version`.
     name:
       type: [string, "null"]
       maxLength: 100
-      description: A draft's name, unique among the catalog's drafts. Null for a released version.
-      example: null
+      description: |
+        The release's name, given when it was started as a draft and unique among the catalog's
+        drafts. A release keeps its name when it is released. Null only for a release that has none:
+        one installed by import or from its source, which a catalog archive carries no name for.
+      example: Redesign 2027
     status:
-      $ref: '#/CatalogVersionStatus'
+      $ref: '#/CatalogReleaseStatus'
     base:
       oneOf:
         - $ref: './identifiers.yaml#/ReleaseVersion'
         - type: 'null'
       description: |
-        The release a draft started from, which its changes are measured against and its number
-        follows from; for a released version, the base of the draft it was. It is fixed: it does
-        not move when other versions are released. Null when the catalog had no release when the
+        The release a draft started from, which its changes are measured against and its version
+        follows from; once released, the base it had as a draft. It is fixed: it does not move when
+        other releases are released. Null when the catalog had no release when the
         draft was started.
       example: "1.4.0"
     createdFrom:
       oneOf:
-        - $ref: './identifiers.yaml#/CatalogVersionId'
+        - $ref: './identifiers.yaml#/CatalogReleaseId'
         - type: 'null'
       description: |
-        The `versionId` of the draft this draft was copied from, unreleased changes included, when it was
+        The `releaseId` of the draft this draft was copied from, unreleased changes included, when it was
         started from another draft (it then has that draft's base); null when it was started from a
         release, its base, or from nothing
       example: null
@@ -556,20 +561,20 @@ CatalogVersionDto:
     behind:
       type: array
       description: |
-        For a draft, the releases it is behind, lowest first: relative to the number releasing it
-        now would give it (`previewCatalogDraftRelease`), each release that is numbered above its
-        base and below that number, and each release published after the draft was started that is
-        numbered below that number (other than its base). The draft does not contain their changes
+        For a draft, the releases it is behind, lowest first: relative to the version releasing it
+        now would give it (`previewCatalogDraftRelease`), each release whose version is above its
+        base and below that version, and each release released after the draft was started whose
+        version is below that version (other than its base). The draft does not contain their changes
         unless an author applied them by hand, which the server cannot tell. Releasing a draft that
-        is behind must acknowledge them (`acknowledgedBehind`); releasing it as another number
-        recomputes them for that number. Empty when there are none, and for a released version.
+        is behind must acknowledge them (`acknowledgedBehind`); releasing it as another version
+        recomputes them for that version. Empty when there are none, and once it is released.
       items:
         $ref: '#/BehindReleaseDto'
       example: []
     releasedAt:
       type: [string, "null"]
       format: date-time
-      description: When the version was released; null for a draft
+      description: When the release was released; null for a draft
       example: null
     notes:
       type: [string, "null"]
@@ -588,7 +593,7 @@ CatalogVersionDto:
     dependencies:
       type: array
       description: |
-        For a released version, the release of every other catalog it renders with, as its declared
+        Once released, the release of every other catalog it renders with, as its declared
         dependencies pinned them when it was released: the catalogs it declares directly, and the
         releases those pin in turn. Each catalog appears once. Empty for a draft, whose declared
         dependencies are listed by `listCatalogDependencies`.
@@ -597,42 +602,42 @@ CatalogVersionDto:
     deployedTo:
       type: array
       description: |
-        Keys of the environments that serve this version (`deployCatalogVersion`), a release or a
-        draft
+        Keys of the environments that serve this release (`deployCatalogRelease`), a draft or a
+        released one
       items:
         type: string
       example: []
     defaultTheme:
       $ref: '#/CatalogThemeReference'
       description: |
-        The version's default theme. A render uses the variant's own theme when its
+        The release's default theme. A render uses the variant's own theme when its
         template model overrides it (`themeRef`), else the theme its template names (part of the
         template's catalog content, `themeKey` in the archive; this API does not expose it), else
-        this one. It is part of the version's content, as
-        `catalog.defaultTheme` in its catalog archive, so a released version renders with exactly
-        this theme. Absent when the version has none: such a template renders with the rendering
+        this one. It is part of the release's content, as
+        `catalog.defaultTheme` in its catalog archive, so once released it renders with exactly
+        this theme. Absent when the release has none: such a template renders with the rendering
         defaults alone. No render reads a tenant-wide default theme.
     presets:
       type: array
       description: |
-        The block style presets the version declares, as `catalog.presets` in its
+        The block style presets the release declares, as `catalog.presets` in its
         catalog archive: what a block's `stylePreset` may name, together with the presets of the
         catalogs it depends on. A theme's `blockStylePresets` supplies their styles. Empty when the
-        version declares none; an editor then offers the presets its themes style.
+        release declares none; an editor then offers the presets its themes style.
       items:
         $ref: '#/CatalogPresetDto'
       example: []
 
 BehindReleaseDto:
   type: object
-  description: A released version a draft is behind, and what that release changed
+  description: A released release a draft is behind, and what it changed
   required:
-    - releaseVersion
+    - version
     - changes
   properties:
-    releaseVersion:
+    version:
       $ref: './identifiers.yaml#/ReleaseVersion'
-      description: The released version's number
+      description: The release's version
     changes:
       type: array
       description: |
@@ -667,7 +672,7 @@ ReleasedChangeDto:
         - removed
       example: modified
 
-CatalogVersionListResponse:
+CatalogReleaseListResponse:
   type: object
   required:
     - items
@@ -676,11 +681,11 @@ CatalogVersionListResponse:
     items:
       type: array
       items:
-        $ref: '#/CatalogVersionDto'
+        $ref: '#/CatalogReleaseDto'
     page:
       $ref: './common.yaml#/PageMeta'
 
-CreateCatalogDraftRequest:
+CreateCatalogReleaseRequest:
   type: object
   required:
     - name
@@ -695,17 +700,17 @@ CreateCatalogDraftRequest:
       example: Redesign 2027
     from:
       oneOf:
-        - $ref: './identifiers.yaml#/CatalogVersionRef'
+        - $ref: './identifiers.yaml#/CatalogReleaseRef'
         - type: 'null'
       description: |
-        What the draft starts as a copy of, by its `versionId` or, for a release, its number: a
-        released version, which becomes its base; or another draft, unreleased changes included, on
+        What the draft starts as a copy of, by its `releaseId` or, once released, its version: a
+        released release, which becomes its base; or another draft, unreleased changes included, on
         that draft's base.
         Omitted: the catalog's highest release, or nothing (an empty draft with no base) when the
         catalog has no release.
       example: "1.4.0"
 
-UpdateCatalogDraftRequest:
+UpdateCatalogReleaseRequest:
   type: object
   description: |
     A partial update of a draft's own settings: its name, its default theme and its declared
@@ -738,7 +743,7 @@ UpdateCatalogDraftRequest:
 CatalogThemeReference:
   type: object
   description: |
-    A reference to a theme from a catalog version, qualified like every other cross-catalog
+    A reference to a theme from a release, qualified like every other cross-catalog
     reference: an omitted `catalogKey`, `namespace` or `registry` means the referring catalog's own.
   required:
     - key
@@ -774,7 +779,7 @@ CatalogThemeReference:
 CatalogPresetDto:
   type: object
   description: |
-    A block style preset a catalog version declares: what a block's `stylePreset` names,
+    A block style preset a release declares: what a block's `stylePreset` names,
     and the key a theme's `blockStylePresets` styles it under.
   required:
     - key
@@ -782,7 +787,7 @@ CatalogPresetDto:
   properties:
     key:
       $ref: './identifiers.yaml#/PresetKey'
-      description: The preset's key, unique within the version's presets
+      description: The preset's key, unique within the release's presets
       example: muted
     name:
       type: string
@@ -799,10 +804,10 @@ CatalogPresetDto:
 CatalogDraftReleasePreview:
   type: object
   description: |
-    The number a draft would be released as, from the kind of change it holds against its base. A
+    The version a draft would be released as, from the kind of change it holds against its base. A
     change is breaking when something a caller of the base relies on is removed or narrowed: a
     resource, a variant, a value, or what a data contract or a stencil's interface accepts. A
-    release may be numbered higher, never lower.
+    draft may be released as a higher version, never a lower one.
   required:
     - reasons
     - needed
@@ -832,25 +837,25 @@ CatalogDraftReleasePreview:
     needed:
       $ref: './identifiers.yaml#/ReleaseVersion'
       description: |
-        The number the changes need: the base raised by the kind of change (its patch, minor or
+        The version the changes need: the base raised by the kind of change (its patch, minor or
         major), or `1.0.0` without a base. Equal to `suggested` unless another release already has it.
     suggested:
       $ref: './identifiers.yaml#/ReleaseVersion'
       description: |
-        The number releasing without a `releaseVersion` gives: `needed`, or, when another release already
-        has it, the next free number of the same kind (from `1.4.0`, a fix is `1.4.1`, or `1.4.2`
+        The version releasing without a `version` gives: `needed`, or, when another release already
+        has it, the next free version of the same kind (from `1.4.0`, a fix is `1.4.1`, or `1.4.2`
         when `1.4.1` exists; a breaking change is `2.0.0`, or `3.0.0` when `2.0.0` exists). The
         draft's `behind` is computed against it.
 
 ReleaseCatalogDraftRequest:
   type: object
   properties:
-    releaseVersion:
+    version:
       oneOf:
         - $ref: './identifiers.yaml#/ReleaseVersion'
         - type: 'null'
       description: |
-        The number to release it as: one no release of the catalog has, above its base, and no
+        The version to release it as: one no release of the catalog has, above its base, and no
         lower than its changes need (`needed` in `previewCatalogDraftRelease`), or the request is
         refused with 400. Omitted: `suggested`.
       example: null
@@ -861,10 +866,10 @@ ReleaseCatalogDraftRequest:
     acknowledgedBehind:
       type: array
       description: |
-        The released versions the author confirms this draft may be behind: their changes were
-        applied by hand, or left out on purpose. Releasing a draft that is behind is refused with
-        409 unless this names every version it is behind for the number it is released as; naming
-        others changes nothing.
+        The versions of the releases the author confirms this draft may be behind: their changes
+        were applied by hand, or left out on purpose. Releasing a draft that is behind is refused
+        with 409 unless this names every release it is behind for the version it is released as;
+        naming others changes nothing.
       items:
         $ref: './identifiers.yaml#/ReleaseVersion'
       example: ["1.5.0"]
@@ -873,8 +878,8 @@ ReleaseCatalogDraftRequest:
       default: false
       description: |
         Release the drafts of other catalogs that this draft's dependency declarations name
-        (`versionId`), along with it. Each is released first, recursively (a draft it names in turn
-        before it), numbered as its changes need with no notes, in the same transaction: all or
+        (`releaseId`), along with it. Each is released first, recursively (a draft it names in turn
+        before it), as the version its changes need, with no notes, in the same transaction: all or
         nothing. Each is refused as releasing it alone would be (it is behind, it is not
         releasable, …), and then nothing is released. The new release pins the releases they
         became. False or omitted: a draft whose declarations name a draft is refused with 409
@@ -884,13 +889,14 @@ ReleaseCatalogDraftRequest:
 ReleaseCatalogDraftResponse:
   type: object
   required:
-    - catalogVersion
+    - release
     - unchangedContent
     - draftsBehind
     - releasedDependencies
   properties:
-    catalogVersion:
-      $ref: '#/CatalogVersionDto'
+    release:
+      $ref: '#/CatalogReleaseDto'
+      description: The release, now released, with the same `releaseId` and name it had as a draft
     unchangedContent:
       type: boolean
       description: True when the release content matches a previous release fingerprint.
@@ -898,7 +904,7 @@ ReleaseCatalogDraftResponse:
     draftsBehind:
       type: array
       description: |
-        The catalog's drafts this release puts behind, by name: its number is below the number
+        The catalog's drafts this release puts behind, by name: its version is below the version
         each of them would be released as, so its changes do not reach them unless an author
         applies them by hand. Empty when none.
       items:
@@ -921,8 +927,8 @@ ReleasedDependencyDto:
     - registry
     - namespace
     - catalogKey
-    - versionId
-    - releaseVersion
+    - releaseId
+    - version
   properties:
     registry:
       $ref: './identifiers.yaml#/Registry'
@@ -938,12 +944,12 @@ ReleasedDependencyDto:
       $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog, unique within its registry and namespace
       example: branding
-    versionId:
-      $ref: './identifiers.yaml#/CatalogVersionId'
-      description: The draft that was released, which now addresses the release it became
-    releaseVersion:
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
+      description: The draft that was released, which keeps its `releaseId` once released
+    version:
       $ref: './identifiers.yaml#/ReleaseVersion'
-      description: The release it became, which the new release pins
+      description: The version it was released as, which the new release pins
 
 UnreleasedCatalogDependency:
   type: object
@@ -954,8 +960,8 @@ UnreleasedCatalogDependency:
     - registry
     - namespace
     - catalogKey
-    - versionId
-    - draftName
+    - releaseId
+    - releaseName
   properties:
     registry:
       $ref: './identifiers.yaml#/Registry'
@@ -971,10 +977,10 @@ UnreleasedCatalogDependency:
       $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog depended on, unique within its registry and namespace
       example: branding
-    versionId:
-      $ref: './identifiers.yaml#/CatalogVersionId'
+    releaseId:
+      $ref: './identifiers.yaml#/CatalogReleaseId'
       description: The draft the declaration names
-    draftName:
+    releaseName:
       type: string
       maxLength: 100
       description: The draft's name

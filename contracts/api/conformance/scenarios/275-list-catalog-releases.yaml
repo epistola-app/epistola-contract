@@ -2,15 +2,15 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: list-catalog-versions
+id: list-catalog-releases
 title: Listing a catalog's drafts filters by status, and reads each draft's name, base and origin
 why: >
-  Drafts and released versions share one collection, told apart by `status`. The filter is a query
+  Drafts and released releases share one collection, told apart by `status`. The filter is a query
   parameter with an enum value; a client that sends it in another case, or drops it, lists the
-  wrong versions.
+  wrong releases.
 
-  A draft has no number until it is released (ADR 0002), so every `releaseVersion` here is null, and a
-  draft is told apart by its `versionId` and named. A client that cannot read a null `releaseVersion` cannot
+  A draft has no version until it is released (ADR 0002), so every `version` here is null, and a
+  draft is told apart by its `releaseId` and named. A client that cannot read a null `version` cannot
   list a catalog's drafts at all.
 
   "Spring fixes" was started from release 1.5.0, its base, and is behind nothing. "Redesign 2027"
@@ -19,7 +19,7 @@ why: >
   author applied them by hand.
 
 action:
-  name: list-catalog-versions
+  name: list-catalog-releases
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
@@ -33,22 +33,22 @@ script:
     contentType: application/vnd.epistola.v2+json
     body:
       items:
-        - { releaseVersion: null, versionId: k7m2x9qa, name: Spring fixes, status: draft, base: 1.5.0, createdFrom: null, behind: [], dependencies: [], deployedTo: [] }
-        - { releaseVersion: null, versionId: r4t8w2nc, name: Redesign 2027, status: draft, base: 1.4.0, createdFrom: w6n4c8ze, behind: [{ releaseVersion: 1.5.0, changes: [{ type: template, key: invoice, change: modified }] }], dependencies: [], deployedTo: [] }
+        - { version: null, releaseId: k7m2x9qa, name: Spring fixes, status: draft, base: 1.5.0, createdFrom: null, behind: [], dependencies: [], deployedTo: [] }
+        - { version: null, releaseId: r4t8w2nc, name: Redesign 2027, status: draft, base: 1.4.0, createdFrom: w6n4c8ze, behind: [{ version: 1.5.0, changes: [{ type: template, key: invoice, change: modified }] }], dependencies: [], deployedTo: [] }
       page: { number: 0, size: 20, total: 2, totalPages: 1 }
 
 expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases
       queryParams:
         status: draft
         page: { whenPresent: '0' }
         size: { whenPresent: '20' }
   report:
-    releaseVersions: null,null
-    versionIds: k7m2x9qa,r4t8w2nc
+    versions: null,null
+    releaseIds: k7m2x9qa,r4t8w2nc
     # Names are free text, so they are joined with `|`.
     names: Spring fixes|Redesign 2027
     statuses: draft,draft

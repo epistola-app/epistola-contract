@@ -3,7 +3,7 @@
 - **Status:** Proposed (not part of contract 2.0.0)
 - **Date:** 2026-10-19
 - **Scope:** API contract (`contracts/api`) and catalog contract (`contracts/catalog`), after 2.0.0
-- **Related:** [ADR 0002](0002-intermediate-releases.md) (working on several catalog versions at once),
+- **Related:** [ADR 0002](0002-intermediate-releases.md) (working on several releases of a catalog at once),
   [ADR 0003](0003-catalog-identity-and-distribution.md) (catalog identity and dependencies)
 
 ## Context
@@ -86,7 +86,7 @@ hotfix therefore *is* `1.0.1` for every version range:
     `1.0.1+hotfix.N`.
 - **Dependents get the fix.** A catalog that pins `1.0.1` renders with its latest hotfix the
   environment serves, so a fix in a shared stencil reaches every catalog that uses it.
-- **Traceable.** Generated documents and results record the full `releaseVersion`, for example
+- **Traceable.** Generated documents and results record the full `version`, for example
   `1.0.1+hotfix.1`. No separate override identity is needed.
 
 #### An installation that does not author the catalog cuts it
@@ -145,19 +145,19 @@ Anything else needs a real release (`1.0.2`, `1.1.0`, `2.0.0`) through the norma
 - **Version grammar:** release versions accept the build suffix `+hotfix.N`, and only that one.
   Contract 2.0.0's `ReleaseVersion` and wire v8 accept `MAJOR.MINOR.PATCH` only, so this widens
   both, which clients that validate a release number must be told about.
-  `ReleaseCatalogDraftRequest.releaseVersion` keeps plain `MAJOR.MINOR.PATCH`; hotfix labels are assigned
+  `ReleaseCatalogDraftRequest.version` keeps plain `MAJOR.MINOR.PATCH`; hotfix labels are assigned
   by the server.
 - **Version ranges:** "highest" breaks ties between hotfixes of one version by hotfix number. A
   range without a suffix matches every hotfix of the versions it matches.
-- **`+` in URL paths.** `getCatalogVersion`, `deployCatalogVersion` and `undeployCatalogVersion`
+- **`+` in URL paths.** `getCatalogRelease`, `deployCatalogRelease` and `undeployCatalogRelease`
   carry the version in the path. In a path, `+` is a literal character, but some stacks decode it
   as a space, as in a query string. The contract states that `+` is sent as `%2B` or literally and means `+`, and a
   conformance scenario holds every client to it.
 - **API:**
-  - Hotfix lifecycle: the catalog version operations of ADR 0002, with a way to start a hotfix
+  - Hotfix lifecycle: the release operations of ADR 0002, with a way to start a hotfix
     draft from an installed release of a subscribed catalog, which has no drafts today.
   - Validation of the hotfix on release that reports every breaking change it finds.
-  - `deployCatalogVersion` reports dropped hotfix fixes and needs a confirmation flag to proceed.
+  - `deployCatalogRelease` reports dropped hotfix fixes and needs a confirmation flag to proceed.
   - Export of a single release, and refusal of a conflicting import.
   - A permission for cutting hotfixes, separate from authoring and from deploying.
 - **Catalog module:**

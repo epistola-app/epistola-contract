@@ -133,10 +133,10 @@ export class ProblemDetailException extends ResponseError {
   }
 
   /**
-   * The releases a `release-dependencies-missing` problem (409, from `deployCatalogVersion`) reports cannot
+   * The releases a `release-dependencies-missing` problem (409, from `deployCatalogRelease`) reports cannot
    * be had, in the order the server listed them; empty for any other problem.
    *
-   * These are the releases the deployed version pins that the tenant does not have and that could
+   * These are the releases the deployed release pins that the tenant does not have and that could
    * not be fetched or verified. Each
    * {@link MissingDependency.reason} is kept as the string the server sent, so a reason the
    * contract adds later is not lost. An entry that does not carry all five members as strings is
@@ -179,7 +179,7 @@ export interface MissingDependency extends Omit<MissingReleaseDependency, 'reaso
   readonly reason: MissingReleaseDependencyReason | (string & {})
 }
 
-const MISSING_DEPENDENCY_MEMBERS = ['registry', 'namespace', 'catalogKey', 'releaseVersion', 'reason'] as const
+const MISSING_DEPENDENCY_MEMBERS = ['registry', 'namespace', 'catalogKey', 'version', 'reason'] as const
 
 function isMissingDependency(entry: object): entry is MissingDependency {
   const record = entry as Record<string, unknown>
@@ -192,7 +192,7 @@ function isMissingDependency(entry: object): entry is MissingDependency {
  */
 export type UnreleasedDependency = Readonly<UnreleasedCatalogDependency>
 
-const UNRELEASED_DEPENDENCY_MEMBERS = ['registry', 'namespace', 'catalogKey', 'versionId', 'draftName'] as const
+const UNRELEASED_DEPENDENCY_MEMBERS = ['registry', 'namespace', 'catalogKey', 'releaseId', 'releaseName'] as const
 
 function isUnreleasedDependency(entry: object): entry is UnreleasedDependency {
   const record = entry as Record<string, unknown>

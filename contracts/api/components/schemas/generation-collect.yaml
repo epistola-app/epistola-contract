@@ -109,28 +109,29 @@ GenerationResult:
         - type: 'null'
       description: Key of the variant used for generation
       example: english
-    releaseVersion:
+    version:
       oneOf:
         - $ref: './identifiers.yaml#/ReleaseVersion'
         - type: 'null'
       description: |
-        Release of the template's catalog used for generation. Null when a draft was rendered.
+        Version of the release of the template's catalog used for generation. Null when a draft was
+        rendered.
       example: "1.4.0"
-    versionId:
+    releaseId:
       oneOf:
-        - $ref: './identifiers.yaml#/CatalogVersionId'
+        - $ref: './identifiers.yaml#/CatalogReleaseId'
         - type: 'null'
       description: |
-        The id of the catalog version rendered (`CatalogVersionId`), always given from 2.0 on:
-        a release's, which it keeps from the draft it was released from, or a draft's, when an
-        environment renders one live (`deployCatalogVersion`; `releaseVersion` is then null).
-        Null only for one made before 2.0, which no catalog version made.
+        The id of the release rendered (`CatalogReleaseId`), always given from 2.0 on:
+        a released release's, which it had as a draft, or a draft's, when an
+        environment renders one live (`deployCatalogRelease`; `version` is then null).
+        Null only for one made before 2.0, which no release made.
       example: k3x9q2ab
     draftLabel:
       type: [string, "null"]
       maxLength: 100
       description: |
-        The name of that draft at render time. Null when rendered from a release.
+        The name of that draft at render time. Null when rendered from a released one.
       example: null
     filename:
       type: ['string', 'null']

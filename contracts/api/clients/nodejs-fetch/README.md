@@ -56,7 +56,7 @@ const client = EpistolaClient.builder('https://epistola.example.com/api')
   .build()
 
 const templates = new TemplatesApi(client)
-const template = await templates.getTemplate({ tenantKey: 'acme', registry: '~', namespace: 'acme', catalogKey: 'invoices', catalogVersion: '1.4.0', templateKey: 'invoice' })
+const template = await templates.getTemplate({ tenantKey: 'acme', registry: '~', namespace: 'acme', catalogKey: 'invoices', release: '1.4.0', templateKey: 'invoice' })
 ```
 
 A catalog is addressed by its `registry`, `namespace` and `catalogKey`. `registry: '~'` addresses the
@@ -106,7 +106,7 @@ carries a name and a type:
 import { readFile } from 'node:fs/promises'
 
 const file = new File([await readFile('logo.png')], 'logo.png', { type: 'image/png' })
-const image = await new ImagesApi(client).uploadImage({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', catalogVersion: 'k7m2x9qa', file, name: 'Logo' })
+const image = await new ImagesApi(client).uploadImage({ tenantKey: 'acme-corp', registry: '~', namespace: 'acme-corp', catalogKey: 'main', release: 'k7m2x9qa', file, name: 'Logo' })
 ```
 
 A plain `Blob` is always sent with the filename `blob`, and as `application/octet-stream` unless it
@@ -140,13 +140,13 @@ try {
         }
         break
       case KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING:
-        for (const d of e.missingDependencies) {                                 // 409 from deployCatalogVersion
-          log.warn(`${d.registry}/${d.namespace}/${d.catalogKey}@${d.releaseVersion}: ${d.reason}`)
+        for (const d of e.missingDependencies) {                                 // 409 from deployCatalogRelease
+          log.warn(`${d.registry}/${d.namespace}/${d.catalogKey}@${d.version}: ${d.reason}`)
         }
         break
       case KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED:
         for (const d of e.unreleasedDependencies) {                              // 409 from releaseCatalogDraft
-          log.warn(`${d.registry}/${d.namespace}/${d.catalogKey}: draft ${d.draftName} (${d.versionId})`)
+          log.warn(`${d.registry}/${d.namespace}/${d.catalogKey}: draft ${d.releaseName} (${d.releaseId})`)
         }
         break
       case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
@@ -174,19 +174,19 @@ base five), `statusCode`, `rawBody`, `isValidationProblem`, `isDataModelValidati
 A `release-dependencies-unreleased` problem (409) means `releaseCatalogDraft` was refused because
 the draft's dependency declarations name drafts of other catalogs, and a release pins only
 releases. `unreleasedDependencies` lists each such draft (`registry`, `namespace`, `catalogKey`,
-`versionId`, `draftName`); release them first, or send `releaseDependencies: true` to release them
+`releaseId`, `releaseName`); release them first, or send `releaseDependencies: true` to release them
 along with the draft.
 
-A `release-dependencies-missing` problem (409) means `deployCatalogVersion` was refused because releases
+A `release-dependencies-missing` problem (409) means `deployCatalogRelease` was refused because releases
 of other catalogs the release pins cannot be had: the tenant does not have them and they could not
 be fetched or verified. `missingDependencies` lists each, with a `reason` kept as the string the
 server sent (compare it against `MissingReleaseDependencyReason`). The dependency releases are used
 implicitly; pass `includeDependencies: true` to deploy them explicitly as well:
 
 ```ts
-await new EnvironmentsApi(client).deployCatalogVersion({
+await new EnvironmentsApi(client).deployCatalogRelease({
   tenantKey: 'acme', environmentKey: 'production',
-  registry: '~', namespace: 'acme', catalogKey: 'invoices', catalogVersion: '1.4.0',
+  registry: '~', namespace: 'acme', catalogKey: 'invoices', release: '1.4.0',
   includeDependencies: true,
 })
 ```
@@ -256,9 +256,9 @@ const generation = new ValidatingGenerationApi(new GenerationApi(client), new My
 A validator that answers in-process declares `preflightsGeneration = true` (the default), so
 `ValidatingGenerationApi` checks before submitting and reports every item of a batch at once, each
 path prefixed `items[<index>]`. `TtlSchemaCache` is still exported for caching the fetched schema;
-without it a "local" validator costs a round trip per call anyway. Templates live in catalog
-versions, so a local validator fetches its schema from a version you name (`1.4.0` above): name the
-release you will render, since the server validates against that release, not against a draft.
+without it a "local" validator costs a round trip per call anyway. Templates live in releases of
+their catalog, so a local validator fetches its schema from a release you name (`1.4.0` above): name
+the release you will render, since the server validates against that release, not against a draft.
 
 Two things an implementation owes its callers, both described on `TemplateDataValidator`: an empty
 array means the data is acceptable, and `path` is a JSON Pointer. Compilers do not agree on that

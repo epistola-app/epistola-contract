@@ -16,7 +16,7 @@ why: >
   written and the reason as sent, including one it reached only through another dependency.
 
 action:
-  name: deploy-catalog-version
+  name: deploy-catalog-release
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
@@ -24,7 +24,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: 1.4.0
+    release: 1.4.0
 
 script:
   - status: 409
@@ -39,12 +39,12 @@ script:
         - registry: exchange.epistola.app
           namespace: epistola
           catalogKey: system
-          releaseVersion: 3.2.0
+          version: 3.2.0
           reason: unavailable
         - registry: registry.gemeente-x.nl
           namespace: huisstijl
           catalogKey: branding
-          releaseVersion: 1.4.2
+          version: 1.4.2
           reason: unavailable
 
 expect:

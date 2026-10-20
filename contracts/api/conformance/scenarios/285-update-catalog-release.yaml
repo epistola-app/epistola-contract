@@ -2,14 +2,14 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: update-catalog-draft
+id: update-catalog-release
 title: Renaming a draft sends only the new name, to its unchanged address, conditional on the ETag it read
 why: >
-  A draft is named, and addressed by its `versionId`, not by its name (ADR 0002).
-  Renaming it is a PATCH (`updateCatalogDraft`) to that address carrying the new `name`, and the
+  A draft is named, and addressed by its `releaseId`, not by its name (ADR 0002).
+  Renaming it is a PATCH (`updateCatalogRelease`) to that address carrying the new `name`, and the
   address does not change: the response is the same draft under its new name. A client that still
-  sends a `version`, or an `acknowledgeWarnings` flag from the renumber this replaced, sends members
-  the contract no longer has.
+  sends a `version` or an `acknowledgeWarnings` flag, which the renumber this replaced took, sends
+  members the request does not have.
 
   The update is conditional: the client sends the `ETag` it read as `If-Match`, byte for byte,
   quotes included, and reads the new `ETag` back from the response, which it needs for the next
@@ -20,14 +20,14 @@ why: >
   draft of a new catalog.
 
 action:
-  name: update-catalog-draft
+  name: update-catalog-release
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: onboarding
-    catalogVersion: h3v9p6db
+    release: h3v9p6db
     name: Redesign 2028
     ifMatch: '"3"'
 
@@ -37,8 +37,8 @@ script:
     headers:
       ETag: '"4"'
     body:
-      releaseVersion: null
-      versionId: h3v9p6db
+      version: null
+      releaseId: h3v9p6db
       name: Redesign 2028
       status: draft
       base: null
@@ -51,7 +51,7 @@ expect:
   requestCount: 1
   requests:
     - method: PATCH
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/onboarding/versions/h3v9p6db
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/onboarding/releases/h3v9p6db
       headers:
         Content-Type:
           matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
@@ -61,8 +61,8 @@ expect:
           name: Redesign 2028
         jsonAbsent: [version, acknowledgeWarnings, defaultTheme, presets]
   report:
-    releaseVersion: 'null'
-    versionId: h3v9p6db
+    version: 'null'
+    releaseId: h3v9p6db
     name: Redesign 2028
     status: draft
     base: 'null'

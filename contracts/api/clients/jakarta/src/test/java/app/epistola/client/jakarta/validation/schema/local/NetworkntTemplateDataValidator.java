@@ -66,22 +66,22 @@ public final class NetworkntTemplateDataValidator implements TemplateDataValidat
     private static final SpecVersion.VersionFlag DEFAULT_VERSION = SpecVersion.VersionFlag.V202012;
 
     private final TemplatesApi templatesApi;
-    private final String catalogVersion;
+    private final String release;
     private final Duration ttl;
     private final Map<String, Entry> cache = new ConcurrentHashMap<>();
 
     /**
-     * @param catalogVersion the catalog version whose template schemas the data is validated
-     *     against. A template lives in a catalog version, so a local validator has to choose one;
+     * @param release the release whose template schemas the data is validated
+     *     against. A template lives in a release of a catalog, so a local validator has to choose one;
      *     the server instead validates against the release it would render.
      */
-    public NetworkntTemplateDataValidator(TemplatesApi templatesApi, String catalogVersion) {
-        this(templatesApi, catalogVersion, Duration.ofMinutes(5));
+    public NetworkntTemplateDataValidator(TemplatesApi templatesApi, String release) {
+        this(templatesApi, release, Duration.ofMinutes(5));
     }
 
-    public NetworkntTemplateDataValidator(TemplatesApi templatesApi, String catalogVersion, Duration ttl) {
+    public NetworkntTemplateDataValidator(TemplatesApi templatesApi, String release, Duration ttl) {
         this.templatesApi = templatesApi;
-        this.catalogVersion = Objects.requireNonNull(catalogVersion, "catalogVersion");
+        this.release = Objects.requireNonNull(release, "release");
         this.ttl = ttl;
     }
 
@@ -116,7 +116,7 @@ public final class NetworkntTemplateDataValidator implements TemplateDataValidat
     }
 
     private JsonSchema loadSchema(String tenantKey, String registry, String namespace, String catalogKey, String templateKey) {
-        TemplateDto template = templatesApi.getTemplate(tenantKey, registry, namespace, catalogKey, catalogVersion, templateKey);
+        TemplateDto template = templatesApi.getTemplate(tenantKey, registry, namespace, catalogKey, release, templateKey);
         if (template.getSchema() == null) {
             return null;
         }

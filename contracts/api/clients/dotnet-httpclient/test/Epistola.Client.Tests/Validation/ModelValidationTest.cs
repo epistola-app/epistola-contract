@@ -138,13 +138,13 @@ public class ModelValidationTest
         Assert.Same(request, request.Validate());
     }
 
-    // A release number is a plain MAJOR.MINOR.PATCH: there are no pre-release numbers.
+    // A version is a plain MAJOR.MINOR.PATCH: there are no pre-release versions.
     [Fact]
-    public void ReleaseNumberAcceptsAPlainSemVerNumber()
+    public void VersionAcceptsAPlainSemVerNumber()
     {
-        var release = new ReleaseCatalogDraftRequest(releaseVersion: "1.4.0");
+        var release = new ReleaseCatalogDraftRequest(varVersion: "1.4.0");
         Assert.Same(release, release.Validate());
-        var draft = new CreateCatalogDraftRequest(name: "Follow-up", from: "1.4.0");
+        var draft = new CreateCatalogReleaseRequest(name: "Follow-up", from: "1.4.0");
         Assert.Same(draft, draft.Validate());
     }
 
@@ -155,28 +155,28 @@ public class ModelValidationTest
     [InlineData("2.0.0-beta.1")]
     [InlineData("2.0.0-redesign-2027.1")]
     [InlineData("Next")]
-    public void ReleaseNumberRejectsAnythingElse(string version)
+    public void VersionRejectsAnythingElse(string version)
     {
-        Assert.Throws<ArgumentException>(() => new ReleaseCatalogDraftRequest(releaseVersion: version).Validate());
-        Assert.Throws<ArgumentException>(() => new CreateCatalogDraftRequest(name: "Follow-up", from: version).Validate());
+        Assert.Throws<ArgumentException>(() => new ReleaseCatalogDraftRequest(varVersion: version).Validate());
+        Assert.Throws<ArgumentException>(() => new CreateCatalogReleaseRequest(name: "Follow-up", from: version).Validate());
     }
 
-    // A draft starts from a release number or from another version's versionId.
+    // A draft starts from a version or from another release's releaseId.
     [Fact]
-    public void CreateCatalogDraftRequestStartsFromAVersionId()
+    public void CreateCatalogReleaseRequestStartsFromAReleaseId()
     {
-        var draft = new CreateCatalogDraftRequest(name: "Redesign 2027", from: "k7m2x9qa");
+        var draft = new CreateCatalogReleaseRequest(name: "Redesign 2027", from: "k7m2x9qa");
         Assert.Same(draft, draft.Validate());
     }
 
     [Fact]
     public void DependencyDeclarationPinsAnExactRelease()
     {
-        var pinned = new CatalogDependencyRequirement(varNamespace: "epistola", catalogKey: "system", releaseVersion: "1.3.0");
+        var pinned = new CatalogDependencyRequirement(varNamespace: "epistola", catalogKey: "system", varVersion: "1.3.0");
         Assert.Same(pinned, pinned.Validate());
         foreach (var release in new[] { "^1.3.0", "1.x", "*", "01.3.0", "1.3.0-rc.1" })
         {
-            var declared = new CatalogDependencyRequirement(varNamespace: "epistola", catalogKey: "system", releaseVersion: release);
+            var declared = new CatalogDependencyRequirement(varNamespace: "epistola", catalogKey: "system", varVersion: release);
             Assert.Throws<ArgumentException>(() => declared.Validate());
         }
     }
@@ -186,7 +186,7 @@ public class ModelValidationTest
     public void DependencyDeclarationMayNameADraft()
     {
         var onDraft = new CatalogDependencyRequirement(varNamespace: "acme-corp", catalogKey: "branding",
-            versionId: "r4t8w2nc");
+            releaseId: "r4t8w2nc");
         Assert.Same(onDraft, onDraft.Validate());
     }
 
@@ -199,7 +199,7 @@ public class ModelValidationTest
 
     private static CatalogDto CatalogWithFingerprint(string fingerprint) => new(
         registry: "exchange.epistola.app", varNamespace: "acme-corp", catalogKey: "letters", name: "Letters",
-        type: CatalogType.Authored, drafts: new List<CatalogDraftSummary>(), fingerprint: fingerprint);
+        type: CatalogType.Authored, drafts: new List<CatalogDraftReleaseSummary>(), fingerprint: fingerprint);
 
     // A fingerprint names its algorithm version: v<N>:<64 lowercase hex>.
     [Fact]

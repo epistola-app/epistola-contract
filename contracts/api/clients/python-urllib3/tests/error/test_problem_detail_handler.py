@@ -181,14 +181,14 @@ def test_parses_release_dependencies_missing_problem_in_order():
                 "registry": "exchange.epistola.app",
                 "namespace": "epistola",
                 "catalogKey": "system",
-                "releaseVersion": "3.2.0",
+                "version": "3.2.0",
                 "reason": "unavailable",
             },
             {
                 "registry": "registry.gemeente-x.nl",
                 "namespace": "huisstijl",
                 "catalogKey": "branding",
-                "releaseVersion": "1.4.2",
+                "version": "1.4.2",
                 "reason": "unavailable",
             },
         ]
@@ -204,7 +204,7 @@ def test_parses_release_dependencies_missing_problem_in_order():
         ),
     ]
     assert exc.missing_dependencies[0].catalog_key == "system"
-    assert exc.missing_dependencies[0].release_version == "3.2.0"
+    assert exc.missing_dependencies[0].version == "3.2.0"
 
 
 def test_an_unknown_missing_dependency_reason_is_kept_as_sent():
@@ -216,7 +216,7 @@ def test_an_unknown_missing_dependency_reason_is_kept_as_sent():
                 "registry": "exchange.epistola.app",
                 "namespace": "epistola",
                 "catalogKey": "system",
-                "releaseVersion": "3.2.0",
+                "version": "3.2.0",
                 "reason": "quarantined",
             }
         ]
@@ -257,7 +257,7 @@ def test_a_malformed_missing_dependencies_member_yields_nothing_rather_than_a_gu
                     "registry": "exchange.epistola.app",
                     "namespace": "epistola",
                     "catalogKey": "system",
-                    "releaseVersion": "3.2.0",
+                    "version": "3.2.0",
                     "reason": "unavailable",
                 },
                 {"registry": "exchange.epistola.app", "catalogKey": 42},
@@ -289,15 +289,15 @@ def test_parses_release_dependencies_unreleased_problem_in_order():
                 "registry": "exchange.epistola.app",
                 "namespace": "acme-corp",
                 "catalogKey": "branding",
-                "versionId": "r4t8w2nc",
-                "draftName": "House style 2027",
+                "releaseId": "r4t8w2nc",
+                "releaseName": "House style 2027",
             },
             {
                 "registry": "registry.gemeente-x.nl",
                 "namespace": "huisstijl",
                 "catalogKey": "fonts",
-                "versionId": "h3v9p6db",
-                "draftName": "New typefaces, round 2",
+                "releaseId": "h3v9p6db",
+                "releaseName": "New typefaces, round 2",
             },
         ]
     )
@@ -322,8 +322,8 @@ def test_parses_release_dependencies_unreleased_problem_in_order():
             "New typefaces, round 2",
         ),
     ]
-    assert exc.unreleased_dependencies[0].version_id == "r4t8w2nc"
-    assert exc.unreleased_dependencies[1].draft_name == "New typefaces, round 2"
+    assert exc.unreleased_dependencies[0].release_id == "r4t8w2nc"
+    assert exc.unreleased_dependencies[1].release_name == "New typefaces, round 2"
 
 
 def test_another_problem_reports_no_unreleased_dependencies():
@@ -346,10 +346,10 @@ def test_a_malformed_unreleased_dependencies_member_yields_nothing_rather_than_a
                     "registry": "exchange.epistola.app",
                     "namespace": "acme-corp",
                     "catalogKey": "branding",
-                    "versionId": "r4t8w2nc",
-                    "draftName": "House style 2027",
+                    "releaseId": "r4t8w2nc",
+                    "releaseName": "House style 2027",
                 },
-                {"registry": "exchange.epistola.app", "versionId": 42},
+                {"registry": "exchange.epistola.app", "releaseId": 42},
             ]
         ),
         409,

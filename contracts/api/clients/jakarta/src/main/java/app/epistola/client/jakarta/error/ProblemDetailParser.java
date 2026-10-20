@@ -200,7 +200,7 @@ public final class ProblemDetailParser {
                     stringMember(dependency, "registry"),
                     stringMember(dependency, "namespace"),
                     stringMember(dependency, "catalogKey"),
-                    stringMember(dependency, "releaseVersion"),
+                    stringMember(dependency, "version"),
                     stringMember(dependency, "reason")));
         }
         return dependencies;
@@ -226,8 +226,8 @@ public final class ProblemDetailParser {
                     stringMember(dependency, "registry"),
                     stringMember(dependency, "namespace"),
                     stringMember(dependency, "catalogKey"),
-                    stringMember(dependency, "versionId"),
-                    stringMember(dependency, "draftName")));
+                    stringMember(dependency, "releaseId"),
+                    stringMember(dependency, "releaseName")));
         }
         return dependencies;
     }

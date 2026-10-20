@@ -119,7 +119,7 @@ def _missing_dependencies(tree: Dict[str, Any]) -> List[MissingDependency]:
             continue
         values = [
             entry.get(name)
-            for name in ("registry", "namespace", "catalogKey", "releaseVersion", "reason")
+            for name in ("registry", "namespace", "catalogKey", "version", "reason")
         ]
         if not all(isinstance(value, str) for value in values):
             return []
@@ -142,7 +142,7 @@ def _unreleased_dependencies(tree: Dict[str, Any]) -> List[UnreleasedDependency]
             continue
         values = [
             entry.get(name)
-            for name in ("registry", "namespace", "catalogKey", "versionId", "draftName")
+            for name in ("registry", "namespace", "catalogKey", "releaseId", "releaseName")
         ]
         if not all(isinstance(value, str) for value in values):
             return []

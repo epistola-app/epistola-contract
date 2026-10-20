@@ -24,7 +24,7 @@ Epistola has little visibility into which systems consume its API. Authenticatio
 experimentally JWTs) identifies callers, and the Consumers API records each consuming application per
 tenant, but nothing records what a consumer depends on. This creates several concrete problems:
 
-- **No dependency tracking** — Releasing a catalog version that removes or changes a template, or
+- **No dependency tracking** — Releasing a draft that removes or changes a template, or
   undeploying a release from an environment, has unknown blast radius. A template might be used by
   five consumers, but Epistola has no way to surface this before the release or undeploy proceeds.
 - **No attribution** — The `DocumentDto.createdBy` field exists but is always `null`. Generated
@@ -40,8 +40,8 @@ Consumers API provides.
 
 1. Provide a registry of consumer systems that connect to a tenant. (In the spec.)
 2. Enable consumers to declare which templates, in which catalogs, they depend on.
-3. Surface dependency information when an operation that can break a consumer (releasing a catalog
-   version, undeploying a release) is attempted.
+3. Surface dependency information when an operation that can break a consumer (releasing a draft,
+   undeploying a release) is attempted.
 4. Populate the `DocumentDto.createdBy` field with the consumer that requested generation.
 
 ### Non-goals
@@ -203,9 +203,9 @@ Higher levels imply lower ones, and every level defaults to `none`:
 | `templates` | `none`, `read`, `write` | read: list and get templates, their variants' content and data contracts. write: create, update and delete templates, edit their content in drafts, mark ready |
 | `variants` | `none`, `read`, `write` | read: list and get variants. write: create, update, delete |
 | `themes` | `none`, `read`, `write` | read: list and get themes. write: create, update, delete |
-| `environments` | `none`, `read`, `write`, `deploy` | read: list and get environments, what they serve and their deployment history. write: create, update, delete environments. deploy: deploy and undeploy catalog versions (releases and drafts) |
+| `environments` | `none`, `read`, `write`, `deploy` | read: list and get environments, what they serve and their deployment history. write: create, update, delete environments. deploy: deploy and undeploy releases of catalogs (released ones and drafts) |
 | `stencils` | `none`, `read`, `write` | read: list and get stencils and their usage. write: create, update, edit their content in drafts, mark ready |
-| `catalogs` | `none`, `read`, `write`, `release` | read: list catalogs, their versions and a draft's changes. write: import catalogs. release: cut catalog releases |
+| `catalogs` | `none`, `read`, `write`, `release` | read: list catalogs, their releases and a draft's changes. write: import catalogs. release: cut catalog releases |
 | `generation` | `none`, `read`, `write` | read: view jobs and documents, and collect results through `collectGenerationResults`. write: submit generation and preview |
 | `consumers` | `none`, `read`, `manage` | read: list and view consumers. manage: approve, reject, update and delete consumers |
 
@@ -227,7 +227,7 @@ templates and environments they reference.
 A dependency states: "Consumer X depends on template Y of catalog C." A catalog is named by its
 registry, namespace and key, never its key alone, so the template's key alone does not identify it.
 
-A dependency names the template, not a catalog version: templates are versioned with their catalog,
+A dependency names the template, not a release: templates are released with their catalog,
 and a consumer renders whichever release its requests select (by `versionRange` and `environmentKey`).
 
 ### 4.2 Structure
@@ -588,7 +588,7 @@ DeclareTemplateDependencyRequest:
       example: Generates monthly PDF invoices for B2B customers
 ```
 
-The template need not exist in any version of the catalog yet: a consumer may declare a dependency
+The template need not exist in any release of the catalog yet: a consumer may declare a dependency
 before the template is released.
 
 #### List dependencies for a consumer
@@ -664,7 +664,7 @@ Allows querying which consumers depend on a given template. This is the read sid
 tracking — useful for impact analysis before releasing or undeploying.
 
 The path follows `validateTemplateData`, which also addresses a template in a catalog without a
-version (`/catalogs/{registry}/{namespace}/{catalogKey}/templates/{templateKey}/validate`): a
+release (`/catalogs/{registry}/{namespace}/{catalogKey}/templates/{templateKey}/validate`): a
 dependency is on the template, whatever release a consumer renders.
 
 #### List dependents for a template
@@ -732,7 +732,7 @@ TemplateDependentListResponse:
 ### 5.5 Impact Warnings (proposed)
 
 In 2.0, deleting or changing a template does not reach a consumer when it happens. Templates are
-edited in a draft catalog version, which generation does not render; the change reaches consumers
+edited in a draft release, which generation does not render; the change reaches consumers
 when the draft is released and an environment serves the release. (A non-production environment
 a draft is deployed to renders it live; this proposal does not warn about that.)
 
@@ -741,13 +741,13 @@ So the warnings belong on the operations that change what consumers render:
 | Operation | Conflict condition |
 |---|---|
 | `releaseCatalogDraft` | The release removes a template or a variant an active consumer depends on (`ResourceChangeDto.change: removed`), and the consumer's `versionRange`, if any, matches the new release |
-| `undeployCatalogVersion`, and `deployCatalogVersion` with `replace=true` | An active consumer depends on a template of the catalog through this environment (`environmentKeys` empty or containing it), and the environment would no longer serve a version that matches the consumer's `versionRange` |
+| `undeployCatalogRelease`, and `deployCatalogRelease` with `replace=true` | An active consumer depends on a template of the catalog through this environment (`environmentKeys` empty or containing it), and the environment would no longer serve a release that matches the consumer's `versionRange` |
 
 The response is **409 Conflict** instead of proceeding, as an RFC 9457 problem. The problem type
 `has-dependents` and its `dependents` member are **proposed**: neither is in `x-problem-types`.
 
 ```
-POST /tenants/{tenantKey}/catalogs/~/acme-corp/letters/versions/k7m2x9qa/release
+POST /tenants/{tenantKey}/catalogs/~/acme-corp/letters/releases/k7m2x9qa/release
 
 409 Conflict
 Content-Type: application/problem+json
@@ -784,7 +784,7 @@ a known risk by naming it:
 
 - `releaseCatalogDraft`: a **proposed** `acknowledgedDependents` member, an array of consumer IDs.
   The release proceeds when it names every dependent; naming others changes nothing.
-- `undeployCatalogVersion` and `deployCatalogVersion` have no request body: a **proposed** query parameter
+- `undeployCatalogRelease` and `deployCatalogRelease` have no request body: a **proposed** query parameter
   `acknowledgeDependents=true`.
 
 Proceeding does not remove the dependency records: they still describe what the consumer expects,
@@ -869,7 +869,7 @@ catalog everywhere: registry, namespace and catalog key as separate segments.
 **Impact query** (proposed) is placed under
 `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/templates/{templateKey}/dependents`
 because the question is "who depends on this template?" — a template-centric view, independent of
-any one catalog version.
+any one release.
 
 ---
 
@@ -944,7 +944,7 @@ with the consumer ID when the server can identify the calling consumer.
   "catalogKey": "letters",
   "templateKey": "invoice",
   "variantKey": "english",
-  "releaseVersion": "1.4.0",
+  "version": "1.4.0",
   "filename": "invoice-2026-001.pdf",
   "correlationId": "order-7890",
   "contentType": "application/pdf",
@@ -1014,10 +1014,10 @@ acknowledging it.
 - Add the impact query endpoint under
   `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/templates/{templateKey}/dependents`
 - Register the `has-dependents` problem type with `HasDependentsProblemDetail`
-- Return 409 from `releaseCatalogDraft`, `undeployCatalogVersion` and `deployCatalogVersion` (`replace=true`)
+- Return 409 from `releaseCatalogDraft`, `undeployCatalogRelease` and `deployCatalogRelease` (`replace=true`)
   when dependents would be affected
 - Add `acknowledgedDependents` to `ReleaseCatalogDraftRequest` and `acknowledgeDependents` to
-  `undeployCatalogVersion` and `deployCatalogVersion`
+  `undeployCatalogRelease` and `deployCatalogRelease`
 - Add `Consumer Dependencies` tag
 
 **Effort**: Medium — the dependency model is simple, but the 409 Conflict integration touches
@@ -1043,16 +1043,16 @@ the action, but which system they used.
 ## Appendix A: Resource Scopes
 
 Consumers are tenant-scoped like every resource but tenants themselves. Resources in a catalog are
-scoped further, to a catalog version.
+scoped further, to a release of the catalog.
 
 | Resource | Scope | Path Prefix | Management Permission |
 |---|---|---|---|
 | Tenants | Platform | `/tenants` | `TENANT_MANAGER` platform role (create, delete); `TENANT_SETTINGS` (update) |
 | Consumers | Tenant | `/tenants/{tenantKey}/consumers` | `TENANT_USERS` |
 | Environments | Tenant | `/tenants/{tenantKey}/environments` | `TENANT_SETTINGS`; `ENVIRONMENT_DEPLOY` to deploy and undeploy |
-| Catalog versions | Catalog | `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions` | `TEMPLATE_EDIT` (drafts); `CATALOG_RELEASE` (release, discard) |
-| Templates | Catalog version | `…/versions/{catalogVersion}/templates` | `TEMPLATE_EDIT` |
-| Themes | Catalog version | `…/versions/{catalogVersion}/themes` | `THEME_EDIT` |
+| Releases | Catalog | `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases` | `TEMPLATE_EDIT` (drafts); `CATALOG_RELEASE` (release, discard) |
+| Templates | Release | `…/releases/{release}/templates` | `TEMPLATE_EDIT` |
+| Themes | Release | `…/releases/{release}/themes` | `THEME_EDIT` |
 
 ## Appendix B: Scoping Coherence
 
@@ -1079,9 +1079,9 @@ dependencies are declared in each tenant separately.
 The `PUT` dependency endpoint validates that the consumer ID exists in the tenant. If the consumer
 does not exist, the server returns 404. Dependencies cannot be created for unregistered consumers.
 
-**Scenario: The template is not in every version**
+**Scenario: The template is not in every release**
 
-A dependency names a template, not a version. The template may be new in a draft, removed in a later
+A dependency names a template, not a release. The template may be new in a draft, removed in a later
 release, or absent from a release an environment still serves; the dependency stays. Impact warnings
 (5.5) are where it matters.
 
@@ -1102,6 +1102,6 @@ automatically.
 
 The explicit model is chosen because it fits the contract-first approach (it's an API feature, not
 an observability feature), captures richer information (purpose, intended variants, environments
-and versions), and has minimal server complexity. A server implementation could supplement explicit
+and version ranges), and has minimal server complexity. A server implementation could supplement explicit
 declarations with auto-detected usage data as a future enhancement; `DeploymentDto.lastUsedAt` and
 `documentsRequested` already report usage per deployed release, though not per consumer.

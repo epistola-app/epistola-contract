@@ -12,7 +12,7 @@ why: >
   as an empty list, not fail on the member's absence.
 
 action:
-  name: deploy-catalog-version
+  name: deploy-catalog-release
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
@@ -20,7 +20,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: r4t8w2nc
+    release: r4t8w2nc
 
 script:
   - status: 409

@@ -187,16 +187,16 @@ try {
     } else if (KnownProblemSlugs.API_KEY_AUTH_DISABLED.equals(slug)) {
         log.error("this deployment requires JWT authentication");
     } else if (KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING.equals(slug)) {
-        // from deployCatalogVersion: each release the environment would also have to serve, and why
+        // from deployCatalogRelease: each release the environment would also have to serve, and why
         e.getMissingDependencies().forEach(dep -> log.warn("{}/{}/{}@{}: {}",
                 dep.getRegistry(), dep.getNamespace(), dep.getCatalogKey(),
-                dep.getReleaseVersion(), dep.getReason()));
+                dep.getVersion(), dep.getReason()));
     } else if (KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED.equals(slug)) {
         // from releaseCatalogDraft: drafts of other catalogs the draft uses, which a release
         // cannot pin; release them first, or along with it (releaseDependencies)
         e.getUnreleasedDependencies().forEach(dep -> log.warn("{}/{}/{}: draft {} ({})",
                 dep.getRegistry(), dep.getNamespace(), dep.getCatalogKey(),
-                dep.getVersionId(), dep.getDraftName()));
+                dep.getReleaseId(), dep.getReleaseName()));
     } else if (KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE.equals(slug)) {
         // from installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source
         // could not be reached (Retry-After may say when to retry), 502 when it answered badly
@@ -233,13 +233,13 @@ header from it and the body with `readEntity`, and close it when done. An error 
 String etag;
 VariantContentDto content;
 try (Response response = variantsApi.getVariantContentWithHttpInfo(
-        "acme-corp", "~", "acme-corp", "letters", versionId, "invoice", "english")) {
+        "acme-corp", "~", "acme-corp", "letters", releaseId, "invoice", "english")) {
     etag = response.getHeaderString("ETag");            // e.g. "7", quotes included
     content = response.readEntity(VariantContentDto.class);
 }
 
 try {
-    variantsApi.updateVariantContent("acme-corp", "~", "acme-corp", "letters", versionId, "invoice", "english",
+    variantsApi.updateVariantContent("acme-corp", "~", "acme-corp", "letters", releaseId, "invoice", "english",
             new UpdateVariantContentRequest().templateModel(edited(content)), etag);
 } catch (ProblemDetailException e) {
     if (KnownProblemSlugs.RESOURCE_MODIFIED.equals(e.getTypeSlug())) {
@@ -254,9 +254,9 @@ the last write wins.
 ## Uploading files
 
 `uploadImage` and `importCatalog` send `multipart/form-data`. Pass a `File` and the part gets its
-filename, and the media type that filename implies. An image belongs to a catalog version, so the
+filename, and the media type that filename implies. An image belongs to a release of a catalog, so the
 upload names the tenant, the catalog's registry (`~` for the server's default registry), namespace and
-key, and the draft it goes into, by its `versionId`:
+key, and the draft it goes into, by its `releaseId`:
 
 ```java
 @Inject
@@ -264,14 +264,14 @@ key, and the draft it goes into, by its `versionId`:
 ImagesApi imagesApi;
 
 ImageDto image = imagesApi.uploadImage(
-        "acme-corp", "~", "acme-corp", "main", versionId, new File("logo.png"), "Logo", null, null);
+        "acme-corp", "~", "acme-corp", "main", releaseId, new File("logo.png"), "Logo", null, null);
 ```
 
 For content that is not a file on disk, or a media type the filename does not imply, build the parts
 and call the overload that takes them:
 
 ```java
-ImageDto image = imagesApi.uploadImage("acme-corp", "~", "acme-corp", "main", versionId, MultipartForm.create()
+ImageDto image = imagesApi.uploadImage("acme-corp", "~", "acme-corp", "main", releaseId, MultipartForm.create()
         .file("file", "logo.png", "image/png", bytes)
         .field("name", "Logo")
         .build());
@@ -305,8 +305,8 @@ ResultCollector collector = ResultCollector.builder()
         .registerShutdownHook(false)          // the container owns the lifecycle
         .handler(result -> {
             switch (result.getStatus()) {
-                // result.getRegistry()/getNamespace()/getCatalogKey()/getReleaseVersion() name
-                // the release rendered; getReleaseVersion() is null for a draft rendered through an environment.
+                // result.getRegistry()/getNamespace()/getCatalogKey()/getVersion() name
+                // the release rendered; getVersion() is null for a draft rendered through an environment.
                 case COMPLETED -> download(result.getDocumentId(), result.getCorrelationId());
                 case FAILED -> logFailure(result.getCorrelationId(), result.getError());
             }

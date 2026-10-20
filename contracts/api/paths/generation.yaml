@@ -55,12 +55,12 @@ generate-document:
       Submit a request to generate a single PDF document. Returns immediately with a job ID for
       tracking progress.
 
-      The target is resolved when the request is accepted, and each item is bound to the version it
-      renders (`releaseVersion`, or `versionId` for a deployed draft). Refused with 404
+      The target is resolved when the request is accepted, and each item is bound to the release it
+      renders (`version`, or `releaseId` for a deployed draft). Refused with 404
       `not-found`, and nothing is accepted, when the tenant, the catalog, the template, the named
       variant or the environment does not exist, when no variant matches the `attributes`, or when
-      no version matches: no release satisfies `versionRange`, or the environment serves no
-      version of the catalog that matches. The template data is not checked against the
+      no release matches: no release satisfies `versionRange`, or the environment serves no
+      release of the catalog that matches. The template data is not checked against the
       template's data contract here; it is checked when the item renders, and an item whose data
       breaks the contract fails (`failed`, with its `errorMessage`). Check it first with
       `validateTemplateData` to find out before submitting.
@@ -110,12 +110,12 @@ generate-batch:
       Submit a batch request to generate multiple PDF documents. Returns immediately with a job ID
       for tracking progress.
 
-      The target is resolved when the request is accepted, and each item is bound to the version it
-      renders (`releaseVersion`, or `versionId` for a deployed draft). Refused with 404
+      The target is resolved when the request is accepted, and each item is bound to the release it
+      renders (`version`, or `releaseId` for a deployed draft). Refused with 404
       `not-found`, and nothing is accepted, when the tenant, the catalog, the template, the named
       variant or the environment does not exist, when no variant matches the `attributes`, or when
-      no version matches: no release satisfies `versionRange`, or the environment serves no
-      version of the catalog that matches. The template data is not checked against the
+      no release matches: no release satisfies `versionRange`, or the environment serves no
+      release of the catalog that matches. The template data is not checked against the
       template's data contract here; it is checked when the item renders, and an item whose data
       breaks the contract fails (`failed`, with its `errorMessage`). Check it first with
       `validateTemplateData` to find out before submitting. A batch is

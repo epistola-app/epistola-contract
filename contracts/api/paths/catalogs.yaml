@@ -56,12 +56,12 @@ catalog-available-releases:
       lowest first. Not only those above the highest installed release: a fix to an older line
       (`1.4.1`) is listed while the tenant has `2.0.0`.
 
-      For each, the release it is compared to (`comparedTo`): the closest installed release numbered
-      below it, or null when the tenant has none below it. What it added, modified and removed
+      For each, the release it is compared to (`comparedTo`): the closest installed release whose
+      version is below it, or null when the tenant has none below it. What it added, modified and removed
       against `comparedTo` (everything added when `comparedTo` is null), and the releases of other
       catalogs it pins, each with whether the tenant has it already.
 
-      Nothing is installed: `POST .../available-releases/{releaseVersion}/install` installs one of
+      Nothing is installed: `POST .../available-releases/{version}/install` installs one of
       them, beside the others. A catalog that is not subscribed has no source and is refused with
       409 `conflict`. When the source cannot be reached, or answers with an error or with something
       that is not a valid answer, the request fails with `catalog-source-unavailable`: 503 when it
@@ -101,10 +101,10 @@ catalog-available-release-install:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - name: releaseVersion
+    - name: version
       in: path
       required: true
-      description: The release of the catalog to install, one its source offers
+      description: The version of the release to install, one the source offers
       schema:
         $ref: '../components/schemas/identifiers.yaml#/ReleaseVersion'
   post:
@@ -114,16 +114,16 @@ catalog-available-release-install:
       Install a release of a subscribed catalog fetched from its source, exactly as `importCatalog`
       installs the release an archive carries. It is fetched from the catalog's registry, through
       a mirror of it the server is configured with, and installed as an immutable release, side by side
-      with the releases of the catalog the tenant has, whether it is numbered above them or below.
+      with the releases of the catalog the tenant has, whether its version is above theirs or below.
       Nothing is updated in place and nothing is removed: the releases installed before stay, and
       every draft, deployment and catalog that uses them keeps doing so. Which release an
-      environment serves is decided by deploying it (`deployCatalogVersion`).
+      environment serves is decided by deploying it (`deployCatalogRelease`).
       `GET .../available-releases` lists the releases the source offers that the tenant lacks.
 
       - **A release the tenant does not have** is installed (`newlyInstalled: true`).
-      - **The same number with the same fingerprint** is the release the tenant has already: nothing
+      - **The same version with the same fingerprint** is the release the tenant has already: nothing
         changes (`newlyInstalled: false`).
-      - **The same number with a different fingerprint** is different content under one name: the
+      - **The same version with a different fingerprint** is different content under one name: the
         install is refused with 409 `conflict`, and nothing changes.
 
       The releases of other catalogs the release pins (`catalogDependencies`), directly or through
@@ -131,13 +131,13 @@ catalog-available-release-install:
       installs the releases an archive carries: those the tenant lacks are fetched and installed
       (`installedDependencies`), each in a subscribed catalog when the tenant does not have that
       catalog; those it has with the same fingerprint are left alone (`presentDependencies`). One
-      the tenant has under the same number with a different fingerprint refuses the install with
+      the tenant has under the same version with a different fingerprint refuses the install with
       409 `conflict`; one that cannot be fetched, or does not match its pin's
       `releaseFingerprint`, refuses it with 409 `release-dependencies-missing`, listing each
       (`unavailable`). Installing is all or nothing, in one transaction.
 
       A catalog that is not subscribed has no source and is refused with 409 `conflict`. A
-      `releaseVersion` the source does not offer is refused with 404 `not-found`. When the
+      `version` the source does not offer is refused with 404 `not-found`. When the
       catalog's source cannot be reached, or answers with an error or with something that is not a
       valid answer, the request fails with `catalog-source-unavailable` and nothing is installed:
       503 when it could not be reached or did not answer in time, possibly with `Retry-After`, and
@@ -178,21 +178,21 @@ catalog-changes:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
 
   get:
     operationId: getCatalogChanges
-    summary: List a catalog version's changes since its base
+    summary: List a release's changes since its base
     description: |
-      Every resource of the version that is `new`, `modified` or `ready`, and the resources removed
+      Every resource of the release that is `new`, `modified` or `ready`, and the resources removed
       since its base, the release the draft started from. For a draft, `releasable` says whether
-      releasing it would be accepted now; a released version has no changes and is not releasable.
+      releasing it would be accepted now; once released it has no changes and is not releasable.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
     responses:
       '200':
-        description: The version's changes
+        description: The release's changes
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -215,14 +215,14 @@ catalog-mark-ready:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
 
   post:
     operationId: markCatalogReady
     summary: Mark every changed resource of a draft ready
     description: |
       Marks each `new` or `modified` resource of the draft ready in one action, and returns the
-      changes that remain. Refused with 409 for a released version.
+      changes that remain. Refused with 409 outside a draft.
     tags:
       - Catalogs
     x-required-permissions: [TEMPLATE_EDIT, STENCIL_EDIT]
@@ -253,13 +253,13 @@ catalog-dependencies:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
 
   get:
     operationId: listCatalogDependencies
-    summary: List the catalogs a catalog version depends on
+    summary: List the catalogs a release depends on
     description: |
-      The dependencies declared in the catalog version, each with the exact release it pins, or, in
+      The dependencies declared in the release, each with the exact release it pins, or, in
       a draft, the draft of it the draft uses. A resource can reference another catalog's resources
       only through a declared dependency.
     tags:
@@ -288,18 +288,18 @@ catalog-dependencies:
     description: |
       Replaces the dependencies declared in a draft of an authored catalog. The change is released
       with the draft, like any other change. Each catalog is declared at most once, with the exact
-      release the catalog renders with (`releaseVersion`), so a release renders with exactly the
+      release the catalog renders with (`version`), so a release renders with exactly the
       releases its dependencies pin. A declaration names an exact release, never a range.
 
-      In a draft, a declaration may name a **draft** of the other catalog instead (`versionId`), to
+      In a draft, a declaration may name a **draft** of the other catalog instead (`releaseId`), to
       build on work that is not released yet: this draft then renders with that draft, live. A
       release never pins a draft, so releasing this one is refused until that draft is released,
       or the release takes it along (`releaseDependencies` on `releaseCatalogDraft`).
 
-      Refused with 409 for a released version, and for a subscribed catalog, whose dependencies are
-      its publisher's.
+      Refused with 409 outside a draft, and for a subscribed catalog, whose dependencies are its
+      publisher's.
 
-      Send the `ETag` from `listCatalogDependencies` or `getCatalogVersion` as `If-Match` to have
+      Send the `ETag` from `listCatalogDependencies` or `getCatalogRelease` as `If-Match` to have
       the update refused with 412 `resource-modified` if the draft's settings or dependency
       declarations changed since; without it, the last write wins.
     tags:
@@ -336,7 +336,7 @@ catalog-dependencies:
       '412':
         $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
 
-catalog-versions:
+catalog-releases:
   parameters:
     - name: tenantKey
       in: path
@@ -349,11 +349,12 @@ catalog-versions:
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
 
   get:
-    operationId: listCatalogVersions
-    summary: List a catalog's versions
+    operationId: listCatalogReleases
+    summary: List a catalog's releases
     description: |
-      The catalog's versions: its drafts, oldest first, then its released versions, highest first.
-      A subscribed catalog lists the releases it installed, and has no drafts.
+      The catalog's releases, drafts included: its drafts, oldest first, then its released
+      releases, highest version first. A subscribed catalog lists the releases it installed, and has
+      no drafts.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
@@ -361,18 +362,18 @@ catalog-versions:
       - name: status
         in: query
         required: false
-        description: Only versions with this status. Omitted, every version.
+        description: Only releases with this status. Omitted, every release.
         schema:
-          $ref: '../components/schemas/catalogs.yaml#/CatalogVersionStatus'
+          $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseStatus'
       - $ref: '../components/parameters/pagination.yaml#/Page'
       - $ref: '../components/parameters/pagination.yaml#/Size'
     responses:
       '200':
-        description: The catalog's versions
+        description: The catalog's releases
         content:
           application/vnd.epistola.v2+json:
             schema:
-              $ref: '../components/schemas/catalogs.yaml#/CatalogVersionListResponse'
+              $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseListResponse'
       '400':
         $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
@@ -383,22 +384,24 @@ catalog-versions:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
   post:
-    operationId: createCatalogDraft
-    summary: Start a draft
+    operationId: createCatalogRelease
+    summary: Start a draft release
     description: |
-      Starts a draft of an authored catalog. A catalog has any number of drafts, each
-      named, and each released on its own. A draft has no number until it is released.
+      Starts a release of an authored catalog, always as a draft. A catalog has any number of
+      drafts, each named, and each released on its own. A draft has no version until it is
+      released, and keeps its `releaseId` and its name when it is.
 
-      - With `from` a released version, it starts as a copy of that release, which is its base. A
-        fix to an older line is a draft from a release of that line (`1.4.0`, released as `1.4.1`
-        while `2.0.0` exists).
-      - With `from` another draft's `versionId`, it starts as a copy of that draft, unreleased changes included, on
-        that draft's base.
-      - Without `from`, it starts as a copy of the catalog's highest release, or empty, with no
-        base, when the catalog has no release.
+      - With `from` a released release, it starts as a copy of it, which is its base. A fix to an
+        older line is a draft from a release of that line (`1.4.0`, released as `1.4.1` while
+        `2.0.0` exists).
+      - With `from` another draft's `releaseId`, it starts as a copy of that draft, unreleased
+        changes included, on that draft's base.
+      - Without `from`, it starts as a copy of the catalog's highest release, or empty,
+        with no base, when the catalog has none.
+
 
       The base is fixed. Nothing is merged: the draft is an independent copy, and the releases it is
-      **behind** are listed (see `CatalogVersionDto.behind`).
+      **behind** are listed (see `CatalogReleaseDto.behind`).
 
       Refused with 409 when another draft of the catalog has the name, and for a subscribed catalog.
     tags:
@@ -409,18 +412,18 @@ catalog-versions:
       content:
         application/vnd.epistola.v2+json:
           schema:
-            $ref: '../components/schemas/catalogs.yaml#/CreateCatalogDraftRequest'
+            $ref: '../components/schemas/catalogs.yaml#/CreateCatalogReleaseRequest'
     responses:
       '201':
         description: The draft
         headers:
           Location:
             $ref: '../components/headers/location.yaml#/Location'
-            description: The draft's address, by its `versionId` (`getCatalogVersion`)
+            description: The draft's address, by its `releaseId` (`getCatalogRelease`)
         content:
           application/vnd.epistola.v2+json:
             schema:
-              $ref: '../components/schemas/catalogs.yaml#/CatalogVersionDto'
+              $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseDto'
       '400':
         $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
@@ -432,7 +435,7 @@ catalog-versions:
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
-catalog-version:
+catalog-release:
   parameters:
     - name: tenantKey
       in: path
@@ -443,29 +446,29 @@ catalog-version:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
 
   get:
-    operationId: getCatalogVersion
-    summary: Get a catalog version
+    operationId: getCatalogRelease
+    summary: Get a release of a catalog
     description: |
-      One version of the catalog: a draft, by its `versionId`, or a released version, by its
-      `versionId` or its number, which return the same version. A released version also lists the
-      releases of other catalogs it renders with and the environments that serve it. The id of a
-      discarded draft addresses nothing: 404.
+      One release of the catalog: a draft, by its `releaseId`, or a released one, by its
+      `releaseId` or its version, which return the same release. A released one also lists
+      the releases of other catalogs it renders with. Both list the environments that serve them.
+      The id of a discarded draft addresses nothing: 404.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
     responses:
       '200':
-        description: The version
+        description: The release
         headers:
           ETag:
             $ref: '../components/headers/concurrency.yaml#/ETag'
         content:
           application/vnd.epistola.v2+json:
             schema:
-              $ref: '../components/schemas/catalogs.yaml#/CatalogVersionDto'
+              $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseDto'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':
@@ -474,18 +477,19 @@ catalog-version:
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
 
   patch:
-    operationId: updateCatalogDraft
-    summary: Update a draft's name, default theme or presets
+    operationId: updateCatalogRelease
+    summary: Update a draft release's name, default theme or presets
     description: |
       Changes a draft's own settings: its name, its default theme (the theme a template that names
       none renders with) and its declared presets (the block styles its content may name). Each
       changes only when the request names it: an omitted member keeps its value, and null clears a
       default theme or the presets (an empty array clears the presets too). Its address, its
-      `versionId`, does not change. Refused with 409 for a name another draft of the catalog has,
-      and for a released version; with 400 for a default theme that cannot be found or names a
+      `releaseId`, does not change, and it keeps its name when it is released. Refused with 409 for
+      a name another draft of the catalog has, and outside a draft: a released release cannot be
+      changed, its name included; with 400 for a default theme that cannot be found or names a
       catalog the draft does not declare, and for presets that repeat a key.
 
-      Send the `ETag` from `getCatalogVersion` or `listCatalogDependencies` as `If-Match` to have
+      Send the `ETag` from `getCatalogRelease` or `listCatalogDependencies` as `If-Match` to have
       the update refused with 412 `resource-modified` if the draft's settings or dependency
       declarations changed since; without it, the last write wins.
     tags:
@@ -498,7 +502,7 @@ catalog-version:
       content:
         application/vnd.epistola.v2+json:
           schema:
-            $ref: '../components/schemas/catalogs.yaml#/UpdateCatalogDraftRequest'
+            $ref: '../components/schemas/catalogs.yaml#/UpdateCatalogReleaseRequest'
     responses:
       '200':
         description: The draft, as changed
@@ -508,7 +512,7 @@ catalog-version:
         content:
           application/vnd.epistola.v2+json:
             schema:
-              $ref: '../components/schemas/catalogs.yaml#/CatalogVersionDto'
+              $ref: '../components/schemas/catalogs.yaml#/CatalogReleaseDto'
       '400':
         $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
       '401':
@@ -523,14 +527,14 @@ catalog-version:
         $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
 
   delete:
-    operationId: deleteCatalogDraft
-    summary: Discard a draft
+    operationId: deleteCatalogRelease
+    summary: Discard a draft release
     description: |
-      Discards a draft and everything changed in it; its `versionId` then addresses nothing. Where
-      the draft is deployed (`deployCatalogVersion`), the deployment ends, recorded as `undeployed`.
+      Discards a draft and everything changed in it; its `releaseId` then addresses nothing. Where
+      the draft is deployed (`deployCatalogRelease`), the deployment ends, recorded as `undeployed`.
 
-      Refused with 409 for a released version, while a dependency declaration in a draft of another
-      catalog names this draft, and while the draft alone holds a resource something outside it
+      Refused with 409 outside a draft (a released release is never deleted), while a dependency
+      declaration in a draft of another catalog names this draft, and while the draft alone holds a resource something outside it
       still uses (a theme another catalog's templates or variants name, or another catalog names
       as its default theme, `defaultTheme`; a code list another catalog's attribute binds).
     tags:
@@ -548,7 +552,7 @@ catalog-version:
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
-catalog-version-release-preview:
+catalog-release-preview:
   parameters:
     - name: tenantKey
       in: path
@@ -559,22 +563,22 @@ catalog-version-release-preview:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
 
   get:
     operationId: previewCatalogDraftRelease
-    summary: Preview the number a draft is released as
+    summary: Preview the version a draft is released as
     description: |
-      The number releasing the draft would give it, **without releasing it**: the kind of change it
-      holds against its base, why, the number that needs (`needed`), and the number it gets
-      (`suggested`): `needed`, or the next free number of the same kind when another release already
-      has it. Refused with 409 for a released version.
+      The version releasing the draft would give it, **without releasing it**: the kind of change it
+      holds against its base, why, the version that needs (`needed`), and the version it gets
+      (`suggested`): `needed`, or the next free version of the same kind when another release
+      already has it. Refused with 409 outside a draft.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
     responses:
       '200':
-        description: The number, and why
+        description: The version, and why
         content:
           application/vnd.epistola.v2+json:
             schema:
@@ -588,7 +592,7 @@ catalog-version-release-preview:
       '409':
         $ref: '../components/responses/problem-responses.yaml#/ConflictError'
 
-catalog-version-release:
+catalog-release-action:
   parameters:
     - name: tenantKey
       in: path
@@ -599,7 +603,7 @@ catalog-version-release:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
 
   post:
     operationId: releaseCatalogDraft
@@ -608,17 +612,17 @@ catalog-version-release:
       Releases a draft of an authored catalog. Any draft can be released, whatever else
       the catalog has released since it started.
 
-      **The number** follows from the kind of change against the draft's base: corrections raise
+      **The version** follows from the kind of change against the draft's base: corrections raise
       the patch, additions the minor, breaking changes the major (`previewCatalogDraftRelease`).
-      Omitted `releaseVersion`: that number, or the next free one of the same kind when another
-      release already has it (`suggested`). A given `releaseVersion` must be one no release of the
+      Omitted `version`: that version, or the next free one of the same kind when another
+      release already has it (`suggested`). A given `version` must be one no release of the
       catalog has, above the base and no lower than the changes need (`needed`), or the request is
       refused with 400. From `1.4.0`, while `1.5.0` and `2.0.0` exist, a fix becomes `1.4.1`, and a breaking
       redesign `3.0.0`.
 
       A release contains the whole draft: it is refused while any resource is `new` or `modified`.
 
-      A draft that is **behind** (see `CatalogVersionDto.behind`, recomputed for the number it is
+      A draft that is **behind** (see `CatalogReleaseDto.behind`, recomputed for the version it is
       released as) does not contain those releases' changes unless an author applied them by hand,
       which the server cannot tell. Releasing it is refused with 409 unless `acknowledgedBehind`
       names every one.
@@ -629,13 +633,13 @@ catalog-version-release:
       paths through the dependencies pin different releases of one catalog. A declaration that
       names a **draft** of another catalog is refused with 409 (`release-dependencies-unreleased`,
       listing each such draft), unless `releaseDependencies` releases those drafts along with it:
-      each first, recursively, numbered by its own changes, in the same transaction, all or
-      nothing, and the new release pins the releases they became (`releasedDependencies`).
+      each first, recursively, as the version its own changes need, in the same transaction, all
+      or nothing, and the new release pins them as released (`releasedDependencies`).
 
-      The draft becomes the released version at that number, immutable. Its `versionId` stays and
-      addresses the release, as the number does; writes through either are refused with 409.
+      The draft becomes released at that version, immutable. It keeps its `releaseId`, which
+      addresses it as the version does, and its name; writes through either are refused with 409.
       Where the draft, or a draft released along with it, is deployed, the environment now serves
-      the release, an explicit deployment of it recorded as `released` in the deployment history.
+      it as released, an explicit deployment recorded as `released` in the deployment history.
       Other drafts are untouched; the response names those the release puts behind (`draftsBehind`).
     tags:
       - Catalogs

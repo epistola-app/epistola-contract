@@ -6,7 +6,7 @@
 # reference, so a pattern or a length changed here changes everywhere at once.
 #
 # Two key rules exist. Keys that address a tenant, a namespace, a catalog, an environment or a
-# consumer start with a letter. Keys of the resources in a catalog version may start with a digit,
+# consumer start with a letter. Keys of the resources in a catalog's release may start with a digit,
 # because those keys used to be UUIDs. Both allow lowercase letters, digits and single hyphens only.
 
 TenantKey:
@@ -65,7 +65,7 @@ ResourceKey:
   minLength: 3
   maxLength: 50
   description: |
-    The key of a resource in a catalog version (a template, variant, stencil, theme, attribute,
+    The key of a resource in a release of a catalog (a template, variant, stencil, theme, attribute,
     code list, font, image or data example), unique among its kind: lowercase letters, digits and
     single hyphens, 3 to 50 characters. It may start with a digit, because resource keys used to be
     UUIDs. The same rule as in the catalog archive.
@@ -77,7 +77,7 @@ PresetKey:
   minLength: 1
   maxLength: 50
   description: |
-    The key of a block style preset, unique within a catalog version's presets: lowercase letters,
+    The key of a block style preset, unique within a release's presets: lowercase letters,
     digits and single hyphens, starting with a letter, 1 to 50 characters. The same rule as in the
     catalog archive.
   example: muted
@@ -107,38 +107,39 @@ ReleaseVersion:
   pattern: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
   maxLength: 50
   description: |
-    The number of one released catalog version: a SemVer core version, `MAJOR.MINOR.PATCH` without
-    leading zeros, unique in its catalog. Not a version range.
+    A release's version, its number: a SemVer core version, `MAJOR.MINOR.PATCH` without leading
+    zeros, unique in its catalog. A draft has none until it is released. Never a range (that is a
+    `versionRange`); wherever the API names one exact version, the member is called `version`.
   example: "1.4.0"
 
-CatalogVersionId:
+CatalogReleaseId:
   type: string
   pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
   minLength: 4
   maxLength: 36
   description: |
-    The id of one catalog version, opaque and assigned by the server, unique within its
-    catalog. A version gets it when it is started as a draft and keeps it when it is released; a
-    release installed by import or from its source gets one when it is installed. It
-    addresses the version (`…/versions/{versionId}`) for as long as the version exists, as a draft
-    and as a release alike: a released version is addressed by its `versionId` or by its number,
+    The id of one release of a catalog, opaque and assigned by the server, unique within its
+    catalog. A release gets it when it is created as a draft and keeps it when it is released; a
+    release installed by import or from its source gets one when it is installed. It addresses the
+    release (`…/releases/{releaseId}`) for as long as the release exists, as a draft and once
+    released alike: once released, it is addressed by its `releaseId` or by its version,
     interchangeably.
 
     Lowercase letters, digits and single hyphens, 4 to 36 characters. It never contains a dot, so
-    it cannot be mistaken for a release number. A UUID fits; a server is recommended, not required,
-    to use a short random id instead, about 8 characters from a lowercase alphabet without
-    look-alikes (no `0`/`o`, `1`/`l`/`i`), such as `k7m2x9qa`, which people can read and type.
+    it cannot be mistaken for a version. A UUID fits; a server is recommended, not required, to use
+    a short random id instead, about 8 characters from a lowercase alphabet without look-alikes (no
+    `0`/`o`, `1`/`l`/`i`), such as `k7m2x9qa`, which people can read and type.
   example: k7m2x9qa
 
-CatalogVersionRef:
+CatalogReleaseRef:
   type: string
   pattern: '^([a-z0-9]+(-[a-z0-9]+)*|(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$'
   minLength: 4
   maxLength: 50
   description: |
-    One catalog version, by its `CatalogVersionId` or, once it is released, by its
-    `ReleaseVersion`: both name the same version, and as an id never contains a dot, the two cannot
-    be confused. The pattern is the two rules' patterns joined.
+    One release of a catalog, by its `CatalogReleaseId` or, once it is released, by its version
+    (`ReleaseVersion`): both name the same release, and as an id never contains a dot, the two
+    cannot be confused. The pattern is the two rules' patterns joined.
   example: k7m2x9qa
 
 Fingerprint:

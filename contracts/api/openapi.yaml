@@ -10,24 +10,32 @@ info:
 
     - **Tenant**: an organisation, isolated from every other. Everything else lives in one, under
       `/tenants/{tenantKey}`.
-    - **Catalog**: a set of templates and everything they use, versioned as a whole. A catalog is
+    - **Catalog**: a set of templates and everything they use, released as a whole. A catalog is
       named by three parts together: a **registry**, the DNS name of where it is published
       (`exchange.epistola.app`, or a domain that publishes its own, `acme.com`); a **namespace**, its
       publisher within that registry (`acme-corp`); and its key (`letters`). In a path, `~` stands
       for the server's default registry.
-    - **Catalog version**: the catalog as a whole at one point. A **draft** is editable and has no
-      number; a **release** is immutable and has a number, its `releaseVersion` (`1.4.0`). Every
-      version has a `versionId`, assigned by the server, which a draft keeps when it is released. A
-      request that renders selects a release with a **version range**, its `versionRange`
-      (`^1.4.0`).
-    - **Base**: the release a draft started from; its changes are measured against it. A draft is
-      **behind** a release whose changes it may lack (see "Catalog versions"). A changed resource is
-      **ready** once someone marks it reviewed; a draft is released only when all its changes are.
+    - **Release**: the catalog as a whole at one point, in one of two statuses. A **draft release**,
+      or **draft**, is editable and has no version; a **released** release is immutable and has a
+      version. "Release `1.4.0`" means the released one.
+    - **Version**: the number of a released release, its `version` (`1.4.0`), a SemVer core
+      version. A **version range**, `versionRange` (`^1.4.0`), selects the highest release that
+      satisfies it, for a request that renders; it never matches a draft.
+    - **Releasing**: turning a draft into a released release, as a version. A release keeps its id,
+      its `releaseId`, assigned by the server, and its name when it is released, so a draft released
+      as `1.4.1` is the same release, addressed by its `releaseId` or by `1.4.1`.
+    - **Publishing**: making a catalog available in a registry, for other tenants and installations
+      to install from. Only released releases are ever published; releasing is not
+      publishing.
+    - **Base**: the release a draft started from; its changes are measured against it. A
+      draft is **behind** a release whose changes it may lack (see "Releases"). A changed resource
+      is **ready** once someone marks it reviewed; a draft is released only when all its changes
+      are.
     - **Authored** and **subscribed** catalogs: an authored catalog is written in this tenant, in
       drafts; a subscribed catalog is published elsewhere, and the tenant only installs its releases.
     - **Environment**: where documents are generated for a purpose, such as `staging` or
-      `production`. A **deployment** makes an environment serve a catalog version; a request through
-      the environment renders what it serves.
+      `production`. A **deployment** makes an environment serve a release of a catalog; a request
+      through the environment renders what it serves.
     - **Template**: one kind of document, with its data contract (the JSON Schema its data must meet)
       and data examples. A **variant** is one rendering of a template, for a language or a brand,
       chosen by its key or by **attributes** (such as `locale`); an attribute's values may come from a
@@ -52,9 +60,10 @@ info:
        ```
 
     3. **Find your template.** `GET /tenants/{tenantKey}/catalogs` lists the catalogs, each with its
-       `registry`, `namespace`, `catalogKey` and `highestReleaseVersion`. `GET
-       /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{releaseVersion}/templates`
-       lists that release's templates, and `getTemplate` shows a template's data contract.
+       `registry`, `namespace`, `catalogKey` and `highestVersion`. `GET
+       /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates`,
+       with that version as `{release}`, lists that release's templates, and `getTemplate` shows a
+       template's data contract.
     4. **Generate.** `POST /tenants/{tenantKey}/documents/generate` with the template and its data:
 
        ```json
@@ -95,31 +104,33 @@ info:
     The client libraries set both, the contract version and the hostname; an application can append
     its own product tokens and override the node id.
 
-    ## Catalog versions
+    ## Releases
 
-    A catalog consists of versions, addressed as
-    `/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}`, with the catalog's
-    resources below each. A draft is addressed by its `versionId`; a release by its `versionId` or its
-    number, which address the same version. Every write to a release is refused with 409.
+    A catalog consists of releases, addressed as
+    `/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}`, with the catalog's
+    resources below each. A draft is addressed by its `releaseId`; a released release by its
+    `releaseId` or its version, which address the same release. Every write to a released release
+    is refused with 409.
 
-    - An authored catalog has **any number of drafts**, each named, each started from a release (its
-      base) or from another draft (`createCatalogDraft`). The base never moves.
-    - **Any draft can be released.** Its number follows from the kind of change against its base:
+    - An authored catalog has **any number of drafts**, each named, each started from a released
+      release (its base) or from another draft (`createCatalogRelease`). The base never moves.
+    - **Any draft can be released.** Its version follows from the kind of change against its base:
       fixes raise the patch, additions the minor, anything that breaks callers the major
-      (`previewCatalogDraftRelease`). The author may choose a higher number, never a lower one or one
-      another release has. A fix to an older line is a draft from a release of that line: from
+      (`previewCatalogDraftRelease`). The author may choose a higher version, never a lower one or
+      one another release has. A fix to an older line is a draft from a release of that line: from
       `1.4.0`, while `1.5.0` and `2.0.0` exist, it is released as `1.4.1`.
     - **Drafts are independent copies**: releasing one changes no other, and nothing is merged. A
-      draft is **behind** each release numbered between its base and the number it would get, and
-      each release published after it was started that is numbered below that number; it lacks their
-      changes unless an author applied them by hand. `getCatalogVersion` lists them, and releasing a
-      draft that is behind must acknowledge them.
+      draft is **behind** each release whose version is between its base and the version it would
+      get, and each release released after it was started whose version is below that one; it
+      lacks their changes unless an author applied them by hand. `getCatalogRelease` lists them,
+      and releasing a draft that is behind must acknowledge them.
 
-    Documents are rendered from releases, and a version range never matches a draft. A draft renders
-    only in a preview that names its `versionId`, and in an environment it is deployed to.
+    Documents are rendered from releases, and a version range never matches a draft. A
+    draft renders only in a preview that names its `releaseId`, and in an environment it is
+    deployed to.
 
     Importing a catalog archive (`importCatalog`) installs the release the archive carries, at its
-    number, beside the releases the tenant already has; it never creates or changes a draft. A
+    version, beside the releases the tenant already has; it never creates or changes a draft. A
     subscribed catalog installs releases from its source the same way (`installCatalogRelease`), and
     `listAvailableCatalogReleases` lists those the tenant does not have yet, older lines included.
     Nothing is updated in place or removed: deploying decides what an environment serves. The import
@@ -127,27 +138,26 @@ info:
 
     ## Deploying
 
-    An environment serves catalog versions (`deployCatalogVersion`): releases, several of one catalog
-    if need be, and at most one draft per catalog, rendered live. A request through the environment
+    An environment serves releases of catalogs (`deployCatalogRelease`): released ones, several of
+    one catalog if need be, and at most one draft per catalog, rendered live. A request through the environment
     (`environmentKey`) renders:
 
     - with **no `versionRange`**: the catalog's deployed draft if there is one, else the highest
       release the environment serves;
-    - with a **range or an exact number**: the highest served release that satisfies it. A draft never
-      matches, as a SemVer pre-release does not.
+    - with a **range or an exact version**: the highest served release that satisfies it. A draft
+      never matches, as a SemVer pre-release does not.
 
     Rollback is undeploying the newer release. Deploying a draft replaces the draft the environment
     served for that catalog, and an environment marked **production** (`EnvironmentDto.production`)
-    serves only releases. A document rendered from a draft carries the draft's `versionId` and its
-    name at render time (`draftLabel`), with a null `releaseVersion`, and its PDF a preview watermark.
-    Releasing a deployed draft keeps its `versionId`, so the environment then serves that release;
-    discarding the draft ends the deployment.
+    serves no draft. A document rendered from a draft carries the draft's `releaseId` and its name
+    at render time (`draftLabel`), with a null `version`, and its PDF a preview watermark. Releasing a deployed draft keeps its `releaseId`, so the environment then serves it
+    as released; discarding the draft ends the deployment.
 
-    ## Release numbers and version ranges
+    ## Versions and version ranges
 
-    A release number (`ReleaseVersion`) is a SemVer core version, `MAJOR.MINOR.PATCH` without leading
-    zeros, at most 50 characters. Wherever the contract names one exact release it has that form, and
-    is called `releaseVersion`.
+    A version (`ReleaseVersion`) is a SemVer core version, `MAJOR.MINOR.PATCH` without leading
+    zeros, at most 50 characters. Wherever the contract names one exact version it has that form, and
+    is called `version`; every member called `version` is one.
 
     A request that selects a release to render or check (generation, preview, validation) takes a
     version range, `versionRange`, in the npm SemVer range grammar: an exact version (`1.4.0`), a caret
@@ -158,14 +168,14 @@ info:
     ## Catalog dependencies
 
     A catalog that uses another catalog's resources declares that catalog once, with the exact
-    release of it that it renders with (`releaseVersion`), never a range. References into the other
+    release of it that it renders with (`version`), never a range. References into the other
     catalog name the catalog but no version, so a release renders with exactly the releases its
     declarations pin.
 
-    In a draft, a declaration may name a draft of the other catalog instead (`versionId`), to build on
-    work that is not released yet. A release pins only releases: releasing such a draft is refused
-    (`release-dependencies-unreleased`) unless the request releases those drafts along with it
-    (`releaseDependencies`), in one transaction.
+    In a draft, a declaration may name a draft of the other catalog instead (`releaseId`), to build on
+    work that is not released yet. A released release pins only released releases: releasing such a
+    draft is refused (`release-dependencies-unreleased`) unless the request releases those drafts
+    along with it (`releaseDependencies`), in one transaction.
 
     ## Catalog identity
 
@@ -191,7 +201,7 @@ info:
     ## Concurrency
 
     Updates can be made conditional. Templates, variants, themes, stencils, code lists, attributes,
-    catalog versions, environments, tenants and consumers carry a revision, which reading or updating
+    releases, environments, tenants and consumers carry a revision, which reading or updating
     one returns as a strong `ETag` header: a quoted decimal integer such as `"7"`. Send it back as
     `If-Match` on an update: if the resource changed since you read it, the update is refused with 412
     `resource-modified` and nothing changes; read it again, reapply your change and retry. Without
@@ -203,9 +213,9 @@ info:
     - a variant: its title, description, attributes and template model, so `getVariant` and
       `getVariantContent` return the same `ETag`, and `updateVariant` and `updateVariantContent` take
       either;
-    - a catalog version: its name, default theme, presets and dependency declarations, so
-      `getCatalogVersion` and `listCatalogDependencies` return the same `ETag`, and
-      `updateCatalogDraft` and `updateCatalogDependencies` take either;
+    - a release: its name, default theme, presets and dependency declarations, so
+      `getCatalogRelease` and `listCatalogDependencies` return the same `ETag`, and
+      `updateCatalogRelease` and `updateCatalogDependencies` take either;
     - a code list: its properties and entries, whether each is hidden included, so
       `updateCodeListEntryHidden` takes the code list's `ETag`;
     - an environment: its name and production mark, not what it serves.
@@ -345,7 +355,7 @@ x-problem-types:
       status: 409
       schema: ReleaseDependenciesMissingProblemDetail
       description: >-
-        A catalog version cannot be deployed or imported because releases of other
+        A release cannot be deployed or imported because releases of other
         catalogs it renders with (the releases it pins) cannot be had: the
         tenant does not have them, the import does not carry them, and they
         could not be fetched or verified; `missingDependencies` lists each one
@@ -423,28 +433,28 @@ tags:
     description: Tenants, the organisations everything else lives in. Creating and deleting one is a platform operation.
   - name: Templates
     description: |
-      Templates in a catalog version: one kind of document each, with its data contract and data
-      examples. Edited in a draft, read in any version.
+      Templates in a release of a catalog: one kind of document each, with its data contract and
+      data examples. Edited in a draft, read in any release.
   - name: Themes
-    description: Reusable sets of styles that templates render with, in a catalog version
+    description: Reusable sets of styles that templates render with, in a release of a catalog
   - name: Environments
     description: |
       Environments (such as `staging` and `production`) and what they serve: deploying and
-      undeploying catalog versions, and the history of those changes
+      undeploying releases of catalogs, and the history of those changes
   - name: Attributes
-    description: The criteria variants are selected by (such as `locale`), in a catalog version
+    description: The criteria variants are selected by (such as `locale`), in a release of a catalog
   - name: Variants
     description: |
       A template's variants, one rendering each (for a language or a brand), and their content,
-      in a catalog version
+      in a release of a catalog
   - name: Stencils
     description: |
-      Reusable template content in a catalog version: its content, readiness and where it is used.
-      A stencil has no versions of its own; it is versioned with its catalog.
+      Reusable template content in a release of a catalog: its content, readiness and where it is
+      used. A stencil has no releases of its own; it is released with its catalog.
   - name: Catalogs
     description: |
-      Catalogs and their versions: drafts, releases, dependencies and changes; importing an archive
-      and installing a subscribed catalog's releases
+      Catalogs and their releases, draft and released: dependencies and changes, releasing a draft;
+      importing an archive and installing a subscribed catalog's releases
   - name: CodeLists
     description: |
       Reusable `{code, label}` collections that attributes can bind to.
@@ -532,9 +542,9 @@ paths:
     $ref: './paths/consumers.yaml#/consumer-public-key'
 
   # Themes
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/themes:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/themes:
     $ref: './paths/themes.yaml#/themes'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/themes/{themeKey}:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/themes/{themeKey}:
     $ref: './paths/themes.yaml#/themes-id'
 
   # Environments
@@ -544,97 +554,97 @@ paths:
     $ref: './paths/environments.yaml#/environments-id'
   /tenants/{tenantKey}/environments/{environmentKey}/deployments:
     $ref: './paths/environments.yaml#/environment-deployments'
-  /tenants/{tenantKey}/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{catalogVersion}:
-    $ref: './paths/environments.yaml#/environment-deployment-version'
+  /tenants/{tenantKey}/environments/{environmentKey}/deployments/{registry}/{namespace}/{catalogKey}/{release}:
+    $ref: './paths/environments.yaml#/environment-deployment-release'
   /tenants/{tenantKey}/environments/{environmentKey}/deployment-history:
     $ref: './paths/environments.yaml#/environment-deployment-history'
 
   # Attributes
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/attributes:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/attributes:
     $ref: './paths/attributes.yaml#/attributes'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/attributes/{attributeKey}:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/attributes/{attributeKey}:
     $ref: './paths/attributes.yaml#/attributes-key'
 
   # Code lists
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/code-lists:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/code-lists:
     $ref: './paths/code-lists.yaml#/code-lists'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/code-lists/{codeListKey}:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/code-lists/{codeListKey}:
     $ref: './paths/code-lists.yaml#/code-lists-key'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/code-lists/{codeListKey}/refresh:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/code-lists/{codeListKey}/refresh:
     $ref: './paths/code-lists.yaml#/code-list-refresh'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/code-lists/{codeListKey}/entries:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/code-lists/{codeListKey}/entries:
     $ref: './paths/code-lists.yaml#/code-list-entries'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/code-lists/{codeListKey}/entries/{code}/hidden:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/code-lists/{codeListKey}/entries/{code}/hidden:
     $ref: './paths/code-lists.yaml#/code-list-entry-hidden'
 
   # Fonts (read-only)
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/fonts:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/fonts:
     $ref: './paths/fonts.yaml#/fonts'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/fonts/{fontKey}:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/fonts/{fontKey}:
     $ref: './paths/fonts.yaml#/fonts-key'
 
   # Images
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/images:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/images:
     $ref: './paths/images.yaml#/images'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/images/{imageKey}:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/images/{imageKey}:
     $ref: './paths/images.yaml#/image-resource'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/images/{imageKey}/content:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/images/{imageKey}/content:
     $ref: './paths/images.yaml#/image-content'
 
   # Templates
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/templates:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates:
     $ref: './paths/templates.yaml#/templates'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateKey}:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}:
     $ref: './paths/templates.yaml#/templates-id'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/templates/{templateKey}/validate:
     $ref: './paths/templates.yaml#/template-validate'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateKey}/mark-ready:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}/mark-ready:
     $ref: './paths/templates.yaml#/template-mark-ready'
 
   # Variants
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateKey}/variants:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}/variants:
     $ref: './paths/variants.yaml#/variants'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateKey}/variants/{variantKey}:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}/variants/{variantKey}:
     $ref: './paths/variants.yaml#/variants-id'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateKey}/variants/{variantKey}/set-default:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}/variants/{variantKey}/set-default:
     $ref: './paths/variants.yaml#/variant-set-default'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateKey}/variants/{variantKey}/content:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}/variants/{variantKey}/content:
     $ref: './paths/variants.yaml#/variant-content'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/templates/{templateKey}/variants/{variantKey}/mark-ready:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/templates/{templateKey}/variants/{variantKey}/mark-ready:
     $ref: './paths/variants.yaml#/variant-mark-ready'
 
   # Stencils
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/stencils:
     $ref: './paths/stencils.yaml#/stencils'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilKey}:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/stencils/{stencilKey}:
     $ref: './paths/stencils.yaml#/stencils-id'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilKey}/content:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/stencils/{stencilKey}/content:
     $ref: './paths/stencils.yaml#/stencil-content'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilKey}/mark-ready:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/stencils/{stencilKey}/mark-ready:
     $ref: './paths/stencils.yaml#/stencil-mark-ready'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/stencils/{stencilKey}/usage:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/stencils/{stencilKey}/usage:
     $ref: './paths/stencils.yaml#/stencil-usage'
 
   # Catalogs
   /tenants/{tenantKey}/catalogs:
     $ref: './paths/catalogs.yaml#/catalogs'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions:
-    $ref: './paths/catalogs.yaml#/catalog-versions'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}:
-    $ref: './paths/catalogs.yaml#/catalog-version'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/release-preview:
-    $ref: './paths/catalogs.yaml#/catalog-version-release-preview'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/release:
-    $ref: './paths/catalogs.yaml#/catalog-version-release'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/dependencies:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases:
+    $ref: './paths/catalogs.yaml#/catalog-releases'
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}:
+    $ref: './paths/catalogs.yaml#/catalog-release'
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/release-preview:
+    $ref: './paths/catalogs.yaml#/catalog-release-preview'
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/release:
+    $ref: './paths/catalogs.yaml#/catalog-release-action'
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/dependencies:
     $ref: './paths/catalogs.yaml#/catalog-dependencies'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/changes:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/changes:
     $ref: './paths/catalogs.yaml#/catalog-changes'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/mark-ready:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/mark-ready:
     $ref: './paths/catalogs.yaml#/catalog-mark-ready'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/available-releases:
     $ref: './paths/catalogs.yaml#/catalog-available-releases'
-  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/available-releases/{releaseVersion}/install:
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/available-releases/{version}/install:
     $ref: './paths/catalogs.yaml#/catalog-available-release-install'
 
   # Catalog Import
@@ -684,10 +694,10 @@ components:
       $ref: './components/schemas/identifiers.yaml#/RegistryOrDefault'
     ReleaseVersion:
       $ref: './components/schemas/identifiers.yaml#/ReleaseVersion'
-    CatalogVersionId:
-      $ref: './components/schemas/identifiers.yaml#/CatalogVersionId'
-    CatalogVersionRef:
-      $ref: './components/schemas/identifiers.yaml#/CatalogVersionRef'
+    CatalogReleaseId:
+      $ref: './components/schemas/identifiers.yaml#/CatalogReleaseId'
+    CatalogReleaseRef:
+      $ref: './components/schemas/identifiers.yaml#/CatalogReleaseRef'
     Fingerprint:
       $ref: './components/schemas/identifiers.yaml#/Fingerprint'
 
@@ -760,8 +770,6 @@ components:
       $ref: './components/schemas/environments.yaml#/EnvironmentListResponse'
     DeploymentDto:
       $ref: './components/schemas/environments.yaml#/DeploymentDto'
-    DeploymentKind:
-      $ref: './components/schemas/environments.yaml#/DeploymentKind'
     MissingReleaseDependency:
       $ref: './components/schemas/environments.yaml#/MissingReleaseDependency'
     MissingReleaseDependencyReason:
@@ -822,22 +830,22 @@ components:
       $ref: './components/schemas/catalogs.yaml#/ResourceChangeDto'
     CatalogType:
       $ref: './components/schemas/catalogs.yaml#/CatalogType'
-    CatalogVersionStatus:
-      $ref: './components/schemas/catalogs.yaml#/CatalogVersionStatus'
-    CatalogVersionDto:
-      $ref: './components/schemas/catalogs.yaml#/CatalogVersionDto'
-    CatalogDraftSummary:
-      $ref: './components/schemas/catalogs.yaml#/CatalogDraftSummary'
+    CatalogReleaseStatus:
+      $ref: './components/schemas/catalogs.yaml#/CatalogReleaseStatus'
+    CatalogReleaseDto:
+      $ref: './components/schemas/catalogs.yaml#/CatalogReleaseDto'
+    CatalogDraftReleaseSummary:
+      $ref: './components/schemas/catalogs.yaml#/CatalogDraftReleaseSummary'
     BehindReleaseDto:
       $ref: './components/schemas/catalogs.yaml#/BehindReleaseDto'
     ReleasedChangeDto:
       $ref: './components/schemas/catalogs.yaml#/ReleasedChangeDto'
-    CatalogVersionListResponse:
-      $ref: './components/schemas/catalogs.yaml#/CatalogVersionListResponse'
-    CreateCatalogDraftRequest:
-      $ref: './components/schemas/catalogs.yaml#/CreateCatalogDraftRequest'
-    UpdateCatalogDraftRequest:
-      $ref: './components/schemas/catalogs.yaml#/UpdateCatalogDraftRequest'
+    CatalogReleaseListResponse:
+      $ref: './components/schemas/catalogs.yaml#/CatalogReleaseListResponse'
+    CreateCatalogReleaseRequest:
+      $ref: './components/schemas/catalogs.yaml#/CreateCatalogReleaseRequest'
+    UpdateCatalogReleaseRequest:
+      $ref: './components/schemas/catalogs.yaml#/UpdateCatalogReleaseRequest'
     CatalogThemeReference:
       $ref: './components/schemas/catalogs.yaml#/CatalogThemeReference'
     CatalogPresetDto:

@@ -166,9 +166,9 @@ public class ProblemDetailHandlerTest
               "detail": "letters 1.4.0 renders with releases production does not serve",
               "missingDependencies": [
                 {"registry": "exchange.epistola.app", "namespace": "epistola", "catalogKey": "system",
-                 "releaseVersion": "3.2.0", "reason": "unavailable"},
+                 "version": "3.2.0", "reason": "unavailable"},
                 {"registry": "registry.gemeente-x.nl", "namespace": "huisstijl", "catalogKey": "branding",
-                 "releaseVersion": "1.4.2", "reason": "unavailable"}
+                 "version": "1.4.2", "reason": "unavailable"}
               ]
             }
             """;
@@ -183,7 +183,7 @@ public class ProblemDetailHandlerTest
         Assert.Equal("exchange.epistola.app", first.Registry);
         Assert.Equal("epistola", first.Namespace);
         Assert.Equal("system", first.CatalogKey);
-        Assert.Equal("3.2.0", first.ReleaseVersion);
+        Assert.Equal("3.2.0", first.Version);
         Assert.Equal(MissingDependency.Reasons.Unavailable, first.Reason);
         Assert.Equal("registry.gemeente-x.nl/huisstijl/branding@1.4.2:unavailable", ex.MissingDependencies[1].ToString());
     }
@@ -208,7 +208,7 @@ public class ProblemDetailHandlerTest
               "title": "Release dependencies missing",
               "status": 409,
               "missingDependencies": [
-                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": "1.0.0", "reason": "some-future-reason"}
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "version": "1.0.0", "reason": "some-future-reason"}
               ]
             }
             """);
@@ -229,9 +229,9 @@ public class ProblemDetailHandlerTest
               "status": 409,
               "missingDependencies": [
                 "not an object",
-                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": "1.0.0"},
-                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": 1, "reason": "unavailable"},
-                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseVersion": "2.0.0", "reason": "unavailable"}
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "version": "1.0.0"},
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "version": 1, "reason": "unavailable"},
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "version": "2.0.0", "reason": "unavailable"}
               ]
             }
             """);
@@ -239,7 +239,7 @@ public class ProblemDetailHandlerTest
         Assert.NotNull(parsed);
         Assert.Equal("Release dependencies missing", parsed!.Problem.Title);
         Assert.Single(parsed.MissingDependencies);
-        Assert.Equal("2.0.0", parsed.MissingDependencies[0].ReleaseVersion);
+        Assert.Equal("2.0.0", parsed.MissingDependencies[0].Version);
         Assert.Equal(MissingDependency.Reasons.Unavailable, parsed.MissingDependencies[0].Reason);
     }
 
@@ -270,9 +270,9 @@ public class ProblemDetailHandlerTest
               "detail": "letters uses drafts of other catalogs",
               "unreleasedDependencies": [
                 {"registry": "exchange.epistola.app", "namespace": "acme-corp", "catalogKey": "branding",
-                 "versionId": "r4t8w2nc", "draftName": "House style 2027"},
+                 "releaseId": "r4t8w2nc", "releaseName": "House style 2027"},
                 {"registry": "registry.gemeente-x.nl", "namespace": "huisstijl", "catalogKey": "fonts",
-                 "versionId": "h3v9p6db", "draftName": "New typefaces, round 2"}
+                 "releaseId": "h3v9p6db", "releaseName": "New typefaces, round 2"}
               ]
             }
             """;
@@ -288,8 +288,8 @@ public class ProblemDetailHandlerTest
         Assert.Equal("exchange.epistola.app", first.Registry);
         Assert.Equal("acme-corp", first.Namespace);
         Assert.Equal("branding", first.CatalogKey);
-        Assert.Equal("r4t8w2nc", first.VersionId);
-        Assert.Equal("House style 2027", first.DraftName);
+        Assert.Equal("r4t8w2nc", first.ReleaseId);
+        Assert.Equal("House style 2027", first.ReleaseName);
         Assert.Equal(
             "registry.gemeente-x.nl/huisstijl/fonts#h3v9p6db=New typefaces, round 2",
             ex.UnreleasedDependencies[1].ToString());
@@ -305,16 +305,16 @@ public class ProblemDetailHandlerTest
               "status": 409,
               "unreleasedDependencies": [
                 "not an object",
-                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "versionId": "d"},
-                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "versionId": 1, "draftName": "x"},
-                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "versionId": "d2", "draftName": "Kept"}
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseId": "d"},
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseId": 1, "releaseName": "x"},
+                {"registry": "r.example", "namespace": "n", "catalogKey": "k", "releaseId": "d2", "releaseName": "Kept"}
               ]
             }
             """);
 
         Assert.NotNull(parsed);
         Assert.Single(parsed!.UnreleasedDependencies);
-        Assert.Equal("Kept", parsed.UnreleasedDependencies[0].DraftName);
+        Assert.Equal("Kept", parsed.UnreleasedDependencies[0].ReleaseName);
     }
 
     [Fact]

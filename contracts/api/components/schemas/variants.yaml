@@ -1,6 +1,6 @@
 VariantDto:
   type: object
-  description: Full template variant, with its status in the catalog version it was read from
+  description: Full template variant, with its status in the release it was read from
   required:
     - key
     - templateKey
@@ -218,7 +218,7 @@ UpdateVariantContentRequest:
 VariantContentDto:
   type: object
   description: |
-    A variant's content in one catalog version, and how it stands against that version's base.
+    A variant's content in one release, and how it stands against that release's base.
   required:
     - variantKey
     - templateModel

@@ -12,15 +12,15 @@ records contract changes; this file records changes to the hand-written library 
 ### Added
 
 - `ProblemDetailException.missing_dependencies` and `is_release_dependencies_missing_problem`
-  surface a `release-dependencies-missing` problem (409 from `deploy_catalog_version`): each dependency
+  surface a `release-dependencies-missing` problem (409 from `deploy_catalog_release`): each dependency
   release that cannot be had, as a `MissingDependency(registry, namespace,
-  catalog_key, release_version, reason)`. `reason` is the wire string, so a reason a later
+  catalog_key, version, reason)`. `reason` is the wire string, so a reason a later
   contract adds is kept rather than failing the parse. The member is `[]` when absent or
   malformed, and the exception's new `missing_dependencies=` constructor parameter is optional.
 - `ProblemDetailException.unreleased_dependencies` and `is_release_dependencies_unreleased_problem`
   surface a `release-dependencies-unreleased` problem (409 from `release_catalog_draft`): each
   draft of another catalog the draft's dependency declarations name, as an
-  `UnreleasedDependency(registry, namespace, catalog_key, version_id, draft_name)`, exported from
+  `UnreleasedDependency(registry, namespace, catalog_key, release_id, release_name)`, exported from
   `epistola_client`. The member is `[]` when absent or malformed, and the exception's new
   `unreleased_dependencies=` constructor parameter is optional.
 - `model_validation` also covers a model whose only constraint sits in a referenced plain string
@@ -29,7 +29,7 @@ records contract changes; this file records changes to the hand-written library 
 ### Changed
 
 - **BREAKING:** `GenerationResult.registry`, `namespace` and `catalog_key` are `str`, no longer
-  `Optional[str]`: every collected result names its catalog. `release_version` stays `None` for a
+  `Optional[str]`: every collected result names its catalog. `version` stays `None` for a
   document rendered from a draft. `GenerationResult.status` carries the wire value as sent, now
   `completed` or `failed`.
 - `MissingDependency.reason` carries the wire value as sent, now `unavailable`.
@@ -57,7 +57,7 @@ records contract changes; this file records changes to the hand-written library 
   when the request leaves it unset, and its namespace as is: the `host/name` → `host~name`
   conversion is gone, because a namespace is now a plain slug.
 - The result collector's `GenerationResult` gained `registry` next to `namespace`, `catalog_key`
-  and `release_version` (`None` for results from before contract 2.0).
+  and `version` (`None` for results from before contract 2.0).
 
 - **BREAKING:** a catalog is addressed by namespace and key. `TemplateDataValidator.validate`,
   `ServerTemplateDataValidator.validate` and `TemplateSchemaValidator.validate` take
@@ -67,12 +67,12 @@ records contract changes; this file records changes to the hand-written library 
   `release_version=` is now `version_range=`, a version range (`1.4.0`, `^1.4.0`) sent as the
   request's `versionRange`, that may be combined with `environment_key=`.
 - The result collector's `GenerationResult` gained `namespace` and `catalog_key` next to
-  `release_version`, naming the catalog release a document was generated from (`None` for results
+  `version`, naming the catalog release a document was generated from (`None` for results
   from before contract 2.0).
-- **BREAKING:** the server-side template data validator takes a `releaseVersion` (a string) in
-  place of `versionId`, matching contract 2.0's generation by release; without it or an
-  environment, the catalog's latest release is checked. The result collector reports
-  `releaseVersion` in place of `versionId`.
+- **BREAKING:** the server-side template data validator no longer takes a `versionId`, matching
+  contract 2.0's generation by release; without a version range or an environment, the catalog's
+  latest release is checked. The result collector reports `version` (a string, the release's
+  version) in place of `version_id`.
 
 - **Template data is validated by the server, not by a bundled library.** `TemplateSchemaValidator`
   and `ValidatingGenerationApi` now call `validateTemplateData` through a pluggable

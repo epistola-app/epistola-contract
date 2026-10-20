@@ -68,21 +68,21 @@ PreviewDocumentRequest:
         - type: 'null'
       description: |
         Key of an environment. With no `versionRange`, the catalog's draft deployed to the
-        environment is rendered live if there is one (the document then carries `versionId` and
+        environment is rendered live if there is one (the document then carries `releaseId` and
         `draftLabel`), else the highest release of the template's catalog the environment serves.
         With a `versionRange`, the highest served release that satisfies it; a draft never matches
-        a range (`deployCatalogVersion`). The request is refused with 404 `not-found` when the
-        environment serves no such version.
+        a range (`deployCatalogRelease`). The request is refused with 404 `not-found` when the
+        environment serves no such release.
       example: null
     draft:
       oneOf:
-        - $ref: './identifiers.yaml#/CatalogVersionId'
+        - $ref: './identifiers.yaml#/CatalogReleaseId'
         - type: 'null'
       description: |
         Render a draft of the template's catalog, including changes not yet released, by its
-        `versionId` (a `CatalogVersionId`; mutually exclusive with versionRange and environmentKey). A
+        `releaseId` (a `CatalogReleaseId`; mutually exclusive with versionRange and environmentKey). A
         version range never matches a draft; a generated document renders one only through an
-        environment it is deployed to (`deployCatalogVersion`).
+        environment it is deployed to (`deployCatalogRelease`).
       example: null
     data:
       type: object
@@ -225,11 +225,11 @@ GenerateDocumentRequest:
         - type: 'null'
       description: |
         Key of an environment. With no `versionRange`, the catalog's draft deployed to the
-        environment is rendered live if there is one (the document then carries `versionId` and
+        environment is rendered live if there is one (the document then carries `releaseId` and
         `draftLabel`), else the highest release of the template's catalog the environment serves.
         With a `versionRange`, the highest served release that satisfies it; a draft never matches
-        a range (`deployCatalogVersion`). The request is refused with 404 `not-found` when the
-        environment serves no such version.
+        a range (`deployCatalogRelease`). The request is refused with 404 `not-found` when the
+        environment serves no such release.
       example: null
     data:
       type: object
@@ -349,11 +349,11 @@ BatchGenerationItem:
         - type: 'null'
       description: |
         Key of an environment. With no `versionRange`, the catalog's draft deployed to the
-        environment is rendered live if there is one (the document then carries `versionId` and
+        environment is rendered live if there is one (the document then carries `releaseId` and
         `draftLabel`), else the highest release of the template's catalog the environment serves.
         With a `versionRange`, the highest served release that satisfies it; a draft never matches
-        a range (`deployCatalogVersion`). The request is refused with 404 `not-found` when the
-        environment serves no such version.
+        a range (`deployCatalogRelease`). The request is refused with 404 `not-found` when the
+        environment serves no such release.
       example: null
     data:
       type: object
@@ -515,29 +515,29 @@ DocumentGenerationItemDto:
       $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the variant used for generation
       example: english
-    releaseVersion:
+    version:
       oneOf:
         - $ref: './identifiers.yaml#/ReleaseVersion'
         - type: 'null'
       description: |
-        Release of the template's catalog this item renders, bound when the request was accepted.
-        Null when it renders a draft.
+        Version of the release of the template's catalog this item renders, bound when the request
+        was accepted. Null when it renders a draft.
       example: "1.4.0"
-    versionId:
+    releaseId:
       oneOf:
-        - $ref: './identifiers.yaml#/CatalogVersionId'
+        - $ref: './identifiers.yaml#/CatalogReleaseId'
         - type: 'null'
       description: |
-        The id of the catalog version rendered (`CatalogVersionId`), always given from 2.0 on:
-        a release's, which it keeps from the draft it was released from, or a draft's, when an
-        environment renders one live (`deployCatalogVersion`; `releaseVersion` is then null).
-        Null only for one made before 2.0, which no catalog version made.
+        The id of the release rendered (`CatalogReleaseId`), always given from 2.0 on:
+        a released release's, which it had as a draft, or a draft's, when an
+        environment renders one live (`deployCatalogRelease`; `version` is then null).
+        Null only for one made before 2.0, which no release made.
       example: k3x9q2ab
     draftLabel:
       type: [string, "null"]
       maxLength: 100
       description: |
-        The name of that draft at render time. Null when rendered from a release.
+        The name of that draft at render time. Null when rendered from a released one.
       example: null
     environmentKey:
       oneOf:
@@ -620,7 +620,7 @@ DocumentGenerationItemDto:
     catalogKey: letters
     templateKey: invoice
     variantKey: english
-    releaseVersion: "1.4.0"
+    version: "1.4.0"
     environmentKey: null
     data:
       customer:
@@ -769,7 +769,7 @@ GenerationJobDetail:
         catalogKey: letters
         templateKey: invoice
         variantKey: english
-        releaseVersion: "1.4.0"
+        version: "1.4.0"
         environmentKey: null
         data:
           customer:
@@ -845,7 +845,7 @@ DocumentDto:
     - catalogKey
     - templateKey
     - variantKey
-    - releaseVersion
+    - version
     - filename
     - contentType
     - sizeBytes
@@ -882,7 +882,7 @@ DocumentDto:
       $ref: './identifiers.yaml#/ResourceKey'
       description: Key of the variant used to generate this document
       example: english
-    releaseVersion:
+    version:
       oneOf:
         - $ref: './identifiers.yaml#/ReleaseVersion'
         - type: 'null'
@@ -890,21 +890,21 @@ DocumentDto:
         Release of the template's catalog this document was generated from. Null when it was
         rendered from a draft.
       example: "1.4.0"
-    versionId:
+    releaseId:
       oneOf:
-        - $ref: './identifiers.yaml#/CatalogVersionId'
+        - $ref: './identifiers.yaml#/CatalogReleaseId'
         - type: 'null'
       description: |
-        The id of the catalog version rendered (`CatalogVersionId`), always given from 2.0 on:
-        a release's, which it keeps from the draft it was released from, or a draft's, when an
-        environment renders one live (`deployCatalogVersion`; `releaseVersion` is then null).
-        Null only for one made before 2.0, which no catalog version made.
+        The id of the release rendered (`CatalogReleaseId`), always given from 2.0 on:
+        a released release's, which it had as a draft, or a draft's, when an
+        environment renders one live (`deployCatalogRelease`; `version` is then null).
+        Null only for one made before 2.0, which no release made.
       example: k3x9q2ab
     draftLabel:
       type: [string, "null"]
       maxLength: 100
       description: |
-        The name of that draft at render time. Null when rendered from a release.
+        The name of that draft at render time. Null when rendered from a released one.
       example: null
     filename:
       type: string
@@ -943,7 +943,7 @@ DocumentDto:
     catalogKey: letters
     templateKey: invoice
     variantKey: english
-    releaseVersion: "1.4.0"
+    version: "1.4.0"
     filename: "invoice-2026-001.pdf"
     correlationId: "order-7890"
     contentType: "application/pdf"
@@ -974,7 +974,7 @@ DocumentListResponse:
         catalogKey: letters
         templateKey: invoice
         variantKey: english
-        releaseVersion: "1.4.0"
+        version: "1.4.0"
         filename: "invoice-2026-001.pdf"
         correlationId: "order-7890"
         contentType: "application/pdf"

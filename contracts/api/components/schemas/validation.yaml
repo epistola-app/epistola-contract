@@ -77,7 +77,7 @@ TemplateDataValidationResult:
       description: |
         Absent fields, in schema declaration order. Each entry is the outermost absent node, so a
         missing object is one entry, not one per leaf. Required fields are always listed; optional
-        fields only when the resolved version's template reads them. Absent optional fields do not
+        fields only when the resolved release's template reads them. Absent optional fields do not
         make the data invalid.
       items:
         $ref: '#/MissingDataField'

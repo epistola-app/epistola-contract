@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: import-catalog-fingerprint-conflict
-title: A release with a number the tenant has, but other content, is refused with 409
+title: A release with a version the tenant has, but other content, is refused with 409
 why: >
-  A release is immutable, and its number names one content. An archive that carries a release the
-  tenant has under the same number but with a different fingerprint is different content under one
+  A release is immutable, and its version names one content. An archive that carries a release the
+  tenant has under the same version but with a different fingerprint is different content under one
   name, so the import is refused with 409 `conflict` and nothing changes: neither the release the
   tenant has nor any draft. The client must surface that as a problem with its slug and status, so
   a caller can tell it from a failed upload and does not retry it.
@@ -43,7 +43,7 @@ expect:
           file:
             filename: letters-1.2.0.zip
             byteLength: 22
-          catalogVersion:
+          release:
             absent: true
           authoredMode:
             absent: true

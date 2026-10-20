@@ -4,7 +4,7 @@
 - **Date:** 2026-10-20
 - **Scope:** portable catalog contract (`contracts/catalog`: catalog manifest, theme resource, template
   model, rendering semantics) and API contract (`contracts/api`), contract 2.0
-- **Related:** [ADR 0002](0002-intermediate-releases.md) (catalog versions),
+- **Related:** [ADR 0002](0002-intermediate-releases.md) (drafts and releases),
   [ADR 0003](0003-catalog-identity-and-distribution.md) (catalog dependencies),
   [ADR 0006](0006-stencil-instances-by-reference.md) (stencils by reference)
 
@@ -18,14 +18,14 @@ those are stencils and images, and fonts are their own resources.
 Exactly one theme styles a render, chosen in this order: the variant's own theme (`themeRef`
 override), the template's theme, then a **tenant-wide default theme**. Themes are never merged; the
 template's own document styles go on top of the chosen one, and whatever the theme leaves unset falls
-to the suite's versioned rendering defaults, which every published version records.
+to the suite's versioned rendering defaults, which every release records.
 
 Three things do not fit the model of catalogs as self-contained, versioned units:
 
 1. **The tenant default theme is a cross-catalog assumption.** It lives on the tenant, outside every
-   catalog version, and names a theme in some catalog — by default the `default` catalog, which a
-   tenant must then keep. A published version does not record it, so what an inheriting template
-   looks like depends on tenant state rather than on the version.
+   release of a catalog, and names a theme in some catalog — by default the `default` catalog, which a
+   tenant must then keep. A release does not record it, so what an inheriting template
+   looks like depends on tenant state rather than on the release.
 2. **Nobody can tell which presets exist.** A block names a preset; whether that name means
    anything depends on whichever theme happens to render it. The editor cannot offer a list, and a
    theme lacking the name renders the block unstyled without a word.
@@ -39,7 +39,7 @@ Three things do not fit the model of catalogs as self-contained, versioned units
 
 The catalog manifest gains `defaultTheme`: a theme reference, in the catalog itself or in a catalog
 it depends on, qualified the way other cross-catalog references are. It is part of the catalog's
-content, so a published version carries it and renders with it, pinned like any other reference.
+content, so a release carries it and renders with it, pinned like any other reference.
 
 A render chooses its theme in this order:
 
@@ -49,7 +49,7 @@ A render chooses its theme in this order:
 4. none: the rendering defaults alone.
 
 No render reads a tenant-wide default theme. Nothing in a render depends on any catalog other than
-the template's and those its version pins; in particular nothing assumes a catalog named `default`
+the template's and those its release pins; in particular nothing assumes a catalog named `default`
 exists. The system catalog's `default` theme is a theme like any other, chosen explicitly where
 wanted.
 
@@ -59,13 +59,13 @@ A tenant may keep a **house theme**: one place to say "this is our theme". It is
 rendering. It is used in two explicit ways:
 
 - a catalog created in the tenant starts with it as its `defaultTheme`, declared and pinned like any
-  other reference, so its published versions carry it;
+  other reference, so its releases carry it;
 - an "apply to all catalogs" action sets it as the `defaultTheme` of the tenant's existing authored
-  catalogs; each one takes it into a published version on its next publish.
+  catalogs; each one takes it into a release the next time a draft is released.
 
-Changing the house theme therefore changes no document until a catalog that uses it is published
-and deployed. Copying it into a version automatically at publish time was considered and rejected:
-a catalog's look would then depend on when it happened to be published, without anyone choosing it.
+Changing the house theme therefore changes no document until a catalog that uses it is released
+and deployed. Copying it into a release automatically at release time was considered and rejected:
+a catalog's look would then depend on when it happened to be released, without anyone choosing it.
 
 ### 2. A catalog declares its presets; each theme styles them
 
@@ -99,8 +99,8 @@ the report in decision 2 says when one does not.
   switch needs; a variant attribute or an installation could later choose between them.
 - **Theme inheritance.** Every theme field stays optional, so a "based on" theme that overrides only
   what differs can be added without breaking existing themes.
-- **Following a newer brand.** A dependent catalog's published version keeps the theme version it
-  pinned; picking up a newer one is a deliberate publish. A notice that a newer version of a
+- **Following a newer brand.** A dependent catalog's release keeps the theme release it
+  pinned; picking up a newer one is a deliberate release. A notice that a newer release of a
   dependency is available is a suite feature, not a contract change.
 
 ## Consequences
@@ -110,7 +110,7 @@ the report in decision 2 says when one does not.
   a reference to an available preset. Older archives carry neither and
   read as "no default theme" and "no declared presets"; until a catalog declares presets, the editor
   falls back to the presets its themes style, so nothing breaks on upgrade.
-- The API exposes and sets both on a catalog version. The tenant default theme stays as the house
+- The API exposes both on a release, and sets them on a draft (`updateCatalogRelease`). The tenant default theme stays as the house
   theme (decision 1a): its fields remain, described as a starting value, and an operation applies it
   to every authored catalog.
 - **Migration (suite):** every authored catalog with templates that inherit their theme gets the

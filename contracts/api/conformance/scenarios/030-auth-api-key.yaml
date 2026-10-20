@@ -20,7 +20,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: main
-    catalogVersion: 2.0.0
+    release: 2.0.0
 
 script:
   - status: 200
@@ -33,7 +33,7 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/main/versions/2.0.0/templates
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/main/releases/2.0.0/templates
       headers:
         Authorization: ApiKey epk_conformance_0123456789
         X-API-Key: { absent: true }

@@ -41,16 +41,16 @@ test('a required constrained property that is missing is a violation; an optiona
 })
 
 test('a dependency declaration pins an exact release, checked through the ReleaseVersion reference', () => {
-  validateModel('CatalogDependencyRequirement', { namespace: 'epistola', catalogKey: 'system', releaseVersion: '1.3.0' })
+  validateModel('CatalogDependencyRequirement', { namespace: 'epistola', catalogKey: 'system', version: '1.3.0' })
   for (const release of ['^1.3.0', '1.x', '*', '01.3.0', '1.3.0-rc.1']) {
     assert.throws(
-      () => validateModel('CatalogDependencyRequirement', { namespace: 'epistola', catalogKey: 'system', releaseVersion: release }),
-      /releaseVersion: must match pattern/,
+      () => validateModel('CatalogDependencyRequirement', { namespace: 'epistola', catalogKey: 'system', version: release }),
+      /version: must match pattern/,
       release,
     )
   }
   // In a draft a declaration may name a draft instead; exactly one of the two is a server-side rule.
-  validateModel('CatalogDependencyRequirement', { namespace: 'acme-corp', catalogKey: 'branding', versionId: 'r4t8w2nc' })
+  validateModel('CatalogDependencyRequirement', { namespace: 'acme-corp', catalogKey: 'branding', releaseId: 'r4t8w2nc' })
 })
 
 test('an attribute criterion names its attribute by resource key, never dotted', () => {

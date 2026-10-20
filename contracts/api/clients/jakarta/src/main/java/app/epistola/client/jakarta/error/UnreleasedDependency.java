@@ -20,16 +20,16 @@ public final class UnreleasedDependency {
     private final String registry;
     private final String namespace;
     private final String catalogKey;
-    private final String versionId;
-    private final String draftName;
+    private final String releaseId;
+    private final String releaseName;
 
     public UnreleasedDependency(
-            String registry, String namespace, String catalogKey, String versionId, String draftName) {
+            String registry, String namespace, String catalogKey, String releaseId, String releaseName) {
         this.registry = registry;
         this.namespace = namespace;
         this.catalogKey = catalogKey;
-        this.versionId = versionId;
-        this.draftName = draftName;
+        this.releaseId = releaseId;
+        this.releaseName = releaseName;
     }
 
     /** Registry of the catalog depended on, always in full (never {@code ~}). */
@@ -48,13 +48,13 @@ public final class UnreleasedDependency {
     }
 
     /** The id of the draft the declaration names, as sent. */
-    public String getVersionId() {
-        return versionId;
+    public String getReleaseId() {
+        return releaseId;
     }
 
     /** The draft's name, as sent. */
-    public String getDraftName() {
-        return draftName;
+    public String getReleaseName() {
+        return releaseName;
     }
 
     @Override
@@ -69,18 +69,18 @@ public final class UnreleasedDependency {
         return Objects.equals(registry, that.registry)
                 && Objects.equals(namespace, that.namespace)
                 && Objects.equals(catalogKey, that.catalogKey)
-                && Objects.equals(versionId, that.versionId)
-                && Objects.equals(draftName, that.draftName);
+                && Objects.equals(releaseId, that.releaseId)
+                && Objects.equals(releaseName, that.releaseName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(registry, namespace, catalogKey, versionId, draftName);
+        return Objects.hash(registry, namespace, catalogKey, releaseId, releaseName);
     }
 
-    /** {@code registry/namespace/catalogKey#versionId=draftName}. */
+    /** {@code registry/namespace/catalogKey#releaseId=releaseName}. */
     @Override
     public String toString() {
-        return registry + "/" + namespace + "/" + catalogKey + "#" + versionId + "=" + draftName;
+        return registry + "/" + namespace + "/" + catalogKey + "#" + releaseId + "=" + releaseName;
     }
 }

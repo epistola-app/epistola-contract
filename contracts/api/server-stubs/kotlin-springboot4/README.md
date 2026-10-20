@@ -76,7 +76,7 @@ ProblemDetails.dataModelValidation(
     ),
 )
 
-// 409 release-dependencies-missing: deployCatalogVersion, when a release the deployed version pins cannot be
+// 409 release-dependencies-missing: deployCatalogRelease, when a release the deployed release pins cannot be
 // had (the tenant does not have it, and it could not be fetched or verified)
 ProblemDetails.releaseDependenciesMissing(
     missingDependencies = listOf(
@@ -84,7 +84,7 @@ ProblemDetails.releaseDependenciesMissing(
             registry = "exchange.epistola.app",
             namespace = "epistola",
             catalogKey = "system",
-            releaseVersion = "3.2.0",
+            version = "3.2.0",
             reason = MissingReleaseDependencyReason.UNAVAILABLE,
         ),
     ),
@@ -99,8 +99,8 @@ ProblemDetails.releaseDependenciesUnreleased(
             registry = "exchange.epistola.app",
             namespace = "acme-corp",
             catalogKey = "branding",
-            versionId = "r4t8w2nc",
-            draftName = "House style 2027",
+            releaseId = "r4t8w2nc",
+            releaseName = "House style 2027",
         ),
     ),
     detail = "letters uses drafts of other catalogs",

@@ -2,23 +2,23 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: create-catalog-draft
-title: Starting a draft from a release sends its name and the release number, and reads back a draft with no number
+id: create-catalog-release
+title: Starting a draft release from a release sends its name and the version, and reads back a draft with no version
 why: >
-  A draft has no number until it is released (ADR 0002). Starting one is a POST to the catalog's
-  versions with the draft's `name` in the body; `from` names what to start from, here a released
-  version by its number, which becomes the draft's base. That is how an older line is fixed: a
+  A draft has no version until it is released (ADR 0002). Starting one is a POST to the catalog's
+  releases with the draft's `name` in the body; `from` names what to start from, here a released
+  release by its version, which becomes the draft's base. That is how an older line is fixed: a
   draft from `1.4.0` is released as `1.4.1` whatever was released since. Python's generated model
   calls that member `var_from`, because `from` is a keyword, and a client that sends the alias
   instead of the wire name starts the draft from the highest release without saying so.
 
-  The answer is a draft: `releaseVersion` is null, and it is addressed by its `versionId` (which `Location`
+  The answer is a draft: `version` is null, and it is addressed by its `releaseId` (which `Location`
   carries). A draft has no release data either: `releasedAt` and `fingerprint` are null and
-  `dependencies` and `deployedTo` empty. A client that turns a null `releaseVersion` into an empty string
+  `dependencies` and `deployedTo` empty. A client that turns a null `version` into an empty string
   makes a draft look like a broken release.
 
 action:
-  name: create-catalog-draft
+  name: create-catalog-release
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
@@ -32,10 +32,10 @@ script:
   - status: 201
     contentType: application/vnd.epistola.v2+json
     headers:
-      Location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/r4t8w2nc
+      Location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/r4t8w2nc
     body:
-      releaseVersion: null
-      versionId: r4t8w2nc
+      version: null
+      releaseId: r4t8w2nc
       name: Fixes 1.4
       status: draft
       base: 1.4.0
@@ -52,7 +52,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases
       headers:
         Content-Type:
           matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
@@ -62,11 +62,11 @@ expect:
           from: 1.4.0
         jsonAbsent: [version, var_from]
   report:
-    releaseVersion: 'null'
-    versionId: r4t8w2nc
+    version: 'null'
+    releaseId: r4t8w2nc
     name: Fixes 1.4
     status: draft
-    location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/r4t8w2nc
+    location: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/r4t8w2nc
     base: 1.4.0
     createdFrom: 'null'
     releasedAt: 'null'

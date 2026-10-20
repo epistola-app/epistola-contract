@@ -6,8 +6,8 @@ package app.epistola.client.validation
 
 import app.epistola.client.model.BatchGenerationItem
 import app.epistola.client.model.CatalogDependencyRequirement
-import app.epistola.client.model.CatalogVersionDto
-import app.epistola.client.model.CatalogVersionStatus
+import app.epistola.client.model.CatalogReleaseDto
+import app.epistola.client.model.CatalogReleaseStatus
 import app.epistola.client.model.CreateEnvironmentRequest
 import app.epistola.client.model.CreateTemplateRequest
 import app.epistola.client.model.CreateTenantRequest
@@ -35,11 +35,11 @@ class ModelValidationTest {
 
     @Test
     fun `a dependency declaration pins an exact release`() {
-        val pinned = CatalogDependencyRequirement(namespace = "epistola", catalogKey = "system", releaseVersion = "1.3.0")
+        val pinned = CatalogDependencyRequirement(namespace = "epistola", catalogKey = "system", version = "1.3.0")
         assertEquals(pinned, pinned.validate())
         for (release in listOf("^1.3.0", "1.x", "*", "01.3.0", "1.3.0-rc.1")) {
             assertFailsWith<IllegalArgumentException>("Expected '$release' to fail") {
-                pinned.copy(releaseVersion = release).validate()
+                pinned.copy(version = release).validate()
             }
         }
     }
@@ -446,10 +446,10 @@ class ModelValidationTest {
     @Test
     fun `a fingerprint must name its algorithm, a bare hex value is rejected`() {
         val hex = "0123456789abcdef".repeat(4)
-        val version = CatalogVersionDto(
-            releaseVersion = "1.0.0",
-            versionId = "v1x9q2",
-            status = CatalogVersionStatus.released,
+        val version = CatalogReleaseDto(
+            version = "1.0.0",
+            releaseId = "v1x9q2",
+            status = CatalogReleaseStatus.released,
             behind = emptyList(),
             dependencies = emptyList(),
             deployedTo = emptyList(),
@@ -474,7 +474,7 @@ class ModelValidationTest {
             catalogKey = "invoices",
             templateKey = "monthly-invoice",
             variantKey = "english",
-            releaseVersion = "1.4.0",
+            version = "1.4.0",
             filename = "invoice-2026-001.pdf",
             contentType = "application/pdf",
             sizeBytes = 184_320L,
@@ -495,7 +495,7 @@ class ModelValidationTest {
             catalogKey = "invoices",
             templateKey = "invoice",
             variantKey = "english",
-            releaseVersion = "1.0.0",
+            version = "1.0.0",
             filename = "doc.pdf",
             contentType = "application/pdf",
             sizeBytes = 1024L,
@@ -517,9 +517,9 @@ class ModelValidationTest {
             base.copy(variantKey = "English!").validate()
         }
 
-        // releaseVersion over its length limit
+        // version over its length limit
         assertFailsWith<IllegalArgumentException> {
-            base.copy(releaseVersion = "1".repeat(51)).validate()
+            base.copy(version = "1".repeat(51)).validate()
         }
     }
 

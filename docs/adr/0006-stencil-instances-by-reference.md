@@ -4,7 +4,7 @@
 - **Date:** 2026-10-16
 - **Scope:** portable catalog contract (`contracts/catalog`, wire v8: template model, validation,
   rendering semantics) and API contract (`contracts/api`), contract 2.0
-- **Related:** [ADR 0002](0002-intermediate-releases.md) (catalog versions),
+- **Related:** [ADR 0002](0002-intermediate-releases.md) (drafts and releases),
   [ADR 0003](0003-catalog-identity-and-distribution.md) (catalog dependencies),
   [ADR 0004](0004-resource-identity-within-a-catalog.md) (resource keys)
 
@@ -73,7 +73,7 @@ document. No `version`, `draftVersion` or `parameterSchemaSnapshot` is stored.
 
 ### 2. The stencil is resolved in the release, or the dependency's pinned release
 
-An instance reads its stencil from the same catalog version as the referencing document, or — for a
+An instance reads its stencil from the same release as the referencing document, or — for a
 stencil in another catalog — from the release the catalog dependency pins (ADR 0003). A reference
 without a catalog means the catalog of the document it is written in: a template's own catalog, or,
 inside a stencil, the stencil's catalog.
@@ -85,7 +85,7 @@ same IDs; fill content keeps its own IDs.
 
 ### 3. Releasing checks every instance against its stencil
 
-A catalog version is not releasable while any instance, in a template or in a stencil, has:
+A draft is not releasable while any instance, in a template or in a stencil, has:
 
 - a fill for a placeholder its stencil does not have;
 - a required parameter without binding and without default;
@@ -176,10 +176,10 @@ expressions (JSONata), never searches text.
   `placeholder` in a template appears only as a fill carrier inside a `stencil` node's `children`
   slot (no `default` slot), and may carry `parametersAs`. A placeholder in a stencil may carry
   `passParameters` and `parametersAs`. The v7 → v8 migration implements the table above.
-- **Validation:** the catalog module checks part 3 against the stencils of the same catalog version
+- **Validation:** the catalog module checks part 3 against the stencils of the same release
   and of pinned dependency releases, and part 4's nesting rules, identically in every installation.
 - **API:** `heldBack` and `heldBackInstances` are removed (`MarkStencilReadyResponse`,
-  `StencilUsageDto`, the catalog version's changes); a version's `releasable` no longer mentions held
+  `StencilUsageDto`, the release's changes); a draft's `releasable` no longer mentions held
   back instances but reports instances that do not fit.
 - **Wire v8 and API:** `StencilResource` and the stencil DTOs gain `readsTemplateData` (boolean,
   default `false`); it is part of the stencil's content, so it is fingerprinted and released with it.

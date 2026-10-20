@@ -22,7 +22,7 @@ data class MissingReleaseDependency(
     /** Key of the catalog depended on. */
     val catalogKey: String,
     /** The release of the catalog depended on that the deployed release pins. */
-    val releaseVersion: String,
+    val version: String,
     /** Why the release is missing, as the server sent it; see [Reasons]. */
     val reason: String,
 ) {
@@ -44,7 +44,7 @@ data class MissingReleaseDependency(
                 registry = text("registry") ?: return null,
                 namespace = text("namespace") ?: return null,
                 catalogKey = text("catalogKey") ?: return null,
-                releaseVersion = text("releaseVersion") ?: return null,
+                version = text("version") ?: return null,
                 reason = text("reason") ?: return null,
             )
         }

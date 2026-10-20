@@ -17,9 +17,9 @@ import { sleep, startServer, waitFor, type RecordedRequest, type TestServer } fr
 
 const NDJSON = 'application/vnd.epistola.v2+ndjson'
 const RESULTS = [
-  { sequence: 501, requestId: '11111111-1111-4111-8111-000000000501', templateKey: 'invoice', registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'letters', releaseVersion: '1.4.0', status: 'completed', correlationId: 'inv-1', completedAt: '2026-02-01T08:05:00Z' },
-  { sequence: 502, requestId: '11111111-1111-4111-8111-000000000502', templateKey: 'invoice', registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'letters', releaseVersion: '1.4.0', status: 'failed', error: 'render failed', completedAt: '2026-02-01T08:05:00Z' },
-  { sequence: 503, requestId: '11111111-1111-4111-8111-000000000503', templateKey: 'invoice', registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'letters', releaseVersion: '1.4.0', status: 'completed', completedAt: '2026-02-01T08:05:00Z' },
+  { sequence: 501, requestId: '11111111-1111-4111-8111-000000000501', templateKey: 'invoice', registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'letters', version: '1.4.0', status: 'completed', correlationId: 'inv-1', completedAt: '2026-02-01T08:05:00Z' },
+  { sequence: 502, requestId: '11111111-1111-4111-8111-000000000502', templateKey: 'invoice', registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'letters', version: '1.4.0', status: 'failed', error: 'render failed', completedAt: '2026-02-01T08:05:00Z' },
+  { sequence: 503, requestId: '11111111-1111-4111-8111-000000000503', templateKey: 'invoice', registry: 'exchange.epistola.app', namespace: 'acme-corp', catalogKey: 'letters', version: '1.4.0', status: 'completed', completedAt: '2026-02-01T08:05:00Z' },
 ]
 const META = { _meta: true, hasMore: true, resultCount: 3, lastSequence: 503, partitions: { total: 8, mine: [0, 3], hash: 'murmur3' } }
 const EMPTY_META = { _meta: true, hasMore: false, resultCount: 0, lastSequence: 503, partitions: { total: 8, mine: [0, 3], hash: 'murmur3' } }
@@ -89,7 +89,7 @@ for (const gzip of [false, true]) {
 test('a result names its catalog, and its release unless it was rendered from a draft', async () => {
   const lines = [
     RESULTS[0],
-    { ...RESULTS[2], registry: 'registry.gemeente-x.nl', namespace: 'huisstijl', catalogKey: 'letters', releaseVersion: null },
+    { ...RESULTS[2], registry: 'registry.gemeente-x.nl', namespace: 'huisstijl', catalogKey: 'letters', version: null },
     { ...META, hasMore: false, resultCount: 2 },
   ]
   const server = await startServer((_, res) => respond(res, lines))
@@ -98,7 +98,7 @@ test('a result names its catalog, and its release unless it was rendered from a 
     await collector(server, handled).collectOnce()
 
     assert.deepEqual(
-      handled.map((r) => [r.registry, r.namespace, r.catalogKey, r.releaseVersion]),
+      handled.map((r) => [r.registry, r.namespace, r.catalogKey, r.version]),
       [
         ['exchange.epistola.app', 'acme-corp', 'letters', '1.4.0'],
         ['registry.gemeente-x.nl', 'huisstijl', 'letters', null],

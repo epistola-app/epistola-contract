@@ -49,7 +49,7 @@ class ResultCollectorTest {
             "registry" to "exchange.example.org",
             "namespace" to "team-a",
             "catalogKey" to "letters",
-            "releaseVersion" to "1.4.0",
+            "version" to "1.4.0",
             "completedAt" to "2026-04-24T10:00:00Z",
         ),
     )
@@ -94,7 +94,7 @@ class ResultCollectorTest {
                 "registry" to "exchange.example.org",
                 "namespace" to "team-a",
                 "catalogKey" to "letters",
-                "releaseVersion" to "1.4.0",
+                "version" to "1.4.0",
             ),
         )
         val fromDraft = objectMapper.writeValueAsString(
@@ -105,7 +105,7 @@ class ResultCollectorTest {
                 "registry" to "exchange.example.org",
                 "namespace" to "team-a",
                 "catalogKey" to "letters",
-                "releaseVersion" to null,
+                "version" to null,
             ),
         )
         val restClient = mockRestClient(ndjsonResponse(current, fromDraft, metaLine(hasMore = false, count = 2, lastSequence = 101)))
@@ -115,11 +115,11 @@ class ResultCollectorTest {
         assertEquals("exchange.example.org", results[0].registry)
         assertEquals("team-a", results[0].namespace)
         assertEquals("letters", results[0].catalogKey)
-        assertEquals("1.4.0", results[0].releaseVersion)
+        assertEquals("1.4.0", results[0].version)
         assertEquals("exchange.example.org", results[1].registry)
         assertEquals("team-a", results[1].namespace)
         assertEquals("letters", results[1].catalogKey)
-        assertNull(results[1].releaseVersion)
+        assertNull(results[1].version)
     }
 
     @Test

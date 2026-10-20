@@ -39,17 +39,16 @@ CatalogKey:
     $ref: '../schemas/identifiers.yaml#/CatalogKey'
   example: letters
 
-CatalogVersion:
-  name: catalogVersion
+Release:
+  name: release
   in: path
   required: true
   description: |
-    A version of the catalog, by its `versionId` (`CatalogVersionId`) or, once it is
-    released, by its exact SemVer number: both address the same version. A draft has no number
-    until it is released, so it is addressed by its `versionId` alone; releasing it keeps the id,
-    which then addresses the release. Writes to a released version are refused with 409, whichever
-    way it is addressed. A `versionId` never contains a dot, so the two cannot be confused. A
-    discarded draft's id addresses nothing (404).
+    A release of the catalog, by its `releaseId` (`CatalogReleaseId`) or, once it is released, by
+    its exact version: both address the same release. A draft has no version until it is released,
+    so it is addressed by its `releaseId` alone; releasing it keeps the id. Once it is released,
+    every write to it is refused with 409, whichever way it is addressed. A `releaseId` never
+    contains a dot, so the two cannot be confused. A discarded draft's id addresses nothing (404).
   schema:
-    $ref: '../schemas/identifiers.yaml#/CatalogVersionRef'
+    $ref: '../schemas/identifiers.yaml#/CatalogReleaseRef'
   example: k7m2x9qa

@@ -9,7 +9,7 @@ variants:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: templateKey
       in: path
       required: true
@@ -93,7 +93,7 @@ variants-id:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: templateKey
       in: path
       required: true
@@ -110,7 +110,7 @@ variants-id:
   get:
     operationId: getVariant
     summary: Get a variant by key
-    description: Retrieve a variant's details in this catalog version, with its status against the version's base.
+    description: Retrieve a variant's details in this release, with its status against the release's base.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_VIEW]
@@ -177,7 +177,7 @@ variants-id:
   delete:
     operationId: deleteVariant
     summary: Delete a variant
-    description: Delete the variant from the draft. Cannot delete the default variant — reassign default first. Refused with 409 in a released version.
+    description: Delete the variant from the draft. Cannot delete the default variant — reassign default first. Refused with 409 outside a draft.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_EDIT]
@@ -204,7 +204,7 @@ variant-set-default:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: templateKey
       in: path
       required: true
@@ -262,7 +262,7 @@ variant-content:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: templateKey
       in: path
       required: true
@@ -280,7 +280,7 @@ variant-content:
     operationId: getVariantContent
     summary: Get the variant's content
     description: |
-      The variant's content in this catalog version, with its status against the version's base
+      The variant's content in this release, with its status against the release's base
       (the release the draft started from). Editing a draft changes what is generated only where
       the draft is rendered: generation renders a release, or a draft deployed to the environment
       a request names (see "Deploying"), and preview can name a draft.
@@ -357,7 +357,7 @@ variant-mark-ready:
     - $ref: '../components/parameters/catalog.yaml#/Registry'
     - $ref: '../components/parameters/catalog.yaml#/Namespace'
     - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
-    - $ref: '../components/parameters/catalog.yaml#/CatalogVersion'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
     - name: templateKey
       in: path
       required: true
@@ -377,7 +377,7 @@ variant-mark-ready:
     description: |
       Records that the variant's current content is reviewed and may be released. A catalog release
       refuses while any resource is modified and not ready. Marking content that is already ready,
-      or unchanged since the version's base, changes nothing.
+      or unchanged since the release's base, changes nothing.
     tags:
       - Variants
     x-required-permissions: [TEMPLATE_EDIT]

@@ -2,26 +2,26 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: set-catalog-draft-theme-settings
+id: set-catalog-release-theme-settings
 title: Setting a draft's default theme and presets sends only those, and reads them back
 why: >
-  A catalog version names a default theme and declares its presets (ADR 0007). They are set with the
+  A release names a default theme and declares its presets (ADR 0007). They are set with the
   same PATCH that renames a draft, and a member the request leaves out keeps its value: a client that
   sends a `name` it was not given, even as null, renames or blanks the draft by accident. The default
   theme is qualified like every cross-catalog reference: an unqualified `namespace` or `registry` is
   left out or null, both meaning the catalog's own, and never a value the caller did not give. The
-  response carries both back on the version, a preset's `description` absent or null when it has
+  response carries both back on the draft, a preset's `description` absent or null when it has
   none.
 
 action:
-  name: set-catalog-draft-theme-settings
+  name: set-catalog-release-theme-settings
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: onboarding
-    catalogVersion: h3v9p6db
+    release: h3v9p6db
     defaultThemeKey: corporate
     defaultThemeCatalogKey: brand
     presets:
@@ -35,8 +35,8 @@ script:
   - status: 200
     contentType: application/vnd.epistola.v2+json
     body:
-      releaseVersion: null
-      versionId: h3v9p6db
+      version: null
+      releaseId: h3v9p6db
       name: Redesign 2027
       status: draft
       base: null
@@ -59,7 +59,7 @@ expect:
   requestCount: 1
   requests:
     - method: PATCH
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/onboarding/versions/h3v9p6db
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/onboarding/releases/h3v9p6db
       headers:
         Content-Type:
           matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
@@ -85,7 +85,7 @@ expect:
                   oneOf: [null]
         jsonAbsent: [name]
   report:
-    versionId: h3v9p6db
+    releaseId: h3v9p6db
     name: Redesign 2027
     defaultThemeKey: corporate
     defaultThemeCatalogKey: brand

@@ -23,19 +23,19 @@ libraries.
   dependency and checks the presets (`CATALOG_PRESET_KEY_INVALID`, `CATALOG_PRESET_DUPLICATE`,
   `CATALOG_PRESET_NAME_INVALID`, `CATALOG_PRESET_DESCRIPTION_INVALID`); the migrator's wire check
   applies the preset rules; archives from wire v7 and earlier carry neither. In the API,
-  `CatalogVersionDto` gains `defaultTheme` (`CatalogThemeReference`) and `presets`
-  (`CatalogPresetDto`), and `updateCatalogDraft` also sets them: an omitted member keeps its value,
+  `CatalogReleaseDto` gains `defaultTheme` (`CatalogThemeReference`) and `presets`
+  (`CatalogPresetDto`), and `updateCatalogRelease` also sets them on a draft: an omitted member keeps its value,
   null (or an empty preset array) clears it.
 - **Optimistic locking with `ETag` and `If-Match`, on every update.** Templates, variants, themes,
-  stencils, code lists, attributes, catalog versions, environments, tenants and consumers carry a
+  stencils, code lists, attributes, releases, environments, tenants and consumers carry a
   revision, returned as a strong `ETag` response header (a quoted decimal integer, e.g. `"7"`) by
   `getTemplate`, `getVariant`, `getVariantContent`, `getTheme`, `getStencil`, `getStencilContent`,
-  `getCodeList`, `getAttribute`, `getCatalogVersion`, `listCatalogDependencies`, `getEnvironment`,
+  `getCodeList`, `getAttribute`, `getCatalogRelease`, `listCatalogDependencies`, `getEnvironment`,
   `getTenant` and `getConsumer`, and on the 200 of a successful update. `updateTemplate`,
   `updateVariant`, `updateVariantContent`, `setDefaultVariant` (the `ETag` of the variant being
   made default), `updateTheme`, `updateStencil`, `updateStencilContent`, `updateCodeList`,
-  `updateCodeListEntryHidden` (the code list's `ETag`), `updateAttribute`, `updateCatalogDraft`,
-  `updateCatalogDependencies` (both the version's `ETag`, which covers its name, default theme,
+  `updateCodeListEntryHidden` (the code list's `ETag`), `updateAttribute`, `updateCatalogRelease`,
+  `updateCatalogDependencies` (both the release's `ETag`, which covers its name, default theme,
   presets and dependency declarations), `updateEnvironment` (its name and production mark),
   `updateTenant` and `updateConsumer` take an optional `If-Match` header:
   when it no longer matches, the update is refused with 412 `resource-modified` (a new problem type,
@@ -44,55 +44,55 @@ libraries.
   attributes and template model, whether read through `getVariant` or `getVariantContent`. New
   reusable components: the `IfMatch` parameter and the `ETag` response header. Conformance
   scenarios `update-tenant`, `update-environment-if-match`, `update-consumer-resource-modified`,
-  `update-catalog-draft`, `catalog-dependencies-update-resource-modified` and
+  `update-catalog-release`, `catalog-dependencies-update-resource-modified` and
   `update-code-list-entry-hidden`, with the new driver actions `update-tenant` and
   `update-code-list-entry-hidden`.
 - **`Location` on every create.** Every 201 (`createTenant`, `createEnvironment`,
   `registerConsumer`, `createTemplate`, `createVariant`, `createStencil`, `createTheme`,
-  `createAttribute`, `createCodeList`, `uploadImage`, `createCatalogDraft`) carries the created
+  `createAttribute`, `createCodeList`, `uploadImage`, `createCatalogRelease`) carries the created
   resource's address in `Location`, and the 202 of `generateDocument` and
   `generateDocumentBatch` the job's (`getGenerationJobStatus`). New reusable component: the
-  `Location` response header. The `create-catalog-draft`, `create-environment` and
+  `Location` response header. The `create-catalog-release`, `create-environment` and
   `generate-document` driver actions report the header as received.
 - **Releasing takes along the drafts it uses** (ADR 0002). In a draft, a dependency declaration
   names either an exact release or a draft of the other catalog: `CatalogDependencyRequirement` and
-  `CatalogDependencyDto` gain a nullable `versionId`, exactly one of it and `releaseVersion` (400
+  `CatalogDependencyDto` gain a nullable `releaseId`, exactly one of it and `version` (400
   otherwise); the draft then renders with that draft, live. A release never pins a draft, so catalog
   archives are unchanged. Releasing a draft whose declarations name drafts is refused with 409
   `release-dependencies-unreleased` (a new problem type, `ReleaseDependenciesUnreleasedError`), whose
   `unreleasedDependencies` member lists each such draft, directly or through those drafts'
-  declarations (`UnreleasedCatalogDependency`: `registry`, `namespace`, `catalogKey`, `versionId`,
-  `draftName`). `ReleaseCatalogDraftRequest.releaseDependencies` (default false) releases them first,
-  recursively, each numbered by its own changes, in the same transaction, all or nothing (one that is
+  declarations (`UnreleasedCatalogDependency`: `registry`, `namespace`, `catalogKey`, `releaseId`,
+  `releaseName`). `ReleaseCatalogDraftRequest.releaseDependencies` (default false) releases them first,
+  recursively, each as the version its own changes need, in the same transaction, all or nothing (one that is
   refused, for instance behind without acknowledgement, releases nothing), and the new release pins
-  the releases they became; `ReleaseCatalogDraftResponse.releasedDependencies`
-  (`ReleasedDependencyDto`) lists them. A draft released on its own becomes the release that
-  declarations naming it then name; one that a declaration names cannot be discarded. Every
+  them as released; `ReleaseCatalogDraftResponse.releasedDependencies`
+  (`ReleasedDependencyDto`: the `releaseId` and the `version` it was released as) lists them. A
+  draft released on its own keeps its `releaseId`, and declarations naming it then name its version; one that a declaration names cannot be discarded. Every
   client's problem parser surfaces `unreleasedDependencies`; the server stubs add
   `ProblemDetails.releaseDependenciesUnreleased`. Conformance scenarios
   `catalog-dependencies-update-draft`, `release-catalog-draft-with-dependencies` and
   `release-catalog-draft-dependencies-unreleased`.
-- **An environment serves catalog versions, a draft included, and a production mark** (ADR 0002,
-  ADR 0003 "Deploying"). A deployment names a catalog version by `versionId` or release number:
-  `deployCatalogVersion` and `undeployCatalogVersion` (`…/deployments/{registry}/{namespace}/{catalogKey}/{catalogVersion}`,
+- **An environment serves releases, a draft included, and a production mark** (ADR 0002,
+  ADR 0003 "Deploying"). A deployment names a release by `releaseId` or version:
+  `deployCatalogRelease` and `undeployCatalogRelease` (`…/deployments/{registry}/{namespace}/{catalogKey}/{release}`,
   no request body). A draft can be deployed, which is how it is tried: it renders live, with no
-  release, and an environment serves at most one draft per catalog (deploying another replaces
+  version, and an environment serves at most one draft per catalog (deploying another replaces
   it, logged as undeployed). A generation or preview request through the environment that names
   no `versionRange` renders the deployed draft if there is one, else the highest served release; one that
-  names a range or an exact number renders the highest served release that satisfies it, never a
+  names a range or an exact version renders the highest served release that satisfies it, never a
   draft. Rollback is undeploying the newer release. Releasing a deployed draft keeps its
-  `versionId`, so the environment then serves that release, an explicit deployment logged as
+  `releaseId`, so the environment then serves it as released, an explicit deployment logged as
   `released`; discarding it ends the deployment, logged as `undeployed`. A deployed draft's pinned
   dependency releases are used implicitly, a declaration naming another catalog's draft renders
   that draft live, and `includeDependencies` deploys pinned releases only. `EnvironmentDto` gains
   the required `production`, settable on create and update: a production environment serves only
   releases. Deploying a draft to one, or marking production an environment that serves a draft, is
   409 `environment-deployment-refused` (a new problem type). `DeploymentDto` and
-  `DeploymentEventDto` carry the required `versionId`, `kind` (`DeploymentKind`: `release` or
-  `draft`) and `draftName` (null for a release), with a nullable `releaseVersion` (null for a
-  draft); the history's `action` is `deployed`, `undeployed` or `released`. Documents, generation
-  items and collected results rendered from a draft carry `versionId` and `draftLabel` (its name at
-  render time) with a null `releaseVersion`. Every client's problem-type helpers know the new slug.
+  `DeploymentEventDto` carry the required `releaseId`, `status` (`CatalogReleaseStatus`: `draft`
+  or `released`) and `releaseName` (the release's name, null only for an installed release, which
+  has none), with a nullable `version` (null for a draft); the history's `action` is `deployed`,
+  `undeployed` or `released`. Documents, generation items and collected results rendered from a
+  draft carry `draftLabel` (its name at render time) with a null `version`. Every client's problem-type helpers know the new slug.
   Conformance scenarios `deploy-catalog-draft`, `deploy-catalog-draft-refused`,
   `list-environment-deployments-with-draft`, `undeploy-catalog-draft` and
   `update-environment-production-refused`.
@@ -117,20 +117,20 @@ libraries.
   `catalogDependencyArchivePath` (npm). Golden fixtures in `fixtures/v1/carried-releases/`. Wire v5
   to v7 archives never carry dependencies; their rules are unchanged. `importCatalog` installs the
   carried releases the tenant lacks first, side by side with its other releases, and reports them
-  (`installedDependencies`, `presentDependencies`); one it has with the same number but a
+  (`installedDependencies`, `presentDependencies`); one it has with the same version but a
   different fingerprint refuses the import with 409, and a pin it can neither find in the archive
   nor have refuses it with 409 `release-dependencies-missing`. The API has no export operation, so
   exporting with dependencies is a producer's choice.
-- **Deployments report how much they are used**, so an operator can see which deployed versions
+- **Deployments report how much they are used**, so an operator can see which deployed releases
   nobody uses any more before undeploying them. `DeploymentDto` (from `listEnvironmentDeployments`
-  and `deployCatalogVersion`) gains the required `lastUsedAt` (nullable `date-time`: null when no
-  request has used the version since it was deployed) and `documentsRequested` (`int64`, at least
+  and `deployCatalogRelease`) gains the required `lastUsedAt` (nullable `date-time`: null when no
+  request has used the release since it was deployed) and `documentsRequested` (`int64`, at least
   0). A generation request is counted when it names the environment and is accepted and rendered
-  with that deployed version; requests naming no environment are not. Both are updated within
-  about a minute and reset when the version is undeployed; a deployed draft that is released keeps
+  with that deployed release; requests naming no environment are not. Both are updated within
+  about a minute and reset when the release is undeployed; a deployed draft that is released keeps
   its counts.
-- **`deployCatalogVersion` can replace what an environment serves of a catalog.** The optional
-  query parameter `replace` (default false) also stops serving the catalog's other versions in that
+- **`deployCatalogRelease` can replace what an environment serves of a catalog.** The optional
+  query parameter `replace` (default false) also stops serving the catalog's other releases in that
   environment, its deployed draft included, in the same transaction, each logged as undeployed.
   Without it, a release is still added beside the others.
 
@@ -143,41 +143,50 @@ libraries.
   template document or style map from wire v7 to v8 exactly as the archive migration does inside a
   resource, so a producer's store and an archive migrate alike.
 
-- **Catalog versions: any number of drafts, each released on its own** (ADR 0002). A catalog
-  consists of versions, each a `draft` or `released`, addressed as
-  `…/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}`, where
-  `{catalogVersion}` is a version's `versionId` or, once released, its SemVer number, which address
-  the same version. Every version has a `versionId` (`CatalogVersionId`: opaque, server-assigned,
-  unique in its catalog, `^[a-z0-9]+(-[a-z0-9]+)*$`, 4–36 characters, never a dot, so never mistaken
-  for a number; a short random id such as `k7m2x9qa` is recommended, a UUID fits), assigned when it
-  is started as a draft and kept when it is released; a release installed by import or from its
-  source gets one too. An AUTHORED catalog has any number of drafts, all alike: each has a `name` unique among
-  the catalog's drafts and a fixed `base`, the release it started from (null when there was none). A
-  draft has no number until it is released. `listCatalogVersions`, `createCatalogDraft`
-  (`{name, from?}`: from a release number or another version's `versionId`, by default the highest
-  release), `getCatalogVersion` (`CatalogVersionDto` with the required `versionId`, `name`,
-  `createdFrom`, and a `releaseVersion` that is null for a draft), `updateCatalogDraft`,
-  `deleteCatalogDraft`, `previewCatalogDraftRelease` (`CatalogDraftReleasePreview`: the `base`, the
-  kind of change against it and why, the number the changes need, `needed`, and the number the draft
-  gets, `suggested`) and `releaseCatalogDraft`, which releases any draft. Its number follows from the
-  kind of change against the draft's base (patch, minor, major); when that number is taken, the next
-  free one of the same kind. The author may give a higher `releaseVersion` (now optional); one lower than the changes
-  need, not above the base, or taken is refused with 400. From `1.4.0` while `1.5.0` and `2.0.0` exist, a fix
-  becomes `1.4.1` and a breaking change `3.0.0`, so an older line is fixed by an ordinary release.
-  The released draft becomes the release at that number, immutable, and keeps its `versionId`: a
-  released version is addressed by either, and a write through either is refused with 409.
-  `CatalogDto` lists its `drafts` (`CatalogDraftSummary`: `versionId`, `name`, `base`). Preview
-  renders a draft named as `draft` (its `versionId`).
-- **The changes of a catalog version, and deployments.** A released version also carries the
-  releases of other catalogs it renders with (`dependencies`) and the environments that serve it
-  (`deployedTo`). `getCatalogChanges` lists what is new, modified, ready or removed since the
-  version's base and whether releasing it would be accepted;
+- **Releases: a catalog has any number of drafts, each released on its own** (ADR 0002). A
+  catalog consists of releases, one object whether it is a draft or released: each has a `status`,
+  `draft` (a draft release, or draft: editable, with no version) or `released` (immutable, with a
+  `version`, its number). `version` is only ever that number, and `versionRange` a range of them. A
+  release is addressed as `…/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}`,
+  where `{release}` (`CatalogReleaseRef`) is its `releaseId` or, once released, its version, which
+  address the same release. Every release has a `releaseId` (`CatalogReleaseId`: opaque,
+  server-assigned, unique in its catalog, `^[a-z0-9]+(-[a-z0-9]+)*$`, 4–36 characters, never a dot,
+  so never mistaken for a version; a short random id such as `k7m2x9qa` is recommended, a UUID
+  fits), assigned when it is started as a draft and kept when it is released; a release installed
+  by import or from its source gets one too. An AUTHORED catalog has any number of drafts, all
+  alike: each has a `name` unique among the catalog's drafts and a fixed `base`, the release it
+  started from (null when there was none). A release keeps its `releaseId` and its `name` when it
+  is released; an installed release has no name. `listCatalogReleases` (drafts included, filtered
+  by `status`, `CatalogReleaseListResponse`), `createCatalogRelease` (always a draft,
+  `CreateCatalogReleaseRequest` `{name, from?}`: from a version or another release's `releaseId`,
+  by default the highest release), `getCatalogRelease` (`CatalogReleaseDto` with the required
+  `releaseId`, `status`, `name`, `createdFrom`, and a `version` that is null for a draft),
+  `updateCatalogRelease` (`UpdateCatalogReleaseRequest`: a draft's name, default theme and
+  presets; a released release, its name included, is refused with 409), `deleteCatalogRelease`
+  (discards a draft; a released release is refused with 409), `previewCatalogDraftRelease`
+  (`CatalogDraftReleasePreview`: the `base`, the kind of change against it and why, the version
+  the changes need, `needed`, and the version the draft gets, `suggested`) and
+  `releaseCatalogDraft`, which releases any draft. Its version follows from the kind of change
+  against the draft's base (patch, minor, major); when that version is taken, the next free one of
+  the same kind. The author may give a higher `version` (optional); one lower than the changes
+  need, not above the base, or taken is refused with 400. From `1.4.0` while `1.5.0` and `2.0.0`
+  exist, a fix becomes `1.4.1` and a breaking change `3.0.0`, so an older line is fixed by an
+  ordinary release. The draft becomes released at that version, immutable, and keeps its
+  `releaseId` and its name: it is addressed by either, and a write through either is refused with
+  409. `ReleaseCatalogDraftResponse.release` is the released release. `CatalogDto` lists its
+  `drafts` (`CatalogDraftReleaseSummary`: `releaseId`, `name`, `base`). Preview renders a draft
+  named as `draft` (its `releaseId`). "Publish" keeps its one meaning, making a catalog available in
+  a registry; releasing is not publishing, and a draft is never published.
+- **The changes of a release, and deployments.** A released release also carries the releases of
+  other catalogs it renders with (`dependencies`), and every release lists the environments that
+  serve it (`deployedTo`). `getCatalogChanges` lists what is new, modified, ready or removed since the
+  release's base and whether releasing it would be accepted;
   `markCatalogReady` marks everything changed ready in one action. An environment can
-  serve several releases of one catalog: `listEnvironmentDeployments`, `deployCatalogVersion` and
-  `undeployCatalogVersion` (both addressed by the version, with no request body), and
+  serve several releases of one catalog: `listEnvironmentDeployments`, `deployCatalogRelease` and
+  `undeployCatalogRelease` (both addressed by the release, with no request body), and
   `listDeploymentHistory` with every change to what the environment serves.
-  `undeployCatalogVersion` removes an explicit deployment only, and is never refused because another
-  version the environment serves renders with it: that version keeps rendering it, implicitly. A
+  `undeployCatalogRelease` removes an explicit deployment only, and is never refused because another
+  release the environment serves renders with it: that release keeps rendering it, implicitly. A
   release the environment uses only implicitly cannot be undeployed (404) (ADR 0003).
 
 - **A template has a `description`** (#97): optional plain-text notes for its authors, at most
@@ -206,13 +215,13 @@ libraries.
   environment use them without deploying them. A dependency release that cannot be had refuses the
   deployment with the new problem type `release-dependencies-missing` (409), whose
   `missingDependencies` member lists each release (`MissingReleaseDependency`) and its `reason`
-  (`MissingReleaseDependencyReason`, whose one value is `unavailable`). The new `deployCatalogVersion`
+  (`MissingReleaseDependencyReason`, whose one value is `unavailable`). The new `deployCatalogRelease`
   query parameter `includeDependencies` (default false) also
   deploys them explicitly, all or nothing. Every client's problem parser surfaces
   `missingDependencies`; the server stubs add `ProblemDetails.releaseDependenciesMissing`.
 
 - **Catalog dependencies pin an exact release.** A catalog declares each catalog its resources
-  reference, once, with the exact release of it that the catalog renders with (`releaseVersion`):
+  reference, once, with the exact release of it that the catalog renders with (`version`):
   `listCatalogDependencies` and `updateCatalogDependencies` (`CatalogDependencyRequirement`,
   `CatalogDependencyDto`). A declaration names no range; ranges (such as `^1.0.0`, any non-breaking
   1.x) may come in a later 2.x, as an addition. References between catalogs carry no version; they
@@ -241,8 +250,8 @@ libraries.
   schema takes one, instead of repeating the pattern inline (about 280 copies): `TenantKey`,
   `Namespace`, `CatalogKey`, `EnvironmentKey`, `ConsumerId`, `ResourceKey` (a leading digit
   allowed, because resource keys used to be UUIDs), `PresetKey`, `Registry`, `RegistryOrDefault`
-  (a registry or `~`, in paths and queries), `ReleaseVersion`, `CatalogVersionId`,
-  `CatalogVersionRef` (a `versionId` or a release number, the `{catalogVersion}` path form) and
+  (a registry or `~`, in paths and queries), `ReleaseVersion`, `CatalogReleaseId`,
+  `CatalogReleaseRef` (a `releaseId` or a version, the `{release}` path form) and
   `Fingerprint`. Each has a description, which the rendered API documentation shows. No pattern or
   length changed, and the generated clients and server stubs are unchanged apart from
   documentation: every member stays a plain string. A nullable member references its rule as
@@ -250,10 +259,10 @@ libraries.
   the rule's constraints, null allowed. In a `multipart/form-data` body (`importCatalog`), where the
   Node.js and Python generators would take a reference for a model, the bundle inlines the rule.
 
-- **A document, a job item and a collected result always name their catalog version.**
-  `versionId` (`DocumentDto`, `DocumentGenerationItemDto`, `GenerationResult`) is the id of the
-  catalog version rendered, a release's as well as a draft's, rather than a draft's only; it is null
-  only for a document made before 2.0. `releaseVersion` stays null for a draft.
+- **A document, a job item and a collected result always name their release.**
+  `releaseId` (`DocumentDto`, `DocumentGenerationItemDto`, `GenerationResult`) is the id of the
+  release rendered, a released one's as well as a draft's; it is null only for a document made
+  before 2.0. `version` is null for a draft.
 
 - **BREAKING: every API enum value is lowercase, kebab-case when it has several words.** Generation
   job and item `status` (`pending`, `in-progress`, `completed`, `failed`, `cancelled`, and the
@@ -271,16 +280,14 @@ libraries.
   `import-catalog` scenarios caught.
 - **BREAKING (client libraries): a collected result always names its catalog.** The hand-written
   `GenerationResult` of every result collector types `registry`, `namespace` and `catalogKey` as
-  non-null, as the contract now requires them; `releaseVersion` is null for a draft.
+  non-null, as the contract now requires them; `version` is null for a draft.
 - **BREAKING: a count is `total`, a last change `lastModified`.** `PageMeta.totalElements`,
   `GenerationJobResponse.totalCount` and `DocumentGenerationJobDto.totalCount` are `total`;
   `CollectMeta.count`, the number of result lines in one collect response, is `resultCount`;
   `ConsumerDto.updatedAt` is `lastModified`, now required and never null like every other
   resource's: it equals `createdAt` at registration and moves with every change to the consumer.
   The `update-consumer` conformance action reports the `lastModified` it parsed.
-- **BREAKING: `renameCatalogDraft` is `updateCatalogDraft`**, with `UpdateCatalogDraftRequest`: the
-  same PATCH, which sets a draft's name, default theme and presets. The conformance action
-  `rename-catalog-draft` is `update-catalog-draft`.
+
 - **The API description is rewritten for a newcomer**: what Epistola is, a glossary, a getting
   started path (API key, headers, find a template, generate, poll the job, download; collecting
   results as the high-volume path), then the catalog model, authentication and errors. The spec
@@ -353,15 +360,15 @@ libraries.
   refused, never disambiguated. Epistola Suite must apply the same rule to the keys it stores.
 
 - **Catalog drafts are independent copies; nothing is merged** (ADR 0002). Releasing a draft
-  changes no other draft. A draft is **behind** each release that, relative to the number it would be
-  released as, is numbered above its base and below that number, or was published after the draft
-  was started and is numbered below that number (other than its base): a draft on `2.0.0` is behind
-  a fix `1.4.1` published later; a fix `1.4.1` from `1.4.0` is behind nothing.
-  `CatalogVersionDto.behind` lists them against the number the preview gives (`BehindReleaseDto`,
+  changes no other draft. A draft is **behind** each release that, relative to the version it would
+  be released as, has a version above its base and below that one, or was released after the draft
+  was started with a version below that one (other than its base): a draft on `2.0.0` is behind
+  a fix `1.4.1` released later; a fix `1.4.1` from `1.4.0` is behind nothing.
+  `CatalogReleaseDto.behind` lists them against the version the preview gives (`BehindReleaseDto`,
   with each release's `added` / `modified` / `removed` resources, `ReleasedChangeDto`), and
   `ReleaseCatalogDraftResponse.draftsBehind` names the drafts a release puts behind. Releasing a
   draft that is behind is refused with 409 unless `acknowledgedBehind` names every one of them, for
-  the number it is released as, so a fix can be left out, but never unnoticed. Conformance scenarios
+  the version it is released as, so a fix can be left out, but never unnoticed. Conformance scenarios
   `get-draft-behind` and `release-catalog-draft-behind`. A merge on request is proposed in ADR 0005,
   outside 2.0.0.
 - **BREAKING: a resource's address is its `key`** (#84). The rule: a `key` is a resource's public
@@ -410,7 +417,7 @@ libraries.
   archive, at any version; a test now pins that.
 
 - **BREAKING: an API fingerprint names its algorithm.** `CatalogDto.fingerprint` and
-  `CatalogVersionDto.fingerprint` are `v5:<hex>`, the value in the release's catalog archive
+  `CatalogReleaseDto.fingerprint` are `v5:<hex>`, the value in the release's catalog archive
   (pattern `^v[1-9][0-9]*:[0-9a-f]{64}$`); a bare hex value is not a fingerprint any more.
 
 - **BREAKING: portable catalog wire v8.** A catalog archive identifies its catalog by registry,
@@ -469,30 +476,30 @@ libraries.
     `CatalogResourceReference`, `ThemeRefOverride`, `CodeListBindingRef` and `FontRef` are added (nullable in the model so manifests stored under v7 still
     bind). `templateModelVersion` stays 1.
 
-- **BREAKING: catalog content is edited and read per catalog version, not in one working copy.**
+- **BREAKING: catalog content is edited and read per release, not in one working copy.**
   Every path to a catalog's templates, variants, stencils, themes, attributes, code lists, fonts and
-  images, and its `dependencies`, `changes` and `mark-ready`, gains `/versions/{catalogVersion}`
-  after the catalog. Reads work on any version; writes only on a draft, and are refused with 409 on
-  a released version. `validateTemplateData` stays on the catalog, as it selects a release like
-  generation does. `releaseCatalog` is replaced by the version operations (`releaseCatalogDraft`).
+  images, and its `dependencies`, `changes` and `mark-ready`, gains `/releases/{release}`
+  after the catalog. Reads work on any release; writes only on a draft, and are refused with 409 on
+  a released release. `validateTemplateData` stays on the catalog, as it selects a release like
+  generation does. `releaseCatalog` is replaced by the release operations (`releaseCatalogDraft`).
   An import never touches a draft (see "an import installs a release" below).
 
 - **BREAKING: an import installs a release, never a draft.** `importCatalog` installs the release
-  the archive carries, at its number, as an immutable release of the catalog it names (registry,
+  the archive carries, at its version, as an immutable release of the catalog it names (registry,
   namespace and key), side by side with the releases the tenant already has, as installing from an
-  exchange does (ADR 0003). Nothing is merged, and no draft is created or changed. The same number
-  with the same fingerprint is already present and changes nothing; the same number with a different
+  exchange does (ADR 0003). Nothing is merged, and no draft is created or changed. The same version
+  with the same fingerprint is already present and changes nothing; the same version with a different
   fingerprint is refused with 409 `conflict`, as for the dependency releases it carries. An archive without a
   release is not a valid archive at any wire version (`release.version` is required) and is refused
   with 400 `bad-request`. A catalog the import creates holds the release and no draft; an author
-  starts one with `createCatalogDraft` `from` the release. The request loses `catalogVersion` and
+  starts one with `createCatalogRelease` `from` the release. The request loses `catalogVersion` and
   `authoredMode`. `catalogType` loses its default (AUTHORED): the import that creates a catalog must
   give it, or is refused with 400 `bad-request`. A catalog the tenant has keeps its type, and an
   import never changes it: `catalogType` may be omitted or given as the catalog's type, and given as
   the other type the import is refused with 409 `conflict`, installing nothing. An import into an
   AUTHORED catalog adds the release beside its others. Changing a catalog's type is not part of 2.0
   (ADR 0003). `ImportCatalogResponse`
-  reports the release, `releaseVersion` (required), and `newlyInstalled` (required, false when it
+  reports the release, `version` (required), and `newlyInstalled` (required, false when it
   was already present), and loses `catalogVersion`, the per-resource counts `installed`, `updated`
   and `failed`, and `aborted`: installing a release is all or nothing. `total` stays. The operation
   requires `CATALOG_MANAGE`, as `installCatalogRelease` does, instead of `TEMPLATE_EDIT`: installing
@@ -504,17 +511,17 @@ libraries.
   they do:
   - `upgradeCatalog` (`POST …/{catalogKey}/upgrade`, with an `UpgradeCatalogRequest` body) becomes
     `installCatalogRelease`, `POST
-    …/catalogs/{registry}/{namespace}/{catalogKey}/available-releases/{releaseVersion}/install`, with
+    …/catalogs/{registry}/{namespace}/{catalogKey}/available-releases/{version}/install`, with
     no query and no body. It installs the release named in the path, fetched from the catalog's
     source, exactly as `importCatalog` installs the one an archive carries, with the releases it pins
     installed first; there is no "highest" default. Nothing is updated in place and nothing is
-    removed; deploying decides which release an environment serves. The same number with the same
+    removed; deploying decides which release an environment serves. The same version with the same
     fingerprint is already present (`newlyInstalled: false`); with a different fingerprint the
     install is refused with 409 `conflict`; a pin that cannot be had refuses it with 409
     `release-dependencies-missing`; a catalog that is not SUBSCRIBED is refused with 409 `conflict`,
-    and a number the source does not offer with 404. `UpgradeCatalogResponse` becomes
+    and a version the source does not offer with 404. `UpgradeCatalogResponse` becomes
     `InstallCatalogReleaseResponse` and reports the release as `ImportCatalogResponse` does:
-    `registry`, `namespace`, `catalogKey`, `releaseVersion`, `newlyInstalled`, `total`,
+    `registry`, `namespace`, `catalogKey`, `version`, `newlyInstalled`, `total`,
     `installedDependencies` and `presentDependencies`; it loses `previousVersion`, `newVersion`,
     `installResults`, `removedResources` and `aborted`. It stays a schema of its own: it has no
     `catalogName`, and its dependency lists name releases fetched from their sources.
@@ -523,8 +530,8 @@ libraries.
     returning `AvailableCatalogReleases`: every release the source offers that the tenant has not
     installed, lowest first, not only those above the highest installed, so a fix `1.4.1` is listed
     while `2.0.0` is installed (`available`, `AvailableReleaseDto`). Each names the release it is
-    compared to (`comparedTo`, required and nullable: the closest installed release numbered below
-    it, null when there is none), the resources it added, modified or removed against `comparedTo`
+    compared to (`comparedTo`, required and nullable: the closest installed release whose version
+    is below it, null when there is none), the resources it added, modified or removed against `comparedTo`
     (`ReleasedChangeDto`; all added when `comparedTo` is null), and the releases it pins, each with
     whether the tenant has it (`AvailableReleaseDependencyDto.present`). `CatalogUpgradeDiff` goes,
     with `previousVersion`, `newVersion`, `upgradeAvailable`, the `added` / `removed` / `changed` /
@@ -555,30 +562,30 @@ libraries.
   `DeploymentDto`, `DeploymentEventDto`, `AttributeDto` (and its `codeListBinding`), `CodeListDto`,
   `FontDto`, `ImageDto` and `ImportCatalogResponse`. Generated documents, generation items and
   collected results (`DocumentDto`, `DocumentGenerationItemDto`, `GenerationResult`) add the
-  required `registry`, `namespace` and `catalogKey` next to `releaseVersion`.
+  required `registry`, `namespace` and `catalogKey` next to `version`.
   `importCatalog` takes an optional `registry` and `namespace`. The client libraries' template data
   validators take `registry` before `namespace` (`DEFAULT_REGISTRY = "~"`).
 
-- **BREAKING: one schema for a release number, `ReleaseVersion`.** Wherever the contract names one
-  exact release, it is a SemVer core version without leading zeros
+- **BREAKING: one schema for a version, `ReleaseVersion`.** Wherever the contract names one
+  exact version of a release, it is a SemVer core version without leading zeros
   (`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`), at most 50 characters: the
-  release request (`releaseVersion`, `acknowledgedBehind`), a dependency declaration, and every
-  response member that names a release (`CatalogDto.highestReleaseVersion`, which replaces
-  `releasedVersion` and is the number of the catalog's highest release, `CatalogVersionDto.releaseVersion` and
-  `base`, `CatalogDraftSummary.base`, `BehindReleaseDto.releaseVersion`, `CatalogChangesDto.base`,
+  release request (`version`, `acknowledgedBehind`), a dependency declaration, and every
+  response member that names a version (`CatalogDto.highestVersion`, which replaces
+  `releasedVersion` and is the version of the catalog's highest release, `CatalogReleaseDto.version` and
+  `base`, `CatalogDraftReleaseSummary.base`, `BehindReleaseDto.version`, `CatalogChangesDto.base`,
   `CatalogDraftReleasePreview.base`, `needed` and `suggested`, `ReleasedDependencyDto`,
-  `ReleaseDependencyDto`, `CatalogDependencyDto`, `AvailableReleaseDto.releaseVersion` and `comparedTo`,
-  `AvailableReleaseDependencyDto.releaseVersion`, `InstallCatalogReleaseResponse.releaseVersion` and
-  the `installCatalogRelease` `releaseVersion` path parameter, deployments, deployment history, missing
-  dependencies, jobs, documents and collected results, `ImportCatalogResponse.releaseVersion`).
-  `CreateCatalogDraftRequest.from` and the `deployCatalogVersion` / `undeployCatalogVersion` path
-  parameter take the same number or a `versionId`. A number is always named `releaseVersion`, a
-  range always `versionRange`; version ranges are not release numbers and keep their own schema.
+  `ReleaseDependencyDto`, `CatalogDependencyDto`, `AvailableReleaseDto.version` and `comparedTo`,
+  `AvailableReleaseDependencyDto.version`, `InstallCatalogReleaseResponse.version` and
+  the `installCatalogRelease` `version` path parameter, deployments, deployment history, missing
+  dependencies, jobs, documents and collected results, `ImportCatalogResponse.version`).
+  `CreateCatalogReleaseRequest.from` and the `{release}` path parameter take the same version or a
+  `releaseId`. A version is always named `version`, and every member named `version` is one; a
+  range is always `versionRange`; version ranges are not versions and keep their own schema.
   Every client still sees these members as plain strings, and each client's generated model
   validation checks a member that references `ReleaseVersion` as if its constraints were inline.
 
 - **BREAKING: a release is selected by a version range, together with an environment.** The
-  generation, preview, batch and validation requests take `versionRange` in place of `releaseVersion`:
+  generation, preview, batch and validation requests take `versionRange`:
   a range in the npm SemVer range grammar, which a server accepts in full (an exact version, `^`,
   `~`, comparators, a hyphen range, a `||` union). It combines with `environmentKey`, which narrows the choice to the releases that environment
   serves; the highest release that satisfies the range is rendered. `DeployReleaseRequest` and
@@ -625,10 +632,11 @@ libraries.
   `ValidateTemplateDataRequest`. A request selects the release with `versionRange` and `environmentKey` (see
   "a release is selected by a version range"); with neither, the catalog's latest release is
   rendered, never unreleased changes. Preview can render a draft instead (`draft`: its
-  `versionId`). Jobs, documents and collected results
-  report `releaseVersion` in place of the template version's `versionId`; it is null for a
-  draft rendered through an environment. A `versionId` in 2.0 is a catalog version's id (`CatalogVersionId`), never
-  a template version's: a document rendered from a draft carries the draft's.
+  `releaseId`). Jobs, documents and collected results
+  report `version` in place of the template version's `versionId`; it is null for a
+  draft rendered through an environment. They name the release rendered by its `releaseId`
+  (`CatalogReleaseId`), never a template version: a document rendered from a draft carries the
+  draft's.
 
 - **The clients no longer bundle a JSON Schema library.** Every client validated template data
   itself, each with a different library and under a different dependency policy — networknt 1.5.9
@@ -663,7 +671,7 @@ libraries.
   `X-API-Key`, and their READMEs no longer mention it.
 - **BREAKING: `UpdateTemplateRequest.forceUpdate`.** A template is edited in a draft, which nothing
   renders, so a breaking data-model change needs no confirmation; it is weighed when the draft is
-  numbered and released. Data examples are still always validated (`422`).
+  released. Data examples are still always validated (`422`).
 - **BREAKING: `upgradeCatalog`, `previewCatalogUpgrade` and the 1.x reconciliation of a subscribed
   catalog** (see "nothing is upgraded" under Changed; `installCatalogRelease` and
   `listAvailableCatalogReleases` replace them): `CatalogUpgradeDiff`,
@@ -697,7 +705,7 @@ libraries.
   is accepted) and 429. Template data is checked when an item renders, not on submission, so
   neither declares `template-data-invalid`. 404 on `listGenerationJobs`, `listDocuments` and
   `collectGenerationResults`, as on the other tenant-scoped operations; 400 on
-  `listDeploymentHistory`, `listStencilUsage` and `deployCatalogVersion`, which take query
+  `listDeploymentHistory`, `listStencilUsage` and `deployCatalogRelease`, which take query
   parameters; 409 on `createTenant` for a key another tenant has.
 - **BREAKING: `listDocuments` filters by catalog.** A template key is unique only within its catalog, so the
   listing gains `registry`, `namespace` and `catalogKey` filters, and `templateKey` now needs
@@ -715,13 +723,13 @@ libraries.
   tags they do not take, and `updateAttribute` of its description alone; each now names the members
   it takes. `CreateAttributeRequest` refused a mixed constraint with a 422 no operation declares; it
   is 400 `validation-error`. `deleteTheme` no longer says templates "fall back to their own styles":
-  it is refused with 409 while the draft still uses the theme, as `deleteCatalogDraft` is. Resources
+  it is refused with 409 while the draft still uses the theme, as `deleteCatalogRelease` is. Resources
   have no versions of their own (`deleteVariant`, `deleteStencil`, `getVariant`, `getStencil`,
-  `createStencil`, `CreateStencilRequest.parameterSchema`, the Stencils tag). Catalog-version-scoped
+  `createStencil`, `CreateStencilRequest.parameterSchema`, the Stencils tag). Release-scoped
   operations no longer say "for a tenant", and resources addressed by key are got "by key".
   `FontDto` no longer calls images read-only, `DocumentDto.createdBy` is the consumer's id rather
   than a "future feature", `CodeListDto` names `sourceUrl` rather than "HTTPS",
-  `ConsumerPermissions.environments` deploys catalog versions, and `uploadImage` states no size
+  `ConsumerPermissions.environments` deploys releases, and `uploadImage` states no size
   limit of its own, hedging Epistola Suite's. An unset `spacingUnit` or `blockStylePresets` is
   absent from `ThemeDto`, as an update's null leaves it, instead of a null the schema does not
   allow.

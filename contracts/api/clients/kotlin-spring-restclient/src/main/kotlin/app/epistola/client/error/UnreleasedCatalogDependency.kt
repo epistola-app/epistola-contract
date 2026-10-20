@@ -22,9 +22,9 @@ data class UnreleasedCatalogDependency(
     /** Key of the catalog depended on. */
     val catalogKey: String,
     /** The draft the declaration names. */
-    val versionId: String,
+    val releaseId: String,
     /** The draft's name. */
-    val draftName: String,
+    val releaseName: String,
 ) {
     internal companion object {
         /** One raw member entry, or `null` when it is not an object with all five string members. */
@@ -35,8 +35,8 @@ data class UnreleasedCatalogDependency(
                 registry = text("registry") ?: return null,
                 namespace = text("namespace") ?: return null,
                 catalogKey = text("catalogKey") ?: return null,
-                versionId = text("versionId") ?: return null,
-                draftName = text("draftName") ?: return null,
+                releaseId = text("releaseId") ?: return null,
+                releaseName = text("releaseName") ?: return null,
             )
         }
     }

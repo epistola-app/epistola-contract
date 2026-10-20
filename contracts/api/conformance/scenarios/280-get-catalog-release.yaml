@@ -2,36 +2,36 @@
 #
 # SPDX-License-Identifier: EUPL-1.2
 
-id: get-catalog-version
-title: A released version reads back with what it renders with and where it runs
+id: get-catalog-release
+title: A released release reads back with what it renders with and where it runs
 why: >
-  A released version is addressed by the number it was given when it was released, and carries
+  A released release is addressed by the version it was given when it was released, and carries
   release data: when it was released, its fingerprint, the releases of other catalogs it renders
-  with, and the environments that serve it. It is no longer a draft, so its `name` is null, but it
-  keeps the `versionId` it had as a draft (ADR 0002). The fingerprint names the algorithm that computed it (`v5:`), as the
-  release's catalog archive does.
+  with, and the environments that serve it. It is no longer a draft, but it keeps the `name` and
+  the `releaseId` it had as one (ADR 0002). The fingerprint names the algorithm that computed it
+  (`v5:`), as the release's catalog archive does.
 
   The catalog is in a registry other than the default (`exchange.example.org`), named in full as
   its own path segment, dots and all. The dependency in the body names its registry and namespace
   as two members. A client must send the first as given and surface the second as written.
 
 action:
-  name: get-catalog-version
+  name: get-catalog-release
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
     registry: exchange.example.org
     namespace: team-a
     catalogKey: letters
-    catalogVersion: 1.4.0
+    release: 1.4.0
 
 script:
   - status: 200
     contentType: application/vnd.epistola.v2+json
     body:
-      releaseVersion: 1.4.0
-      versionId: m3q8v5tk
-      name: null
+      version: 1.4.0
+      releaseId: m3q8v5tk
+      name: Spelling fixes
       status: released
       base: 1.3.0
       createdFrom: null
@@ -41,23 +41,23 @@ script:
       notes: Spelling fixes.
       fingerprint: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
       dependencies:
-        - { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, releaseVersion: 3.2.0, direct: true }
+        - { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, version: 3.2.0, direct: true }
       deployedTo: [acceptance, production]
 
 expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/exchange.example.org/team-a/letters/versions/1.4.0
+      path: /api/tenants/acme-corp/catalogs/exchange.example.org/team-a/letters/releases/1.4.0
   report:
-    releaseVersion: 1.4.0
-    versionId: m3q8v5tk
-    name: 'null'
+    version: 1.4.0
+    releaseId: m3q8v5tk
+    name: Spelling fixes
     status: released
     releasedAt: "2026-10-01T12:00:00Z"
     # The fingerprint names its algorithm; a client must not strip or reformat the prefix.
     fingerprint: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
     dependencies: exchange.epistola.app/epistola/system@3.2.0
     deployedTo: acceptance,production
-    # A released version is never behind.
+    # A released release is never behind.
     behind: ""

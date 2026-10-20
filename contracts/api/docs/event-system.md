@@ -18,8 +18,8 @@ Epistola currently provides no mechanism for API consumers to learn about change
 This leaves several important use-cases unserved:
 
 - **Cache invalidation** — Consumers that cache template metadata, variant lists, or which releases an environment serves have no way to know when that data becomes stale. They must choose between aggressive polling (wasteful) or long TTLs (stale data).
-- **Workflow orchestration** — When a catalog version is released, or a release or a draft is deployed to an environment, downstream systems (preview renderers, CDN warmers, audit loggers) need to react. Today, this requires out-of-band coordination.
-- **Multi-instance coordination** — When multiple server instances exist behind a load balancer, an action on one instance (e.g., releasing a catalog version or deploying a release) is invisible to consumers connected to other instances unless they re-fetch.
+- **Workflow orchestration** — When a draft is released, or a release or a draft is deployed to an environment, downstream systems (preview renderers, CDN warmers, audit loggers) need to react. Today, this requires out-of-band coordination.
+- **Multi-instance coordination** — When multiple server instances exist behind a load balancer, an action on one instance (e.g., releasing a draft or deploying a release) is invisible to consumers connected to other instances unless they re-fetch.
 - **Audit and compliance** — Tracking who changed what and when requires either querying each resource individually or building a custom audit trail outside the API contract. The deployment history (`listDeploymentHistory`) covers what environments serve, and nothing else.
 
 ### Goals
@@ -44,11 +44,11 @@ Regardless of delivery mechanism, the event schema and semantics are the same.
 
 ### 2.1 Event Types
 
-Events correspond to state changes in the domain model. Every mutating API operation produces exactly one event, with one exception: an operation that changes what an environment serves produces one event per entry it writes to the environment's deployment history (`listDeploymentHistory`), so the event stream and the history agree. `deployCatalogVersion` with `replace=true` or `includeDependencies=true`, or deploying a draft where the environment served another, writes several entries; `releaseCatalogDraft` and `deleteCatalogDraft` write one per environment the draft is deployed to.
+Events correspond to state changes in the domain model. Every mutating API operation produces exactly one event, with one exception: an operation that changes what an environment serves produces one event per entry it writes to the environment's deployment history (`listDeploymentHistory`), so the event stream and the history agree. `deployCatalogRelease` with `replace=true` or `includeDependencies=true`, or deploying a draft where the environment served another, writes several entries; `releaseCatalogDraft` and `deleteCatalogRelease` write one per environment the draft is deployed to.
 
-An event type is `{resourceType}.{action}`, both in kebab-case. The triggers below are operation IDs in the 2.0 contract. Resources inside a catalog (templates, variants, stencils, themes, attributes, code lists, images) are addressed as `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/versions/{catalogVersion}/…`, and are only ever changed in a draft: a released version is immutable.
+An event type is `{resourceType}.{action}`, both in kebab-case. The triggers below are operation IDs in the 2.0 contract. Resources inside a catalog (templates, variants, stencils, themes, attributes, code lists, images) are addressed as `/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/…`, and are only ever changed in a draft: a released release is immutable.
 
-**Resources in a catalog version**
+**Resources in a release of a catalog**
 
 | Event Type | Trigger |
 |---|---|
@@ -68,27 +68,27 @@ An event type is `{resourceType}.{action}`, both in kebab-case. The triggers bel
 | `code-list.entry-hidden-updated` | `updateCodeListEntryHidden` |
 | `image.uploaded`, `image.deleted` | `uploadImage`, `deleteImage` |
 
-**Catalogs and catalog versions**
+**Catalogs and their releases**
 
 | Event Type | Trigger |
 |---|---|
 | `catalog.imported` | `importCatalog` |
 | `catalog.release-installed` | `installCatalogRelease` |
 | `catalog.dependencies-updated` | `updateCatalogDependencies` |
-| `catalog-version.draft-created` | `createCatalogDraft` |
-| `catalog-version.draft-updated` | `updateCatalogDraft` (its name, default theme or presets) |
-| `catalog-version.draft-discarded` | `deleteCatalogDraft` |
-| `catalog-version.marked-ready` | `markCatalogReady` (every changed resource of a draft) |
-| `catalog-version.released` | `releaseCatalogDraft` (a draft is numbered and becomes immutable; one event per release, including drafts of other catalogs released along with it) |
+| `catalog-release.draft-created` | `createCatalogRelease` |
+| `catalog-release.draft-updated` | `updateCatalogRelease` (its name, default theme or presets) |
+| `catalog-release.draft-discarded` | `deleteCatalogRelease` |
+| `catalog-release.marked-ready` | `markCatalogReady` (every changed resource of a draft) |
+| `catalog-release.released` | `releaseCatalogDraft` (a draft gets its version and becomes immutable, keeping its `releaseId` and name; one event per release, including drafts of other catalogs released along with it) |
 
 **Environments**
 
 | Event Type | Trigger |
 |---|---|
 | `environment.created`, `environment.updated`, `environment.deleted` | `createEnvironment`, `updateEnvironment`, `deleteEnvironment` |
-| `environment.deployed` | `deployCatalogVersion`: the environment starts serving a release or a draft (deployment history `deployed`) |
-| `environment.undeployed` | `undeployCatalogVersion`; `deployCatalogVersion` with `replace=true`, or deploying a draft in place of the one the environment served; `deleteCatalogDraft` of a deployed draft (deployment history `undeployed`) |
-| `environment.released` | `releaseCatalogDraft` of a deployed draft: the environment now serves the release it became (deployment history `released`) |
+| `environment.deployed` | `deployCatalogRelease`: the environment starts serving a release or a draft (deployment history `deployed`) |
+| `environment.undeployed` | `undeployCatalogRelease`; `deployCatalogRelease` with `replace=true`, or deploying a draft in place of the one the environment served; `deleteCatalogRelease` of a deployed draft (deployment history `undeployed`) |
+| `environment.released` | `releaseCatalogDraft` of a deployed draft: the environment now serves it as released, with the same `releaseId` (deployment history `released`) |
 
 **Generation**
 
@@ -100,7 +100,7 @@ An event type is `{resourceType}.{action}`, both in kebab-case. The triggers bel
 | `generation.failed` | Job transitions to `failed` |
 | `generation.cancelled` | `cancelGenerationJob` (job transitions to `cancelled`) |
 
-Most events about resources inside a catalog happen in a draft, which generation never renders, with two exceptions: preview, and an environment a draft is deployed to (`deployCatalogVersion`, never a production environment). A consumer that caches what it renders therefore mostly needs `catalog-version.released` and the `environment.*` events; editors and environments serving a draft need the rest.
+Most events about resources inside a catalog happen in a draft, which generation never renders, with two exceptions: preview, and an environment a draft is deployed to (`deployCatalogRelease`, never a production environment). A consumer that caches what it renders therefore mostly needs `catalog-release.released` and the `environment.*` events; editors and environments serving a draft need the rest.
 
 ### 2.2 Event Envelope
 
@@ -121,7 +121,7 @@ EventEnvelope:
       description: Globally unique event identifier (for idempotency)
     type:
       type: string
-      description: Dot-separated event type (e.g., "catalog-version.released")
+      description: Dot-separated event type (e.g., "catalog-release.released")
     tenantKey:
       type: string
       description: Tenant scope of this event
@@ -146,7 +146,7 @@ EventEnvelope:
           type: string
           enum:
             - catalog
-            - catalog-version
+            - catalog-release
             - template
             - variant
             - stencil
@@ -163,13 +163,13 @@ EventEnvelope:
             The affected resource's address: its key for a resource
             in a catalog (templateKey, variantKey, …) and for an
             environment (environmentKey); the catalog key for a catalog;
-            the catalog version (see catalogVersion) for a catalog
-            version; the id (UUID) for a generation job or document.
+            the release (see release) for a release of a catalog;
+            the id (UUID) for a generation job or document.
         catalog:
           type: object
           description: >
             The catalog the resource belongs to, or the catalog an
-            environment event is about (the version deployed or
+            environment event is about (the release deployed or
             undeployed). Absent for events outside a catalog.
             The registry is written in full, never `~`.
           required: [registry, namespace, catalogKey]
@@ -180,13 +180,13 @@ EventEnvelope:
               type: string
             catalogKey:
               type: string
-        catalogVersion:
+        release:
           type: [string, "null"]
           description: >
-            The catalog version the change was made in: a released
-            version's SemVer number, or a draft's versionId. A
-            draft keeps its versionId when it is released, so
-            the id addresses the release from then on.
+            The release the change was made in: a released
+            release's version, or a draft's releaseId. A draft
+            keeps its releaseId when it is released, so the id
+            keeps addressing it from then on.
         parentRefs:
           type: object
           description: >
@@ -210,7 +210,7 @@ EventEnvelope:
         Event-type-specific payload. For "created" and "updated"
         events, contains the resource's state after the change,
         as the operation's response body has it (for
-        "catalog-version.released", a ReleaseCatalogDraftResponse;
+        "catalog-release.released", a ReleaseCatalogDraftResponse;
         for "environment.deployed", a DeploymentDto). For "deleted"
         events, contains the resource's state before deletion.
 ```
@@ -220,27 +220,29 @@ EventEnvelope:
 ```json
 {
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "type": "catalog-version.released",
+  "type": "catalog-release.released",
   "tenantKey": "acme-corp",
   "timestamp": "2026-10-12T14:30:00Z",
   "sequenceNumber": 4207,
   "resourceRef": {
-    "resourceType": "catalog-version",
+    "resourceType": "catalog-release",
     "key": "1.4.0",
     "catalog": {
       "registry": "exchange.epistola.app",
       "namespace": "acme-corp",
       "catalogKey": "letters"
     },
-    "catalogVersion": "1.4.0"
+    "release": "1.4.0"
   },
   "actor": {
     "type": "user",
     "identifier": "jane@acme-corp.com"
   },
   "data": {
-    "catalogVersion": {
-      "releaseVersion": "1.4.0",
+    "release": {
+      "version": "1.4.0",
+      "releaseId": "k7m2x9qa",
+      "name": "Spring fixes",
       "status": "released",
       "base": "1.3.2",
       "releasedAt": "2026-10-12T14:30:00Z",
@@ -269,7 +271,7 @@ A `document.generated` event carries the release the document was rendered from,
       "namespace": "acme-corp",
       "catalogKey": "letters"
     },
-    "catalogVersion": "1.4.0",
+    "release": "1.4.0",
     "parentRefs": {
       "requestId": "550e8400-e29b-41d4-a716-446655440000",
       "templateKey": "invoice",
@@ -279,8 +281,8 @@ A `document.generated` event carries the release the document was rendered from,
   "data": {
     "templateKey": "invoice",
     "variantKey": "english",
-    "releaseVersion": "1.4.0",
-    "versionId": null,
+    "version": "1.4.0",
+    "releaseId": "k7m2x9qa",
     "draftLabel": null,
     "environmentKey": "production",
     "correlationId": "order-7890",
@@ -289,7 +291,7 @@ A `document.generated` event carries the release the document was rendered from,
 }
 ```
 
-The `data` members are taken from `DocumentGenerationItemDto`. A document rendered from a draft, through an environment that follows one, has a null `releaseVersion` and carries `versionId` and `draftLabel`; its `catalogVersion` is the `versionId`.
+The `data` members are taken from `DocumentGenerationItemDto`. A document rendered from a draft, through an environment that follows one, has a null `version` and carries `draftLabel`; its `release` is the `releaseId`.
 
 ### 2.3 Ordering and Idempotency
 
@@ -303,11 +305,11 @@ All options support server-side filtering to reduce payload size. Filters are ap
 
 | Filter | Type | Example |
 |---|---|---|
-| `resourceType` | string (repeatable) | `resourceType=catalog-version&resourceType=environment` |
+| `resourceType` | string (repeatable) | `resourceType=catalog-release&resourceType=environment` |
 | `registry`, `namespace`, `catalogKey` | string | `namespace=acme-corp&catalogKey=letters` |
 | `templateKey` | string (requires `namespace` and `catalogKey`) | `templateKey=invoice` |
 | `environmentKey` | string | `environmentKey=production` |
-| `eventType` | string (repeatable) | `eventType=catalog-version.released` |
+| `eventType` | string (repeatable) | `eventType=catalog-release.released` |
 
 A catalog is named by its three parts, never its key alone. As in every request that names a catalog, an omitted `registry` means the server's default registry. A `templateKey` without the catalog is refused, because two catalogs can each have a template with that key.
 
@@ -333,7 +335,7 @@ The client immediately reconnects after receiving a response.
 GET /tenants/{tenantKey}/events
   ?after={sequenceNumber}      # cursor: last seen sequence number
   &timeout=30                  # max seconds to hold connection (1-60, default 30)
-  &resourceType=catalog-version  # filter (repeatable)
+  &resourceType=catalog-release  # filter (repeatable)
   &namespace=acme-corp           # filter: the catalog, by its parts
   &catalogKey=letters
   &limit=100                   # max events per batch (1-1000, default 100)
@@ -404,7 +406,7 @@ The client opens a persistent HTTP connection. The server pushes events as they 
 ```
 GET /tenants/{tenantKey}/events/stream
   ?after={sequenceNumber}      # resume from cursor
-  &resourceType=catalog-version  # filter (repeatable)
+  &resourceType=catalog-release  # filter (repeatable)
   &namespace=acme-corp           # filter: the catalog, by its parts
   &catalogKey=letters
 
@@ -416,8 +418,8 @@ Content-Type: text/event-stream
 : heartbeat
 
 id: 4208
-event: catalog-version.released
-data: {"id":"a1b2...","type":"catalog-version.released",...}
+event: catalog-release.released
+data: {"id":"a1b2...","type":"catalog-release.released",...}
 
 id: 4209
 event: environment.deployed
@@ -484,7 +486,7 @@ Content-Type: application/vnd.epistola.v2+json
   "callbackUrl": "https://my-app.example.com/epistola/events",
   "secret": "whsec_abc123...",
   "filters": {
-    "resourceTypes": ["catalog-version", "environment"],
+    "resourceTypes": ["catalog-release", "environment"],
     "catalogs": [
       { "namespace": "acme-corp", "catalogKey": "letters" }
     ],
@@ -585,7 +587,7 @@ This is the simplest option — no long-held connections, no push, just a regula
 ```
 GET /tenants/{tenantKey}/events
   ?after={sequenceNumber}      # cursor: last seen sequence number (0 = from beginning)
-  &resourceType=catalog-version  # filter (repeatable)
+  &resourceType=catalog-release  # filter (repeatable)
   &namespace=acme-corp           # filter: the catalog, by its parts
   &catalogKey=letters
   &limit=100                   # max events per batch (1-1000, default 100)
@@ -666,7 +668,7 @@ The gRPC channel is explicitly best-effort. If the stream disconnects, the consu
 ```
 GET /tenants/{tenantKey}/events
   ?after={sequenceNumber}
-  &resourceType=catalog-version
+  &resourceType=catalog-release
   &limit=100
 
 Accept: application/vnd.epistola.v2+json
@@ -739,7 +741,7 @@ message SubscriptionConfirmed {
 message EventNotification {
   string tenant_key = 1;
   int64 latest_sequence_number = 2;
-  repeated string affected_resource_types = 3;  // e.g., ["catalog-version", "environment"]
+  repeated string affected_resource_types = 3;  // e.g., ["catalog-release", "environment"]
 }
 
 message ServerHeartbeat {
@@ -888,7 +890,7 @@ For Epistola's current use-cases (cache invalidation, workflow orchestration, au
 
 The existing API uses offset-based pagination: `page` and `size` query parameters, and a `page` object (`PageMeta`: `number`, `size`, `total`, `totalPages`) in the response. The event feed uses cursor-based pagination (`after` + `limit` + `hasMore`). This is intentional:
 
-- **Offset pagination** is appropriate for relatively stable datasets (template lists, catalog version lists) where items are rarely inserted or deleted while paginating.
+- **Offset pagination** is appropriate for relatively stable datasets (template lists, release lists) where items are rarely inserted or deleted while paginating.
 - **Cursor pagination** is required for append-only logs where new entries are continuously added. Offset-based pagination over a growing log would cause items to shift between pages, leading to duplicates or missed events.
 
 The two patterns coexist in the API. The event feed's cursor-based response uses a different shape (`cursor.sequenceNumber` + `cursor.hasMore`) from the offset-based shape (`PageMeta`) to make the distinction explicit.
@@ -918,7 +920,7 @@ Content-Type: application/problem+json
 
 Events may contain resource state in their `data` field, so access should be gated by the same authorization rules that apply to reading those resources. The contract documents those as Suite permissions in `x-required-permissions`.
 
-Suggested `x-required-permissions` for the feed: `[TEMPLATE_VIEW]`. The feed then leaves out each event whose resource the caller may not read, by the permission reading it requires: `CATALOG_VIEW` for catalogs and catalog versions (as `listCatalogVersions`), `DOCUMENT_VIEW` for generation jobs and documents (as `listGenerationJobs` and `listDocuments`), `THEME_VIEW`, `STENCIL_VIEW` and `REFERENCE_VIEW` for themes, stencils, attributes and code lists.
+Suggested `x-required-permissions` for the feed: `[TEMPLATE_VIEW]`. The feed then leaves out each event whose resource the caller may not read, by the permission reading it requires: `CATALOG_VIEW` for catalogs and their releases (as `listCatalogReleases`), `DOCUMENT_VIEW` for generation jobs and documents (as `listGenerationJobs` and `listDocuments`), `THEME_VIEW`, `STENCIL_VIEW` and `REFERENCE_VIEW` for themes, stencils, attributes and code lists.
 
 A consumer authenticated with a bearer JWT (experimental) is authorized by its `ConsumerPermissions`, which have no level for events. Whether the feed is gated by the levels of the resources it carries, or by a new `events` resource, is open.
 

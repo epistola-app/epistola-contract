@@ -9,7 +9,7 @@ why: >
   the catalog's source and installs it as an import installs the release an archive carries, beside
   the releases the tenant has, nothing updated in place, nothing removed. The release is named in
   the path, `…/available-releases/1.5.0/install`, here rather than the newer `2.0.0` the source also
-  offers; the request has no query and no body. A client that sends the number anywhere else, or
+  offers; the request has no query and no body. A client that sends the version anywhere else, or
   drops it, installs something the caller did not ask for.
 
   The catalog is in the default registry, addressed as `~`; the response names it in full.
@@ -26,7 +26,7 @@ action:
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    releaseVersion: 1.5.0
+    version: 1.5.0
 
 script:
   - status: 200
@@ -35,7 +35,7 @@ script:
       registry: exchange.epistola.app
       namespace: acme-corp
       catalogKey: letters
-      releaseVersion: 1.5.0
+      version: 1.5.0
       newlyInstalled: true
       total: 9
       installedDependencies: ["shared v1.1.0", "system v3.2.0"]
@@ -51,7 +51,7 @@ expect:
     registry: exchange.epistola.app
     namespace: acme-corp
     catalogKey: letters
-    releaseVersion: 1.5.0
+    version: 1.5.0
     newlyInstalled: 'true'
     total: '9'
     installedDependencies: shared v1.1.0,system v3.2.0

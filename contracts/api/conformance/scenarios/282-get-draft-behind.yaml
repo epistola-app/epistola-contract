@@ -5,47 +5,47 @@
 id: get-draft-behind
 title: A draft, addressed by its id, says which releases it is behind, and what they changed
 why: >
-  A draft has no number until it is released, so it is addressed by its `versionId`, an opaque
-  id, in the same path segment that takes a release's number (ADR 0002). A client must send the id
+  A draft has no version until it is released, so it is addressed by its `releaseId`, an opaque
+  id, in the same path segment that takes a released release's version (ADR 0002). A client must send the id
   as given.
 
   Drafts are independent copies; nothing is merged between them. "Redesign 2027" was started from
   `1.4.0` and holds breaking changes, so it would be released as `2.0.0`. It does not get the
-  changes of `1.5.0` and `1.6.0`, released from other drafts since and numbered between its base
+  changes of `1.5.0` and `1.6.0`, released from other drafts since and with versions between its base
   and `2.0.0`, so it is **behind** them. The server cannot tell whether an author applied those
   changes by hand, so it lists every release the draft is behind with the resources each one
   changed. That list is what lets an author port a fix into the draft before it is released.
 
   A client must surface every release, in order, with every change and its kind, and the draft's
-  null `releaseVersion` as null.
+  null `version` as null.
 
 action:
-  name: get-catalog-version
+  name: get-catalog-release
   config:
     nodeId: conformance-node-1
     tenantKey: acme-corp
     registry: "~"
     namespace: acme-corp
     catalogKey: letters
-    catalogVersion: r4t8w2nc
+    release: r4t8w2nc
 
 script:
   - status: 200
     contentType: application/vnd.epistola.v2+json
     body:
-      releaseVersion: null
-      versionId: r4t8w2nc
+      version: null
+      releaseId: r4t8w2nc
       name: Redesign 2027
       status: draft
       base: 1.4.0
       createdFrom: null
       createdAt: "2026-09-20T09:00:00Z"
       behind:
-        - releaseVersion: 1.5.0
+        - version: 1.5.0
           changes:
             - { type: template, key: invoice, change: modified }
             - { type: theme, key: corporate, change: added }
-        - releaseVersion: 1.6.0
+        - version: 1.6.0
           changes:
             - { type: stencil, key: letter-shell, change: removed }
       releasedAt: null
@@ -58,10 +58,10 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/versions/r4t8w2nc
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/r4t8w2nc
   report:
-    releaseVersion: 'null'
-    versionId: r4t8w2nc
+    version: 'null'
+    releaseId: r4t8w2nc
     name: Redesign 2027
     status: draft
     behind: 1.5.0=template/invoice:modified+theme/corporate:added;1.6.0=stencil/letter-shell:removed

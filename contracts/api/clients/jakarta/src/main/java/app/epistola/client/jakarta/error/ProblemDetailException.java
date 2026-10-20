@@ -235,7 +235,7 @@ public class ProblemDetailException extends ApiException {
 
     /**
      * The releases of other catalogs a {@code release-dependencies-missing} problem (409, from
-     * {@code deployCatalogVersion}) lists, in the order sent: each one the deployed version pins that
+     * {@code deployCatalogRelease}) lists, in the order sent: each one the deployed release pins that
      * cannot be had, and why. Empty for any other problem.
      */
     public List<MissingDependency> getMissingDependencies() {
