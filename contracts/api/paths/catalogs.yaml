@@ -10,7 +10,9 @@ catalogs:
   get:
     operationId: listCatalogs
     summary: List catalogs for a tenant
-    description: Returns all catalogs (authored and subscribed) for the specified tenant.
+    description: |
+      Returns all catalogs (authored and subscribed) for the specified tenant. A catalog does not
+      list its releases or drafts: `listCatalogReleases` does.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]
@@ -353,8 +355,9 @@ catalog-releases:
     summary: List a catalog's releases
     description: |
       The catalog's releases, drafts included: its drafts, oldest first, then its released
-      releases, highest version first. A subscribed catalog lists the releases it installed, and has
-      no drafts.
+      releases, highest version first, each with its `status`. This is the only place a catalog's
+      drafts are listed; `?status=draft` gives only the drafts. A subscribed catalog lists the
+      releases it installed, and has no drafts.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_VIEW]

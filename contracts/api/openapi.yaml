@@ -114,6 +114,8 @@ info:
 
     - An authored catalog has **any number of drafts**, each named, each started from a released
       release (its base) or from another draft (`createCatalogRelease`). The base never moves.
+      `listCatalogReleases` lists a catalog's releases, drafts included, each with its `status`
+      (`?status=draft` for the drafts only); a catalog (`CatalogDto`) does not list them.
     - **Any draft can be released.** Its version follows from the kind of change against its base:
       fixes raise the patch, additions the minor, anything that breaks callers the major
       (`previewCatalogDraftRelease`). The author may choose a higher version, never a lower one or
@@ -834,8 +836,6 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CatalogReleaseStatus'
     CatalogReleaseDto:
       $ref: './components/schemas/catalogs.yaml#/CatalogReleaseDto'
-    CatalogDraftReleaseSummary:
-      $ref: './components/schemas/catalogs.yaml#/CatalogDraftReleaseSummary'
     BehindReleaseDto:
       $ref: './components/schemas/catalogs.yaml#/BehindReleaseDto'
     ReleasedChangeDto:

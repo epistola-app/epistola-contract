@@ -7,7 +7,8 @@ title: Listing a catalog's drafts filters by status, and reads each draft's name
 why: >
   Drafts and released releases share one collection, told apart by `status`. The filter is a query
   parameter with an enum value; a client that sends it in another case, or drops it, lists the
-  wrong releases.
+  wrong releases. This is the only way to list a catalog's drafts: a catalog (`CatalogDto`) does
+  not list them.
 
   A draft has no version until it is released (ADR 0002), so every `version` here is null, and a
   draft is told apart by its `releaseId` and named. A client that cannot read a null `version` cannot
