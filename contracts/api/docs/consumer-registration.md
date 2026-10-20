@@ -140,7 +140,7 @@ no cross-tenant view of one application, and so no cross-tenant impact analysis.
 | `totalPartitions` | integer or null | Partitions for generation result collection; null until the consumer has polled `collectGenerationResults` |
 | **`createdAt`** | date-time | When the consumer was registered |
 | `lastSeenAt` | date-time or null | When the server last received a request from the consumer |
-| `lastModified` | date-time or null | When the consumer record was last changed; null when it has not changed since it was registered |
+| **`lastModified`** | date-time | When the consumer record was last changed; equal to `createdAt` at registration, moved forward by every change to the consumer |
 
 `ConsumerNodeDto` describes one instance of the application:
 
@@ -394,7 +394,7 @@ Content-Type: application/vnd.epistola.v2+json
   "totalPartitions": null,
   "createdAt": "2026-10-17T10:00:00Z",
   "lastSeenAt": null,
-  "lastModified": null
+  "lastModified": "2026-10-17T10:00:00Z"
 }
 ```
 

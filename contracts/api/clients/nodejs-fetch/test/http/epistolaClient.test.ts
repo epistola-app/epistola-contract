@@ -132,6 +132,7 @@ test('a partial update sends only the fields the caller set', async () => {
       grantedPermissions: {},
       nodes: [],
       createdAt: '2026-01-20T09:00:00Z',
+      lastModified: '2026-01-20T09:00:00Z',
     }),
   )
   try {

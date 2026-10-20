@@ -373,7 +373,8 @@ public final class Driver {
                     ConsumerDto consumer = response.readEntity(ConsumerDto.class);
                     return Map.of(
                             "id", String.valueOf(consumer.getId()),
-                            "name", String.valueOf(consumer.getName()));
+                            "name", String.valueOf(consumer.getName()),
+                            "lastModified", instant(consumer.getLastModified()));
                 });
     }
 
