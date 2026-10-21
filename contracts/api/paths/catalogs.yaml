@@ -495,13 +495,15 @@ catalog-release:
     description: |
       Changes a draft's own settings: its name, its default theme (the theme a template that names
       none renders with) and its declared presets (the block styles its content may name). Each
-      changes only when the request names it: an omitted member keeps its value, and null clears a
-      default theme or the presets (an empty array clears the presets too). Its address, its
-      `releaseId`, does not change, and it keeps its name when it is released. Refused with 409 for
+      changes only when the request names it: an omitted or null member keeps its value,
+      `clearDefaultTheme: true` removes the default theme and an empty `presets` array removes the
+      presets. Its address, its `releaseId`, does not change, and it keeps its name when it is
+      released. Refused with 409 for
       a name another draft of the catalog has, with 409 `catalog-read-only` when the catalog cannot
       be changed, and with 409 outside a draft: a released release cannot be
       changed, its name included; with 400 for a default theme that cannot be found or names a
-      catalog the draft does not declare, and for presets that repeat a key.
+      catalog the draft does not declare, for a `defaultTheme` together with `clearDefaultTheme`,
+      and for presets that repeat a key.
 
       Send the `ETag` from `getCatalogRelease` or `listCatalogDependencies` as `If-Match` to have
       the update refused with 412 `resource-modified` if the draft's settings or dependency

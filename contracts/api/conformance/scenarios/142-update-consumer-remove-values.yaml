@@ -1,0 +1,55 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: update-consumer-remove-values
+title: Removing a consumer's description and expiry sends an empty string and a flag, never a null
+why: >
+  On a partial update an omitted or null member keeps its value: generated servers and clients
+  cannot tell the two apart, so null cannot mean "remove". A text member is removed with an empty
+  string, and a member that has no empty value, such as the `expiresAt` timestamp, with an explicit
+  flag. A client must send the empty string as is, not drop it as if it were unset, and send
+  `clearExpiresAt: true` without an `expiresAt` beside it. The name, which the caller did not
+  touch, stays off the wire.
+
+action:
+  name: update-consumer
+  config:
+    nodeId: conformance-node-1
+    auth: api-key
+    apiKey: epk_conformance_0123456789
+    tenantKey: acme-corp
+    consumerId: billing-service
+    description: ''
+    clearExpiresAt: true
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      id: billing-service
+      tenantKey: acme-corp
+      name: Billing Service
+      authMethod: api-key
+      status: active
+      requestedPermissions: {}
+      grantedPermissions: {}
+      nodes: []
+      createdAt: "2026-01-20T09:00:00Z"
+      lastModified: "2026-10-21T08:30:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PATCH
+      path: /api/tenants/acme-corp/consumers/billing-service
+      body:
+        json:
+          description: ''
+          clearExpiresAt: true
+        jsonAbsent: [name, contact, expiresAt, status, grantedPermissions]
+  report:
+    id: billing-service
+    name: Billing Service
+    lastModified: "2026-10-21T08:30:00Z"
+    etag: 'null'

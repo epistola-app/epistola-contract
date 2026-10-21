@@ -722,7 +722,8 @@ UpdateCatalogReleaseRequest:
   type: object
   description: |
     A partial update of a draft's own settings: its name, its default theme and its declared
-    presets. A member that is omitted keeps its current value.
+    presets. A member that is omitted or null keeps its current value: generated servers and
+    clients cannot tell an omitted member from a null one, so null never means "remove".
   properties:
     name:
       type: string
@@ -736,15 +737,22 @@ UpdateCatalogReleaseRequest:
         - type: 'null'
       description: |
         The draft's new default theme: a theme in the catalog itself or in a catalog the draft
-        declares as a dependency. Omitted keeps the current one; null clears it, so that a template
-        that names no theme renders with the rendering defaults alone. A theme that cannot be found,
-        or a catalog the draft does not declare, is refused with 400.
+        declares as a dependency. Omitted or null keeps the current one; `clearDefaultTheme`
+        removes it. A theme that cannot be found, or a catalog the draft does not declare, is
+        refused with 400.
+    clearDefaultTheme:
+      type: [boolean, 'null']
+      description: |
+        True removes the draft's default theme, so that a template that names no theme renders with
+        the rendering defaults alone. Omitted, null or false keeps it. True together with a
+        `defaultTheme` is refused with 400.
+      example: true
     presets:
       type: [array, 'null']
       description: |
-        The draft's declared presets, replacing the current list as a whole. Omitted keeps the
-        current list; null or an empty array clears it. Keys are unique within the list, which is
-        refused with 400 otherwise.
+        The draft's declared presets, replacing the current list as a whole. Omitted or null keeps
+        the current list; an empty array removes every preset. Keys are unique within the list,
+        which is refused with 400 otherwise.
       items:
         $ref: '#/CatalogPresetDto'
 

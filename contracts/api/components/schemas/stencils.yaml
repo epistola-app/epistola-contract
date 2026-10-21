@@ -195,7 +195,10 @@ UpdateStencilRequest:
         - string
         - 'null'
       maxLength: 1000
-      description: Updated description (null to clear)
+      description: |
+        Updated description. Omitted or null keeps it; an empty string (or one of only whitespace)
+        removes it. Null cannot mean "remove": generated servers and clients cannot tell an omitted
+        member from a null one.
       example: Updated corporate header with new branding
     tags:
       type: array

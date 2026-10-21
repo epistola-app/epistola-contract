@@ -112,16 +112,19 @@ This is not cosmetic. The generated request models are plain nullable properties
 distinguish "not set" from "explicitly null", so whatever the serializer does with an unset property
 becomes the request's meaning:
 
-- On the API's `PATCH` operations a null is an instruction — `description` and `contact` are
-  documented "null to clear", `expiresAt` as "null to remove expiry". A default mapper turns
-  `UpdateConsumerRequest(name = "…")` into a rename *and* an erase of everything you left alone.
+- On the API's `PATCH` operations an omitted or null member keeps its value, and contracts before
+  2.0 documented null as "clear" on some of them (`description`, `contact`, `expiresAt` of
+  `UpdateConsumerRequest`, among others). Against a server built to one of those, a default mapper
+  turns `UpdateConsumerRequest(name = "…")` into a rename *and* an erase of everything you left
+  alone.
 - Some fields do not accept null at all. `GenerateDocumentRequest.attributes` is typed `array` with
   no null in the union, so a default mapper produces a body that a server validating against the
   contract rejects outright.
 
-The trade is that clearing a field is not expressible — but it never was, since you could not clear
-one field without clearing every other you had not set. Expressing both needs models that carry the
-distinction, which is a larger change.
+Removing a value never relies on null. An empty string removes an optional text member (such as
+`description = ""`), an empty array or object replaces a list or a map with nothing, and a member
+that has neither has an explicit flag (`clearExpiresAt = true`, `clearDefaultTheme = true`,
+`clearCodeListBinding = true`).
 
 `EpistolaJson.objectMapper` is the same mapper, exposed for anywhere you serialize these models
 yourself.

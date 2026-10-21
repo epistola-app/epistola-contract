@@ -5,6 +5,7 @@
 package app.epistola.conformance;
 
 import app.epistola.client.jakarta.EpistolaRestClients;
+import app.epistola.client.jakarta.api.AttributesApi;
 import app.epistola.client.jakarta.api.CatalogsApi;
 import app.epistola.client.jakarta.api.ConsumersApi;
 import app.epistola.client.jakarta.api.EnvironmentsApi;
@@ -22,6 +23,8 @@ import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.identity.ClientIdentity;
 import app.epistola.client.jakarta.api.CodeListsApi;
 import app.epistola.client.jakarta.api.TenantsApi;
+import app.epistola.client.jakarta.model.AttributeDto;
+import app.epistola.client.jakarta.model.AttributeDtoCodeListBinding;
 import app.epistola.client.jakarta.model.AvailableCatalogReleases;
 import app.epistola.client.jakarta.model.AvailableReleaseDependencyDto;
 import app.epistola.client.jakarta.model.AvailableReleaseDto;
@@ -78,6 +81,7 @@ import app.epistola.client.jakarta.model.TemplateSummaryDto;
 import app.epistola.client.jakarta.model.TenantDto;
 import app.epistola.client.jakarta.model.ThemeRef;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
+import app.epistola.client.jakarta.model.UpdateAttributeRequest;
 import app.epistola.client.jakarta.model.UpdateCatalogReleaseRequest;
 import app.epistola.client.jakarta.model.UpdateCodeListEntryHiddenRequest;
 import app.epistola.client.jakarta.model.UpdateConsumerRequest;
@@ -172,6 +176,7 @@ public final class Driver {
                 case "update-environment" -> updateEnvironment(baseUrl, config);
                 case "update-tenant" -> updateTenant(baseUrl, config);
                 case "update-code-list-entry-hidden" -> updateCodeListEntryHidden(baseUrl, config);
+                case "update-attribute" -> updateAttribute(baseUrl, config);
                 case "update-variant-content" -> updateVariantContent(baseUrl, config);
                 case "get-variant-content" -> getVariantContent(baseUrl, config);
                 case "mark-variant-ready" -> markVariantReady(baseUrl, config);
@@ -382,10 +387,11 @@ public final class Driver {
     }
 
     /**
-     * A partial update that sets exactly one field. Everything the caller did not name must stay off
-     * the wire: the contract reads a null on these as "clear this", so a serializer that writes
-     * nulls for unset properties turns "rename this consumer" into "rename it and erase its
-     * description, contact and expiry".
+     * A partial update that sets only the members the scenario names. Everything the caller did not
+     * name must stay off the wire: a server built to a contract before 2.0 reads a null on these as
+     * "clear this", so a serializer that writes nulls for unset properties turns "rename this
+     * consumer" into "rename it and erase its description, contact and expiry". An empty
+     * {@code description} is a value, and goes out as is.
      */
     private static void updateConsumer(String baseUrl, JsonObject config) {
         conditionalUpdate(
@@ -395,7 +401,10 @@ public final class Driver {
                         .updateConsumerWithHttpInfo(
                                 config.getString("tenantKey"),
                                 config.getString("consumerId"),
-                                new UpdateConsumerRequest().name(config.getString("name")),
+                                new UpdateConsumerRequest()
+                                        .name(optional(config, "name"))
+                                        .description(optional(config, "description"))
+                                        .clearExpiresAt(optionalBoolean(config, "clearExpiresAt")),
                                 optional(config, "ifMatch")),
                 response -> {
                     ConsumerDto consumer = response.readEntity(ConsumerDto.class);
@@ -904,13 +913,17 @@ public final class Driver {
 
     /** Sets a draft's default theme and presets; no name goes out, and an unset qualifier stays off the wire. */
     private static void setCatalogReleaseThemeSettings(String baseUrl, JsonObject config) {
-        List<CatalogPresetDto> presets = config.getJsonArray("presets").stream()
-                .map(JsonValue::asJsonObject)
-                .map(preset -> new CatalogPresetDto()
-                        .key(preset.getString("key"))
-                        .name(preset.getString("name"))
-                        .description(optional(preset, "description")))
-                .collect(Collectors.toList());
+        // Present, an empty array included, goes out as given; absent stays off the wire.
+        List<CatalogPresetDto> presets = config.containsKey("presets") && !config.isNull("presets")
+                ? config.getJsonArray("presets").stream()
+                        .map(JsonValue::asJsonObject)
+                        .map(preset -> new CatalogPresetDto()
+                                .key(preset.getString("key"))
+                                .name(preset.getString("name"))
+                                .description(optional(preset, "description")))
+                        .collect(Collectors.toList())
+                : null;
+        String themeKey = optional(config, "defaultThemeKey");
         CatalogReleaseDto release = clients(baseUrl, config)
                 .api(CatalogsApi.class)
                 .updateCatalogRelease(
@@ -920,9 +933,12 @@ public final class Driver {
                         config.getString("catalogKey"),
                         config.getString("release"),
                         new UpdateCatalogReleaseRequest()
-                                .defaultTheme(new CatalogThemeReference()
-                                        .key(config.getString("defaultThemeKey"))
-                                        .catalogKey(optional(config, "defaultThemeCatalogKey")))
+                                .defaultTheme(themeKey == null
+                                        ? null
+                                        : new CatalogThemeReference()
+                                                .key(themeKey)
+                                                .catalogKey(optional(config, "defaultThemeCatalogKey")))
+                                .clearDefaultTheme(optionalBoolean(config, "clearDefaultTheme"))
                                 .presets(presets),
                         null);
         List<CatalogPresetDto> parsed = release.getPresets() == null ? List.of() : release.getPresets();
@@ -1689,6 +1705,38 @@ public final class Driver {
                     return Map.of(
                             "code", String.valueOf(entry.getCode()),
                             "hidden", String.valueOf(entry.getHidden()));
+                });
+    }
+
+    /** Changes an attribute's constraint with only the members the scenario names. */
+    private static void updateAttribute(String baseUrl, JsonObject config) {
+        List<String> allowedValues = config.containsKey("allowedValues") && !config.isNull("allowedValues")
+                ? config.getJsonArray("allowedValues").getValuesAs(jakarta.json.JsonString::getString)
+                : null;
+        conditionalUpdate(
+                baseUrl,
+                () -> clients(baseUrl, config)
+                        .api(AttributesApi.class)
+                        .updateAttributeWithHttpInfo(
+                                config.getString("tenantKey"),
+                                config.getString("registry"),
+                                config.getString("namespace"),
+                                config.getString("catalogKey"),
+                                config.getString("release"),
+                                config.getString("attributeKey"),
+                                new UpdateAttributeRequest()
+                                        .allowedValues(allowedValues)
+                                        .clearCodeListBinding(optionalBoolean(config, "clearCodeListBinding")),
+                                optional(config, "ifMatch")),
+                response -> {
+                    AttributeDto attribute = response.readEntity(AttributeDto.class);
+                    AttributeDtoCodeListBinding binding = attribute.getCodeListBinding();
+                    return Map.of(
+                            "key", String.valueOf(attribute.getKey()),
+                            "allowedValues", String.join(",", attribute.getAllowedValues() == null ? List.of() : attribute.getAllowedValues()),
+                            "codeListBinding", binding == null
+                                    ? "null"
+                                    : binding.getRegistry() + "/" + binding.getNamespace() + "/" + binding.getCatalogKey() + "/" + binding.getKey());
                 });
     }
 

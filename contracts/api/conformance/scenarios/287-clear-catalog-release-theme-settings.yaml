@@ -1,0 +1,61 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: clear-catalog-release-theme-settings
+title: Removing a draft's default theme and presets sends a flag and an empty array, never a null
+why: >
+  An omitted or null member of `updateCatalogRelease` keeps its value: generated servers and
+  clients cannot tell the two apart, so null cannot mean "remove". The default theme is removed
+  with `clearDefaultTheme: true`, and the presets with an empty array, which replaces the list
+  with nothing. A client must send the empty array, not drop it as if it were unset, and send the
+  flag without a `defaultTheme` beside it. The response carries neither back.
+
+action:
+  name: set-catalog-release-theme-settings
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: onboarding
+    release: h3v9p6db
+    clearDefaultTheme: true
+    presets: []
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      version: null
+      releaseId: h3v9p6db
+      name: Redesign 2027
+      status: draft
+      base: null
+      createdFrom: null
+      behind: []
+      dependencies: []
+      deployedTo: []
+      presets: []
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PATCH
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/onboarding/releases/h3v9p6db
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
+      body:
+        json:
+          clearDefaultTheme: true
+          presets: []
+        jsonAbsent: [name, defaultTheme]
+  report:
+    releaseId: h3v9p6db
+    name: Redesign 2027
+    defaultThemeKey: 'null'
+    defaultThemeCatalogKey: 'null'
+    presetKeys: ''
+    presetNames: ''
+    presetDescriptions: ''

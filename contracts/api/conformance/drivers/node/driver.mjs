@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url'
 
 const CLIENT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../clients/nodejs-fetch/dist/index.js')
 const {
+  AttributesApi,
   CatalogsApi,
   ClientIdentity,
   CodeListsApi,
@@ -76,6 +77,7 @@ const ACTIONS = {
   'update-environment': updateEnvironment,
   'update-tenant': updateTenant,
   'update-code-list-entry-hidden': updateCodeListEntryHidden,
+  'update-attribute': updateAttribute,
   'update-variant-content': updateVariantContent,
   'get-variant-content': getVariantContent,
   'mark-variant-ready': markVariantReady,
@@ -588,22 +590,31 @@ async function updateCatalogRelease(baseUrl, config) {
   )
 }
 
-/** Sets a draft's default theme and presets; no name goes out, and an unset qualifier stays off the wire. */
+/**
+ * Sets or removes a draft's default theme and presets; no name goes out, and a member or qualifier
+ * the scenario does not set stays off the wire. An empty preset list goes out as is.
+ */
 async function setCatalogReleaseThemeSettings(baseUrl, config) {
-  const defaultTheme = { key: config.defaultThemeKey }
-  if (config.defaultThemeCatalogKey != null) defaultTheme.catalogKey = config.defaultThemeCatalogKey
-  const presets = config.presets.map((entry) => {
-    const preset = { key: entry.key, name: entry.name }
-    if (entry.description != null) preset.description = entry.description
-    return preset
-  })
+  const request = {}
+  if (config.defaultThemeKey != null) {
+    request.defaultTheme = { key: config.defaultThemeKey }
+    if (config.defaultThemeCatalogKey != null) request.defaultTheme.catalogKey = config.defaultThemeCatalogKey
+  }
+  if (config.clearDefaultTheme != null) request.clearDefaultTheme = config.clearDefaultTheme
+  if (config.presets != null) {
+    request.presets = config.presets.map((entry) => {
+      const preset = { key: entry.key, name: entry.name }
+      if (entry.description != null) preset.description = entry.description
+      return preset
+    })
+  }
   const release = await new CatalogsApi(client(baseUrl, config)).updateCatalogRelease({
     tenantKey: config.tenantKey,
     registry: config.registry,
     namespace: config.namespace,
     catalogKey: config.catalogKey,
     release: config.release,
-    updateCatalogReleaseRequest: { defaultTheme, presets },
+    updateCatalogReleaseRequest: request,
   })
   const parsed = release.presets ?? []
   await report(baseUrl, {
@@ -1195,6 +1206,36 @@ async function updateCodeListEntryHidden(baseUrl, config) {
   )
 }
 
+/** Changes an attribute's constraint with only the members the scenario names. */
+async function updateAttribute(baseUrl, config) {
+  await conditionalUpdate(
+    baseUrl,
+    () => new AttributesApi(client(baseUrl, config)).updateAttributeRaw({
+      tenantKey: config.tenantKey,
+      registry: config.registry,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      release: config.release,
+      attributeKey: config.attributeKey,
+      updateAttributeRequest: pick(config, ['allowedValues', 'clearCodeListBinding']),
+      ...ifMatch(config),
+    }),
+    (attribute) => {
+      const binding = attribute.codeListBinding
+      return {
+        key: show(attribute.key),
+        allowedValues: (attribute.allowedValues ?? []).join(','),
+        codeListBinding: binding == null ? 'null' : `${binding.registry}/${binding.namespace}/${binding.catalogKey}/${binding.key}`,
+      }
+    },
+  )
+}
+
+/** The members of `config` named in `keys` that the scenario sets, and no others. */
+function pick(config, keys) {
+  return Object.fromEntries(keys.filter((key) => config[key] != null).map((key) => [key, config[key]]))
+}
+
 /** `If-Match` only when the scenario gives one: an unset tag must stay off the wire. */
 function ifMatch(config) {
   return config.ifMatch !== undefined ? { ifMatch: config.ifMatch } : {}
@@ -1222,8 +1263,9 @@ async function reportBytes(baseUrl, blob) {
 }
 
 /**
- * A partial update that sets exactly one field. Everything the caller did not name must stay off
- * the wire: the contract reads a null on these as "clear this".
+ * A partial update that sets only the members the scenario names. Everything the caller did not
+ * name must stay off the wire: a server built to a contract before 2.0 reads a null on these as
+ * "clear this". An empty `description` is a value, and goes out as is.
  */
 async function updateConsumer(baseUrl, config) {
   await conditionalUpdate(
@@ -1231,7 +1273,7 @@ async function updateConsumer(baseUrl, config) {
     () => new ConsumersApi(client(baseUrl, config)).updateConsumerRaw({
       tenantKey: config.tenantKey,
       consumerId: config.consumerId,
-      updateConsumerRequest: { name: config.name },
+      updateConsumerRequest: pick(config, ['name', 'description', 'clearExpiresAt']),
       ...ifMatch(config),
     }),
     (consumer) => ({

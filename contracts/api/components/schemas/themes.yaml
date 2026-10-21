@@ -155,7 +155,10 @@ CreateThemeRequest:
 
 UpdateThemeRequest:
   type: object
-  description: Request body for updating a theme (partial update)
+  description: |
+    Request body for updating a theme (partial update). An omitted or null member keeps its
+    current value: generated servers and clients cannot tell an omitted member from a null one, so
+    null never means "remove".
   properties:
     name:
       type: string
@@ -167,7 +170,9 @@ UpdateThemeRequest:
       type:
         - string
         - 'null'
-      description: New description for the theme (null to clear)
+      description: |
+        New description for the theme. Omitted or null keeps it; an empty string (or one of only
+        whitespace) removes it.
       example: Updated corporate branding for 2026
     documentStyles:
       $ref: '../../../catalog/schemas/template-shared.schema.json#/$defs/DocumentStyles'
@@ -179,14 +184,18 @@ UpdateThemeRequest:
         - 'null'
       additionalProperties:
         $ref: '../../../catalog/schemas/theme.schema.json#/$defs/BlockStylePreset'
-      description: Named block style presets (null to clear). Key is the preset name.
+      description: |
+        Named block style presets, replacing the current ones as a whole. Key is the preset name.
+        Omitted or null keeps them; an empty object removes every preset.
     spacingUnit:
       type:
         - number
         - 'null'
       minimum: 1
       maximum: 16
-      description: Base spacing unit in points (null to reset to default 4pt).
+      description: |
+        Base spacing unit in points. Omitted or null keeps it; send 4, the default, to go back to
+        it.
       example: 4
 
 ThemeListResponse:
