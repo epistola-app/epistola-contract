@@ -7,6 +7,11 @@ on:
         description: 'Version tag (e.g., 1.0.0 or 1.0-SNAPSHOT)'
         required: true
         type: string
+      tag-latest:
+        description: 'Also tag the image `latest` (false for a pre-release)'
+        required: false
+        default: true
+        type: boolean
   workflow_dispatch:
     inputs:
       version:
@@ -162,7 +167,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=${{ steps.version.outputs.version }}
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ inputs.tag-latest != false }}
 
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
