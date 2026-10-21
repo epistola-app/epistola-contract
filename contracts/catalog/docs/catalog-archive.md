@@ -110,9 +110,11 @@ CatalogArchiveReader.read(
 ```
 
 The registry is written in full, the installation's default by its real name: an archive has no
-default registry. An importer typically chooses the tenant's own namespace. Without either, a v7 or
-older archive is refused with `CATALOG_REGISTRY_MISSING` or `CATALOG_NAMESPACE_MISSING`; an archive
-at v8 names its own and ignores the options. `CatalogValidator.validate(input, policy)` takes it as
+default registry. Both are the catalog's name, which must not change when its releases move between
+installations, so the importer passes the registry and namespace the catalog was given when it was
+created (ADR 0003, amendment of 2026-10-21), never one derived from a tenant key or an installation
+host on the way. Without either, a v7 or older archive is refused with `CATALOG_REGISTRY_MISSING` or
+`CATALOG_NAMESPACE_MISSING`; an archive at v8 names its own and ignores the options. `CatalogValidator.validate(input, policy)` takes it as
 `CatalogValidationPolicy(migration = ...)`.
 
 The writer only emits the current wire version. Re-exporting a migrated catalog that carried a

@@ -25,6 +25,7 @@ import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogNamespaces
 import app.epistola.catalog.protocol.CatalogPresets
+import app.epistola.catalog.protocol.CatalogReleaseIds
 import app.epistola.catalog.protocol.CatalogReleaseVersions
 import app.epistola.catalog.protocol.CatalogResource
 import app.epistola.catalog.protocol.CatalogThemeRef
@@ -178,6 +179,19 @@ object CatalogValidationCodes {
 
     /** `release.version` is not a release number ([CatalogReleaseVersions]: `MAJOR.MINOR.PATCH`). */
     const val RELEASE_VERSION_INVALID = "CATALOG_RELEASE_VERSION_INVALID"
+
+    /** `release.releaseId` is not a release id ([CatalogReleaseIds]). */
+    const val RELEASE_ID_INVALID = "CATALOG_RELEASE_ID_INVALID"
+
+    /**
+     * `release.metadata` is empty, names more than [CatalogVariantMetadata.MAX_NAMESPACES]
+     * namespaces, or names one that is not a reverse-DNS namespace: the rules of a variant's
+     * metadata ([CatalogVariantMetadata]).
+     */
+    const val RELEASE_METADATA_INVALID = "CATALOG_RELEASE_METADATA_INVALID"
+
+    /** `release.metadata` exceeds [CatalogVariantMetadata.MAX_SERIALIZED_BYTES] serialized. */
+    const val RELEASE_METADATA_TOO_LARGE = "CATALOG_RELEASE_METADATA_TOO_LARGE"
     const val RELEASE_TIMESTAMP_INVALID = "CATALOG_RELEASE_TIMESTAMP_INVALID"
     const val RELEASE_FINGERPRINT_INVALID = "CATALOG_RELEASE_FINGERPRINT_INVALID"
     const val RELEASE_FINGERPRINT_MISMATCH = "CATALOG_RELEASE_FINGERPRINT_MISMATCH"
@@ -379,7 +393,15 @@ object ResourceValidator {
             findings.error(CatalogValidationCodes.TEMPLATE_VARIANT_DEFAULT_INVALID, "$path.variants", "at most one variant may be the default")
         }
         resource.variants.forEachIndexed { index, variant ->
-            variant.metadata?.let { validateVariantMetadata(it, "$path.variants[$index].metadata", findings) }
+            variant.metadata?.let {
+                validateMetadata(
+                    it,
+                    "$path.variants[$index].metadata",
+                    CatalogValidationCodes.VARIANT_METADATA_INVALID,
+                    CatalogValidationCodes.VARIANT_METADATA_TOO_LARGE,
+                    findings,
+                )
+            }
         }
         resource.description?.let { description ->
             if (description.codePointCount(0, description.length) > TemplateResource.MAX_DESCRIPTION_LENGTH) {
@@ -438,17 +460,20 @@ object ResourceValidator {
     }
 
     /**
-     * Holds a variant's metadata to [CatalogVariantMetadata]: one to sixteen reverse-DNS namespaces,
-     * at most 8 KiB serialized. What a namespace holds is its producer's business, not checked here.
+     * Holds a variant's or a release's metadata to [CatalogVariantMetadata]: one to sixteen
+     * reverse-DNS namespaces, at most 8 KiB serialized, reported as [invalid] and [tooLarge]. What a
+     * namespace holds is its producer's business, not checked here.
      */
-    private fun validateVariantMetadata(
+    internal fun validateMetadata(
         metadata: Map<String, Map<String, Any?>>,
         path: String,
+        invalid: String,
+        tooLarge: String,
         findings: MutableList<CatalogValidationFinding>,
     ) {
         if (metadata.size !in CatalogVariantMetadata.MIN_NAMESPACES..CatalogVariantMetadata.MAX_NAMESPACES) {
             findings.error(
-                CatalogValidationCodes.VARIANT_METADATA_INVALID,
+                invalid,
                 path,
                 "metadata must name ${CatalogVariantMetadata.MIN_NAMESPACES} to ${CatalogVariantMetadata.MAX_NAMESPACES} namespaces; omit it when empty",
             )
@@ -456,7 +481,7 @@ object ResourceValidator {
         metadata.keys.sorted().forEach { namespace ->
             if (!CatalogVariantMetadata.isValidNamespace(namespace)) {
                 findings.error(
-                    CatalogValidationCodes.VARIANT_METADATA_INVALID,
+                    invalid,
                     "$path.$namespace",
                     "metadata namespace '$namespace' must be a lowercase reverse-DNS name of at most ${CatalogVariantMetadata.NAMESPACE_MAX_LENGTH} characters",
                 )
@@ -465,7 +490,7 @@ object ResourceValidator {
         val size = metadataMapper.writeValueAsBytes(metadata).size
         if (size > CatalogVariantMetadata.MAX_SERIALIZED_BYTES) {
             findings.error(
-                CatalogValidationCodes.VARIANT_METADATA_TOO_LARGE,
+                tooLarge,
                 path,
                 "metadata is $size bytes serialized; at most ${CatalogVariantMetadata.MAX_SERIALIZED_BYTES} are allowed",
             )
@@ -1071,6 +1096,25 @@ object CatalogValidator {
                 CatalogValidationCodes.RELEASE_VERSION_INVALID,
                 "catalog.json.release.version",
                 "release version must be MAJOR.MINOR.PATCH, without a pre-release or build part",
+            )
+        }
+        release.releaseId?.let {
+            if (!CatalogReleaseIds.isValid(it)) {
+                findings.error(
+                    CatalogValidationCodes.RELEASE_ID_INVALID,
+                    "catalog.json.release.releaseId",
+                    "releaseId must be lowercase letters, digits and single hyphens, " +
+                        "${CatalogReleaseIds.MIN_LENGTH} to ${CatalogReleaseIds.MAX_LENGTH} characters",
+                )
+            }
+        }
+        release.metadata?.let {
+            ResourceValidator.validateMetadata(
+                it,
+                "catalog.json.release.metadata",
+                CatalogValidationCodes.RELEASE_METADATA_INVALID,
+                CatalogValidationCodes.RELEASE_METADATA_TOO_LARGE,
+                findings,
             )
         }
         release.releasedAt?.let {

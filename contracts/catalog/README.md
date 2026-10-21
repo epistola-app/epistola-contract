@@ -91,7 +91,9 @@ rules are defined the same way: `CatalogNamespaces` in Kotlin, and `CATALOG_REGI
 `MAX_CATALOG_REGISTRY_LENGTH`, `CATALOG_NAMESPACE_PATTERN`, `MIN_CATALOG_NAMESPACE_LENGTH`,
 and `MAX_CATALOG_NAMESPACE_LENGTH` in TypeScript.
 Paths into the catalog are `CatalogArchivePaths` and `CATALOG_ARCHIVE_PATH_PATTERN`; variant
-metadata is `CatalogVariantMetadata` and the `…VARIANT_METADATA…` constants; resource keys, data
+metadata is `CatalogVariantMetadata` and the `…VARIANT_METADATA…` constants, whose rules a
+release's `metadata` follows too; a release id is `CatalogReleaseIds` and
+`CATALOG_RELEASE_ID_PATTERN`, `MIN_CATALOG_RELEASE_ID_LENGTH` and `MAX_CATALOG_RELEASE_ID_LENGTH`; resource keys, data
 example keys among them, are `CatalogKeys` (`PATTERN`, `MIN_LENGTH`, `MAX_LENGTH`, `RESOURCE`,
 `isValid`, the migration's `migrate`, and `deriveDataExampleKey`) and
 `CATALOG_RESOURCE_KEY_PATTERN`, `MIN_CATALOG_RESOURCE_KEY_LENGTH` and

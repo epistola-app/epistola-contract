@@ -26,7 +26,18 @@
     "name": "Epistola"
   },
   "release": {
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "releaseId": "k7m2x9qa",
+    "metadata": {
+      "app.epistola.suite": {
+        "renderingDefaultsVersion": 6
+      },
+      "com.example.renderer": {
+        "nested": {
+          "list": [1, "two", null]
+        }
+      }
+    }
   },
   "resources": [
     {

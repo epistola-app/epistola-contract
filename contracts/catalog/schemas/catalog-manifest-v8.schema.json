@@ -391,6 +391,28 @@
             "null"
           ],
           "pattern": "^v[1-9][0-9]*:[0-9a-f]{64}$"
+        },
+        "releaseId": {
+          "description": "The release's id: lowercase letters, digits and single hyphens, 4 to 36 characters, the same rule as the API's CatalogReleaseId. Unique among the releases of the catalog's name (registry, namespace and key) and kept when the release moves to another installation, by the Exchange, a registry or a file, so the release is the same everywhere. Optional: an archive without one gets one when it is installed. Release metadata, like the number: the fingerprint does not cover it.",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 4,
+          "maxLength": 36
+        },
+        "metadata": {
+          "description": "Producer-specific facts about the release that the contract carries but does not define, by namespace, as a variant's metadata is: each property name is a reverse-DNS namespace the producer owns (app.epistola.suite records its renderingDefaultsVersion there); only that producer writes into it, and every other reader, one that does not recognise the namespace included, keeps it as it is, member for member, when it installs, migrates or re-exports the release. Each value is a JSON object the contract does not interpret. Omitted rather than empty. Release metadata: the fingerprint does not cover it. At most 8 KiB serialized, which the validator checks.",
+          "type": "object",
+          "patternProperties": {
+            "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$": {
+              "type": "object"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 100
+          },
+          "additionalProperties": false,
+          "minProperties": 1,
+          "maxProperties": 16
         }
       },
       "required": [

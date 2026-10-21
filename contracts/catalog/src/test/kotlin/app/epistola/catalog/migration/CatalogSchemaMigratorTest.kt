@@ -461,6 +461,25 @@ class CatalogSchemaMigratorTest {
     }
 
     @Test
+    fun `a v8 manifest names its release id by the API's rule`() {
+        fun findings(releaseId: Any?): List<Pair<String, String>> {
+            val tree = resource("wire-v8/catalog.json").use(mapper::readTree) as ObjectNode
+            val release = tree["release"] as ObjectNode
+            when (releaseId) {
+                null -> release.putNull("releaseId")
+                is Int -> release.put("releaseId", releaseId)
+                else -> release.put("releaseId", releaseId as String)
+            }
+            return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(mapper.writeValueAsBytes(tree)), OPTIONS)
+                .findings.map { it.code to it.path }
+        }
+        val invalid = listOf(CatalogMigrationCodes.RELEASE_ID_INVALID to "catalog.json.release.releaseId")
+
+        listOf("k7m2x9qa", "f47ac10b-58cc-4372-a567-0e02b2c3d479", null).forEach { assertEquals(emptyList(), findings(it), "$it") }
+        listOf("abc", "K7M2X9QA", "1.0.0", "k7--m2", "a".repeat(37), 1234).forEach { assertEquals(invalid, findings(it), "$it") }
+    }
+
+    @Test
     fun `a pre-release or build version from before wire v8 is a migration finding, never stripped`() {
         fun findings(fixture: String, version: String): List<CatalogMigrationFinding> {
             val tree = resource(fixture).use(mapper::readTree) as ObjectNode

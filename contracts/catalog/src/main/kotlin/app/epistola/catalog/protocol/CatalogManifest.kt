@@ -442,11 +442,27 @@ data class PublisherInfo(
  *   current one (`v5:<hex>`, [QualifiedCatalogFingerprint]); before wire v8 it
  *   is bare lowercase SHA-256 hex whose algorithm the wire version implies.
  *   Nullable for catalogs produced before fingerprinting.
+ * @param releaseId the release's id (wire v8, [CatalogReleaseIds]): unique among the releases of
+ *   the catalog's name (registry, namespace and key), and kept when the release moves to another
+ *   installation, through an exchange, a registry or a file, so that the release is the same
+ *   everywhere. Null when the producer recorded none; the receiver then assigns one. Release
+ *   metadata like [version]: the fingerprint does not cover it. Omitted when null.
+ * @param metadata producer-specific facts about the release (wire v8) that the contract carries
+ *   but does not define, keyed by a reverse-DNS namespace the producer owns, each value a JSON
+ *   object, under the same rules as a variant's metadata ([CatalogVariantMetadata]): Epistola Suite
+ *   records the rendering-defaults version a release was cut with as
+ *   `{"app.epistola.suite": {"renderingDefaultsVersion": 6}}`. Only the owning producer writes a
+ *   namespace; every other reader keeps it, an unrecognised one included, member for member. Not
+ *   covered by the fingerprint. Omitted when null or empty, since the wire forbids `{}`.
  */
 data class ReleaseInfo(
     val version: String,
     val releasedAt: String? = null,
     val fingerprint: String? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val releaseId: String? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
+    val metadata: Map<String, Map<String, Any?>>? = null,
 )
 
 /**

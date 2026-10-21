@@ -154,6 +154,9 @@ API's `ReleaseVersion` (`CatalogReleaseVersions`; `CATALOG_RELEASE_VERSION_INVAL
 `CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`, also raised by the migrator's wire check). Earlier
 wire versions accepted full SemVer; migrating a release numbered `1.0.0-beta.1` or `1.0.0+5` to
 v8 is a finding (`CATALOG_RELEASE_VERSION_INVALID`), never a silent strip.
+A release's `releaseId`, when it carries one, is the API's `CatalogReleaseId` (`CatalogReleaseIds`;
+`CATALOG_RELEASE_ID_INVALID`, also raised by the migrator's wire check), and its `metadata` follows
+the rules of a variant's (`CATALOG_RELEASE_METADATA_INVALID`, `CATALOG_RELEASE_METADATA_TOO_LARGE`).
 A recorded `releaseVersion` comes with the `releaseFingerprint` of that release, naming a known
 algorithm (`v5:<lowercase SHA-256 hex>`), and an unrecorded one with a null fingerprint
 (`CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`, also raised by the migrator's wire check).

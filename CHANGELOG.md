@@ -11,6 +11,17 @@ libraries.
 
 ### Added
 
+- **A release carries its id and producer metadata** (catalog wire v8, changed in place: v8 is
+  unreleased). `release.releaseId` (`ReleaseInfo.releaseId`) is the release's id, by the API's
+  `CatalogReleaseId` rule (`CatalogReleaseIds`; TypeScript `CATALOG_RELEASE_ID_PATTERN`,
+  `MIN_CATALOG_RELEASE_ID_LENGTH`, `MAX_CATALOG_RELEASE_ID_LENGTH`), unique among the releases of
+  the catalog's name and kept when the release moves to another installation.
+  `release.metadata` (`ReleaseInfo.metadata`) holds producer-specific facts under a reverse-DNS
+  namespace per producer, by the rules of a variant's `metadata`: Epistola Suite records its
+  `renderingDefaultsVersion` there. Consumers keep every namespace, unknown ones included, member
+  for member. Both are optional, omitted when absent, and not covered by the fingerprint, so every
+  published fingerprint stays valid. New findings `CATALOG_RELEASE_ID_INVALID` (validator and the
+  migrator's wire check), `CATALOG_RELEASE_METADATA_INVALID` and `CATALOG_RELEASE_METADATA_TOO_LARGE`.
 - **A catalog's default theme and declared presets** (ADR 0007). The catalog manifest's `CatalogInfo`
   gains two optional wire-v8 members, added to v8 because 2.0 is unreleased: `defaultTheme`
   (`CatalogThemeRef`: `key`, and `catalogKey`, `namespace`, `registry` qualified like every other
@@ -232,6 +243,10 @@ libraries.
 
 ### Changed
 
+- **A catalog carries its font faces as resources of its release, the bundled `system` catalog
+  included**: the family, each face's bytes in the archive and both inside the fingerprint, as for
+  images. The catalog model's documentation said bundled system fonts were never exported; nothing
+  in the model or the validator refused them, so only the documentation changes.
 - **BREAKING: an attribute criterion names its attribute one way.** `VariantSelectionAttribute`
   (the `attributes` of a generation, batch item or preview request) names the attribute by its key
   and the catalog that defines it, each in a member of its own: `key` is the attribute's resource
@@ -701,6 +716,9 @@ libraries.
 
 ### Fixed
 
+- **The catalog's `CatalogReleaseVersionsTest` read the API's `ReleaseVersion` from
+  `catalogs.yaml`**, which no longer defines it since the key and number rules moved to
+  `identifiers.yaml`, so the parity check failed. It reads `identifiers.yaml` now.
 - **`ping` sends credentials.** It declared `security: []`, which tells a generated client the
   operation takes none, so the authenticated `details` were unreachable. Authentication is now
   optional (`{}` and every scheme). `PongDetailsDto.partitions` no longer speaks of "this tenant"

@@ -12,6 +12,7 @@ import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogNamespaces
 import app.epistola.catalog.protocol.CatalogPresetDeclaration
 import app.epistola.catalog.protocol.CatalogPresets
+import app.epistola.catalog.protocol.CatalogReleaseIds
 import app.epistola.catalog.protocol.CatalogReleaseVersions
 import app.epistola.catalog.protocol.KeywordRule
 import app.epistola.catalog.protocol.PresetRule
@@ -39,8 +40,10 @@ object CatalogWireSchema {
  * What the caller knows about a catalog that its archive does not say.
  *
  * A catalog migrated from wire v7 or earlier names neither its registry nor its namespace, and both
- * are identity: an importer typically chooses the tenant's own namespace in its installation's
- * registry. Both are ignored for an archive at wire v8 or later, which names its own. Without
+ * are identity, the catalog's name, which must not change when its releases move between
+ * installations: the importer passes the registry and namespace chosen when the catalog was created
+ * (ADR 0003, amendment of 2026-10-21), never values derived from a tenant key or an installation's
+ * host on the way. Both are ignored for an archive at wire v8 or later, which names its own. Without
  * either, migrating such an archive fails with [CatalogMigrationCodes.REGISTRY_MISSING] or
  * [CatalogMigrationCodes.NAMESPACE_MISSING]; the migrator never invents one.
  *
@@ -146,6 +149,12 @@ object CatalogMigrationCodes {
      * release.
      */
     const val RELEASE_VERSION_INVALID = "CATALOG_RELEASE_VERSION_INVALID"
+
+    /**
+     * A catalog-v8 manifest's `release.releaseId` is not a release id ([CatalogReleaseIds]:
+     * lowercase letters, digits and single hyphens, 4 to 36 characters).
+     */
+    const val RELEASE_ID_INVALID = "CATALOG_RELEASE_ID_INVALID"
 
     /**
      * A catalog-v8 catalog dependency's `releaseVersion` is not a release number
@@ -398,6 +407,7 @@ object CatalogSchemaMigrator {
     ): List<CatalogMigrationFinding> = renamedMemberFindings(CatalogKeyRenames.manifestSites(tree)) +
         namespaceFindings(tree) +
         releaseVersionFindings(tree) +
+        releaseIdFindings(tree) +
         releaseFingerprintFindings(tree) +
         keywordFindings(tree) +
         presetFindings(tree) +
@@ -490,6 +500,23 @@ object CatalogSchemaMigrator {
             }
         }
         return findings
+    }
+
+    /**
+     * Wire v8 names a release's id, when it carries one, by the API's rule ([CatalogReleaseIds]).
+     * The model binds any string, so that stored manifests still load; the wire check enforces it.
+     */
+    private fun releaseIdFindings(tree: ObjectNode): List<CatalogMigrationFinding> {
+        val releaseId = tree["release"]?.get("releaseId")?.takeUnless { it.isNull } ?: return emptyList()
+        if (releaseId.isString && CatalogReleaseIds.isValid(releaseId.asString())) return emptyList()
+        return listOf(
+            CatalogMigrationFinding(
+                CatalogMigrationCodes.RELEASE_ID_INVALID,
+                "catalog.json.release.releaseId",
+                "releaseId must be lowercase letters, digits and single hyphens, " +
+                    "${CatalogReleaseIds.MIN_LENGTH} to ${CatalogReleaseIds.MAX_LENGTH} characters",
+            ),
+        )
     }
 
     /**
