@@ -94,8 +94,8 @@ declared presets hashes exactly as it did before the members existed. V1 to V4 n
 assignment's `catalog` `catalogKey`). V5 canonicalizes the new names. V1 to V4 canonicalize those members under their
 old names whatever the archive calls them, both in the manifest projection and in each resource's
 canonical JSON (`CatalogKeyRenames` lists the positions), so the rename moves no published V1 to V4
-fingerprint, and a v7 archive's V4 fingerprint still verifies after migration. Per-resource
-fingerprints (`perResourceFingerprints`, `currentPerResourceFingerprints`) belong to V1 and V3 and
+fingerprint, and a v7 archive's V4 fingerprint still verifies after migration. The per-resource
+fingerprints `perResourceFingerprints` and `currentPerResourceFingerprints` belong to V1 and V3 and
 keep the old names too.
 
 **Members wire v8 added to a template.** A data example's `key`, a template's `description` and a
@@ -106,6 +106,24 @@ keys sorted, numbers as JSON binding normalizes them, as for any other free-form
 part of every v8 example. V1 to V4 leave all three out (`CatalogV8Additions`): they canonicalize a
 resource as a v7 producer serialized it, so the key the v7-to-v8 migration derives for each example
 moves no published fingerprint.
+
+**Per-resource fingerprints.** Three forms map every `type/key` resource to a lowercase hex
+SHA-256 over that resource alone, an image's bytes included:
+
+| Function | Algorithm | Covers |
+| --- | --- | --- |
+| `perResourceFingerprints` | V1 | the resource as a v7 producer wrote it, under the names before v8 |
+| `currentPerResourceFingerprints` | V3 | the same, with a stencil node's `isDraft` left out, as V3 does |
+| `completePerResourceFingerprints` | V5 | the resource's complete v8 content, under the v8 names, as V5 covers it |
+
+**To tell resources apart when merging or diffing, use `completePerResourceFingerprints`.** It is
+the per-resource counterpart of the current catalog fingerprint (V5): it names every member as wire
+v8 does and covers what v8 added (a template's `description`, a variant's `metadata`, a data
+example's `key`), so a change to only those changes the value of that resource and of no other.
+The V1 and V3 forms leave them out (`CatalogV8Additions`), so a resource changed only there looks
+unchanged. Its values are hashed under their own domain prefix, `resource sha256-v5`, and never
+equal a V1 or V3 value; compare them only with each other. The older forms are kept, with the values
+they always had, for consumers that stored them.
 
 **Why a new algorithm rather than extending V4.** V4 fingerprints are already published and must
 keep verifying. Adding the registry, namespace and catalog dependencies to V4 would change every V4 value; a
@@ -139,4 +157,5 @@ Authoritative versioned inputs and expected hashes are published below
 algorithm's fingerprint of the wire-v4 golden catalog and, as `currentWireV8CatalogFingerprint`,
 the V5 fingerprint of the wire-v8 golden catalog, whose declared dependency records a release and
 its fingerprint, and whose template carries a description, a keyed data example and variant
-metadata.
+metadata. `completeWireV8ResourceFingerprints` pins `completePerResourceFingerprints` of that
+catalog.

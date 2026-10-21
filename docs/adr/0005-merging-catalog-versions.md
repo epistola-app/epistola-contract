@@ -54,10 +54,12 @@ after a merge, so the number a draft needs is still decided by ADR 0002's rules 
 
 The merge compares three states of each resource, identified by type and key (ADR 0004): the
 draft's **base**, **theirs** (the release merged in) and **ours** (the draft). Each state is the
-resource's canonical fingerprint (`CatalogCanonicalizer.currentPerResourceFingerprints`, the
-per-resource form of V3, which installations compare resources with; amended 2026-10-21, it named
-`perResourceFingerprints`, the V1 form), so key order, number formatting and the like never make a
-difference. A resource absent from a state is not in it: added on a side that has it and the base
+resource's canonical fingerprint (`CatalogCanonicalizer.completePerResourceFingerprints`, the
+per-resource form of V5, the current catalog algorithm; amended twice on 2026-10-21: it named
+`perResourceFingerprints`, the V1 form, then `currentPerResourceFingerprints`, the V3 form, both of
+which leave out what wire v8 added to a resource, a template's `description`, a variant's
+`metadata` and a data example's `key`, so a change to only those looked like no change), so key
+order, number formatting and the like never make a difference. A resource absent from a state is not in it: added on a side that has it and the base
 does not, removed on a side that does not have it and the base does.
 
 | Ours vs base | Theirs vs base | Outcome     | Merging                                     |

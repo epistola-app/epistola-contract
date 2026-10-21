@@ -619,6 +619,29 @@ object CatalogCanonicalizer {
     }
 
     /**
+     * Returns a hash for every `type/key` resource over its complete content, as the V5 algorithm
+     * covers it: the per-resource counterpart of [currentFingerprint].
+     *
+     * Use this to tell resources apart when merging or diffing releases. Unlike
+     * [perResourceFingerprints] (V1) and [currentPerResourceFingerprints] (V3), which canonicalize a
+     * resource as a catalog-v7 producer serialized it, it covers what catalog v8 added to a resource
+     * (a template's `description`, a variant's `metadata`, a data example's `key`) and names every
+     * member as catalog v8 does, so a change to only those members changes the resource's value. Two
+     * resources have the same value exactly when V5 covers them alike: object keys sorted, numbers
+     * as JSON binding normalizes them, and an image's bytes included.
+     *
+     * The values are the lowercase hex SHA-256 under the domain prefix `resource sha256-v5`, so they
+     * never equal a V1 or V3 per-resource value. They are not interchangeable with the older forms:
+     * compare values computed by this function only. It stays the V5 form; content a later wire
+     * version adds gets a form of its own.
+     *
+     * @throws java.io.IOException when referenced archive content cannot be read.
+     */
+    fun completePerResourceFingerprints(catalog: CatalogArchive): Map<String, String> = currentEntries(catalog, currentNames = true).sortedBy(Entry::key).associate { entry ->
+        entry.key to sha256(("resource sha256-v5\n" + entry.canonicalJson + "\u0000" + entry.assetHash).byteInputStream())
+    }
+
+    /**
      * Serializes only the resource payload with recursively sorted object keys.
      *
      * The surrounding [ResourceDetail.schemaVersion] is intentionally omitted.
