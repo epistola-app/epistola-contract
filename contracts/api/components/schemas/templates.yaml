@@ -509,7 +509,9 @@ CreateTemplateRequest:
     description:
       type: [string, "null"]
       maxLength: 2000
-      description: Plain-text notes on the template for its authors (design decisions, known gaps). Not rendered.
+      description: |
+        Plain-text notes on the template for its authors (design decisions, known gaps). Not rendered.
+        Omitted, null or an empty string (or one of only whitespace): the template has none.
       example: Monthly invoice; the payment block follows the 2026 house style.
     schema:
       type: object
@@ -605,7 +607,9 @@ UpdateTemplateRequest:
       maxLength: 2000
       description: |
         Plain-text notes on the template for its authors (design decisions, known gaps). Not rendered.
-        Omit to keep the current description; null clears it.
+        Omitted or null keeps the current description; an empty string (or one of only whitespace)
+        removes it. Null cannot mean "remove": generated servers and clients cannot tell an omitted
+        member from a null one.
       example: Monthly invoice; the payment block follows the 2026 house style.
     schema:
       type: object
