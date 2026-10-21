@@ -1,0 +1,12 @@
+# Path parameters of the release-registry operations (alpha, ADR 0008).
+
+ReleaseRegistryName:
+  name: name
+  in: path
+  required: true
+  description: |
+    The release registry, by the name this installation gives it (`listReleaseRegistries`). Not a
+    catalog's registry: a release registry is where releases are published to and installed from.
+  schema:
+    $ref: '../schemas/identifiers.yaml#/ReleaseRegistryName'
+  example: acme

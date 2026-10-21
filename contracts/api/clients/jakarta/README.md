@@ -213,6 +213,9 @@ try {
         // importCatalog / installCatalogRelease: the release renders with rendering defaults this
         // installation does not have (renderingDefaultsVersion, supportedVersion in the body)
         log.warn("upgrade Epistola to receive this release");
+    } else if (KnownProblemSlugs.RELEASE_NUMBER_TAKEN.equals(slug)) {
+        // publishReleaseToRegistry (alpha): the registry has this version with other content
+        log.warn("release the changes under a new version");
     } else if (KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE.equals(slug)) {
         // from installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source
         // could not be reached (Retry-After may say when to retry), 502 when it answered badly

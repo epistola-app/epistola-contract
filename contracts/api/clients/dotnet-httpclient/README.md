@@ -186,6 +186,11 @@ release renders with rendering defaults this installation does not have is refus
 `catalog-rendering-defaults-too-new` (400; the body's `renderingDefaultsVersion` and
 `supportedVersion` say which): upgrade Epistola to receive it.
 
+Publishing a release to a release registry (`PublishReleaseToRegistry`, alpha) is refused with
+`release-number-taken` when the registry holds that version with other content, with
+`namespace-not-granted` when the registry (the Exchange) does not grant the catalog's namespace,
+and a registry the installation does not have is `release-registry-not-found`.
+
 Listing or installing the releases a catalog's source offers fails with
 `catalog-source-unavailable` when that source cannot be used: 503 when it could not be reached or
 timed out (a `Retry-After` header may say when to try again), 502 when it answered badly. Nothing

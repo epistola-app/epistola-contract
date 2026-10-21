@@ -72,6 +72,10 @@ public static class Driver
                 case "release-catalog-draft": ReleaseCatalogDraft(baseUrl, config); break;
                 case "preview-catalog-draft-merge": PreviewCatalogDraftMerge(baseUrl, config); break;
                 case "merge-into-catalog-draft": MergeIntoCatalogDraft(baseUrl, config); break;
+                case "list-release-registries": ListReleaseRegistries(baseUrl, config); break;
+                case "list-registry-releases": ListRegistryReleases(baseUrl, config); break;
+                case "install-registry-release": InstallRegistryRelease(baseUrl, config); break;
+                case "publish-release-to-registry": PublishReleaseToRegistry(baseUrl, config); break;
                 case "deploy-catalog-release": DeployCatalogRelease(baseUrl, config); break;
                 case "undeploy-catalog-release": UndeployCatalogRelease(baseUrl, config); break;
                 case "create-environment": CreateEnvironment(baseUrl, config); break;
@@ -892,6 +896,109 @@ public static class Driver
             ["missingBase"] = preview.MissingBase is { } missingBase ? $"{missingBase.Version}@{missingBase.Fingerprint}" : "null",
         });
     }
+
+    /// <summary>Lists the release registries (alpha), each as <c>name:kind</c>.</summary>
+    private static void ListReleaseRegistries(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        var registries = new CatalogsApi(http, apiBase).ListReleaseRegistries(Str(config, "tenantKey"));
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["registries"] = string.Join(",", registries.Items.Select(r => $"{Show(r.Name)}:{Wire(r.Kind)}")),
+        });
+    }
+
+    /// <summary>
+    /// Lists the releases of a catalog in a release registry (alpha), each as
+    /// <c>version:fingerprint:releaseId:base</c>, the base as <c>version@fingerprint</c>, a missing
+    /// value as <c>null</c>.
+    /// </summary>
+    private static void ListRegistryReleases(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        RegistryReleaseListResponse releases;
+        try
+        {
+            releases = new CatalogsApi(http, apiBase).ListRegistryReleases(
+                Str(config, "tenantKey"), Str(config, "name"), Str(config, "namespace"), Str(config, "catalogKey"));
+        }
+        catch (ProblemDetailException e)
+        {
+            ReportProblemOnly(baseUrl, e);
+            return;
+        }
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["registry"] = Show(releases.Registry),
+            ["namespace"] = Show(releases.Namespace),
+            ["catalogKey"] = Show(releases.CatalogKey),
+            ["releases"] = string.Join(",", releases.Items.Select(r =>
+                $"{Show(r.Version)}:{Show(r.Fingerprint)}:{Show(r.ReleaseId)}:" +
+                (r.Base == null ? "null" : $"{Show(r.Base.Version)}@{Show(r.Base.Fingerprint)}"))),
+        });
+    }
+
+    /// <summary>Installs a release from a release registry (alpha). A refusal is reported by its problem.</summary>
+    private static void InstallRegistryRelease(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        ImportCatalogResponse installed;
+        try
+        {
+            installed = new CatalogsApi(http, apiBase).InstallRegistryRelease(
+                Str(config, "tenantKey"), Str(config, "name"), Str(config, "namespace"), Str(config, "catalogKey"),
+                Str(config, "version"));
+        }
+        catch (ProblemDetailException e)
+        {
+            ReportProblemOnly(baseUrl, e);
+            return;
+        }
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["registry"] = Show(installed.Registry),
+            ["namespace"] = Show(installed.Namespace),
+            ["catalogKey"] = Show(installed.CatalogKey),
+            ["version"] = Show(installed.Version),
+            ["newlyInstalled"] = Bool(installed.NewlyInstalled),
+            ["total"] = Show(installed.Total),
+        });
+    }
+
+    /// <summary>Publishes a released release to the release registry <c>config.to</c> (alpha).</summary>
+    private static void PublishReleaseToRegistry(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        ReleasePublicationDto published;
+        try
+        {
+            published = new CatalogsApi(http, apiBase).PublishReleaseToRegistry(
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
+                Str(config, "release"), new PublishReleaseToRegistryRequest(to: Str(config, "to")));
+        }
+        catch (ProblemDetailException e)
+        {
+            ReportProblemOnly(baseUrl, e);
+            return;
+        }
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["status"] = Wire(published.Status),
+            ["registry"] = Show(published.Registry),
+            ["version"] = Show(published.Version),
+            ["digest"] = Show(published.Digest),
+        });
+    }
+
+    private static void ReportProblemOnly(string baseUrl, ProblemDetailException e) =>
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
+            ["problemStatus"] = (int)e.StatusCode,
+        });
 
     /// <summary>
     /// Merges the release <c>config.version</c> into the draft <c>config.release</c> (alpha), with

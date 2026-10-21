@@ -36,6 +36,7 @@ import app.epistola.client.model.GenerateDocumentRequest
 import app.epistola.client.model.MergeIntoCatalogDraftRequest
 import app.epistola.client.model.Node
 import app.epistola.client.model.PingRequest
+import app.epistola.client.model.PublishReleaseToRegistryRequest
 import app.epistola.client.model.ReleaseCatalogDraftRequest
 import app.epistola.client.model.TemplateDocument
 import app.epistola.client.model.ThemeRef
@@ -120,6 +121,10 @@ object Driver {
                 "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config)
                 "preview-catalog-draft-merge" -> previewCatalogDraftMerge(baseUrl, config)
                 "merge-into-catalog-draft" -> mergeIntoCatalogDraft(baseUrl, config)
+                "list-release-registries" -> listReleaseRegistries(baseUrl, config)
+                "list-registry-releases" -> listRegistryReleases(baseUrl, config)
+                "install-registry-release" -> installRegistryRelease(baseUrl, config)
+                "publish-release-to-registry" -> publishReleaseToRegistry(baseUrl, config)
                 "deploy-catalog-release" -> deployCatalogRelease(baseUrl, config)
                 "undeploy-catalog-release" -> undeployCatalogRelease(baseUrl, config)
                 "create-environment" -> createEnvironment(baseUrl, config)
@@ -915,6 +920,94 @@ object Driver {
                 "unchanged" to preview.unchanged.toString(),
                 "token" to preview.token,
                 "missingBase" to (preview.missingBase?.let { "${it.version}@${it.fingerprint}" } ?: "null"),
+            ),
+        )
+    }
+
+    /** Lists the release registries (alpha), each as `name:kind`. */
+    private fun listReleaseRegistries(baseUrl: String, config: ObjectNode) {
+        val registries = CatalogsApi(restClient(baseUrl, config)).listReleaseRegistries(config["tenantKey"].asText())
+        report(baseUrl, mapOf("registries" to registries.items.joinToString(",") { "${it.name}:${it.kind.value}" }))
+    }
+
+    /**
+     * Lists the releases of a catalog in a release registry (alpha), each as
+     * `version:fingerprint:releaseId:base`, the base as `version@fingerprint`, a missing value as `null`.
+     */
+    private fun listRegistryReleases(baseUrl: String, config: ObjectNode) {
+        val releases = try {
+            CatalogsApi(restClient(baseUrl, config)).listRegistryReleases(
+                config["tenantKey"].asText(),
+                config["name"].asText(),
+                config["namespace"].asText(),
+                config["catalogKey"].asText(),
+            )
+        } catch (e: ProblemDetailException) {
+            report(baseUrl, mapOf("problemTypeSlug" to (e.typeSlug ?: "<null>"), "problemStatus" to e.statusCode.value()))
+            return
+        }
+        report(
+            baseUrl,
+            mapOf(
+                "registry" to releases.registry,
+                "namespace" to releases.namespace,
+                "catalogKey" to releases.catalogKey,
+                "releases" to releases.items.joinToString(",") {
+                    "${it.version}:${it.fingerprint ?: "null"}:${it.releaseId ?: "null"}:${it.base?.let { b -> "${b.version}@${b.fingerprint}" } ?: "null"}"
+                },
+            ),
+        )
+    }
+
+    /** Installs a release from a release registry (alpha). A refusal is reported by its problem. */
+    private fun installRegistryRelease(baseUrl: String, config: ObjectNode) {
+        val installed = try {
+            CatalogsApi(restClient(baseUrl, config)).installRegistryRelease(
+                config["tenantKey"].asText(),
+                config["name"].asText(),
+                config["namespace"].asText(),
+                config["catalogKey"].asText(),
+                config["version"].asText(),
+            )
+        } catch (e: ProblemDetailException) {
+            report(baseUrl, mapOf("problemTypeSlug" to (e.typeSlug ?: "<null>"), "problemStatus" to e.statusCode.value()))
+            return
+        }
+        report(
+            baseUrl,
+            mapOf(
+                "registry" to installed.registry,
+                "namespace" to installed.namespace,
+                "catalogKey" to installed.catalogKey,
+                "version" to installed.version,
+                "newlyInstalled" to installed.newlyInstalled.toString(),
+                "total" to installed.total.toString(),
+            ),
+        )
+    }
+
+    /** Publishes a released release to the release registry `config.to` (alpha). A refusal is reported by its problem. */
+    private fun publishReleaseToRegistry(baseUrl: String, config: ObjectNode) {
+        val published = try {
+            CatalogsApi(restClient(baseUrl, config)).publishReleaseToRegistry(
+                config["tenantKey"].asText(),
+                config["registry"].asText(),
+                config["namespace"].asText(),
+                config["catalogKey"].asText(),
+                config["release"].asText(),
+                PublishReleaseToRegistryRequest(to = config["to"].asText()),
+            )
+        } catch (e: ProblemDetailException) {
+            report(baseUrl, mapOf("problemTypeSlug" to (e.typeSlug ?: "<null>"), "problemStatus" to e.statusCode.value()))
+            return
+        }
+        report(
+            baseUrl,
+            mapOf(
+                "status" to published.status.value,
+                "registry" to published.registry,
+                "version" to published.version,
+                "digest" to (published.digest ?: "null"),
             ),
         )
     }

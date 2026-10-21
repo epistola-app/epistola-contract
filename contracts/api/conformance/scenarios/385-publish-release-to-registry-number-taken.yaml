@@ -1,0 +1,39 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: publish-release-to-registry-number-taken
+title: Publishing a version the registry holds with other content is refused, and the client surfaces it
+why: >
+  One number names one release (ADR 0008). When the release registry holds this version of the
+  catalog with other content, publishing is refused with 409 `release-number-taken` and nothing is
+  sent. A client surfaces the slug and the status, and does not retry.
+
+action:
+  name: publish-release-to-registry
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: 1.5.0
+    to: acme
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/release-number-taken
+      title: Release Number Taken
+      status: 409
+      detail: "acme already has acme-corp/letters 1.5.0 with other content"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/1.5.0/publish
+  report:
+    problemTypeSlug: release-number-taken
+    problemStatus: 409

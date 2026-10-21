@@ -138,6 +138,12 @@ info:
       back as `expectedToken`, makes the merge apply what the preview showed or nothing
       (`merge-preview-outdated`). The merge needs the merge base installed; the preview names one
       that is not (`missingBase`), and the merge is refused with `merge-base-missing`.
+    - **Release registries** (alpha, `x-experimental`, ADR 0008) move releases between
+      installations: an Epistola Exchange the installation is connected to, or a container registry
+      it is configured with (`listReleaseRegistries`). A released release is published to one
+      (`publishReleaseToRegistry`), and another installation lists the releases of a catalog there
+      (`listRegistryReleases`) and installs one (`installRegistryRelease`) as an import does. A
+      release registry is named by the installation; it is not the `{registry}` of a catalog's name.
 
     Documents are rendered from releases, and a version range never matches a draft. A
     draft renders only in a preview that names its `releaseId`, and in an environment it is
@@ -375,6 +381,13 @@ x-problem-types:
       status: 404
       schema: ProblemDetail
       description: The addressed resource does not exist.
+    - slug: release-registry-not-found
+      status: 404
+      schema: ProblemDetail
+      description: >-
+        The release registry the request names (alpha, ADR 0008) is not one
+        this installation has configured or is connected to; nothing was
+        published or installed. `listReleaseRegistries` lists those it has.
     - slug: conflict
       status: 409
       schema: ProblemDetail
@@ -434,6 +447,21 @@ x-problem-types:
         installation does not have the merge base, the closest release both
         the draft and the release descend from; `version` and `fingerprint`
         name the release to get first. Nothing changed.
+    - slug: release-number-taken
+      status: 409
+      schema: ProblemDetail
+      description: >-
+        Publishing a release to a release registry (alpha) was refused because
+        the registry holds a release of the catalog under this version with
+        other content: one number names one release. Nothing was sent; release
+        the changes under a new version.
+    - slug: namespace-not-granted
+      status: 409
+      schema: ProblemDetail
+      description: >-
+        Publishing a release to a release registry that grants namespaces (the
+        Exchange, alpha) was refused because it does not grant this
+        installation the catalog's namespace. Nothing was sent.
     - slug: environment-deployment-refused
       status: 409
       schema: ProblemDetail
@@ -472,8 +500,9 @@ x-problem-types:
       schema: ProblemDetail
       description: >-
         A catalog's source (its registry, through the mirrors
-        configured for it) could not be used, so its releases could not be
-        listed or installed and nothing was installed: 503 when it could not
+        configured for it), or a release registry (alpha), could not be used,
+        so releases could not be listed, installed or published and nothing
+        was installed or published: 503 when it could not
         be reached or did not answer in time, possibly with `Retry-After`;
         502 when it answered with an error or with something that is not a
         valid answer.
@@ -725,6 +754,17 @@ paths:
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/available-releases/{version}/install:
     $ref: './paths/catalogs.yaml#/catalog-available-release-install'
 
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/publish:
+    $ref: './paths/release-registries.yaml#/catalog-release-publish'
+
+  # Release registries (alpha)
+  /tenants/{tenantKey}/release-registries:
+    $ref: './paths/release-registries.yaml#/release-registries'
+  /tenants/{tenantKey}/release-registries/{name}/catalogs/{namespace}/{catalogKey}/releases:
+    $ref: './paths/release-registries.yaml#/registry-releases'
+  /tenants/{tenantKey}/release-registries/{name}/catalogs/{namespace}/{catalogKey}/releases/{version}/install:
+    $ref: './paths/release-registries.yaml#/registry-release-install'
+
   # Catalog Import
   /tenants/{tenantKey}/catalogs/import:
     $ref: './paths/import.yaml#/import-catalog'
@@ -892,6 +932,22 @@ components:
       $ref: './components/schemas/catalogs.yaml#/AvailableReleaseDependencyDto'
     InstallCatalogReleaseResponse:
       $ref: './components/schemas/catalogs.yaml#/InstallCatalogReleaseResponse'
+    ReleaseRegistryKind:
+      $ref: './components/schemas/release-registries.yaml#/ReleaseRegistryKind'
+    ReleaseRegistryDto:
+      $ref: './components/schemas/release-registries.yaml#/ReleaseRegistryDto'
+    ReleaseRegistryListResponse:
+      $ref: './components/schemas/release-registries.yaml#/ReleaseRegistryListResponse'
+    RegistryReleaseDto:
+      $ref: './components/schemas/release-registries.yaml#/RegistryReleaseDto'
+    RegistryReleaseListResponse:
+      $ref: './components/schemas/release-registries.yaml#/RegistryReleaseListResponse'
+    PublishReleaseToRegistryRequest:
+      $ref: './components/schemas/release-registries.yaml#/PublishReleaseToRegistryRequest'
+    ReleasePublicationStatus:
+      $ref: './components/schemas/release-registries.yaml#/ReleasePublicationStatus'
+    ReleasePublicationDto:
+      $ref: './components/schemas/release-registries.yaml#/ReleasePublicationDto'
     ReleaseDependencyDto:
       $ref: './components/schemas/catalogs.yaml#/ReleaseDependencyDto'
     CatalogDependencyRequirement:

@@ -66,6 +66,10 @@ const ACTIONS = {
   'release-catalog-draft': releaseCatalogDraft,
   'preview-catalog-draft-merge': previewCatalogDraftMerge,
   'merge-into-catalog-draft': mergeIntoCatalogDraft,
+  'list-release-registries': listReleaseRegistries,
+  'list-registry-releases': listRegistryReleases,
+  'install-registry-release': installRegistryRelease,
+  'publish-release-to-registry': publishReleaseToRegistry,
   'deploy-catalog-release': deployCatalogRelease,
   'undeploy-catalog-release': undeployCatalogRelease,
   'create-environment': createEnvironment,
@@ -710,6 +714,94 @@ async function previewCatalogDraftMerge(baseUrl, config) {
     unchanged: show(preview.unchanged),
     token: show(preview.token),
     missingBase: preview.missingBase ? `${preview.missingBase.version}@${preview.missingBase.fingerprint}` : 'null',
+  })
+}
+
+/** Reports only a problem's slug and status. */
+async function reportProblemOnly(baseUrl, error) {
+  if (!(error instanceof ProblemDetailException)) throw error
+  await report(baseUrl, { problemTypeSlug: error.typeSlug ?? '<null>', problemStatus: error.statusCode })
+}
+
+/** Lists the release registries (alpha), each as `name:kind`. */
+async function listReleaseRegistries(baseUrl, config) {
+  const registries = await new CatalogsApi(client(baseUrl, config)).listReleaseRegistries({ tenantKey: config.tenantKey })
+  await report(baseUrl, { registries: registries.items.map((r) => `${show(r.name)}:${show(r.kind)}`).join(',') })
+}
+
+/**
+ * Lists the releases of a catalog in a release registry (alpha), each as
+ * `version:fingerprint:releaseId:base`, the base as `version@fingerprint`, a missing value as `null`.
+ */
+async function listRegistryReleases(baseUrl, config) {
+  let releases
+  try {
+    releases = await new CatalogsApi(client(baseUrl, config)).listRegistryReleases({
+      tenantKey: config.tenantKey,
+      name: config.name,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+    })
+  } catch (error) {
+    await reportProblemOnly(baseUrl, error)
+    return
+  }
+  await report(baseUrl, {
+    registry: show(releases.registry),
+    namespace: show(releases.namespace),
+    catalogKey: show(releases.catalogKey),
+    releases: releases.items
+      .map((r) => `${show(r.version)}:${show(r.fingerprint)}:${show(r.releaseId)}:${r.base == null ? 'null' : `${show(r.base.version)}@${show(r.base.fingerprint)}`}`)
+      .join(','),
+  })
+}
+
+/** Installs a release from a release registry (alpha). A refusal is reported by its problem. */
+async function installRegistryRelease(baseUrl, config) {
+  let installed
+  try {
+    installed = await new CatalogsApi(client(baseUrl, config)).installRegistryRelease({
+      tenantKey: config.tenantKey,
+      name: config.name,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      version: config.version,
+    })
+  } catch (error) {
+    await reportProblemOnly(baseUrl, error)
+    return
+  }
+  await report(baseUrl, {
+    registry: show(installed.registry),
+    namespace: show(installed.namespace),
+    catalogKey: show(installed.catalogKey),
+    version: show(installed.version),
+    newlyInstalled: show(installed.newlyInstalled),
+    total: show(installed.total),
+  })
+}
+
+/** Publishes a released release to the release registry `config.to` (alpha). */
+async function publishReleaseToRegistry(baseUrl, config) {
+  let published
+  try {
+    published = await new CatalogsApi(client(baseUrl, config)).publishReleaseToRegistry({
+      tenantKey: config.tenantKey,
+      registry: config.registry,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      release: config.release,
+      publishReleaseToRegistryRequest: { to: config.to },
+    })
+  } catch (error) {
+    await reportProblemOnly(baseUrl, error)
+    return
+  }
+  await report(baseUrl, {
+    status: show(published.status),
+    registry: show(published.registry),
+    version: show(published.version),
+    digest: show(published.digest),
   })
 }
 
