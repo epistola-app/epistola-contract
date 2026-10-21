@@ -14,6 +14,10 @@ why: >
   The release merged in is the query parameter `version`, because `{release}` in the path names the
   draft. Resources neither side changed are only counted (`unchanged`).
 
+  A release's catalog settings (its default theme, presets and dependency declarations) are merged
+  like resources, as entries of type `catalog` whose key names the setting: `defaultTheme` is not a
+  resource key, and a client that holds an entry's key to the resource-key rule rejects the preview.
+
 action:
   name: preview-catalog-draft-merge
   config:
@@ -34,6 +38,18 @@ script:
       release: 1.5.0
       alreadyMerged: false
       resources:
+        - resourceType: catalog
+          resourceKey: defaultTheme
+          name: Default theme
+          outcome: conflict
+          draftChange: modified
+          releaseChange: modified
+        - resourceType: catalog
+          resourceKey: presets
+          name: Presets
+          outcome: theirs
+          draftChange: null
+          releaseChange: modified
         - resourceType: stencil
           resourceKey: footer
           name: Footer
@@ -67,7 +83,7 @@ expect:
     base: 1.4.0
     release: 1.5.0
     alreadyMerged: 'false'
-    resources: stencil/footer:ours:modified:null,template/invoice:conflict:modified:modified,theme/winter:theirs:null:removed
-    resourceNames: Footer|Invoice|null
+    resources: catalog/defaultTheme:conflict:modified:modified,catalog/presets:theirs:null:modified,stencil/footer:ours:modified:null,template/invoice:conflict:modified:modified,theme/winter:theirs:null:removed
+    resourceNames: Default theme|Presets|Footer|Invoice|null
     unchanged: '12'
     token: m1.k7m2x9qa.42.1-5-0.9f3a1c2b

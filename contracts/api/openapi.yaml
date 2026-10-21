@@ -129,7 +129,9 @@ info:
       an author applied them by hand. `getCatalogRelease` lists them, and releasing a draft that is
       behind must acknowledge them.
     - **Merging a release into a draft** (alpha, `x-experimental`): `previewCatalogDraftMerge`
-      shows, per resource, what only the draft changed (`ours`), what only the release changed
+      shows, per resource and per catalog setting (default theme, presets, dependency
+      declarations, as entries of type `catalog`), against the merge base (the closest release
+      both descend from), what only the draft changed (`ours`), what only the release changed
       (`theirs`) and what both changed differently (`conflict`); `mergeIntoCatalogDraft` takes
       theirs and applies a resolution, `ours` or `theirs`, per conflict. The draft then contains
       the release and is no longer behind it; its base does not move. The preview's `token`, sent

@@ -11,6 +11,19 @@ libraries.
 
 ### Added
 
+- **A merge merges a release's catalog settings (alpha, `x-experimental`, ADR 0005).** Besides
+  resources, `previewCatalogDraftMerge` and `mergeIntoCatalogDraft` classify and merge the release's
+  default theme, presets and dependency declarations, one entry each, with `resourceType`
+  `catalog` and `resourceKey` `defaultTheme`, `presets` or `dependencies`; a conflict on one is
+  resolved like a resource's (`resolutions`, `catalog/defaultTheme`), and `taken` and `kept` list
+  them the same way. The catalog's name, description and other catalog-wide details are not a
+  release's and are not merged. `CatalogDraftMergeResource.resourceKey` is therefore no longer held
+  to the resource-key rule (`ResourceKey`): a string of 1 to 50 characters, a resource's key or a
+  setting's (`defaultTheme` is camel case), since a client validating the old pattern refused every
+  preview with a setting in it; `resourceType` stays a string, its values now documented. ADR 0005
+  is amended (it said the draft's settings stay its own). Conformance:
+  `preview-catalog-draft-merge` and `merge-into-catalog-draft` carry setting entries.
+
 - **A complete per-resource fingerprint** (catalog library).
   `CatalogCanonicalizer.completePerResourceFingerprints` maps every `type/key` resource to a hash of
   its complete wire-v8 content, as V5 covers it: the per-resource counterpart of
@@ -816,6 +829,10 @@ libraries.
 
 ### Fixed
 
+- **A merge preview's `base` is the merge base**, the closest release the draft and the merged
+  release both descend from (ADR 0005), not the draft's own base as `CatalogDraftMergePreview.base`
+  said; it need not be the draft's base, and is null when none is known or it is not installed
+  (`missingBase`). The preview, the outcome and ADR 0005 say "against the merge base".
 - **The catalog's `CatalogReleaseVersionsTest` read the API's `ReleaseVersion` from
   `catalogs.yaml`**, which no longer defines it since the key and number rules moved to
   `identifiers.yaml`, so the parity check failed. It reads `identifiers.yaml` now.

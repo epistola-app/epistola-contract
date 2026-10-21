@@ -131,7 +131,8 @@ MergeConflictsUnresolvedProblemDetail:
           type: array
           description: >-
             Each conflict of the merge that the request gave no resolution, as
-            `resourceType/resourceKey` (`template/invoice`), ordered by type, then key.
+            `resourceType/resourceKey` (`template/invoice`, a setting `catalog/defaultTheme`), ordered by
+            type, then key.
           items:
             type: string
 
