@@ -861,6 +861,21 @@ libraries.
 
 ### Fixed
 
+- **No update request reads null as "remove" any more.** Several said "null clears", which no
+  generated server or client can honour, since they cannot tell an omitted member from a null one.
+  On every update an omitted or null member now keeps its value, and a value is removed this way
+  instead: an empty string (or one of only whitespace) removes `UpdateConsumerRequest.description`
+  and `.contact`, `UpdateStencilRequest.description` and `UpdateThemeRequest.description`; an empty
+  object removes every `UpdateThemeRequest.blockStylePresets` preset and an empty array every
+  `UpdateCatalogReleaseRequest.presets` preset (null no longer does); `UpdateThemeRequest.spacingUnit`
+  goes back to its default when sent as 4. A member with no empty value gets an explicit flag,
+  `true` to remove it and refused with 400 beside the member it removes:
+  `UpdateCatalogReleaseRequest.clearDefaultTheme`, `UpdateConsumerRequest.clearExpiresAt`
+  (experimental) and `UpdateAttributeRequest.clearCodeListBinding`, which moves a bound attribute
+  to inline `allowedValues`. The Kotlin, .NET and Node.js READMEs say so, and the conformance
+  drivers send the empty values and the flags (`update-consumer-remove-values`,
+  `clear-catalog-release-theme-settings`, and the new `update-attribute` action in
+  `update-attribute-unbind-code-list`).
 - **`UpdateTemplateRequest.description`: an empty string removes it.** It said "null clears it",
   which no generated server or client can honour, since they cannot tell an omitted member from a
   null one. Omitted or null now keeps the current description and an empty string (or one of only

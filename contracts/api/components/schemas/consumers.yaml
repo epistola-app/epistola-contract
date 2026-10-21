@@ -302,7 +302,10 @@ UpdateConsumerRequest:
   type: object
   description: |
     Update consumer metadata or permissions within this tenant.
-    All fields are optional.
+    All fields are optional, and an omitted or null member keeps its current value: generated
+    servers and clients cannot tell an omitted member from a null one, so null never means
+    "remove". An empty string removes `description` or `contact`; `clearExpiresAt` removes the
+    expiry.
   properties:
     name:
       type: string
@@ -312,11 +315,15 @@ UpdateConsumerRequest:
     description:
       type: ['string', 'null']
       maxLength: 1000
-      description: Updated description (null to clear)
+      description: |
+        Updated description. Omitted or null keeps it; an empty string (or one of only whitespace)
+        removes it.
     contact:
       type: ['string', 'null']
       maxLength: 255
-      description: Updated contact (null to clear)
+      description: |
+        Updated contact. Omitted or null keeps it; an empty string (or one of only whitespace)
+        removes it.
     status:
       type: string
       enum: [active, inactive]
@@ -328,7 +335,14 @@ UpdateConsumerRequest:
     expiresAt:
       type: ['string', 'null']
       format: date-time
-      description: Updated expiry (null to remove expiry)
+      description: |
+        Updated expiry. Omitted or null keeps it; `clearExpiresAt` removes it.
+    clearExpiresAt:
+      type: [boolean, 'null']
+      description: |
+        True removes the consumer's expiry, so that it never expires. Omitted, null or false keeps
+        it. True together with an `expiresAt` is refused with 400.
+      example: true
 
 RotatePublicKeyRequest:
   type: object

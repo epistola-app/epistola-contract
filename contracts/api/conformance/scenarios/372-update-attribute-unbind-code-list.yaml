@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: update-attribute-unbind-code-list
+title: Moving an attribute from a code list to inline values sends the flag and the values, never a null binding
+why: >
+  An omitted or null member of `updateAttribute` keeps its value: generated servers and clients
+  cannot tell the two apart, so a null `codeListBinding` cannot mean "unbind". Moving a bound
+  attribute to inline values sends `clearCodeListBinding: true` with the new `allowedValues`, and
+  no `codeListBinding` beside them. A client must send the flag and the list as given, and leave
+  the members the caller did not touch off the wire. The response is the attribute, now with its
+  inline values and no binding.
+
+action:
+  name: update-attribute
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    attributeKey: locale
+    clearCodeListBinding: true
+    allowedValues: [en-US, nl-NL]
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    headers:
+      ETag: '"5"'
+    body:
+      key: locale
+      tenantKey: acme-corp
+      registry: exchange.epistola.app
+      namespace: acme-corp
+      catalogKey: letters
+      displayName: Locale
+      readOnly: false
+      allowedValues: [en-US, nl-NL]
+      codeListBinding: null
+      createdAt: "2026-09-01T09:00:00Z"
+      lastModified: "2026-10-21T08:30:00Z"
+
+expect:
+  requestCount: 1
+  requests:
+    - method: PATCH
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/attributes/locale
+      headers:
+        Content-Type:
+          matches: '^application/vnd\.epistola\.v2\+json(;.*)?$'
+        if-match: { absent: true }
+      body:
+        json:
+          clearCodeListBinding: true
+          allowedValues: [en-US, nl-NL]
+        jsonAbsent: [displayName, description, codeListBinding]
+  report:
+    key: locale
+    allowedValues: en-US,nl-NL
+    codeListBinding: 'null'
+    etag: '"5"'

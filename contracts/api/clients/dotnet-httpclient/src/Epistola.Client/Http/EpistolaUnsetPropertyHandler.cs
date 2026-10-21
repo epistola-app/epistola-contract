@@ -16,18 +16,19 @@ namespace Epistola.Client.Http;
 ///
 /// The generated models are plain nullable properties with no way to distinguish "not set" from
 /// "explicitly null", so whatever the serializer does with an unset property becomes the request's
-/// meaning. Newtonsoft writes it as <c>null</c> — and on the API's thirteen PATCH operations a null
-/// is an instruction: <c>description</c> and <c>contact</c> are documented "null to clear",
-/// <c>expiresAt</c> as "null to remove expiry". Renaming a consumer therefore also erased its
-/// description, contact and expiry, with a 200 in reply. It is also a plain contract violation
-/// elsewhere: <c>GenerateDocumentRequest.attributes</c> is typed <c>array</c> with no null in the
-/// union, so a request that simply did not select variants by attribute was rejected by any server
-/// validating against the spec.
+/// meaning. Newtonsoft writes it as <c>null</c>. On the API's PATCH operations an omitted or null
+/// member keeps its value, but contracts before 2.0 documented null as "clear" on some of them
+/// (<c>description</c>, <c>contact</c> and <c>expiresAt</c> of a consumer, among others), so against
+/// a server built to one of those, renaming a consumer also erased its description, contact and
+/// expiry, with a 200 in reply. It is also a plain contract violation elsewhere:
+/// <c>GenerateDocumentRequest.attributes</c> is typed <c>array</c> with no null in the union, so a
+/// request that simply did not select variants by attribute was rejected by any server validating
+/// against the spec.
 ///
-/// Omitting is the safe half of the trade. Nothing can be destroyed by accident; what is lost is the
-/// ability to clear a field, which was never usable anyway — you could not clear one field without
-/// clearing every other you had not set. Restoring it properly means models that carry the
-/// distinction (a JsonNullable-style wrapper), which is a larger, separate change.
+/// Nothing is lost by omitting: removing a value never relies on null. An empty string removes an
+/// optional text member, an empty array or object replaces a list or a map with nothing, and a
+/// member that has neither has an explicit flag (<c>clearExpiresAt</c>, <c>clearDefaultTheme</c>,
+/// <c>clearCodeListBinding</c>).
 ///
 /// Installed by <see cref="EpistolaHttpClientBuilder"/>, in the same slot and for the same class of
 /// reason as <see cref="EpistolaMediaTypeHandler"/>: the C# generator gives no way to configure it

@@ -22,6 +22,7 @@ import traceback
 import urllib.request
 
 from epistola_client import (
+    AttributesApi,
     CatalogDependencyRequirement,
     CatalogPresetDto,
     CatalogThemeReference,
@@ -49,6 +50,7 @@ from epistola_client import (
     TemplateSchemaValidator,
     TemplatesApi,
     TenantsApi,
+    UpdateAttributeRequest,
     UpdateCatalogDependenciesRequest,
     UpdateCatalogReleaseRequest,
     UpdateCodeListEntryHiddenRequest,
@@ -111,6 +113,7 @@ def main() -> int:
         "update-environment": _update_environment,
         "update-tenant": _update_tenant,
         "update-code-list-entry-hidden": _update_code_list_entry_hidden,
+        "update-attribute": _update_attribute,
         "update-variant-content": _update_variant_content,
         "get-variant-content": _get_variant_content,
         "mark-variant-ready": _mark_variant_ready,
@@ -705,20 +708,26 @@ def _update_catalog_release(base_url: str, config: dict) -> None:
 
 
 def _set_catalog_release_theme_settings(base_url: str, config: dict) -> None:
-    """Sets a draft's default theme and presets; no name goes out, and an unset qualifier stays off the wire."""
-    theme_qualifiers = {"catalog_key": config["defaultThemeCatalogKey"]} if config.get("defaultThemeCatalogKey") is not None else {}
-    default_theme = CatalogThemeReference(key=config["defaultThemeKey"], **theme_qualifiers)
-    presets = [
-        CatalogPresetDto(
-            key=entry["key"],
-            name=entry["name"],
-            **({"description": entry["description"]} if entry.get("description") is not None else {}),
-        )
-        for entry in config["presets"]
-    ]
+    """Sets or removes a draft's default theme and presets; no name goes out, and a member or
+    qualifier the scenario does not set stays off the wire. An empty preset list goes out as is."""
+    members = {}
+    if config.get("defaultThemeKey") is not None:
+        theme_qualifiers = {"catalog_key": config["defaultThemeCatalogKey"]} if config.get("defaultThemeCatalogKey") is not None else {}
+        members["default_theme"] = CatalogThemeReference(key=config["defaultThemeKey"], **theme_qualifiers)
+    if config.get("clearDefaultTheme") is not None:
+        members["clear_default_theme"] = config["clearDefaultTheme"]
+    if config.get("presets") is not None:
+        members["presets"] = [
+            CatalogPresetDto(
+                key=entry["key"],
+                name=entry["name"],
+                **({"description": entry["description"]} if entry.get("description") is not None else {}),
+            )
+            for entry in config["presets"]
+        ]
     release = CatalogsApi(_client(base_url, config)).update_catalog_release(
         *_release_address(config),
-        UpdateCatalogReleaseRequest(default_theme=default_theme, presets=presets),
+        UpdateCatalogReleaseRequest(**members),
     )
     parsed = release.presets or []
     theme = release.default_theme
@@ -1326,6 +1335,37 @@ def _update_code_list_entry_hidden(base_url: str, config: dict) -> None:
     )
 
 
+def _update_attribute(base_url: str, config: dict) -> None:
+    """Changes an attribute's constraint with only the members the scenario names, conditional on
+    ``ifMatch`` when it sets one. A refusal is reported by its problem."""
+    members = {
+        attr: config[key]
+        for key, attr in (("allowedValues", "allowed_values"), ("clearCodeListBinding", "clear_code_list_binding"))
+        if config.get(key) is not None
+    }
+    try:
+        response = AttributesApi(_client(base_url, config)).update_attribute_with_http_info(
+            *_release_address(config),
+            config["attributeKey"],
+            UpdateAttributeRequest(**members),
+            if_match=config.get("ifMatch"),
+        )
+    except ProblemDetailException as exc:
+        _report_problem(base_url, exc)
+        return
+    attribute = response.data
+    binding = attribute.code_list_binding
+    _report(
+        base_url,
+        {
+            "key": _show(attribute.key),
+            "allowedValues": ",".join(attribute.allowed_values or []),
+            "codeListBinding": "null" if binding is None else f"{binding.registry}/{binding.namespace}/{binding.catalog_key}/{binding.key}",
+            "etag": _header(response, "ETag"),
+        },
+    )
+
+
 def _report_environment(base_url: str, environment, extra: dict | None = None) -> None:
     _report(
         base_url,
@@ -1343,17 +1383,23 @@ def _report_bytes(base_url: str, data: bytes) -> None:
 
 
 def _update_consumer(base_url: str, config: dict) -> None:
-    """A partial update that sets exactly one field.
+    """A partial update that sets only the members the scenario names.
 
-    Everything the caller did not name must stay off the wire: the contract reads a null on these as
-    "clear this", so a serializer that writes nulls for unset properties turns "rename this
-    consumer" into "rename it and erase its description, contact and expiry".
+    Everything the caller did not name must stay off the wire: a server built to a contract before
+    2.0 reads a null on these as "clear this", so a serializer that writes nulls for unset
+    properties turns "rename this consumer" into "rename it and erase its description, contact and
+    expiry". An empty ``description`` is a value, and goes out as is.
     """
+    members = {
+        attr: config[key]
+        for key, attr in (("name", "name"), ("description", "description"), ("clearExpiresAt", "clear_expires_at"))
+        if config.get(key) is not None
+    }
     try:
         response = ConsumersApi(_client(base_url, config)).update_consumer_with_http_info(
             config["tenantKey"],
             config["consumerId"],
-            UpdateConsumerRequest(name=config["name"]),
+            UpdateConsumerRequest(**members),
             if_match=config.get("ifMatch"),
         )
     except ProblemDetailException as exc:

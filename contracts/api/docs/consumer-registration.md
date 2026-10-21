@@ -472,8 +472,10 @@ Content-Type: application/vnd.epistola.v2+json
 200 OK   (ConsumerDto)
 ```
 
-Every member is optional: `name`, `description` and `contact` (null clears the last two), `status`
-(`active` or `inactive` only), `grantedPermissions`, and `expiresAt` (null removes the expiry).
+Every member is optional, and an omitted or null member keeps its value (generated servers and
+clients cannot tell the two apart): `name`, `description` and `contact` (an empty string removes
+the last two), `status` (`active` or `inactive` only), `grantedPermissions`, and `expiresAt`
+(`clearExpiresAt: true` removes the expiry).
 
 #### Rotate public key
 

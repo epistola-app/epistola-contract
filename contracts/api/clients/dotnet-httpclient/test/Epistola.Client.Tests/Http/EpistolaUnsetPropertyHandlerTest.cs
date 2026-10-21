@@ -35,8 +35,8 @@ public class EpistolaUnsetPropertyHandlerTest
     [Fact]
     public async Task DropsPropertiesTheCallerNeverSet()
     {
-        // description, contact and expiresAt are documented "null to clear" on the API's PATCH
-        // operations, so sending them turns a rename into a rename plus an erase.
+        // A server built to a contract before 2.0 reads a null description, contact or expiresAt as
+        // "clear", so sending them turns a rename into a rename plus an erase.
         var sent = await Send("""{"name":"Billing Service","description":null,"contact":null,"expiresAt":null}""");
 
         Assert.Equal("""{"name":"Billing Service"}""", sent);

@@ -51,6 +51,7 @@ public static class Driver
                 case "routing": Routing(baseUrl, config); break;
                 case "generate-document": GenerateDocument(baseUrl, config); break;
                 case "update-consumer": UpdateConsumer(baseUrl, config); break;
+                case "update-attribute": UpdateAttribute(baseUrl, config); break;
                 case "download-document": DownloadDocument(baseUrl, config); break;
                 case "list-documents": ListDocuments(baseUrl, config); break;
                 case "list-images": ListImages(baseUrl, config); break;
@@ -278,10 +279,11 @@ public static class Driver
     }
 
     /// <summary>
-    /// A partial update that sets exactly one field. Everything the caller did not name must stay
-    /// off the wire: the contract reads a null on these as "clear this", so a serializer that writes
-    /// nulls for unset properties turns "rename this consumer" into "rename it and erase its
-    /// description, contact and expiry".
+    /// A partial update that sets only the members the scenario names. Everything the caller did not
+    /// name must stay off the wire: a server built to a contract before 2.0 reads a null on these as
+    /// "clear this", so a serializer that writes nulls for unset properties turns "rename this
+    /// consumer" into "rename it and erase its description, contact and expiry". An empty
+    /// <c>description</c> is a value, and goes out as is.
     /// </summary>
     private static void UpdateConsumer(string baseUrl, JsonElement config)
     {
@@ -292,7 +294,10 @@ public static class Driver
             response = new ConsumersApi(http, apiBase).UpdateConsumerWithHttpInfo(
                 Str(config, "tenantKey"),
                 Str(config, "consumerId"),
-                new UpdateConsumerRequest(name: Str(config, "name")),
+                new UpdateConsumerRequest(
+                    name: OptStr(config, "name")!,
+                    description: OptStr(config, "description")!,
+                    clearExpiresAt: OptBool(config, "clearExpiresAt")),
                 ifMatch: OptStr(config, "ifMatch"));
         }
         catch (ProblemDetailException e)
@@ -365,6 +370,37 @@ public static class Driver
         {
             ["code"] = Show(response.Data.Code),
             ["hidden"] = Bool(response.Data.Hidden),
+            ["etag"] = Header(response, "ETag"),
+        });
+    }
+
+    /// <summary>Changes an attribute's constraint with only the members the scenario names.</summary>
+    private static void UpdateAttribute(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        ApiResponse<AttributeDto> response;
+        try
+        {
+            response = new AttributesApi(http, apiBase).UpdateAttributeWithHttpInfo(
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
+                Str(config, "attributeKey"),
+                new UpdateAttributeRequest(
+                    allowedValues: OptStrList(config, "allowedValues")!,
+                    clearCodeListBinding: OptBool(config, "clearCodeListBinding")),
+                ifMatch: OptStr(config, "ifMatch"));
+        }
+        catch (ProblemDetailException e)
+        {
+            ReportProblem(baseUrl, e);
+            return;
+        }
+
+        var binding = response.Data.CodeListBinding;
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["key"] = Show(response.Data.Key),
+            ["allowedValues"] = string.Join(",", response.Data.AllowedValues ?? new List<string>()),
+            ["codeListBinding"] = binding == null ? "null" : $"{binding.Registry}/{binding.Namespace}/{binding.CatalogKey}/{binding.Key}",
             ["etag"] = Header(response, "ETag"),
         });
     }
@@ -782,14 +818,19 @@ public static class Driver
     private static void SetCatalogReleaseThemeSettings(string baseUrl, JsonElement config)
     {
         var (http, apiBase) = Client(baseUrl, config);
-        var presets = config.GetProperty("presets").EnumerateArray()
-            .Select(p => new CatalogPresetDto(key: Str(p, "key"), name: Str(p, "name"), description: OptStr(p, "description")!))
-            .ToList();
+        // Present, an empty array included, goes out as given; absent stays off the wire.
+        var presets = config.TryGetProperty("presets", out var given) && given.ValueKind == JsonValueKind.Array
+            ? given.EnumerateArray()
+                .Select(p => new CatalogPresetDto(key: Str(p, "key"), name: Str(p, "name"), description: OptStr(p, "description")!))
+                .ToList()
+            : null;
+        var themeKey = OptStr(config, "defaultThemeKey");
         var release = new CatalogsApi(http, apiBase).UpdateCatalogRelease(
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
             new UpdateCatalogReleaseRequest(
-                defaultTheme: new CatalogThemeReference(key: Str(config, "defaultThemeKey"), catalogKey: OptStr(config, "defaultThemeCatalogKey")!),
-                presets: presets));
+                defaultTheme: themeKey == null ? null! : new CatalogThemeReference(key: themeKey, catalogKey: OptStr(config, "defaultThemeCatalogKey")!),
+                clearDefaultTheme: OptBool(config, "clearDefaultTheme"),
+                presets: presets!));
 
         var parsed = release.Presets ?? new List<CatalogPresetDto>();
         Report(baseUrl, new Dictionary<string, object>

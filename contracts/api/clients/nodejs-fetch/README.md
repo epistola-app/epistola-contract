@@ -87,10 +87,13 @@ for everything else.
 ### Partial updates
 
 The generated models are plain TypeScript interfaces, and the generated serializers drop a property
-you never set while sending one you set to `null` as `null`. On the API's `PATCH` operations, where
-the contract documents `null` as "clear this", that is exactly the distinction that matters:
+you never set while sending one you set to `null` as `null`. On the API's `PATCH` operations an
+omitted or null member keeps its value, because most generated servers cannot tell the two apart:
 `updateConsumer({ ..., updateConsumerRequest: { name: 'Billing' } })` renames the consumer and
-touches nothing else; `{ name: 'Billing', description: null }` also clears the description.
+touches nothing else, and so does `{ name: 'Billing', description: null }`. To remove a value, send
+an empty string for an optional text member (`{ description: '' }`), an empty array or object to
+replace a list or a map with nothing, or the member's explicit flag (`{ clearExpiresAt: true }`,
+`clearDefaultTheme`, `clearCodeListBinding`).
 
 ### Binary downloads
 

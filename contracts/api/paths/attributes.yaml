@@ -120,10 +120,11 @@ attributes-key:
     summary: Update an attribute definition
     description: |
       Update an attribute definition's `displayName`, `description` and constraint: its inline
-      `allowedValues`, or the code list it binds (`codeListBinding`). Omitted members are left as
-      they are. The constraint may switch kind, as `UpdateAttributeRequest` describes; mixing both
-      kinds is refused with 400 `validation-error`, and an attribute of a catalog that cannot be
-      changed with 409 `catalog-read-only`.
+      `allowedValues`, or the code list it binds (`codeListBinding`). Omitted or null members are
+      left as they are; `clearCodeListBinding: true` removes the binding. The constraint may switch
+      kind, as `UpdateAttributeRequest` describes; mixing both kinds, or a `codeListBinding`
+      together with `clearCodeListBinding`, is refused with 400 `validation-error`, and an
+      attribute of a catalog that cannot be changed with 409 `catalog-read-only`.
       Send the `ETag` from a read as `If-Match` to have the update refused with 412
       `resource-modified` if the resource changed since; without it, the last write wins.
     tags:

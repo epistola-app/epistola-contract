@@ -196,8 +196,10 @@ UpdateAttributeRequest:
   type: object
   description: |
     Request body for updating an attribute definition. All fields are optional
-    (PATCH semantics). Constraint kind may switch — e.g. unset `codeListBinding`
-    and provide `allowedValues` to move from bound to inline. Attempting to
+    (PATCH semantics): an omitted or null member keeps its current value, since generated servers
+    and clients cannot tell an omitted member from a null one. Constraint kind may switch — send
+    `clearCodeListBinding: true` with `allowedValues` to move from bound to inline, or a
+    `codeListBinding` with an empty `allowedValues` to move from inline to bound. Attempting to
     update an attribute of a catalog that cannot be changed returns 409 `catalog-read-only`.
   properties:
     displayName:
@@ -240,6 +242,15 @@ UpdateAttributeRequest:
         key:
           $ref: './identifiers.yaml#/ResourceKey'
           description: Key of the bound code list
+      description: |
+        The code list the attribute's values come from. Omitted or null keeps the current binding;
+        `clearCodeListBinding` removes it.
+    clearCodeListBinding:
+      type: [boolean, 'null']
+      description: |
+        True removes the attribute's code list binding. Omitted, null or false keeps it. True
+        together with a `codeListBinding` is refused with 400.
+      example: true
 
 AttributeListResponse:
   description: List of attribute definitions

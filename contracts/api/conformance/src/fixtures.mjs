@@ -37,6 +37,10 @@ const ACTION_OPERATIONS = {
   },
   'generate-document': { method: 'post', path: '/tenants/{tenantKey}/documents/generate' },
   'update-consumer': { method: 'patch', path: '/tenants/{tenantKey}/consumers/{consumerId}' },
+  'update-attribute': {
+    method: 'patch',
+    path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/attributes/{attributeKey}',
+  },
   'download-document': { method: 'get', path: '/tenants/{tenantKey}/documents/{documentId}' },
   'list-documents': { method: 'get', path: '/tenants/{tenantKey}/documents' },
   'list-images': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/images' },

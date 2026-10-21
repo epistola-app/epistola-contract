@@ -52,14 +52,16 @@ request bodies instead of sending them as `null`.
 
 The second is not cosmetic. The generated models are plain nullable properties with no way to
 distinguish "not set" from "explicitly null", so whatever the serializer does with an unset property
-becomes the request's meaning. On the API's `PATCH` operations a null is an instruction —
-`description` and `contact` are documented "null to clear", `expiresAt` as "null to remove expiry" —
-so a default serializer turned renaming a consumer into renaming it *and* erasing the rest. Nulls
-inside caller-supplied free-form data (a generation request's `data`) are left alone; they are
-yours.
+becomes the request's meaning. On the API's `PATCH` operations an omitted or null member keeps its
+value, but contracts before 2.0 documented null as "clear" on some of them (`description`,
+`contact` and `expiresAt` of a consumer, among others), so against a server built to one of those a
+default serializer turned renaming a consumer into renaming it *and* erasing the rest. Nulls inside
+caller-supplied free-form data (a generation request's `data`) are left alone; they are yours.
 
-The trade is that clearing a field is not expressible — but it never was, since you could not clear
-one field without clearing every other you had not set.
+Removing a value never relies on null. An empty string removes an optional text member
+(`Description = ""`), an empty array or object replaces a list or a map with nothing, and a member
+that has neither has an explicit flag (`ClearExpiresAt = true`, `ClearDefaultTheme = true`,
+`ClearCodeListBinding = true`).
 
 ## Client identity
 

@@ -29,8 +29,8 @@ class EpistolaJsonTest {
 
     @Test
     fun `a partial update carries only the field it set`() {
-        // description and contact are documented "null to clear" — writing them as null turns a
-        // rename into a rename plus an erase.
+        // A server built to a contract before 2.0 reads a null description or contact as "clear",
+        // so writing them as null turns a rename into a rename plus an erase.
         val json = EpistolaJson.objectMapper.writeValueAsString(UpdateConsumerRequest(name = "Billing Service"))
 
         assertEquals("""{"name":"Billing Service"}""", json)

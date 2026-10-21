@@ -5,6 +5,7 @@
 package app.epistola.conformance
 
 import app.epistola.client.epistolaMessageConverters
+import app.epistola.client.api.AttributesApi
 import app.epistola.client.api.CatalogsApi
 import app.epistola.client.api.CodeListsApi
 import app.epistola.client.api.ConsumersApi
@@ -40,6 +41,7 @@ import app.epistola.client.model.PublishReleaseToRegistryRequest
 import app.epistola.client.model.ReleaseCatalogDraftRequest
 import app.epistola.client.model.TemplateDocument
 import app.epistola.client.model.ThemeRef
+import app.epistola.client.model.UpdateAttributeRequest
 import app.epistola.client.model.UpdateCatalogDependenciesRequest
 import app.epistola.client.model.UpdateCatalogReleaseRequest
 import app.epistola.client.model.UpdateCodeListEntryHiddenRequest
@@ -131,6 +133,7 @@ object Driver {
                 "update-environment" -> updateEnvironment(baseUrl, config)
                 "update-tenant" -> updateTenant(baseUrl, config)
                 "update-code-list-entry-hidden" -> updateCodeListEntryHidden(baseUrl, config)
+                "update-attribute" -> updateAttribute(baseUrl, config)
                 "update-variant-content" -> updateVariantContent(baseUrl, config)
                 "get-variant-content" -> getVariantContent(baseUrl, config)
                 "mark-variant-ready" -> markVariantReady(baseUrl, config)
@@ -321,16 +324,21 @@ object Driver {
     }
 
     /**
-     * A partial update that sets exactly one field. Everything the caller did not name must stay off
-     * the wire: the contract reads a null on these as "clear this", so a serializer that writes
-     * nulls for unset properties turns "rename this consumer" into "rename it and erase its
-     * description, contact and expiry".
+     * A partial update that sets only the members the scenario names. Everything the caller did not
+     * name must stay off the wire: a server built to a contract before 2.0 reads a null on these as
+     * "clear this", so a serializer that writes nulls for unset properties turns "rename this
+     * consumer" into "rename it and erase its description, contact and expiry". An empty
+     * `description` is a value, and goes out as is.
      */
     private fun updateConsumer(baseUrl: String, config: ObjectNode) = conditionalUpdate(baseUrl, {
         ConsumersApi(restClient(baseUrl, config)).updateConsumerWithHttpInfo(
             config["tenantKey"].asText(),
             config["consumerId"].asText(),
-            UpdateConsumerRequest(name = config["name"].asText()),
+            UpdateConsumerRequest(
+                name = config.optionalText("name"),
+                description = config.optionalText("description"),
+                clearExpiresAt = config.optionalBoolean("clearExpiresAt"),
+            ),
             ifMatch = config.optionalText("ifMatch"),
         )
     }) { consumer ->
@@ -364,6 +372,29 @@ object Driver {
             ifMatch = config.optionalText("ifMatch"),
         )
     }) { entry -> mapOf("code" to entry.code, "hidden" to (entry.hidden?.toString() ?: "null")) }
+
+    /** Changes an attribute's constraint with only the members the scenario names, conditionally when `config.ifMatch` is set. */
+    private fun updateAttribute(baseUrl: String, config: ObjectNode) = conditionalUpdate(baseUrl, {
+        AttributesApi(restClient(baseUrl, config)).updateAttributeWithHttpInfo(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["release"].asText(),
+            config["attributeKey"].asText(),
+            UpdateAttributeRequest(
+                allowedValues = config.get("allowedValues")?.takeUnless { it.isNull }?.map { it.asText() },
+                clearCodeListBinding = config.optionalBoolean("clearCodeListBinding"),
+            ),
+            ifMatch = config.optionalText("ifMatch"),
+        )
+    }) { attribute ->
+        mapOf(
+            "key" to attribute.key,
+            "allowedValues" to attribute.allowedValues.joinToString(","),
+            "codeListBinding" to (attribute.codeListBinding?.let { "${it.registry}/${it.namespace}/${it.catalogKey}/${it.key}" } ?: "null"),
+        )
+    }
 
     /**
      * The shape every conditional update shares: call the operation's `…WithHttpInfo` variant, report
@@ -795,11 +826,12 @@ object Driver {
             config["catalogKey"].asText(),
             config["release"].asText(),
             UpdateCatalogReleaseRequest(
-                defaultTheme = CatalogThemeReference(
-                    key = config["defaultThemeKey"].asText(),
-                    catalogKey = config.optionalText("defaultThemeCatalogKey"),
-                ),
-                presets = config.path("presets").map {
+                defaultTheme = config.optionalText("defaultThemeKey")?.let { key ->
+                    CatalogThemeReference(key = key, catalogKey = config.optionalText("defaultThemeCatalogKey"))
+                },
+                clearDefaultTheme = config.optionalBoolean("clearDefaultTheme"),
+                // Present, an empty array included, goes out as given; absent stays off the wire.
+                presets = config.get("presets")?.takeUnless { it.isNull }?.map {
                     CatalogPresetDto(key = it["key"].asText(), name = it["name"].asText(), description = it.optionalText("description"))
                 },
             ),
@@ -1442,6 +1474,8 @@ object Driver {
 
     /** An optional value from `config`: absent or null stays null, so the request omits it. */
     private fun JsonNode.optionalText(name: String): String? = get(name)?.takeUnless { it.isNull }?.asText()
+
+    private fun JsonNode.optionalBoolean(name: String): Boolean? = get(name)?.takeUnless { it.isNull }?.asBoolean()
 
     private fun reportBytes(baseUrl: String, bytes: ByteArray) = report(
         baseUrl,
