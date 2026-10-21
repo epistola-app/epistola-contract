@@ -861,6 +861,11 @@ libraries.
 
 ### Fixed
 
+- **`UpdateTemplateRequest.description`: an empty string removes it.** It said "null clears it",
+  which no generated server or client can honour, since they cannot tell an omitted member from a
+  null one. Omitted or null now keeps the current description and an empty string (or one of only
+  whitespace) removes it, as Epistola Suite does; `CreateTemplateRequest.description` says the same
+  of creating a template with none.
 - **A merge preview's `base` is the merge base**, the closest release the draft and the merged
   release both descend from (ADR 0005), not the draft's own base as `CatalogDraftMergePreview.base`
   said; it need not be the draft's base, and is null when none is known or it is not installed
