@@ -99,6 +99,15 @@ object ProblemDetails {
     /** Extension member naming that release's catalog fingerprint (`MergeBaseMissingProblemDetail`). */
     const val FINGERPRINT_PROPERTY: String = ProblemExtensionMembers.FINGERPRINT
 
+    /**
+     * Extension member naming the rendering defaults version a `catalog-rendering-defaults-too-new`
+     * problem's release names (`CatalogRenderingDefaultsTooNewProblemDetail`).
+     */
+    const val RENDERING_DEFAULTS_VERSION_PROPERTY: String = ProblemExtensionMembers.RENDERING_DEFAULTS_VERSION
+
+    /** Extension member naming the newest rendering defaults version this installation has. */
+    const val SUPPORTED_VERSION_PROPERTY: String = ProblemExtensionMembers.SUPPORTED_VERSION
+
     // The mapping is shared with the clients, which use it in the other direction.
     private val uris = ProblemTypeUris.of(TYPE_BASE)
 
@@ -131,6 +140,12 @@ object ProblemDetails {
 
         /** 400 — malformed or not applicable to the resource state (no `errors`). */
         const val BAD_REQUEST: String = KnownProblemSlugs.BAD_REQUEST
+
+        /**
+         * 400 — a received release renders with rendering defaults this installation does not
+         * have; upgrade to receive it (use [catalogRenderingDefaultsTooNew]).
+         */
+        const val CATALOG_RENDERING_DEFAULTS_TOO_NEW: String = KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW
 
         /** 401 — missing or invalid credentials. */
         const val UNAUTHORIZED: String = KnownProblemSlugs.UNAUTHORIZED
@@ -345,6 +360,25 @@ object ProblemDetails {
         val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.MERGE_BASE_MISSING), detail, instance)
         problem.setProperty(VERSION_PROPERTY, version)
         problem.setProperty(FINGERPRINT_PROPERTY, fingerprint)
+        return problem
+    }
+
+    /**
+     * Builds a `catalog-rendering-defaults-too-new` [ProblemDetail] (400): like [of] plus the
+     * [renderingDefaultsVersion] the received release names, as it names it, and the
+     * [supportedVersion], the newest this installation has (the
+     * `CatalogRenderingDefaultsTooNewProblemDetail` shape from the contract). For `importCatalog`
+     * and `installCatalogRelease`, refused before anything is written.
+     */
+    fun catalogRenderingDefaultsTooNew(
+        renderingDefaultsVersion: String,
+        supportedVersion: Int,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(400), typeFor(KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW), detail, instance)
+        problem.setProperty(RENDERING_DEFAULTS_VERSION_PROPERTY, renderingDefaultsVersion)
+        problem.setProperty(SUPPORTED_VERSION_PROPERTY, supportedVersion)
         return problem
     }
 

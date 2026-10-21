@@ -31,6 +31,68 @@ BadRequestError:
         status: 400
         detail: The request cannot be applied to the resource's current state
 
+CatalogImportBadRequestError:
+  description: >-
+    The archive cannot be installed: it is not a valid catalog archive, or it fails validation
+    (`bad-request`). When the release renders with rendering defaults this installation does not
+    have, newer or unknown, as its `release.metadata` names them, the problem is
+    `catalog-rendering-defaults-too-new`: `renderingDefaultsVersion` is what the release names and
+    `supportedVersion` the newest this installation has; upgrade Epistola to receive it. Nothing
+    was installed.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/CatalogRenderingDefaultsTooNewProblemDetail'
+      examples:
+        invalidArchive:
+          summary: An archive that fails validation
+          value:
+            type: https://epistola.app/errors/bad-request
+            title: Bad Request
+            status: 400
+            detail: "The archive has no catalog.json"
+        renderingDefaultsTooNew:
+          summary: A release that renders with rendering defaults this installation lacks
+          value:
+            type: https://epistola.app/errors/catalog-rendering-defaults-too-new
+            title: Catalog Rendering Defaults Too New
+            status: 400
+            detail: "letters 1.1.0 renders with rendering defaults version 9, which this Epistola does not have (it has up to 6). Upgrade Epistola to receive this release."
+            renderingDefaultsVersion: "9"
+            supportedVersion: 6
+
+CatalogInstallBadRequestError:
+  description: >-
+    The request failed validation (`validation-error`, `errors[]`). When the release renders with
+    rendering defaults this installation does not have, newer or unknown, as its
+    `release.metadata` names them, the problem is `catalog-rendering-defaults-too-new`:
+    `renderingDefaultsVersion` is what the release names and `supportedVersion` the newest this
+    installation has; upgrade Epistola to receive it. Nothing was installed.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/CatalogRenderingDefaultsTooNewProblemDetail'
+      examples:
+        renderingDefaultsTooNew:
+          summary: A release that renders with rendering defaults this installation lacks
+          value:
+            type: https://epistola.app/errors/catalog-rendering-defaults-too-new
+            title: Catalog Rendering Defaults Too New
+            status: 400
+            detail: "letters 1.1.0 renders with rendering defaults version 9, which this Epistola does not have (it has up to 6). Upgrade Epistola to receive this release."
+            renderingDefaultsVersion: "9"
+            supportedVersion: 6
+        validationFailed:
+          summary: A request that failed validation
+          value:
+            type: https://epistola.app/errors/validation-error
+            title: Bad Request
+            status: 400
+            detail: The request failed validation
+            errors:
+              - field: version
+                message: must be a release version
+
 NotFoundError:
   description: The requested resource was not found
   content:

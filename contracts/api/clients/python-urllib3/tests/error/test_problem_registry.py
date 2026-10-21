@@ -21,6 +21,7 @@ EXPECTED_SLUGS = {
     "VALIDATION_ERROR": "validation-error",
     "TEMPLATE_DATA_INVALID": "template-data-invalid",
     "BAD_REQUEST": "bad-request",
+    "CATALOG_RENDERING_DEFAULTS_TOO_NEW": "catalog-rendering-defaults-too-new",
     "UNAUTHORIZED": "unauthorized",
     "API_KEY_AUTH_DISABLED": "api-key-auth-disabled",
     "FORBIDDEN": "forbidden",

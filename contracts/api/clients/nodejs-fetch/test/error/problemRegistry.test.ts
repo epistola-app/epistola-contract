@@ -18,6 +18,7 @@ import { GENERATED_PROBLEM_TYPE_BASE, KnownProblemSlugs, ProblemExtensionMembers
 const EXPECTED_SLUGS: Record<string, string> = {
   VALIDATION_ERROR: 'validation-error',
   BAD_REQUEST: 'bad-request',
+  CATALOG_RENDERING_DEFAULTS_TOO_NEW: 'catalog-rendering-defaults-too-new',
   UNAUTHORIZED: 'unauthorized',
   API_KEY_AUTH_DISABLED: 'api-key-auth-disabled',
   FORBIDDEN: 'forbidden',
@@ -59,6 +60,8 @@ test('the extension members the client reads by name are the ones the registry d
   assert.equal(ProblemExtensionMembers.UNRESOLVED_CONFLICTS, 'unresolvedConflicts')
   assert.equal(ProblemExtensionMembers.VERSION, 'version')
   assert.equal(ProblemExtensionMembers.FINGERPRINT, 'fingerprint')
+  assert.equal(ProblemExtensionMembers.RENDERING_DEFAULTS_VERSION, 'renderingDefaultsVersion')
+  assert.equal(ProblemExtensionMembers.SUPPORTED_VERSION, 'supportedVersion')
 })
 
 test('slugFor and typeFor are inverses on the Epistola namespace only', () => {

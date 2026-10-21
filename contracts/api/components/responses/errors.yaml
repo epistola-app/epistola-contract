@@ -154,6 +154,22 @@ MergeBaseMissingProblemDetail:
             so that the release obtained can be checked to be the one meant.
           example: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
 
+CatalogRenderingDefaultsTooNewProblemDetail:
+  allOf:
+    - $ref: '#/ProblemDetail'
+    - type: object
+      properties:
+        renderingDefaultsVersion:
+          type: string
+          description: >-
+            The rendering defaults version the release names in its `release.metadata`, as it names
+            it (a number this installation does not have, or a value it cannot read).
+          example: "9"
+        supportedVersion:
+          type: integer
+          description: The newest rendering defaults version this installation has.
+          example: 6
+
 DataModelValidationError:
   type: object
   description: A single data-example validation failure against the data model

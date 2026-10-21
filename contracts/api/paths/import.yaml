@@ -47,8 +47,11 @@ import-catalog:
       The fingerprint compared is the release's `release.fingerprint`, or the fingerprint of its
       content when the archive records none. Every catalog wire version requires `release.version`,
       so an archive without a release is not a valid archive: it is refused with 400
-      `bad-request`, as any archive that fails validation is. Installing is all or nothing: when a
-      resource cannot be installed, nothing is.
+      `bad-request`, as any archive that fails validation is. A release whose `release.metadata`
+      names rendering defaults this installation does not have, newer or unknown, is refused with
+      400 `catalog-rendering-defaults-too-new` before anything is written: rendering it with other
+      defaults would change its documents, so Epistola must be upgraded to receive it. Installing is
+      all or nothing: when a resource cannot be installed, nothing is.
 
       The archive may also carry the releases its catalog pins (`catalogDependencies`), each an
       ordinary catalog archive at `dependencies/{registry}/{namespace}/{catalogKey}/{version}.zip`,
@@ -111,7 +114,7 @@ import-catalog:
             schema:
               $ref: '../components/schemas/import.yaml#/ImportCatalogResponse'
       '400':
-        $ref: '../components/responses/problem-responses.yaml#/BadRequestError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogImportBadRequestError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

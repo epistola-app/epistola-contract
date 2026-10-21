@@ -209,6 +209,10 @@ try {
     } else if (KnownProblemSlugs.MERGE_BASE_MISSING.equals(slug)) {
         // the merge base is not installed here: install that release first, then merge again
         log.warn("install {} ({}) first", e.getMissingBaseVersion(), e.getMissingBaseFingerprint());
+    } else if (KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW.equals(slug)) {
+        // importCatalog / installCatalogRelease: the release renders with rendering defaults this
+        // installation does not have (renderingDefaultsVersion, supportedVersion in the body)
+        log.warn("upgrade Epistola to receive this release");
     } else if (KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE.equals(slug)) {
         // from installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source
         // could not be reached (Retry-After may say when to retry), 502 when it answered badly

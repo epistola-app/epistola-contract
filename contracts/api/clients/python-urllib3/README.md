@@ -130,6 +130,10 @@ except ProblemDetailException as e:
         case KnownProblemSlugs.MERGE_BASE_MISSING:
             # the merge base is not installed here: install that release first
             log.warning("install %s (%s) first", e.missing_base_version, e.missing_base_fingerprint)
+        case KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW:
+            # import_catalog / install_catalog_release: the release renders with rendering
+            # defaults this installation does not have (renderingDefaultsVersion, supportedVersion)
+            log.warning("upgrade Epistola to receive this release")
         case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
             # install_catalog_release / list_available_catalog_releases: 503 when the catalog's
             # source could not be reached (Retry-After may say when), 502 when it answered badly

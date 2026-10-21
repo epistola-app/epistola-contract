@@ -25,6 +25,7 @@ Clients must ignore members they do not recognize.
 | `https://epistola.app/errors/validation-error` | `validation-error` | 400 | `ValidationProblemDetail` | the request body or parameters failed validation; the `errors[]` array carries the field-level failures |
 | `https://epistola.app/errors/template-data-invalid` | `template-data-invalid` | 400 | `ValidationProblemDetail` + `missingFields`, `invalidFields` | the template data (e.g. a preview's `data`) breaks the template's data contract; `errors[]` lists each field with `field` a JSON Pointer into the request body, and the extension members describe what to supply or correct, with paths into `data` |
 | `https://epistola.app/errors/bad-request` | `bad-request` | 400 | `ProblemDetail` | the request is malformed or not applicable to the resource's current state, but not a field-level validation failure (no `errors[]`) |
+| `https://epistola.app/errors/catalog-rendering-defaults-too-new` | `catalog-rendering-defaults-too-new` | 400 | `ProblemDetail` + `renderingDefaultsVersion`, `supportedVersion` | a release received from elsewhere (`importCatalog`, `installCatalogRelease`) renders with rendering defaults this installation does not have, newer or unknown, as its `release.metadata` names them; rendering it with other defaults would change its documents, so it was refused before anything was written. `renderingDefaultsVersion` is what the release names (a string, as it names it), `supportedVersion` the newest this installation has. Upgrade Epistola to receive it |
 | `https://epistola.app/errors/unauthorized` | `unauthorized` | 401 | `ProblemDetail` | missing or invalid authentication credentials |
 | `https://epistola.app/errors/api-key-auth-disabled` | `api-key-auth-disabled` | 401 | `ProblemDetail` | API-key authentication is disabled for this deployment; use `Authorization: Bearer <jwt>` instead |
 | `https://epistola.app/errors/forbidden` | `forbidden` | 403 | `ProblemDetail` | authenticated, but the caller lacks the required role or tenant permission |
@@ -115,6 +116,30 @@ request fails with `catalog-source-unavailable`, and nothing is installed. The s
 
 The request may succeed later, unchanged, once the source is back; a 502 usually needs the source,
 or the mirror configuration, fixed first.
+
+## Catalog rendering defaults too new
+
+A release says which rendering defaults it renders with, in its `release.metadata` (Epistola Suite
+writes `{"app.epistola.suite": {"renderingDefaultsVersion": 6}}`). An installation that receives
+a release (`importCatalog`, `installCatalogRelease`) naming defaults it does not have, newer than
+its own or a value it cannot read, refuses it with 400 `catalog-rendering-defaults-too-new` before
+anything is written: rendering it with other defaults would change its documents. Upgrade Epistola
+to receive the release; retrying unchanged does not help.
+
+```json
+{
+  "type": "https://epistola.app/errors/catalog-rendering-defaults-too-new",
+  "title": "Catalog Rendering Defaults Too New",
+  "status": 400,
+  "detail": "letters 1.1.0 renders with rendering defaults version 9, which this Epistola does not have (it has up to 6). Upgrade Epistola to receive this release.",
+  "renderingDefaultsVersion": "9",
+  "supportedVersion": 6
+}
+```
+
+`renderingDefaultsVersion` is a string, the value as the release names it; `supportedVersion` is
+the newest version this installation has. A release that names none renders with the
+installation's current defaults and is not refused.
 
 ## Catalog read-only
 
