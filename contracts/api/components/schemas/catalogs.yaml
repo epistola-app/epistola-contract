@@ -1001,13 +1001,14 @@ CatalogMergeOutcome:
     - theirs
     - conflict
   description: |
-    What merging a release into a draft does with one resource (alpha, ADR 0005):
+    What merging a release into a draft does with one entry, a resource or a catalog setting
+    (alpha, ADR 0005):
 
-    - `ours`: only the draft changed it since its base; the draft's stays.
+    - `ours`: only the draft changed it since the merge base; the draft's stays.
     - `theirs`: only the release changed it (added, modified or removed); the release's is taken.
     - `conflict`: both changed it, differently; a resolution chooses a side.
 
-    Resources neither side changed, or both changed alike, are counted (`unchanged`), not listed.
+    Entries neither side changed, or both changed alike, are counted (`unchanged`), not listed.
   example: conflict
 
 CatalogMergeSide:
@@ -1022,7 +1023,9 @@ CatalogMergeSide:
 
 CatalogDraftMergeResource:
   type: object
-  description: One resource a merge would change or has to ask about (alpha).
+  description: |
+    One entry a merge would change or has to ask about (alpha): a resource, or one of the
+    release's catalog settings, which are merged like resources (ADR 0005).
   required:
     - resourceType
     - resourceKey
@@ -1031,17 +1034,28 @@ CatalogDraftMergeResource:
   properties:
     resourceType:
       type: string
-      description: The resource type, as the portable catalog format names it
+      description: |
+        What the entry is: a resource type as the portable catalog format names it (`template`,
+        `theme`, `stencil`, `attribute`, `code-list`, `font`, `image`, …), or `catalog` for a
+        setting of the release (its default theme, presets or dependency declarations). A string,
+        not an enum: a client keeps a type it does not know.
       example: template
     resourceKey:
-      $ref: './identifiers.yaml#/ResourceKey'
+      type: string
+      minLength: 1
+      maxLength: 50
       description: |
-        The resource's key within its type. A resolution names the resource as
-        `resourceType/resourceKey`.
+        The entry's key within its type. For a resource, its key (`ResourceKey`). For `catalog`, the
+        setting: `defaultTheme` (the theme a template that names none renders with), `presets` (the
+        block style presets) or `dependencies` (the catalogs it uses, each with the release it
+        pins); these are not resource keys and do not follow that rule. A resolution names the
+        entry as `resourceType/resourceKey` (`template/invoice`, `catalog/defaultTheme`).
       example: invoice
     name:
       type: [string, "null"]
-      description: What the draft calls the resource, else the release, else the base
+      description: |
+        What the draft calls the resource, else the release, else the merge base; for a setting,
+        what people call it (`Default theme`)
       example: Invoice
     outcome:
       $ref: '#/CatalogMergeOutcome'
@@ -1050,22 +1064,24 @@ CatalogDraftMergeResource:
     draftChange:
       type: [string, "null"]
       enum: [added, modified, removed, null]
-      description: How the draft changed the resource since its base; null or absent when it did not
+      description: How the draft changed the entry since the merge base; null or absent when it did not
       example: modified
     releaseChange:
       type: [string, "null"]
       enum: [added, modified, removed, null]
       description: |
-        How the release changed the resource since the draft's base; null or absent when it did not
+        How the release changed the entry since the merge base; null or absent when it did not
       example: modified
 
 CatalogDraftMergePreview:
   type: object
   description: |
-    What merging a release into a draft would do, resource by resource, **without merging it**
-    (alpha, ADR 0005). Each resource is compared in three states by its canonical fingerprint: the
-    draft's base, the draft (ours) and the release (theirs). Only resources a side changed
-    differently from the other are listed; the rest are counted in `unchanged`.
+    What merging a release into a draft would do, entry by entry, **without merging it** (alpha,
+    ADR 0005). The entries are the resources and the release's catalog settings (default theme,
+    presets, dependency declarations; `resourceType` `catalog`). Each is compared in three states
+    by its fingerprint: the merge base (the closest release the draft and the release both descend
+    from), the draft (ours) and the release (theirs). Only entries a side changed differently from
+    the other are listed; the rest are counted in `unchanged`.
   required:
     - draft
     - base
@@ -1083,8 +1099,14 @@ CatalogDraftMergePreview:
         - $ref: './identifiers.yaml#/ReleaseVersion'
         - type: 'null'
       description: |
-        The draft's base, which both sides are compared against; null when the draft has none
-        (everything either side has is then added). A merge never moves it (ADR 0002).
+        The merge base, which both sides are compared against: the closest release the draft and
+        the merged release both descend from, found by the base each release records (ADR 0005,
+        "The merge base travels with the release"). It need not be the draft's own base: a fix
+        `1.0.1` made from `1.0.0`, merged into a draft whose base is `1.1.0`, is compared against
+        `1.0.0`. Null when there is none: no common release is
+        known, or it is not installed (`missingBase` then names it). Without one, every entry the
+        two sides have differently is a choice for the author. A merge never moves the draft's
+        base (ADR 0002).
       example: "1.4.0"
     release:
       $ref: './identifiers.yaml#/ReleaseVersion'
@@ -1099,14 +1121,15 @@ CatalogDraftMergePreview:
     resources:
       type: array
       description: |
-        The resources whose outcome is `ours`, `theirs` or `conflict`, ordered by type, then key.
-        Every `conflict` needs a resolution in `mergeIntoCatalogDraft`.
+        The entries (resources and `catalog` settings) whose outcome is `ours`, `theirs` or
+        `conflict`, ordered by type, then key. Every `conflict` needs a resolution in
+        `mergeIntoCatalogDraft`.
       items:
         $ref: '#/CatalogDraftMergeResource'
     unchanged:
       type: integer
       minimum: 0
-      description: The number of resources neither side changed, or both changed alike
+      description: The number of entries neither side changed, or both changed alike
       example: 12
     token:
       type: string
@@ -1165,7 +1188,8 @@ MergeIntoCatalogDraftRequest:
       type: object
       description: |
         Each conflict of the merge (`previewCatalogDraftMerge`), named `resourceType/resourceKey`
-        (`template/invoice`), resolved to `ours` or `theirs`. Every conflict needs one, or the merge
+        (`template/invoice`, or a setting such as `catalog/defaultTheme`, `catalog/presets` or
+        `catalog/dependencies`), resolved to `ours` or `theirs`. Every conflict needs one, or the merge
         is refused with 409 `merge-conflicts-unresolved`; naming a resource that is not a conflict
         is refused with 422 `merge-not-applicable`. Omitted: no resolutions.
       additionalProperties:
@@ -1185,7 +1209,10 @@ MergeIntoCatalogDraftRequest:
 
 MergeIntoCatalogDraftResponse:
   type: object
-  description: What the merge did, each resource as `resourceType/resourceKey` (alpha)
+  description: |
+    What the merge did, each entry as `resourceType/resourceKey` (alpha): resources, and the
+    release's catalog settings as `catalog/defaultTheme`, `catalog/presets` and
+    `catalog/dependencies`
   required:
     - release
     - taken
@@ -1199,11 +1226,12 @@ MergeIntoCatalogDraftResponse:
     taken:
       type: array
       description: |
-        The resources written into the draft as the release has them (outcome `theirs`, or a
-        conflict resolved to `theirs`), marked ready
+        The entries written into the draft as the release has them (outcome `theirs`, or a
+        conflict resolved to `theirs`): resources, marked ready, and settings, which then are the
+        release's
       items:
         type: string
-      example: ["template/invoice", "theme/corporate"]
+      example: ["catalog/presets", "template/invoice", "theme/corporate"]
     removed:
       type: array
       description: The resources removed from the draft because the release removed them
@@ -1212,7 +1240,7 @@ MergeIntoCatalogDraftResponse:
       example: []
     kept:
       type: array
-      description: The conflicts resolved to `ours`, kept as the draft has them
+      description: The conflicts resolved to `ours`, resources or settings, kept as the draft has them
       items:
         type: string
       example: ["stencil/footer"]

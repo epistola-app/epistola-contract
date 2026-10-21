@@ -702,9 +702,13 @@ catalog-release-merge-preview:
     description: |
       **Alpha** (`x-experimental`, ADR 0005): may still change in a minor release.
 
-      What merging the release `version` into the draft would do, resource by resource, **without
-      merging it**. Each resource is compared in three states by its canonical fingerprint: the
-      draft's base, the draft (ours) and the release (theirs):
+      What merging the release `version` into the draft would do, entry by entry, **without
+      merging it**. The entries are the resources, and the release's catalog settings: its default
+      theme, its presets and its dependency declarations, each one entry of `resourceType`
+      `catalog` (`catalog/defaultTheme`, `catalog/presets`, `catalog/dependencies`), resolved like
+      a resource. The catalog's name, description and other catalog-wide details are not a
+      release's and are not merged. Each entry is compared in three states by its fingerprint: the
+      **merge base** (see below), the draft (ours) and the release (theirs):
 
       | Ours vs base | Theirs vs base | Outcome |
       | --- | --- | --- |
@@ -721,9 +725,9 @@ catalog-release-merge-preview:
       because `{release}` in the path names the draft.
 
       The merge compares against the **merge base**, the closest release both the draft and the
-      release descend from (ADR 0005), in that release's own resources. When this installation does
-      not have it, the preview still answers: `missingBase` names it (`version`, `fingerprint`), no
-      resource is classified, and the merge is refused with `merge-base-missing` until that release
+      release descend from (ADR 0005), in that release's own content; it is reported as `base`,
+      and need not be the draft's own base. When this installation does not have it, the preview
+      still answers: `missingBase` names it (`version`, `fingerprint`), nothing is classified, and the merge is refused with `merge-base-missing` until that release
       is installed. Refused with 409 outside a draft, and 404 when the catalog has no such
       draft or no released release with that version.
     tags:
@@ -778,8 +782,11 @@ catalog-release-merge:
       classifies it: what only the release changed is taken (written as the release has it, or
       removed), what only the draft changed stays, and each conflict is resolved by `resolutions`
       (`resourceType/resourceKey` to `ours` or `theirs`). Taken resources are marked ready, since
-      they are released content. The draft's own settings (its default theme, presets and
-      dependency declarations) stay its own.
+      they are released content. The release's catalog settings (its default theme, presets and
+      dependency declarations) are merged the same way, each as one entry (`catalog/defaultTheme`,
+      `catalog/presets`, `catalog/dependencies`): taken when only the release changed it, kept when
+      only the draft did, and resolved when both did. The catalog's name, description and other
+      catalog-wide details are not merged.
 
       Afterwards the draft **contains** the release: it is no longer behind it
       (`CatalogReleaseDto.behind`), and merging it again is refused. Its base does not move

@@ -53,7 +53,9 @@ after a merge, so the number a draft needs is still decided by ADR 0002's rules 
 ### A three-way merge, per resource
 
 The merge compares three states of each resource, identified by type and key (ADR 0004): the
-draft's **base**, **theirs** (the release merged in) and **ours** (the draft). Each state is the
+**merge base** (the closest release the draft and the merged release both descend from, see "The
+merge base travels with the release"; amended 2026-10-21, it said the draft's base, which it need
+not be), **theirs** (the release merged in) and **ours** (the draft). Each state is the
 resource's canonical fingerprint (`CatalogCanonicalizer.completePerResourceFingerprints`, the
 per-resource form of V5, the current catalog algorithm; amended twice on 2026-10-21: it named
 `perResourceFingerprints`, the V1 form, then `currentPerResourceFingerprints`, the V3 form, both of
@@ -79,8 +81,14 @@ The preview lists the resources whose outcome is `ours`, `theirs` or `conflict` 
   release's is taken). Every conflict needs a resolution, and a resolution may only name a
   conflict. Combining both sides within one resource is later work (step two below).
 - **Taken resources are marked ready**: they are released content.
-- **The draft's own settings stay its own**: its default theme, presets and dependency declarations
-  are not merged in the alpha. (The proposal merged declared dependencies as one more resource.)
+- **A release's catalog settings are merged like resources** (amended 2026-10-21; it said the
+  draft's settings stay its own): its default theme, its presets and its dependency declarations,
+  one entry per setting, of type `catalog` and keyed by the setting (`catalog/defaultTheme`,
+  `catalog/presets`, `catalog/dependencies`). Each is classified by the table above, from a
+  fingerprint of its value in a fixed shape and order, and a conflict on one is resolved like a
+  resource's. Its keys are not resource keys, so `resourceKey` does not follow the resource-key rule.
+  The catalog's name, description and other catalog-wide details are not a release's, and are not
+  merged.
 - **A removal the draft still depends on is refused**: when the release removes a resource that
   something the draft keeps still uses, the merge is refused and changes nothing. Keep it (resolve
   to `ours`), or stop using it first.
@@ -99,8 +107,8 @@ Under the draft, with the release merged in named by its version:
 
 | Operation | Request | Notes |
 | --- | --- | --- |
-| `previewCatalogDraftMerge` | `GET …/releases/{release}/merge-preview?version=` | `draft`, `base`, `release`, `alreadyMerged`, `resources` (`resourceType`, `resourceKey`, `name`, `outcome`, `draftChange`, `releaseChange`), `unchanged`, `token`, `missingBase` |
-| `mergeIntoCatalogDraft` | `POST …/releases/{release}/merge` `{release, resolutions, expectedToken}` | `resolutions` maps `type/key` to `ours` or `theirs`; returns `release`, `taken`, `removed`, `kept`, each as `type/key` |
+| `previewCatalogDraftMerge` | `GET …/releases/{release}/merge-preview?version=` | `draft`, `base` (the merge base), `release`, `alreadyMerged`, `resources` (`resourceType`, `resourceKey`, `name`, `outcome`, `draftChange`, `releaseChange`), `unchanged`, `token`, `missingBase` |
+| `mergeIntoCatalogDraft` | `POST …/releases/{release}/merge` `{release, resolutions, expectedToken}` | `resolutions` maps `type/key` (a setting as `catalog/<setting>`) to `ours` or `theirs`; returns `release`, `taken`, `removed`, `kept`, each as `type/key` |
 
 The release to merge is the query parameter `version` because `{release}` in the path already names
 the draft; in the bodies it is `release`.

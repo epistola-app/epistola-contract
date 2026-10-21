@@ -146,7 +146,8 @@ Retrying does not help; a client offers no write on a catalog whose `editable` i
 `mergeIntoCatalogDraft` (ADR 0005) is all or nothing. It is refused, with nothing changed, by:
 
 - 409 `merge-conflicts-unresolved`: conflicts have no resolution. `unresolvedConflicts` lists each
-  as `resourceType/resourceKey`; resolve each to `ours` or `theirs` and send the merge again.
+  as `resourceType/resourceKey` (a catalog setting as `catalog/defaultTheme`, `catalog/presets` or
+  `catalog/dependencies`); resolve each to `ours` or `theirs` and send the merge again.
 - 409 `merge-refused`: the release removes a resource the draft still uses.
 - 409 `merge-preview-outdated`: the request sent the preview's `token` as `expectedToken`, and the
   draft or the release changed since that preview. Preview again and choose again.
