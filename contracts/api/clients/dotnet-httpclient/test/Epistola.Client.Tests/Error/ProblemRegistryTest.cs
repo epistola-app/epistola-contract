@@ -37,6 +37,7 @@ public class ProblemRegistryTest
         Assert.Equal("catalog-read-only", KnownProblemSlugs.CATALOG_READ_ONLY);
         Assert.Equal("merge-conflicts-unresolved", KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED);
         Assert.Equal("merge-refused", KnownProblemSlugs.MERGE_REFUSED);
+        Assert.Equal("merge-preview-outdated", KnownProblemSlugs.MERGE_PREVIEW_OUTDATED);
         Assert.Equal("merge-not-applicable", KnownProblemSlugs.MERGE_NOT_APPLICABLE);
         Assert.Equal("environment-deployment-refused", KnownProblemSlugs.ENVIRONMENT_DEPLOYMENT_REFUSED);
         Assert.Equal("resource-modified", KnownProblemSlugs.RESOURCE_MODIFIED);

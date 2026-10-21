@@ -708,6 +708,7 @@ async function previewCatalogDraftMerge(baseUrl, config) {
       .join(','),
     resourceNames: preview.resources.map((r) => show(r.name)).join('|'),
     unchanged: show(preview.unchanged),
+    token: show(preview.token),
   })
 }
 
@@ -719,6 +720,7 @@ async function previewCatalogDraftMerge(baseUrl, config) {
 async function mergeIntoCatalogDraft(baseUrl, config) {
   const request = { release: config.version }
   if (config.resolutions !== undefined) request.resolutions = config.resolutions
+  if (config.expectedToken !== undefined) request.expectedToken = config.expectedToken
   let merged
   try {
     merged = await new CatalogsApi(client(baseUrl, config)).mergeIntoCatalogDraft({

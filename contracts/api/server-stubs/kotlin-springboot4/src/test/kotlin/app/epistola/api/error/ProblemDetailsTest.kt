@@ -113,6 +113,7 @@ class ProblemDetailsTest {
         assertEquals(409, problem.status)
         assertEquals(listOf("stencil/footer", "template/invoice"), problem.properties?.get("unresolvedConflicts"))
         assertEquals("merge-refused", ProblemDetails.KnownSlugs.MERGE_REFUSED)
+        assertEquals("merge-preview-outdated", ProblemDetails.KnownSlugs.MERGE_PREVIEW_OUTDATED)
         assertEquals("merge-not-applicable", ProblemDetails.KnownSlugs.MERGE_NOT_APPLICABLE)
     }
 

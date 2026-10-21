@@ -132,7 +132,9 @@ info:
       shows, per resource, what only the draft changed (`ours`), what only the release changed
       (`theirs`) and what both changed differently (`conflict`); `mergeIntoCatalogDraft` takes
       theirs and applies a resolution, `ours` or `theirs`, per conflict. The draft then contains
-      the release and is no longer behind it; its base does not move.
+      the release and is no longer behind it; its base does not move. The preview's `token`, sent
+      back as `expectedToken`, makes the merge apply what the preview showed or nothing
+      (`merge-preview-outdated`).
 
     Documents are rendered from releases, and a version range never matches a draft. A
     draft renders only in a preview that names its `releaseId`, and in an environment it is
@@ -403,6 +405,13 @@ x-problem-types:
       description: >-
         Merging a release into a draft (alpha) cannot be applied as asked: the
         release removes a resource the draft still uses. Nothing changed.
+    - slug: merge-preview-outdated
+      status: 409
+      schema: ProblemDetail
+      description: >-
+        Merging a release into a draft (alpha) was refused because the draft or
+        the release changed since the preview its `expectedToken` names;
+        preview again. Nothing changed.
     - slug: environment-deployment-refused
       status: 409
       schema: ProblemDetail

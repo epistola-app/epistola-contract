@@ -9,6 +9,7 @@ why: >
   by `resourceType/resourceKey`, to `ours` or `theirs`. A client that drops the resolutions, or
   sends a side in another spelling, gets the merge refused as unresolved. The response lists what
   was taken from the release, removed because the release removed it, and kept as the draft has it.
+  Without a preview token to check (`expectedToken`), none goes out: `null` is not a token.
 
 action:
   name: merge-into-catalog-draft
@@ -44,6 +45,7 @@ expect:
           resolutions:
             template/invoice: theirs
             stencil/header: ours
+          expectedToken: { absent: true }
   report:
     release: 1.5.0
     taken: template/invoice,theme/corporate

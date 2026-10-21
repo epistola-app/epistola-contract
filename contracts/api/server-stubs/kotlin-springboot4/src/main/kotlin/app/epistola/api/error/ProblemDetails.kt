@@ -167,6 +167,12 @@ object ProblemDetails {
         const val MERGE_REFUSED: String = KnownProblemSlugs.MERGE_REFUSED
 
         /**
+         * 409 — a merge (alpha) was refused: the draft or the release changed since the preview
+         * whose `token` the request sent as `expectedToken`.
+         */
+        const val MERGE_PREVIEW_OUTDATED: String = KnownProblemSlugs.MERGE_PREVIEW_OUTDATED
+
+        /**
          * 422 — a merge (alpha) does not apply: the draft already contains the release, or a
          * resolution names a resource that is not a conflict.
          */

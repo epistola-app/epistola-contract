@@ -169,6 +169,9 @@ catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.MERGE_CON
 }
 ```
 
+A merge that sent the preview's `Token` as `ExpectedToken` is refused with
+`merge-preview-outdated` when the draft or the release changed since that preview: preview again.
+
 Listing or installing the releases a catalog's source offers fails with
 `catalog-source-unavailable` when that source cannot be used: 503 when it could not be reached or
 timed out (a `Retry-After` header may say when to try again), 502 when it answered badly. Nothing

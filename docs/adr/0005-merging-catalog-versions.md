@@ -97,8 +97,8 @@ Under the draft, with the release merged in named by its version:
 
 | Operation | Request | Notes |
 | --- | --- | --- |
-| `previewCatalogDraftMerge` | `GET …/releases/{release}/merge-preview?version=` | `draft`, `base`, `release`, `alreadyMerged`, `resources` (`resourceType`, `resourceKey`, `name`, `outcome`, `draftChange`, `releaseChange`), `unchanged` |
-| `mergeIntoCatalogDraft` | `POST …/releases/{release}/merge` `{release, resolutions}` | `resolutions` maps `type/key` to `ours` or `theirs`; returns `release`, `taken`, `removed`, `kept`, each as `type/key` |
+| `previewCatalogDraftMerge` | `GET …/releases/{release}/merge-preview?version=` | `draft`, `base`, `release`, `alreadyMerged`, `resources` (`resourceType`, `resourceKey`, `name`, `outcome`, `draftChange`, `releaseChange`), `unchanged`, `token` |
+| `mergeIntoCatalogDraft` | `POST …/releases/{release}/merge` `{release, resolutions, expectedToken}` | `resolutions` maps `type/key` to `ours` or `theirs`; returns `release`, `taken`, `removed`, `kept`, each as `type/key` |
 
 The release to merge is the query parameter `version` because `{release}` in the path already names
 the draft; in the bodies it is `release`.
@@ -107,6 +107,10 @@ Refusals, as RFC 9457 problems:
 
 - 409 `merge-conflicts-unresolved`: conflicts without a resolution, listed in `unresolvedConflicts`;
 - 409 `merge-refused`: the release removes a resource the draft still uses;
+- 409 `merge-preview-outdated`: the draft or the release changed since the preview whose `token`
+  the request sent as `expectedToken` (2026-10-21). The token is opaque and identifies the draft,
+  the release and the merge base the preview was computed from, so resolutions chosen from a
+  preview are never applied to states the author did not see;
 - 422 `merge-not-applicable`: the draft already contains the release (its base, or merged before),
   or a resolution names a resource that is not a conflict;
 - 409 `catalog-read-only` (`readOnlyReason`): the catalog cannot be changed in this installation;

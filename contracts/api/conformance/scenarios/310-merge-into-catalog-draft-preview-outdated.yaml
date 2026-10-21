@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: merge-into-catalog-draft-preview-outdated
+title: A merge that names its preview is refused when the draft or the release changed since
+why: >
+  Resolutions are chosen from a preview (ADR 0005). Sending the preview's `token` back as
+  `expectedToken` makes the merge apply what that preview showed or nothing: when the draft or the
+  release changed since, it is refused with `merge-preview-outdated` and nothing changes. A client
+  that drops `expectedToken` gets the merge applied to states its author never saw; one that loses
+  the slug cannot tell the author to preview again.
+
+action:
+  name: merge-into-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    version: 1.5.0
+    resolutions:
+      template/invoice: theirs
+    expectedToken: m1.k7m2x9qa.42.1-5-0.9f3a1c2b
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/merge-preview-outdated
+      title: Merge Preview Outdated
+      status: 409
+      detail: The draft or the release changed since the preview; preview again
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/merge
+      body:
+        json:
+          release: { equals: 1.5.0 }
+          resolutions:
+            template/invoice: theirs
+          expectedToken: { equals: m1.k7m2x9qa.42.1-5-0.9f3a1c2b }
+  report:
+    problemTypeSlug: merge-preview-outdated
+    problemStatus: 409
+    problemUnresolvedConflicts: ''
+    problemReadOnlyReason: 'null'

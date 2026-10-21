@@ -156,6 +156,9 @@ try {
       case KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED:
         for (const conflict of e.unresolvedConflicts) log.warn(`needs ours or theirs: ${conflict}`)  // mergeIntoCatalogDraft (alpha)
         break
+      case KnownProblemSlugs.MERGE_PREVIEW_OUTDATED:
+        log.warn('the draft or the release changed since the preview: preview again')  // expectedToken (alpha)
+        break
       case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
         // installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source could
         // not be reached (Retry-After may say when), 502 when it answered badly

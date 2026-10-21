@@ -36,6 +36,7 @@ class ProblemRegistryTest {
         assertEquals("catalog-read-only", KnownProblemSlugs.CATALOG_READ_ONLY)
         assertEquals("merge-conflicts-unresolved", KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED)
         assertEquals("merge-refused", KnownProblemSlugs.MERGE_REFUSED)
+        assertEquals("merge-preview-outdated", KnownProblemSlugs.MERGE_PREVIEW_OUTDATED)
         assertEquals("merge-not-applicable", KnownProblemSlugs.MERGE_NOT_APPLICABLE)
         assertEquals("environment-deployment-refused", KnownProblemSlugs.ENVIRONMENT_DEPLOYMENT_REFUSED)
         assertEquals("resource-modified", KnownProblemSlugs.RESOURCE_MODIFIED)

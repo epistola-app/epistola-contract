@@ -1050,7 +1050,8 @@ public final class Driver {
                                 resources.stream()
                                         .map(r -> String.valueOf(r.getName()))
                                         .collect(Collectors.joining("|")),
-                        "unchanged", String.valueOf(preview.getUnchanged())));
+                        "unchanged", String.valueOf(preview.getUnchanged()),
+                        "token", String.valueOf(preview.getToken())));
     }
 
     /**
@@ -1066,6 +1067,9 @@ public final class Driver {
                     .forEach((key, side) -> resolutions.put(
                             key, CatalogMergeSide.fromValue(((jakarta.json.JsonString) side).getString())));
             request.resolutions(resolutions);
+        }
+        if (config.containsKey("expectedToken") && !config.isNull("expectedToken")) {
+            request.expectedToken(config.getString("expectedToken"));
         }
         MergeIntoCatalogDraftResponse merged;
         try {
