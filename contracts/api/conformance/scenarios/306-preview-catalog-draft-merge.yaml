@@ -8,7 +8,8 @@ why: >
   Merging a release into a draft is alpha (ADR 0005). Before merging, an author sees per resource
   whether the draft's change stays (`ours`), the release's is taken (`theirs`), or both changed it
   differently (`conflict`), with how each side changed it. A client that drops a null change, or
-  reports one side's change as the other's, shows a conflict as a clean take.
+  reports one side's change as the other's, shows a conflict as a clean take. Its `token` is opaque
+  and goes back unchanged as the merge's `expectedToken`, so a client must keep it exactly.
 
   The release merged in is the query parameter `version`, because `{release}` in the path names the
   draft. Resources neither side changed are only counted (`unchanged`).
@@ -52,6 +53,7 @@ script:
           draftChange: null
           releaseChange: removed
       unchanged: 12
+      token: m1.k7m2x9qa.42.1-5-0.9f3a1c2b
 
 expect:
   requestCount: 1
@@ -67,3 +69,4 @@ expect:
     resources: stencil/footer:ours:modified:null,template/invoice:conflict:modified:modified,theme/winter:theirs:null:removed
     resourceNames: Footer|Invoice|null
     unchanged: '12'
+    token: m1.k7m2x9qa.42.1-5-0.9f3a1c2b

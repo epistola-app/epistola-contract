@@ -35,6 +35,7 @@ Clients must ignore members they do not recognize.
 | `https://epistola.app/errors/catalog-read-only` | `catalog-read-only` | 409 | `ProblemDetail` + `readOnlyReason` | the catalog cannot be changed in this installation (`CatalogDto.editable` is false), so a write to it was refused and nothing changed; `readOnlyReason` is `editing-disabled` (the installation only receives and runs releases) or `supplied-by-epistola` (the server supplies the catalog and replaces it on upgrade) |
 | `https://epistola.app/errors/merge-conflicts-unresolved` | `merge-conflicts-unresolved` | 409 | `ProblemDetail` + `unresolvedConflicts` | merging a release into a draft (`mergeIntoCatalogDraft`, alpha) was refused because conflicts have no resolution; `unresolvedConflicts` lists each as `resourceType/resourceKey`. Nothing changed |
 | `https://epistola.app/errors/merge-refused` | `merge-refused` | 409 | `ProblemDetail` | merging a release into a draft (alpha) cannot be applied as asked: the release removes a resource the draft still uses. Nothing changed; keep it (`ours`) or stop using it first |
+| `https://epistola.app/errors/merge-preview-outdated` | `merge-preview-outdated` | 409 | `ProblemDetail` | merging a release into a draft (alpha) was refused because the draft or the release changed since the preview whose `token` the request sent as `expectedToken`. Nothing changed; preview again and choose again |
 | `https://epistola.app/errors/environment-deployment-refused` | `environment-deployment-refused` | 409 | `ProblemDetail` | a production environment serves only releases: a draft is deployed to it, or it is marked production while it serves a draft |
 | `https://epistola.app/errors/resource-modified` | `resource-modified` | 412 | `ProblemDetail` | an update sent `If-Match` with an `ETag` that is no longer current: the resource changed since it was read, and nothing changed. Read it again, reapply the change and retry with the new `ETag` |
 | `https://epistola.app/errors/data-model-validation-error` | `data-model-validation-error` | 422 | `ProblemDetail` + `validationErrors` | the request is well-formed but semantically invalid: supplied data examples do not validate against the data model; the `validationErrors` member maps each example name to its failures |
@@ -146,6 +147,8 @@ Retrying does not help; a client offers no write on a catalog whose `editable` i
 - 409 `merge-conflicts-unresolved`: conflicts have no resolution. `unresolvedConflicts` lists each
   as `resourceType/resourceKey`; resolve each to `ours` or `theirs` and send the merge again.
 - 409 `merge-refused`: the release removes a resource the draft still uses.
+- 409 `merge-preview-outdated`: the request sent the preview's `token` as `expectedToken`, and the
+  draft or the release changed since that preview. Preview again and choose again.
 - 422 `merge-not-applicable`: the draft already contains the release, or a resolution names a
   resource that is not a conflict.
 - 409 `catalog-read-only`: the catalog cannot be changed in this installation.

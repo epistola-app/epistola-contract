@@ -114,7 +114,8 @@ ProblemDetails.catalogReadOnly(
 )
 
 // 409 merge-conflicts-unresolved: mergeIntoCatalogDraft (alpha), when conflicts have no resolution;
-// 409 merge-refused and 422 merge-not-applicable are plain problems, built with `of`
+// 409 merge-refused, 409 merge-preview-outdated and 422 merge-not-applicable are plain problems,
+// built with `of`
 ProblemDetails.mergeConflictsUnresolved(
     unresolvedConflicts = listOf("template/invoice"),
     detail = "Merging 1.5.0 into Redesign 2027 needs a choice for: template/invoice",

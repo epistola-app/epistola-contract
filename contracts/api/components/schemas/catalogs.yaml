@@ -1073,6 +1073,7 @@ CatalogDraftMergePreview:
     - alreadyMerged
     - resources
     - unchanged
+    - token
   properties:
     draft:
       $ref: './identifiers.yaml#/CatalogReleaseId'
@@ -1107,6 +1108,17 @@ CatalogDraftMergePreview:
       minimum: 0
       description: The number of resources neither side changed, or both changed alike
       example: 12
+    token:
+      type: string
+      minLength: 1
+      maxLength: 128
+      description: |
+        Identifies what this preview was computed from: the draft, the release and the merge base,
+        as they were. Opaque: a client compares it for equality only and never parses it; the server
+        chooses its form. Sending it as `expectedToken` in `mergeIntoCatalogDraft` makes the merge
+        apply exactly what this preview showed: when the draft or the release changed since, the
+        merge is refused with 409 `merge-preview-outdated`.
+      example: m1.k7m2x9qa.42.1-5-0.9f3a1c2b
 
 MergeIntoCatalogDraftRequest:
   type: object
@@ -1129,6 +1141,16 @@ MergeIntoCatalogDraftRequest:
         $ref: '#/CatalogMergeSide'
       example:
         template/invoice: theirs
+    expectedToken:
+      type: string
+      minLength: 1
+      maxLength: 128
+      description: |
+        The `token` of the preview the resolutions were chosen from (`previewCatalogDraftMerge`).
+        When given and the draft or the release changed since that preview, the merge is refused
+        with 409 `merge-preview-outdated` and nothing changes: preview again, and choose again.
+        Omitted: the merge applies to the draft and the release as they are now.
+      example: m1.k7m2x9qa.42.1-5-0.9f3a1c2b
 
 MergeIntoCatalogDraftResponse:
   type: object

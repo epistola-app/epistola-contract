@@ -203,6 +203,9 @@ try {
     } else if (KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED.equals(slug)) {
         // from mergeIntoCatalogDraft (alpha): resolve each to ours or theirs and merge again
         e.getUnresolvedConflicts().forEach(conflict -> log.warn("needs a resolution: {}", conflict));
+    } else if (KnownProblemSlugs.MERGE_PREVIEW_OUTDATED.equals(slug)) {
+        // the merge sent expectedToken, and the draft or the release changed since that preview
+        log.warn("preview the merge again");
     } else if (KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE.equals(slug)) {
         // from installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source
         // could not be reached (Retry-After may say when to retry), 502 when it answered badly

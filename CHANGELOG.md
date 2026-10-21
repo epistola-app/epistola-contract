@@ -11,6 +11,16 @@ libraries.
 
 ### Added
 
+- **A merge preview's token (alpha, `x-experimental`, ADR 0005).** `CatalogDraftMergePreview` gains
+  a required `token` (an opaque string, at most 128 characters) that identifies what the preview
+  was computed from: the draft, the release and the merge base. `MergeIntoCatalogDraftRequest`
+  gains an optional `expectedToken`: when given and the draft or the release changed since that
+  preview, the merge is refused with the new 409 `merge-preview-outdated` ("The draft or the
+  release changed since the preview; preview again") and nothing changes. Server
+  `ProblemDetails.KnownSlugs.MERGE_PREVIEW_OUTDATED`. The conformance action
+  `preview-catalog-draft-merge` reports `token` and `merge-into-catalog-draft` sends
+  `expectedToken` in all five drivers; scenario `merge-into-catalog-draft-preview-outdated`, and
+  `merge-into-catalog-draft` checks that no token goes out when none is given.
 - **A release names its merge base** (catalog wire v8, changed in place: v8 is unreleased; ADR
   0005, "The merge base travels with the release"). `release.base` (`ReleaseInfo.base`,
   `ReleaseBase`, also a TypeScript type) names the release this one was made from by identity only:

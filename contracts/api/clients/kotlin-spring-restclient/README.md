@@ -316,6 +316,8 @@ try {
             log.warn("catalog cannot be changed here: ${e.readOnlyReason}")
         KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED ->  // mergeIntoCatalogDraft (alpha)
             e.unresolvedConflicts.forEach { println("needs ours or theirs: $it") }
+        KnownProblemSlugs.MERGE_PREVIEW_OUTDATED ->      // the draft or the release changed since the preview
+            println("preview the merge again")
         KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE ->  // installCatalogRelease, listAvailableCatalogReleases
             // 503: the source could not be reached (Retry-After may say when to try again);
             // 502: it answered badly. Nothing was installed.

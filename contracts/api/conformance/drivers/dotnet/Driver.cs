@@ -888,6 +888,7 @@ public static class Driver
                 + $":{(r.DraftChange is { } ours ? Wire(ours) : "null")}:{(r.ReleaseChange is { } theirs ? Wire(theirs) : "null")}")),
             ["resourceNames"] = string.Join("|", resources.Select(r => Show(r.Name))),
             ["unchanged"] = Show(preview.Unchanged),
+            ["token"] = Show(preview.Token),
         });
     }
 
@@ -909,7 +910,10 @@ public static class Driver
         {
             merged = new CatalogsApi(http, apiBase).MergeIntoCatalogDraft(
                 Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
-                new MergeIntoCatalogDraftRequest(release: Str(config, "version"), resolutions: resolutions!));
+                new MergeIntoCatalogDraftRequest(
+                    release: Str(config, "version"),
+                    resolutions: resolutions!,
+                    expectedToken: OptStr(config, "expectedToken")!));
         }
         catch (ProblemDetailException e)
         {

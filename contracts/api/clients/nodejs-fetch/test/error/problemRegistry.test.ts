@@ -30,6 +30,7 @@ const EXPECTED_SLUGS: Record<string, string> = {
   CATALOG_READ_ONLY: 'catalog-read-only',
   MERGE_CONFLICTS_UNRESOLVED: 'merge-conflicts-unresolved',
   MERGE_REFUSED: 'merge-refused',
+  MERGE_PREVIEW_OUTDATED: 'merge-preview-outdated',
   MERGE_NOT_APPLICABLE: 'merge-not-applicable',
   ENVIRONMENT_DEPLOYMENT_REFUSED: 'environment-deployment-refused',
   RESOURCE_MODIFIED: 'resource-modified',

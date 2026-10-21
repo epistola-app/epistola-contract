@@ -813,6 +813,7 @@ def _preview_catalog_draft_merge(base_url: str, config: dict) -> None:
             ),
             "resourceNames": "|".join(_show(r.name) for r in preview.resources),
             "unchanged": _show(preview.unchanged),
+            "token": _show(preview.token),
         },
     )
 
@@ -821,7 +822,11 @@ def _merge_into_catalog_draft(base_url: str, config: dict) -> None:
     """Merges the release ``config.version`` into the draft ``config.release`` (alpha), with
     ``config.resolutions`` when the scenario sets them. A refusal is reported by its problem, with
     the conflicts it lists and the read-only reason it gives."""
-    optional = {"resolutions": config["resolutions"]} if "resolutions" in config else {}
+    optional = {
+        field: config[key]
+        for key, field in (("resolutions", "resolutions"), ("expectedToken", "expected_token"))
+        if key in config
+    }
     try:
         merged = CatalogsApi(_client(base_url, config)).merge_into_catalog_draft(
             *_release_address(config),

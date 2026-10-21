@@ -715,8 +715,10 @@ catalog-release-merge-preview:
       | changed | changed differently | `conflict`: a resolution chooses a side |
 
       `alreadyMerged` says whether the draft already contains the release (its base, or merged
-      before). The release is named by the query parameter `version`, because `{release}` in the
-      path names the draft. Refused with 409 outside a draft, and 404 when the catalog has no such
+      before). `token` identifies what the preview was computed from (the draft, the release and
+      the merge base); sent back as `expectedToken`, it makes `mergeIntoCatalogDraft` apply what
+      this preview showed or nothing. The release is named by the query parameter `version`,
+      because `{release}` in the path names the draft. Refused with 409 outside a draft, and 404 when the catalog has no such
       draft or no released release with that version.
     tags:
       - Catalogs
@@ -784,6 +786,8 @@ catalog-release-merge:
         lists each;
       - 409 `merge-refused` when the release removes a resource the draft still uses (keep it with
         `ours`, or stop using it first);
+      - 409 `merge-preview-outdated` when the request sends `expectedToken`, the `token` of a
+        preview, and the draft or the release changed since that preview (preview again);
       - 422 `merge-not-applicable` when the draft already contains the release (its base, or merged
         before), or a resolution names a resource that is not a conflict;
       - 409 `catalog-read-only` when the catalog cannot be changed in this installation

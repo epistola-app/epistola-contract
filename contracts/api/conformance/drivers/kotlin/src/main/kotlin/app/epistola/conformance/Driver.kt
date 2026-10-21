@@ -913,6 +913,7 @@ object Driver {
                 },
                 "resourceNames" to preview.resources.joinToString("|") { it.name ?: "null" },
                 "unchanged" to preview.unchanged.toString(),
+                "token" to preview.token,
             ),
         )
     }
@@ -933,7 +934,11 @@ object Driver {
                 config["namespace"].asText(),
                 config["catalogKey"].asText(),
                 config["release"].asText(),
-                MergeIntoCatalogDraftRequest(release = config["version"].asText(), resolutions = resolutions),
+                MergeIntoCatalogDraftRequest(
+                    release = config["version"].asText(),
+                    resolutions = resolutions,
+                    expectedToken = config.get("expectedToken")?.takeUnless { it.isNull }?.asText(),
+                ),
             )
         } catch (e: ProblemDetailException) {
             report(
