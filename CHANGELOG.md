@@ -11,6 +11,17 @@ libraries.
 
 ### Added
 
+- **Problem type `catalog-rendering-defaults-too-new`** (400). A release received from elsewhere
+  (`importCatalog`, `installCatalogRelease`) whose `release.metadata` names rendering defaults the
+  installation does not have, newer or unknown, is refused before anything is written: rendering it
+  with other defaults would change its documents, so Epistola must be upgraded to receive it.
+  `CatalogRenderingDefaultsTooNewProblemDetail` adds `renderingDefaultsVersion` (a string, as the
+  release names it) and `supportedVersion` (an integer, the newest the installation has). Both
+  operations' 400 responses name it (`CatalogImportBadRequestError`,
+  `CatalogInstallBadRequestError`). Registered in `x-problem-types` and `error-types.md`; server
+  `ProblemDetails.catalogRenderingDefaultsTooNew` and `KnownSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW`;
+  every client's `KnownProblemSlugs` carries it, and the Kotlin and Node.js clients read the
+  members from `extensions` (no typed accessors).
 - **A merge merges a release's catalog settings (alpha, `x-experimental`, ADR 0005).** Besides
   resources, `previewCatalogDraftMerge` and `mergeIntoCatalogDraft` classify and merge the release's
   default theme, presets and dependency declarations, one entry each, with `resourceType`

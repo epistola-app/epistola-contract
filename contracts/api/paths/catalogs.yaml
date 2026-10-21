@@ -139,7 +139,10 @@ catalog-available-release-install:
       the tenant has under the same version with a different fingerprint refuses the install with
       409 `conflict`; one that cannot be fetched, or does not match its pin's
       `releaseFingerprint`, refuses it with 409 `release-dependencies-missing`, listing each
-      (`unavailable`). Installing is all or nothing, in one transaction.
+      (`unavailable`). A release whose `release.metadata` names rendering defaults this
+      installation does not have, newer or unknown, is refused with 400
+      `catalog-rendering-defaults-too-new` before anything is written, as `importCatalog` refuses it.
+      Installing is all or nothing, in one transaction.
 
       A catalog without a source (`source` null) is refused with 409 `conflict`; whether the
       catalog can be changed does not matter, since receiving a release changes no draft. A
@@ -159,7 +162,7 @@ catalog-available-release-install:
             schema:
               $ref: '../components/schemas/catalogs.yaml#/InstallCatalogReleaseResponse'
       '400':
-        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogInstallBadRequestError'
       '401':
         $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
       '403':

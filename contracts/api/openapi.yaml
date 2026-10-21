@@ -343,6 +343,17 @@ x-problem-types:
       description: >-
         The request is malformed or not applicable to the resource's current
         state, but not a field-level validation failure (no `errors[]`).
+    - slug: catalog-rendering-defaults-too-new
+      status: 400
+      schema: CatalogRenderingDefaultsTooNewProblemDetail
+      description: >-
+        A release received from elsewhere (an imported archive, or a release
+        installed from a catalog's source) renders with rendering defaults this
+        installation does not have, newer or unknown, as its `release.metadata`
+        names them; rendering it with other defaults would change its
+        documents. Refused before anything was written; upgrade Epistola to
+        receive it. `renderingDefaultsVersion` is what the release names,
+        `supportedVersion` the newest this installation has.
     - slug: unauthorized
       status: 401
       schema: ProblemDetail
@@ -1073,6 +1084,8 @@ components:
       $ref: './components/responses/errors.yaml#/MergeConflictsUnresolvedProblemDetail'
     MergeBaseMissingProblemDetail:
       $ref: './components/responses/errors.yaml#/MergeBaseMissingProblemDetail'
+    CatalogRenderingDefaultsTooNewProblemDetail:
+      $ref: './components/responses/errors.yaml#/CatalogRenderingDefaultsTooNewProblemDetail'
     DataModelValidationError:
       $ref: './components/responses/errors.yaml#/DataModelValidationError'
     TemplateDataValidationProblemDetail:

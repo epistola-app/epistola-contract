@@ -24,6 +24,7 @@ class ProblemRegistryTest {
     fun `the canonical slugs are present with their documented values`() {
         assertEquals("validation-error", KnownProblemSlugs.VALIDATION_ERROR)
         assertEquals("bad-request", KnownProblemSlugs.BAD_REQUEST)
+        assertEquals("catalog-rendering-defaults-too-new", KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW)
         assertEquals("unauthorized", KnownProblemSlugs.UNAUTHORIZED)
         assertEquals("api-key-auth-disabled", KnownProblemSlugs.API_KEY_AUTH_DISABLED)
         assertEquals("forbidden", KnownProblemSlugs.FORBIDDEN)
@@ -60,6 +61,8 @@ class ProblemRegistryTest {
         assertEquals("unresolvedConflicts", ProblemExtensionMembers.UNRESOLVED_CONFLICTS)
         assertEquals("version", ProblemExtensionMembers.VERSION)
         assertEquals("fingerprint", ProblemExtensionMembers.FINGERPRINT)
+        assertEquals("renderingDefaultsVersion", ProblemExtensionMembers.RENDERING_DEFAULTS_VERSION)
+        assertEquals("supportedVersion", ProblemExtensionMembers.SUPPORTED_VERSION)
     }
 
     @Test

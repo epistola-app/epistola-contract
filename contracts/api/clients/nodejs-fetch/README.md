@@ -163,6 +163,11 @@ try {
         // the merge base is not installed here: install it first, then merge again
         log.warn(`install ${e.missingBaseVersion} (${e.missingBaseFingerprint}) first`)
         break
+      case KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW:
+        // importCatalog / installCatalogRelease: the release renders with rendering defaults this
+        // installation does not have
+        log.warn(`upgrade Epistola: the release needs ${e.extensions.renderingDefaultsVersion}, this has up to ${e.extensions.supportedVersion}`)
+        break
       case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
         // installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source could
         // not be reached (Retry-After may say when), 502 when it answered badly

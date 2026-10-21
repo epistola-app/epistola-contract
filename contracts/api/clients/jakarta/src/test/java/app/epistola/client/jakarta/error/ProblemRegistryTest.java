@@ -26,6 +26,7 @@ class ProblemRegistryTest {
     void the_canonical_slugs_are_present_with_their_documented_values() {
         assertEquals("validation-error", KnownProblemSlugs.VALIDATION_ERROR);
         assertEquals("bad-request", KnownProblemSlugs.BAD_REQUEST);
+        assertEquals("catalog-rendering-defaults-too-new", KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW);
         assertEquals("unauthorized", KnownProblemSlugs.UNAUTHORIZED);
         assertEquals("api-key-auth-disabled", KnownProblemSlugs.API_KEY_AUTH_DISABLED);
         assertEquals("forbidden", KnownProblemSlugs.FORBIDDEN);

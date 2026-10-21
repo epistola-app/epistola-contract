@@ -25,6 +25,7 @@ public class ProblemRegistryTest
     {
         Assert.Equal("validation-error", KnownProblemSlugs.VALIDATION_ERROR);
         Assert.Equal("bad-request", KnownProblemSlugs.BAD_REQUEST);
+        Assert.Equal("catalog-rendering-defaults-too-new", KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW);
         Assert.Equal("unauthorized", KnownProblemSlugs.UNAUTHORIZED);
         Assert.Equal("api-key-auth-disabled", KnownProblemSlugs.API_KEY_AUTH_DISABLED);
         Assert.Equal("forbidden", KnownProblemSlugs.FORBIDDEN);

@@ -11,3 +11,4 @@ src/main/kotlin/app/epistola/api/model/ReleaseDependenciesUnreleasedProblemDetai
 src/main/kotlin/app/epistola/api/model/CatalogReadOnlyProblemDetail.kt
 src/main/kotlin/app/epistola/api/model/MergeConflictsUnresolvedProblemDetail.kt
 src/main/kotlin/app/epistola/api/model/MergeBaseMissingProblemDetail.kt
+src/main/kotlin/app/epistola/api/model/CatalogRenderingDefaultsTooNewProblemDetail.kt

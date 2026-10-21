@@ -129,6 +129,15 @@ ProblemDetails.mergeBaseMissing(
     detail = "Merging 1.0.1 into Redesign 2027 needs 1.0.0 of letters, which this installation does not have",
 )
 
+// 400 catalog-rendering-defaults-too-new: importCatalog and installCatalogRelease, when the
+// release's metadata names rendering defaults this installation does not have; refuse before
+// writing anything
+ProblemDetails.catalogRenderingDefaultsTooNew(
+    renderingDefaultsVersion = "9",
+    supportedVersion = 6,
+    detail = "letters 1.1.0 renders with rendering defaults version 9, which this Epistola does not have (it has up to 6)",
+)
+
 // 503 or 502 catalog-source-unavailable: listAvailableCatalogReleases and installCatalogRelease,
 // when the catalog's source cannot be used. 503 when it could not be reached or timed
 // out (set Retry-After on the response when you can tell), 502 when it answered badly.

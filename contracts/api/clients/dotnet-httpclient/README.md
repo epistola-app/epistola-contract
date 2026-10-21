@@ -181,6 +181,11 @@ catch (ProblemDetailException e) when (e.IsMergeBaseMissingProblem)
 }
 ```
 
+Importing an archive or installing a release (`ImportCatalog`, `InstallCatalogRelease`) whose
+release renders with rendering defaults this installation does not have is refused with
+`catalog-rendering-defaults-too-new` (400; the body's `renderingDefaultsVersion` and
+`supportedVersion` say which): upgrade Epistola to receive it.
+
 Listing or installing the releases a catalog's source offers fails with
 `catalog-source-unavailable` when that source cannot be used: 503 when it could not be reached or
 timed out (a `Retry-After` header may say when to try again), 502 when it answered badly. Nothing

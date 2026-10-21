@@ -320,6 +320,8 @@ try {
             println("preview the merge again")
         KnownProblemSlugs.MERGE_BASE_MISSING ->          // the merge base is not installed here
             println("install ${e.missingBaseVersion} (${e.missingBaseFingerprint}) first")
+        KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW -> // importCatalog, installCatalogRelease
+            println("upgrade Epistola: the release renders with defaults ${e.extensions["renderingDefaultsVersion"]}, this has up to ${e.extensions["supportedVersion"]}")
         KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE ->  // installCatalogRelease, listAvailableCatalogReleases
             // 503: the source could not be reached (Retry-After may say when to try again);
             // 502: it answered badly. Nothing was installed.

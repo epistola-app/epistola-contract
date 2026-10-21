@@ -324,6 +324,7 @@ openApiGenerate {
             "CatalogReadOnlyProblemDetail" to "org.springframework.http.ProblemDetail",
             "MergeConflictsUnresolvedProblemDetail" to "org.springframework.http.ProblemDetail",
             "MergeBaseMissingProblemDetail" to "org.springframework.http.ProblemDetail",
+            "CatalogRenderingDefaultsTooNewProblemDetail" to "org.springframework.http.ProblemDetail",
         ),
     )
 

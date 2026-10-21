@@ -129,6 +129,16 @@ class ProblemDetailsTest {
     }
 
     @Test
+    fun `catalogRenderingDefaultsTooNew names what the release renders with and what is supported as a 400`() {
+        val problem = ProblemDetails.catalogRenderingDefaultsTooNew("9", 6, detail = "Upgrade Epistola to receive letters 1.1.0")
+        assertEquals(URI.create("https://epistola.app/errors/catalog-rendering-defaults-too-new"), problem.type)
+        assertEquals(400, problem.status)
+        assertEquals("9", problem.properties?.get("renderingDefaultsVersion"))
+        assertEquals(6, problem.properties?.get("supportedVersion"))
+        assertEquals("catalog-rendering-defaults-too-new", ProblemDetails.KnownSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW)
+    }
+
+    @Test
     fun `catalogSourceUnavailable is one type sent as a 503 or a 502`() {
         val unreachable = ProblemDetails.catalogSourceUnavailable(HttpStatus.SERVICE_UNAVAILABLE, detail = "registry.gemeente-x.nl could not be reached")
         assertEquals(URI.create("https://epistola.app/errors/catalog-source-unavailable"), unreachable.type)
