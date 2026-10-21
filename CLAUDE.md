@@ -392,25 +392,36 @@ conformance driver is `conformance/drivers/node/`.
 This project uses a **trunk-based** development model with releases from `main`:
 
 - **`main`** is the only long-lived branch. All development happens here.
-- **Snapshots** are published on every push to `main`.
-- **Releases** are triggered by creating a GitHub Release (manually or via `make release`).
-- **Release branches** (`release/X.Y`) can be created for hotfixing older versions. Any push to a release branch triggers a release automatically.
+- **Snapshots** are published on every push to `main`; feature snapshots on every push to `feature/*`.
+- **Releases** are only ever started by hand, by publishing a GitHub Release (`make release`). No push
+  releases anything, on any branch.
+- **Release branches** (`release/X.Y`) can be created for hotfixing older versions; they release the
+  same way as `main`, with `make release` on the branch.
+- **Pre-releases** (`make release PRERELEASE=alpha.1` → `v<info.version>-alpha.1`) may also come from
+  a `feature/*` branch. The GitHub Release is marked pre-release (the workflow refuses a mismatch), npm
+  publishes under the `next` dist-tag, and neither the mock-server image nor the docs move `latest`.
 
 ### Creating a Release
 
 ```bash
-# Auto-calculates next patch version, updates spec, commits, pushes, and creates GitHub Release
+# On main or release/X.Y: auto-calculates next patch version, updates spec, commits, pushes, and
+# creates GitHub Release
 make release
+
+# On main, release/* or feature/*: a pre-release of the spec's version, e.g. v2.0.0-alpha.1
+make release PRERELEASE=alpha.1
 
 # Or manually with gh CLI
 gh release create v0.2.0 --title "v0.2.0" --generate-notes
 ```
 
 `make release` performs these steps:
-1. Reads the major.minor from `contracts/api/openapi.yaml` and auto-increments the patch from existing git tags
-2. Updates `info.version` in `contracts/api/openapi.yaml` to the full release version (e.g. `0.3.1`)
-3. Commits the spec update and pushes to main
-4. Creates the GitHub Release with the version tag
+1. Reads the major.minor from `contracts/api/openapi.yaml` and auto-increments the patch from existing git tags (pre-release tags do not count)
+2. Updates `info.version` in `contracts/api/openapi.yaml` to the full release version (e.g. `0.3.1`), if it differs
+3. Commits the spec update and pushes the branch
+4. Creates the GitHub Release with the version tag, for that commit
+
+With `PRERELEASE`, it skips 1–3 and creates a pre-release GitHub Release for the current commit.
 
 For example, if the spec says `0.3.0` and the latest tag is `v0.3.0`, the next release will update the spec to `0.3.1` and create tag `v0.3.1`.
 
@@ -424,7 +435,7 @@ When a fix is needed on an older release:
 
 1. Create a `release/X.Y` branch from the relevant tag (if it doesn't exist yet)
 2. Cherry-pick or apply the fix on the release branch
-3. Push — any push to `release/**` triggers a release automatically (version is auto-calculated)
+3. Push, then `make release` on the branch when the fixes are ready (version is auto-calculated)
 4. The branch spec version must match the branch name (e.g., `release/0.1` requires `info.version: 0.1.x`)
 
 ## Commit Guidelines

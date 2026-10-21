@@ -35,6 +35,41 @@ libraries.
   the data and `keyword` a JSON Schema keyword, in every client, enforced by the new
   `template-data-validation` conformance scenario rather than by five separate test suites.
 
+- **Releases are only started by hand, and can be pre-releases.** A push to a `release/*` branch no
+  longer releases: every release, from `main` or a release branch, is started with `make release`
+  (a published GitHub Release), which now works on release branches too and on macOS.
+  `make release PRERELEASE=alpha.1` publishes a pre-release such as `v2.0.0-alpha.1`, also from a
+  `feature/*` branch. A pre-release is published to every registry but never as the latest version:
+  npm uses the `next` dist-tag, the mock-server image gets no `latest` tag, and the docs keep their
+  `latest/` page. The release workflow refuses a GitHub Release whose pre-release mark does not
+  match its tag.
+
+### Removed
+
+- **BREAKING: the `X-API-Key` header** (`apiKeyAuth` security scheme). An API key is sent as
+  `Authorization: ApiKey <key>`, the only API-key transport the contract defines; no client sent
+  `X-API-Key`, and their READMEs no longer mention it.
+- **BREAKING: `UpdateTemplateRequest.forceUpdate`.** A template is edited in a draft, which nothing
+  renders, so a breaking data-model change needs no confirmation; it is weighed when the draft is
+  released. Data examples are still always validated (`422`).
+- **BREAKING: `upgradeCatalog`, `previewCatalogUpgrade` and the 1.x reconciliation of a subscribed
+  catalog** (see "nothing is upgraded" under Changed; `installCatalogRelease` and
+  `listAvailableCatalogReleases` replace them): `CatalogUpgradeDiff`,
+  `CatalogInstallResultDto` (with its `INSTALLED` / `UPDATED` / `SKIPPED` / `FAILED` status),
+  `RemovedCatalogResourceDto`, and `UpgradeCatalogResponse`'s `installResults`, `removedResources`
+  and `aborted`.
+- **The schemas left from the bulk template import.** `ImportTemplatesRequest`,
+  `ImportTemplateDto`, `ImportVariantDto`, `ImportTemplatesResponse` and `ImportTemplateResultDto`
+  belonged to an operation removed before 1.0 and no operation referenced them;
+  `ImportTemplateResultDto` was still registered under `components.schemas`, so clients generated a
+  model for it. Importing is `importCatalog`.
+- **BREAKING: the deprecated `id` and `slug` halves of each resource address.** `key` is now the
+  only address on every read model, and is required (#84; see "a resource's address is its `key`"
+  under Changed). `UpgradeCatalogRequest`, whose only field was the ignored `includeNewSlugs`, is
+  gone with `upgradeCatalog`, as is the empty `Assets` tag. The
+  `older-server-response` conformance scenario, which proved a 1.x client could read a server from
+  before 1.3.0, is replaced by `template-listing-by-key`.
+
 ### Fixed
 
 - **`missingFields` and `invalidFields` reach consumers.** Contract 1.4.0 added both to

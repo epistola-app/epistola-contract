@@ -42,6 +42,11 @@ jobs:
           fi
           echo "api_version=${API_VERSION}" >> $GITHUB_OUTPUT
           echo "version_dir=v${API_VERSION}" >> $GITHUB_OUTPUT
+          # A pre-release (2.0.0-alpha.1) gets its own page but never becomes `latest`.
+          case "$API_VERSION" in
+            *-*) echo "prerelease=true" >> $GITHUB_OUTPUT ;;
+            *)   echo "prerelease=false" >> $GITHUB_OUTPUT ;;
+          esac
 
       - name: Bundle OpenAPI spec
         run: |
@@ -114,6 +119,7 @@ jobs:
         env:
           API_VERSION: ${{ steps.version.outputs.api_version }}
           VERSION_DIR: ${{ steps.version.outputs.version_dir }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
           cd gh-pages
           DATE=$(date +%Y-%m-%d)
@@ -123,11 +129,14 @@ jobs:
           fi
 
           # Add or update version entry
-          jq --arg v "$VERSION_DIR" --arg label "$API_VERSION" --arg date "$DATE" \
-            '.versions = ([{"version": $v, "path": "/\($v)/", "label": $label, "releaseDate": $date, "status": "current"}] + [.versions[] | select(.version != $v)]) | .latest = $v' \
+          if [ "$PRERELEASE" = true ]; then STATUS=prerelease; else STATUS=current; fi
+          jq --arg v "$VERSION_DIR" --arg label "$API_VERSION" --arg date "$DATE" --arg status "$STATUS" \
+            '.versions = ([{"version": $v, "path": "/\($v)/", "label": $label, "releaseDate": $date, "status": $status}] + [.versions[] | select(.version != $v)])
+             | if $status == "current" then .latest = $v else . end' \
             versions.json > versions.tmp && mv versions.tmp versions.json
 
       - name: Update latest
+        if: steps.version.outputs.prerelease != 'true'
         env:
           VERSION_DIR: ${{ steps.version.outputs.version_dir }}
         run: |
