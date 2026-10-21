@@ -48,6 +48,7 @@ public class ProblemDetailException extends ApiException {
     private final List<MissingDependency> missingDependencies;
     private final List<UnreleasedDependency> unreleasedDependencies;
     private final String readOnlyReason;
+    private final List<String> unresolvedConflicts;
     private final int statusCode;
     private final String responseBody;
     private final String message;
@@ -126,8 +127,31 @@ public class ProblemDetailException extends ApiException {
             List<UnreleasedDependency> unreleasedDependencies,
             String readOnlyReason,
             String responseBody) {
+        this(response, problem, errors, validationErrors, missingFields, invalidFields, missingDependencies,
+                unreleasedDependencies, readOnlyReason, null, responseBody);
+    }
+
+    /**
+     * The same, for a problem that may also list the unresolved conflicts of a merge
+     * ({@code merge-conflicts-unresolved}).
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            List<MissingDependency> missingDependencies,
+            List<UnreleasedDependency> unreleasedDependencies,
+            String readOnlyReason,
+            List<String> unresolvedConflicts,
+            String responseBody) {
         super(response);
         this.readOnlyReason = readOnlyReason;
+        this.unresolvedConflicts = unresolvedConflicts == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(unresolvedConflicts);
         this.unreleasedDependencies = unreleasedDependencies == null
                 ? Collections.emptyList()
                 : Collections.unmodifiableList(unreleasedDependencies);
@@ -297,6 +321,20 @@ public class ProblemDetailException extends ApiException {
     /** True when this problem said the catalog cannot be changed, and why. */
     public boolean isCatalogReadOnlyProblem() {
         return readOnlyReason != null;
+    }
+
+    /**
+     * The conflicts a {@code merge-conflicts-unresolved} problem (409, from
+     * {@code mergeIntoCatalogDraft}, alpha) lists without a resolution, each as
+     * {@code resourceType/resourceKey}, in the order sent. Empty for any other problem.
+     */
+    public List<String> getUnresolvedConflicts() {
+        return unresolvedConflicts;
+    }
+
+    /** True when this problem listed merge conflicts that need a resolution. */
+    public boolean isMergeConflictsUnresolvedProblem() {
+        return !unresolvedConflicts.isEmpty();
     }
 
     private static String buildMessage(int statusCode, ProblemDetail problem) {

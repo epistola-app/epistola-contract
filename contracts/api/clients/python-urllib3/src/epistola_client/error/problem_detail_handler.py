@@ -51,8 +51,9 @@ def parse_problem(
     (``DataModelValidationProblemDetail``), and the ``missingFields`` / ``invalidFields``
     arrays (``TemplateDataValidationProblemDetail``), the ``missingDependencies`` array
     (``ReleaseDependenciesMissingProblemDetail``), the ``unreleasedDependencies`` array
-    (``ReleaseDependenciesUnreleasedProblemDetail``), and the ``readOnlyReason`` string
-    (``CatalogReadOnlyProblemDetail``). The generated models are independent,
+    (``ReleaseDependenciesUnreleasedProblemDetail``), the ``readOnlyReason`` string
+    (``CatalogReadOnlyProblemDetail``), and the ``unresolvedConflicts`` array
+    (``MergeConflictsUnresolvedProblemDetail``). The generated models are independent,
     so the base fields and each extension are carried separately.
     """
     try:
@@ -102,7 +103,15 @@ def parse_problem(
         missing_dependencies=_missing_dependencies(tree),
         unreleased_dependencies=_unreleased_dependencies(tree),
         read_only_reason=_string(tree, "readOnlyReason"),
+        unresolved_conflicts=_strings(tree, "unresolvedConflicts"),
     )
+
+
+def _strings(tree: Dict[str, Any], member: str) -> List[str]:
+    """An extension member that is an array of strings, skipping entries that are not; ``[]`` when
+    absent or not an array."""
+    value = tree.get(member)
+    return [entry for entry in value if isinstance(entry, str)] if isinstance(value, list) else []
 
 
 def _string(tree: Dict[str, Any], member: str) -> Optional[str]:

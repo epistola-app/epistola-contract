@@ -51,6 +51,7 @@ public final class ProblemDetailParser {
         private final List<MissingDependency> missingDependencies;
         private final List<UnreleasedDependency> unreleasedDependencies;
         private final String readOnlyReason;
+        private final List<String> unresolvedConflicts;
 
         ParsedProblem(
                 ProblemDetail problem,
@@ -60,9 +61,11 @@ public final class ProblemDetailParser {
                 List<InvalidDataField> invalidFields,
                 List<MissingDependency> missingDependencies,
                 List<UnreleasedDependency> unreleasedDependencies,
-                String readOnlyReason) {
+                String readOnlyReason,
+                List<String> unresolvedConflicts) {
             this.problem = problem;
             this.readOnlyReason = readOnlyReason;
+            this.unresolvedConflicts = unresolvedConflicts;
             this.errors = errors;
             this.validationErrors = validationErrors;
             this.missingFields = missingFields;
@@ -125,6 +128,14 @@ public final class ProblemDetailParser {
         public String readOnlyReason() {
             return readOnlyReason;
         }
+
+        /**
+         * The conflicts a {@code merge-conflicts-unresolved} problem lists, in the order sent;
+         * empty when absent. An entry that is not a string is skipped.
+         */
+        public List<String> unresolvedConflicts() {
+            return unresolvedConflicts;
+        }
     }
 
     /**
@@ -169,7 +180,8 @@ public final class ProblemDetailParser {
                     readArray(root, ProblemExtensionMembers.INVALID_FIELDS, InvalidDataField[].class),
                     readMissingDependencies(root),
                     readUnreleasedDependencies(root),
-                    stringMember(root, ProblemExtensionMembers.READ_ONLY_REASON));
+                    stringMember(root, ProblemExtensionMembers.READ_ONLY_REASON),
+                    readStrings(root, ProblemExtensionMembers.UNRESOLVED_CONFLICTS));
         } catch (RuntimeException e) {
             return null;
         }
@@ -242,6 +254,21 @@ public final class ProblemDetailParser {
                     stringMember(dependency, "releaseName")));
         }
         return dependencies;
+    }
+
+    /** An extension member that is an array of strings; entries that are not strings are skipped. */
+    private static List<String> readStrings(JsonObject root, String member) {
+        JsonValue value = root.get(member);
+        if (value == null || value.getValueType() != JsonValue.ValueType.ARRAY) {
+            return Collections.emptyList();
+        }
+        List<String> strings = new ArrayList<>();
+        for (JsonValue entry : value.asJsonArray()) {
+            if (entry.getValueType() == JsonValue.ValueType.STRING) {
+                strings.add(((JsonString) entry).getString());
+            }
+        }
+        return strings;
     }
 
     private static String stringMember(JsonObject object, String name) {

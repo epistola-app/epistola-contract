@@ -11,6 +11,10 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- `ProblemDetailException.unresolvedConflicts` lists the conflicts a `merge-conflicts-unresolved`
+  problem (409, from `mergeIntoCatalogDraft`, alpha) reports have no resolution, each as
+  `resourceType/resourceKey`, dropping entries that are not strings; `isMergeConflictsUnresolvedProblem`
+  is true when it is not empty.
 - `ProblemDetailException.readOnlyReason` says why a `catalog-read-only` problem (409, from any
   write to a catalog that cannot be changed) refused the write: `editing-disabled` or
   `supplied-by-epistola`, kept as the string the server sent; `undefined` when absent or not a

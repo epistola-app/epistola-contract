@@ -113,6 +113,13 @@ ProblemDetails.catalogReadOnly(
     detail = "this installation only receives and runs releases",
 )
 
+// 409 merge-conflicts-unresolved: mergeIntoCatalogDraft (alpha), when conflicts have no resolution;
+// 409 merge-refused and 422 merge-not-applicable are plain problems, built with `of`
+ProblemDetails.mergeConflictsUnresolved(
+    unresolvedConflicts = listOf("template/invoice"),
+    detail = "Merging 1.5.0 into Redesign 2027 needs a choice for: template/invoice",
+)
+
 // 503 or 502 catalog-source-unavailable: listAvailableCatalogReleases and installCatalogRelease,
 // when the catalog's source cannot be used. 503 when it could not be reached or timed
 // out (set Retry-After on the response when you can tell), 502 when it answered badly.

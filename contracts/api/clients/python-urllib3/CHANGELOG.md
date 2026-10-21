@@ -11,6 +11,11 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- `ProblemDetailException.unresolved_conflicts` and `is_merge_conflicts_unresolved_problem`
+  surface the `unresolvedConflicts` member of a `merge-conflicts-unresolved` problem (409, from
+  `merge_into_catalog_draft`, alpha): each conflict without a resolution, as
+  `resourceType/resourceKey`, skipping entries that are not strings. The exception's new
+  `unresolved_conflicts=` constructor parameter is optional.
 - `ProblemDetailException.read_only_reason` and `is_catalog_read_only_problem` surface the
   `readOnlyReason` member of a `catalog-read-only` problem (409, from any write to a catalog that
   cannot be changed): `editing-disabled` or `supplied-by-epistola`, kept as the wire string; `None`

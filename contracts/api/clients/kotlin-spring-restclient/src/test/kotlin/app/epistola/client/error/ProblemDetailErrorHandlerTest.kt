@@ -236,6 +236,25 @@ class ProblemDetailErrorHandlerTest {
     }
 
     @Test
+    fun `surfaces the unresolved conflicts of a merge-conflicts-unresolved problem in order`() {
+        val body = """
+            {"type":"https://epistola.app/errors/merge-conflicts-unresolved","title":"Merge Conflicts Unresolved",
+             "status":409,"unresolvedConflicts":["stencil/footer",7,"template/invoice"]}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertEquals(KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED, ex.typeSlug)
+        assertEquals(listOf("stencil/footer", "template/invoice"), ex.unresolvedConflicts)
+        assertTrue(ex.isMergeConflictsUnresolvedProblem)
+
+        val plain = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, """{"type":"https://epistola.app/errors/conflict","title":"Conflict","status":409}"""))
+        }
+        assertTrue(plain.unresolvedConflicts.isEmpty())
+        assertFalse(plain.isMergeConflictsUnresolvedProblem)
+    }
+
+    @Test
     fun `falls back to a plain exception for non-problem error bodies`() {
         val ex = assertFailsWith<RestClientResponseException> {
             handleErrorResponse(response(HttpStatus.INTERNAL_SERVER_ERROR, "gateway boom", MediaType.TEXT_PLAIN))

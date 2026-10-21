@@ -73,6 +73,39 @@ CatalogReadOnlyError:
         detail: "exchange.epistola.app/epistola/system is supplied by Epistola and cannot be changed"
         readOnlyReason: supplied-by-epistola
 
+MergeConflictError:
+  description: >-
+    The request conflicts with the current state of the draft (alpha). When conflicts of the merge
+    have no resolution, the problem is `merge-conflicts-unresolved` and `unresolvedConflicts` lists
+    each. When the release removes a resource the draft still uses, it is `merge-refused`. When the
+    catalog cannot be changed in this installation, it is `catalog-read-only` (`readOnlyReason`).
+    Other conflicts (the path names a released release, not a draft) use `conflict`.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/MergeConflictsUnresolvedProblemDetail'
+      example:
+        type: https://epistola.app/errors/merge-conflicts-unresolved
+        title: Merge Conflicts Unresolved
+        status: 409
+        detail: "Merging 1.5.0 into Redesign 2027 needs a choice for: template/invoice"
+        unresolvedConflicts:
+          - template/invoice
+
+MergeNotApplicableError:
+  description: >-
+    The merge does not apply (alpha): the draft already contains the release (its base, or merged
+    before), or a resolution names a resource that is not a conflict of the merge.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ProblemDetail'
+      example:
+        type: https://epistola.app/errors/merge-not-applicable
+        title: Merge Not Applicable
+        status: 422
+        detail: "Redesign 2027 of letters already contains 1.5.0"
+
 ResourceModifiedError:
   description: >-
     The resource changed since the `ETag` sent as `If-Match` was read, so the update was refused and

@@ -162,6 +162,17 @@ class ProblemDetailException(
     val isCatalogReadOnlyProblem: Boolean get() = readOnlyReason != null
 
     /**
+     * The conflicts a `merge-conflicts-unresolved` problem (409, from `mergeIntoCatalogDraft`,
+     * alpha) reports have no resolution, each as `resourceType/resourceKey`, in the order the server
+     * listed them; empty for any other problem. An entry that is not a string is skipped.
+     */
+    val unresolvedConflicts: List<String>
+        get() = (extensions[ProblemExtensionMembers.UNRESOLVED_CONFLICTS] as? List<*>).orEmpty().filterIsInstance<String>()
+
+    /** True when this problem listed merge conflicts that need a resolution. */
+    val isMergeConflictsUnresolvedProblem: Boolean get() = unresolvedConflicts.isNotEmpty()
+
+    /**
      * One extension member's array of objects, converted to [T]. An entry of an unexpected shape
      * yields nothing rather than a guess: a malformed problem body should not become a confident
      * claim about a particular field, nor hide the problem it decorates.

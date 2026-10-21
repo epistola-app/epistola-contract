@@ -37,6 +37,7 @@ from epistola_client import (
     GenerationApi,
     ImagesApi,
     JwtSigner,
+    MergeIntoCatalogDraftRequest,
     PingRequest,
     ProblemDetailException,
     ReleaseCatalogDraftRequest,
@@ -97,6 +98,8 @@ def main() -> int:
         "preview-catalog-draft-release": _preview_catalog_draft_release,
         "delete-catalog-release": _delete_catalog_release,
         "release-catalog-draft": _release_catalog_draft,
+        "preview-catalog-draft-merge": _preview_catalog_draft_merge,
+        "merge-into-catalog-draft": _merge_into_catalog_draft,
         "deploy-catalog-release": _deploy_catalog_release,
         "undeploy-catalog-release": _undeploy_catalog_release,
         "create-environment": _create_environment,
@@ -785,6 +788,63 @@ def _release_catalog_draft(base_url: str, config: dict) -> None:
                 f"{_show(d.registry)}/{_show(d.namespace)}/{_show(d.catalog_key)}@{_show(d.version)}"
                 for d in response.released_dependencies
             ),
+        },
+    )
+
+
+def _preview_catalog_draft_merge(base_url: str, config: dict) -> None:
+    """Previews merging the release ``config.version`` into the draft ``config.release`` (alpha),
+    the release as the ``version`` query parameter."""
+    # The generator puts the operation's own query parameter before the path's parameters.
+    preview = CatalogsApi(_client(base_url, config)).preview_catalog_draft_merge(
+        config["version"], *_release_address(config)
+    )
+    _report(
+        base_url,
+        {
+            "draft": _show(preview.draft),
+            "base": _show(preview.base),
+            "release": _show(preview.release),
+            "alreadyMerged": _show_bool(preview.already_merged),
+            "resources": ",".join(
+                f"{_show(r.resource_type)}/{_show(r.resource_key)}:{_show(_enum(r.outcome))}"
+                f":{_show(_enum(r.draft_change))}:{_show(_enum(r.release_change))}"
+                for r in preview.resources
+            ),
+            "resourceNames": "|".join(_show(r.name) for r in preview.resources),
+            "unchanged": _show(preview.unchanged),
+        },
+    )
+
+
+def _merge_into_catalog_draft(base_url: str, config: dict) -> None:
+    """Merges the release ``config.version`` into the draft ``config.release`` (alpha), with
+    ``config.resolutions`` when the scenario sets them. A refusal is reported by its problem, with
+    the conflicts it lists and the read-only reason it gives."""
+    optional = {"resolutions": config["resolutions"]} if "resolutions" in config else {}
+    try:
+        merged = CatalogsApi(_client(base_url, config)).merge_into_catalog_draft(
+            *_release_address(config),
+            MergeIntoCatalogDraftRequest(release=config["version"], **optional),
+        )
+    except ProblemDetailException as exc:
+        _report(
+            base_url,
+            {
+                "problemTypeSlug": exc.type_slug or "<null>",
+                "problemStatus": exc.status_code,
+                "problemUnresolvedConflicts": ",".join(exc.unresolved_conflicts),
+                "problemReadOnlyReason": _show(exc.read_only_reason),
+            },
+        )
+        return
+    _report(
+        base_url,
+        {
+            "release": _show(merged.release),
+            "taken": ",".join(merged.taken),
+            "removed": ",".join(merged.removed),
+            "kept": ",".join(merged.kept),
         },
     )
 

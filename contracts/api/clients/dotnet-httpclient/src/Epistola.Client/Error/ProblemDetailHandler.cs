@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -79,7 +80,8 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             invalidFields: parsed.InvalidFields,
             missingDependencies: parsed.MissingDependencies,
             unreleasedDependencies: parsed.UnreleasedDependencies,
-            readOnlyReason: parsed.ReadOnlyReason);
+            readOnlyReason: parsed.ReadOnlyReason,
+            unresolvedConflicts: parsed.UnresolvedConflicts);
     }
 
     /// <summary>
@@ -125,7 +127,10 @@ public sealed class ProblemDetailHandler : DelegatingHandler
                 Members<InvalidDataField>(tree, "invalidFields"),
                 Entries(tree, "missingDependencies", MissingDependency.FromMember),
                 Entries(tree, "unreleasedDependencies", UnreleasedDependency.FromMember),
-                tree["readOnlyReason"] is JValue { Type: JTokenType.String } reason ? (string?)reason : null);
+                tree["readOnlyReason"] is JValue { Type: JTokenType.String } reason ? (string?)reason : null,
+                tree["unresolvedConflicts"] is JArray conflicts
+                    ? conflicts.Where(c => c.Type == JTokenType.String).Select(c => (string)c!).ToList()
+                    : new List<string>());
         }
         catch (JsonException)
         {
@@ -202,6 +207,9 @@ public sealed class ProblemDetailHandler : DelegatingHandler
         /// <summary>Why a <c>catalog-read-only</c> problem refused a write, as sent; <c>null</c> when absent or not a string.</summary>
         public string? ReadOnlyReason { get; }
 
+        /// <summary>The conflicts a <c>merge-conflicts-unresolved</c> problem lists; empty when absent.</summary>
+        public IReadOnlyList<string> UnresolvedConflicts { get; }
+
         public ParsedProblem(
             ProblemDetail problem,
             IReadOnlyList<ValidationError> errors,
@@ -210,7 +218,8 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             IReadOnlyList<InvalidDataField> invalidFields,
             IReadOnlyList<MissingDependency>? missingDependencies = null,
             IReadOnlyList<UnreleasedDependency>? unreleasedDependencies = null,
-            string? readOnlyReason = null)
+            string? readOnlyReason = null,
+            IReadOnlyList<string>? unresolvedConflicts = null)
         {
             Problem = problem;
             Errors = errors;
@@ -220,6 +229,7 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             MissingDependencies = missingDependencies ?? new List<MissingDependency>();
             UnreleasedDependencies = unreleasedDependencies ?? new List<UnreleasedDependency>();
             ReadOnlyReason = readOnlyReason;
+            UnresolvedConflicts = unresolvedConflicts ?? new List<string>();
         }
     }
 }

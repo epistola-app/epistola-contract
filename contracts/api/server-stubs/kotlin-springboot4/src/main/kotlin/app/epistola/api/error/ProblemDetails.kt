@@ -84,6 +84,12 @@ object ProblemDetails {
      */
     const val READ_ONLY_REASON_PROPERTY: String = ProblemExtensionMembers.READ_ONLY_REASON
 
+    /**
+     * Extension member listing the conflicts of a merge that have no resolution. Generated from the
+     * `MergeConflictsUnresolvedProblemDetail` schema, so it stays the name the clients read.
+     */
+    const val UNRESOLVED_CONFLICTS_PROPERTY: String = ProblemExtensionMembers.UNRESOLVED_CONFLICTS
+
     // The mapping is shared with the clients, which use it in the other direction.
     private val uris = ProblemTypeUris.of(TYPE_BASE)
 
@@ -150,6 +156,21 @@ object ProblemDetails {
          * (use [catalogReadOnly]).
          */
         const val CATALOG_READ_ONLY: String = KnownProblemSlugs.CATALOG_READ_ONLY
+
+        /**
+         * 409 — merging a release into a draft (alpha) was refused because conflicts have no
+         * resolution (use [mergeConflictsUnresolved]).
+         */
+        const val MERGE_CONFLICTS_UNRESOLVED: String = KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED
+
+        /** 409 — a merge (alpha) cannot be applied: the release removes a resource the draft still uses. */
+        const val MERGE_REFUSED: String = KnownProblemSlugs.MERGE_REFUSED
+
+        /**
+         * 422 — a merge (alpha) does not apply: the draft already contains the release, or a
+         * resolution names a resource that is not a conflict.
+         */
+        const val MERGE_NOT_APPLICABLE: String = KnownProblemSlugs.MERGE_NOT_APPLICABLE
 
         /**
          * 409 — a production environment serves only releases: a draft deployed to it, or an
@@ -270,6 +291,22 @@ object ProblemDetails {
     ): ProblemDetail {
         val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.CATALOG_READ_ONLY), detail, instance)
         problem.setProperty(READ_ONLY_REASON_PROPERTY, readOnlyReason.value)
+        return problem
+    }
+
+    /**
+     * Builds a `merge-conflicts-unresolved` [ProblemDetail] (409): like [of] plus the
+     * [unresolvedConflicts] extension member, each conflict of the merge without a resolution, as
+     * `resourceType/resourceKey` (the `MergeConflictsUnresolvedProblemDetail` shape from the
+     * contract).
+     */
+    fun mergeConflictsUnresolved(
+        unresolvedConflicts: List<String>,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED), detail, instance)
+        problem.setProperty(UNRESOLVED_CONFLICTS_PROPERTY, unresolvedConflicts)
         return problem
     }
 

@@ -381,3 +381,24 @@ def test_a_read_only_reason_that_is_not_a_string_reads_as_none():
         assert exc is not None
         assert exc.read_only_reason is None
         assert not exc.is_catalog_read_only_problem
+
+
+def test_parses_the_unresolved_conflicts_of_a_merge_in_order():
+    body = json.dumps(
+        {
+            "type": "https://epistola.app/errors/merge-conflicts-unresolved",
+            "title": "Merge Conflicts Unresolved",
+            "status": 409,
+            "unresolvedConflicts": ["stencil/footer", 7, "template/invoice"],
+        }
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.type_slug == KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED
+    assert exc.is_merge_conflicts_unresolved_problem
+    assert exc.unresolved_conflicts == ["stencil/footer", "template/invoice"]
+
+    plain = parse_problem(json.dumps({"title": "Conflict", "status": 409}), 409)
+    assert plain is not None
+    assert plain.unresolved_conflicts == []
+    assert not plain.is_merge_conflicts_unresolved_problem

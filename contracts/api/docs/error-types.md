@@ -33,9 +33,12 @@ Clients must ignore members they do not recognize.
 | `https://epistola.app/errors/release-dependencies-missing` | `release-dependencies-missing` | 409 | `ProblemDetail` + `missingDependencies` | a release cannot be deployed, or imported, because releases of other catalogs it renders with (the releases it pins) cannot be had: the tenant does not have them, the imported archive does not carry them, and they could not be fetched or verified; the `missingDependencies` member lists each one with its `reason` |
 | `https://epistola.app/errors/release-dependencies-unreleased` | `release-dependencies-unreleased` | 409 | `ProblemDetail` + `unreleasedDependencies` | a draft cannot be released because its dependency declarations name drafts of other catalogs, and a release pins only releases; release them first, or along with it (`releaseDependencies`). The `unreleasedDependencies` member lists each such draft (`registry`, `namespace`, `catalogKey`, `releaseId`, `releaseName`) |
 | `https://epistola.app/errors/catalog-read-only` | `catalog-read-only` | 409 | `ProblemDetail` + `readOnlyReason` | the catalog cannot be changed in this installation (`CatalogDto.editable` is false), so a write to it was refused and nothing changed; `readOnlyReason` is `editing-disabled` (the installation only receives and runs releases) or `supplied-by-epistola` (the server supplies the catalog and replaces it on upgrade) |
+| `https://epistola.app/errors/merge-conflicts-unresolved` | `merge-conflicts-unresolved` | 409 | `ProblemDetail` + `unresolvedConflicts` | merging a release into a draft (`mergeIntoCatalogDraft`, alpha) was refused because conflicts have no resolution; `unresolvedConflicts` lists each as `resourceType/resourceKey`. Nothing changed |
+| `https://epistola.app/errors/merge-refused` | `merge-refused` | 409 | `ProblemDetail` | merging a release into a draft (alpha) cannot be applied as asked: the release removes a resource the draft still uses. Nothing changed; keep it (`ours`) or stop using it first |
 | `https://epistola.app/errors/environment-deployment-refused` | `environment-deployment-refused` | 409 | `ProblemDetail` | a production environment serves only releases: a draft is deployed to it, or it is marked production while it serves a draft |
 | `https://epistola.app/errors/resource-modified` | `resource-modified` | 412 | `ProblemDetail` | an update sent `If-Match` with an `ETag` that is no longer current: the resource changed since it was read, and nothing changed. Read it again, reapply the change and retry with the new `ETag` |
 | `https://epistola.app/errors/data-model-validation-error` | `data-model-validation-error` | 422 | `ProblemDetail` + `validationErrors` | the request is well-formed but semantically invalid: supplied data examples do not validate against the data model; the `validationErrors` member maps each example name to its failures |
+| `https://epistola.app/errors/merge-not-applicable` | `merge-not-applicable` | 422 | `ProblemDetail` | merging a release into a draft (alpha) does not apply: the draft already contains the release (its base, or merged before), or a resolution names a resource that is not a conflict of the merge |
 | `https://epistola.app/errors/rate-limited` | `rate-limited` | 429 | `ProblemDetail` | too many requests; a `Retry-After` header indicates how long to wait |
 | `https://epistola.app/errors/catalog-source-unavailable` | `catalog-source-unavailable` | 503 | `ProblemDetail` | a catalog's source (its registry, through the mirrors configured for it) could not be used, so `listAvailableCatalogReleases` or `installCatalogRelease` could not be carried out and nothing was installed. **503** when the source could not be reached or did not answer in time, possibly with a `Retry-After` header; **502** when it answered with an error or with something that is not a valid answer. The registry lists 503; the same type is sent with either status |
 
@@ -135,6 +138,27 @@ updated, deleted or marked ready) is refused with 409 `catalog-read-only`, and n
 ```
 
 Retrying does not help; a client offers no write on a catalog whose `editable` is false.
+
+## Merging (alpha)
+
+`mergeIntoCatalogDraft` (ADR 0005) is all or nothing. It is refused, with nothing changed, by:
+
+- 409 `merge-conflicts-unresolved`: conflicts have no resolution. `unresolvedConflicts` lists each
+  as `resourceType/resourceKey`; resolve each to `ours` or `theirs` and send the merge again.
+- 409 `merge-refused`: the release removes a resource the draft still uses.
+- 422 `merge-not-applicable`: the draft already contains the release, or a resolution names a
+  resource that is not a conflict.
+- 409 `catalog-read-only`: the catalog cannot be changed in this installation.
+
+```json
+{
+  "type": "https://epistola.app/errors/merge-conflicts-unresolved",
+  "title": "Merge Conflicts Unresolved",
+  "status": 409,
+  "detail": "Merging 1.5.0 into Redesign 2027 needs a choice for: template/invoice",
+  "unresolvedConflicts": ["template/invoice"]
+}
+```
 
 ## Handling problems in the generated clients
 

@@ -172,6 +172,16 @@ test('surfaces why a catalog-read-only problem refused the write', () => {
   }
 })
 
+test('surfaces the unresolved conflicts of a merge-conflicts-unresolved problem in order', () => {
+  const problem = parse({ type: 'https://epistola.app/errors/merge-conflicts-unresolved', title: 'Merge Conflicts Unresolved', status: 409, unresolvedConflicts: ['stencil/footer', 7, 'template/invoice'] }, 409)!
+  assert.equal(problem.typeSlug, KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED)
+  assert.deepEqual(problem.unresolvedConflicts, ['stencil/footer', 'template/invoice'])
+  assert.ok(problem.isMergeConflictsUnresolvedProblem)
+  const other = parse({ type: 'https://epistola.app/errors/conflict', title: 'Conflict', status: 409 }, 409)!
+  assert.deepEqual(other.unresolvedConflicts, [])
+  assert.equal(other.isMergeConflictsUnresolvedProblem, false)
+})
+
 test('keeps extension members the contract does not name', () => {
   const problem = parse({ type: 'https://epistola.app/errors/catalog-schema-too-old', title: 'Too old', status: 409, version: 4, baselineVersion: 6 }, 409)!
   assert.equal(problem.typeSlug, 'catalog-schema-too-old')

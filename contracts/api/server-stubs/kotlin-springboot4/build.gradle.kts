@@ -322,6 +322,7 @@ openApiGenerate {
             "ReleaseDependenciesMissingProblemDetail" to "org.springframework.http.ProblemDetail",
             "ReleaseDependenciesUnreleasedProblemDetail" to "org.springframework.http.ProblemDetail",
             "CatalogReadOnlyProblemDetail" to "org.springframework.http.ProblemDetail",
+            "MergeConflictsUnresolvedProblemDetail" to "org.springframework.http.ProblemDetail",
         ),
     )
 

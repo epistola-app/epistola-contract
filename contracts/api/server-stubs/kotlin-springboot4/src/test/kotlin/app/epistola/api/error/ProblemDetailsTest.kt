@@ -107,6 +107,16 @@ class ProblemDetailsTest {
     }
 
     @Test
+    fun `mergeConflictsUnresolved lists each conflict without a resolution as a 409`() {
+        val problem = ProblemDetails.mergeConflictsUnresolved(listOf("stencil/footer", "template/invoice"))
+        assertEquals(URI.create("https://epistola.app/errors/merge-conflicts-unresolved"), problem.type)
+        assertEquals(409, problem.status)
+        assertEquals(listOf("stencil/footer", "template/invoice"), problem.properties?.get("unresolvedConflicts"))
+        assertEquals("merge-refused", ProblemDetails.KnownSlugs.MERGE_REFUSED)
+        assertEquals("merge-not-applicable", ProblemDetails.KnownSlugs.MERGE_NOT_APPLICABLE)
+    }
+
+    @Test
     fun `catalogSourceUnavailable is one type sent as a 503 or a 502`() {
         val unreachable = ProblemDetails.catalogSourceUnavailable(HttpStatus.SERVICE_UNAVAILABLE, detail = "registry.gemeente-x.nl could not be reached")
         assertEquals(URI.create("https://epistola.app/errors/catalog-source-unavailable"), unreachable.type)

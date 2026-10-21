@@ -314,6 +314,8 @@ try {
             }
         KnownProblemSlugs.CATALOG_READ_ONLY ->           // any write to a catalog that cannot be changed
             log.warn("catalog cannot be changed here: ${e.readOnlyReason}")
+        KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED ->  // mergeIntoCatalogDraft (alpha)
+            e.unresolvedConflicts.forEach { println("needs ours or theirs: $it") }
         KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE ->  // installCatalogRelease, listAvailableCatalogReleases
             // 503: the source could not be reached (Retry-After may say when to try again);
             // 502: it answered badly. Nothing was installed.
@@ -332,7 +334,9 @@ sent so a future reason is not lost; compare it against `MissingReleaseDependenc
 `unreleasedDependencies` (the drafts of other catalogs a `release-dependencies-unreleased` problem
 lists, which must be released first or along with the draft, `releaseDependencies`),
 `readOnlyReason` (why a `catalog-read-only` problem refused a write, `editing-disabled` or
-`supplied-by-epistola`, kept as the string the server sent), `isValidationProblem`,
+`supplied-by-epistola`, kept as the string the server sent), `unresolvedConflicts` (the
+conflicts of a merge a `merge-conflicts-unresolved` problem lists, as `resourceType/resourceKey`),
+`isMergeConflictsUnresolvedProblem`, `isValidationProblem`,
 `isDataModelValidationProblem`, `isReleaseDependenciesMissingProblem`,
 `isReleaseDependenciesUnreleasedProblem`, `isCatalogReadOnlyProblem`, and `extensions`. See [error-types.md](../../docs/error-types.md) for the full list of problem `type`
 slugs.

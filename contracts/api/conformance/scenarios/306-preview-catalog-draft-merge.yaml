@@ -1,0 +1,69 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: preview-catalog-draft-merge
+title: A merge preview names every resource a side changed, how, and what the merge does with it
+why: >
+  Merging a release into a draft is alpha (ADR 0005). Before merging, an author sees per resource
+  whether the draft's change stays (`ours`), the release's is taken (`theirs`), or both changed it
+  differently (`conflict`), with how each side changed it. A client that drops a null change, or
+  reports one side's change as the other's, shows a conflict as a clean take.
+
+  The release merged in is the query parameter `version`, because `{release}` in the path names the
+  draft. Resources neither side changed are only counted (`unchanged`).
+
+action:
+  name: preview-catalog-draft-merge
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    version: 1.5.0
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      draft: k7m2x9qa
+      base: 1.4.0
+      release: 1.5.0
+      alreadyMerged: false
+      resources:
+        - resourceType: stencil
+          resourceKey: footer
+          name: Footer
+          outcome: ours
+          draftChange: modified
+          releaseChange: null
+        - resourceType: template
+          resourceKey: invoice
+          name: Invoice
+          outcome: conflict
+          draftChange: modified
+          releaseChange: modified
+        - resourceType: theme
+          resourceKey: winter
+          name: null
+          outcome: theirs
+          draftChange: null
+          releaseChange: removed
+      unchanged: 12
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/merge-preview
+      query: version=1.5.0
+  report:
+    draft: k7m2x9qa
+    base: 1.4.0
+    release: 1.5.0
+    alreadyMerged: 'false'
+    resources: stencil/footer:ours:modified:null,template/invoice:conflict:modified:modified,theme/winter:theirs:null:removed
+    resourceNames: Footer|Invoice|null
+    unchanged: '12'
