@@ -90,6 +90,14 @@ public class ProblemDetailException : ApiException
     /// </summary>
     public string? ReadOnlyReason { get; }
 
+    /// <summary>
+    /// The conflicts a <c>merge-conflicts-unresolved</c> problem (409, from
+    /// <c>MergeIntoCatalogDraft</c>, alpha) lists without a resolution, each as
+    /// <c>resourceType/resourceKey</c>, in the order sent; empty for any other problem. An entry
+    /// that is not a string is skipped.
+    /// </summary>
+    public IReadOnlyList<string> UnresolvedConflicts { get; }
+
     /// <summary>The HTTP status of the error response.</summary>
     public HttpStatusCode StatusCode { get; }
 
@@ -104,7 +112,8 @@ public class ProblemDetailException : ApiException
         IReadOnlyList<InvalidDataField>? invalidFields = null,
         IReadOnlyList<MissingDependency>? missingDependencies = null,
         IReadOnlyList<UnreleasedDependency>? unreleasedDependencies = null,
-        string? readOnlyReason = null)
+        string? readOnlyReason = null,
+        IReadOnlyList<string>? unresolvedConflicts = null)
         // ApiException is generated and nullable-oblivious; its errorContent/headers are
         // optional and accept null at runtime, so bridge the nullable values with `!`.
         : base((int)statusCode, BuildMessage(statusCode, problem), rawBody!, headers!)
@@ -117,6 +126,7 @@ public class ProblemDetailException : ApiException
         MissingDependencies = missingDependencies ?? new List<MissingDependency>();
         UnreleasedDependencies = unreleasedDependencies ?? new List<UnreleasedDependency>();
         ReadOnlyReason = readOnlyReason;
+        UnresolvedConflicts = unresolvedConflicts ?? new List<string>();
         StatusCode = statusCode;
     }
 
@@ -155,6 +165,9 @@ public class ProblemDetailException : ApiException
 
     /// <summary>True when this problem said the catalog cannot be changed, and why.</summary>
     public bool IsCatalogReadOnlyProblem => ReadOnlyReason != null;
+
+    /// <summary>True when this problem listed merge conflicts that need a resolution.</summary>
+    public bool IsMergeConflictsUnresolvedProblem => UnresolvedConflicts.Count > 0;
 
     private static string BuildMessage(HttpStatusCode status, ProblemDetail problem)
     {

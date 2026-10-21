@@ -311,6 +311,24 @@ public class ProblemDetailHandlerTest
     }
 
     [Fact]
+    public async Task ThrowsWithTheConflictsOfAMergeConflictsUnresolvedProblem()
+    {
+        const string body = """
+            {"type": "https://epistola.app/errors/merge-conflicts-unresolved", "title": "Merge Conflicts Unresolved",
+             "status": 409, "unresolvedConflicts": ["stencil/footer", 7, "template/invoice"]}
+            """;
+        var client = ClientReturning(HttpStatusCode.Conflict, "application/problem+json", body);
+
+        var ex = await Assert.ThrowsAsync<ProblemDetailException>(() => client.PostAsync("merge", null));
+        Assert.Equal(KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED, ex.TypeSlug);
+        Assert.True(ex.IsMergeConflictsUnresolvedProblem);
+        Assert.Equal(new[] { "stencil/footer", "template/invoice" }, ex.UnresolvedConflicts);
+
+        var plain = ProblemDetailHandler.ParseProblem("""{"type": "https://epistola.app/errors/conflict", "title": "Conflict", "status": 409}""");
+        Assert.Empty(plain!.UnresolvedConflicts);
+    }
+
+    [Fact]
     public void ParseProblemReadsNoReadOnlyReasonThatIsNotAString()
     {
         var parsed = ProblemDetailHandler.ParseProblem(

@@ -15,6 +15,7 @@ import app.epistola.client.jakarta.StubServer;
 import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.model.AvailableCatalogReleases;
 import app.epistola.client.jakarta.model.CatalogDependencyListResponse;
+import app.epistola.client.jakarta.model.CatalogDraftMergePreview;
 import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
 import app.epistola.client.jakarta.model.CatalogReleaseDto;
 import app.epistola.client.jakarta.model.CatalogReleaseListResponse;
@@ -22,6 +23,7 @@ import app.epistola.client.jakarta.model.CatalogReleaseStatus;
 import app.epistola.client.jakarta.model.CreateTenantRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
 import app.epistola.client.jakarta.model.InstallCatalogReleaseResponse;
+import app.epistola.client.jakarta.model.MergeIntoCatalogDraftResponse;
 import app.epistola.client.jakarta.model.ReleaseCatalogDraftResponse;
 import app.epistola.client.jakarta.model.TenantDto;
 import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
@@ -347,8 +349,24 @@ class GeneratedApiContractTest {
                         .noneMatch(parameter -> parameter.isAnnotationPresent(QueryParam.class)),
                 "previewCatalogDraftRelease takes no query parameters");
 
+        // Merging (alpha): the release merged in is a query parameter, since {release} names the draft.
+        assertOperation("mergeIntoCatalogDraft", POST.class, MergeIntoCatalogDraftResponse.class, release);
+        Method mergePreview = method(CatalogsApi.class, "previewCatalogDraftMerge");
+        assertNotNull(mergePreview.getAnnotation(GET.class), "previewCatalogDraftMerge should be a GET");
+        assertEquals(CatalogDraftMergePreview.class, mergePreview.getReturnType());
+        assertTrue(mergePreview.getAnnotation(Path.class).value().endsWith("/releases/{release}/merge-preview"));
+        assertEquals(
+                List.of("version"),
+                Arrays.stream(mergePreview.getParameters())
+                        .filter(parameter -> parameter.isAnnotationPresent(QueryParam.class))
+                        .map(parameter -> parameter.getAnnotation(QueryParam.class).value())
+                        .toList(),
+                "previewCatalogDraftMerge names the release to merge as its version query parameter");
+        assertTrue(method(CatalogsApi.class, "mergeIntoCatalogDraft").getAnnotation(Path.class).value()
+                .endsWith("/releases/{release}/merge"));
+
         for (String withBody :
-                List.of("createCatalogRelease", "updateCatalogRelease", "releaseCatalogDraft")) {
+                List.of("createCatalogRelease", "updateCatalogRelease", "releaseCatalogDraft", "mergeIntoCatalogDraft")) {
             assertEquals(
                     List.of(VENDOR_JSON),
                     List.of(method(CatalogsApi.class, withBody).getAnnotation(Consumes.class).value()),

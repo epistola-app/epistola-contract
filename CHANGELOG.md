@@ -11,6 +11,26 @@ libraries.
 
 ### Added
 
+- **Merging a release into a draft (alpha, `x-experimental`)**, per ADR 0005, now Accepted (alpha).
+  `previewCatalogDraftMerge` (`GET …/releases/{release}/merge-preview?version=`) returns
+  `CatalogDraftMergePreview`: the `draft`, its `base`, the `release` merged in, `alreadyMerged`, and
+  per resource a side changed (`CatalogDraftMergeResource`: `resourceType`, `resourceKey`, `name`,
+  `outcome` `ours`/`theirs`/`conflict`, `draftChange` and `releaseChange` `added`/`modified`/
+  `removed` or null), with the rest counted in `unchanged`. `mergeIntoCatalogDraft`
+  (`POST …/releases/{release}/merge`, `MergeIntoCatalogDraftRequest` `{release, resolutions}`,
+  resolutions `resourceType/resourceKey` to `ours` or `theirs`) returns
+  `MergeIntoCatalogDraftResponse` `{release, taken, removed, kept}`. The release is a query
+  parameter `version` in the preview because `{release}` in the path names the draft. The draft
+  then contains the release and is not behind it (`CatalogReleaseDto.behind` leaves merged releases
+  out); its base does not move. New problem types: 409 `merge-conflicts-unresolved`
+  (`MergeConflictsUnresolvedProblemDetail`, whose `unresolvedConflicts` every client's problem
+  parser surfaces; server `ProblemDetails.mergeConflictsUnresolved`), 409 `merge-refused` (the
+  release removes a resource the draft still uses) and 422 `merge-not-applicable` (the draft
+  already contains the release, or a resolution names a non-conflict); a read-only catalog is 409
+  `catalog-read-only`. Conformance actions `preview-catalog-draft-merge` and
+  `merge-into-catalog-draft` in all five drivers, with scenarios `preview-catalog-draft-merge`,
+  `merge-into-catalog-draft`, `merge-into-catalog-draft-conflicts-unresolved` and
+  `merge-into-catalog-draft-read-only`.
 - **A release carries its id and producer metadata** (catalog wire v8, changed in place: v8 is
   unreleased). `release.releaseId` (`ReleaseInfo.releaseId`) is the release's id, by the API's
   `CatalogReleaseId` rule (`CatalogReleaseIds`; TypeScript `CATALOG_RELEASE_ID_PATTERN`,

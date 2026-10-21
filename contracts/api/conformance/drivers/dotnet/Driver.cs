@@ -70,6 +70,8 @@ public static class Driver
                 case "preview-catalog-draft-release": PreviewCatalogDraftRelease(baseUrl, config); break;
                 case "delete-catalog-release": DeleteCatalogRelease(baseUrl, config); break;
                 case "release-catalog-draft": ReleaseCatalogDraft(baseUrl, config); break;
+                case "preview-catalog-draft-merge": PreviewCatalogDraftMerge(baseUrl, config); break;
+                case "merge-into-catalog-draft": MergeIntoCatalogDraft(baseUrl, config); break;
                 case "deploy-catalog-release": DeployCatalogRelease(baseUrl, config); break;
                 case "undeploy-catalog-release": UndeployCatalogRelease(baseUrl, config); break;
                 case "create-environment": CreateEnvironment(baseUrl, config); break;
@@ -862,6 +864,71 @@ public static class Driver
             ["draftsBehind"] = string.Join("|", response.DraftsBehind ?? new List<string>()),
             ["releasedDependencies"] = string.Join(",", (response.ReleasedDependencies ?? new List<ReleasedDependencyDto>())
                 .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.Version)}")),
+        });
+    }
+
+    /// <summary>Previews merging the release <c>config.version</c> into the draft <c>config.release</c> (alpha).</summary>
+    private static void PreviewCatalogDraftMerge(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        // The generator puts the operation's own query parameter before the path's parameters.
+        var preview = new CatalogsApi(http, apiBase).PreviewCatalogDraftMerge(
+            Str(config, "version"),
+            Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"));
+        var resources = preview.Resources ?? new List<CatalogDraftMergeResource>();
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["draft"] = Show(preview.Draft),
+            ["base"] = Show(preview.Base),
+            ["release"] = Show(preview.Release),
+            ["alreadyMerged"] = Bool(preview.AlreadyMerged),
+            ["resources"] = string.Join(",", resources.Select(r =>
+                $"{Show(r.ResourceType)}/{Show(r.ResourceKey)}:{Wire(r.Outcome)}"
+                + $":{(r.DraftChange is { } ours ? Wire(ours) : "null")}:{(r.ReleaseChange is { } theirs ? Wire(theirs) : "null")}")),
+            ["resourceNames"] = string.Join("|", resources.Select(r => Show(r.Name))),
+            ["unchanged"] = Show(preview.Unchanged),
+        });
+    }
+
+    /// <summary>
+    /// Merges the release <c>config.version</c> into the draft <c>config.release</c> (alpha), with
+    /// <c>config.resolutions</c> when present. A refusal is reported by its problem, with the
+    /// conflicts it lists and the read-only reason it gives.
+    /// </summary>
+    private static void MergeIntoCatalogDraft(string baseUrl, JsonElement config)
+    {
+        var (http, apiBase) = Client(baseUrl, config);
+        Dictionary<string, CatalogMergeSide>? resolutions = null;
+        if (config.TryGetProperty("resolutions", out var raw) && raw.ValueKind == JsonValueKind.Object)
+        {
+            resolutions = raw.EnumerateObject().ToDictionary(p => p.Name, p => Parse<CatalogMergeSide>(p.Value.GetString()!));
+        }
+        MergeIntoCatalogDraftResponse merged;
+        try
+        {
+            merged = new CatalogsApi(http, apiBase).MergeIntoCatalogDraft(
+                Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"), Str(config, "release"),
+                new MergeIntoCatalogDraftRequest(release: Str(config, "version"), resolutions: resolutions!));
+        }
+        catch (ProblemDetailException e)
+        {
+            Report(baseUrl, new Dictionary<string, object>
+            {
+                ["problemTypeSlug"] = e.TypeSlug ?? "<null>",
+                ["problemStatus"] = (int)e.StatusCode,
+                ["problemUnresolvedConflicts"] = string.Join(",", e.UnresolvedConflicts),
+                ["problemReadOnlyReason"] = Show(e.ReadOnlyReason),
+            });
+            return;
+        }
+
+        Report(baseUrl, new Dictionary<string, object>
+        {
+            ["release"] = Show(merged.Release),
+            ["taken"] = string.Join(",", merged.Taken ?? new List<string>()),
+            ["removed"] = string.Join(",", merged.Removed ?? new List<string>()),
+            ["kept"] = string.Join(",", merged.Kept ?? new List<string>()),
         });
     }
 

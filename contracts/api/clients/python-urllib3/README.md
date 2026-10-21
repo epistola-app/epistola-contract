@@ -121,6 +121,9 @@ except ProblemDetailException as e:
         case KnownProblemSlugs.CATALOG_READ_ONLY:
             # any write to a catalog that cannot be changed here
             log.warning("catalog cannot be changed here: %s", e.read_only_reason)
+        case KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED:
+            for conflict in e.unresolved_conflicts:  # merge_into_catalog_draft (alpha)
+                log.warning("needs ours or theirs: %s", conflict)
         case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
             # install_catalog_release / list_available_catalog_releases: 503 when the catalog's
             # source could not be reached (Retry-After may say when), 502 when it answered badly

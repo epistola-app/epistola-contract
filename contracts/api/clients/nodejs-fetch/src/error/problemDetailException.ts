@@ -186,6 +186,21 @@ export class ProblemDetailException extends ResponseError {
   get isCatalogReadOnlyProblem(): boolean {
     return this.readOnlyReason !== undefined
   }
+
+  /**
+   * The conflicts a `merge-conflicts-unresolved` problem (409, from `mergeIntoCatalogDraft`,
+   * alpha) lists without a resolution, each as `resourceType/resourceKey`, in the order the server
+   * listed them; empty for any other problem. An entry that is not a string is dropped.
+   */
+  get unresolvedConflicts(): readonly string[] {
+    const value = this.extensions[ProblemExtensionMembers.UNRESOLVED_CONFLICTS]
+    return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : []
+  }
+
+  /** True when this problem listed merge conflicts that need a resolution. */
+  get isMergeConflictsUnresolvedProblem(): boolean {
+    return this.unresolvedConflicts.length > 0
+  }
 }
 
 /**

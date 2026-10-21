@@ -123,11 +123,16 @@ info:
       (`previewCatalogDraftRelease`). The author may choose a higher version, never a lower one or
       one another release has. A fix to an older line is a draft from a release of that line: from
       `1.4.0`, while `1.5.0` and `2.0.0` exist, it is released as `1.4.1`.
-    - **Drafts are independent copies**: releasing one changes no other, and nothing is merged. A
-      draft is **behind** each release whose version is between its base and the version it would
-      get, and each release released after it was started whose version is below that one; it
-      lacks their changes unless an author applied them by hand. `getCatalogRelease` lists them,
-      and releasing a draft that is behind must acknowledge them.
+    - **Drafts are independent copies**: releasing one changes no other. A draft is **behind** each
+      release whose version is between its base and the version it would get, and each release
+      released after it was started whose version is below that one; it lacks their changes unless
+      an author applied them by hand. `getCatalogRelease` lists them, and releasing a draft that is
+      behind must acknowledge them.
+    - **Merging a release into a draft** (alpha, `x-experimental`): `previewCatalogDraftMerge`
+      shows, per resource, what only the draft changed (`ours`), what only the release changed
+      (`theirs`) and what both changed differently (`conflict`); `mergeIntoCatalogDraft` takes
+      theirs and applies a resolution, `ours` or `theirs`, per conflict. The draft then contains
+      the release and is no longer behind it; its base does not move.
 
     Documents are rendered from releases, and a version range never matches a draft. A
     draft renders only in a preview that names its `releaseId`, and in an environment it is
@@ -385,6 +390,19 @@ x-problem-types:
         (`editing-disabled`: the installation only receives and runs
         releases; `supplied-by-epistola`: the server supplies the catalog
         and replaces it on upgrade).
+    - slug: merge-conflicts-unresolved
+      status: 409
+      schema: MergeConflictsUnresolvedProblemDetail
+      description: >-
+        Merging a release into a draft (alpha) was refused because conflicts
+        have no resolution; `unresolvedConflicts` lists each, as
+        `resourceType/resourceKey`. Nothing changed.
+    - slug: merge-refused
+      status: 409
+      schema: ProblemDetail
+      description: >-
+        Merging a release into a draft (alpha) cannot be applied as asked: the
+        release removes a resource the draft still uses. Nothing changed.
     - slug: environment-deployment-refused
       status: 409
       schema: ProblemDetail
@@ -405,6 +423,13 @@ x-problem-types:
       description: >-
         The request is well-formed but semantically invalid; the
         `validationErrors` member maps each data-example name to its failures.
+    - slug: merge-not-applicable
+      status: 422
+      schema: ProblemDetail
+      description: >-
+        Merging a release into a draft (alpha) does not apply: the draft
+        already contains the release (its base, or merged before), or a
+        resolution names a resource that is not a conflict of the merge.
     - slug: rate-limited
       status: 429
       schema: ProblemDetail
@@ -654,6 +679,10 @@ paths:
     $ref: './paths/catalogs.yaml#/catalog-release-preview'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/release:
     $ref: './paths/catalogs.yaml#/catalog-release-action'
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge-preview:
+    $ref: './paths/catalogs.yaml#/catalog-release-merge-preview'
+  /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge:
+    $ref: './paths/catalogs.yaml#/catalog-release-merge'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/dependencies:
     $ref: './paths/catalogs.yaml#/catalog-dependencies'
   /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/changes:
@@ -850,6 +879,18 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CatalogReadOnlyReason'
     CatalogReleaseStatus:
       $ref: './components/schemas/catalogs.yaml#/CatalogReleaseStatus'
+    CatalogMergeOutcome:
+      $ref: './components/schemas/catalogs.yaml#/CatalogMergeOutcome'
+    CatalogMergeSide:
+      $ref: './components/schemas/catalogs.yaml#/CatalogMergeSide'
+    CatalogDraftMergeResource:
+      $ref: './components/schemas/catalogs.yaml#/CatalogDraftMergeResource'
+    CatalogDraftMergePreview:
+      $ref: './components/schemas/catalogs.yaml#/CatalogDraftMergePreview'
+    MergeIntoCatalogDraftRequest:
+      $ref: './components/schemas/catalogs.yaml#/MergeIntoCatalogDraftRequest'
+    MergeIntoCatalogDraftResponse:
+      $ref: './components/schemas/catalogs.yaml#/MergeIntoCatalogDraftResponse'
     CatalogReleaseDto:
       $ref: './components/schemas/catalogs.yaml#/CatalogReleaseDto'
     BehindReleaseDto:
@@ -1006,6 +1047,8 @@ components:
       $ref: './components/responses/errors.yaml#/ReleaseDependenciesUnreleasedProblemDetail'
     CatalogReadOnlyProblemDetail:
       $ref: './components/responses/errors.yaml#/CatalogReadOnlyProblemDetail'
+    MergeConflictsUnresolvedProblemDetail:
+      $ref: './components/responses/errors.yaml#/MergeConflictsUnresolvedProblemDetail'
     DataModelValidationError:
       $ref: './components/responses/errors.yaml#/DataModelValidationError'
     TemplateDataValidationProblemDetail:

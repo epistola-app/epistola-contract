@@ -300,7 +300,9 @@ Deployments (ADR 0003, "Deploying"):
   suite has scenarios for the release operations, including a draft that is behind, an acknowledged release,
   and a release that takes its dependency drafts along.
 - **No merge in 2.0.0.** Porting a change from one draft to another is the author's work, made
-  visible by `behind` and by the acknowledgement. ADR 0005 proposes a merge on request.
+  visible by `behind` and by the acknowledgement. ADR 0005 proposes a merge on request. (Since 2026-10-21 that
+  merge exists as an alpha, `mergeIntoCatalogDraft`: a draft pulls a release in per resource, its
+  base stays fixed, and the release drops off `behind`.)
 - **No choice of number up front, and no renumbering.** An address of a draft never changes; the
   number is decided once, at release.
 - **Older lines are fixed by ordinary releases.** ADR 0001 is narrowed to an installation that does

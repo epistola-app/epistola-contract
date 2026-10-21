@@ -276,6 +276,21 @@ class ApiExceptionMapperTest {
     }
 
     @Test
+    void a_merge_conflicts_unresolved_problem_lists_the_conflicts() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/merge-conflicts-unresolved",
+                         "title": "Merge Conflicts Unresolved", "status": 409,
+                         "unresolvedConflicts": ["stencil/footer", 7, "template/invoice"]}
+                        """)));
+
+        assertEquals(KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED, e.getTypeSlug());
+        assertTrue(e.isMergeConflictsUnresolvedProblem());
+        assertEquals(List.of("stencil/footer", "template/invoice"), e.getUnresolvedConflicts());
+    }
+
+    @Test
     void another_problem_lists_no_missing_dependencies() {
         ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
                 StubServer.StubResponse.of(409, PROBLEM_JSON,
@@ -287,6 +302,8 @@ class ApiExceptionMapperTest {
         assertTrue(e.getUnreleasedDependencies().isEmpty());
         assertFalse(e.isCatalogReadOnlyProblem());
         assertNull(e.getReadOnlyReason());
+        assertFalse(e.isMergeConflictsUnresolvedProblem());
+        assertTrue(e.getUnresolvedConflicts().isEmpty());
     }
 
     private static void callGetTenant(Function<StubServer.RecordedRequest, StubServer.StubResponse> responder) {

@@ -20,18 +20,26 @@ import app.epistola.client.jakarta.collect.ResultCollector;
 import app.epistola.client.jakarta.error.MissingDependency;
 import app.epistola.client.jakarta.error.ProblemDetailException;
 import app.epistola.client.jakarta.identity.ClientIdentity;
-import app.epistola.client.jakarta.model.AvailableReleaseDependencyDto;
+import app.epistola.client.jakarta.api.CodeListsApi;
+import app.epistola.client.jakarta.api.TenantsApi;
 import app.epistola.client.jakarta.model.AvailableCatalogReleases;
+import app.epistola.client.jakarta.model.AvailableReleaseDependencyDto;
 import app.epistola.client.jakarta.model.AvailableReleaseDto;
 import app.epistola.client.jakarta.model.BehindReleaseDto;
 import app.epistola.client.jakarta.model.CatalogChangesDto;
-import app.epistola.client.jakarta.model.CatalogPresetDto;
-import app.epistola.client.jakarta.model.CatalogThemeReference;
 import app.epistola.client.jakarta.model.CatalogDependencyDto;
+import app.epistola.client.jakarta.model.CatalogDependencyListResponse;
 import app.epistola.client.jakarta.model.CatalogDependencyRequirement;
+import app.epistola.client.jakarta.model.CatalogDraftMergePreview;
+import app.epistola.client.jakarta.model.CatalogDraftMergeResource;
 import app.epistola.client.jakarta.model.CatalogDraftReleasePreview;
+import app.epistola.client.jakarta.model.CatalogMergeSide;
+import app.epistola.client.jakarta.model.CatalogPresetDto;
 import app.epistola.client.jakarta.model.CatalogReleaseDto;
 import app.epistola.client.jakarta.model.CatalogReleaseStatus;
+import app.epistola.client.jakarta.model.CatalogThemeReference;
+import app.epistola.client.jakarta.model.CodeListEntryDto;
+import app.epistola.client.jakarta.model.ConsumerDto;
 import app.epistola.client.jakarta.model.CreateCatalogReleaseRequest;
 import app.epistola.client.jakarta.model.CreateEnvironmentRequest;
 import app.epistola.client.jakarta.model.DeploymentDto;
@@ -39,45 +47,42 @@ import app.epistola.client.jakarta.model.DeploymentEventDto;
 import app.epistola.client.jakarta.model.DeploymentHistoryResponse;
 import app.epistola.client.jakarta.model.DocumentDto;
 import app.epistola.client.jakarta.model.EnvironmentDto;
-import app.epistola.client.jakarta.api.CodeListsApi;
-import app.epistola.client.jakarta.api.TenantsApi;
-import app.epistola.client.jakarta.model.CatalogDependencyListResponse;
-import app.epistola.client.jakarta.model.CodeListEntryDto;
-import app.epistola.client.jakarta.model.ConsumerDto;
-import app.epistola.client.jakarta.model.GenerationJobResponse;
-import app.epistola.client.jakarta.model.TenantDto;
-import app.epistola.client.jakarta.model.UpdateCodeListEntryHiddenRequest;
-import app.epistola.client.jakarta.model.UpdateTenantRequest;
-import app.epistola.client.jakarta.model.UpdateEnvironmentRequest;
 import app.epistola.client.jakarta.model.GenerateDocumentRequest;
-import app.epistola.client.jakarta.model.VariantSelectionAttribute;
+import app.epistola.client.jakarta.model.GenerationJobResponse;
 import app.epistola.client.jakarta.model.GenerationResult;
 import app.epistola.client.jakarta.model.ImageDto;
 import app.epistola.client.jakarta.model.ImportCatalogResponse;
 import app.epistola.client.jakarta.model.InstallCatalogReleaseResponse;
 import app.epistola.client.jakarta.model.MarkStencilReadyResponse;
+import app.epistola.client.jakarta.model.MergeIntoCatalogDraftRequest;
+import app.epistola.client.jakarta.model.MergeIntoCatalogDraftResponse;
+import app.epistola.client.jakarta.model.Node;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
 import app.epistola.client.jakarta.model.ReleaseCatalogDraftRequest;
 import app.epistola.client.jakarta.model.ReleaseCatalogDraftResponse;
-import app.epistola.client.jakarta.model.ReleasedDependencyDto;
 import app.epistola.client.jakarta.model.ReleaseDependencyDto;
 import app.epistola.client.jakarta.model.ReleasedChangeDto;
-import app.epistola.client.jakarta.model.UpdateCatalogReleaseRequest;
+import app.epistola.client.jakarta.model.ReleasedDependencyDto;
 import app.epistola.client.jakarta.model.StencilContentDto;
 import app.epistola.client.jakarta.model.StencilUsageDto;
 import app.epistola.client.jakarta.model.StencilUsageListResponse;
+import app.epistola.client.jakarta.model.TemplateDocument;
 import app.epistola.client.jakarta.model.TemplateDto;
 import app.epistola.client.jakarta.model.TemplateListResponse;
 import app.epistola.client.jakarta.model.TemplateSummaryDto;
-import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
-import app.epistola.client.jakarta.model.UpdateConsumerRequest;
-import app.epistola.client.jakarta.model.Node;
-import app.epistola.client.jakarta.model.TemplateDocument;
+import app.epistola.client.jakarta.model.TenantDto;
 import app.epistola.client.jakarta.model.ThemeRef;
+import app.epistola.client.jakarta.model.UpdateCatalogDependenciesRequest;
+import app.epistola.client.jakarta.model.UpdateCatalogReleaseRequest;
+import app.epistola.client.jakarta.model.UpdateCodeListEntryHiddenRequest;
+import app.epistola.client.jakarta.model.UpdateConsumerRequest;
+import app.epistola.client.jakarta.model.UpdateEnvironmentRequest;
 import app.epistola.client.jakarta.model.UpdateStencilContentRequest;
+import app.epistola.client.jakarta.model.UpdateTenantRequest;
 import app.epistola.client.jakarta.model.UpdateVariantContentRequest;
 import app.epistola.client.jakarta.model.VariantContentDto;
+import app.epistola.client.jakarta.model.VariantSelectionAttribute;
 import app.epistola.client.jakarta.validation.schema.TemplateDataValidationException;
 import app.epistola.client.jakarta.validation.schema.TemplateSchemaValidator;
 import jakarta.json.Json;
@@ -151,6 +156,8 @@ public final class Driver {
                 case "preview-catalog-draft-release" -> previewCatalogDraftRelease(baseUrl, config);
                 case "delete-catalog-release" -> deleteCatalogRelease(baseUrl, config);
                 case "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config);
+                case "preview-catalog-draft-merge" -> previewCatalogDraftMerge(baseUrl, config);
+                case "merge-into-catalog-draft" -> mergeIntoCatalogDraft(baseUrl, config);
                 case "deploy-catalog-release" -> deployCatalogRelease(baseUrl, config);
                 case "undeploy-catalog-release" -> undeployCatalogRelease(baseUrl, config);
                 case "create-environment" -> createEnvironment(baseUrl, config);
@@ -1011,6 +1018,83 @@ public final class Driver {
                                         dependency -> dependency.getRegistry() + "/" + dependency.getNamespace() + "/"
                                                 + dependency.getCatalogKey() + "@"
                                                 + dependency.getVersion())));
+    }
+
+    /** Previews merging the release {@code config.version} into the draft {@code config.release} (alpha). */
+    private static void previewCatalogDraftMerge(String baseUrl, JsonObject config) {
+        CatalogDraftMergePreview preview = clients(baseUrl, config)
+                .api(CatalogsApi.class)
+                // The generator puts the operation's own query parameter before the path's parameters.
+                .previewCatalogDraftMerge(
+                        config.getString("version"),
+                        config.getString("tenantKey"),
+                        config.getString("registry"),
+                        config.getString("namespace"),
+                        config.getString("catalogKey"),
+                        config.getString("release"));
+        List<CatalogDraftMergeResource> resources =
+                preview.getResources() == null ? List.of() : preview.getResources();
+        report(
+                baseUrl,
+                Map.of(
+                        "draft", String.valueOf(preview.getDraft()),
+                        "base", String.valueOf(preview.getBase()),
+                        "release", String.valueOf(preview.getRelease()),
+                        "alreadyMerged", String.valueOf(preview.getAlreadyMerged()),
+                        "resources",
+                                joined(
+                                        resources,
+                                        r -> r.getResourceType() + "/" + r.getResourceKey() + ":" + r.getOutcome()
+                                                + ":" + r.getDraftChange() + ":" + r.getReleaseChange()),
+                        "resourceNames",
+                                resources.stream()
+                                        .map(r -> String.valueOf(r.getName()))
+                                        .collect(Collectors.joining("|")),
+                        "unchanged", String.valueOf(preview.getUnchanged())));
+    }
+
+    /**
+     * Merges the release {@code config.version} into the draft {@code config.release} (alpha), with
+     * {@code config.resolutions} when present. A refusal is reported by its problem, with the
+     * conflicts it lists and the read-only reason it gives.
+     */
+    private static void mergeIntoCatalogDraft(String baseUrl, JsonObject config) {
+        MergeIntoCatalogDraftRequest request = new MergeIntoCatalogDraftRequest().release(config.getString("version"));
+        if (config.containsKey("resolutions") && !config.isNull("resolutions")) {
+            Map<String, CatalogMergeSide> resolutions = new java.util.LinkedHashMap<>();
+            config.getJsonObject("resolutions")
+                    .forEach((key, side) -> resolutions.put(
+                            key, CatalogMergeSide.fromValue(((jakarta.json.JsonString) side).getString())));
+            request.resolutions(resolutions);
+        }
+        MergeIntoCatalogDraftResponse merged;
+        try {
+            merged = clients(baseUrl, config)
+                    .api(CatalogsApi.class)
+                    .mergeIntoCatalogDraft(
+                            config.getString("tenantKey"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            config.getString("release"),
+                            request);
+        } catch (ProblemDetailException e) {
+            report(
+                    baseUrl,
+                    Map.of(
+                            "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                            "problemStatus", e.getStatusCode(),
+                            "problemUnresolvedConflicts", String.join(",", e.getUnresolvedConflicts()),
+                            "problemReadOnlyReason", String.valueOf(e.getReadOnlyReason())));
+            return;
+        }
+        report(
+                baseUrl,
+                Map.of(
+                        "release", String.valueOf(merged.getRelease()),
+                        "taken", String.join(",", merged.getTaken() == null ? List.of() : merged.getTaken()),
+                        "removed", String.join(",", merged.getRemoved() == null ? List.of() : merged.getRemoved()),
+                        "kept", String.join(",", merged.getKept() == null ? List.of() : merged.getKept())));
     }
 
     /** A timestamp as ISO 8601 in UTC with its seconds, or {@code null}; offsets and precision vary by parser. */

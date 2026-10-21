@@ -14,12 +14,14 @@ import-catalog:
       Install the release a self-contained catalog ZIP archive carries. The ZIP must contain a
       `catalog.json` manifest and resource detail files matching the catalog exchange protocol.
 
-      An import never touches a draft. It installs **the archive's release**, at its number
+      An import never changes a draft's own changes. It installs **the archive's release**, at its number
       (`release.version`), as an immutable release of the catalog the archive names (registry +
       namespace + key), side by side with the releases of that catalog the tenant already has, the
       same way installing from an exchange does: releases are immutable and live side by side, and
-      deploying chooses which one is used. Nothing is merged, no resource is
-      updated in place, and no draft is created or changed.
+      deploying chooses which one is used. Nothing is merged, and no resource is updated in place.
+      A server may move a draft with no changes of its own along to the new release (a fast-forward,
+      as Epistola Suite does for the draft it calls the next version); a draft with changes of its
+      own is left as it is, behind the release, and can merge it (`mergeIntoCatalogDraft`, alpha).
 
       - **A release the tenant does not have** is installed. The catalog's other releases, and every
         draft, deployment and catalog that uses them, are left as they are; which release an

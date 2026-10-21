@@ -64,6 +64,8 @@ const ACTIONS = {
   'preview-catalog-draft-release': previewCatalogDraftRelease,
   'delete-catalog-release': deleteCatalogRelease,
   'release-catalog-draft': releaseCatalogDraft,
+  'preview-catalog-draft-merge': previewCatalogDraftMerge,
+  'merge-into-catalog-draft': mergeIntoCatalogDraft,
   'deploy-catalog-release': deployCatalogRelease,
   'undeploy-catalog-release': undeployCatalogRelease,
   'create-environment': createEnvironment,
@@ -680,6 +682,68 @@ async function releaseCatalogDraft(baseUrl, config) {
     releasedDependencies: response.releasedDependencies
       .map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.version)}`)
       .join(','),
+  })
+}
+
+/**
+ * Previews merging the release `config.version` into the draft `config.release` (alpha), the
+ * release as the `version` query parameter.
+ */
+async function previewCatalogDraftMerge(baseUrl, config) {
+  const preview = await new CatalogsApi(client(baseUrl, config)).previewCatalogDraftMerge({
+    tenantKey: config.tenantKey,
+    registry: config.registry,
+    namespace: config.namespace,
+    catalogKey: config.catalogKey,
+    release: config.release,
+    version: config.version,
+  })
+  await report(baseUrl, {
+    draft: show(preview.draft),
+    base: show(preview.base),
+    release: show(preview.release),
+    alreadyMerged: show(preview.alreadyMerged),
+    resources: preview.resources
+      .map((r) => `${show(r.resourceType)}/${show(r.resourceKey)}:${show(r.outcome)}:${show(r.draftChange)}:${show(r.releaseChange)}`)
+      .join(','),
+    resourceNames: preview.resources.map((r) => show(r.name)).join('|'),
+    unchanged: show(preview.unchanged),
+  })
+}
+
+/**
+ * Merges the release `config.version` into the draft `config.release` (alpha), with
+ * `config.resolutions` when present. A refusal is reported by its problem, with the conflicts it
+ * lists and the read-only reason it gives.
+ */
+async function mergeIntoCatalogDraft(baseUrl, config) {
+  const request = { release: config.version }
+  if (config.resolutions !== undefined) request.resolutions = config.resolutions
+  let merged
+  try {
+    merged = await new CatalogsApi(client(baseUrl, config)).mergeIntoCatalogDraft({
+      tenantKey: config.tenantKey,
+      registry: config.registry,
+      namespace: config.namespace,
+      catalogKey: config.catalogKey,
+      release: config.release,
+      mergeIntoCatalogDraftRequest: request,
+    })
+  } catch (error) {
+    if (!(error instanceof ProblemDetailException)) throw error
+    await report(baseUrl, {
+      problemTypeSlug: error.typeSlug ?? '<null>',
+      problemStatus: error.statusCode,
+      problemUnresolvedConflicts: error.unresolvedConflicts.join(','),
+      problemReadOnlyReason: show(error.readOnlyReason),
+    })
+    return
+  }
+  await report(baseUrl, {
+    release: show(merged.release),
+    taken: merged.taken.map(show).join(','),
+    removed: merged.removed.map(show).join(','),
+    kept: merged.kept.map(show).join(','),
   })
 }
 

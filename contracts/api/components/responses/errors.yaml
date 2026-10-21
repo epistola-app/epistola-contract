@@ -122,6 +122,19 @@ CatalogReadOnlyProblemDetail:
             Why the catalog cannot be changed in this installation, as `CatalogDto.readOnlyReason`
             reports it.
 
+MergeConflictsUnresolvedProblemDetail:
+  allOf:
+    - $ref: '#/ProblemDetail'
+    - type: object
+      properties:
+        unresolvedConflicts:
+          type: array
+          description: >-
+            Each conflict of the merge that the request gave no resolution, as
+            `resourceType/resourceKey` (`template/invoice`), ordered by type, then key.
+          items:
+            type: string
+
 DataModelValidationError:
   type: object
   description: A single data-example validation failure against the data model

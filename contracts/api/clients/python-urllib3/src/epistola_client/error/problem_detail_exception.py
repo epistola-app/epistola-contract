@@ -98,6 +98,7 @@ class ProblemDetailException(ApiException):
         missing_dependencies: Optional[List[MissingDependency]] = None,
         unreleased_dependencies: Optional[List[UnreleasedDependency]] = None,
         read_only_reason: Optional[str] = None,
+        unresolved_conflicts: Optional[List[str]] = None,
     ) -> None:
         super().__init__(
             status=status_code,
@@ -133,6 +134,10 @@ class ProblemDetailException(ApiException):
         #: ``editing-disabled`` or ``supplied-by-epistola``, kept as the string the server sent so a
         #: reason a later contract adds is surfaced; else ``None``.
         self.read_only_reason = read_only_reason
+        #: The conflicts of a merge without a resolution when the body was a
+        #: ``MergeConflictsUnresolvedProblemDetail`` (``merge-conflicts-unresolved``, 409, alpha),
+        #: each as ``resourceType/resourceKey``, else ``[]``.
+        self.unresolved_conflicts = unresolved_conflicts or []
         #: The HTTP status of the error response.
         self.status_code = status_code
 
@@ -188,6 +193,11 @@ class ProblemDetailException(ApiException):
     def is_catalog_read_only_problem(self) -> bool:
         """True when this problem said the catalog cannot be changed, and why."""
         return self.read_only_reason is not None
+
+    @property
+    def is_merge_conflicts_unresolved_problem(self) -> bool:
+        """True when this problem listed merge conflicts that need a resolution."""
+        return len(self.unresolved_conflicts) > 0
 
     @property
     def is_data_model_validation_problem(self) -> bool:

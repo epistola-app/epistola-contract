@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: merge-into-catalog-draft
+title: Merging a release into a draft sends the release and every resolution, and reports what it did
+why: >
+  Merging is alpha (ADR 0005). The request names the release merged in and resolves each conflict,
+  by `resourceType/resourceKey`, to `ours` or `theirs`. A client that drops the resolutions, or
+  sends a side in another spelling, gets the merge refused as unresolved. The response lists what
+  was taken from the release, removed because the release removed it, and kept as the draft has it.
+
+action:
+  name: merge-into-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    version: 1.5.0
+    resolutions:
+      template/invoice: theirs
+      stencil/header: ours
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      release: 1.5.0
+      taken: [template/invoice, theme/corporate]
+      removed: [theme/winter]
+      kept: [stencil/header]
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/merge
+      body:
+        json:
+          release: { equals: 1.5.0 }
+          resolutions:
+            template/invoice: theirs
+            stencil/header: ours
+  report:
+    release: 1.5.0
+    taken: template/invoice,theme/corporate
+    removed: theme/winter
+    kept: stencil/header

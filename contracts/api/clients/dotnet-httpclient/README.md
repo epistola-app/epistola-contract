@@ -157,6 +157,18 @@ catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.CATALOG_R
 }
 ```
 
+Merging a release into a draft (`MergeIntoCatalogDraft`, alpha) with conflicts that have no
+resolution is a `merge-conflicts-unresolved` problem. `UnresolvedConflicts` lists each as
+`resourceType/resourceKey`:
+
+```csharp
+catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED)
+{
+    foreach (var conflict in e.UnresolvedConflicts)
+        Console.WriteLine($"needs ours or theirs: {conflict}");
+}
+```
+
 Listing or installing the releases a catalog's source offers fails with
 `catalog-source-unavailable` when that source cannot be used: 503 when it could not be reached or
 timed out (a `Retry-After` header may say when to try again), 502 when it answered badly. Nothing

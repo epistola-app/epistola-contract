@@ -52,6 +52,7 @@ public class ApiExceptionMapper implements ResponseExceptionMapper<ApiException>
                 parsed.missingDependencies(),
                 parsed.unreleasedDependencies(),
                 parsed.readOnlyReason(),
+                parsed.unresolvedConflicts(),
                 body);
     }
 

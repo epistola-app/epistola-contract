@@ -25,27 +25,29 @@ import app.epistola.client.identity.ClientIdentity
 import app.epistola.client.model.CatalogChangesDto
 import app.epistola.client.model.CatalogDependencyDto
 import app.epistola.client.model.CatalogDependencyRequirement
+import app.epistola.client.model.CatalogMergeSide
 import app.epistola.client.model.CatalogPresetDto
-import app.epistola.client.model.CatalogThemeReference
 import app.epistola.client.model.CatalogReleaseStatus
+import app.epistola.client.model.CatalogThemeReference
 import app.epistola.client.model.CreateCatalogReleaseRequest
 import app.epistola.client.model.CreateEnvironmentRequest
 import app.epistola.client.model.EnvironmentDto
-import app.epistola.client.model.UpdateEnvironmentRequest
-import app.epistola.client.model.ReleaseCatalogDraftRequest
 import app.epistola.client.model.GenerateDocumentRequest
-import app.epistola.client.model.VariantSelectionAttribute
+import app.epistola.client.model.MergeIntoCatalogDraftRequest
+import app.epistola.client.model.Node
 import app.epistola.client.model.PingRequest
+import app.epistola.client.model.ReleaseCatalogDraftRequest
+import app.epistola.client.model.TemplateDocument
+import app.epistola.client.model.ThemeRef
 import app.epistola.client.model.UpdateCatalogDependenciesRequest
 import app.epistola.client.model.UpdateCatalogReleaseRequest
 import app.epistola.client.model.UpdateCodeListEntryHiddenRequest
-import app.epistola.client.model.UpdateTenantRequest
 import app.epistola.client.model.UpdateConsumerRequest
-import app.epistola.client.model.Node
-import app.epistola.client.model.TemplateDocument
-import app.epistola.client.model.ThemeRef
+import app.epistola.client.model.UpdateEnvironmentRequest
 import app.epistola.client.model.UpdateStencilContentRequest
+import app.epistola.client.model.UpdateTenantRequest
 import app.epistola.client.model.UpdateVariantContentRequest
+import app.epistola.client.model.VariantSelectionAttribute
 import app.epistola.client.validation.schema.TemplateDataValidationException
 import app.epistola.client.validation.schema.TemplateSchemaValidator
 import com.fasterxml.jackson.databind.JsonNode
@@ -116,6 +118,8 @@ object Driver {
                 "preview-catalog-draft-release" -> previewCatalogDraftRelease(baseUrl, config)
                 "delete-catalog-release" -> deleteCatalogRelease(baseUrl, config)
                 "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config)
+                "preview-catalog-draft-merge" -> previewCatalogDraftMerge(baseUrl, config)
+                "merge-into-catalog-draft" -> mergeIntoCatalogDraft(baseUrl, config)
                 "deploy-catalog-release" -> deployCatalogRelease(baseUrl, config)
                 "undeploy-catalog-release" -> undeployCatalogRelease(baseUrl, config)
                 "create-environment" -> createEnvironment(baseUrl, config)
@@ -883,6 +887,73 @@ object Driver {
                 "releasedDependencies" to response.releasedDependencies.joinToString(",") {
                     "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version}"
                 },
+            ),
+        )
+    }
+
+    /** Previews merging the release `config.version` into the draft `config.release` (alpha). */
+    private fun previewCatalogDraftMerge(baseUrl: String, config: ObjectNode) {
+        val preview = CatalogsApi(restClient(baseUrl, config)).previewCatalogDraftMerge(
+            config["tenantKey"].asText(),
+            config["registry"].asText(),
+            config["namespace"].asText(),
+            config["catalogKey"].asText(),
+            config["release"].asText(),
+            config["version"].asText(),
+        )
+        report(
+            baseUrl,
+            mapOf(
+                "draft" to preview.draft,
+                "base" to (preview.base ?: "null"),
+                "release" to preview.release,
+                "alreadyMerged" to preview.alreadyMerged.toString(),
+                "resources" to preview.resources.joinToString(",") {
+                    "${it.resourceType}/${it.resourceKey}:${it.outcome.value}:${it.draftChange?.value ?: "null"}:${it.releaseChange?.value ?: "null"}"
+                },
+                "resourceNames" to preview.resources.joinToString("|") { it.name ?: "null" },
+                "unchanged" to preview.unchanged.toString(),
+            ),
+        )
+    }
+
+    /**
+     * Merges the release `config.version` into the draft `config.release` (alpha), with
+     * `config.resolutions` when present. A refusal is reported by its problem, with the conflicts it
+     * lists and the read-only reason it gives.
+     */
+    private fun mergeIntoCatalogDraft(baseUrl: String, config: ObjectNode) {
+        val resolutions = config.get("resolutions")?.takeUnless { it.isNull }?.let { node ->
+            node.fieldNames().asSequence().associateWith { CatalogMergeSide.decode(node[it].asText())!! }
+        }
+        val merged = try {
+            CatalogsApi(restClient(baseUrl, config)).mergeIntoCatalogDraft(
+                config["tenantKey"].asText(),
+                config["registry"].asText(),
+                config["namespace"].asText(),
+                config["catalogKey"].asText(),
+                config["release"].asText(),
+                MergeIntoCatalogDraftRequest(release = config["version"].asText(), resolutions = resolutions),
+            )
+        } catch (e: ProblemDetailException) {
+            report(
+                baseUrl,
+                mapOf(
+                    "problemTypeSlug" to (e.typeSlug ?: "<null>"),
+                    "problemStatus" to e.statusCode.value(),
+                    "problemUnresolvedConflicts" to e.unresolvedConflicts.joinToString(","),
+                    "problemReadOnlyReason" to (e.readOnlyReason ?: "null"),
+                ),
+            )
+            return
+        }
+        report(
+            baseUrl,
+            mapOf(
+                "release" to merged.release,
+                "taken" to merged.taken.joinToString(","),
+                "removed" to merged.removed.joinToString(","),
+                "kept" to merged.kept.joinToString(","),
             ),
         )
     }

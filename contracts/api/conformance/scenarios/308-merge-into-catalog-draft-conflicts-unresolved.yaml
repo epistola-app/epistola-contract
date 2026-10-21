@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: merge-into-catalog-draft-conflicts-unresolved
+title: A merge refused for unresolved conflicts says which conflicts they are
+why: >
+  A merge with a conflict that has no resolution is refused with `merge-conflicts-unresolved`
+  (ADR 0005), and nothing changes. Its `unresolvedConflicts` member is the reason: each conflict,
+  as `resourceType/resourceKey`, in order. Without it a caller cannot tell which resources to
+  resolve.
+
+action:
+  name: merge-into-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    version: 1.5.0
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/merge-conflicts-unresolved
+      title: Merge Conflicts Unresolved
+      status: 409
+      detail: "Merging 1.5.0 into Redesign 2027 needs a choice for: stencil/footer, template/invoice"
+      unresolvedConflicts: [stencil/footer, template/invoice]
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/merge
+      body:
+        json:
+          release: { equals: 1.5.0 }
+  report:
+    problemTypeSlug: merge-conflicts-unresolved
+    problemStatus: 409
+    problemUnresolvedConflicts: stencil/footer,template/invoice
+    problemReadOnlyReason: 'null'

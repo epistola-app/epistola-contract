@@ -100,6 +100,8 @@ const ACTION_OPERATIONS = {
   'preview-catalog-draft-release': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/release-preview' },
   'delete-catalog-release': { method: 'delete', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}' },
   'release-catalog-draft': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/release' },
+  'preview-catalog-draft-merge': { method: 'get', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge-preview' },
+  'merge-into-catalog-draft': { method: 'post', path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/merge' },
   'install-catalog-release': {
     method: 'post',
     path: '/tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/available-releases/{version}/install',
