@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: publish-release-to-registry
+title: Publishing a release names the registry in the body and reports what the registry holds
+why: >
+  Release registries are alpha (ADR 0008). The release is addressed as any release is, by the
+  catalog's name and the release, and the release registry it goes to is named in the body (`to`).
+  A container registry publishes while the request waits and answers with the digest it holds the
+  release under.
+
+action:
+  name: publish-release-to-registry
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: 1.5.0
+    to: acme
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      status: published
+      registry: acme
+      version: 1.5.0
+      digest: sha256:3b7f0c1e2d4a5b6c7d8e9f00112233445566778899aabbccddeeff0011223344
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/1.5.0/publish
+      query: ""
+      body:
+        json:
+          to: { equals: acme }
+  report:
+    status: published
+    registry: acme
+    version: 1.5.0
+    digest: sha256:3b7f0c1e2d4a5b6c7d8e9f00112233445566778899aabbccddeeff0011223344

@@ -11,6 +11,27 @@ libraries.
 
 ### Added
 
+- **Release registries (alpha, `x-experimental`, ADR 0008).** One way to move releases between
+  installations, whatever carries them: an Epistola Exchange (`exchange`) or a container registry
+  (`container`). `listReleaseRegistries` (`GET /tenants/{tenantKey}/release-registries`, `{items:
+  [{name, kind}]}`, no credentials), `listRegistryReleases` (`GET
+  …/release-registries/{name}/catalogs/{namespace}/{catalogKey}/releases`, `version`,
+  `fingerprint`, `releaseId`, `base`, highest first, best effort), `installRegistryRelease` (`POST
+  …/releases/{version}/install`, installed as `importCatalog` installs an archive, with its response
+  and refusals; a new catalog gets the registry as its source) and `publishReleaseToRegistry`
+  (`POST …/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/publish` `{to}`, status
+  `published`, `already-published` or `queued`, and the registry's `digest`). A release registry is
+  named by the installation (`ReleaseRegistryName`) and is not the `{registry}` of a catalog's name.
+  New problem types 404 `release-registry-not-found`, 409 `release-number-taken` (the registry has
+  this version with other content) and 409 `namespace-not-granted` (the Exchange does not grant the
+  catalog's namespace); a draft is 409 `conflict`, a registry that cannot be used
+  `catalog-source-unavailable`. Permissions `CATALOG_VIEW`, `CATALOG_MANAGE` and `CATALOG_PUBLISH`
+  (now in the role table, granted by `CONTENT_PUBLISHER`). Server `ProblemDetails.KnownSlugs` and
+  every client's registry test name the slugs; Jakarta's `GeneratedApiContractTest` holds the
+  release-registry paths to `name`, `namespace`, `catalogKey`. Conformance: four driver actions in
+  all five clients and scenarios `list-release-registries`, `list-registry-releases`,
+  `install-registry-release`, `publish-release-to-registry`, `…-already-published` and
+  `…-number-taken`.
 - **Problem type `catalog-rendering-defaults-too-new`** (400). A release received from elsewhere
   (`importCatalog`, `installCatalogRelease`) whose `release.metadata` names rendering defaults the
   installation does not have, newer or unknown, is refused before anything is written: rendering it

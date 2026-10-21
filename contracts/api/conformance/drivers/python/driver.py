@@ -39,6 +39,7 @@ from epistola_client import (
     JwtSigner,
     MergeIntoCatalogDraftRequest,
     PingRequest,
+    PublishReleaseToRegistryRequest,
     ProblemDetailException,
     ReleaseCatalogDraftRequest,
     ResultCollector,
@@ -100,6 +101,10 @@ def main() -> int:
         "release-catalog-draft": _release_catalog_draft,
         "preview-catalog-draft-merge": _preview_catalog_draft_merge,
         "merge-into-catalog-draft": _merge_into_catalog_draft,
+        "list-release-registries": _list_release_registries,
+        "list-registry-releases": _list_registry_releases,
+        "install-registry-release": _install_registry_release,
+        "publish-release-to-registry": _publish_release_to_registry,
         "deploy-catalog-release": _deploy_catalog_release,
         "undeploy-catalog-release": _undeploy_catalog_release,
         "create-environment": _create_environment,
@@ -819,6 +824,93 @@ def _preview_catalog_draft_merge(base_url: str, config: dict) -> None:
                 if preview.missing_base is not None
                 else "null"
             ),
+        },
+    )
+
+
+def _report_problem_only(base_url: str, exc: ProblemDetailException) -> None:
+    _report(base_url, {"problemTypeSlug": exc.type_slug or "<null>", "problemStatus": exc.status_code})
+
+
+def _list_release_registries(base_url: str, config: dict) -> None:
+    """Lists the release registries (alpha), each as ``name:kind``."""
+    registries = CatalogsApi(_client(base_url, config)).list_release_registries(config["tenantKey"])
+    _report(
+        base_url,
+        {"registries": ",".join(f"{_show(r.name)}:{_show(_enum(r.kind))}" for r in registries.items)},
+    )
+
+
+def _list_registry_releases(base_url: str, config: dict) -> None:
+    """Lists the releases of a catalog in a release registry (alpha), each as
+    ``version:fingerprint:releaseId:base``, the base as ``version@fingerprint``, a missing value as
+    ``null``."""
+    try:
+        releases = CatalogsApi(_client(base_url, config)).list_registry_releases(
+            config["tenantKey"], config["name"], config["namespace"], config["catalogKey"]
+        )
+    except ProblemDetailException as exc:
+        _report_problem_only(base_url, exc)
+        return
+
+    def entry(r) -> str:
+        base = "null" if r.base is None else f"{_show(r.base.version)}@{_show(r.base.fingerprint)}"
+        return f"{_show(r.version)}:{_show(r.fingerprint)}:{_show(r.release_id)}:{base}"
+
+    _report(
+        base_url,
+        {
+            "registry": _show(releases.registry),
+            "namespace": _show(releases.namespace),
+            "catalogKey": _show(releases.catalog_key),
+            "releases": ",".join(entry(r) for r in releases.items),
+        },
+    )
+
+
+def _install_registry_release(base_url: str, config: dict) -> None:
+    """Installs a release from a release registry (alpha). A refusal is reported by its problem."""
+    try:
+        installed = CatalogsApi(_client(base_url, config)).install_registry_release(
+            config["tenantKey"], config["name"], config["namespace"], config["catalogKey"], config["version"]
+        )
+    except ProblemDetailException as exc:
+        _report_problem_only(base_url, exc)
+        return
+    _report(
+        base_url,
+        {
+            "registry": _show(installed.registry),
+            "namespace": _show(installed.namespace),
+            "catalogKey": _show(installed.catalog_key),
+            "version": _show(installed.version),
+            "newlyInstalled": _show_bool(installed.newly_installed),
+            "total": _show(installed.total),
+        },
+    )
+
+
+def _publish_release_to_registry(base_url: str, config: dict) -> None:
+    """Publishes a released release to the release registry ``config.to`` (alpha)."""
+    try:
+        published = CatalogsApi(_client(base_url, config)).publish_release_to_registry(
+            config["tenantKey"],
+            config["registry"],
+            config["namespace"],
+            config["catalogKey"],
+            config["release"],
+            PublishReleaseToRegistryRequest(to=config["to"]),
+        )
+    except ProblemDetailException as exc:
+        _report_problem_only(base_url, exc)
+        return
+    _report(
+        base_url,
+        {
+            "status": _show(_enum(published.status)),
+            "registry": _show(published.registry),
+            "version": _show(published.version),
+            "digest": _show(published.digest),
         },
     )
 

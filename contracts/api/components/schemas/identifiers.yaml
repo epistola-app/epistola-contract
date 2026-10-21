@@ -149,3 +149,15 @@ Fingerprint:
     The canonical fingerprint of a release's content, as its catalog archive carries it: the
     version of the algorithm that computed it (`v5`), a colon, and the lowercase hex SHA-256.
   example: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+
+ReleaseRegistryName:
+  type: string
+  pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+  minLength: 1
+  maxLength: 63
+  description: |
+    The name an installation gives a release registry it has configured or is connected to
+    (`acme`, `exchange`): lowercase letters, digits and single hyphens, at most 63 characters.
+    Installation configuration, not a catalog's name: it is not the `{registry}` of a catalog
+    path (ADR 0008).
+  example: acme

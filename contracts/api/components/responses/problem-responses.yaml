@@ -31,6 +31,59 @@ BadRequestError:
         status: 400
         detail: The request cannot be applied to the resource's current state
 
+ReleaseRegistryNotFoundError:
+  description: >-
+    The addressed resource does not exist. When the release registry the request names is not one
+    this installation has configured or is connected to (alpha), the problem is
+    `release-registry-not-found`. Other missing resources (a catalog, a release, a version the
+    registry does not hold) use `not-found`.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ProblemDetail'
+      examples:
+        registryNotFound:
+          summary: A release registry this installation does not have
+          value:
+            type: https://epistola.app/errors/release-registry-not-found
+            title: Release Registry Not Found
+            status: 404
+            detail: "There is no release registry called 'acme'. This installation has: exchange"
+        notFound:
+          summary: A release the registry does not hold
+          value:
+            type: https://epistola.app/errors/not-found
+            title: Not Found
+            status: 404
+            detail: "acme has no release 1.4.0 of acme-corp/letters"
+
+ReleasePublicationConflictError:
+  description: >-
+    The release cannot be published as asked (alpha), and nothing was sent. When the registry holds
+    this version with other content, the problem is `release-number-taken`: one number names one
+    release. When the registry grants namespaces (the Exchange) and does not grant this
+    installation the catalog's namespace, it is `namespace-not-granted`. Other conflicts (the path
+    names a draft: only a released release is published) use `conflict`.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/ProblemDetail'
+      examples:
+        releaseNumberTaken:
+          summary: The registry holds this version with other content
+          value:
+            type: https://epistola.app/errors/release-number-taken
+            title: Release Number Taken
+            status: 409
+            detail: "acme already has acme-corp/letters 1.4.0 with other content. One number names one release: release the changes under a new number."
+        namespaceNotGranted:
+          summary: The Exchange does not grant the catalog's namespace
+          value:
+            type: https://epistola.app/errors/namespace-not-granted
+            title: Namespace Not Granted
+            status: 409
+            detail: "The Exchange connection does not grant the namespace acme-corp"
+
 CatalogImportBadRequestError:
   description: >-
     The archive cannot be installed: it is not a valid catalog archive, or it fails validation
@@ -346,9 +399,10 @@ RateLimitedError:
 
 CatalogSourceBadGatewayError:
   description: >-
-    The catalog's source, its registry or a mirror of it the server is configured with, answered with an
-    error or with something that is not a valid answer, so the request could not be carried out and
-    nothing was installed. The problem is `catalog-source-unavailable`.
+    The catalog's source, its registry or a mirror of it the server is configured with, or the
+    release registry the request names (alpha), answered with an error or with something that is
+    not a valid answer, so the request could not be carried out and nothing was installed or
+    published. The problem is `catalog-source-unavailable`.
   content:
     application/problem+json:
       schema:
@@ -361,9 +415,9 @@ CatalogSourceBadGatewayError:
 
 CatalogSourceUnavailableError:
   description: >-
-    The catalog's source, its registry or a mirror of it the server is configured with, could not be
-    reached or did not answer in time, so the request could not be carried out and nothing was
-    installed. The problem is `catalog-source-unavailable`. `Retry-After`, when present, says how
+    The catalog's source, its registry or a mirror of it the server is configured with, or the
+    release registry the request names (alpha), could not be reached or did not answer in time, so
+    the request could not be carried out and nothing was installed or published. The problem is `catalog-source-unavailable`. `Retry-After`, when present, says how
     long to wait before trying again.
   headers:
     Retry-After:

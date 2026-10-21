@@ -168,6 +168,10 @@ try {
         // installation does not have
         log.warn(`upgrade Epistola: the release needs ${e.extensions.renderingDefaultsVersion}, this has up to ${e.extensions.supportedVersion}`)
         break
+      case KnownProblemSlugs.RELEASE_NUMBER_TAKEN:
+        // publishReleaseToRegistry (alpha): the registry has this version with other content
+        log.warn('release the changes under a new version')
+        break
       case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
         // installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source could
         // not be reached (Retry-After may say when), 502 when it answered badly

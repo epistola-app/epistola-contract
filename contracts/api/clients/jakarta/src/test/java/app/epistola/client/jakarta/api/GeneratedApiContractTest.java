@@ -193,6 +193,13 @@ class GeneratedApiContractTest {
                 if (!fullPath.contains("{catalogKey}")) {
                     continue;
                 }
+                if (fullPath.contains("/release-registries/{name}/")) {
+                    // A catalog in a release registry (alpha, ADR 0008) is found there by namespace and
+                    // key: the registry's name is the installation's, not part of the catalog's name.
+                    assertEquals(List.of("tenantKey", "name", "namespace", "catalogKey"), pathParams.subList(0, 4),
+                            where + " addresses a catalog in a release registry by name, namespace and catalogKey");
+                    continue;
+                }
                 catalogScoped++;
                 int registry = pathParams.indexOf("registry");
                 assertTrue(

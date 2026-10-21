@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: list-release-registries
+title: The release registries are listed by name and kind
+why: >
+  Release registries are alpha (ADR 0008): the places releases are published to and installed
+  from, an Epistola Exchange or a container registry, each named by the installation. A client
+  reads each one's name, which the other release-registry operations take, and its kind, kept as
+  the wire value.
+
+action:
+  name: list-release-registries
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      items:
+        - name: exchange
+          kind: exchange
+        - name: acme
+          kind: container
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/release-registries
+      query: ""
+  report:
+    registries: exchange:exchange,acme:container

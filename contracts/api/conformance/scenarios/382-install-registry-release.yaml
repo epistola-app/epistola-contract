@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: install-registry-release
+title: Installing a release from a release registry names it in the path and reports it as an import does
+why: >
+  Release registries are alpha (ADR 0008). Installing fetches the release from the registry and
+  installs it exactly as importing its archive does, so the response is an import's. The release is
+  named in the path; the request has no query and no body. The catalog is the one the archive
+  names, so the response names its registry in full, which is not the release registry's name.
+
+action:
+  name: install-registry-release
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    name: acme
+    namespace: acme-corp
+    catalogKey: letters
+    version: 1.5.0
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      registry: exchange.epistola.app
+      namespace: acme-corp
+      catalogKey: letters
+      catalogName: Letters
+      version: 1.5.0
+      newlyInstalled: true
+      total: 9
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/release-registries/acme/catalogs/acme-corp/letters/releases/1.5.0/install
+      query: ""
+  report:
+    registry: exchange.epistola.app
+    namespace: acme-corp
+    catalogKey: letters
+    version: 1.5.0
+    newlyInstalled: 'true'
+    total: '9'

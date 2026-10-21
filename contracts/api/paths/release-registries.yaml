@@ -1,0 +1,251 @@
+# Release registries (alpha, ADR 0008): places releases are published to and installed from, such
+# as an Epistola Exchange or a container registry. Not a catalog's `{registry}`, which is part of its
+# name.
+
+release-registries:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+
+  get:
+    operationId: listReleaseRegistries
+    x-experimental: true
+    summary: List the release registries (alpha)
+    description: |
+      **Alpha** (`x-experimental`, ADR 0008): may still change in a minor release.
+
+      The release registries this installation has configured or is connected to: the places
+      releases of catalogs are published to (`publishReleaseToRegistry`) and installed from
+      (`installRegistryRelease`), each by its name and kind (`exchange`, `container`). Names and
+      kinds only: credentials and addresses stay in the installation's configuration. Empty when
+      it has none, which is what keeps the feature out of sight.
+
+      A release registry is not the `{registry}` of a catalog's path, which is part of the
+      catalog's name (ADR 0003): a container registry carries releases without granting names, and
+      the catalogs it carries keep the names their archives give them.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    responses:
+      '200':
+        description: The release registries this installation has
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/release-registries.yaml#/ReleaseRegistryListResponse'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+
+registry-releases:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/release-registries.yaml#/ReleaseRegistryName'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+
+  get:
+    operationId: listRegistryReleases
+    x-experimental: true
+    summary: List the releases of a catalog in a release registry (alpha)
+    description: |
+      **Alpha** (`x-experimental`, ADR 0008): may still change in a minor release.
+
+      The releases of the catalog `{namespace}/{catalogKey}` that the release registry `{name}`
+      holds, highest version first, each with what the registry says of it: its fingerprint, and
+      its id and base when the registry records them. Best effort: what the registry can say, and
+      only a label, never trusted; installing checks the release itself. Nothing is installed by
+      reading it.
+
+      A registry this installation does not have is 404 `release-registry-not-found`. When the
+      registry cannot be reached, or answers with an error or with something that is not a valid
+      answer, the request fails with `catalog-source-unavailable`: 503 when it could not be reached
+      or did not answer in time, possibly with `Retry-After`, and 502 when it answered badly.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_VIEW]
+    responses:
+      '200':
+        description: The releases of the catalog the registry holds
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/release-registries.yaml#/RegistryReleaseListResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/ReleaseRegistryNotFoundError'
+      '502':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogSourceBadGatewayError'
+      '503':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogSourceUnavailableError'
+
+registry-release-install:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/release-registries.yaml#/ReleaseRegistryName'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - name: version
+      in: path
+      required: true
+      description: The version of the release to install, one the registry holds
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/ReleaseVersion'
+
+  post:
+    operationId: installRegistryRelease
+    x-experimental: true
+    summary: Install a release of a catalog from a release registry (alpha)
+    description: |
+      **Alpha** (`x-experimental`, ADR 0008): may still change in a minor release.
+
+      Fetches release `{version}` of the catalog `{namespace}/{catalogKey}` from the release
+      registry `{name}` and installs it exactly as `importCatalog` installs the release an archive
+      carries: an immutable release, side by side with the releases of the catalog the tenant has,
+      whether its version is above theirs or below, with nothing updated in place or removed. The
+      catalog is the one the release's archive names (registry, namespace and key); what the
+      registry says of it is never trusted, and the release's fingerprint is recomputed from its
+      content.
+
+      - **A catalog the tenant does not have** is created, holding the release, with that release
+        registry as its source (`CatalogDto.source`), so its later releases can be listed and
+        installed from there.
+      - **A catalog the tenant has** gets the release beside its others. One that is another
+        catalog under the same key, or receives its releases from another source, is refused with
+        409 `conflict` before anything is fetched.
+
+      Refused as importing is, with nothing installed: the same version with a different
+      fingerprint, or a release id another release of the catalog has here (one number and one id
+      name one release), with 409 `conflict`; releases it pins that cannot be had with 409
+      `release-dependencies-missing`; a release that is not a valid catalog archive, or not the
+      catalog and version asked for, with 400 `bad-request`; one rendering with rendering defaults
+      this installation does not have with 400 `catalog-rendering-defaults-too-new`. The same
+      version with the same fingerprint is the release the tenant has: nothing changes
+      (`newlyInstalled: false`). A registry this installation does not have is 404
+      `release-registry-not-found`, a version the registry does not hold 404 `not-found`. When the
+      registry cannot be used the request fails with `catalog-source-unavailable` (503 or 502) and
+      nothing is installed. Nothing is merged: a draft with changes of its own stays as it is,
+      behind the release, and can merge it (`mergeIntoCatalogDraft`, alpha).
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_MANAGE]
+    responses:
+      '200':
+        description: The release is installed, or was already present
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/import.yaml#/ImportCatalogResponse'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogImportBadRequestError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/ReleaseRegistryNotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ReleaseDependenciesMissingError'
+      '502':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogSourceBadGatewayError'
+      '503':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogSourceUnavailableError'
+
+catalog-release-publish:
+  parameters:
+    - name: tenantKey
+      in: path
+      required: true
+      description: Unique key of the tenant
+      schema:
+        $ref: '../components/schemas/identifiers.yaml#/TenantKey'
+    - $ref: '../components/parameters/catalog.yaml#/Registry'
+    - $ref: '../components/parameters/catalog.yaml#/Namespace'
+    - $ref: '../components/parameters/catalog.yaml#/CatalogKey'
+    - $ref: '../components/parameters/catalog.yaml#/Release'
+
+  post:
+    operationId: publishReleaseToRegistry
+    x-experimental: true
+    summary: Publish a release to a release registry (alpha)
+    description: |
+      **Alpha** (`x-experimental`, ADR 0008): may still change in a minor release.
+
+      Publishes the released release `{release}` of the catalog, exactly as it was released (its
+      archive), to the release registry `to` names, so that other installations can install it
+      from there (`installRegistryRelease`). Any released release may be published, not only the
+      highest.
+
+      **One number names one release.** The registry is asked first: when it holds this version
+      with the same fingerprint, nothing is sent (`already-published`); with other content, the
+      request is refused with 409 `release-number-taken` (release the changes under a new
+      version). Between that look and the push another installation could still publish the same
+      version; only a registry that refuses to overwrite a version closes that.
+
+      The status says what happened: `published` when the registry holds it now (a container
+      registry publishes while the request waits), `queued` when the registry publishes
+      asynchronously (the Exchange's publication outbox: the Exchange decides later), also when it
+      was queued already.
+
+      Refused, with nothing sent:
+
+      - 404 `release-registry-not-found`: this installation has no release registry called `to`;
+        404 `not-found` when there is no such catalog or release;
+      - 409 `conflict`: `{release}` names a draft; only a released release is published;
+      - 409 `release-number-taken`: the registry holds this version with other content;
+      - 409 `namespace-not-granted`: the registry grants namespaces (the Exchange) and does not
+        grant this installation the catalog's namespace;
+      - 502/503 `catalog-source-unavailable`: the registry could not be used.
+
+      Publishing needs `CATALOG_PUBLISH`, not only `CATALOG_RELEASE`: the release leaves the
+      installation, which being trusted to release it here does not cover.
+    tags:
+      - Catalogs
+    x-required-permissions: [CATALOG_PUBLISH]
+    requestBody:
+      required: true
+      content:
+        application/vnd.epistola.v2+json:
+          schema:
+            $ref: '../components/schemas/release-registries.yaml#/PublishReleaseToRegistryRequest'
+    responses:
+      '200':
+        description: The release is published, was already, or is queued
+        content:
+          application/vnd.epistola.v2+json:
+            schema:
+              $ref: '../components/schemas/release-registries.yaml#/ReleasePublicationDto'
+      '400':
+        $ref: '../components/responses/problem-responses.yaml#/ValidationFailedError'
+      '401':
+        $ref: '../components/responses/auth-errors.yaml#/UnauthorizedError'
+      '403':
+        $ref: '../components/responses/auth-errors.yaml#/ForbiddenError'
+      '404':
+        $ref: '../components/responses/problem-responses.yaml#/ReleaseRegistryNotFoundError'
+      '409':
+        $ref: '../components/responses/problem-responses.yaml#/ReleasePublicationConflictError'
+      '502':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogSourceBadGatewayError'
+      '503':
+        $ref: '../components/responses/problem-responses.yaml#/CatalogSourceUnavailableError'

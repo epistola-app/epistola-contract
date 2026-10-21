@@ -134,6 +134,9 @@ except ProblemDetailException as e:
             # import_catalog / install_catalog_release: the release renders with rendering
             # defaults this installation does not have (renderingDefaultsVersion, supportedVersion)
             log.warning("upgrade Epistola to receive this release")
+        case KnownProblemSlugs.RELEASE_NUMBER_TAKEN:
+            # publish_release_to_registry (alpha): the registry has this version with other content
+            log.warning("release the changes under a new version")
         case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
             # install_catalog_release / list_available_catalog_releases: 503 when the catalog's
             # source could not be reached (Retry-After may say when), 502 when it answered badly

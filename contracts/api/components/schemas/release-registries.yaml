@@ -1,0 +1,159 @@
+# Release registries (alpha, ADR 0008): places releases are published to and installed from.
+
+ReleaseRegistryKind:
+  type: string
+  enum:
+    - exchange
+    - container
+  description: |
+    What kind of release registry it is (alpha, ADR 0008). A string a later contract may add
+    values to; a client keeps a kind it does not know.
+
+    - `exchange`: an Epistola Exchange the installation is connected to. It grants namespaces, so
+      it is also the `{registry}` of the catalogs published on it, and publishes asynchronously.
+    - `container`: a container registry (OCI distribution) the installation is configured with,
+      which carries releases between installations as artifacts and grants no names.
+  example: container
+
+ReleaseRegistryDto:
+  type: object
+  description: |
+    A release registry this installation has configured or is connected to (alpha, ADR 0008).
+    Its name and kind only: credentials and addresses stay in the installation's configuration.
+  required:
+    - name
+    - kind
+  properties:
+    name:
+      $ref: './identifiers.yaml#/ReleaseRegistryName'
+      description: What the installation calls it; the `{name}` of the release-registry paths
+    kind:
+      $ref: '#/ReleaseRegistryKind'
+
+ReleaseRegistryListResponse:
+  type: object
+  description: The release registries this installation has (alpha)
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      description: |
+        Every release registry this installation has configured or is connected to, in the order
+        it has them. Empty when it has none.
+      items:
+        $ref: '#/ReleaseRegistryDto'
+
+RegistryReleaseDto:
+  type: object
+  description: |
+    A release of a catalog that a release registry holds, as the registry describes it (alpha). A
+    label, never trusted: installing it checks the release itself, its fingerprint recomputed from
+    its content.
+  required:
+    - version
+    - fingerprint
+  properties:
+    version:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: The release's version
+      example: "1.4.0"
+    fingerprint:
+      oneOf:
+        - $ref: './identifiers.yaml#/Fingerprint'
+        - type: 'null'
+      description: The catalog fingerprint the registry records for it; null when it records none
+    releaseId:
+      oneOf:
+        - $ref: './identifiers.yaml#/CatalogReleaseId'
+        - type: 'null'
+      description: The release's id, when the registry records it; absent or null otherwise
+    base:
+      oneOf:
+        - $ref: './catalogs.yaml#/CatalogMergeBaseRef'
+        - type: 'null'
+      description: |
+        The release it was made from (its `release.base`), when the registry records it; absent or
+        null otherwise
+
+RegistryReleaseListResponse:
+  type: object
+  description: The releases of one catalog a release registry holds (alpha)
+  required:
+    - registry
+    - namespace
+    - catalogKey
+    - items
+  properties:
+    registry:
+      $ref: './identifiers.yaml#/ReleaseRegistryName'
+      description: The release registry asked, by its name
+    namespace:
+      $ref: './identifiers.yaml#/Namespace'
+      description: Namespace of the catalog
+      example: acme-corp
+    catalogKey:
+      $ref: './identifiers.yaml#/CatalogKey'
+      description: Key of the catalog
+      example: letters
+    items:
+      type: array
+      description: |
+        The releases of the catalog the registry holds, highest version first. Best effort: what
+        the registry can say, so an entry a registry does not describe as a catalog release is left
+        out, and a server may list only the highest ones (Epistola Suite reads at most 50). Empty
+        when it holds none.
+      items:
+        $ref: '#/RegistryReleaseDto'
+
+PublishReleaseToRegistryRequest:
+  type: object
+  description: Where to publish a release (alpha)
+  required:
+    - to
+  properties:
+    to:
+      $ref: './identifiers.yaml#/ReleaseRegistryName'
+      description: The release registry to publish it to, by its name (`listReleaseRegistries`)
+
+ReleasePublicationStatus:
+  type: string
+  enum:
+    - published
+    - already-published
+    - queued
+  description: |
+    What publishing a release did (alpha):
+
+    - `published`: the registry now holds the release. A container registry publishes while the
+      request waits.
+    - `already-published`: the registry held this release already, with the same fingerprint, and
+      nothing was sent.
+    - `queued`: the release is queued for a registry that publishes asynchronously (the Exchange's
+      publication outbox), or was queued already; the registry decides later.
+  example: published
+
+ReleasePublicationDto:
+  type: object
+  description: What publishing a release to a release registry did (alpha)
+  required:
+    - status
+    - registry
+    - version
+  properties:
+    status:
+      $ref: '#/ReleasePublicationStatus'
+    registry:
+      $ref: './identifiers.yaml#/ReleaseRegistryName'
+      description: The release registry it was published to, by its name
+    version:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: The version of the release published
+      example: "1.4.0"
+    digest:
+      type: [string, "null"]
+      maxLength: 200
+      description: |
+        The digest the registry holds the release under (a container registry's manifest digest,
+        `sha256:<hex>`); absent or null when the registry has none to give, as for `queued`
+      example: sha256:3b7f0c1e2d4a5b6c7d8e9f00112233445566778899aabbccddeeff0011223344

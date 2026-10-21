@@ -31,6 +31,9 @@ public class ProblemRegistryTest
         Assert.Equal("forbidden", KnownProblemSlugs.FORBIDDEN);
         Assert.Equal("not-found", KnownProblemSlugs.NOT_FOUND);
         Assert.Equal("conflict", KnownProblemSlugs.CONFLICT);
+        Assert.Equal("release-registry-not-found", KnownProblemSlugs.RELEASE_REGISTRY_NOT_FOUND);
+        Assert.Equal("release-number-taken", KnownProblemSlugs.RELEASE_NUMBER_TAKEN);
+        Assert.Equal("namespace-not-granted", KnownProblemSlugs.NAMESPACE_NOT_GRANTED);
         Assert.Equal("data-model-validation-error", KnownProblemSlugs.DATA_MODEL_VALIDATION_ERROR);
         Assert.Equal("rate-limited", KnownProblemSlugs.RATE_LIMITED);
         Assert.Equal("release-dependencies-missing", KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING);

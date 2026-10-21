@@ -159,8 +159,26 @@ object ProblemDetails {
         /** 404 — the addressed resource does not exist. */
         const val NOT_FOUND: String = KnownProblemSlugs.NOT_FOUND
 
+        /**
+         * 404 — the release registry the request names (alpha) is not one this installation has
+         * configured or is connected to.
+         */
+        const val RELEASE_REGISTRY_NOT_FOUND: String = KnownProblemSlugs.RELEASE_REGISTRY_NOT_FOUND
+
         /** 409 — the request conflicts with the current state of the resource. */
         const val CONFLICT: String = KnownProblemSlugs.CONFLICT
+
+        /**
+         * 409 — publishing a release (alpha) was refused: the release registry holds this version
+         * with other content.
+         */
+        const val RELEASE_NUMBER_TAKEN: String = KnownProblemSlugs.RELEASE_NUMBER_TAKEN
+
+        /**
+         * 409 — publishing a release (alpha) was refused: the release registry (the Exchange) does
+         * not grant this installation the catalog's namespace.
+         */
+        const val NAMESPACE_NOT_GRANTED: String = KnownProblemSlugs.NAMESPACE_NOT_GRANTED
 
         /**
          * 409 — a release cannot be deployed because dependency releases it pins cannot be had

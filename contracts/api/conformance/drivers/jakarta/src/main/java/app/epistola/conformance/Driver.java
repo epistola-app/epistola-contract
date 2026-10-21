@@ -59,6 +59,10 @@ import app.epistola.client.jakarta.model.MergeIntoCatalogDraftResponse;
 import app.epistola.client.jakarta.model.Node;
 import app.epistola.client.jakarta.model.PartitionAssignment;
 import app.epistola.client.jakarta.model.PingRequest;
+import app.epistola.client.jakarta.model.PublishReleaseToRegistryRequest;
+import app.epistola.client.jakarta.model.RegistryReleaseListResponse;
+import app.epistola.client.jakarta.model.ReleasePublicationDto;
+import app.epistola.client.jakarta.model.ReleaseRegistryListResponse;
 import app.epistola.client.jakarta.model.ReleaseCatalogDraftRequest;
 import app.epistola.client.jakarta.model.ReleaseCatalogDraftResponse;
 import app.epistola.client.jakarta.model.ReleaseDependencyDto;
@@ -158,6 +162,10 @@ public final class Driver {
                 case "release-catalog-draft" -> releaseCatalogDraft(baseUrl, config);
                 case "preview-catalog-draft-merge" -> previewCatalogDraftMerge(baseUrl, config);
                 case "merge-into-catalog-draft" -> mergeIntoCatalogDraft(baseUrl, config);
+                case "list-release-registries" -> listReleaseRegistries(baseUrl, config);
+                case "list-registry-releases" -> listRegistryReleases(baseUrl, config);
+                case "install-registry-release" -> installRegistryRelease(baseUrl, config);
+                case "publish-release-to-registry" -> publishReleaseToRegistry(baseUrl, config);
                 case "deploy-catalog-release" -> deployCatalogRelease(baseUrl, config);
                 case "undeploy-catalog-release" -> undeployCatalogRelease(baseUrl, config);
                 case "create-environment" -> createEnvironment(baseUrl, config);
@@ -1057,6 +1065,108 @@ public final class Driver {
                                         ? "null"
                                         : preview.getMissingBase().getVersion() + "@"
                                                 + preview.getMissingBase().getFingerprint()));
+    }
+
+    /** Lists the release registries (alpha), each as {@code name:kind}. */
+    private static void listReleaseRegistries(String baseUrl, JsonObject config) {
+        ReleaseRegistryListResponse registries =
+                clients(baseUrl, config).api(CatalogsApi.class).listReleaseRegistries(config.getString("tenantKey"));
+        report(baseUrl, Map.of("registries", joined(registries.getItems(), r -> r.getName() + ":" + r.getKind())));
+    }
+
+    /**
+     * Lists the releases of a catalog in a release registry (alpha), each as
+     * {@code version:fingerprint:releaseId:base}, the base as {@code version@fingerprint}, a missing
+     * value as {@code null}.
+     */
+    private static void listRegistryReleases(String baseUrl, JsonObject config) {
+        RegistryReleaseListResponse releases;
+        try {
+            releases = clients(baseUrl, config)
+                    .api(CatalogsApi.class)
+                    .listRegistryReleases(
+                            config.getString("tenantKey"),
+                            config.getString("name"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"));
+        } catch (ProblemDetailException e) {
+            reportProblemOnly(baseUrl, e);
+            return;
+        }
+        report(
+                baseUrl,
+                Map.of(
+                        "registry", String.valueOf(releases.getRegistry()),
+                        "namespace", String.valueOf(releases.getNamespace()),
+                        "catalogKey", String.valueOf(releases.getCatalogKey()),
+                        "releases",
+                                joined(
+                                        releases.getItems(),
+                                        r -> r.getVersion() + ":" + r.getFingerprint() + ":" + r.getReleaseId() + ":"
+                                                + (r.getBase() == null
+                                                        ? "null"
+                                                        : r.getBase().getVersion() + "@" + r.getBase().getFingerprint()))));
+    }
+
+    /** Installs a release from a release registry (alpha). A refusal is reported by its problem. */
+    private static void installRegistryRelease(String baseUrl, JsonObject config) {
+        ImportCatalogResponse installed;
+        try {
+            installed = clients(baseUrl, config)
+                    .api(CatalogsApi.class)
+                    .installRegistryRelease(
+                            config.getString("tenantKey"),
+                            config.getString("name"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            config.getString("version"));
+        } catch (ProblemDetailException e) {
+            reportProblemOnly(baseUrl, e);
+            return;
+        }
+        report(
+                baseUrl,
+                Map.of(
+                        "registry", String.valueOf(installed.getRegistry()),
+                        "namespace", String.valueOf(installed.getNamespace()),
+                        "catalogKey", String.valueOf(installed.getCatalogKey()),
+                        "version", String.valueOf(installed.getVersion()),
+                        "newlyInstalled", String.valueOf(installed.getNewlyInstalled()),
+                        "total", String.valueOf(installed.getTotal())));
+    }
+
+    /** Publishes a released release to the release registry {@code config.to} (alpha). */
+    private static void publishReleaseToRegistry(String baseUrl, JsonObject config) {
+        ReleasePublicationDto published;
+        try {
+            published = clients(baseUrl, config)
+                    .api(CatalogsApi.class)
+                    .publishReleaseToRegistry(
+                            config.getString("tenantKey"),
+                            config.getString("registry"),
+                            config.getString("namespace"),
+                            config.getString("catalogKey"),
+                            config.getString("release"),
+                            new PublishReleaseToRegistryRequest().to(config.getString("to")));
+        } catch (ProblemDetailException e) {
+            reportProblemOnly(baseUrl, e);
+            return;
+        }
+        report(
+                baseUrl,
+                Map.of(
+                        "status", String.valueOf(published.getStatus()),
+                        "registry", String.valueOf(published.getRegistry()),
+                        "version", String.valueOf(published.getVersion()),
+                        "digest", String.valueOf(published.getDigest())));
+    }
+
+    private static void reportProblemOnly(String baseUrl, ProblemDetailException e) {
+        report(
+                baseUrl,
+                Map.of(
+                        "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
+                        "problemStatus", e.getStatusCode()));
     }
 
     /**

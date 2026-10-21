@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: publish-release-to-registry-already-published
+title: Publishing a release the registry holds already reports it, as the wire value, without a digest
+why: >
+  One number names one release (ADR 0008). When the registry holds this version with the same
+  fingerprint, nothing is sent and the status says so, as the kebab-case wire value
+  `already-published`. A registry with no digest to give leaves it out; a client reports that as
+  missing rather than as an empty string.
+
+action:
+  name: publish-release-to-registry
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: exchange.epistola.app
+    namespace: acme-corp
+    catalogKey: letters
+    release: 1.4.0
+    to: exchange
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      status: already-published
+      registry: exchange
+      version: 1.4.0
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/exchange.epistola.app/acme-corp/letters/releases/1.4.0/publish
+      body:
+        json:
+          to: { equals: exchange }
+  report:
+    status: already-published
+    registry: exchange
+    version: 1.4.0
+    digest: 'null'
