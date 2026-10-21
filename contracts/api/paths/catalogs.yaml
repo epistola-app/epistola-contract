@@ -718,7 +718,13 @@ catalog-release-merge-preview:
       before). `token` identifies what the preview was computed from (the draft, the release and
       the merge base); sent back as `expectedToken`, it makes `mergeIntoCatalogDraft` apply what
       this preview showed or nothing. The release is named by the query parameter `version`,
-      because `{release}` in the path names the draft. Refused with 409 outside a draft, and 404 when the catalog has no such
+      because `{release}` in the path names the draft.
+
+      The merge compares against the **merge base**, the closest release both the draft and the
+      release descend from (ADR 0005), in that release's own resources. When this installation does
+      not have it, the preview still answers: `missingBase` names it (`version`, `fingerprint`), no
+      resource is classified, and the merge is refused with `merge-base-missing` until that release
+      is installed. Refused with 409 outside a draft, and 404 when the catalog has no such
       draft or no released release with that version.
     tags:
       - Catalogs
@@ -788,6 +794,9 @@ catalog-release-merge:
         `ours`, or stop using it first);
       - 409 `merge-preview-outdated` when the request sends `expectedToken`, the `token` of a
         preview, and the draft or the release changed since that preview (preview again);
+      - 409 `merge-base-missing` when this installation does not have the merge base, the closest
+        release both the draft and the release descend from; `version` and `fingerprint` name the
+        release to install first (the preview names it as `missingBase`);
       - 422 `merge-not-applicable` when the draft already contains the release (its base, or merged
         before), or a resolution names a resource that is not a conflict;
       - 409 `catalog-read-only` when the catalog cannot be changed in this installation

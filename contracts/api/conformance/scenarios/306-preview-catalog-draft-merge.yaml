@@ -54,6 +54,7 @@ script:
           releaseChange: removed
       unchanged: 12
       token: m1.k7m2x9qa.42.1-5-0.9f3a1c2b
+    missingBase: 'null'
 
 expect:
   requestCount: 1

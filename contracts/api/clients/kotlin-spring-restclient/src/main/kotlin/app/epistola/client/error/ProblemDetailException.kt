@@ -34,7 +34,7 @@ import java.nio.charset.Charset
  * shape, `data-model-validation-error`) are surfaced via [validationErrors] — `ProblemDetail`,
  * `ValidationProblemDetail`, and `DataModelValidationProblemDetail` are independent classes, so the
  * base fields and each extension are carried separately. Any *other* member a problem body carries —
- * one the contract does not name, such as `catalog-schema-too-old`'s `version` / `baselineVersion` —
+ * one the contract does not name, such as `catalog-schema-too-old`'s `baselineVersion` —
  * is in [extensions], since [ProblemDetail] is hand-written with a catch-all rather than generated
  * as a closed set of fields.
  */
@@ -171,6 +171,25 @@ class ProblemDetailException(
 
     /** True when this problem listed merge conflicts that need a resolution. */
     val isMergeConflictsUnresolvedProblem: Boolean get() = unresolvedConflicts.isNotEmpty()
+
+    /**
+     * The version of the release a `merge-base-missing` problem (409, from `mergeIntoCatalogDraft`,
+     * alpha) asks to get first: the merge base, which this installation does not have. Read from
+     * the `version` member of that problem only, since other problems use the name for other
+     * things; null for any other problem, and when the member is not a string.
+     */
+    val missingBaseVersion: String?
+        get() = if (typeSlug == KnownProblemSlugs.MERGE_BASE_MISSING) extensions[ProblemExtensionMembers.VERSION] as? String else null
+
+    /**
+     * That release's catalog fingerprint (`v5:<hex>`), from the `fingerprint` member of a
+     * `merge-base-missing` problem; null for any other problem, and when the member is not a string.
+     */
+    val missingBaseFingerprint: String?
+        get() = if (typeSlug == KnownProblemSlugs.MERGE_BASE_MISSING) extensions[ProblemExtensionMembers.FINGERPRINT] as? String else null
+
+    /** True when this problem named a merge base this installation does not have. */
+    val isMergeBaseMissingProblem: Boolean get() = missingBaseVersion != null
 
     /**
      * One extension member's array of objects, converted to [T]. An entry of an unexpected shape

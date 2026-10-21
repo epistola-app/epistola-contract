@@ -814,6 +814,11 @@ def _preview_catalog_draft_merge(base_url: str, config: dict) -> None:
             "resourceNames": "|".join(_show(r.name) for r in preview.resources),
             "unchanged": _show(preview.unchanged),
             "token": _show(preview.token),
+            "missingBase": (
+                f"{preview.missing_base.version}@{preview.missing_base.fingerprint}"
+                if preview.missing_base is not None
+                else "null"
+            ),
         },
     )
 
@@ -840,6 +845,11 @@ def _merge_into_catalog_draft(base_url: str, config: dict) -> None:
                 "problemStatus": exc.status_code,
                 "problemUnresolvedConflicts": ",".join(exc.unresolved_conflicts),
                 "problemReadOnlyReason": _show(exc.read_only_reason),
+                "problemMissingBase": (
+                    f"{exc.missing_base_version}@{exc.missing_base_fingerprint}"
+                    if exc.missing_base_version is not None
+                    else "null"
+                ),
             },
         )
         return

@@ -11,6 +11,19 @@ libraries.
 
 ### Added
 
+- **A missing merge base (alpha, `x-experimental`, ADR 0005).** A merge compares against the merge
+  base, the closest release both the draft and the release descend from, so it needs that release
+  installed. `previewCatalogDraftMerge` still answers without it: `CatalogDraftMergePreview` gains an
+  optional `missingBase` (`CatalogMergeBaseRef`: `version`, `fingerprint`) naming that release, and
+  classifies nothing. `mergeIntoCatalogDraft` is refused with the new 409 `merge-base-missing`
+  (`MergeBaseMissingProblemDetail`, members `version` and `fingerprint` of the release to install
+  first; server `ProblemDetails.mergeBaseMissing`). Every client's problem parser surfaces them as
+  `missingBaseVersion`/`missingBaseFingerprint` (`MissingBaseVersion`/`MissingBaseFingerprint` in
+  .NET, `missing_base_version`/`missing_base_fingerprint` in Python) and `isMergeBaseMissingProblem`,
+  read from that problem only, since other problems use `version` for other things. Conformance:
+  the drivers report the preview's `missingBase` and the problem's `problemMissingBase` in all five
+  clients; scenarios `merge-into-catalog-draft-base-missing` and
+  `preview-catalog-draft-merge-base-missing`.
 - **A merge preview's token (alpha, `x-experimental`, ADR 0005).** `CatalogDraftMergePreview` gains
   a required `token` (an opaque string, at most 128 characters) that identifies what the preview
   was computed from: the draft, the release and the merge base. `MergeIntoCatalogDraftRequest`

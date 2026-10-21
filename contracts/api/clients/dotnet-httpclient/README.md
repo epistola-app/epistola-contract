@@ -171,6 +171,15 @@ catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.MERGE_CON
 
 A merge that sent the preview's `Token` as `ExpectedToken` is refused with
 `merge-preview-outdated` when the draft or the release changed since that preview: preview again.
+A merge whose merge base this installation does not have is refused with `merge-base-missing`;
+`MissingBaseVersion` and `MissingBaseFingerprint` name the release to install first:
+
+```csharp
+catch (ProblemDetailException e) when (e.IsMergeBaseMissingProblem)
+{
+    Console.WriteLine($"install {e.MissingBaseVersion} ({e.MissingBaseFingerprint}) first");
+}
+```
 
 Listing or installing the releases a catalog's source offers fails with
 `catalog-source-unavailable` when that source cannot be used: 503 when it could not be reached or

@@ -1051,7 +1051,12 @@ public final class Driver {
                                         .map(r -> String.valueOf(r.getName()))
                                         .collect(Collectors.joining("|")),
                         "unchanged", String.valueOf(preview.getUnchanged()),
-                        "token", String.valueOf(preview.getToken())));
+                        "token", String.valueOf(preview.getToken()),
+                        "missingBase",
+                                preview.getMissingBase() == null
+                                        ? "null"
+                                        : preview.getMissingBase().getVersion() + "@"
+                                                + preview.getMissingBase().getFingerprint()));
     }
 
     /**
@@ -1089,7 +1094,11 @@ public final class Driver {
                             "problemTypeSlug", e.getTypeSlug() == null ? "<null>" : e.getTypeSlug(),
                             "problemStatus", e.getStatusCode(),
                             "problemUnresolvedConflicts", String.join(",", e.getUnresolvedConflicts()),
-                            "problemReadOnlyReason", String.valueOf(e.getReadOnlyReason())));
+                            "problemReadOnlyReason", String.valueOf(e.getReadOnlyReason()),
+                            "problemMissingBase",
+                                    e.getMissingBaseVersion() == null
+                                            ? "null"
+                                            : e.getMissingBaseVersion() + "@" + e.getMissingBaseFingerprint()));
             return;
         }
         report(

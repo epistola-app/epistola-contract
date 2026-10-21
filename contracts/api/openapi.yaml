@@ -134,7 +134,8 @@ info:
       theirs and applies a resolution, `ours` or `theirs`, per conflict. The draft then contains
       the release and is no longer behind it; its base does not move. The preview's `token`, sent
       back as `expectedToken`, makes the merge apply what the preview showed or nothing
-      (`merge-preview-outdated`).
+      (`merge-preview-outdated`). The merge needs the merge base installed; the preview names one
+      that is not (`missingBase`), and the merge is refused with `merge-base-missing`.
 
     Documents are rendered from releases, and a version range never matches a draft. A
     draft renders only in a preview that names its `releaseId`, and in an environment it is
@@ -412,6 +413,14 @@ x-problem-types:
         Merging a release into a draft (alpha) was refused because the draft or
         the release changed since the preview its `expectedToken` names;
         preview again. Nothing changed.
+    - slug: merge-base-missing
+      status: 409
+      schema: MergeBaseMissingProblemDetail
+      description: >-
+        Merging a release into a draft (alpha) was refused because this
+        installation does not have the merge base, the closest release both
+        the draft and the release descend from; `version` and `fingerprint`
+        name the release to get first. Nothing changed.
     - slug: environment-deployment-refused
       status: 409
       schema: ProblemDetail
@@ -896,6 +905,8 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CatalogDraftMergeResource'
     CatalogDraftMergePreview:
       $ref: './components/schemas/catalogs.yaml#/CatalogDraftMergePreview'
+    CatalogMergeBaseRef:
+      $ref: './components/schemas/catalogs.yaml#/CatalogMergeBaseRef'
     MergeIntoCatalogDraftRequest:
       $ref: './components/schemas/catalogs.yaml#/MergeIntoCatalogDraftRequest'
     MergeIntoCatalogDraftResponse:
@@ -1058,6 +1069,8 @@ components:
       $ref: './components/responses/errors.yaml#/CatalogReadOnlyProblemDetail'
     MergeConflictsUnresolvedProblemDetail:
       $ref: './components/responses/errors.yaml#/MergeConflictsUnresolvedProblemDetail'
+    MergeBaseMissingProblemDetail:
+      $ref: './components/responses/errors.yaml#/MergeBaseMissingProblemDetail'
     DataModelValidationError:
       $ref: './components/responses/errors.yaml#/DataModelValidationError'
     TemplateDataValidationProblemDetail:

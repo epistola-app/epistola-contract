@@ -37,6 +37,7 @@ class ProblemRegistryTest {
         assertEquals("merge-conflicts-unresolved", KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED)
         assertEquals("merge-refused", KnownProblemSlugs.MERGE_REFUSED)
         assertEquals("merge-preview-outdated", KnownProblemSlugs.MERGE_PREVIEW_OUTDATED)
+        assertEquals("merge-base-missing", KnownProblemSlugs.MERGE_BASE_MISSING)
         assertEquals("merge-not-applicable", KnownProblemSlugs.MERGE_NOT_APPLICABLE)
         assertEquals("environment-deployment-refused", KnownProblemSlugs.ENVIRONMENT_DEPLOYMENT_REFUSED)
         assertEquals("resource-modified", KnownProblemSlugs.RESOURCE_MODIFIED)
@@ -57,6 +58,8 @@ class ProblemRegistryTest {
     fun `the readOnlyReason member name is generated from the contract`() {
         assertEquals("readOnlyReason", ProblemExtensionMembers.READ_ONLY_REASON)
         assertEquals("unresolvedConflicts", ProblemExtensionMembers.UNRESOLVED_CONFLICTS)
+        assertEquals("version", ProblemExtensionMembers.VERSION)
+        assertEquals("fingerprint", ProblemExtensionMembers.FINGERPRINT)
     }
 
     @Test

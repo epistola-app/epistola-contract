@@ -889,6 +889,7 @@ public static class Driver
             ["resourceNames"] = string.Join("|", resources.Select(r => Show(r.Name))),
             ["unchanged"] = Show(preview.Unchanged),
             ["token"] = Show(preview.Token),
+            ["missingBase"] = preview.MissingBase is { } missingBase ? $"{missingBase.Version}@{missingBase.Fingerprint}" : "null",
         });
     }
 
@@ -923,6 +924,7 @@ public static class Driver
                 ["problemStatus"] = (int)e.StatusCode,
                 ["problemUnresolvedConflicts"] = string.Join(",", e.UnresolvedConflicts),
                 ["problemReadOnlyReason"] = Show(e.ReadOnlyReason),
+                ["problemMissingBase"] = e.MissingBaseVersion is { } version ? $"{version}@{e.MissingBaseFingerprint}" : "null",
             });
             return;
         }

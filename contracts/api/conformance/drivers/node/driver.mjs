@@ -709,6 +709,7 @@ async function previewCatalogDraftMerge(baseUrl, config) {
     resourceNames: preview.resources.map((r) => show(r.name)).join('|'),
     unchanged: show(preview.unchanged),
     token: show(preview.token),
+    missingBase: preview.missingBase ? `${preview.missingBase.version}@${preview.missingBase.fingerprint}` : 'null',
   })
 }
 
@@ -738,6 +739,7 @@ async function mergeIntoCatalogDraft(baseUrl, config) {
       problemStatus: error.statusCode,
       problemUnresolvedConflicts: error.unresolvedConflicts.join(','),
       problemReadOnlyReason: show(error.readOnlyReason),
+      problemMissingBase: error.missingBaseVersion === undefined ? 'null' : `${error.missingBaseVersion}@${error.missingBaseFingerprint}`,
     })
     return
   }

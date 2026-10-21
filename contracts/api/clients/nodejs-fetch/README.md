@@ -159,6 +159,10 @@ try {
       case KnownProblemSlugs.MERGE_PREVIEW_OUTDATED:
         log.warn('the draft or the release changed since the preview: preview again')  // expectedToken (alpha)
         break
+      case KnownProblemSlugs.MERGE_BASE_MISSING:
+        // the merge base is not installed here: install it first, then merge again
+        log.warn(`install ${e.missingBaseVersion} (${e.missingBaseFingerprint}) first`)
+        break
       case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
         // installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source could
         // not be reached (Retry-After may say when), 502 when it answered badly
@@ -177,7 +181,8 @@ try {
 ResponseError` sites keep working. It exposes `type`, `typeSlug`, `title`, `problemStatus`,
 `detail`, `instance`, `errors`, `validationErrors`, `missingFields`, `invalidFields`,
 `missingDependencies`, `unreleasedDependencies`, `readOnlyReason`, `unresolvedConflicts`,
-`isMergeConflictsUnresolvedProblem`, `extensions` (every member
+`isMergeConflictsUnresolvedProblem`, `missingBaseVersion`, `missingBaseFingerprint`,
+`isMergeBaseMissingProblem`, `extensions` (every member
 outside the RFC 9457 base five), `statusCode`, `rawBody`, `isValidationProblem`,
 `isDataModelValidationProblem`, `isTemplateDataProblem`, `isReleaseDependenciesMissingProblem`,
 `isReleaseDependenciesUnreleasedProblem`, and `isCatalogReadOnlyProblem`.

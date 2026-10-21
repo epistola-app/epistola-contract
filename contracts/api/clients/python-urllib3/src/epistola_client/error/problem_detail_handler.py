@@ -28,6 +28,8 @@ from epistola_client_generated import (
     ValidationError,
 )
 
+from epistola_client._generated.known_problem_slugs import KnownProblemSlugs
+from epistola_client.error import problem_types
 from epistola_client.error.problem_detail_exception import (
     MissingDependency,
     ProblemDetailException,
@@ -53,7 +55,8 @@ def parse_problem(
     (``ReleaseDependenciesMissingProblemDetail``), the ``unreleasedDependencies`` array
     (``ReleaseDependenciesUnreleasedProblemDetail``), the ``readOnlyReason`` string
     (``CatalogReadOnlyProblemDetail``), and the ``unresolvedConflicts`` array
-    (``MergeConflictsUnresolvedProblemDetail``). The generated models are independent,
+    (``MergeConflictsUnresolvedProblemDetail``), and, for a ``merge-base-missing`` problem only,
+    the ``version`` and ``fingerprint`` strings (``MergeBaseMissingProblemDetail``). The generated models are independent,
     so the base fields and each extension are carried separately.
     """
     try:
@@ -91,6 +94,7 @@ def parse_problem(
         except Exception:
             validation_errors = {}
 
+    merge_base_missing = problem_types.slug_for(problem.type) == KnownProblemSlugs.MERGE_BASE_MISSING
     return ProblemDetailException(
         problem=problem,
         errors=errors,
@@ -104,6 +108,9 @@ def parse_problem(
         unreleased_dependencies=_unreleased_dependencies(tree),
         read_only_reason=_string(tree, "readOnlyReason"),
         unresolved_conflicts=_strings(tree, "unresolvedConflicts"),
+        # `version` and `fingerprint` are generic names, so they are read for this problem only.
+        missing_base_version=_string(tree, "version") if merge_base_missing else None,
+        missing_base_fingerprint=_string(tree, "fingerprint") if merge_base_missing else None,
     )
 
 

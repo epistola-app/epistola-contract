@@ -11,6 +11,11 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- `ProblemDetailException.MissingBaseVersion`, `MissingBaseFingerprint` and
+  `IsMergeBaseMissingProblem` surface the `version` and `fingerprint` members of a
+  `merge-base-missing` problem (409, from `MergeIntoCatalogDraft`, alpha): the release to install
+  first. They are read from that problem only, since other problems use `version` for other things;
+  the constructor takes them as new optional parameters.
 - `ProblemDetailException.UnresolvedConflicts` and `IsMergeConflictsUnresolvedProblem` surface the
   `unresolvedConflicts` member of a `merge-conflicts-unresolved` problem (409, from
   `MergeIntoCatalogDraft`, alpha): each conflict without a resolution, as

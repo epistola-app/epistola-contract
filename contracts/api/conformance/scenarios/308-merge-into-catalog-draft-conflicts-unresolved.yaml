@@ -44,3 +44,4 @@ expect:
     problemStatus: 409
     problemUnresolvedConflicts: stencil/footer,template/invoice
     problemReadOnlyReason: 'null'
+    problemMissingBase: 'null'

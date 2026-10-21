@@ -50,3 +50,4 @@ expect:
     problemStatus: 409
     problemUnresolvedConflicts: ''
     problemReadOnlyReason: 'null'
+    problemMissingBase: 'null'

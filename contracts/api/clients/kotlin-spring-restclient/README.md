@@ -318,6 +318,8 @@ try {
             e.unresolvedConflicts.forEach { println("needs ours or theirs: $it") }
         KnownProblemSlugs.MERGE_PREVIEW_OUTDATED ->      // the draft or the release changed since the preview
             println("preview the merge again")
+        KnownProblemSlugs.MERGE_BASE_MISSING ->          // the merge base is not installed here
+            println("install ${e.missingBaseVersion} (${e.missingBaseFingerprint}) first")
         KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE ->  // installCatalogRelease, listAvailableCatalogReleases
             // 503: the source could not be reached (Retry-After may say when to try again);
             // 502: it answered badly. Nothing was installed.
@@ -338,7 +340,9 @@ lists, which must be released first or along with the draft, `releaseDependencie
 `readOnlyReason` (why a `catalog-read-only` problem refused a write, `editing-disabled` or
 `supplied-by-epistola`, kept as the string the server sent), `unresolvedConflicts` (the
 conflicts of a merge a `merge-conflicts-unresolved` problem lists, as `resourceType/resourceKey`),
-`isMergeConflictsUnresolvedProblem`, `isValidationProblem`,
+`isMergeConflictsUnresolvedProblem`, `missingBaseVersion` and `missingBaseFingerprint` (the
+release a `merge-base-missing` problem asks to install first, read from that problem only),
+`isMergeBaseMissingProblem`, `isValidationProblem`,
 `isDataModelValidationProblem`, `isReleaseDependenciesMissingProblem`,
 `isReleaseDependenciesUnreleasedProblem`, `isCatalogReadOnlyProblem`, and `extensions`. See [error-types.md](../../docs/error-types.md) for the full list of problem `type`
 slugs.

@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: merge-into-catalog-draft-base-missing
+title: A merge refused for a missing merge base names the release to get first
+why: >
+  A merge compares against the merge base, the closest release both the draft and the release
+  descend from, in that release's own resources (ADR 0005, "The merge base travels with the
+  release"). When this installation does not have it, the merge is refused with
+  `merge-base-missing` and nothing changes. Its `version` and `fingerprint` members name the
+  release to install first. A client that drops them leaves its caller unable to fix the refusal;
+  one that reads `version` from any problem would name a release where there is none.
+
+action:
+  name: merge-into-catalog-draft
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    version: 1.0.1
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/merge-base-missing
+      title: Merge Base Missing
+      status: 409
+      detail: Merging 1.0.1 into Redesign 2027 needs 1.0.0 of letters, which this installation does not have
+      version: 1.0.0
+      fingerprint: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/merge
+      body:
+        json:
+          release: { equals: 1.0.1 }
+  report:
+    problemTypeSlug: merge-base-missing
+    problemStatus: 409
+    problemUnresolvedConflicts: ''
+    problemReadOnlyReason: 'null'
+    problemMissingBase: 1.0.0@v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70

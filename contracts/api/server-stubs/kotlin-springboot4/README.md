@@ -121,6 +121,14 @@ ProblemDetails.mergeConflictsUnresolved(
     detail = "Merging 1.5.0 into Redesign 2027 needs a choice for: template/invoice",
 )
 
+// 409 merge-base-missing: mergeIntoCatalogDraft (alpha), when this installation does not have
+// the merge base; version and fingerprint name the release to get first
+ProblemDetails.mergeBaseMissing(
+    version = "1.0.0",
+    fingerprint = "v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70",
+    detail = "Merging 1.0.1 into Redesign 2027 needs 1.0.0 of letters, which this installation does not have",
+)
+
 // 503 or 502 catalog-source-unavailable: listAvailableCatalogReleases and installCatalogRelease,
 // when the catalog's source cannot be used. 503 when it could not be reached or timed
 // out (set Retry-After on the response when you can tell), 502 when it answered badly.

@@ -79,7 +79,9 @@ MergeConflictError:
     have no resolution, the problem is `merge-conflicts-unresolved` and `unresolvedConflicts` lists
     each. When the release removes a resource the draft still uses, it is `merge-refused`. When the
     draft or the release changed since the preview named by `expectedToken`, it is
-    `merge-preview-outdated`. When the catalog cannot be changed in this installation, it is
+    `merge-preview-outdated`. When this installation does not have the merge base (the closest
+    release both lines descend from), it is `merge-base-missing`, and `version` and `fingerprint`
+    name that release. When the catalog cannot be changed in this installation, it is
     `catalog-read-only` (`readOnlyReason`).
     Other conflicts (the path names a released release, not a draft) use `conflict`.
   content:
