@@ -74,6 +74,11 @@ for (const [where, property] of [
   assert.equal(catalog.CATALOG_RELEASE_VERSION_PATTERN, property.pattern, `npm and schema ${where} patterns must agree`);
   assert.equal(catalog.MAX_CATALOG_RELEASE_VERSION_LENGTH, property.maxLength, `npm and schema ${where} maximum lengths must agree`);
 }
+// One release id rule, the API's CatalogReleaseId.
+const releaseIdSchema = manifestSchema.$defs.ReleaseInfo.properties.releaseId;
+assert.equal(catalog.CATALOG_RELEASE_ID_PATTERN, releaseIdSchema.pattern, 'npm and schema release.releaseId patterns must agree');
+assert.equal(catalog.MIN_CATALOG_RELEASE_ID_LENGTH, releaseIdSchema.minLength, 'npm and schema release.releaseId minimum lengths must agree');
+assert.equal(catalog.MAX_CATALOG_RELEASE_ID_LENGTH, releaseIdSchema.maxLength, 'npm and schema release.releaseId maximum lengths must agree');
 // The API defines each key and number rule once, by name, in identifiers.yaml. Those the catalog
 // archive shares must be the catalog's own.
 const apiIdentifiers = await readFile(new URL('../../api/components/schemas/identifiers.yaml', import.meta.url), 'utf8');
@@ -94,6 +99,7 @@ for (const [name, pattern, minLength, maxLength] of [
   ['Namespace', catalog.CATALOG_NAMESPACE_PATTERN, catalog.MIN_CATALOG_NAMESPACE_LENGTH, catalog.MAX_CATALOG_NAMESPACE_LENGTH],
   ['Registry', catalog.CATALOG_REGISTRY_PATTERN, undefined, catalog.MAX_CATALOG_REGISTRY_LENGTH],
   ['Fingerprint', catalog.CATALOG_RELEASE_FINGERPRINT_PATTERN, undefined, undefined],
+  ['CatalogReleaseId', catalog.CATALOG_RELEASE_ID_PATTERN, catalog.MIN_CATALOG_RELEASE_ID_LENGTH, catalog.MAX_CATALOG_RELEASE_ID_LENGTH],
 ]) {
   assert.deepEqual(apiRule(name), { pattern, minLength, maxLength }, `the npm rule and the API's ${name} must agree`);
 }
@@ -172,6 +178,11 @@ assert.equal(
   'npm and schema variant metadata namespace counts must agree',
 );
 assert.equal(catalog.MAX_CATALOG_VARIANT_METADATA_BYTES, 8 * 1024, 'variant metadata is limited to 8 KiB serialized');
+// A release's metadata follows the variant metadata rules.
+const releaseMetadataSchema = manifestSchema.$defs.ReleaseInfo.properties.metadata;
+for (const member of ['type', 'patternProperties', 'propertyNames', 'additionalProperties', 'minProperties', 'maxProperties']) {
+  assert.deepEqual(releaseMetadataSchema[member], metadataSchema[member], `release and variant metadata ${member} must agree`);
+}
 
 const registry = await import(`${packageName}/registry`);
 assert.ok(registry.componentRegistry, 'component registry must be exported');

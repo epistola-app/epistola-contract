@@ -148,7 +148,12 @@ class CatalogCanonicalizerTest {
     fun `fingerprint ignores release metadata manifest URLs and JSON key order`() {
         val original = goldenArchive()
         val changedManifest = original.manifest.copy(
-            release = original.manifest.release.copy(version = "9.9.9", releasedAt = "2099-01-01T00:00:00Z"),
+            release = original.manifest.release.copy(
+                version = "9.9.9",
+                releasedAt = "2099-01-01T00:00:00Z",
+                releaseId = "k7m2x9qa",
+                metadata = mapOf("app.epistola.suite" to mapOf("renderingDefaultsVersion" to 6)),
+            ),
             resources = original.manifest.resources.map { it.copy(detailUrl = "ignored/layout.json", updatedAt = "now") },
         )
         val reorderedDetail = """

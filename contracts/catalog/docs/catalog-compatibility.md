@@ -137,7 +137,7 @@ The new members that the wire requires (`CatalogInfo.registry` and `.namespace`,
 consumers rebind manifests they stored under v7 with plain Jackson, and those name neither. The
 migrator's wire check and `CatalogValidator` enforce them. `StencilResource` likewise ignores a stored `version` when binding, and so does `CatalogDependency`: an earlier draft of wire v8 gave a declaration a version selector, `version`, which a declaration no longer has (it pins an exact release).
 
-Wire v8 also adds two optional members, changed in place before v8 was released:
+Wire v8 also adds optional members, changed in place before v8 was released:
 
 - `TemplateResource.description` (#97): plain text for the template's authors and readers, at most
   2000 characters, not rendered. It is the source of the template's manifest entry `description`,
@@ -156,6 +156,27 @@ Wire v8 also adds two optional members, changed in place before v8 was released:
   The metadata is part of the release content and V5 covers it, so like the rest of a release it is
   fixed once the release is cut. In Kotlin it binds as `Map<String, Map<String, Any?>>`, the plain
   maps the model uses for other free-form JSON such as `dataModel`.
+- `ReleaseInfo.releaseId`: the release's id, by the API's `CatalogReleaseId` rule (lowercase
+  letters, digits and single hyphens, 4 to 36 characters, `CatalogReleaseIds`;
+  `CATALOG_RELEASE_ID_INVALID`). It is unique among the releases of the catalog's name and kept when
+  the release moves to another installation, through an exchange, a registry or a file, so the
+  release has the same id everywhere. A receiver assigns one only when the archive carries none.
+- `ReleaseInfo.metadata`: producer-specific facts about the release, under the rules of a variant's
+  `metadata` (a reverse-DNS namespace per producer, one to sixteen of them, at most 8 KiB
+  serialized; `CATALOG_RELEASE_METADATA_INVALID`, `CATALOG_RELEASE_METADATA_TOO_LARGE`). Epistola
+  Suite records the rendering-defaults version a release was cut with as
+  `{"app.epistola.suite": {"renderingDefaultsVersion": 6}}`. A consumer keeps every namespace, one it
+  does not recognise included, member for member, when it installs, migrates or re-exports the
+  release.
+
+  Neither is covered by the fingerprint: like the number and `releasedAt`, they are release
+  metadata, and every fingerprint published before they existed stays valid.
+
+A catalog carries its font faces as resources of its release, as it carries images: the family in
+its resource detail, each face's bytes in the archive, both inside the fingerprint. That holds for a
+catalog an installation supplies itself as well (Epistola Suite's `system` catalog), so a release
+that pins such a catalog renders with exactly the faces it was cut with. Earlier text said bundled
+system fonts were never exported; nothing in the model or the validator ever refused them.
 
 Here, backwards compatibility applies to catalog JSON. Common Kotlin construction and property-access
 patterns remain source-compatible where practical, but the Kotlin API is a recompile-on-upgrade

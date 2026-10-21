@@ -742,6 +742,29 @@ class CatalogValidatorTest {
     }
 
     @Test
+    fun `a release id follows the API's CatalogReleaseId rule`() {
+        fun codes(releaseId: String) = CatalogValidator.validate(archive(manifest(ReleaseInfo("1.0.0", releaseId = releaseId), emptyList()), emptyMap()))
+            .findings.filter { it.path == "catalog.json.release.releaseId" }.map { it.code }
+
+        listOf("k7m2x9qa", "abcd", "f47ac10b-58cc-4372-a567-0e02b2c3d479").forEach { assertEquals(emptyList(), codes(it), it) }
+        listOf("abc", "K7M2X9QA", "k7m2-", "-k7m2", "k7--m2", "1.0.0", "a".repeat(37)).forEach {
+            assertEquals(listOf(CatalogValidationCodes.RELEASE_ID_INVALID), codes(it), it)
+        }
+    }
+
+    @Test
+    fun `release metadata follows the variant metadata rules, under codes of its own`() {
+        fun codes(metadata: Map<String, Map<String, Any?>>) = CatalogValidator.validate(archive(manifest(ReleaseInfo("1.0.0", metadata = metadata), emptyList()), emptyMap()))
+            .findings.filter { it.path.startsWith("catalog.json.release.metadata") }.map { it.code }
+
+        assertEquals(emptyList(), codes(mapOf("app.epistola.suite" to mapOf("renderingDefaultsVersion" to 6), "com.example.renderer" to mapOf("x" to listOf(1, "two")))))
+        assertEquals(listOf(CatalogValidationCodes.RELEASE_METADATA_INVALID), codes(emptyMap()))
+        assertEquals(listOf(CatalogValidationCodes.RELEASE_METADATA_INVALID), codes(mapOf("suite" to emptyMap())))
+        assertEquals(listOf(CatalogValidationCodes.RELEASE_METADATA_INVALID), codes((1..17).associate { "app.example$it" to emptyMap() }))
+        assertEquals(listOf(CatalogValidationCodes.RELEASE_METADATA_TOO_LARGE), codes(mapOf("app.epistola.suite" to mapOf("notes" to "x".repeat(9000)))))
+    }
+
+    @Test
     fun `manifest and detail findings aggregate deterministically`() {
         val detail = ResourceDetail(3, ImageResource("Bad Slug", "Different", "bad", width = 0, contentUrl = "../asset", contentHash = "0000000000000000000000000000000000000000000000000000000000000000"))
         val manifest = manifest(

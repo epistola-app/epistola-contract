@@ -315,9 +315,14 @@ data class ImageResource(
 /**
  * Inline catalog representation of a font family. A font family is a thin
  * grouping over its face binaries, each carried by a [FontVariantEntry]. The
- * `FontResource` itself carries no binary. Bundled system fonts are
- * classpath-backed locally and are never exported, so the wire format only
- * ever describes catalog-authored fonts.
+ * `FontResource` itself carries no binary.
+ *
+ * A catalog carries its font faces as resources of its release, like any other resource: the
+ * family here, each face's bytes in the archive at its `contentUrl`, and both inside the release's
+ * fingerprint, which covers each face's bytes as it does an image's. That holds for every catalog,
+ * a catalog an installation supplies itself (such as Epistola Suite's bundled `system` catalog)
+ * included, so a release that pins it renders with exactly the faces it was cut with, wherever it
+ * is installed. How an installation stores the bytes (on its classpath, say) is its own business.
  */
 data class FontResource(
     @JsonAlias("slug")

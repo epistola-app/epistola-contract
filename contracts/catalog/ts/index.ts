@@ -126,6 +126,20 @@ export const MAX_CATALOG_RELEASE_VERSION_LENGTH = 50
  */
 export const CATALOG_RELEASE_VERSION_PATTERN = '^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$'
 
+/** Shortest release id (wire v8), the same limit as the API's `CatalogReleaseId`. */
+export const MIN_CATALOG_RELEASE_ID_LENGTH = 4
+
+/** Longest release id (wire v8), the same limit as the API's `CatalogReleaseId`. */
+export const MAX_CATALOG_RELEASE_ID_LENGTH = 36
+
+/**
+ * Pattern a release id must match in wire v8 (`release.releaseId`): lowercase letters, digits and
+ * single hyphens, the same rule as the API's `CatalogReleaseId`. It is unique among the releases of
+ * the catalog's name and kept when the release moves to another installation. The fingerprint does
+ * not cover it.
+ */
+export const CATALOG_RELEASE_ID_PATTERN = '^[a-z0-9]+(-[a-z0-9]+)*$'
+
 /**
  * Pattern a catalog fingerprint must match in wire v8: the algorithm that computed it, a colon and
  * lowercase SHA-256 hex (`v5:<hex>`). It applies to `release.fingerprint`, which must name the
@@ -200,7 +214,8 @@ export const MAX_TEMPLATE_DESCRIPTION_LENGTH = 2000
 /**
  * Pattern a variant metadata namespace must match (wire v8, #96): a lowercase reverse-DNS name the
  * producer owns, such as `app.epistola.suite`. Only the owner writes into its namespace; every other
- * reader keeps it as it is.
+ * reader keeps it as it is. A release's `metadata` follows the same rules (and the three limits
+ * below); the fingerprint covers a variant's metadata but not a release's.
  */
 export const CATALOG_VARIANT_METADATA_NAMESPACE_PATTERN = '^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$'
 

@@ -51,11 +51,11 @@ class CatalogReleaseVersionsTest {
      */
     @Test
     fun `the rule is the API's ReleaseVersion`() {
-        val spec = File("../api/components/schemas/catalogs.yaml")
+        val spec = File("../api/components/schemas/identifiers.yaml")
         assertTrue(spec.isFile, "the API spec must be next to the catalog module: ${spec.absolutePath}")
         val block = assertNotNull(
-            Regex("(?m)^ReleaseVersion:\\n((?:[ ]{2}.*\\n|\\n)+)").find(spec.readText()),
-            "ReleaseVersion is a top-level schema of the API's catalogs.yaml",
+            Regex("(?m)^ReleaseVersion:\\n((?:[ ]{2}.*\\n)+)").find(spec.readText()),
+            "ReleaseVersion is a top-level schema of the API's identifiers.yaml",
         ).groupValues[1]
         val pattern = assertNotNull(Regex("(?m)^ {2}pattern: '([^']+)'$").find(block)).groupValues[1]
         val maxLength = assertNotNull(Regex("(?m)^ {2}maxLength: (\\d+)$").find(block)).groupValues[1].toInt()

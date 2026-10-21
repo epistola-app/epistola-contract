@@ -21,7 +21,7 @@ import type {
   VariantEntry,
 } from '../ts/index.js'
 import type { CatalogNamespace, CatalogRegistry } from '../ts/index.js'
-import { CATALOG_NAMESPACE_PATTERN, CATALOG_REGISTRY_PATTERN, CATALOG_RELEASE_FINGERPRINT_PATTERN } from '../ts/index.js'
+import { CATALOG_NAMESPACE_PATTERN, CATALOG_REGISTRY_PATTERN, CATALOG_RELEASE_FINGERPRINT_PATTERN, CATALOG_RELEASE_ID_PATTERN, MAX_CATALOG_RELEASE_ID_LENGTH, MIN_CATALOG_RELEASE_ID_LENGTH } from '../ts/index.js'
 import {
   CATALOG_ARCHIVE_PATH_PATTERN,
   CATALOG_RESOURCE_KEY_PATTERN,
@@ -71,6 +71,16 @@ const unfingerprintedDependency: CatalogDependency = { registry: 'acme.com', nam
 // @ts-expect-error a catalog dependency has no version selector
 const selectorDependency: CatalogDependency = { registry: 'acme.com', namespace: 'acme', catalogKey: 'shared', version: '^1.2.0', releaseVersion: '1.4.0', releaseFingerprint: 'v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42' }
 const fingerprintPattern: string = CATALOG_RELEASE_FINGERPRINT_PATTERN
+
+// A release carries its id and producer metadata (wire v8), neither covered by the fingerprint.
+const identifiedRelease: CatalogManifest['release'] = {
+  version: '1.0.0',
+  releaseId: 'k7m2x9qa',
+  metadata: { 'app.epistola.suite': { renderingDefaultsVersion: 6 } },
+}
+// @ts-expect-error release metadata is an object per namespace, never a scalar
+const scalarReleaseMetadata: CatalogManifest['release'] = { version: '1.0.0', metadata: { 'app.epistola.suite': 6 } }
+const releaseIdRules: Array<string | number> = [CATALOG_RELEASE_ID_PATTERN, MIN_CATALOG_RELEASE_ID_LENGTH, MAX_CATALOG_RELEASE_ID_LENGTH]
 
 // A stencil carries no version from wire v8.
 const stencil: Omit<StencilResource, 'content'> = { type: 'stencil', key: 'letter', name: 'Letter' }
@@ -173,6 +183,9 @@ void migratedDependency
 void unfingerprintedDependency
 void selectorDependency
 void fingerprintPattern
+void identifiedRelease
+void scalarReleaseMetadata
+void releaseIdRules
 void stencil
 void versionedStencil
 void unregisteredDependency
