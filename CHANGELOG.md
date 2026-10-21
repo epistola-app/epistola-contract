@@ -11,6 +11,17 @@ libraries.
 
 ### Added
 
+- **A release names its merge base** (catalog wire v8, changed in place: v8 is unreleased; ADR
+  0005, "The merge base travels with the release"). `release.base` (`ReleaseInfo.base`,
+  `ReleaseBase`, also a TypeScript type) names the release this one was made from by identity only:
+  its `version` and its qualified `fingerprint` (`ReleaseBase.FINGERPRINT_PATTERN`,
+  `isValidFingerprint`: any known algorithm, as a catalog dependency pins a release). A receiver
+  follows these links to the closest release both lines share; a merge needs that release
+  installed and checks it by fingerprint. Optional, omitted when absent (a first release, or a base
+  the producer does not know), and not covered by any fingerprint, so every published fingerprint
+  stays valid. New finding, from the validator and the migrator's wire check:
+  `CATALOG_RELEASE_BASE_INVALID`. ADR 0005 now names `currentPerResourceFingerprints`, the
+  per-resource form of V3, as what the merge compares.
 - **Merging a release into a draft (alpha, `x-experimental`)**, per ADR 0005, now Accepted (alpha).
   `previewCatalogDraftMerge` (`GET …/releases/{release}/merge-preview?version=`) returns
   `CatalogDraftMergePreview`: the `draft`, its `base`, the `release` merged in, `alreadyMerged`, and

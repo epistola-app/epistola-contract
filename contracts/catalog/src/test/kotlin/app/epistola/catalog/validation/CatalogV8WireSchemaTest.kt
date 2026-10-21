@@ -4,11 +4,14 @@
 
 package app.epistola.catalog.validation
 
+import app.epistola.catalog.canonical.QualifiedCatalogFingerprint
 import app.epistola.catalog.protocol.CatalogArchivePaths
 import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogPresets
+import app.epistola.catalog.protocol.CatalogReleaseVersions
 import app.epistola.catalog.protocol.CatalogVariantMetadata
+import app.epistola.catalog.protocol.ReleaseBase
 import app.epistola.catalog.protocol.TemplateResource
 import com.networknt.schema.InputFormat
 import com.networknt.schema.SchemaRegistry
@@ -196,6 +199,47 @@ class CatalogV8WireSchemaTest {
             manifestSchema.validate(kotlinMapper.writeValueAsString(bound), InputFormat.JSON).map { it.toString() },
             "the model writes what the schema accepts",
         )
+    }
+
+    @Test
+    fun `a release's base follows the v8 schema, a release number and a known fingerprint and nothing more`() {
+        val schema = tree("schemas/catalog-manifest-v8.schema.json")["\$defs"]["ReleaseBase"]
+        val base = schema["properties"]
+        assertEquals(listOf("version", "fingerprint"), base.propertyNames().toList())
+        assertEquals(listOf("version", "fingerprint"), buildList { schema["required"].forEach { add(it.asString()) } })
+        assertEquals(CatalogReleaseVersions.PATTERN, base["version"]["pattern"].asString())
+        assertEquals(CatalogReleaseVersions.MAX_LENGTH, base["version"]["maxLength"].asInt())
+        assertEquals(ReleaseBase.FINGERPRINT_PATTERN, base["fingerprint"]["pattern"].asString())
+        assertEquals(QualifiedCatalogFingerprint.PATTERN, ReleaseBase.FINGERPRINT_PATTERN)
+        assertTrue(ReleaseBase.isValidFingerprint("v5:" + "0".repeat(64)))
+        listOf("0".repeat(64), "v9:" + "0".repeat(64), "v5:" + "0".repeat(63)).forEach { assertTrue(!ReleaseBase.isValidFingerprint(it), it) }
+
+        fun errors(edit: (ObjectNode) -> Unit): List<String> {
+            val manifest = tree("fixtures/v1/wire-v8/catalog.json") as ObjectNode
+            edit(manifest["release"] as ObjectNode)
+            return manifestSchema.validate(mapper.writeValueAsString(manifest), InputFormat.JSON).map { it.toString() }
+        }
+        fun ObjectNode.base() = this["base"] as ObjectNode
+        val digest = "0".repeat(64)
+
+        val valid = mapOf<String, (ObjectNode) -> Unit>(
+            "the fixture's base" to { },
+            "no base" to { it.remove("base") },
+            "a base fingerprinted under an older algorithm" to { it.base().put("fingerprint", "v4:$digest") },
+        )
+        valid.forEach { (what, edit) -> assertEquals(emptyList(), errors(edit), "v8 schema rejected $what") }
+        val invalid = mapOf<String, (ObjectNode) -> Unit>(
+            "a base without a version" to { it.base().remove("version") },
+            "a base without a fingerprint" to { it.base().remove("fingerprint") },
+            "a base version with a pre-release" to { it.base().put("version", "1.0.0-beta.1") },
+            "a bare-hex base fingerprint" to { it.base().put("fingerprint", digest) },
+            "a base with per-resource fingerprints" to {
+                it.base().putObject("resourceFingerprints").put("algorithm", "v3").putObject("resources")
+            },
+            "an unknown member" to { it.base().put("releaseId", "k7m2x9qa") },
+            "a null base" to { it.putNull("base") },
+        )
+        invalid.forEach { (what, edit) -> assertTrue(errors(edit).isNotEmpty(), "v8 schema accepted $what") }
     }
 
     private fun manifestErrors(entry: (ObjectNode) -> ObjectNode): (String) -> List<String> = { detailUrl ->

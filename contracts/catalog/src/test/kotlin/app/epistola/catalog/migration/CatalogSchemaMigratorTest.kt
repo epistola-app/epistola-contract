@@ -480,6 +480,37 @@ class CatalogSchemaMigratorTest {
     }
 
     @Test
+    fun `a v8 manifest's release base is held to its rules before it binds`() {
+        fun findings(edit: (ObjectNode) -> Unit): List<Pair<String, String>> {
+            val tree = resource("wire-v8/catalog.json").use(mapper::readTree) as ObjectNode
+            edit(tree["release"] as ObjectNode)
+            return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(mapper.writeValueAsBytes(tree)), OPTIONS)
+                .findings.map { it.code to it.path }
+        }
+        fun ObjectNode.base() = this["base"] as ObjectNode
+        val base = "catalog.json.release.base"
+        val digest = "0".repeat(64)
+
+        assertEquals(emptyList(), findings { })
+        assertEquals(emptyList(), findings { it.remove("base") })
+        assertEquals(emptyList(), findings { it.putNull("base") })
+        assertEquals(emptyList(), findings { it.base().put("fingerprint", "v4:$digest") }, "any known algorithm, as a catalog dependency's pin")
+
+        val invalid = CatalogMigrationCodes.RELEASE_BASE_INVALID
+        assertEquals(listOf(invalid to base), findings { it.put("base", "0.9.0") })
+        assertEquals(listOf(invalid to "$base.version"), findings { it.base().remove("version") })
+        assertEquals(listOf(invalid to "$base.version"), findings { it.base().put("version", "0.9.0-beta.1") })
+        assertEquals(listOf(invalid to "$base.version"), findings { it.base().put("version", 9) })
+        assertEquals(listOf(invalid to "$base.fingerprint"), findings { it.base().remove("fingerprint") })
+        assertEquals(listOf(invalid to "$base.fingerprint"), findings { it.base().put("fingerprint", digest) })
+        assertEquals(listOf(invalid to "$base.fingerprint"), findings { it.base().put("fingerprint", "v9:$digest") })
+        assertEquals(
+            listOf(invalid to "$base.version", invalid to "$base.fingerprint"),
+            findings { it.base().put("version", "1.0").put("fingerprint", digest) },
+        )
+    }
+
+    @Test
     fun `a pre-release or build version from before wire v8 is a migration finding, never stripped`() {
         fun findings(fixture: String, version: String): List<CatalogMigrationFinding> {
             val tree = resource(fixture).use(mapper::readTree) as ObjectNode

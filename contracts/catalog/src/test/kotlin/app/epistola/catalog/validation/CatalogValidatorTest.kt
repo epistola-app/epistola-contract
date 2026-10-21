@@ -30,6 +30,7 @@ import app.epistola.catalog.protocol.FontResource
 import app.epistola.catalog.protocol.FontVariantEntry
 import app.epistola.catalog.protocol.ImageResource
 import app.epistola.catalog.protocol.PublisherInfo
+import app.epistola.catalog.protocol.ReleaseBase
 import app.epistola.catalog.protocol.ReleaseInfo
 import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.ResourceEntry
@@ -762,6 +763,23 @@ class CatalogValidatorTest {
         assertEquals(listOf(CatalogValidationCodes.RELEASE_METADATA_INVALID), codes(mapOf("suite" to emptyMap())))
         assertEquals(listOf(CatalogValidationCodes.RELEASE_METADATA_INVALID), codes((1..17).associate { "app.example$it" to emptyMap() }))
         assertEquals(listOf(CatalogValidationCodes.RELEASE_METADATA_TOO_LARGE), codes(mapOf("app.epistola.suite" to mapOf("notes" to "x".repeat(9000)))))
+    }
+
+    @Test
+    fun `a release's base names a release by number and a known fingerprint`() {
+        val digest = "0".repeat(64)
+        fun codes(base: ReleaseBase) = CatalogValidator.validate(archive(manifest(ReleaseInfo("1.0.1", base = base), emptyList()), emptyMap()))
+            .findings.filter { it.path.startsWith("catalog.json.release.base") }.map { it.code to it.path.removePrefix("catalog.json.release.base") }
+        val invalid = CatalogValidationCodes.RELEASE_BASE_INVALID
+
+        assertEquals(emptyList(), codes(ReleaseBase("1.0.0", "v5:$digest")))
+        assertEquals(emptyList(), codes(ReleaseBase("1.0.0", "v4:$digest")), "any known algorithm, as a catalog dependency's pin")
+        assertEquals(listOf(invalid to ".version"), codes(ReleaseBase("1.0", "v5:$digest")))
+        assertEquals(listOf(invalid to ".version"), codes(ReleaseBase("1.0.0-beta.1", "v5:$digest")))
+        assertEquals(listOf(invalid to ".fingerprint"), codes(ReleaseBase("1.0.0", digest)))
+        assertEquals(listOf(invalid to ".fingerprint"), codes(ReleaseBase("1.0.0", "v9:$digest")))
+        assertEquals(listOf(invalid to ".fingerprint"), codes(ReleaseBase("1.0.0", "v5:${"A".repeat(64)}")))
+        assertEquals(listOf(invalid to ".fingerprint", invalid to ".version"), codes(ReleaseBase("one", "none")), "sorted by path")
     }
 
     @Test

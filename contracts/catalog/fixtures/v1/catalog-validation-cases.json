@@ -25,6 +25,7 @@
   "CATALOG_RELEASE_ID_INVALID": "release.releaseId is not lowercase letters, digits and single hyphens, 4 to 36 characters (wire v8)",
   "CATALOG_RELEASE_METADATA_INVALID": "release metadata is empty, names more than 16 namespaces, or names one that is not a reverse-DNS namespace (wire v8)",
   "CATALOG_RELEASE_METADATA_TOO_LARGE": "release metadata exceeds 8 KiB serialized (wire v8)",
+  "CATALOG_RELEASE_BASE_INVALID": "release.base is not an object, or its version is not MAJOR.MINOR.PATCH, or its fingerprint does not name a known algorithm (v5:<lowercase SHA-256 hex>) (wire v8)",
   "CATALOG_RELEASE_TIMESTAMP_INVALID": "release timestamp is not ISO-8601",
   "CATALOG_RELEASE_FINGERPRINT_INVALID": "release fingerprint is not lowercase SHA-256 (before wire v8) or not v5:<lowercase SHA-256 hex> (wire v8)",
   "CATALOG_RELEASE_FINGERPRINT_MISMATCH": "release fingerprint differs from canonical content",

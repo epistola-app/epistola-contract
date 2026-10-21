@@ -438,3 +438,30 @@ for (const [description, edit] of [
 ]) {
   assert.equal(validateV8ThemeSettings(await editCatalog(edit)), false, `v8 manifest accepted ${description}`);
 }
+
+// A release's base (wire v8): optional, and when present exactly a release number and a known
+// qualified fingerprint.
+const editRelease = async (edit) => {
+  const manifest = await readJson('fixtures/v1/wire-v8/catalog.json');
+  edit(manifest.release);
+  return manifest;
+};
+const zeroDigest = '0'.repeat(64);
+for (const [description, edit] of [
+  ["the fixture's base", () => {}],
+  ['no base', (r) => { delete r.base; }],
+  ['a base under an older algorithm', (r) => { r.base.fingerprint = `v4:${zeroDigest}`; }],
+]) {
+  assert.equal(validateV8Manifest(await editRelease(edit)), true, `v8 manifest rejected ${description}: ${ajv.errorsText(validateV8Manifest.errors)}`);
+}
+for (const [description, edit] of [
+  ['a null base', (r) => { r.base = null; }],
+  ['a base without a version', (r) => { delete r.base.version; }],
+  ['a base without a fingerprint', (r) => { delete r.base.fingerprint; }],
+  ['a base version with a pre-release', (r) => { r.base.version = '1.0.0-beta.1'; }],
+  ['a bare-hex base fingerprint', (r) => { r.base.fingerprint = zeroDigest; }],
+  ['a base with resource fingerprints', (r) => { r.base.resourceFingerprints = { algorithm: 'v3', resources: {} }; }],
+  ['an unknown base member', (r) => { r.base.releaseId = 'k7m2x9qa'; }],
+]) {
+  assert.equal(validateV8Manifest(await editRelease(edit)), false, `v8 manifest accepted ${description}`);
+}

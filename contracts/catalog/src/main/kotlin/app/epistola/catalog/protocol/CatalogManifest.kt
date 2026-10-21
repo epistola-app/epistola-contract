@@ -454,6 +454,11 @@ data class PublisherInfo(
  *   `{"app.epistola.suite": {"renderingDefaultsVersion": 6}}`. Only the owning producer writes a
  *   namespace; every other reader keeps it, an unrecognised one included, member for member. Not
  *   covered by the fingerprint. Omitted when null or empty, since the wire forbids `{}`.
+ * @param base the release this one was made from, its draft's base (wire v8, [ReleaseBase]), by
+ *   number and fingerprint, so that a receiver can follow the lineage to the closest release this
+ *   one shares with a draft of its own and merge against it (contract ADR 0005). Null for a first
+ *   release, and when the producer does not know it. Release metadata: the fingerprint does not
+ *   cover it. Omitted when null.
  */
 data class ReleaseInfo(
     val version: String,
@@ -463,7 +468,46 @@ data class ReleaseInfo(
     val releaseId: String? = null,
     @get:JsonInclude(JsonInclude.Include.NON_EMPTY)
     val metadata: Map<String, Map<String, Any?>>? = null,
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val base: ReleaseBase? = null,
 )
+
+/**
+ * The release a release was made from: the base of the draft it was released from (wire v8,
+ * `release.base`), by identity only.
+ *
+ * Merging a release into a draft is a three-way comparison per resource against the merge base,
+ * the closest release both the draft and the merged release descend from (contract ADR 0005). Each
+ * release names the release it was made from, so a receiver can follow the lineage to that common
+ * release. The merge then needs that release installed: it compares against the base's resources
+ * in that release's own snapshot, and checks by [fingerprint] that the installed release of that
+ * number is the same release. A receiver keeps the base as it was received, member for member,
+ * when it installs, migrates or re-exports the release.
+ *
+ * The rules are enforced by the migrator's wire check and the validator, not by this model.
+ *
+ * @param version the base release's number, a release number ([CatalogReleaseVersions]).
+ * @param fingerprint the base release's catalog fingerprint, in the form that names its algorithm
+ *   ([FINGERPRINT_PATTERN], `v5:<hex>`, any algorithm this library knows), as a catalog
+ *   dependency's [CatalogDependency.releaseFingerprint] pins a release: a receiver that has a release
+ *   of that number can tell whether it is the same one.
+ */
+data class ReleaseBase(
+    val version: String,
+    val fingerprint: String,
+) {
+    companion object {
+        /** The shape of a [fingerprint]: [QualifiedCatalogFingerprint.PATTERN], `v5:<hex>`. */
+        const val FINGERPRINT_PATTERN: String = QualifiedCatalogFingerprint.PATTERN
+
+        /**
+         * Whether [fingerprint] is a valid base [ReleaseBase.fingerprint]: it has the shape of
+         * [FINGERPRINT_PATTERN] and names an algorithm this library knows.
+         */
+        @JvmStatic
+        fun isValidFingerprint(fingerprint: String): Boolean = QualifiedCatalogFingerprint.parse(fingerprint) != null
+    }
+}
 
 /**
  * Optional declaration of Epistola versions understood by the producer.

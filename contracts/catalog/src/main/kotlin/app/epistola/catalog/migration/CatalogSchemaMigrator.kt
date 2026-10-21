@@ -16,6 +16,7 @@ import app.epistola.catalog.protocol.CatalogReleaseIds
 import app.epistola.catalog.protocol.CatalogReleaseVersions
 import app.epistola.catalog.protocol.KeywordRule
 import app.epistola.catalog.protocol.PresetRule
+import app.epistola.catalog.protocol.ReleaseBase
 import app.epistola.catalog.protocol.ResourceDetail
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.node.ArrayNode
@@ -155,6 +156,13 @@ object CatalogMigrationCodes {
      * lowercase letters, digits and single hyphens, 4 to 36 characters).
      */
     const val RELEASE_ID_INVALID = "CATALOG_RELEASE_ID_INVALID"
+
+    /**
+     * A catalog-v8 manifest's `release.base` is not an object with a release number `version`
+     * ([CatalogReleaseVersions]) and a `fingerprint` naming a known algorithm
+     * ([ReleaseBase.isValidFingerprint]).
+     */
+    const val RELEASE_BASE_INVALID = "CATALOG_RELEASE_BASE_INVALID"
 
     /**
      * A catalog-v8 catalog dependency's `releaseVersion` is not a release number
@@ -408,6 +416,7 @@ object CatalogSchemaMigrator {
         namespaceFindings(tree) +
         releaseVersionFindings(tree) +
         releaseIdFindings(tree) +
+        releaseBaseFindings(tree) +
         releaseFingerprintFindings(tree) +
         keywordFindings(tree) +
         presetFindings(tree) +
@@ -517,6 +526,27 @@ object CatalogSchemaMigrator {
                     "${CatalogReleaseIds.MIN_LENGTH} to ${CatalogReleaseIds.MAX_LENGTH} characters",
             ),
         )
+    }
+
+    /**
+     * Wire v8 holds a release's base, when it carries one, to a release number and a known qualified
+     * fingerprint. The model requires both members, so the wire check reports a missing or mistyped
+     * one as a finding before binding, rather than as a document that does not bind.
+     */
+    private fun releaseBaseFindings(tree: ObjectNode): List<CatalogMigrationFinding> {
+        val base = tree["release"]?.get("base")?.takeUnless { it.isNull } ?: return emptyList()
+        val path = "catalog.json.release.base"
+        if (base !is ObjectNode) return listOf(CatalogMigrationFinding(CatalogMigrationCodes.RELEASE_BASE_INVALID, path, "base must be an object"))
+        val findings = mutableListOf<CatalogMigrationFinding>()
+        val version = base["version"]
+        if (version == null || !version.isString || !CatalogReleaseVersions.isValid(version.asString())) {
+            findings += CatalogMigrationFinding(CatalogMigrationCodes.RELEASE_BASE_INVALID, "$path.version", "base version must be MAJOR.MINOR.PATCH, without a pre-release or build part")
+        }
+        val fingerprint = base["fingerprint"]
+        if (fingerprint == null || !fingerprint.isString || !ReleaseBase.isValidFingerprint(fingerprint.asString())) {
+            findings += CatalogMigrationFinding(CatalogMigrationCodes.RELEASE_BASE_INVALID, "$path.fingerprint", "base fingerprint must name a known algorithm: v5:<lowercase SHA-256 hex>")
+        }
+        return findings
     }
 
     /**

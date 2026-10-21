@@ -55,6 +55,7 @@ export type {
   CatalogPresetDeclaration,
   PublisherInfo,
   ReleaseInfo,
+  ReleaseBase,
   CompatibilityInfo,
   IncludeEntry,
   ResourceEntry,
