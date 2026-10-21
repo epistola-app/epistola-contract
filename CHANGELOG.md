@@ -263,6 +263,13 @@ libraries.
 
 ### Changed
 
+- **ADR 0001 (hotfixing) is superseded** by Epistola Suite's ADR 0032 and contract ADR 0005: with
+  no catalog types, any installation that allows editing fixes a release the ordinary way and the
+  fix comes back as a merge; numbers are checked where releases meet. The `+hotfix.N` grammar it
+  proposed is not added. **ADR 0003 is amended (2026-10-21)**: a catalog's name must not change
+  when its releases move between installations, so registry and namespace are explicit, chosen when
+  the catalog is created, and never derived from a tenant key or an installation's host; its
+  "type is chosen once" section is withdrawn.
 - **BREAKING: catalogs have no type; whether one can be changed is the installation's.** Following
   Epistola Suite's ADR 0032, every catalog has releases and drafts, wherever its releases come
   from. `CatalogType` (`authored`, `subscribed`) and `CatalogDto.type` are removed, and so is the
