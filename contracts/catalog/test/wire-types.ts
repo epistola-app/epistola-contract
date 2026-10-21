@@ -22,6 +22,7 @@ import type {
 } from '../ts/index.js'
 import type { CatalogNamespace, CatalogRegistry } from '../ts/index.js'
 import { CATALOG_NAMESPACE_PATTERN, CATALOG_REGISTRY_PATTERN, CATALOG_RELEASE_FINGERPRINT_PATTERN, CATALOG_RELEASE_ID_PATTERN, MAX_CATALOG_RELEASE_ID_LENGTH, MIN_CATALOG_RELEASE_ID_LENGTH } from '../ts/index.js'
+import type { ReleaseBase } from '../ts/index.js'
 import {
   CATALOG_ARCHIVE_PATH_PATTERN,
   CATALOG_RESOURCE_KEY_PATTERN,
@@ -81,6 +82,17 @@ const identifiedRelease: CatalogManifest['release'] = {
 // @ts-expect-error release metadata is an object per namespace, never a scalar
 const scalarReleaseMetadata: CatalogManifest['release'] = { version: '1.0.0', metadata: { 'app.epistola.suite': 6 } }
 const releaseIdRules: Array<string | number> = [CATALOG_RELEASE_ID_PATTERN, MIN_CATALOG_RELEASE_ID_LENGTH, MAX_CATALOG_RELEASE_ID_LENGTH]
+
+// A release names the release it was made from (wire v8), by number and fingerprint only.
+const releaseBase: ReleaseBase = {
+  version: '1.0.0',
+  fingerprint: 'v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42',
+}
+const releaseWithBase: CatalogManifest['release'] = { version: '1.0.1', base: releaseBase }
+// @ts-expect-error a base is identity only: it carries no per-resource fingerprints
+const baseWithResources: ReleaseBase = { ...releaseBase, resourceFingerprints: { algorithm: 'v3', resources: {} } }
+// @ts-expect-error a base names its release's fingerprint
+const baseWithoutFingerprint: ReleaseBase = { version: '1.0.0' }
 
 // A stencil carries no version from wire v8.
 const stencil: Omit<StencilResource, 'content'> = { type: 'stencil', key: 'letter', name: 'Letter' }
@@ -186,6 +198,10 @@ void fingerprintPattern
 void identifiedRelease
 void scalarReleaseMetadata
 void releaseIdRules
+void releaseBase
+void releaseWithBase
+void baseWithResources
+void baseWithoutFingerprint
 void stencil
 void versionedStencil
 void unregisteredDependency

@@ -59,6 +59,7 @@ class CatalogWireParityTest {
         assertEquals(listOf(CatalogDependency("exchange.epistola.app", "epistola", "shared", "1.4.0", "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42")), manifest.catalogDependencies)
         assertEquals("k7m2x9qa", manifest.release.releaseId)
         assertEquals(mapOf("renderingDefaultsVersion" to 6), manifest.release.metadata?.get("app.epistola.suite"))
+        assertEquals(ReleaseBase("0.9.0", "v5:3f1c9a7e5b2d4c6a8e0f1b3d5c7a9e1f2b4d6c8a0e2f4b6d8c0a2e4f6b8d0c2a"), manifest.release.base)
         assertEquals(manifest, mapper.readValue(mapper.writeValueAsBytes(manifest), CatalogManifest::class.java))
         assertEquals(detail, mapper.readValue(mapper.writeValueAsBytes(detail), ResourceDetail::class.java))
     }
@@ -96,21 +97,21 @@ class CatalogWireParityTest {
     }
 
     @Test
-    fun `a release's id and metadata are written back member for member, an unknown namespace included`() {
+    fun `a release's id, metadata and base are written back member for member, an unknown namespace included`() {
         val source = fixture("wire-v8/catalog.json").use(mapper::readTree)
         val written = mapper.valueToTree<JsonNode>(mapper.treeToValue(source, CatalogManifest::class.java))
 
-        for (member in listOf("version", "releaseId", "metadata")) {
+        for (member in listOf("version", "releaseId", "metadata", "base")) {
             assertEquals(source["release"][member], written["release"][member], member)
         }
     }
 
     @Test
-    fun `a release without an id or metadata, as stored before wire v8 had them, binds and omits both`() {
+    fun `a release without an id, metadata or base, as stored before wire v8 had them, binds and omits them`() {
         val release = mapper.readValue("""{"version":"1.0.0"}""", ReleaseInfo::class.java)
 
         assertEquals(ReleaseInfo("1.0.0"), release)
-        assertTrue(listOf("releaseId", "metadata").none(mapper.valueToTree<JsonNode>(release)::has))
+        assertTrue(listOf("releaseId", "metadata", "base").none(mapper.valueToTree<JsonNode>(release)::has))
         assertTrue(!mapper.valueToTree<JsonNode>(release.copy(metadata = emptyMap())).has("metadata"), "empty metadata is omitted")
     }
 

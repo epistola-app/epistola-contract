@@ -79,6 +79,12 @@ const releaseIdSchema = manifestSchema.$defs.ReleaseInfo.properties.releaseId;
 assert.equal(catalog.CATALOG_RELEASE_ID_PATTERN, releaseIdSchema.pattern, 'npm and schema release.releaseId patterns must agree');
 assert.equal(catalog.MIN_CATALOG_RELEASE_ID_LENGTH, releaseIdSchema.minLength, 'npm and schema release.releaseId minimum lengths must agree');
 assert.equal(catalog.MAX_CATALOG_RELEASE_ID_LENGTH, releaseIdSchema.maxLength, 'npm and schema release.releaseId maximum lengths must agree');
+// A release's base (wire v8): identity only, its version and fingerprint by the release's own rules.
+const releaseBaseSchema = manifestSchema.$defs.ReleaseBase;
+assert.equal(catalog.CATALOG_RELEASE_VERSION_PATTERN, releaseBaseSchema.properties.version.pattern, 'npm and schema release.base.version patterns must agree');
+assert.equal(catalog.MAX_CATALOG_RELEASE_VERSION_LENGTH, releaseBaseSchema.properties.version.maxLength, 'npm and schema release.base.version maximum lengths must agree');
+assert.equal(catalog.CATALOG_RELEASE_FINGERPRINT_PATTERN, releaseBaseSchema.properties.fingerprint.pattern, 'npm and schema release.base.fingerprint patterns must agree');
+assert.deepEqual(Object.keys(releaseBaseSchema.properties), ['version', 'fingerprint'], 'a release base is identity only');
 // The API defines each key and number rule once, by name, in identifiers.yaml. Those the catalog
 // archive shares must be the catalog's own.
 const apiIdentifiers = await readFile(new URL('../../api/components/schemas/identifiers.yaml', import.meta.url), 'utf8');

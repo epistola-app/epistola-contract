@@ -413,10 +413,35 @@
           "additionalProperties": false,
           "minProperties": 1,
           "maxProperties": 16
+        },
+        "base": {
+          "$ref": "#/$defs/ReleaseBase"
         }
       },
       "required": [
         "version"
+      ],
+      "additionalProperties": false
+    },
+    "ReleaseBase": {
+      "description": "The release this one was made from: the base of the draft it was released from, by identity only. Merging a release into a draft compares each resource three ways against the merge base, the closest release both descend from (contract ADR 0005); every release names the release it was made from, so a receiver can follow the lineage to that common release. The merge needs that release installed, and checks by its fingerprint that the installed release of that number is the same one. Absent for a first release, or when the producer does not know its base. A receiver keeps it as received, member for member, when it installs, migrates or re-exports the release. Release metadata: the fingerprint does not cover it.",
+      "type": "object",
+      "properties": {
+        "version": {
+          "description": "The base release's number, by the rule of release.version.",
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "maxLength": 50
+        },
+        "fingerprint": {
+          "description": "The base release's catalog fingerprint, in the form that names its algorithm (v5:<lowercase SHA-256 hex>), so a receiver holding a release of that number can tell whether it is the same one.",
+          "type": "string",
+          "pattern": "^v[1-9][0-9]*:[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "version",
+        "fingerprint"
       ],
       "additionalProperties": false
     },

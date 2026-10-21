@@ -168,8 +168,16 @@ Wire v8 also adds optional members, changed in place before v8 was released:
   `{"app.epistola.suite": {"renderingDefaultsVersion": 6}}`. A consumer keeps every namespace, one it
   does not recognise included, member for member, when it installs, migrates or re-exports the
   release.
+- `ReleaseInfo.base` (`ReleaseBase`): the release this one was made from, its draft's base, by
+  identity only (ADR 0005, "The merge base travels with the release"): `version`, a release number,
+  and `fingerprint`, that release's catalog fingerprint in the qualified form (`v5:<hex>`, any known
+  algorithm), and nothing else. A receiver follows the lineage through it to the closest release a
+  draft and the merged release share; the merge needs that release installed and checks by the
+  fingerprint that the installed release of that number is the same one. A receiver keeps the base
+  as received. Absent for a first release, or when the producer does not know its base. Finding:
+  `CATALOG_RELEASE_BASE_INVALID`, from the validator and the migrator's wire check.
 
-  Neither is covered by the fingerprint: like the number and `releasedAt`, they are release
+  None of these is covered by the fingerprint: like the number and `releasedAt`, they are release
   metadata, and every fingerprint published before they existed stays valid.
 
 A catalog carries its font faces as resources of its release, as it carries images: the family in

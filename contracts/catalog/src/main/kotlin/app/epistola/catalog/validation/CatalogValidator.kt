@@ -36,6 +36,7 @@ import app.epistola.catalog.protocol.FontResource
 import app.epistola.catalog.protocol.ImageResource
 import app.epistola.catalog.protocol.KeywordRule
 import app.epistola.catalog.protocol.PresetRule
+import app.epistola.catalog.protocol.ReleaseBase
 import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.ResourceEntry
 import app.epistola.catalog.protocol.StencilResource
@@ -192,6 +193,13 @@ object CatalogValidationCodes {
 
     /** `release.metadata` exceeds [CatalogVariantMetadata.MAX_SERIALIZED_BYTES] serialized. */
     const val RELEASE_METADATA_TOO_LARGE = "CATALOG_RELEASE_METADATA_TOO_LARGE"
+
+    /**
+     * `release.base` names its version by other than a release number ([CatalogReleaseVersions]),
+     * or its fingerprint by other than a known qualified algorithm (`v5:<hex>`,
+     * [ReleaseBase.isValidFingerprint]).
+     */
+    const val RELEASE_BASE_INVALID = "CATALOG_RELEASE_BASE_INVALID"
     const val RELEASE_TIMESTAMP_INVALID = "CATALOG_RELEASE_TIMESTAMP_INVALID"
     const val RELEASE_FINGERPRINT_INVALID = "CATALOG_RELEASE_FINGERPRINT_INVALID"
     const val RELEASE_FINGERPRINT_MISMATCH = "CATALOG_RELEASE_FINGERPRINT_MISMATCH"
@@ -1117,6 +1125,7 @@ object CatalogValidator {
                 findings,
             )
         }
+        release.base?.let { validateReleaseBase(it, findings) }
         release.releasedAt?.let {
             if (runCatching { OffsetDateTime.parse(it) }.isFailure) {
                 findings.error(CatalogValidationCodes.RELEASE_TIMESTAMP_INVALID, "catalog.json.release.releasedAt", "releasedAt must be an ISO-8601 offset timestamp")
@@ -1161,6 +1170,24 @@ object CatalogValidator {
             if (runCatching { URI(include.url) }.getOrNull()?.isAbsolute != true) {
                 findings.error(CatalogValidationCodes.MANIFEST_DETAIL_PATH_INVALID, "catalog.json.includes[$index].url", "include URL must be absolute")
             }
+        }
+    }
+
+    /**
+     * Holds `release.base` to a release number and a known qualified fingerprint. Whether the base
+     * is a release the receiver has, and whether it is below this release, is the receiver's to
+     * judge; the base is kept as given.
+     */
+    private fun validateReleaseBase(
+        base: ReleaseBase,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        val path = "catalog.json.release.base"
+        if (!CatalogReleaseVersions.isValid(base.version)) {
+            findings.error(CatalogValidationCodes.RELEASE_BASE_INVALID, "$path.version", "base version must be MAJOR.MINOR.PATCH, without a pre-release or build part")
+        }
+        if (!ReleaseBase.isValidFingerprint(base.fingerprint)) {
+            findings.error(CatalogValidationCodes.RELEASE_BASE_INVALID, "$path.fingerprint", "base fingerprint must name a known algorithm: v5:<lowercase SHA-256 hex>")
         }
     }
 

@@ -18,6 +18,7 @@ import app.epistola.catalog.protocol.CatalogThemeRef
 import app.epistola.catalog.protocol.CompatibilityInfo
 import app.epistola.catalog.protocol.DependencyRef
 import app.epistola.catalog.protocol.IncludeEntry
+import app.epistola.catalog.protocol.ReleaseBase
 import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.StencilResource
 import app.epistola.catalog.protocol.TemplateResource
@@ -153,6 +154,7 @@ class CatalogCanonicalizerTest {
                 releasedAt = "2099-01-01T00:00:00Z",
                 releaseId = "k7m2x9qa",
                 metadata = mapOf("app.epistola.suite" to mapOf("renderingDefaultsVersion" to 6)),
+                base = ReleaseBase("9.9.8", "v5:${"0".repeat(64)}"),
             ),
             resources = original.manifest.resources.map { it.copy(detailUrl = "ignored/layout.json", updatedAt = "now") },
         )
@@ -175,6 +177,28 @@ class CatalogCanonicalizerTest {
             CatalogCanonicalizer.perResourceFingerprints(original),
             CatalogCanonicalizer.perResourceFingerprints(reordered),
         )
+    }
+
+    @Test
+    fun `no fingerprint covers a release's base, catalog or per resource`() {
+        val original = wireV8Archive()
+        val withoutBase = original.copyWithManifest(original.manifest.copy(release = original.manifest.release.copy(base = null)))
+        val otherBase = original.copyWithManifest(
+            original.manifest.copy(
+                release = original.manifest.release.copy(
+                    base = ReleaseBase("0.1.0", "v4:${"2".repeat(64)}"),
+                ),
+            ),
+        )
+
+        CatalogFingerprintVersion.entries.forEach { version ->
+            assertEquals(CatalogCanonicalizer.fingerprint(withoutBase, version), CatalogCanonicalizer.fingerprint(original, version), "$version")
+            assertEquals(CatalogCanonicalizer.fingerprint(withoutBase, version), CatalogCanonicalizer.fingerprint(otherBase, version), "$version")
+        }
+        listOf(CatalogCanonicalizer::perResourceFingerprints, CatalogCanonicalizer::currentPerResourceFingerprints).forEach { perResource ->
+            assertEquals(perResource(withoutBase), perResource(original), perResource.name)
+            assertEquals(perResource(withoutBase), perResource(otherBase), perResource.name)
+        }
     }
 
     @Test

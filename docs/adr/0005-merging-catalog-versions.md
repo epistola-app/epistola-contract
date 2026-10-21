@@ -54,8 +54,9 @@ after a merge, so the number a draft needs is still decided by ADR 0002's rules 
 
 The merge compares three states of each resource, identified by type and key (ADR 0004): the
 draft's **base**, **theirs** (the release merged in) and **ours** (the draft). Each state is the
-resource's canonical fingerprint (`CatalogCanonicalizer.perResourceFingerprints`, the per-resource
-form of the release's own fingerprint), so key order, number formatting and the like never make a
+resource's canonical fingerprint (`CatalogCanonicalizer.currentPerResourceFingerprints`, the
+per-resource form of V3, which installations compare resources with; amended 2026-10-21, it named
+`perResourceFingerprints`, the V1 form), so key order, number formatting and the like never make a
 difference. A resource absent from a state is not in it: added on a side that has it and the base
 does not, removed on a side that does not have it and the base does.
 
@@ -118,6 +119,26 @@ comes, the merge is implemented once, in the catalog module, with published gold
 theirs, ours to result or conflicts), so every installation merges the same way, as with
 fingerprints.
 
+### The merge base travels with the release (2026-10-21)
+
+The base of a three-way merge is the **merge base**: the closest release both the draft and the
+merged release descend from. Before this, an archive did not say what a release was made from:
+production that got `1.1.0` and now receives a fix `1.0.1` could not tell that `1.0.1` was made
+from `1.0.0`.
+
+So every release names the release it was made from, its draft's base, in wire v8:
+`release.base`, that release's number (`version`) and its catalog `fingerprint`, and nothing more.
+A receiver follows these links through the releases it knows to the closest release both lines
+share. The base is not covered by any fingerprint, and a receiver keeps it as received.
+
+- **The merge base must be installed.** The merge compares against that release's own resources,
+  so the receiving installation needs it, and checks by its fingerprint that the release it has
+  under that number is the same release.
+- **When it is not installed**, the merge is refused and says which release to get first.
+- **When no common release is known** (archives that name no base, from before `release.base`, or
+  from a producer that did not know it), the merge has no base: every resource that differs is a
+  choice for the author, never a guess from the release numbers.
+
 ## Later: step two, within a resource
 
 Per node of a template variant's document, per style key and preset of a theme, per code of a code
@@ -137,5 +158,6 @@ operations).
 
 ## Open questions
 
-- Should a release record which releases its draft merged (for provenance), or only its base?
+- Should a release record which releases its draft merged (for provenance), or only its base? (It
+  now records its base, `release.base`, for merging; provenance of merges stays open.)
 - Should merging another draft, not only a release, be offered?

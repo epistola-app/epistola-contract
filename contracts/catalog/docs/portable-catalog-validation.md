@@ -157,6 +157,10 @@ v8 is a finding (`CATALOG_RELEASE_VERSION_INVALID`), never a silent strip.
 A release's `releaseId`, when it carries one, is the API's `CatalogReleaseId` (`CatalogReleaseIds`;
 `CATALOG_RELEASE_ID_INVALID`, also raised by the migrator's wire check), and its `metadata` follows
 the rules of a variant's (`CATALOG_RELEASE_METADATA_INVALID`, `CATALOG_RELEASE_METADATA_TOO_LARGE`).
+Its `base`, when it carries one (`ReleaseBase`), names a release number and a qualified
+fingerprint of a known algorithm (`CATALOG_RELEASE_BASE_INVALID`, also for a missing member; the
+migrator's wire check raises it too). Whether the receiver has that release, and whether it is below
+this one, is not checked: the base is kept as given.
 A recorded `releaseVersion` comes with the `releaseFingerprint` of that release, naming a known
 algorithm (`v5:<lowercase SHA-256 hex>`), and an unrecorded one with a null fingerprint
 (`CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`, also raised by the migrator's wire check).

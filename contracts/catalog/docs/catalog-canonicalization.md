@@ -49,7 +49,7 @@ notices.
 `CatalogCanonicalizer` hashes canonical catalog content. It sorts resources and JSON object keys,
 normalizes numeric JSON representation, includes streamed asset digests, dependency identity,
 publisher metadata, compatibility declarations, and includes, and excludes the release metadata
-(its timestamp, version, id and producer `metadata`), resource URLs, and ZIP metadata. Therefore equivalent archives have
+(its timestamp, version, id, producer `metadata` and `base`), resource URLs, and ZIP metadata. Therefore equivalent archives have
 identical fingerprints even when their entry order, timestamps, compression, or JSON property order
 differ.
 
