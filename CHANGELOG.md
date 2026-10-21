@@ -664,6 +664,15 @@ libraries.
   the data and `keyword` a JSON Schema keyword, in every client, enforced by the new
   `template-data-validation` conformance scenario rather than by five separate test suites.
 
+- **Releases are only started by hand, and can be pre-releases.** A push to a `release/*` branch no
+  longer releases: every release, from `main` or a release branch, is started with `make release`
+  (a published GitHub Release), which now works on release branches too and on macOS.
+  `make release PRERELEASE=alpha.1` publishes a pre-release such as `v2.0.0-alpha.1`, also from a
+  `feature/*` branch. A pre-release is published to every registry but never as the latest version:
+  npm uses the `next` dist-tag, the mock-server image gets no `latest` tag, and the docs keep their
+  `latest/` page. The release workflow refuses a GitHub Release whose pre-release mark does not
+  match its tag.
+
 ### Removed
 
 - **BREAKING: the `X-API-Key` header** (`apiKeyAuth` security scheme). An API key is sent as
