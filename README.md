@@ -30,11 +30,12 @@ https://epistola-app.github.io/epistola-contract/
 
 ### Automatic Deployment
 
-Documentation is automatically deployed after a successful release to Maven Central from `release/*` branches. The workflow:
+Documentation is automatically deployed after every successful release. The workflow:
 1. Triggers when the "Release to Maven Central" workflow completes successfully
 2. Bundles the OpenAPI spec into a single file
-3. Deploys to the `gh-pages` branch with the API version (e.g., `v1.0/`)
-4. Updates the `latest/` symlink and version manifest
+3. Deploys to the `gh-pages` branch with the release version (e.g., `v1.0.1/`)
+4. Updates the `latest/` copy and version manifest; a pre-release (e.g., `v2.0.0-alpha.1/`) is
+   listed with status `prerelease` and never becomes `latest`
 
 ### Manual Deployment
 
@@ -300,7 +301,7 @@ This repository uses a versioning scheme tied to the OpenAPI spec version:
    - No release happens yet (main requires manual release)
 
 5. **Release from main** (when ready)
-   - Create and publish a GitHub release for the intended version
+   - `make release` publishes a GitHub release for the next version
    - The release workflow publishes all artifacts and verifies the catalog artifacts
 
 ### Workflow Diagram
@@ -316,63 +317,76 @@ feature/xyz ──► PR ──► main (build only)
                               backport PR created
                                       │
                                       ▼
-                              merge to release/1.0
+                              merge to release/1.0 (build only)
                                       │
                                       ▼
-                              auto-release and catalog verification
+                              make release (when ready) ──► publish all artifacts
 ```
 
 ### When to Release
 
-- **From main**: When you have new features or changes ready for users
-- **From release branches**: Automatically on merge (for backported fixes)
+Nothing is released on a push. A release is always started by hand with `make release`, when the
+branch is ready:
+
+- **From main**: when you have new features or changes ready for users
+- **From release branches**: when the backported fixes are ready to ship
+- **A pre-release** (`make release PRERELEASE=alpha.1`): to let consumers try a version before it is
+  released, also from a `feature/*` branch
 
 ### Branch Rules
 
 | Branch | Who commits | How | Releases |
 |--------|-------------|-----|----------|
 | `main` | Everyone via PR | Feature branches + PRs | Manual |
-| `release/*` | Maintainers only | Backport PRs or cherry-picks | Automatic |
-| `feature/*` | Anyone | Direct commits | Never |
+| `release/*` | Maintainers only | Backport PRs or cherry-picks | Manual |
+| `feature/*` | Anyone | Direct commits | Pre-releases only, manual |
 
 ## Release Workflow
 
 GitHub Actions publishes the Maven, npm, NuGet, PyPI, and container artifacts.
-Releases can only be triggered from `main` or `release/*` branches.
+A release comes from `main` or a `release/*` branch; a pre-release may also come from a `feature/*`
+branch. A push never releases anything.
 
 ### Release Process
 
-**Automatic releases:** Push to any `release/*` branch triggers a release of all artifacts.
-
-**Manual releases:**
-1. Merge all release changes to `main`.
-2. Prepare the changelog and exact spec version.
-3. Create and publish the corresponding GitHub release, for example with
-   `gh release create v0.14.1 --title v0.14.1 --generate-notes`.
+1. Merge the release changes into the branch you release from (`main` or `release/X.Y`), and push.
+2. Prepare the changelog.
+3. Run `make release` on that branch. It takes the next patch of the spec's `major.minor` from the
+   existing tags, commits and pushes that `info.version` when it differs, and publishes the GitHub
+   release `vX.Y.Z` for that commit.
 4. The published GitHub release triggers `.github/workflows/release.yml`.
 
+**Pre-releases:** `make release PRERELEASE=alpha.1` publishes `v<info.version>-alpha.1` (for example
+`v2.0.0-alpha.1`) for the current commit, marked as a pre-release, without changing the spec. It
+works from `main`, `release/*` and `feature/*`, and is refused once `v<info.version>` itself is
+released. A pre-release is published everywhere a release is, but never as the latest version:
+npm publishes it under the `next` dist-tag instead of `latest`, the mock-server image gets no
+`latest` tag, and the docs do not move `latest/`. NuGet and PyPI (`2.0.0a1`) treat it as a
+pre-release by its version, and Maven orders it before `2.0.0`. Versions published to Maven
+Central, NuGet and PyPI cannot be withdrawn.
+
 The workflow will:
-1. **Validate** - Ensure branch version matches spec version (for release branches)
-2. **Calculate version** - Read API version from spec, calculate patch from existing tags
-3. **Build and test** - Run the full build with the calculated version
+1. **Validate** - The tag's `major.minor` matches the spec, the commit is on an allowed branch, and
+   the GitHub release is marked pre-release exactly when the tag has a suffix
+2. **Version** - Every artifact gets the tag's version
+3. **Build and test** - Run the full build with that version
 4. **Preflight artifacts** - Generate Kotlin API documentation and build, pack,
    and inspect the exact npm tarball before publishing anything
 5. **Publish** - Sign and publish to Maven Central, npm, NuGet, and PyPI;
    publication errors fail the workflow
 6. **Verify** - Resolve the catalog from Maven Central and npm using clean
    consumers and inspect the published registries and API documentation
-7. **Finalize** - Attach release assets and release notes containing:
-   - Release notes
-   - Maven coordinates
-   - Bundled `openapi.yaml` (single-file spec with all refs resolved)
+7. **Finalize** - Attach the bundled `openapi.yaml` (single-file spec with all refs resolved) and
+   the .NET SBOM to the GitHub release
 
 ### Branch Strategy
 
-| Branch | Spec Version | Auto-release | Purpose |
-|--------|--------------|--------------|---------|
-| `main` | Any (e.g., `2.1.0`) | No (manual only) | Latest development |
-| `release/2.0` | Must be `2.0.x` | Yes, on push | Maintenance for 2.0 |
-| `release/1.0` | Must be `1.0.x` | Yes, on push | Maintenance for 1.0 |
+| Branch | Spec Version | Releases | Purpose |
+|--------|--------------|----------|---------|
+| `main` | Any (e.g., `2.1.0`) | `make release` | Latest development |
+| `release/2.0` | Must be `2.0.x` | `make release` | Maintenance for 2.0 |
+| `release/1.0` | Must be `1.0.x` | `make release` | Maintenance for 1.0 |
+| `feature/*` | Any | `make release PRERELEASE=…` | Pre-releases of upcoming work |
 
 ### Creating a Release Branch
 
@@ -400,7 +414,7 @@ There are two ways to backport fixes to release branches:
 2. Add labels `backport:release/2.0` and/or `backport:release/1.0`
 3. Merge the PR
 4. The backport bot automatically creates PRs to the release branches
-5. Review and merge the backport PRs → auto-releases
+5. Review and merge the backport PRs, then `make release` on each release branch when ready
 
 #### Option 2: Manual Cherry-pick
 
@@ -413,17 +427,20 @@ git push
 # 2. Backport to 2.0
 git checkout release/2.0
 git cherry-pick <commit-sha>
-git push  # → auto-releases 2.0.x
+git push
+make release  # → releases 2.0.x
 
 # 3. Backport to 1.0
 git checkout release/1.0
 git cherry-pick <commit-sha>
-git push  # → auto-releases 1.0.x
+git push
+make release  # → releases 1.0.x
 ```
 
 ### Version Calculation
 
-The patch version is automatically calculated from existing git tags:
+`make release` calculates the patch version from existing git tags (pre-release tags such as
+`v2.0.0-alpha.1` do not count):
 
 ```
 Tags: client-spring3-restclient-v1.0.0, client-spring3-restclient-v1.0.1

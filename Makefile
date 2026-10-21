@@ -194,42 +194,65 @@ validate-impl: bundle
 	@echo "==> Proxying to $${TARGET_URL:-http://localhost:8080}"
 	$(PRISM) proxy $(API_BUNDLE) $${TARGET_URL:-http://localhost:8080} --errors
 
-# Create a GitHub Release to trigger the release workflow
+# Start a release: publish a GitHub Release, which the release workflow builds and publishes.
+# Nothing releases on a push; a release is only ever started here (or by hand, the same way).
+#   make release                     the next patch of the spec's major.minor, from main or release/X.Y;
+#                                    commits the spec version and pushes it first
+#   make release PRERELEASE=alpha.1  v<spec version>-alpha.1, from main, release/* or feature/*;
+#                                    marked pre-release, so no registry or the docs treat it as the latest
 release:
-	@# Must be on main
 	@BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
-	if [ "$$BRANCH" != "main" ]; then \
-		echo "Error: must be on 'main' branch (currently on '$$BRANCH')"; \
+	API_VERSION=$$($(API_DIR)/scripts/spec-version.sh --api); \
+	SPEC_VERSION=$$($(API_DIR)/scripts/spec-version.sh --full); \
+	if [ -n "$(PRERELEASE)" ]; then \
+		case "$$BRANCH" in \
+			main|release/*|feature/*) ;; \
+			*) echo "Error: a pre-release comes from main, release/* or feature/* (currently on '$$BRANCH')"; exit 1 ;; \
+		esac; \
+	elif [ "$$BRANCH" != "main" ] && [ "$$BRANCH" != "release/$$API_VERSION" ]; then \
+		echo "Error: a release comes from main or release/$$API_VERSION (currently on '$$BRANCH')"; \
 		exit 1; \
-	fi
-	@# Working tree must be clean
-	@if [ -n "$$(git status --porcelain)" ]; then \
+	fi; \
+	if [ -n "$$(git status --porcelain)" ]; then \
 		echo "Error: working tree is not clean. Commit or stash changes first."; \
 		exit 1; \
-	fi
-	@# Must be up to date with remote
-	@git fetch origin main --quiet; \
-	if [ "$$(git rev-parse HEAD)" != "$$(git rev-parse origin/main)" ]; then \
-		echo "Error: local main is not up to date with origin/main. Pull first."; \
+	fi; \
+	git fetch origin "$$BRANCH" --tags --quiet; \
+	if [ "$$(git rev-parse HEAD)" != "$$(git rev-parse "origin/$$BRANCH")" ]; then \
+		echo "Error: local $$BRANCH is not the same as origin/$$BRANCH. Pull or push first."; \
 		exit 1; \
-	fi
-	@API_VERSION=$$($(API_DIR)/scripts/spec-version.sh --api); \
-	LATEST_PATCH=-1; \
-	for tag in $$(git tag -l "v$${API_VERSION}.*" 2>/dev/null) $$(git tag -l "*-v$${API_VERSION}.*" 2>/dev/null); do \
-		PATCH=$$(echo "$$tag" | sed -E 's/.*v[0-9]+\.[0-9]+\.([0-9]+)/\1/'); \
-		if [ "$$PATCH" -gt "$$LATEST_PATCH" ] 2>/dev/null; then \
-			LATEST_PATCH=$$PATCH; \
+	fi; \
+	if [ -n "$(PRERELEASE)" ]; then \
+		if git rev-parse -q --verify "refs/tags/v$$SPEC_VERSION" >/dev/null; then \
+			echo "Error: v$$SPEC_VERSION is already released; raise info.version before a pre-release of the next one."; \
+			exit 1; \
 		fi; \
-	done; \
-	NEXT_PATCH=$$((LATEST_PATCH + 1)); \
-	VERSION="$${API_VERSION}.$${NEXT_PATCH}"; \
-	echo "==> Updating spec version to $$VERSION"; \
-	sed -i -E "s/(^\s*version:\s*[\"']?)[0-9]+\.[0-9]+\.[0-9]+([\"']?)/\1$$VERSION\2/" $(API_SPEC); \
-	git add $(API_SPEC); \
-	git commit -m "release: bump spec version to $$VERSION"; \
-	git push origin main; \
-	echo "==> Creating release v$$VERSION"; \
-	gh release create "v$$VERSION" --title "v$$VERSION" --generate-notes; \
+		VERSION="$$SPEC_VERSION-$(PRERELEASE)"; \
+		if git rev-parse -q --verify "refs/tags/v$$VERSION" >/dev/null; then \
+			echo "Error: v$$VERSION already exists."; \
+			exit 1; \
+		fi; \
+		echo "==> Creating pre-release v$$VERSION from $$BRANCH ($$(git rev-parse --short HEAD))"; \
+		gh release create "v$$VERSION" --target "$$(git rev-parse HEAD)" --title "v$$VERSION" --generate-notes --prerelease || exit 1; \
+	else \
+		LATEST_PATCH=-1; \
+		for tag in $$(git tag -l "v$${API_VERSION}.*" "*-v$${API_VERSION}.*"); do \
+			PATCH=$$(echo "$$tag" | sed -E 's/.*v[0-9]+\.[0-9]+\.([0-9]+)$$/\1/'); \
+			if [ "$$PATCH" -gt "$$LATEST_PATCH" ] 2>/dev/null; then \
+				LATEST_PATCH=$$PATCH; \
+			fi; \
+		done; \
+		VERSION="$${API_VERSION}.$$((LATEST_PATCH + 1))"; \
+		if [ "$$VERSION" != "$$SPEC_VERSION" ]; then \
+			echo "==> Updating spec version to $$VERSION"; \
+			perl -pi -e 's/^(\s*version:\s*["\x27]?)\d+\.\d+\.\d+(["\x27]?)/$${1}'"$$VERSION"'$$2/ if !$$done && /^\s*version:/ && ($$done = 1)' $(API_SPEC); \
+			git add $(API_SPEC); \
+			git commit -m "release: bump spec version to $$VERSION" || exit 1; \
+			git push origin "$$BRANCH" || exit 1; \
+		fi; \
+		echo "==> Creating release v$$VERSION from $$BRANCH"; \
+		gh release create "v$$VERSION" --target "$$(git rev-parse HEAD)" --title "v$$VERSION" --generate-notes || exit 1; \
+	fi; \
 	echo ""; \
 	echo "Release v$$VERSION created. The release workflow will now build and publish all artifacts."
 
@@ -259,5 +282,5 @@ help:
 	@echo "  docs           - Build API docs and serve at http://localhost:8888"
 	@echo "  mock           - Start Prism mock server on http://localhost:4010"
 	@echo "  validate-impl  - Validate implementation against spec (set TARGET_URL)"
-	@echo "  release        - Create a GitHub Release to trigger the release workflow"
+	@echo "  release        - Start a release from main or release/X.Y (PRERELEASE=alpha.1: a pre-release, also from feature/*)"
 	@echo "  help           - Show this help"

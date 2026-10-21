@@ -1,13 +1,11 @@
 name: Release to Maven Central
 
+# A release is always started by hand, by publishing a GitHub Release (`make release`); pushing to
+# main or a release branch never releases. A tag with a pre-release suffix (v2.0.0-alpha.1) is a
+# pre-release: it may also come from a feature branch, and is never published as the latest version.
 on:
-  # Main releases: triggered by creating a GitHub Release (e.g., gh release create v0.2.0)
   release:
     types: [published]
-  # Hotfix releases: any push to a release branch auto-releases
-  push:
-    branches:
-      - 'release/**'
 
 jobs:
   # Validate and bundle spec
@@ -17,17 +15,9 @@ jobs:
     outputs:
       api_version: ${{ steps.version.outputs.api_version }}
       release_version: ${{ steps.version.outputs.version }}
-      is_release_event: ${{ steps.source.outputs.is_release_event }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      npm_tag: ${{ steps.version.outputs.npm_tag }}
     steps:
-      - name: Determine release source
-        id: source
-        run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            echo "is_release_event=true" >> $GITHUB_OUTPUT
-          else
-            echo "is_release_event=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Checkout
         uses: actions/checkout@v6
         with:
@@ -37,13 +27,14 @@ jobs:
         uses: ./.github/actions/setup-build-tools
 
       - name: Validate release source and extract version
-        if: github.event_name == 'release'
-        id: tag_version
+        id: version
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+          MARKED_PRERELEASE: ${{ github.event.release.prerelease }}
         run: |
-          TAG_NAME="${{ github.event.release.tag_name }}"
           VERSION="${TAG_NAME#v}"
           if [[ ! "$TAG_NAME" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
-            echo "::error::Release tag must be a SemVer tag such as v0.14.0 or v0.14.0-rc.1"
+            echo "::error::Release tag must be a SemVer tag such as v0.14.0 or v0.14.0-alpha.1"
             exit 1
           fi
           TAG_API_VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
@@ -53,9 +44,27 @@ jobs:
             exit 1
           fi
 
+          # A suffix makes a pre-release, and the GitHub Release must say so too: the two decide
+          # together whether registries and the docs treat this version as the latest.
+          if [ -n "${BASH_REMATCH[4]}" ]; then PRERELEASE=true; else PRERELEASE=false; fi
+          if [ "$PRERELEASE" != "$MARKED_PRERELEASE" ]; then
+            echo "::error::Tag $TAG_NAME is a pre-release: $PRERELEASE, but the GitHub Release is marked pre-release: $MARKED_PRERELEASE"
+            exit 1
+          fi
+
+          # A release comes from main or a release branch; a pre-release may also come from a
+          # feature branch.
           git fetch origin \
             '+refs/heads/main:refs/remotes/origin/main' \
-            '+refs/heads/release/*:refs/remotes/origin/release/*'
+            '+refs/heads/release/*:refs/remotes/origin/release/*' \
+            '+refs/heads/feature/*:refs/remotes/origin/feature/*'
+          if [ "$PRERELEASE" = true ]; then
+            PATTERNS="refs/remotes/origin/main refs/remotes/origin/release/ refs/remotes/origin/feature/"
+            ALLOWED="main, a release/* or a feature/* branch"
+          else
+            PATTERNS="refs/remotes/origin/main refs/remotes/origin/release/"
+            ALLOWED="main or a release/* branch"
+          fi
           RELEASE_COMMIT="${GITHUB_SHA}^{commit}"
           ALLOWED_SOURCE=false
           while IFS= read -r ref; do
@@ -64,53 +73,21 @@ jobs:
               ALLOWED_SOURCE=true
               break
             fi
-          done < <(
-            {
-              echo refs/remotes/origin/main
-              git for-each-ref --format='%(refname)' refs/remotes/origin/release/
-            }
-          )
+          done < <(git for-each-ref --format='%(refname)' $PATTERNS)
           if [ "$ALLOWED_SOURCE" != true ]; then
-            echo "::error::Release commit must be contained in main or a release/* branch"
+            echo "::error::Release commit must be contained in $ALLOWED"
             exit 1
           fi
 
+          # npm gives every publish the `latest` tag unless told otherwise, and `npm install`
+          # installs `latest`: a pre-release goes to `next` instead.
+          if [ "$PRERELEASE" = true ]; then NPM_TAG=next; else NPM_TAG=latest; fi
+
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "api_version=${TAG_API_VERSION}" >> $GITHUB_OUTPUT
-          echo "Release version from tag: ${VERSION}"
-
-      - name: Calculate version for release branch
-        if: github.event_name == 'push'
-        id: branch_version
-        uses: ./.github/actions/calculate-version
-        with:
-          mode: release
-
-      - name: Set version output
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            echo "version=${{ steps.tag_version.outputs.version }}" >> $GITHUB_OUTPUT
-            echo "api_version=${{ steps.tag_version.outputs.api_version }}" >> $GITHUB_OUTPUT
-          else
-            echo "version=${{ steps.branch_version.outputs.version }}" >> $GITHUB_OUTPUT
-            echo "api_version=${{ steps.branch_version.outputs.api_version }}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Validate release branch version
-        if: github.event_name == 'push'
-        run: |
-          BRANCH="${GITHUB_REF#refs/heads/}"
-          if [[ "$BRANCH" == release/* ]]; then
-            BRANCH_VERSION="${BRANCH#release/}"
-            API_VERSION="${{ steps.version.outputs.api_version }}"
-            if [[ "$BRANCH_VERSION" != "$API_VERSION" ]]; then
-              echo "::error::Branch version ($BRANCH_VERSION) does not match spec version ($API_VERSION)"
-              echo "::error::Release branch 'release/$BRANCH_VERSION' must have spec version '$BRANCH_VERSION.x'"
-              exit 1
-            fi
-            echo "Branch version matches spec version"
-          fi
+          echo "prerelease=${PRERELEASE}" >> $GITHUB_OUTPUT
+          echo "npm_tag=${NPM_TAG}" >> $GITHUB_OUTPUT
+          echo "Release version from tag: ${VERSION} (pre-release: ${PRERELEASE})"
 
       - name: Bundle spec
         uses: ./.github/actions/bundle-spec
@@ -289,34 +266,15 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # Reserve the version by creating a git tag before publishing (release branches only).
-  # For GitHub Release events the tag already exists.
-  create-tag:
-    needs: [validate-and-bundle, build, build-dotnet, build-python, build-node]
-    if: needs.validate-and-bundle.outputs.is_release_event == 'false'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Create release tag
-        run: |
-          git tag v${{ needs.validate-and-bundle.outputs.release_version }}
-          git push origin v${{ needs.validate-and-bundle.outputs.release_version }}
-
-  # Only publish after ALL builds succeed and version tag is reserved
+  # Only publish after ALL builds succeed
   publish:
-    needs: [validate-and-bundle, build, build-dotnet, build-python, build-node, create-tag]
-    # Always run after builds succeed — create-tag may be skipped for release events
+    needs: [validate-and-bundle, build, build-dotnet, build-python, build-node]
     if: |
       always() &&
       needs.build.result == 'success' &&
       needs.build-dotnet.result == 'success' &&
       needs.build-python.result == 'success' &&
-      needs.build-node.result == 'success' &&
-      (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
+      needs.build-node.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -379,18 +337,17 @@ jobs:
       - name: Publish to npm
         if: matrix.module == 'contracts/catalog'
         working-directory: contracts/catalog
-        run: npm publish release/npm/*.tgz --provenance --access public
+        run: npm publish release/npm/*.tgz --provenance --access public --tag ${{ needs.validate-and-bundle.outputs.npm_tag }}
 
   # Publish the .NET client release to NuGet.org (parallels the gradle publish job)
   publish-dotnet:
-    needs: [validate-and-bundle, build, build-dotnet, build-python, build-node, create-tag]
+    needs: [validate-and-bundle, build, build-dotnet, build-python, build-node]
     if: |
       always() &&
       needs.build.result == 'success' &&
       needs.build-dotnet.result == 'success' &&
       needs.build-python.result == 'success' &&
-      needs.build-node.result == 'success' &&
-      (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
+      needs.build-node.result == 'success'
     runs-on: ubuntu-latest
     # OIDC trusted publishing to NuGet.org — no stored API key (mirrors the npm OIDC publish).
     permissions:
@@ -447,14 +404,13 @@ jobs:
 
   # Publish the Python client release to PyPI (parallels the gradle/nuget publish jobs)
   publish-python:
-    needs: [validate-and-bundle, build, build-dotnet, build-python, build-node, create-tag]
+    needs: [validate-and-bundle, build, build-dotnet, build-python, build-node]
     if: |
       always() &&
       needs.build.result == 'success' &&
       needs.build-dotnet.result == 'success' &&
       needs.build-python.result == 'success' &&
-      needs.build-node.result == 'success' &&
-      (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
+      needs.build-node.result == 'success'
     runs-on: ubuntu-latest
     # OIDC trusted publishing to PyPI — no stored token (mirrors the npm/NuGet OIDC publishes).
     permissions:
@@ -495,14 +451,13 @@ jobs:
   # Publish the Node.js client release to npm (parallels the catalog's npm publish: the tarball
   # tested in build-node, through npm trusted publishing — no stored token).
   publish-node:
-    needs: [validate-and-bundle, build, build-dotnet, build-python, build-node, create-tag]
+    needs: [validate-and-bundle, build, build-dotnet, build-python, build-node]
     if: |
       always() &&
       needs.build.result == 'success' &&
       needs.build-dotnet.result == 'success' &&
       needs.build-python.result == 'success' &&
-      needs.build-node.result == 'success' &&
-      (needs.create-tag.result == 'success' || needs.create-tag.result == 'skipped')
+      needs.build-node.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -527,14 +482,13 @@ jobs:
 
       - name: Publish to npm
         working-directory: contracts/api/clients/nodejs-fetch
-        run: npm publish release/npm/*.tgz --provenance --access public
+        run: npm publish release/npm/*.tgz --provenance --access public --tag ${{ needs.validate-and-bundle.outputs.npm_tag }}
 
   # Verify the public catalog artifacts from clean consumers before finalizing the release.
   verify-catalog-release:
     needs: [validate-and-bundle, publish]
     # always(): without a status function GitHub implies success(), which also fails when an
-    # upstream job was skipped — and create-tag is skipped on every GitHub-release event, so this
-    # job (and finalize-release after it) never ran for those releases.
+    # upstream job was skipped.
     if: |
       always() &&
       needs.publish.result == 'success'
@@ -621,77 +575,11 @@ jobs:
         with:
           name: dotnet-sbom
 
-      - name: Upload assets to existing GitHub Release
-        if: needs.validate-and-bundle.outputs.is_release_event == 'true'
+      - name: Upload assets to the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release upload "${{ github.event.release.tag_name }}" contracts/api/build/openapi.yaml epistola-dotnet-client-sbom.json --clobber --repo "${{ github.repository }}"
-
-      - name: Create GitHub Release (release branch)
-        if: needs.validate-and-bundle.outputs.is_release_event == 'false'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ needs.validate-and-bundle.outputs.release_version }}
-          name: v${{ needs.validate-and-bundle.outputs.release_version }}
-          files: |
-            contracts/api/build/openapi.yaml
-            epistola-dotnet-client-sbom.json
-          body: |
-            ## v${{ needs.validate-and-bundle.outputs.release_version }}
-
-            ### Maven Coordinates
-            ```xml
-            <dependency>
-                <groupId>app.epistola.contract</groupId>
-                <artifactId>client-spring3-restclient</artifactId>
-                <version>${{ needs.validate-and-bundle.outputs.release_version }}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>app.epistola.contract</groupId>
-                <artifactId>server-kotlin-springboot4</artifactId>
-                <version>${{ needs.validate-and-bundle.outputs.release_version }}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>app.epistola.contract</groupId>
-                <artifactId>epistola-catalog</artifactId>
-                <version>${{ needs.validate-and-bundle.outputs.release_version }}</version>
-            </dependency>
-            ```
-
-            ### Gradle (Kotlin DSL)
-            ```kotlin
-            implementation("app.epistola.contract:client-spring3-restclient:${{ needs.validate-and-bundle.outputs.release_version }}")
-            implementation("app.epistola.contract:server-kotlin-springboot4:${{ needs.validate-and-bundle.outputs.release_version }}")
-            implementation("app.epistola.contract:epistola-catalog:${{ needs.validate-and-bundle.outputs.release_version }}")
-            ```
-
-            ### npm
-            ```bash
-            npm install @epistola.app/epistola-catalog@${{ needs.validate-and-bundle.outputs.release_version }}
-            npm install @epistola.app/epistola-client@${{ needs.validate-and-bundle.outputs.release_version }}
-            ```
-
-            ### NuGet (.NET)
-            ```bash
-            dotnet add package Epistola.Contract.Client --version ${{ needs.validate-and-bundle.outputs.release_version }}
-            ```
-
-            ### pip (Python)
-            ```bash
-            pip install epistola-client==${{ needs.validate-and-bundle.outputs.release_version }}
-            ```
-
-            ### OpenAPI Spec
-            The bundled OpenAPI specification is attached as `openapi.yaml`.
-
-            ### Software Bill of Materials
-            A CycloneDX SBOM for the .NET client's dependency closure is attached as `epistola-dotnet-client-sbom.json`.
-          draft: false
-          prerelease: false
-          generate_release_notes: true
 
   # Publish mock server after successful release
   mock-server:
@@ -703,6 +591,7 @@ jobs:
     uses: ./.github/workflows/mock-server.yml
     with:
       version: ${{ needs.validate-and-bundle.outputs.release_version }}
+      tag-latest: ${{ needs.validate-and-bundle.outputs.prerelease != 'true' }}
     permissions:
       contents: read
       packages: write
