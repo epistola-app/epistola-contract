@@ -50,8 +50,9 @@ def parse_problem(
     (``ValidationProblemDetail``), the per-example ``validationErrors`` map
     (``DataModelValidationProblemDetail``), and the ``missingFields`` / ``invalidFields``
     arrays (``TemplateDataValidationProblemDetail``), the ``missingDependencies`` array
-    (``ReleaseDependenciesMissingProblemDetail``), and the ``unreleasedDependencies`` array
-    (``ReleaseDependenciesUnreleasedProblemDetail``). The generated models are independent,
+    (``ReleaseDependenciesMissingProblemDetail``), the ``unreleasedDependencies`` array
+    (``ReleaseDependenciesUnreleasedProblemDetail``), and the ``readOnlyReason`` string
+    (``CatalogReadOnlyProblemDetail``). The generated models are independent,
     so the base fields and each extension are carried separately.
     """
     try:
@@ -100,7 +101,14 @@ def parse_problem(
         invalid_fields=_members(tree, "invalidFields", InvalidDataField),
         missing_dependencies=_missing_dependencies(tree),
         unreleased_dependencies=_unreleased_dependencies(tree),
+        read_only_reason=_string(tree, "readOnlyReason"),
     )
+
+
+def _string(tree: Dict[str, Any], member: str) -> Optional[str]:
+    """A string extension member, or ``None`` when absent or not a string."""
+    value = tree.get(member)
+    return value if isinstance(value, str) else None
 
 
 def _missing_dependencies(tree: Dict[str, Any]) -> List[MissingDependency]:

@@ -14,9 +14,9 @@ code-lists:
     operationId: listCodeLists
     summary: List code lists in a catalog
     description: |
-      Retrieve all code lists in the given tenant + catalog. Code lists from
-      a subscribed catalog (e.g. the bundled `system` catalog) are flagged
-      `readOnly: true`.
+      Retrieve all code lists in the given tenant + catalog. Code lists of a
+      catalog that cannot be changed in this installation (e.g. the bundled
+      `system` catalog) are flagged `readOnly: true`.
     tags:
       - CodeLists
     x-required-permissions: [REFERENCE_VIEW]
@@ -44,8 +44,9 @@ code-lists:
     operationId: createCodeList
     summary: Create a new code list
     description: |
-      Create a new code list. Subscribed catalogs are read-only; writes return
-      409. Duplicate key within the same tenant + catalog returns 409.
+      Create a new code list. A catalog that cannot be changed is refused with
+      409 `catalog-read-only`. Duplicate key within the same tenant + catalog
+      returns 409.
     tags:
       - CodeLists
     x-required-permissions: [REFERENCE_EDIT]
@@ -75,7 +76,7 @@ code-lists:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
 
 code-lists-key:
   parameters:
@@ -121,7 +122,8 @@ code-lists-key:
     summary: Update a code list
     description: |
       Patch a code list. All fields optional. Providing `entries` replaces them
-      atomically. Updates to a subscribed-catalog code list return 409.
+      atomically. Updates to a code list of a catalog that cannot be changed
+      return 409 `catalog-read-only`.
       Send the `ETag` from a read as `If-Match` to have the update refused with 412
       `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
@@ -154,7 +156,7 @@ code-lists-key:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
       '412':
         $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
   delete:
@@ -162,7 +164,8 @@ code-lists-key:
     summary: Delete a code list
     description: |
       Delete a code list. Returns 409 if any attribute still binds to it
-      (unbind it first) or if the catalog is subscribed.
+      (unbind it first), and 409 `catalog-read-only` if the catalog cannot be
+      changed.
     tags:
       - CodeLists
     x-required-permissions: [REFERENCE_EDIT]
@@ -176,7 +179,7 @@ code-lists-key:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
 
 code-list-refresh:
   parameters:
@@ -221,7 +224,7 @@ code-list-refresh:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
 
 code-list-entries:
   parameters:
@@ -334,6 +337,6 @@ code-list-entry-hidden:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
       '412':
         $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'

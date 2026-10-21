@@ -319,13 +319,13 @@ async function uploadImage(baseUrl, config) {
 
 /**
  * Imports a catalog archive, passed as a File for its name and type like an image upload.
- * `registry`, `namespace` and `catalogType` go out only when the scenario sets them. A refusal is
- * reported by its problem.
+ * `registry` and `namespace` go out only when the scenario sets them. A refusal is reported by its
+ * problem.
  */
 async function importCatalog(baseUrl, config) {
   const file = new File([Buffer.from(config.fileBase64, 'base64')], config.filename, { type: config.fileContentType })
   const request = { tenantKey: config.tenantKey, file }
-  for (const name of ['registry', 'namespace', 'catalogType']) {
+  for (const name of ['registry', 'namespace']) {
     if (config[name] !== undefined) request[name] = config[name]
   }
   let imported
@@ -347,7 +347,7 @@ async function importCatalog(baseUrl, config) {
 }
 
 /**
- * Installs a release a subscribed catalog's source offers, named in the path. A refusal or a
+ * Installs a release a catalog's source offers, named in the path. A refusal or a
  * failing source is reported by its problem, missing dependencies included.
  */
 async function installCatalogRelease(baseUrl, config) {
@@ -384,7 +384,7 @@ async function installCatalogRelease(baseUrl, config) {
 }
 
 /**
- * Lists the releases a subscribed catalog's source offers that the tenant lacks, reporting every one
+ * Lists the releases a catalog's source offers that the tenant lacks, reporting every one
  * in order. A failing source is reported by its problem.
  */
 async function listAvailableCatalogReleases(baseUrl, config) {

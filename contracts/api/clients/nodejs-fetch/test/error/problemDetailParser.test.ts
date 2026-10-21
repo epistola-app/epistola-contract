@@ -156,6 +156,22 @@ test('malformed unreleasedDependencies entries are dropped, and other problems r
   assert.equal(other.isReleaseDependenciesUnreleasedProblem, false)
 })
 
+test('surfaces why a catalog-read-only problem refused the write', () => {
+  const problem = parse({ type: 'https://epistola.app/errors/catalog-read-only', title: 'Catalog Read Only', status: 409, readOnlyReason: 'editing-disabled' }, 409)!
+  assert.equal(problem.typeSlug, KnownProblemSlugs.CATALOG_READ_ONLY)
+  assert.equal(problem.readOnlyReason, 'editing-disabled')
+  assert.ok(problem.isCatalogReadOnlyProblem)
+
+  for (const body of [
+    { type: 'https://epistola.app/errors/catalog-read-only', title: 'Catalog Read Only', status: 409, readOnlyReason: 7 },
+    { type: 'https://epistola.app/errors/conflict', title: 'Conflict', status: 409 },
+  ]) {
+    const other = parse(body, 409)!
+    assert.equal(other.readOnlyReason, undefined)
+    assert.equal(other.isCatalogReadOnlyProblem, false)
+  }
+})
+
 test('keeps extension members the contract does not name', () => {
   const problem = parse({ type: 'https://epistola.app/errors/catalog-schema-too-old', title: 'Too old', status: 409, version: 4, baselineVersion: 6 }, 409)!
   assert.equal(problem.typeSlug, 'catalog-schema-too-old')

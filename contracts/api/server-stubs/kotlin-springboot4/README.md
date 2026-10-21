@@ -106,8 +106,15 @@ ProblemDetails.releaseDependenciesUnreleased(
     detail = "letters uses drafts of other catalogs",
 )
 
+// 409 catalog-read-only: every write to a catalog that cannot be changed in this installation
+// (CatalogDto.editable is false), with the reason, as CatalogDto.readOnlyReason reports it
+ProblemDetails.catalogReadOnly(
+    readOnlyReason = CatalogReadOnlyReason.EDITING_DISABLED,
+    detail = "this installation only receives and runs releases",
+)
+
 // 503 or 502 catalog-source-unavailable: listAvailableCatalogReleases and installCatalogRelease,
-// when the subscribed catalog's source cannot be used. 503 when it could not be reached or timed
+// when the catalog's source cannot be used. 503 when it could not be reached or timed
 // out (set Retry-After on the response when you can tell), 502 when it answered badly.
 ProblemDetails.catalogSourceUnavailable(
     status = HttpStatus.SERVICE_UNAVAILABLE,

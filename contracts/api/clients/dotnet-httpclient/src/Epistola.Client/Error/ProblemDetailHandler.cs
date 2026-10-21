@@ -78,7 +78,8 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             missingFields: parsed.MissingFields,
             invalidFields: parsed.InvalidFields,
             missingDependencies: parsed.MissingDependencies,
-            unreleasedDependencies: parsed.UnreleasedDependencies);
+            unreleasedDependencies: parsed.UnreleasedDependencies,
+            readOnlyReason: parsed.ReadOnlyReason);
     }
 
     /// <summary>
@@ -86,8 +87,9 @@ public sealed class ProblemDetailHandler : DelegatingHandler
     /// <c>errors</c> array, the per-example <c>validationErrors</c> map, and the
     /// <c>missingFields</c> / <c>invalidFields</c> arrays a <c>template-data-invalid</c> problem
     /// carries, the <c>missingDependencies</c> array of a <c>release-dependencies-missing</c>
-    /// problem, and the <c>unreleasedDependencies</c> array of a
-    /// <c>release-dependencies-unreleased</c> problem. Returns <c>null</c> on any parse failure. Internal and self-contained so it can be
+    /// problem, the <c>unreleasedDependencies</c> array of a
+    /// <c>release-dependencies-unreleased</c> problem, and the <c>readOnlyReason</c> of a
+    /// <c>catalog-read-only</c> problem. Returns <c>null</c> on any parse failure. Internal and self-contained so it can be
     /// unit-tested without a live server.
     /// </summary>
     internal static ParsedProblem? ParseProblem(string body)
@@ -122,7 +124,8 @@ public sealed class ProblemDetailHandler : DelegatingHandler
                 Members<MissingDataField>(tree, "missingFields"),
                 Members<InvalidDataField>(tree, "invalidFields"),
                 Entries(tree, "missingDependencies", MissingDependency.FromMember),
-                Entries(tree, "unreleasedDependencies", UnreleasedDependency.FromMember));
+                Entries(tree, "unreleasedDependencies", UnreleasedDependency.FromMember),
+                tree["readOnlyReason"] is JValue { Type: JTokenType.String } reason ? (string?)reason : null);
         }
         catch (JsonException)
         {
@@ -196,6 +199,9 @@ public sealed class ProblemDetailHandler : DelegatingHandler
         /// <summary>Dependency drafts from a <c>ReleaseDependenciesUnreleasedProblemDetail</c>; empty when absent.</summary>
         public IReadOnlyList<UnreleasedDependency> UnreleasedDependencies { get; }
 
+        /// <summary>Why a <c>catalog-read-only</c> problem refused a write, as sent; <c>null</c> when absent or not a string.</summary>
+        public string? ReadOnlyReason { get; }
+
         public ParsedProblem(
             ProblemDetail problem,
             IReadOnlyList<ValidationError> errors,
@@ -203,7 +209,8 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             IReadOnlyList<MissingDataField> missingFields,
             IReadOnlyList<InvalidDataField> invalidFields,
             IReadOnlyList<MissingDependency>? missingDependencies = null,
-            IReadOnlyList<UnreleasedDependency>? unreleasedDependencies = null)
+            IReadOnlyList<UnreleasedDependency>? unreleasedDependencies = null,
+            string? readOnlyReason = null)
         {
             Problem = problem;
             Errors = errors;
@@ -212,6 +219,7 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             InvalidFields = invalidFields;
             MissingDependencies = missingDependencies ?? new List<MissingDependency>();
             UnreleasedDependencies = unreleasedDependencies ?? new List<UnreleasedDependency>();
+            ReadOnlyReason = readOnlyReason;
         }
     }
 }

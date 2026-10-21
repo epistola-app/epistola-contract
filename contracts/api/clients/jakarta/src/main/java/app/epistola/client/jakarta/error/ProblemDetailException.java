@@ -47,6 +47,7 @@ public class ProblemDetailException extends ApiException {
     private final List<InvalidDataField> invalidFields;
     private final List<MissingDependency> missingDependencies;
     private final List<UnreleasedDependency> unreleasedDependencies;
+    private final String readOnlyReason;
     private final int statusCode;
     private final String responseBody;
     private final String message;
@@ -106,7 +107,27 @@ public class ProblemDetailException extends ApiException {
             List<MissingDependency> missingDependencies,
             List<UnreleasedDependency> unreleasedDependencies,
             String responseBody) {
+        this(response, problem, errors, validationErrors, missingFields, invalidFields, missingDependencies,
+                unreleasedDependencies, null, responseBody);
+    }
+
+    /**
+     * The same, for a problem that may also say why a catalog cannot be changed
+     * ({@code catalog-read-only}).
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            List<MissingDependency> missingDependencies,
+            List<UnreleasedDependency> unreleasedDependencies,
+            String readOnlyReason,
+            String responseBody) {
         super(response);
+        this.readOnlyReason = readOnlyReason;
         this.unreleasedDependencies = unreleasedDependencies == null
                 ? Collections.emptyList()
                 : Collections.unmodifiableList(unreleasedDependencies);
@@ -260,6 +281,22 @@ public class ProblemDetailException extends ApiException {
     /** True when this problem listed unreleased dependency drafts. */
     public boolean isReleaseDependenciesUnreleasedProblem() {
         return !unreleasedDependencies.isEmpty();
+    }
+
+    /**
+     * Why the catalog cannot be changed, from a {@code catalog-read-only} problem (409, from any
+     * write to a catalog whose {@code CatalogDto.editable} is false): {@code editing-disabled} (the
+     * installation only receives and runs releases) or {@code supplied-by-epistola} (the server
+     * supplies the catalog). Kept as the string the server sent, so a reason a later contract adds
+     * is surfaced; {@code null} for any other problem, and when the member is not a string.
+     */
+    public String getReadOnlyReason() {
+        return readOnlyReason;
+    }
+
+    /** True when this problem said the catalog cannot be changed, and why. */
+    public boolean isCatalogReadOnlyProblem() {
+        return readOnlyReason != null;
     }
 
     private static String buildMessage(int statusCode, ProblemDetail problem) {

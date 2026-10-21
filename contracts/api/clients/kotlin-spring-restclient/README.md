@@ -148,13 +148,9 @@ plain form field to a multipart parser expecting a file — override it:
 val archive = object : ByteArrayResource(bytes) {
     override fun getFilename() = "catalog.zip"
 }
-// The import that creates a catalog names its type; there is no default. For a catalog the tenant
-// has, leave it out: an import never changes a catalog's type.
-catalogsApi.importCatalog(
-    tenantKey,
-    archive,
-    catalogType = CatalogType.subscribed,
-)
+// Installs the release the archive carries, beside the catalog's others, creating the catalog
+// when the tenant does not have it.
+catalogsApi.importCatalog(tenantKey, archive)
 ```
 
 `FileSystemResource(file)` needs no such override — a real file always has a name.
@@ -316,6 +312,8 @@ try {
             e.unreleasedDependencies.forEach {
                 println("${it.registry}/${it.namespace}/${it.catalogKey}: draft ${it.releaseName} (${it.releaseId})")
             }
+        KnownProblemSlugs.CATALOG_READ_ONLY ->           // any write to a catalog that cannot be changed
+            log.warn("catalog cannot be changed here: ${e.readOnlyReason}")
         KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE ->  // installCatalogRelease, listAvailableCatalogReleases
             // 503: the source could not be reached (Retry-After may say when to try again);
             // 502: it answered badly. Nothing was installed.
@@ -333,8 +331,10 @@ try {
 sent so a future reason is not lost; compare it against `MissingReleaseDependency.Reasons`),
 `unreleasedDependencies` (the drafts of other catalogs a `release-dependencies-unreleased` problem
 lists, which must be released first or along with the draft, `releaseDependencies`),
-`isValidationProblem`, `isDataModelValidationProblem`, `isReleaseDependenciesMissingProblem`,
-`isReleaseDependenciesUnreleasedProblem`, and `extensions`. See [error-types.md](../../docs/error-types.md) for the full list of problem `type`
+`readOnlyReason` (why a `catalog-read-only` problem refused a write, `editing-disabled` or
+`supplied-by-epistola`, kept as the string the server sent), `isValidationProblem`,
+`isDataModelValidationProblem`, `isReleaseDependenciesMissingProblem`,
+`isReleaseDependenciesUnreleasedProblem`, `isCatalogReadOnlyProblem`, and `extensions`. See [error-types.md](../../docs/error-types.md) for the full list of problem `type`
 slugs.
 
 Error responses that are **not** `application/problem+json` (e.g. an HTML page from a proxy or

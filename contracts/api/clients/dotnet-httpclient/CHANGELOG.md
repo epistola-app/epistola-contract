@@ -11,6 +11,11 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- `ProblemDetailException.ReadOnlyReason` and `IsCatalogReadOnlyProblem` surface the
+  `readOnlyReason` member of a `catalog-read-only` problem (409, from any write to a catalog that
+  cannot be changed): `editing-disabled` or `supplied-by-epistola`, kept as the string the server
+  sent. A member that is not a string reads as `null`. The constructor takes it as a new optional
+  `readOnlyReason` parameter.
 - `ProblemDetailException.MissingDependencies` and `IsReleaseDependenciesMissingProblem` surface the
   `missingDependencies` member of a `release-dependencies-missing` problem (409 from
   `DeployCatalogRelease`): each dependency release that cannot be had, as a hand-written

@@ -81,7 +81,8 @@ class ProblemDetailException(ApiException):
     account of template data via :attr:`missing_fields` and :attr:`invalid_fields`; and a
     ``release-dependencies-missing`` problem's unservable dependency releases via
     :attr:`missing_dependencies`; and a ``release-dependencies-unreleased`` problem's dependency
-    drafts via :attr:`unreleased_dependencies`.
+    drafts via :attr:`unreleased_dependencies`; and why a ``catalog-read-only`` problem refused
+    a write via :attr:`read_only_reason`.
     """
 
     def __init__(
@@ -96,6 +97,7 @@ class ProblemDetailException(ApiException):
         invalid_fields: Optional[List[InvalidDataField]] = None,
         missing_dependencies: Optional[List[MissingDependency]] = None,
         unreleased_dependencies: Optional[List[UnreleasedDependency]] = None,
+        read_only_reason: Optional[str] = None,
     ) -> None:
         super().__init__(
             status=status_code,
@@ -126,6 +128,11 @@ class ProblemDetailException(ApiException):
         #: ``ReleaseDependenciesUnreleasedProblemDetail`` (``release-dependencies-unreleased``), else
         #: ``[]``.
         self.unreleased_dependencies = unreleased_dependencies or []
+        #: Why the catalog cannot be changed when the body was a ``CatalogReadOnlyProblemDetail``
+        #: (``catalog-read-only``, 409, from any write to a catalog whose ``editable`` is false):
+        #: ``editing-disabled`` or ``supplied-by-epistola``, kept as the string the server sent so a
+        #: reason a later contract adds is surfaced; else ``None``.
+        self.read_only_reason = read_only_reason
         #: The HTTP status of the error response.
         self.status_code = status_code
 
@@ -176,6 +183,11 @@ class ProblemDetailException(ApiException):
     def is_release_dependencies_unreleased_problem(self) -> bool:
         """True when this problem listed dependency drafts that must be released first."""
         return len(self.unreleased_dependencies) > 0
+
+    @property
+    def is_catalog_read_only_problem(self) -> bool:
+        """True when this problem said the catalog cannot be changed, and why."""
+        return self.read_only_reason is not None
 
     @property
     def is_data_model_validation_problem(self) -> bool:

@@ -12,7 +12,6 @@ ImageDto:
     - registry
     - namespace
     - catalogKey
-    - catalogType
     - readOnly
     - name
     - mediaType
@@ -47,12 +46,12 @@ ImageDto:
       $ref: './identifiers.yaml#/CatalogKey'
       description: Key of the catalog this resource lives in, unique within its registry and namespace
       example: default
-    catalogType:
-      $ref: './catalogs.yaml#/CatalogType'
-      description: The type of the image's catalog; a subscribed catalog's images are read-only.
     readOnly:
       type: boolean
-      description: True when the image belongs to a subscribed catalog.
+      description: |
+        True when the image's catalog cannot be changed in this installation (its `CatalogDto.editable`
+        is false; `readOnlyReason` there says why). Clients disable editing affordances; writes to
+        it are refused with 409 `catalog-read-only`.
       example: false
     name:
       type: string

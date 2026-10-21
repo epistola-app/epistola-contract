@@ -28,6 +28,7 @@ EXPECTED_SLUGS = {
     "CONFLICT": "conflict",
     "RELEASE_DEPENDENCIES_MISSING": "release-dependencies-missing",
     "RELEASE_DEPENDENCIES_UNRELEASED": "release-dependencies-unreleased",
+    "CATALOG_READ_ONLY": "catalog-read-only",
     "ENVIRONMENT_DEPLOYMENT_REFUSED": "environment-deployment-refused",
     "RESOURCE_MODIFIED": "resource-modified",
     "DATA_MODEL_VALIDATION_ERROR": "data-model-validation-error",

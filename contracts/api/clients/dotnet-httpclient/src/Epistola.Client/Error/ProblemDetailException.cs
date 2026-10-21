@@ -25,7 +25,8 @@ namespace Epistola.Client.Error;
 /// <c>DataModelValidationProblemDetail</c> shape, <c>data-model-validation-error</c>) via
 /// <see cref="ValidationErrors"/>; the dependency releases a <c>release-dependencies-missing</c>
 /// problem lists via <see cref="MissingDependencies"/>; the dependency drafts a
-/// <c>release-dependencies-unreleased</c> problem lists via <see cref="UnreleasedDependencies"/> — the generated <c>ProblemDetail</c>,
+/// <c>release-dependencies-unreleased</c> problem lists via <see cref="UnreleasedDependencies"/>; why a
+/// <c>catalog-read-only</c> problem refused a write via <see cref="ReadOnlyReason"/> — the generated <c>ProblemDetail</c>,
 /// <c>ValidationProblemDetail</c>, and <c>DataModelValidationProblemDetail</c> models are
 /// independent, so the base fields and each extension are carried separately.
 /// </summary>
@@ -80,6 +81,15 @@ public class ProblemDetailException : ApiException
     /// </summary>
     public IReadOnlyList<UnreleasedDependency> UnreleasedDependencies { get; }
 
+    /// <summary>
+    /// Why the catalog cannot be changed, from a <c>catalog-read-only</c> problem (409, from any
+    /// write to a catalog whose <c>CatalogDto.Editable</c> is false): <c>editing-disabled</c> (the
+    /// installation only receives and runs releases) or <c>supplied-by-epistola</c> (the server
+    /// supplies the catalog). Kept as the string the server sent, so a reason a later contract adds
+    /// is surfaced; <c>null</c> for any other problem, and when the member is not a string.
+    /// </summary>
+    public string? ReadOnlyReason { get; }
+
     /// <summary>The HTTP status of the error response.</summary>
     public HttpStatusCode StatusCode { get; }
 
@@ -93,7 +103,8 @@ public class ProblemDetailException : ApiException
         IReadOnlyList<MissingDataField>? missingFields = null,
         IReadOnlyList<InvalidDataField>? invalidFields = null,
         IReadOnlyList<MissingDependency>? missingDependencies = null,
-        IReadOnlyList<UnreleasedDependency>? unreleasedDependencies = null)
+        IReadOnlyList<UnreleasedDependency>? unreleasedDependencies = null,
+        string? readOnlyReason = null)
         // ApiException is generated and nullable-oblivious; its errorContent/headers are
         // optional and accept null at runtime, so bridge the nullable values with `!`.
         : base((int)statusCode, BuildMessage(statusCode, problem), rawBody!, headers!)
@@ -105,6 +116,7 @@ public class ProblemDetailException : ApiException
         InvalidFields = invalidFields ?? new List<InvalidDataField>();
         MissingDependencies = missingDependencies ?? new List<MissingDependency>();
         UnreleasedDependencies = unreleasedDependencies ?? new List<UnreleasedDependency>();
+        ReadOnlyReason = readOnlyReason;
         StatusCode = statusCode;
     }
 
@@ -140,6 +152,9 @@ public class ProblemDetailException : ApiException
 
     /// <summary>True when this problem listed dependency drafts a release would have to take along.</summary>
     public bool IsReleaseDependenciesUnreleasedProblem => UnreleasedDependencies.Count > 0;
+
+    /// <summary>True when this problem said the catalog cannot be changed, and why.</summary>
+    public bool IsCatalogReadOnlyProblem => ReadOnlyReason != null;
 
     private static string BuildMessage(HttpStatusCode status, ProblemDetail problem)
     {

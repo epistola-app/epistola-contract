@@ -199,7 +199,7 @@ public class ModelValidationTest
 
     private static CatalogDto CatalogWithFingerprint(string fingerprint) => new(
         registry: "exchange.epistola.app", @namespace: "acme-corp", catalogKey: "letters", name: "Letters",
-        type: CatalogType.Authored, fingerprint: fingerprint);
+        editable: true, source: "exchange:acme-corp/letters", fingerprint: fingerprint);
 
     // A fingerprint names its algorithm version: v<N>:<64 lowercase hex>.
     [Fact]

@@ -357,12 +357,12 @@ class GeneratedApiContractTest {
     }
 
     /**
-     * Nothing is upgraded in contract 2.0: a subscribed catalog's source offers releases, which are
+     * Nothing is upgraded in contract 2.0: a catalog's source offers releases, which are
      * listed and installed beside the others. The release to install is part of the path, so the
      * POST takes neither a query parameter nor a body.
      */
     @Test
-    void a_subscribed_catalog_lists_and_installs_the_releases_its_source_offers() {
+    void a_catalog_with_a_source_lists_and_installs_the_releases_it_offers() {
         for (String removed : List.of("upgradeCatalog", "previewCatalogUpgrade")) {
             assertTrue(
                     Arrays.stream(CatalogsApi.class.getMethods()).noneMatch(method -> method.getName().equals(removed)),

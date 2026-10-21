@@ -409,11 +409,11 @@ def _upload_image(base_url: str, config: dict) -> None:
 
 def _import_catalog(base_url: str, config: dict) -> None:
     """Imports a catalog archive, the file as a ``(filename, bytes)`` pair like an image upload.
-    ``registry``, ``namespace`` and ``catalogType`` go out only when the scenario sets them. A
-    refusal is reported by its problem."""
+    ``registry`` and ``namespace`` go out only when the scenario sets them. A refusal is reported by
+    its problem."""
     optional = {
         name: config[key]
-        for key, name in (("registry", "registry"), ("namespace", "namespace"), ("catalogType", "catalog_type"))
+        for key, name in (("registry", "registry"), ("namespace", "namespace"))
         if key in config
     }
     try:
@@ -439,7 +439,7 @@ def _import_catalog(base_url: str, config: dict) -> None:
 
 
 def _install_catalog_release(base_url: str, config: dict) -> None:
-    """Installs a release a subscribed catalog's source offers, named in the path. A refusal or a
+    """Installs a release a catalog's source offers, named in the path. A refusal or a
     failing source is reported by its problem, missing dependencies included."""
     try:
         installed = CatalogsApi(_client(base_url, config)).install_catalog_release(
@@ -478,7 +478,7 @@ def _install_catalog_release(base_url: str, config: dict) -> None:
 
 
 def _list_available_catalog_releases(base_url: str, config: dict) -> None:
-    """Lists the releases a subscribed catalog's source offers that the tenant lacks, reporting
+    """Lists the releases a catalog's source offers that the tenant lacks, reporting
     every one in order. A failing source is reported by its problem."""
     try:
         releases = CatalogsApi(_client(base_url, config)).list_available_catalog_releases(

@@ -28,16 +28,19 @@ import-catalog:
         changes, and the response says it was already present (`newlyInstalled: false`).
       - **The same number with a different fingerprint** is different content under one name: the
         import is refused with 409 `conflict`, and nothing changes.
-      - **A new catalog** is created by the import, of type `catalogType`, holding that release and
-        no draft. The import that creates a catalog must give `catalogType`: there is no default,
-        and without it the import is refused with 400 `bad-request`. To edit the catalog, an author
-        starts a draft from the release (`createCatalogRelease` with `from`), which only an authored
-        catalog allows.
-      - **A catalog the tenant has** keeps its type: an import never changes it. `catalogType` may
-        be omitted, or given as the catalog's type; given as the other type, the import is refused
-        with 409 `conflict` and nothing is installed. Importing into an authored catalog adds the
-        release beside its others, which is how an author moves the catalog's own releases from one
-        installation to another. No operation changes a catalog's type.
+      - **A new catalog** is created by the import, holding that release: a catalog received from
+        elsewhere, like any other. There are no catalog types. Whether it can be changed here
+        depends on the installation (`CatalogDto.editable`); where it can, an author starts a draft
+        from the release (`createCatalogRelease` with `from`).
+      - **A catalog the tenant has** gets the release beside its others, whether its releases were
+        made here or received. That is how a catalog's releases move from one installation to
+        another (test, acceptance, production) as a file, the same release, with the same number
+        and fingerprint, everywhere.
+
+      An import works whether or not the catalog can be changed in this installation: receiving a
+      release is not changing the catalog. The release keeps the id the archive carries
+      (`release.releaseId`, catalog wire v8) and its producer `metadata`, so it is the same release
+      in every installation; an archive that carries no id gets one when it is installed.
 
       The fingerprint compared is the release's `release.fingerprint`, or the fingerprint of its
       content when the archive records none. Every catalog wire version requires `release.version`,
@@ -52,7 +55,7 @@ import-catalog:
       embedded release must match its pin's `releaseFingerprint` and name that catalog and number,
       or the archive is refused with 400 `bad-request`, as is a file under `dependencies/` that no
       pin reaches. The embedded releases this tenant lacks are installed first, each before every
-      release that pins it, each in a subscribed catalog when the tenant does not have that catalog
+      release that pins it, each in a catalog the import creates when the tenant does not have it
       (`installedDependencies`); those it has already, with the same fingerprint, are left alone
       (`presentDependencies`). Each is installed side by side with the releases of that catalog the
       tenant has, which are left as they are. A release the tenant has with the same number but a
@@ -65,8 +68,7 @@ import-catalog:
       `release-dependencies-missing`, listing each (`unavailable`), as `installCatalogRelease`
       treats the releases a release pins. An import therefore never fails with
       `catalog-source-unavailable` (502/503): the archive's own release is never fetched. The
-      archive's own release is then installed as above, all in one transaction. `catalogType`
-      applies to the archive's own catalog only; a dependency's existing catalog keeps its type.
+      archive's own release is then installed as above, all in one transaction.
     tags:
       - Catalogs
     x-required-permissions: [CATALOG_MANAGE]
@@ -87,26 +89,18 @@ import-catalog:
                 $ref: '../components/schemas/identifiers.yaml#/Registry'
                 description: |
                   Registry of the catalog to install the release in. Omitted: the registry the
-                  archive names. An archive from before catalog wire version 8 names none, and the
-                  server then uses the default registry.
+                  archive names. An archive from before catalog wire version 8 names none, and is
+                  then refused with 400 `bad-request` unless the request names it: a catalog's
+                  name must not change when its releases move between installations, so it is
+                  never derived from the installation's host or default registry.
               namespace:
                 $ref: '../components/schemas/identifiers.yaml#/Namespace'
                 description: |
                   Namespace, within the registry, of the catalog to install the release in.
                   Omitted: the namespace the archive names. An archive from before catalog wire
-                  version 8 names none, and the server then chooses one (typically the tenant's
-                  own).
-              catalogType:
-                $ref: '../components/schemas/catalogs.yaml#/CatalogType'
-                description: |
-                  Type of the catalog the import creates when the tenant does not have it: `authored`
-                  allows drafts to be started from its releases (`createCatalogRelease`); `subscribed`
-                  only installs releases, and installs those its source offers
-                  (`installCatalogRelease`). Required when the import creates the catalog: there is no
-                  default, and an import that creates a catalog without it is refused with 400
-                  `bad-request`. For a catalog the tenant has it may be omitted; given, it must be
-                  the catalog's type, or the import is refused with 409 `conflict`. An import never
-                  changes a catalog's type.
+                  version 8 names none, and is then refused with 400 `bad-request` unless the
+                  request names it: a catalog's name must not change when its releases move
+                  between installations, so it is never derived from the tenant's key.
     responses:
       '200':
         description: The release is installed, or was already present

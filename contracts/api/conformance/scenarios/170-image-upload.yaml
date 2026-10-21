@@ -56,7 +56,6 @@ script:
       registry: exchange.epistola.app
       namespace: acme-corp
       catalogKey: main
-      catalogType: authored
       readOnly: false
       name: Municipality mark
       mediaType: image/png

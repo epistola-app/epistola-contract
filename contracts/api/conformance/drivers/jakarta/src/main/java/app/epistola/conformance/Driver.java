@@ -38,7 +38,6 @@ import app.epistola.client.jakarta.model.DeploymentDto;
 import app.epistola.client.jakarta.model.DeploymentEventDto;
 import app.epistola.client.jakarta.model.DeploymentHistoryResponse;
 import app.epistola.client.jakarta.model.DocumentDto;
-import app.epistola.client.jakarta.model.CatalogType;
 import app.epistola.client.jakarta.model.EnvironmentDto;
 import app.epistola.client.jakarta.api.CodeListsApi;
 import app.epistola.client.jakarta.api.TenantsApi;
@@ -538,8 +537,8 @@ public final class Driver {
 
     /**
      * Imports a catalog archive. Like an image upload, the bytes go to a file named the way the part
-     * should be named; {@code registry}, {@code namespace} and {@code catalogType} are sent only when
-     * the scenario names them (a null field is left out). A refusal is reported by its problem.
+     * should be named; {@code registry} and {@code namespace} are sent only when the scenario names
+     * them (a null field is left out). A refusal is reported by its problem.
      */
     private static void importCatalog(String baseUrl, JsonObject config) throws Exception {
         Path directory = Files.createTempDirectory("conformance-import");
@@ -556,10 +555,7 @@ public final class Driver {
                                 config.getString("tenantKey"),
                                 file,
                                 optional(config, "registry"),
-                                optional(config, "namespace"),
-                                optional(config, "catalogType") == null
-                                        ? null
-                                        : CatalogType.fromValue(config.getString("catalogType")));
+                                optional(config, "namespace"));
             } catch (ProblemDetailException e) {
                 report(
                         baseUrl,
@@ -584,7 +580,7 @@ public final class Driver {
     }
 
     /**
-     * Installs a release a subscribed catalog's source offers, named in the path. A refusal or a
+     * Installs a release a catalog's source offers, named in the path. A refusal or a
      * failing source is reported by its problem, missing dependencies included.
      */
     private static void installCatalogRelease(String baseUrl, JsonObject config) {
@@ -629,7 +625,7 @@ public final class Driver {
     }
 
     /**
-     * Lists the releases a subscribed catalog's source offers that the tenant lacks, reporting every
+     * Lists the releases a catalog's source offers that the tenant lacks, reporting every
      * one in order. A failing source is reported by its problem.
      */
     private static void listAvailableCatalogReleases(String baseUrl, JsonObject config) {

@@ -234,6 +234,22 @@ class ProblemDetailParserTest {
     }
 
     @Test
+    void reads_why_a_catalog_read_only_problem_refused_the_write() {
+        var parsed = ProblemDetailParser.parse(
+                """
+                {"type": "https://epistola.app/errors/catalog-read-only", "title": "Catalog Read Only",
+                 "status": 409, "readOnlyReason": "supplied-by-epistola"}
+                """);
+        assertNotNull(parsed);
+        assertEquals("supplied-by-epistola", parsed.readOnlyReason());
+
+        var notAString = ProblemDetailParser.parse(
+                "{\"title\": \"Catalog Read Only\", \"status\": 409, \"readOnlyReason\": 7}");
+        assertNotNull(notAString);
+        assertNull(notAString.readOnlyReason());
+    }
+
+    @Test
     void tolerates_malformed_unreleased_dependencies() {
         var notAnArray = ProblemDetailParser.parse(
                 """

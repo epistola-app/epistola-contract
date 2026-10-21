@@ -14,8 +14,8 @@ images:
     operationId: listImages
     summary: List images in a catalog
     description: |
-      List the images in a catalog, as metadata. Images from a subscribed catalog are flagged
-      `readOnly: true`.
+      List the images in a catalog, as metadata. Images of a catalog that cannot be changed in this
+      installation are flagged `readOnly: true`.
 
       Only images are listed. The binaries behind font faces are not images; the Fonts API
       describes them as faces of a family.
@@ -51,8 +51,9 @@ images:
     operationId: uploadImage
     summary: Upload an image
     description: |
-      Upload an image into an authored catalog. The contract sets no size limit; a server may set
-      one, and refuses content over it with 400.
+      Upload an image into a draft of a catalog that can be changed (`CatalogDto.editable`); a
+      catalog that cannot is refused with 409 `catalog-read-only`. The contract sets no size limit;
+      a server may set one, and refuses content over it with 400.
       Supported image types are deployment-configured; common ones are `image/png`, `image/jpeg`,
       `image/svg+xml`, and `image/webp`. Content whose media type is not a supported image type is
       rejected with 400.
@@ -106,7 +107,7 @@ images:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
 
 image-content:
   parameters:
@@ -189,7 +190,8 @@ image-resource:
     operationId: deleteImage
     summary: Delete an image
     description: |
-      Delete an image from an authored catalog. Returns 409 when the image is still referenced
+      Delete an image from a draft of a catalog that can be changed (409 `catalog-read-only`
+      otherwise). Returns 409 when the image is still referenced
       by templates unless `force=true` is supplied. Returns 404 when the catalog has no image
       with this key, including when the key belongs to a font binary.
     tags:
@@ -212,4 +214,4 @@ image-resource:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'

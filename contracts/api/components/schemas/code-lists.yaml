@@ -4,9 +4,9 @@ CodeListDto:
     A reusable `{code, label}` collection that an attribute can bind to.
 
     Code lists are tenant + catalog scoped — the same shape attributes follow.
-    A code list from a subscribed catalog (e.g. the bundled `system` catalog's
-    `bcp-47`, `iso-639-1`, `iso-3166-1-alpha2`) is flagged `readOnly: true`;
-    PATCH, DELETE, and entry hide-toggles on it return 409.
+    A code list of a catalog that cannot be changed in this installation (e.g. the bundled `system`
+    catalog's `bcp-47`, `iso-639-1`, `iso-3166-1-alpha2`) is flagged `readOnly: true`; PATCH,
+    DELETE, and entry hide-toggles on it return 409 `catalog-read-only`.
 
     Sources: `inline` (entries baked into this row) or `url` (entries fetched
     from `sourceUrl` via the manual "refresh" action). Catalog-imported code lists
@@ -20,7 +20,6 @@ CodeListDto:
     - displayName
     - sourceType
     - authType
-    - catalogType
     - readOnly
     - createdAt
     - lastModified
@@ -76,12 +75,12 @@ CodeListDto:
       description: Auth scheme for the URL source. Ignored for inline.
       default: none
       example: none
-    catalogType:
-      $ref: './catalogs.yaml#/CatalogType'
-      description: The type of the code list's catalog; a subscribed catalog's code lists are read-only.
     readOnly:
       type: boolean
-      description: True when `catalogType` is `subscribed`.
+      description: |
+        True when the code list's catalog cannot be changed in this installation (its `CatalogDto.editable`
+        is false; `readOnlyReason` there says why). Clients disable editing affordances; writes to
+        it are refused with 409 `catalog-read-only`.
       example: true
     lastRefreshedAt:
       type:
@@ -115,7 +114,6 @@ CodeListDto:
     sourceType: inline
     sourceUrl: null
     authType: none
-    catalogType: subscribed
     readOnly: true
     lastRefreshedAt: null
     lastRefreshError: null
@@ -199,7 +197,7 @@ CreateCodeListRequest:
     one entry with a unique `code`. For `sourceType == url`, omit `entries` —
     they'll be populated by the first manual refresh.
 
-    Writing to a subscribed catalog (e.g. `system`) returns 409.
+    Writing to a catalog that cannot be changed (e.g. `system`) returns 409 `catalog-read-only`.
   required:
     - key
     - displayName
@@ -258,7 +256,8 @@ UpdateCodeListRequest:
   description: |
     Request body for updating a code list. All fields optional (PATCH semantics).
     Omitting `entries` leaves them untouched; providing `entries` replaces them
-    atomically. Updates to subscribed-catalog code lists return 409.
+    atomically. Updates to a code list of a catalog that cannot be changed return 409
+    `catalog-read-only`.
   properties:
     displayName:
       type: string

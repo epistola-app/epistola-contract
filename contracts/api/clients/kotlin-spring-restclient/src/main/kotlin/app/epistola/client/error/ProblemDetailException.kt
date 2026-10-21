@@ -150,6 +150,18 @@ class ProblemDetailException(
     val isReleaseDependenciesUnreleasedProblem: Boolean get() = unreleasedDependencies.isNotEmpty()
 
     /**
+     * Why the catalog cannot be changed, from a `catalog-read-only` problem (409, from any write to
+     * a catalog whose `CatalogDto.editable` is false): `editing-disabled` (the installation only
+     * receives and runs releases) or `supplied-by-epistola` (the server supplies the catalog). Kept
+     * as the string the server sent, so a reason a later contract adds is surfaced rather than
+     * dropped; null for any other problem, and when the member is not a string.
+     */
+    val readOnlyReason: String? get() = extensions[ProblemExtensionMembers.READ_ONLY_REASON] as? String
+
+    /** True when this problem said the catalog cannot be changed, and why. */
+    val isCatalogReadOnlyProblem: Boolean get() = readOnlyReason != null
+
+    /**
      * One extension member's array of objects, converted to [T]. An entry of an unexpected shape
      * yields nothing rather than a guess: a malformed problem body should not become a confident
      * claim about a particular field, nor hide the problem it decorates.

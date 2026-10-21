@@ -31,8 +31,10 @@ info:
       draft is **behind** a release whose changes it may lack (see "Releases"). A changed resource
       is **ready** once someone marks it reviewed; a draft is released only when all its changes
       are.
-    - **Authored** and **subscribed** catalogs: an authored catalog is written in this tenant, in
-      drafts; a subscribed catalog is published elsewhere, and the tenant only installs its releases.
+    - **Editable** catalogs: every catalog has releases and drafts, wherever its releases come from
+      (its **source**: an exchange, a registry, a file, or the server itself). Whether a catalog can
+      be changed depends on the installation, which may only receive and run releases, and on
+      whether the server supplies the catalog itself (`CatalogDto.editable`, `readOnlyReason`).
     - **Environment**: where documents are generated for a purpose, such as `staging` or
       `production`. A **deployment** makes an environment serve a release of a catalog; a request
       through the environment renders what it serves.
@@ -112,7 +114,7 @@ info:
     `releaseId` or its version, which address the same release. Every write to a released release
     is refused with 409.
 
-    - An authored catalog has **any number of drafts**, each named, each started from a released
+    - A catalog that can be changed has **any number of drafts**, each named, each started from a released
       release (its base) or from another draft (`createCatalogRelease`). The base never moves.
       `listCatalogReleases` lists a catalog's releases, drafts included, each with its `status`
       (`?status=draft` for the drafts only); a catalog (`CatalogDto`) does not list them.
@@ -133,10 +135,13 @@ info:
 
     Importing a catalog archive (`importCatalog`) installs the release the archive carries, at its
     version, beside the releases the tenant already has; it never creates or changes a draft. A
-    subscribed catalog installs releases from its source the same way (`installCatalogRelease`), and
-    `listAvailableCatalogReleases` lists those the tenant does not have yet, older lines included.
-    Nothing is updated in place or removed: deploying decides what an environment serves. The import
-    that creates a catalog names its type, and nothing changes it afterwards.
+    catalog with a source (`CatalogDto.source`) installs releases from it the same way
+    (`installCatalogRelease`), and `listAvailableCatalogReleases` lists those the tenant does not
+    have yet, older lines included. Nothing is updated in place or removed: deploying decides what an
+    environment serves. A release keeps its id and number wherever it moves, so it is the same
+    release in every installation. There are no catalog types: receiving releases works whether or
+    not the catalog can be changed, and every write to one that cannot is refused with 409
+    `catalog-read-only`.
 
     ## Deploying
 
@@ -370,6 +375,16 @@ x-problem-types:
         drafts of other catalogs, and a release pins only releases; release
         them first, or along with it (`releaseDependencies`).
         `unreleasedDependencies` lists each such draft.
+    - slug: catalog-read-only
+      status: 409
+      schema: CatalogReadOnlyProblemDetail
+      description: >-
+        The catalog cannot be changed in this installation, so a write to it
+        (a draft started, edited, discarded, merged into or released) was
+        refused and nothing changed; `readOnlyReason` says why
+        (`editing-disabled`: the installation only receives and runs
+        releases; `supplied-by-epistola`: the server supplies the catalog
+        and replaces it on upgrade).
     - slug: environment-deployment-refused
       status: 409
       schema: ProblemDetail
@@ -400,7 +415,7 @@ x-problem-types:
       status: 503
       schema: ProblemDetail
       description: >-
-        A subscribed catalog's source (its registry, through the mirrors
+        A catalog's source (its registry, through the mirrors
         configured for it) could not be used, so its releases could not be
         listed or installed and nothing was installed: 503 when it could not
         be reached or did not answer in time, possibly with `Retry-After`;
@@ -456,25 +471,26 @@ tags:
   - name: Catalogs
     description: |
       Catalogs and their releases, draft and released: dependencies and changes, releasing a draft;
-      importing an archive and installing a subscribed catalog's releases
+      importing an archive and installing the releases a catalog's source offers
   - name: CodeLists
     description: |
       Reusable `{code, label}` collections that attributes can bind to.
-      Code lists are tenant + catalog scoped; subscribed-catalog code
-      lists (e.g. the bundled `system` catalog's BCP-47, ISO 639-1,
-      ISO 3166-1 alpha-2) are read-only — PATCH/DELETE return 409.
+      Code lists are tenant + catalog scoped; the code lists of a catalog
+      that cannot be changed (e.g. the bundled `system` catalog's BCP-47,
+      ISO 639-1, ISO 3166-1 alpha-2) are read-only — PATCH/DELETE return
+      409 `catalog-read-only`.
   - name: Fonts
     description: |
       Font families (tenant + catalog scoped) and the weight/italic faces
       they ship. Read-only over REST; families and their binaries are managed
       through the UI and catalog exchange only.
-      Subscribed-catalog families (the bundled `system` fonts) are flagged
-      `readOnly: true`.
+      Families of a catalog that cannot be changed (the bundled `system`
+      fonts) are flagged `readOnly: true`.
   - name: Images
     description: |
       Catalog-scoped images: metadata, upload, download, and delete. An image is what a
       template places in an image node, referenced by the image's `key`.
-      Images from a subscribed catalog are flagged `readOnly: true`.
+      Images of a catalog that cannot be changed are flagged `readOnly: true`.
   - name: Consumers
     description: |
       Tenant-scoped consumer application registration and lifecycle management.
@@ -830,8 +846,8 @@ components:
       $ref: './components/schemas/catalogs.yaml#/CatalogChangesDto'
     ResourceChangeDto:
       $ref: './components/schemas/catalogs.yaml#/ResourceChangeDto'
-    CatalogType:
-      $ref: './components/schemas/catalogs.yaml#/CatalogType'
+    CatalogReadOnlyReason:
+      $ref: './components/schemas/catalogs.yaml#/CatalogReadOnlyReason'
     CatalogReleaseStatus:
       $ref: './components/schemas/catalogs.yaml#/CatalogReleaseStatus'
     CatalogReleaseDto:
@@ -988,6 +1004,8 @@ components:
       $ref: './components/responses/errors.yaml#/ReleaseDependenciesMissingProblemDetail'
     ReleaseDependenciesUnreleasedProblemDetail:
       $ref: './components/responses/errors.yaml#/ReleaseDependenciesUnreleasedProblemDetail'
+    CatalogReadOnlyProblemDetail:
+      $ref: './components/responses/errors.yaml#/CatalogReadOnlyProblemDetail'
     DataModelValidationError:
       $ref: './components/responses/errors.yaml#/DataModelValidationError'
     TemplateDataValidationProblemDetail:
