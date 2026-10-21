@@ -52,6 +52,8 @@ public final class ProblemDetailParser {
         private final List<UnreleasedDependency> unreleasedDependencies;
         private final String readOnlyReason;
         private final List<String> unresolvedConflicts;
+        private final String missingBaseVersion;
+        private final String missingBaseFingerprint;
 
         ParsedProblem(
                 ProblemDetail problem,
@@ -62,10 +64,14 @@ public final class ProblemDetailParser {
                 List<MissingDependency> missingDependencies,
                 List<UnreleasedDependency> unreleasedDependencies,
                 String readOnlyReason,
-                List<String> unresolvedConflicts) {
+                List<String> unresolvedConflicts,
+                String missingBaseVersion,
+                String missingBaseFingerprint) {
             this.problem = problem;
             this.readOnlyReason = readOnlyReason;
             this.unresolvedConflicts = unresolvedConflicts;
+            this.missingBaseVersion = missingBaseVersion;
+            this.missingBaseFingerprint = missingBaseFingerprint;
             this.errors = errors;
             this.validationErrors = validationErrors;
             this.missingFields = missingFields;
@@ -136,6 +142,19 @@ public final class ProblemDetailParser {
         public List<String> unresolvedConflicts() {
             return unresolvedConflicts;
         }
+
+        /**
+         * The version a {@code merge-base-missing} problem names as the release to get first;
+         * {@code null} for any other problem, and when absent or not a string.
+         */
+        public String missingBaseVersion() {
+            return missingBaseVersion;
+        }
+
+        /** That release's fingerprint, as the same problem names it; {@code null} otherwise. */
+        public String missingBaseFingerprint() {
+            return missingBaseFingerprint;
+        }
     }
 
     /**
@@ -172,6 +191,9 @@ public final class ProblemDetailParser {
             if (problem == null) {
                 return null;
             }
+            // `version` and `fingerprint` are generic names, so they are read for this problem only.
+            boolean mergeBaseMissing =
+                    KnownProblemSlugs.MERGE_BASE_MISSING.equals(ProblemTypes.slugFor(problem.getType()));
             return new ParsedProblem(
                     problem,
                     readErrors(root),
@@ -181,7 +203,9 @@ public final class ProblemDetailParser {
                     readMissingDependencies(root),
                     readUnreleasedDependencies(root),
                     stringMember(root, ProblemExtensionMembers.READ_ONLY_REASON),
-                    readStrings(root, ProblemExtensionMembers.UNRESOLVED_CONFLICTS));
+                    readStrings(root, ProblemExtensionMembers.UNRESOLVED_CONFLICTS),
+                    mergeBaseMissing ? stringMember(root, ProblemExtensionMembers.VERSION) : null,
+                    mergeBaseMissing ? stringMember(root, ProblemExtensionMembers.FINGERPRINT) : null);
         } catch (RuntimeException e) {
             return null;
         }

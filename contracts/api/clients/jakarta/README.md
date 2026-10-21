@@ -206,6 +206,9 @@ try {
     } else if (KnownProblemSlugs.MERGE_PREVIEW_OUTDATED.equals(slug)) {
         // the merge sent expectedToken, and the draft or the release changed since that preview
         log.warn("preview the merge again");
+    } else if (KnownProblemSlugs.MERGE_BASE_MISSING.equals(slug)) {
+        // the merge base is not installed here: install that release first, then merge again
+        log.warn("install {} ({}) first", e.getMissingBaseVersion(), e.getMissingBaseFingerprint());
     } else if (KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE.equals(slug)) {
         // from installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source
         // could not be reached (Retry-After may say when to retry), 502 when it answered badly

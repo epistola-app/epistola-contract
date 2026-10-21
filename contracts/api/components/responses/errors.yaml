@@ -135,6 +135,24 @@ MergeConflictsUnresolvedProblemDetail:
           items:
             type: string
 
+MergeBaseMissingProblemDetail:
+  allOf:
+    - $ref: '#/ProblemDetail'
+    - type: object
+      properties:
+        version:
+          type: string
+          description: >-
+            The version of the release to get first: the merge base, the closest release both the
+            draft and the release descend from, which this installation does not have.
+          example: "1.0.0"
+        fingerprint:
+          type: string
+          description: >-
+            That release's catalog fingerprint, in the form that names its algorithm (`v5:<hex>`),
+            so that the release obtained can be checked to be the one meant.
+          example: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+
 DataModelValidationError:
   type: object
   description: A single data-example validation failure against the data model

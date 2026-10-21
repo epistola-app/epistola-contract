@@ -31,6 +31,7 @@ const EXPECTED_SLUGS: Record<string, string> = {
   MERGE_CONFLICTS_UNRESOLVED: 'merge-conflicts-unresolved',
   MERGE_REFUSED: 'merge-refused',
   MERGE_PREVIEW_OUTDATED: 'merge-preview-outdated',
+  MERGE_BASE_MISSING: 'merge-base-missing',
   MERGE_NOT_APPLICABLE: 'merge-not-applicable',
   ENVIRONMENT_DEPLOYMENT_REFUSED: 'environment-deployment-refused',
   RESOURCE_MODIFIED: 'resource-modified',
@@ -56,6 +57,8 @@ test('the extension members the client reads by name are the ones the registry d
   assert.equal(ProblemExtensionMembers.UNRELEASED_DEPENDENCIES, 'unreleasedDependencies')
   assert.equal(ProblemExtensionMembers.READ_ONLY_REASON, 'readOnlyReason')
   assert.equal(ProblemExtensionMembers.UNRESOLVED_CONFLICTS, 'unresolvedConflicts')
+  assert.equal(ProblemExtensionMembers.VERSION, 'version')
+  assert.equal(ProblemExtensionMembers.FINGERPRINT, 'fingerprint')
 })
 
 test('slugFor and typeFor are inverses on the Epistola namespace only', () => {

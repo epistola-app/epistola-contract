@@ -914,6 +914,7 @@ object Driver {
                 "resourceNames" to preview.resources.joinToString("|") { it.name ?: "null" },
                 "unchanged" to preview.unchanged.toString(),
                 "token" to preview.token,
+                "missingBase" to (preview.missingBase?.let { "${it.version}@${it.fingerprint}" } ?: "null"),
             ),
         )
     }
@@ -948,6 +949,7 @@ object Driver {
                     "problemStatus" to e.statusCode.value(),
                     "problemUnresolvedConflicts" to e.unresolvedConflicts.joinToString(","),
                     "problemReadOnlyReason" to (e.readOnlyReason ?: "null"),
+                    "problemMissingBase" to (e.missingBaseVersion?.let { "$it@${e.missingBaseFingerprint}" } ?: "null"),
                 ),
             )
             return

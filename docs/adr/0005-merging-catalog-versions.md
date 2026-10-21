@@ -97,7 +97,7 @@ Under the draft, with the release merged in named by its version:
 
 | Operation | Request | Notes |
 | --- | --- | --- |
-| `previewCatalogDraftMerge` | `GET …/releases/{release}/merge-preview?version=` | `draft`, `base`, `release`, `alreadyMerged`, `resources` (`resourceType`, `resourceKey`, `name`, `outcome`, `draftChange`, `releaseChange`), `unchanged`, `token` |
+| `previewCatalogDraftMerge` | `GET …/releases/{release}/merge-preview?version=` | `draft`, `base`, `release`, `alreadyMerged`, `resources` (`resourceType`, `resourceKey`, `name`, `outcome`, `draftChange`, `releaseChange`), `unchanged`, `token`, `missingBase` |
 | `mergeIntoCatalogDraft` | `POST …/releases/{release}/merge` `{release, resolutions, expectedToken}` | `resolutions` maps `type/key` to `ours` or `theirs`; returns `release`, `taken`, `removed`, `kept`, each as `type/key` |
 
 The release to merge is the query parameter `version` because `{release}` in the path already names
@@ -111,6 +111,8 @@ Refusals, as RFC 9457 problems:
   the request sent as `expectedToken` (2026-10-21). The token is opaque and identifies the draft,
   the release and the merge base the preview was computed from, so resolutions chosen from a
   preview are never applied to states the author did not see;
+- 409 `merge-base-missing` (`version`, `fingerprint`): this installation does not have the merge
+  base (see "The merge base travels with the release");
 - 422 `merge-not-applicable`: the draft already contains the release (its base, or merged before),
   or a resolution names a resource that is not a conflict;
 - 409 `catalog-read-only` (`readOnlyReason`): the catalog cannot be changed in this installation;
@@ -138,7 +140,11 @@ share. The base is not covered by any fingerprint, and a receiver keeps it as re
 - **The merge base must be installed.** The merge compares against that release's own resources,
   so the receiving installation needs it, and checks by its fingerprint that the release it has
   under that number is the same release.
-- **When it is not installed**, the merge is refused and says which release to get first.
+- **When it is not installed**, the merge is refused and says which release to get first: 409
+  `merge-base-missing`, whose `version` and `fingerprint` name that release. The preview does not
+  fail: it answers with `missingBase` (`{version, fingerprint}`) naming the same release and
+  classifies nothing, so a client can offer to install it (`importCatalog`,
+  `installCatalogRelease`) and preview again.
 - **When no common release is known** (archives that name no base, from before `release.base`, or
   from a producer that did not know it), the merge has no base: every resource that differs is a
   choice for the author, never a guess from the release numbers.

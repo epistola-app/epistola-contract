@@ -402,3 +402,37 @@ def test_parses_the_unresolved_conflicts_of_a_merge_in_order():
     assert plain is not None
     assert plain.unresolved_conflicts == []
     assert not plain.is_merge_conflicts_unresolved_problem
+
+
+def test_parses_the_release_a_merge_base_missing_problem_asks_for_and_no_other_version():
+    body = json.dumps(
+        {
+            "type": "https://epistola.app/errors/merge-base-missing",
+            "title": "Merge Base Missing",
+            "status": 409,
+            "version": "1.0.0",
+            "fingerprint": "v5:9999999999999999999999999999999999999999999999999999999999999999",
+        }
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.type_slug == KnownProblemSlugs.MERGE_BASE_MISSING
+    assert exc.is_merge_base_missing_problem
+    assert exc.missing_base_version == "1.0.0"
+    assert exc.missing_base_fingerprint == "v5:9999999999999999999999999999999999999999999999999999999999999999"
+
+    other = parse_problem(
+        json.dumps(
+            {
+                "type": "https://epistola.app/errors/catalog-schema-too-old",
+                "title": "Too old",
+                "status": 409,
+                "version": "4",
+            }
+        ),
+        409,
+    )
+    assert other is not None
+    assert other.missing_base_version is None
+    assert other.missing_base_fingerprint is None
+    assert not other.is_merge_base_missing_problem

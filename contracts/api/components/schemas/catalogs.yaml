@@ -1119,6 +1119,37 @@ CatalogDraftMergePreview:
         apply exactly what this preview showed: when the draft or the release changed since, the
         merge is refused with 409 `merge-preview-outdated`.
       example: m1.k7m2x9qa.42.1-5-0.9f3a1c2b
+    missingBase:
+      oneOf:
+        - $ref: '#/CatalogMergeBaseRef'
+        - type: 'null'
+      description: |
+        The merge base this installation does not have: the closest release both the draft and the
+        release descend from (ADR 0005, "The merge base travels with the release"), by its version
+        and its catalog fingerprint. The merge compares against that release's own resources, so
+        without it nothing can be classified: `resources` is empty and `unchanged` is 0, and
+        `mergeIntoCatalogDraft` is refused with 409 `merge-base-missing`. Install that release first
+        (`importCatalog`, `installCatalogRelease`), then preview again. Absent or null when the merge
+        base is installed, or when no common release is known (then every resource the two sides
+        have differently is a choice for the author).
+
+CatalogMergeBaseRef:
+  type: object
+  description: |
+    A release of this catalog named by identity only, as a release's `base` names it in its catalog
+    archive: its version and its catalog fingerprint, which tells whether the release an
+    installation has under that number is the same release (alpha, ADR 0005).
+  required:
+    - version
+    - fingerprint
+  properties:
+    version:
+      $ref: './identifiers.yaml#/ReleaseVersion'
+      description: The release's version
+      example: "1.0.0"
+    fingerprint:
+      $ref: './identifiers.yaml#/Fingerprint'
+      description: The release's catalog fingerprint, in the form that names its algorithm
 
 MergeIntoCatalogDraftRequest:
   type: object

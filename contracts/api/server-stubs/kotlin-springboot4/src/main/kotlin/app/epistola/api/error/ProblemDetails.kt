@@ -90,6 +90,15 @@ object ProblemDetails {
      */
     const val UNRESOLVED_CONFLICTS_PROPERTY: String = ProblemExtensionMembers.UNRESOLVED_CONFLICTS
 
+    /**
+     * Extension member naming the version of the release a `merge-base-missing` problem asks for.
+     * Generated from the `MergeBaseMissingProblemDetail` schema, so it stays the name the clients read.
+     */
+    const val VERSION_PROPERTY: String = ProblemExtensionMembers.VERSION
+
+    /** Extension member naming that release's catalog fingerprint (`MergeBaseMissingProblemDetail`). */
+    const val FINGERPRINT_PROPERTY: String = ProblemExtensionMembers.FINGERPRINT
+
     // The mapping is shared with the clients, which use it in the other direction.
     private val uris = ProblemTypeUris.of(TYPE_BASE)
 
@@ -171,6 +180,12 @@ object ProblemDetails {
          * whose `token` the request sent as `expectedToken`.
          */
         const val MERGE_PREVIEW_OUTDATED: String = KnownProblemSlugs.MERGE_PREVIEW_OUTDATED
+
+        /**
+         * 409 — a merge (alpha) was refused: this installation does not have the merge base (use
+         * [mergeBaseMissing]).
+         */
+        const val MERGE_BASE_MISSING: String = KnownProblemSlugs.MERGE_BASE_MISSING
 
         /**
          * 422 — a merge (alpha) does not apply: the draft already contains the release, or a
@@ -313,6 +328,23 @@ object ProblemDetails {
     ): ProblemDetail {
         val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.MERGE_CONFLICTS_UNRESOLVED), detail, instance)
         problem.setProperty(UNRESOLVED_CONFLICTS_PROPERTY, unresolvedConflicts)
+        return problem
+    }
+
+    /**
+     * Builds a `merge-base-missing` [ProblemDetail] (409): like [of] plus the [version] and
+     * [fingerprint] extension members, naming the merge base this installation does not have, the
+     * release to get first (the `MergeBaseMissingProblemDetail` shape from the contract).
+     */
+    fun mergeBaseMissing(
+        version: String,
+        fingerprint: String,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.MERGE_BASE_MISSING), detail, instance)
+        problem.setProperty(VERSION_PROPERTY, version)
+        problem.setProperty(FINGERPRINT_PROPERTY, fingerprint)
         return problem
     }
 

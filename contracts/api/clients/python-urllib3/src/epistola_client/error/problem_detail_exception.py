@@ -99,6 +99,8 @@ class ProblemDetailException(ApiException):
         unreleased_dependencies: Optional[List[UnreleasedDependency]] = None,
         read_only_reason: Optional[str] = None,
         unresolved_conflicts: Optional[List[str]] = None,
+        missing_base_version: Optional[str] = None,
+        missing_base_fingerprint: Optional[str] = None,
     ) -> None:
         super().__init__(
             status=status_code,
@@ -138,6 +140,11 @@ class ProblemDetailException(ApiException):
         #: ``MergeConflictsUnresolvedProblemDetail`` (``merge-conflicts-unresolved``, 409, alpha),
         #: each as ``resourceType/resourceKey``, else ``[]``.
         self.unresolved_conflicts = unresolved_conflicts or []
+        #: The version of the release a ``merge-base-missing`` problem (409, alpha) asks to get
+        #: first: the merge base, which this installation does not have; else ``None``.
+        self.missing_base_version = missing_base_version
+        #: That release's catalog fingerprint (``v5:<hex>``) from the same problem; else ``None``.
+        self.missing_base_fingerprint = missing_base_fingerprint
         #: The HTTP status of the error response.
         self.status_code = status_code
 
@@ -198,6 +205,11 @@ class ProblemDetailException(ApiException):
     def is_merge_conflicts_unresolved_problem(self) -> bool:
         """True when this problem listed merge conflicts that need a resolution."""
         return len(self.unresolved_conflicts) > 0
+
+    @property
+    def is_merge_base_missing_problem(self) -> bool:
+        """True when this problem named a merge base this installation does not have."""
+        return self.missing_base_version is not None
 
     @property
     def is_data_model_validation_problem(self) -> bool:

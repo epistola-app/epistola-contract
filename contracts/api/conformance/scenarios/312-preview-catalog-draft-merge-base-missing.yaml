@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: preview-catalog-draft-merge-base-missing
+title: A merge preview without the merge base still answers, and names the release to get first
+why: >
+  The preview does not fail when this installation does not have the merge base (ADR 0005): it
+  answers with `missingBase`, the merge base's `version` and `fingerprint`, and classifies
+  nothing, so a client can offer to install that release and preview again. A client that drops
+  the optional member shows an empty preview as a merge with nothing to do.
+
+action:
+  name: preview-catalog-draft-merge
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    release: k7m2x9qa
+    version: 1.0.1
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      draft: k7m2x9qa
+      base: 1.1.0
+      release: 1.0.1
+      alreadyMerged: false
+      resources: []
+      unchanged: 0
+      token: m1.k7m2x9qa.7.1-0-1.base-missing
+      missingBase:
+        version: 1.0.0
+        fingerprint: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases/k7m2x9qa/merge-preview
+      query: version=1.0.1
+  report:
+    draft: k7m2x9qa
+    base: 1.1.0
+    release: 1.0.1
+    alreadyMerged: 'false'
+    resources: ''
+    unchanged: '0'
+    token: m1.k7m2x9qa.7.1-0-1.base-missing
+    missingBase: 1.0.0@v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70

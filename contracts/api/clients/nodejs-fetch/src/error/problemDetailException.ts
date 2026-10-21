@@ -14,7 +14,7 @@ import type {
   ValidationError,
 } from '../generated/api/models/index.js'
 import { ResponseError } from '../generated/api/runtime.js'
-import { ProblemExtensionMembers } from '../generated/knownProblemSlugs.js'
+import { KnownProblemSlugs, ProblemExtensionMembers } from '../generated/knownProblemSlugs.js'
 import { BLANK_TYPE, slugFor } from './problemTypes.js'
 
 /**
@@ -200,6 +200,35 @@ export class ProblemDetailException extends ResponseError {
   /** True when this problem listed merge conflicts that need a resolution. */
   get isMergeConflictsUnresolvedProblem(): boolean {
     return this.unresolvedConflicts.length > 0
+  }
+
+  /**
+   * The version of the release a `merge-base-missing` problem (409, from `mergeIntoCatalogDraft`,
+   * alpha) asks to get first: the merge base, which this installation does not have. Read from the
+   * `version` member of that problem only, since other problems use the name for other things;
+   * `undefined` for any other problem, and when the member is not a string.
+   */
+  get missingBaseVersion(): string | undefined {
+    return this.mergeBaseMissingMember(ProblemExtensionMembers.VERSION)
+  }
+
+  /**
+   * That release's catalog fingerprint (`v5:<hex>`), from the `fingerprint` member of a
+   * `merge-base-missing` problem; `undefined` for any other problem, and when it is not a string.
+   */
+  get missingBaseFingerprint(): string | undefined {
+    return this.mergeBaseMissingMember(ProblemExtensionMembers.FINGERPRINT)
+  }
+
+  /** True when this problem named a merge base this installation does not have. */
+  get isMergeBaseMissingProblem(): boolean {
+    return this.missingBaseVersion !== undefined
+  }
+
+  private mergeBaseMissingMember(member: string): string | undefined {
+    if (this.typeSlug !== KnownProblemSlugs.MERGE_BASE_MISSING) return undefined
+    const value = this.extensions[member]
+    return typeof value === 'string' ? value : undefined
   }
 }
 

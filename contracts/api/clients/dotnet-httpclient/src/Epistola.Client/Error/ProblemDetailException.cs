@@ -98,6 +98,21 @@ public class ProblemDetailException : ApiException
     /// </summary>
     public IReadOnlyList<string> UnresolvedConflicts { get; }
 
+    /// <summary>
+    /// The version of the release a <c>merge-base-missing</c> problem (409, from
+    /// <c>MergeIntoCatalogDraft</c>, alpha) asks to get first: the merge base, which this
+    /// installation does not have. Read from the <c>version</c> member of that problem only, since
+    /// other problems use the name for other things; <c>null</c> for any other problem, and when the
+    /// member is not a string.
+    /// </summary>
+    public string? MissingBaseVersion { get; }
+
+    /// <summary>
+    /// That release's catalog fingerprint (<c>v5:&lt;hex&gt;</c>), from the <c>fingerprint</c>
+    /// member of a <c>merge-base-missing</c> problem; <c>null</c> for any other problem.
+    /// </summary>
+    public string? MissingBaseFingerprint { get; }
+
     /// <summary>The HTTP status of the error response.</summary>
     public HttpStatusCode StatusCode { get; }
 
@@ -113,7 +128,9 @@ public class ProblemDetailException : ApiException
         IReadOnlyList<MissingDependency>? missingDependencies = null,
         IReadOnlyList<UnreleasedDependency>? unreleasedDependencies = null,
         string? readOnlyReason = null,
-        IReadOnlyList<string>? unresolvedConflicts = null)
+        IReadOnlyList<string>? unresolvedConflicts = null,
+        string? missingBaseVersion = null,
+        string? missingBaseFingerprint = null)
         // ApiException is generated and nullable-oblivious; its errorContent/headers are
         // optional and accept null at runtime, so bridge the nullable values with `!`.
         : base((int)statusCode, BuildMessage(statusCode, problem), rawBody!, headers!)
@@ -127,6 +144,8 @@ public class ProblemDetailException : ApiException
         UnreleasedDependencies = unreleasedDependencies ?? new List<UnreleasedDependency>();
         ReadOnlyReason = readOnlyReason;
         UnresolvedConflicts = unresolvedConflicts ?? new List<string>();
+        MissingBaseVersion = missingBaseVersion;
+        MissingBaseFingerprint = missingBaseFingerprint;
         StatusCode = statusCode;
     }
 
@@ -168,6 +187,9 @@ public class ProblemDetailException : ApiException
 
     /// <summary>True when this problem listed merge conflicts that need a resolution.</summary>
     public bool IsMergeConflictsUnresolvedProblem => UnresolvedConflicts.Count > 0;
+
+    /// <summary>True when this problem named a merge base this installation does not have.</summary>
+    public bool IsMergeBaseMissingProblem => MissingBaseVersion != null;
 
     private static string BuildMessage(HttpStatusCode status, ProblemDetail problem)
     {

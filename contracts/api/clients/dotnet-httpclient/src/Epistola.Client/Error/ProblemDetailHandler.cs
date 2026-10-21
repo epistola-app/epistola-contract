@@ -81,7 +81,9 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             missingDependencies: parsed.MissingDependencies,
             unreleasedDependencies: parsed.UnreleasedDependencies,
             readOnlyReason: parsed.ReadOnlyReason,
-            unresolvedConflicts: parsed.UnresolvedConflicts);
+            unresolvedConflicts: parsed.UnresolvedConflicts,
+            missingBaseVersion: parsed.MissingBaseVersion,
+            missingBaseFingerprint: parsed.MissingBaseFingerprint);
     }
 
     /// <summary>
@@ -119,6 +121,9 @@ public sealed class ProblemDetailHandler : DelegatingHandler
                     ?? new Dictionary<string, List<DataModelValidationError>>();
             }
 
+            // `version` and `fingerprint` are generic names, so they are read for this problem only.
+            var mergeBaseMissing = ProblemTypes.SlugFor(problem.Type) == KnownProblemSlugs.MERGE_BASE_MISSING;
+
             return new ParsedProblem(
                 problem,
                 errors,
@@ -130,13 +135,19 @@ public sealed class ProblemDetailHandler : DelegatingHandler
                 tree["readOnlyReason"] is JValue { Type: JTokenType.String } reason ? (string?)reason : null,
                 tree["unresolvedConflicts"] is JArray conflicts
                     ? conflicts.Where(c => c.Type == JTokenType.String).Select(c => (string)c!).ToList()
-                    : new List<string>());
+                    : new List<string>(),
+                mergeBaseMissing ? StringMember(tree, "version") : null,
+                mergeBaseMissing ? StringMember(tree, "fingerprint") : null);
         }
         catch (JsonException)
         {
             return null;
         }
     }
+
+    /// <summary>A string member, or <c>null</c> when absent or not a string.</summary>
+    private static string? StringMember(JObject tree, string name) =>
+        tree[name] is JValue { Type: JTokenType.String } value ? (string?)value : null;
 
     /// <summary>
     /// One extension member that is an array of objects, or an empty list when absent or malformed.
@@ -210,6 +221,12 @@ public sealed class ProblemDetailHandler : DelegatingHandler
         /// <summary>The conflicts a <c>merge-conflicts-unresolved</c> problem lists; empty when absent.</summary>
         public IReadOnlyList<string> UnresolvedConflicts { get; }
 
+        /// <summary>The version a <c>merge-base-missing</c> problem names; <c>null</c> for any other problem.</summary>
+        public string? MissingBaseVersion { get; }
+
+        /// <summary>The fingerprint a <c>merge-base-missing</c> problem names; <c>null</c> for any other problem.</summary>
+        public string? MissingBaseFingerprint { get; }
+
         public ParsedProblem(
             ProblemDetail problem,
             IReadOnlyList<ValidationError> errors,
@@ -219,7 +236,9 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             IReadOnlyList<MissingDependency>? missingDependencies = null,
             IReadOnlyList<UnreleasedDependency>? unreleasedDependencies = null,
             string? readOnlyReason = null,
-            IReadOnlyList<string>? unresolvedConflicts = null)
+            IReadOnlyList<string>? unresolvedConflicts = null,
+            string? missingBaseVersion = null,
+            string? missingBaseFingerprint = null)
         {
             Problem = problem;
             Errors = errors;
@@ -230,6 +249,8 @@ public sealed class ProblemDetailHandler : DelegatingHandler
             UnreleasedDependencies = unreleasedDependencies ?? new List<UnreleasedDependency>();
             ReadOnlyReason = readOnlyReason;
             UnresolvedConflicts = unresolvedConflicts ?? new List<string>();
+            MissingBaseVersion = missingBaseVersion;
+            MissingBaseFingerprint = missingBaseFingerprint;
         }
     }
 }

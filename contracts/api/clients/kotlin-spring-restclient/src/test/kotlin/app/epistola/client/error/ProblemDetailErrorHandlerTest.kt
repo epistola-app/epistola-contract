@@ -255,6 +255,29 @@ class ProblemDetailErrorHandlerTest {
     }
 
     @Test
+    fun `surfaces the release a merge-base-missing problem asks for, and no other problem's version`() {
+        val body = """
+            {"type":"https://epistola.app/errors/merge-base-missing","title":"Merge Base Missing",
+             "status":409,"version":"1.0.0","fingerprint":"v5:9999999999999999999999999999999999999999999999999999999999999999"}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+        assertEquals(KnownProblemSlugs.MERGE_BASE_MISSING, ex.typeSlug)
+        assertEquals("1.0.0", ex.missingBaseVersion)
+        assertEquals("v5:9999999999999999999999999999999999999999999999999999999999999999", ex.missingBaseFingerprint)
+        assertTrue(ex.isMergeBaseMissingProblem)
+
+        val other = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(
+                response(HttpStatus.CONFLICT, """{"type":"https://epistola.app/errors/catalog-schema-too-old","title":"Too old","status":409,"version":"4"}"""),
+            )
+        }
+        assertEquals(null, other.missingBaseVersion)
+        assertEquals(null, other.missingBaseFingerprint)
+        assertFalse(other.isMergeBaseMissingProblem)
+    }
+
+    @Test
     fun `falls back to a plain exception for non-problem error bodies`() {
         val ex = assertFailsWith<RestClientResponseException> {
             handleErrorResponse(response(HttpStatus.INTERNAL_SERVER_ERROR, "gateway boom", MediaType.TEXT_PLAIN))

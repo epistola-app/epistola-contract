@@ -182,6 +182,18 @@ test('surfaces the unresolved conflicts of a merge-conflicts-unresolved problem 
   assert.equal(other.isMergeConflictsUnresolvedProblem, false)
 })
 
+test('surfaces the release a merge-base-missing problem asks for, and no other problem\'s version', () => {
+  const problem = parse({ type: 'https://epistola.app/errors/merge-base-missing', title: 'Merge Base Missing', status: 409, version: '1.0.0', fingerprint: 'v5:9999999999999999999999999999999999999999999999999999999999999999' }, 409)!
+  assert.equal(problem.typeSlug, KnownProblemSlugs.MERGE_BASE_MISSING)
+  assert.equal(problem.missingBaseVersion, '1.0.0')
+  assert.equal(problem.missingBaseFingerprint, 'v5:9999999999999999999999999999999999999999999999999999999999999999')
+  assert.ok(problem.isMergeBaseMissingProblem)
+  const other = parse({ type: 'https://epistola.app/errors/catalog-schema-too-old', title: 'Too old', status: 409, version: '4' }, 409)!
+  assert.equal(other.missingBaseVersion, undefined)
+  assert.equal(other.missingBaseFingerprint, undefined)
+  assert.equal(other.isMergeBaseMissingProblem, false)
+})
+
 test('keeps extension members the contract does not name', () => {
   const problem = parse({ type: 'https://epistola.app/errors/catalog-schema-too-old', title: 'Too old', status: 409, version: 4, baselineVersion: 6 }, 409)!
   assert.equal(problem.typeSlug, 'catalog-schema-too-old')

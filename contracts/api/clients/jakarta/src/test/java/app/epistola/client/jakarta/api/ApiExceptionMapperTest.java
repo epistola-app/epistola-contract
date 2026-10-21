@@ -291,6 +291,36 @@ class ApiExceptionMapperTest {
     }
 
     @Test
+    void a_merge_base_missing_problem_names_the_release_to_get_first() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/merge-base-missing",
+                         "title": "Merge Base Missing", "status": 409,
+                         "version": "1.0.0", "fingerprint": "v5:9999999999999999999999999999999999999999999999999999999999999999"}
+                        """)));
+
+        assertEquals(KnownProblemSlugs.MERGE_BASE_MISSING, e.getTypeSlug());
+        assertTrue(e.isMergeBaseMissingProblem());
+        assertEquals("1.0.0", e.getMissingBaseVersion());
+        assertEquals("v5:9999999999999999999999999999999999999999999999999999999999999999", e.getMissingBaseFingerprint());
+    }
+
+    @Test
+    void another_problem_with_a_version_names_no_merge_base() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/catalog-schema-too-old",
+                         "title": "Too old", "status": 409, "version": "4"}
+                        """)));
+
+        assertFalse(e.isMergeBaseMissingProblem());
+        assertNull(e.getMissingBaseVersion());
+        assertNull(e.getMissingBaseFingerprint());
+    }
+
+    @Test
     void another_problem_lists_no_missing_dependencies() {
         ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
                 StubServer.StubResponse.of(409, PROBLEM_JSON,

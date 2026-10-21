@@ -49,6 +49,8 @@ public class ProblemDetailException extends ApiException {
     private final List<UnreleasedDependency> unreleasedDependencies;
     private final String readOnlyReason;
     private final List<String> unresolvedConflicts;
+    private final String missingBaseVersion;
+    private final String missingBaseFingerprint;
     private final int statusCode;
     private final String responseBody;
     private final String message;
@@ -147,8 +149,32 @@ public class ProblemDetailException extends ApiException {
             String readOnlyReason,
             List<String> unresolvedConflicts,
             String responseBody) {
+        this(response, problem, errors, validationErrors, missingFields, invalidFields, missingDependencies,
+                unreleasedDependencies, readOnlyReason, unresolvedConflicts, null, null, responseBody);
+    }
+
+    /**
+     * The same, for a problem that may also name a merge base this installation does not have
+     * ({@code merge-base-missing}), by its version and catalog fingerprint.
+     */
+    public ProblemDetailException(
+            Response response,
+            ProblemDetail problem,
+            List<ValidationError> errors,
+            Map<String, List<DataModelValidationError>> validationErrors,
+            List<MissingDataField> missingFields,
+            List<InvalidDataField> invalidFields,
+            List<MissingDependency> missingDependencies,
+            List<UnreleasedDependency> unreleasedDependencies,
+            String readOnlyReason,
+            List<String> unresolvedConflicts,
+            String missingBaseVersion,
+            String missingBaseFingerprint,
+            String responseBody) {
         super(response);
         this.readOnlyReason = readOnlyReason;
+        this.missingBaseVersion = missingBaseVersion;
+        this.missingBaseFingerprint = missingBaseFingerprint;
         this.unresolvedConflicts = unresolvedConflicts == null
                 ? Collections.emptyList()
                 : Collections.unmodifiableList(unresolvedConflicts);
@@ -335,6 +361,30 @@ public class ProblemDetailException extends ApiException {
     /** True when this problem listed merge conflicts that need a resolution. */
     public boolean isMergeConflictsUnresolvedProblem() {
         return !unresolvedConflicts.isEmpty();
+    }
+
+    /**
+     * The version of the release a {@code merge-base-missing} problem (409, from
+     * {@code mergeIntoCatalogDraft}, alpha) asks to get first: the merge base, which this
+     * installation does not have. Read from the {@code version} member of that problem only, since
+     * other problems use the name for other things; {@code null} for any other problem, and when the
+     * member is not a string.
+     */
+    public String getMissingBaseVersion() {
+        return missingBaseVersion;
+    }
+
+    /**
+     * That release's catalog fingerprint ({@code v5:<hex>}), from the {@code fingerprint} member of
+     * a {@code merge-base-missing} problem; {@code null} for any other problem.
+     */
+    public String getMissingBaseFingerprint() {
+        return missingBaseFingerprint;
+    }
+
+    /** True when this problem named a merge base this installation does not have. */
+    public boolean isMergeBaseMissingProblem() {
+        return missingBaseVersion != null;
     }
 
     private static String buildMessage(int statusCode, ProblemDetail problem) {

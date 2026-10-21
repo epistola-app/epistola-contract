@@ -127,6 +127,9 @@ except ProblemDetailException as e:
         case KnownProblemSlugs.MERGE_PREVIEW_OUTDATED:
             # expected_token named a preview, and the draft or the release changed since
             log.warning("preview the merge again")
+        case KnownProblemSlugs.MERGE_BASE_MISSING:
+            # the merge base is not installed here: install that release first
+            log.warning("install %s (%s) first", e.missing_base_version, e.missing_base_fingerprint)
         case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
             # install_catalog_release / list_available_catalog_releases: 503 when the catalog's
             # source could not be reached (Retry-After may say when), 502 when it answered badly

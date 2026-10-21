@@ -118,6 +118,17 @@ class ProblemDetailsTest {
     }
 
     @Test
+    fun `mergeBaseMissing names the release to get first as a 409`() {
+        val fingerprint = "v5:" + "9".repeat(64)
+        val problem = ProblemDetails.mergeBaseMissing("1.0.0", fingerprint, detail = "Install 1.0.0 of letters first")
+        assertEquals(URI.create("https://epistola.app/errors/merge-base-missing"), problem.type)
+        assertEquals(409, problem.status)
+        assertEquals("1.0.0", problem.properties?.get("version"))
+        assertEquals(fingerprint, problem.properties?.get("fingerprint"))
+        assertEquals("merge-base-missing", ProblemDetails.KnownSlugs.MERGE_BASE_MISSING)
+    }
+
+    @Test
     fun `catalogSourceUnavailable is one type sent as a 503 or a 502`() {
         val unreachable = ProblemDetails.catalogSourceUnavailable(HttpStatus.SERVICE_UNAVAILABLE, detail = "registry.gemeente-x.nl could not be reached")
         assertEquals(URI.create("https://epistola.app/errors/catalog-source-unavailable"), unreachable.type)

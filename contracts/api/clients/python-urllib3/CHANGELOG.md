@@ -11,6 +11,10 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- `ProblemDetailException.missing_base_version`, `missing_base_fingerprint` and
+  `is_merge_base_missing_problem` surface the `version` and `fingerprint` members of a
+  `merge-base-missing` problem (409, from `merge_into_catalog_draft`, alpha): the release to install
+  first, read from that problem only. The new constructor parameters are optional.
 - `ProblemDetailException.unresolved_conflicts` and `is_merge_conflicts_unresolved_problem`
   surface the `unresolvedConflicts` member of a `merge-conflicts-unresolved` problem (409, from
   `merge_into_catalog_draft`, alpha): each conflict without a resolution, as

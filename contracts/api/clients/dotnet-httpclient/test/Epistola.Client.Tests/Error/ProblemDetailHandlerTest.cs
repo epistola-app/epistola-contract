@@ -329,6 +329,26 @@ public class ProblemDetailHandlerTest
     }
 
     [Fact]
+    public async Task ThrowsWithTheReleaseAMergeBaseMissingProblemAsksFor()
+    {
+        const string body = """
+            {"type": "https://epistola.app/errors/merge-base-missing", "title": "Merge Base Missing",
+             "status": 409, "version": "1.0.0", "fingerprint": "v5:9999999999999999999999999999999999999999999999999999999999999999"}
+            """;
+        var client = ClientReturning(HttpStatusCode.Conflict, "application/problem+json", body);
+
+        var ex = await Assert.ThrowsAsync<ProblemDetailException>(() => client.PostAsync("merge", null));
+        Assert.Equal(KnownProblemSlugs.MERGE_BASE_MISSING, ex.TypeSlug);
+        Assert.True(ex.IsMergeBaseMissingProblem);
+        Assert.Equal("1.0.0", ex.MissingBaseVersion);
+        Assert.Equal("v5:9999999999999999999999999999999999999999999999999999999999999999", ex.MissingBaseFingerprint);
+
+        var other = ProblemDetailHandler.ParseProblem("""{"type": "https://epistola.app/errors/catalog-schema-too-old", "title": "Too old", "status": 409, "version": "4"}""");
+        Assert.Null(other!.MissingBaseVersion);
+        Assert.Null(other.MissingBaseFingerprint);
+    }
+
+    [Fact]
     public void ParseProblemReadsNoReadOnlyReasonThatIsNotAString()
     {
         var parsed = ProblemDetailHandler.ParseProblem(
