@@ -1,6 +1,7 @@
 # ADR 0003: Catalog identity, registries and mirrors
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-10-21 (see "Amendment: a catalog's name never changes on the
+  way")
 - **Date:** 2026-10-16
 - **Scope:** API contract (`contracts/api`) and portable catalog contract (`contracts/catalog`, wire
   v8), contract 2.0
@@ -210,6 +211,9 @@ with something that is not a valid answer, with 502 and the same problem type. N
 
 ### A catalog's type is chosen once
 
+> Withdrawn by the amendment of 2026-10-21: there are no catalog types. The section is kept as the
+> record of what 2.0 drafts decided.
+
 A catalog is AUTHORED (drafts can be started from its releases) or SUBSCRIBED (it only installs
 releases, those its source offers among them). The import that creates a catalog must name its type:
 there is no default, because guessing wrong either lets an installation author a catalog someone
@@ -299,6 +303,8 @@ The registry should be the one the municipality will publish from:
   its own releases. Publishing from a different registry later is a move: the catalog gets a new
   identity, and what names it has to follow.
 
+The second option, and "the tenant's key by default" above, are withdrawn by the amendment below.
+
 ## Consequences
 
 - A catalog's name says who published it and where. Mirrors make it available elsewhere without
@@ -321,7 +327,49 @@ The registry should be the one the municipality will publish from:
 - Upgrading a subscribed catalog is installing a release: no in-place updates, removals, conflicts
   or per-resource results. A catalog's type is fixed when an import creates it.
 
+## Amendment: a catalog's name never changes on the way (2026-10-21)
+
+Epistola Suite's ADR 0032 moves releases between a team's own installations (test, acceptance,
+production) through the exchange, a container registry or a file, and requires a release to be the
+same everywhere: the same name, number, id, content and fingerprint. "Migrating existing catalogs"
+above let a catalog take the importing installation's own host as its registry, and its tenant's key
+as its namespace. Applied on every installation a release passes through, that renames the catalog
+on the way: test's `test.example.org/acme/letters` arrives in production as
+`prod.example.org/acme/letters`, a different catalog whose releases no longer meet the original's,
+and whose pins no longer resolve.
+
+**Decision.**
+
+- **A catalog's name must not change when its releases move between installations.** Registry,
+  namespace and key are the catalog's identity everywhere it is installed.
+- **Registry and namespace are explicit.** They are chosen when the catalog is created, by whoever
+  creates it, and recorded with it. They are never derived from a tenant key, an installation's host
+  or a configured default on the way. The default registry (`~`) remains a way to *address* a
+  catalog in a request, not a value an installation stamps on one.
+- **An archive that does not name them is imported only when the importer names them.** That is an
+  archive from before wire v8; the migrator already refuses one without `CatalogMigrationOptions`,
+  and `importCatalog` refuses one whose request does not give `registry` and `namespace` (400). The
+  importer gives the values the catalog was created with in its first installation, so every
+  installation migrates it to the same name.
+- The rest of "Migrating existing catalogs" stands: the migrator never chooses.
+
+**Also withdrawn: catalog types.** "A catalog's type is chosen once" and the type-related
+consequences are replaced by ADR 0032's model: every catalog has releases and drafts, whether it can
+be changed is the installation's (`CatalogDto.editable`, `readOnlyReason`), and where its releases
+come from is its `source`. An import installs the release beside the catalog's others, and a catalog
+it creates is received like any other. `CatalogType`, `CatalogDto.type` and `importCatalog`'s
+`catalogType` are removed.
+
+**Consequences.**
+
+- A release keeps its identity across installations: wire v8's `release.releaseId` (kept on receipt)
+  joins the registry, namespace, key, number and fingerprint.
+- Installations that migrated catalogs to their own host before this amendment have to rename them
+  to a registry they will keep; the contract offers no move operation yet ("Later").
+
 ## Hotfix releases
+
+> Superseded with ADR 0001 (2026-10-21): there are no hotfix releases.
 
 A hotfix (ADR 0001) can be cut by any installation, for any catalog, and is never published. A
 release whose dependencies pin a hotfix cannot be published either: no registry serves that

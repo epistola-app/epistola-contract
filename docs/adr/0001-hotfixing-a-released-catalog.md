@@ -1,10 +1,41 @@
 # ADR 0001: Hotfixing a subscribed catalog release that production runs
 
-- **Status:** Proposed (not part of contract 2.0.0)
+- **Status:** Superseded (2026-10-21) by Epistola Suite's ADR 0032 ("Catalogs are drafts and
+  releases, moved between installations and merged", `docs/adr/0032-catalog-sources-releases-and-merging.md`
+  in epistola-suite) and, in this contract, by [ADR 0005](0005-merging-catalog-versions.md)
+  (merging, alpha). Never implemented.
 - **Date:** 2026-10-19
 - **Scope:** API contract (`contracts/api`) and catalog contract (`contracts/catalog`), after 2.0.0
 - **Related:** [ADR 0002](0002-intermediate-releases.md) (working on several releases of a catalog at once),
   [ADR 0003](0003-catalog-identity-and-distribution.md) (catalog identity and dependencies)
+
+## Superseded
+
+This ADR answered "how does an installation that does not author a catalog fix a release it
+runs?" with a `+hotfix.N` release that only that installation could cut and never publish. The
+question no longer arises, because the distinction it rests on is gone:
+
+- **There are no catalog types.** Every catalog has releases and drafts, wherever its releases come
+  from. Whether a catalog can be changed is a property of the installation (a run-only switch) and of
+  whether the server itself supplies the catalog, reported as `CatalogDto.editable` and
+  `readOnlyReason`. An installation that allows editing fixes any catalog the ordinary way: a draft
+  from the release production runs, released as the next patch (`1.0.2`), as ADR 0002 already does
+  for an authored catalog.
+- **Changes made in more than one installation are merged back.** The authoring installation
+  receives that release (by file, a registry or the exchange) and its draft is then behind it;
+  merging the release into the draft (ADR 0005, alpha) takes the fix per resource, and a conflict is
+  resolved per resource to ours or theirs. Nothing is lost silently, and there is no second kind of
+  release.
+- **Numbers are checked where releases meet**, not prevented by a suffix. One number names one
+  content everywhere: an import refuses a known number with other content, an exchange refuses a
+  number published before, and a registry with immutable tags does too. Two installations that
+  release the same number independently are detected when the releases meet; the later one comes
+  back as a merge and a new number.
+
+What this ADR needed and that is therefore not added: the `+hotfix.N` version grammar, its range
+semantics, the `+` encoding rule in paths, the non-breaking check for hotfixes, the dropped-fix guard
+on deploy, a hotfix permission, and the "exportable, never published" rule. The text below is kept
+as the record of the option that was considered.
 
 ## Context
 
