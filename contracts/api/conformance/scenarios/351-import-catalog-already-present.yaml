@@ -10,10 +10,8 @@ why: >
   `newlyInstalled: false`. A client that drops a false boolean, or reads it as absent, tells its
   caller a release was installed when nothing happened.
 
-  `registry` and `namespace` are set here, so they must be sent as given. `catalogType` was not set,
-  so it must not be sent: it has no default (contract 2.0), and the catalog the tenant has keeps its
-  type. A client that fills in a type of its own gets the import refused with 409 whenever it
-  guesses wrong.
+  `registry` and `namespace` are set here, so they must be sent as given. The contract has no
+  catalog type, so no `catalogType` is sent.
 
 action:
   name: import-catalog

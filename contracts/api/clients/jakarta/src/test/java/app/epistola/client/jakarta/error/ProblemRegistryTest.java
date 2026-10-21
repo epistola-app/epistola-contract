@@ -35,6 +35,7 @@ class ProblemRegistryTest {
         assertEquals("rate-limited", KnownProblemSlugs.RATE_LIMITED);
         assertEquals("release-dependencies-missing", KnownProblemSlugs.RELEASE_DEPENDENCIES_MISSING);
         assertEquals("release-dependencies-unreleased", KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED);
+        assertEquals("catalog-read-only", KnownProblemSlugs.CATALOG_READ_ONLY);
         assertEquals("environment-deployment-refused", KnownProblemSlugs.ENVIRONMENT_DEPLOYMENT_REFUSED);
         assertEquals("resource-modified", KnownProblemSlugs.RESOURCE_MODIFIED);
         assertEquals("catalog-source-unavailable", KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE);

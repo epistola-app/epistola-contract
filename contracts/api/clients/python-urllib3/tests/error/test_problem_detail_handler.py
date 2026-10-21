@@ -356,3 +356,28 @@ def test_a_malformed_unreleased_dependencies_member_yields_nothing_rather_than_a
     )
     assert incomplete_entry is not None
     assert incomplete_entry.unreleased_dependencies == []
+
+
+def test_parses_why_a_catalog_read_only_problem_refused_the_write():
+    body = json.dumps(
+        {
+            "type": "https://epistola.app/errors/catalog-read-only",
+            "title": "Catalog Read Only",
+            "status": 409,
+            "readOnlyReason": "supplied-by-epistola",
+        }
+    )
+    exc = parse_problem(body, 409)
+    assert exc is not None
+    assert exc.type_slug == KnownProblemSlugs.CATALOG_READ_ONLY
+    assert exc.is_catalog_read_only_problem
+    assert exc.read_only_reason == "supplied-by-epistola"
+
+
+def test_a_read_only_reason_that_is_not_a_string_reads_as_none():
+    not_a_string = parse_problem(json.dumps({"title": "Catalog Read Only", "status": 409, "readOnlyReason": 7}), 409)
+    plain = parse_problem(json.dumps({"title": "Conflict", "status": 409}), 409)
+    for exc in (not_a_string, plain):
+        assert exc is not None
+        assert exc.read_only_reason is None
+        assert not exc.is_catalog_read_only_problem

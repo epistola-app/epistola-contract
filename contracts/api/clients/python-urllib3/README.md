@@ -118,6 +118,9 @@ except ProblemDetailException as e:
             for d in e.unreleased_dependencies:  # 409 from release_catalog_draft
                 log.warning("%s/%s/%s uses draft %s (%s)", d.registry, d.namespace,
                             d.catalog_key, d.release_name, d.release_id)
+        case KnownProblemSlugs.CATALOG_READ_ONLY:
+            # any write to a catalog that cannot be changed here
+            log.warning("catalog cannot be changed here: %s", e.read_only_reason)
         case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
             # install_catalog_release / list_available_catalog_releases: 503 when the catalog's
             # source could not be reached (Retry-After may say when), 502 when it answered badly

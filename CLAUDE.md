@@ -196,18 +196,19 @@ The Epistola API manages:
 6. **Releases** - A draft (editable, no version) or released (immutable, with a `version`). Every
    release has a `releaseId` and keeps it and its name when it is released; a released release is
    addressed by either.
-   An authored catalog has any number of drafts, all alike: each named, started from a release (its fixed **base**) or another draft, and released on its
+   A catalog has any number of drafts, all alike: each named, started from a release (its fixed **base**) or another draft, and released on its
    own, given its version from what it changed against its base (a fix to an older line is `1.4.1` after
    `2.0.0`). Drafts are independent copies: nothing is merged, and a draft is **behind** releases
    whose version is below the one it would get (above its base, or released after it started). In a
    draft, a dependency may name another catalog's draft; releasing takes such drafts along
    (`releaseDependencies`) or is refused (ADR 0002). Importing an archive (`importCatalog`) installs
    the release it carries next to the catalog's other releases, never into a draft. Nothing is
-   upgraded: a subscribed catalog lists the releases its source offers that the tenant lacks
-   (`listAvailableCatalogReleases`, older lines included) and installs one fetched from its source
-   the same way (`installCatalogRelease`), with nothing updated in place or removed; a source that
-   cannot be used is 503/502 `catalog-source-unavailable`. The import that creates a catalog names its type
-   (`authored` or `subscribed`, no default); an import never changes it (ADR 0003)
+   upgraded: a catalog with a source (`CatalogDto.source`) lists the releases it offers that the
+   tenant lacks (`listAvailableCatalogReleases`, older lines included) and installs one fetched from
+   it the same way (`installCatalogRelease`), with nothing updated in place or removed; a source
+   that cannot be used is 503/502 `catalog-source-unavailable`. There are no catalog types: whether
+   a catalog can be changed is the installation's (`CatalogDto.editable`, `readOnlyReason`), and
+   every write to one that cannot is 409 `catalog-read-only`
 7. **Generation** - Async document generation with batch support, from a release, or from a draft
    deployed to the environment the request names
 

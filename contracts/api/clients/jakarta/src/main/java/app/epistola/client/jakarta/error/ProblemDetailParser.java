@@ -50,6 +50,7 @@ public final class ProblemDetailParser {
         private final List<InvalidDataField> invalidFields;
         private final List<MissingDependency> missingDependencies;
         private final List<UnreleasedDependency> unreleasedDependencies;
+        private final String readOnlyReason;
 
         ParsedProblem(
                 ProblemDetail problem,
@@ -58,8 +59,10 @@ public final class ProblemDetailParser {
                 List<MissingDataField> missingFields,
                 List<InvalidDataField> invalidFields,
                 List<MissingDependency> missingDependencies,
-                List<UnreleasedDependency> unreleasedDependencies) {
+                List<UnreleasedDependency> unreleasedDependencies,
+                String readOnlyReason) {
             this.problem = problem;
+            this.readOnlyReason = readOnlyReason;
             this.errors = errors;
             this.validationErrors = validationErrors;
             this.missingFields = missingFields;
@@ -114,6 +117,14 @@ public final class ProblemDetailParser {
         public List<UnreleasedDependency> unreleasedDependencies() {
             return unreleasedDependencies;
         }
+
+        /**
+         * Why a {@code catalog-read-only} problem refused a write, as sent; {@code null} when absent
+         * or not a string.
+         */
+        public String readOnlyReason() {
+            return readOnlyReason;
+        }
     }
 
     /**
@@ -157,7 +168,8 @@ public final class ProblemDetailParser {
                     readArray(root, ProblemExtensionMembers.MISSING_FIELDS, MissingDataField[].class),
                     readArray(root, ProblemExtensionMembers.INVALID_FIELDS, InvalidDataField[].class),
                     readMissingDependencies(root),
-                    readUnreleasedDependencies(root));
+                    readUnreleasedDependencies(root),
+                    stringMember(root, ProblemExtensionMembers.READ_ONLY_REASON));
         } catch (RuntimeException e) {
             return null;
         }

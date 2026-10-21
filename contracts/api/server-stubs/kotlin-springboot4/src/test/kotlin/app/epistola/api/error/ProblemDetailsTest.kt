@@ -4,6 +4,7 @@
 
 package app.epistola.api.error
 
+import app.epistola.api.model.CatalogReadOnlyReason
 import app.epistola.api.model.DataModelValidationError
 import app.epistola.api.model.MissingReleaseDependency
 import app.epistola.api.model.MissingReleaseDependencyReason
@@ -95,6 +96,14 @@ class ProblemDetailsTest {
         assertEquals(URI.create("https://epistola.app/errors/release-dependencies-unreleased"), problem.type)
         assertEquals(409, problem.status)
         assertEquals(unreleased, problem.properties?.get("unreleasedDependencies"))
+    }
+
+    @Test
+    fun `catalogReadOnly says why the catalog cannot be changed, as a 409 with the wire value`() {
+        val problem = ProblemDetails.catalogReadOnly(CatalogReadOnlyReason.SUPPLIED_BY_EPISTOLA, detail = "system is supplied by Epistola")
+        assertEquals(URI.create("https://epistola.app/errors/catalog-read-only"), problem.type)
+        assertEquals(409, problem.status)
+        assertEquals("supplied-by-epistola", problem.properties?.get("readOnlyReason"))
     }
 
     @Test

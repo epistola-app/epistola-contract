@@ -262,6 +262,20 @@ class ApiExceptionMapperTest {
     }
 
     @Test
+    void a_catalog_read_only_problem_says_why() {
+        ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
+                StubServer.StubResponse.of(409, PROBLEM_JSON,
+                        """
+                        {"type": "https://epistola.app/errors/catalog-read-only", "title": "Catalog Read Only",
+                         "status": 409, "readOnlyReason": "editing-disabled"}
+                        """)));
+
+        assertEquals(KnownProblemSlugs.CATALOG_READ_ONLY, e.getTypeSlug());
+        assertTrue(e.isCatalogReadOnlyProblem());
+        assertEquals("editing-disabled", e.getReadOnlyReason());
+    }
+
+    @Test
     void another_problem_lists_no_missing_dependencies() {
         ProblemDetailException e = assertThrows(ProblemDetailException.class, () -> callGetTenant(request ->
                 StubServer.StubResponse.of(409, PROBLEM_JSON,
@@ -271,6 +285,8 @@ class ApiExceptionMapperTest {
         assertTrue(e.getMissingDependencies().isEmpty());
         assertFalse(e.isReleaseDependenciesUnreleasedProblem());
         assertTrue(e.getUnreleasedDependencies().isEmpty());
+        assertFalse(e.isCatalogReadOnlyProblem());
+        assertNull(e.getReadOnlyReason());
     }
 
     private static void callGetTenant(Function<StubServer.RecordedRequest, StubServer.StubResponse> responder) {

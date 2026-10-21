@@ -482,8 +482,8 @@ public static class Driver
 
     /// <summary>
     /// Imports a catalog archive from bytes, as a <c>FileParameter</c> with the scenario's filename
-    /// and content type. <c>registry</c>, <c>namespace</c> and <c>catalogType</c> go out only when
-    /// the scenario sets them. A refusal is reported by its problem.
+    /// and content type. <c>registry</c> and <c>namespace</c> go out only when the scenario sets
+    /// them. A refusal is reported by its problem.
     /// </summary>
     private static void ImportCatalog(string baseUrl, JsonElement config)
     {
@@ -496,8 +496,7 @@ public static class Driver
                 Str(config, "tenantKey"),
                 new FileParameter(Str(config, "filename"), Str(config, "fileContentType"), content),
                 registry: OptStr(config, "registry"),
-                @namespace: OptStr(config, "namespace"),
-                catalogType: OptStr(config, "catalogType") is { } catalogType ? Parse<CatalogType>(catalogType) : null);
+                @namespace: OptStr(config, "namespace"));
         }
         catch (ProblemDetailException e)
         {
@@ -521,7 +520,7 @@ public static class Driver
     }
 
     /// <summary>
-    /// Installs a release a subscribed catalog's source offers, named in the path. A refusal or a
+    /// Installs a release a catalog's source offers, named in the path. A refusal or a
     /// failing source is reported by its problem, missing dependencies included.
     /// </summary>
     private static void InstallCatalogRelease(string baseUrl, JsonElement config)
@@ -560,7 +559,7 @@ public static class Driver
     }
 
     /// <summary>
-    /// Lists the releases a subscribed catalog's source offers that the tenant lacks, reporting
+    /// Lists the releases a catalog's source offers that the tenant lacks, reporting
     /// every one in order. A failing source is reported by its problem.
     /// </summary>
     private static void ListAvailableCatalogReleases(string baseUrl, JsonElement config)

@@ -243,6 +243,34 @@ libraries.
 
 ### Changed
 
+- **BREAKING: catalogs have no type; whether one can be changed is the installation's.** Following
+  Epistola Suite's ADR 0032, every catalog has releases and drafts, wherever its releases come
+  from. `CatalogType` (`authored`, `subscribed`) and `CatalogDto.type` are removed, and so is the
+  `catalogType` member of `AttributeDto`, `CodeListDto`, `FontDto` and `ImageDto`.
+  `CatalogDto` gains `editable` (required: whether the catalog can be changed in this
+  installation), `readOnlyReason` (the values of `CatalogReadOnlyReason`, null or absent exactly
+  when `editable` is true: `editing-disabled`, the installation only receives and runs releases,
+  or `supplied-by-epistola`, the server supplies the catalog and replaces it on upgrade) and
+  `source` (required, nullable: a URI saying where its releases come from, `exchange:…`, `oci:…`,
+  `https://…`, `classpath:…`; null when releases only arrive by import or are made here). The resource DTOs keep
+  `readOnly`, now defined by the catalog's `editable`. `highestVersion` is the highest release
+  wherever it was made. `importCatalog` loses its `catalogType` form field: an import installs the
+  release beside the catalog's others, and a catalog it creates is a catalog like any other; the
+  `import-catalog-type-conflict` conformance scenario is gone with it. An archive from before wire
+  v8 is imported only when the request names its `registry` and `namespace`; neither is derived
+  from the tenant key or the installation. `listAvailableCatalogReleases` and
+  `installCatalogRelease` need a source (`CatalogDto.source`) rather than a subscribed catalog,
+  and work whether or not the catalog can be changed, as imports do.
+- **BREAKING: a write to a catalog that cannot be changed is 409 `catalog-read-only`** (a new
+  problem type, `CatalogReadOnlyError`, schema `CatalogReadOnlyProblemDetail`), whose
+  `readOnlyReason` member says why. Every write to a catalog's content or drafts declares it:
+  creating, updating and deleting templates, variants, stencils, themes, attributes, code lists
+  and images, marking them ready, the draft operations (`createCatalogRelease`,
+  `updateCatalogRelease`, `deleteCatalogRelease`, `updateCatalogDependencies`,
+  `markCatalogReady`) and `releaseCatalogDraft`. Before, such a write was a plain 409 `conflict`.
+  Every client's problem parser surfaces `readOnlyReason` (Kotlin and Node.js `readOnlyReason`,
+  Jakarta `getReadOnlyReason()`, .NET `ReadOnlyReason`, Python `read_only_reason`, each with an
+  `is…CatalogReadOnlyProblem` flag); the server stubs add `ProblemDetails.catalogReadOnly`.
 - **A catalog carries its font faces as resources of its release, the bundled `system` catalog
   included**: the family, each face's bytes in the archive and both inside the fingerprint, as for
   images. The catalog model's documentation said bundled system fonts were never exported; nothing

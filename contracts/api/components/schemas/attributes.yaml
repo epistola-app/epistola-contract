@@ -8,8 +8,8 @@ AttributeDto:
       - **Inline values** — `allowedValues` is non-empty; `codeListBinding` is null.
       - **Bound to a code list** — `codeListBinding` is set; `allowedValues` is empty.
 
-    Attributes from a subscribed catalog (e.g. the bundled `system` catalog)
-    are flagged `readOnly: true`. Writes to them via this API return 409.
+    Attributes of a catalog that cannot be changed in this installation (e.g. the bundled `system`
+    catalog) are flagged `readOnly: true`. Writes to them return 409 `catalog-read-only`.
   required:
     - key
     - tenantKey
@@ -17,7 +17,6 @@ AttributeDto:
     - namespace
     - catalogKey
     - displayName
-    - catalogType
     - readOnly
     - allowedValues
     - createdAt
@@ -96,14 +95,12 @@ AttributeDto:
           $ref: './identifiers.yaml#/ResourceKey'
           description: Code list key within that catalog.
           example: bcp-47
-    catalogType:
-      $ref: './catalogs.yaml#/CatalogType'
-      description: The type of the attribute's catalog; a subscribed catalog's attributes are read-only.
     readOnly:
       type: boolean
       description: |
-        True when `catalogType` is `subscribed`. Clients should disable editing
-        affordances; PATCH and DELETE on these attributes return 409.
+        True when the attribute's catalog cannot be changed in this installation (its `CatalogDto.editable`
+        is false; `readOnlyReason` there says why). Clients disable editing affordances; writes to
+        it are refused with 409 `catalog-read-only`.
       example: true
     createdAt:
       type: string
@@ -127,7 +124,6 @@ AttributeDto:
       namespace: epistola
       catalogKey: system
       key: bcp-47
-    catalogType: subscribed
     readOnly: true
     createdAt: "2026-01-16T10:00:00Z"
     lastModified: "2026-05-11T12:00:00Z"
@@ -202,7 +198,7 @@ UpdateAttributeRequest:
     Request body for updating an attribute definition. All fields are optional
     (PATCH semantics). Constraint kind may switch — e.g. unset `codeListBinding`
     and provide `allowedValues` to move from bound to inline. Attempting to
-    update an attribute from a subscribed catalog returns 409.
+    update an attribute of a catalog that cannot be changed returns 409 `catalog-read-only`.
   properties:
     displayName:
       type: string
@@ -269,7 +265,6 @@ AttributeListResponse:
         displayName: Locale
         allowedValues: []
         codeListBinding: { registry: exchange.epistola.app, namespace: epistola, catalogKey: system, key: bcp-47 }
-        catalogType: subscribed
         readOnly: true
         createdAt: "2026-01-16T10:00:00Z"
         lastModified: "2026-05-11T12:00:00Z"
@@ -281,7 +276,6 @@ AttributeListResponse:
         displayName: Priority
         allowedValues: [low, normal, high]
         codeListBinding: null
-        catalogType: authored
         readOnly: false
         createdAt: "2026-01-16T10:30:00Z"
         lastModified: "2026-01-16T10:30:00Z"

@@ -209,6 +209,33 @@ class ProblemDetailErrorHandlerTest {
     }
 
     @Test
+    fun `surfaces why a catalog-read-only problem refused the write`() {
+        val body = """
+            {"type":"https://epistola.app/errors/catalog-read-only","title":"Catalog Read Only","status":409,
+             "readOnlyReason":"editing-disabled"}
+        """.trimIndent()
+
+        val ex = assertFailsWith<ProblemDetailException> {
+            handleErrorResponse(response(HttpStatus.CONFLICT, body))
+        }
+        assertEquals(KnownProblemSlugs.CATALOG_READ_ONLY, ex.typeSlug)
+        assertEquals("editing-disabled", ex.readOnlyReason)
+        assertTrue(ex.isCatalogReadOnlyProblem)
+    }
+
+    @Test
+    fun `a problem without a string readOnlyReason reports none`() {
+        val plain = """{"type":"https://epistola.app/errors/conflict","title":"Conflict","status":409}"""
+        val notAString = """{"type":"https://epistola.app/errors/catalog-read-only","title":"Catalog Read Only","status":409,"readOnlyReason":7}"""
+
+        for (body in listOf(plain, notAString)) {
+            val ex = assertFailsWith<ProblemDetailException> { handleErrorResponse(response(HttpStatus.CONFLICT, body)) }
+            assertNull(ex.readOnlyReason)
+            assertFalse(ex.isCatalogReadOnlyProblem)
+        }
+    }
+
+    @Test
     fun `falls back to a plain exception for non-problem error bodies`() {
         val ex = assertFailsWith<RestClientResponseException> {
             handleErrorResponse(response(HttpStatus.INTERNAL_SERVER_ERROR, "gateway boom", MediaType.TEXT_PLAIN))

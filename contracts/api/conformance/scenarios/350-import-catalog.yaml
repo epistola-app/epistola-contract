@@ -11,9 +11,9 @@ why: >
   and a server that reads them would merge the archive into a draft it was never meant to touch.
 
   `file` must be a file part with its filename and the archive's content type, byte for byte, as
-  for an image upload. `catalogType` is set here, so it must be sent: the import that creates a
-  catalog must name its type, which has no default (contract 2.0); `registry` and `namespace`
-  were not set, so they must not be sent: omitted means the registry and namespace the archive
+  for an image upload. There are no catalog types (contract 2.0, ADR 0032 of Epistola Suite): a
+  client generated from an earlier 2.0 draft still sends `catalogType`, which the contract no
+  longer has. `registry` and `namespace` were not set, so they must not be sent: omitted means the registry and namespace the archive
   names, which only the server reads. A client that fills them in, or sends `null`, imports the
   release into another catalog.
 
@@ -27,7 +27,6 @@ action:
     auth: api-key
     apiKey: epk_conformance_0123456789
     tenantKey: acme-corp
-    catalogType: subscribed
     filename: letters-1.2.0.zip
     fileContentType: application/zip
     # an empty ZIP: the end-of-central-directory record alone
@@ -63,7 +62,7 @@ expect:
             byteLength: 22
             sha256: 8739c76e681f900923b900c9df0ef75cf421d39cabb54650c4b9ad19b6a76d85
           catalogType:
-            value: subscribed
+            absent: true
           registry:
             absent: true
           namespace:

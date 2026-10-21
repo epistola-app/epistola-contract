@@ -197,6 +197,9 @@ try {
         e.getUnreleasedDependencies().forEach(dep -> log.warn("{}/{}/{}: draft {} ({})",
                 dep.getRegistry(), dep.getNamespace(), dep.getCatalogKey(),
                 dep.getReleaseId(), dep.getReleaseName()));
+    } else if (KnownProblemSlugs.CATALOG_READ_ONLY.equals(slug)) {
+        // any write to a catalog that cannot be changed here: editing-disabled or supplied-by-epistola
+        log.warn("catalog cannot be changed here: {}", e.getReadOnlyReason());
     } else if (KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE.equals(slug)) {
         // from installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source
         // could not be reached (Retry-After may say when to retry), 502 when it answered badly

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: EUPL-1.2
 
 import type {
+  CatalogReadOnlyReason,
   DataModelValidationError,
   InvalidDataField,
   MissingDataField,
@@ -31,7 +32,8 @@ import { BLANK_TYPE, slugFor } from './problemTypes.js'
  * shape, `data-model-validation-error`) via {@link validationErrors}; the releases a deployment lacks
  * (`release-dependencies-missing`) via {@link missingDependencies}; the drafts of other catalogs a
  * release would need released first (`release-dependencies-unreleased`) via
- * {@link unreleasedDependencies}. Any *other* member a problem
+ * {@link unreleasedDependencies}; why a catalog cannot be changed (`catalog-read-only`) via
+ * {@link readOnlyReason}. Any *other* member a problem
  * body carries — one the contract does not name, such as `catalog-schema-too-old`'s `version` /
  * `baselineVersion` — is in {@link extensions}.
  */
@@ -166,6 +168,23 @@ export class ProblemDetailException extends ResponseError {
   /** True when this problem listed dependency drafts a release would need released first. */
   get isReleaseDependenciesUnreleasedProblem(): boolean {
     return this.unreleasedDependencies.length > 0
+  }
+
+  /**
+   * Why the catalog cannot be changed, from a `catalog-read-only` problem (409, from any write to
+   * a catalog whose `CatalogDto.editable` is false): `editing-disabled` (the installation only
+   * receives and runs releases) or `supplied-by-epistola` (the server supplies the catalog). Kept
+   * as the string the server sent, so a reason a later contract adds is surfaced; `undefined` for
+   * any other problem, and when the member is not a string.
+   */
+  get readOnlyReason(): CatalogReadOnlyReason | (string & {}) | undefined {
+    const value = this.extensions[ProblemExtensionMembers.READ_ONLY_REASON]
+    return typeof value === 'string' ? value : undefined
+  }
+
+  /** True when this problem said the catalog cannot be changed, and why. */
+  get isCatalogReadOnlyProblem(): boolean {
+    return this.readOnlyReason !== undefined
   }
 }
 

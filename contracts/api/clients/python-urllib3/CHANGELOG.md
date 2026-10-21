@@ -11,6 +11,11 @@ records contract changes; this file records changes to the hand-written library 
 
 ### Added
 
+- `ProblemDetailException.read_only_reason` and `is_catalog_read_only_problem` surface the
+  `readOnlyReason` member of a `catalog-read-only` problem (409, from any write to a catalog that
+  cannot be changed): `editing-disabled` or `supplied-by-epistola`, kept as the wire string; `None`
+  when absent or not a string. The exception's new `read_only_reason=` constructor parameter is
+  optional.
 - `ProblemDetailException.missing_dependencies` and `is_release_dependencies_missing_problem`
   surface a `release-dependencies-missing` problem (409 from `deploy_catalog_release`): each dependency
   release that cannot be had, as a `MissingDependency(registry, namespace,

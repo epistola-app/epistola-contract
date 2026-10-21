@@ -111,6 +111,17 @@ ReleaseDependenciesUnreleasedProblemDetail:
           items:
             $ref: '../schemas/catalogs.yaml#/UnreleasedCatalogDependency'
 
+CatalogReadOnlyProblemDetail:
+  allOf:
+    - $ref: '#/ProblemDetail'
+    - type: object
+      properties:
+        readOnlyReason:
+          $ref: '../schemas/catalogs.yaml#/CatalogReadOnlyReason'
+          description: >-
+            Why the catalog cannot be changed in this installation, as `CatalogDto.readOnlyReason`
+            reports it.
+
 DataModelValidationError:
   type: object
   description: A single data-example validation failure against the data model

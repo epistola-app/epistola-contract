@@ -72,7 +72,7 @@ attributes:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
 
 attributes-key:
   parameters:
@@ -122,8 +122,8 @@ attributes-key:
       Update an attribute definition's `displayName`, `description` and constraint: its inline
       `allowedValues`, or the code list it binds (`codeListBinding`). Omitted members are left as
       they are. The constraint may switch kind, as `UpdateAttributeRequest` describes; mixing both
-      kinds is refused with 400 `validation-error`, and an attribute of a subscribed catalog with
-      409.
+      kinds is refused with 400 `validation-error`, and an attribute of a catalog that cannot be
+      changed with 409 `catalog-read-only`.
       Send the `ETag` from a read as `If-Match` to have the update refused with 412
       `resource-modified` if the resource changed since; without it, the last write wins.
     tags:
@@ -156,7 +156,7 @@ attributes-key:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'
       '412':
         $ref: '../components/responses/problem-responses.yaml#/ResourceModifiedError'
   delete:
@@ -176,4 +176,4 @@ attributes-key:
       '404':
         $ref: '../components/responses/problem-responses.yaml#/NotFoundError'
       '409':
-        $ref: '../components/responses/problem-responses.yaml#/ConflictError'
+        $ref: '../components/responses/problem-responses.yaml#/CatalogReadOnlyError'

@@ -4,6 +4,7 @@
 
 package app.epistola.api.error
 
+import app.epistola.api.model.CatalogReadOnlyReason
 import app.epistola.api.model.DataModelValidationError
 import app.epistola.api.model.MissingReleaseDependency
 import app.epistola.api.model.UnreleasedCatalogDependency
@@ -77,6 +78,12 @@ object ProblemDetails {
      */
     const val UNRELEASED_DEPENDENCIES_PROPERTY: String = ProblemExtensionMembers.UNRELEASED_DEPENDENCIES
 
+    /**
+     * Extension member saying why a catalog cannot be changed. Generated from the
+     * `CatalogReadOnlyProblemDetail` schema, so it stays the name the clients read.
+     */
+    const val READ_ONLY_REASON_PROPERTY: String = ProblemExtensionMembers.READ_ONLY_REASON
+
     // The mapping is shared with the clients, which use it in the other direction.
     private val uris = ProblemTypeUris.of(TYPE_BASE)
 
@@ -139,6 +146,12 @@ object ProblemDetails {
         const val RELEASE_DEPENDENCIES_UNRELEASED: String = KnownProblemSlugs.RELEASE_DEPENDENCIES_UNRELEASED
 
         /**
+         * 409 — the catalog cannot be changed in this installation, so a write to it was refused
+         * (use [catalogReadOnly]).
+         */
+        const val CATALOG_READ_ONLY: String = KnownProblemSlugs.CATALOG_READ_ONLY
+
+        /**
          * 409 — a production environment serves only releases: a draft deployed to it, or an
          * environment that serves a draft marked production.
          */
@@ -157,7 +170,7 @@ object ProblemDetails {
         const val RATE_LIMITED: String = KnownProblemSlugs.RATE_LIMITED
 
         /**
-         * 503 or 502 — a subscribed catalog's source could not be used, so its releases could not
+         * 503 or 502 — a catalog's source could not be used, so its releases could not
          * be listed or installed (use [catalogSourceUnavailable]).
          */
         const val CATALOG_SOURCE_UNAVAILABLE: String = KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE
@@ -246,7 +259,22 @@ object ProblemDetails {
     }
 
     /**
-     * Builds a `catalog-source-unavailable` [ProblemDetail]: a SUBSCRIBED catalog's source (its
+     * Builds a `catalog-read-only` [ProblemDetail] (409): like [of] plus the [readOnlyReason]
+     * extension member, why the catalog cannot be changed in this installation (the
+     * `CatalogReadOnlyProblemDetail` shape from the contract), written as its wire value.
+     */
+    fun catalogReadOnly(
+        readOnlyReason: CatalogReadOnlyReason,
+        detail: String? = null,
+        instance: URI? = null,
+    ): ProblemDetail {
+        val problem = of(HttpStatusCode.valueOf(409), typeFor(KnownProblemSlugs.CATALOG_READ_ONLY), detail, instance)
+        problem.setProperty(READ_ONLY_REASON_PROPERTY, readOnlyReason.value)
+        return problem
+    }
+
+    /**
+     * Builds a `catalog-source-unavailable` [ProblemDetail]: a catalog's source (its
      * registry, through its mirrors) could not be used by `listAvailableCatalogReleases` or
      * `installCatalogRelease`, and nothing was installed. The one problem type is sent with either
      * of two statuses: 503 when the source could not be reached or did not answer in time, 502

@@ -27,7 +27,6 @@ import app.epistola.client.model.CatalogDependencyDto
 import app.epistola.client.model.CatalogDependencyRequirement
 import app.epistola.client.model.CatalogPresetDto
 import app.epistola.client.model.CatalogThemeReference
-import app.epistola.client.model.CatalogType
 import app.epistola.client.model.CatalogReleaseStatus
 import app.epistola.client.model.CreateCatalogReleaseRequest
 import app.epistola.client.model.CreateEnvironmentRequest
@@ -497,9 +496,8 @@ object Driver {
 
     /**
      * Imports a catalog archive from bytes, as a Resource that reports a filename, like an image
-     * upload. `registry`, `namespace` and `catalogType` go out only when configured: `catalogType`
-     * has no default, so an unconfigured one is passed as null and stays off the wire. A refusal is
-     * reported by its problem.
+     * upload. `registry` and `namespace` go out only when configured. A refusal is reported by its
+     * problem.
      */
     private fun importCatalog(baseUrl: String, config: ObjectNode) {
         val filename = config["filename"].asText()
@@ -512,7 +510,6 @@ object Driver {
                 file,
                 registry = config.optionalText("registry"),
                 namespace = config.optionalText("namespace"),
-                catalogType = config.optionalText("catalogType")?.let { CatalogType.decode(it) },
             )
         } catch (e: ProblemDetailException) {
             report(baseUrl, mapOf("problemTypeSlug" to (e.typeSlug ?: "<null>"), "problemStatus" to e.statusCode.value()))
@@ -532,7 +529,7 @@ object Driver {
     }
 
     /**
-     * Installs a release a subscribed catalog's source offers, named in the path. A refusal or a
+     * Installs a release a catalog's source offers, named in the path. A refusal or a
      * failing source is reported by its problem, missing dependencies included.
      */
     private fun installCatalogRelease(baseUrl: String, config: ObjectNode) {
@@ -573,7 +570,7 @@ object Driver {
     }
 
     /**
-     * Lists the releases a subscribed catalog's source offers that the tenant lacks, reporting
+     * Lists the releases a catalog's source offers that the tenant lacks, reporting
      * every one in order. A failing source is reported by its problem.
      */
     private fun listAvailableCatalogReleases(baseUrl: String, config: ObjectNode) {

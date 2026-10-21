@@ -296,6 +296,33 @@ public class ProblemDetailHandlerTest
     }
 
     [Fact]
+    public async Task ThrowsWithTheReasonOfACatalogReadOnlyProblem()
+    {
+        const string body = """
+            {"type": "https://epistola.app/errors/catalog-read-only", "title": "Catalog Read Only",
+             "status": 409, "readOnlyReason": "editing-disabled"}
+            """;
+        var client = ClientReturning(HttpStatusCode.Conflict, "application/problem+json", body);
+
+        var ex = await Assert.ThrowsAsync<ProblemDetailException>(() => client.PostAsync("release", null));
+        Assert.Equal(KnownProblemSlugs.CATALOG_READ_ONLY, ex.TypeSlug);
+        Assert.True(ex.IsCatalogReadOnlyProblem);
+        Assert.Equal("editing-disabled", ex.ReadOnlyReason);
+    }
+
+    [Fact]
+    public void ParseProblemReadsNoReadOnlyReasonThatIsNotAString()
+    {
+        var parsed = ProblemDetailHandler.ParseProblem(
+            """{"type": "https://epistola.app/errors/catalog-read-only", "title": "Catalog Read Only", "status": 409, "readOnlyReason": 7}""");
+        Assert.NotNull(parsed);
+        Assert.Null(parsed!.ReadOnlyReason);
+
+        var plain = ProblemDetailHandler.ParseProblem("""{"type": "https://epistola.app/errors/conflict", "title": "Conflict", "status": 409}""");
+        Assert.Null(plain!.ReadOnlyReason);
+    }
+
+    [Fact]
     public void ParseProblemSkipsMalformedUnreleasedDependencyEntriesOneByOne()
     {
         var parsed = ProblemDetailHandler.ParseProblem("""

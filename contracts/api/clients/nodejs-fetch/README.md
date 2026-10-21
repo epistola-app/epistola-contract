@@ -149,6 +149,10 @@ try {
           log.warn(`${d.registry}/${d.namespace}/${d.catalogKey}: draft ${d.releaseName} (${d.releaseId})`)
         }
         break
+      case KnownProblemSlugs.CATALOG_READ_ONLY:
+        // any write to a catalog that cannot be changed here
+        log.warn(`catalog cannot be changed here: ${e.readOnlyReason}`)
+        break
       case KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE:
         // installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source could
         // not be reached (Retry-After may say when), 502 when it answered badly
@@ -166,10 +170,10 @@ try {
 `ProblemDetailException` extends the generated `ResponseError`, so existing `instanceof
 ResponseError` sites keep working. It exposes `type`, `typeSlug`, `title`, `problemStatus`,
 `detail`, `instance`, `errors`, `validationErrors`, `missingFields`, `invalidFields`,
-`missingDependencies`, `unreleasedDependencies`, `extensions` (every member outside the RFC 9457
-base five), `statusCode`, `rawBody`, `isValidationProblem`, `isDataModelValidationProblem`,
-`isTemplateDataProblem`, `isReleaseDependenciesMissingProblem`, and
-`isReleaseDependenciesUnreleasedProblem`.
+`missingDependencies`, `unreleasedDependencies`, `readOnlyReason`, `extensions` (every member
+outside the RFC 9457 base five), `statusCode`, `rawBody`, `isValidationProblem`,
+`isDataModelValidationProblem`, `isTemplateDataProblem`, `isReleaseDependenciesMissingProblem`,
+`isReleaseDependenciesUnreleasedProblem`, and `isCatalogReadOnlyProblem`.
 
 A `release-dependencies-unreleased` problem (409) means `releaseCatalogDraft` was refused because
 the draft's dependency declarations name drafts of other catalogs, and a release pins only

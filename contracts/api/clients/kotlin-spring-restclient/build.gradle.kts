@@ -111,10 +111,10 @@ openApiGenerate {
     )
 }
 
-// A multipart form field typed by a shared enum schema (importCatalog's `catalogType`, a
-// `CatalogType`) reaches the part as the enum itself, and Spring writes a non-String part with the
-// first converter that takes it: Jackson, which honours the enum's @JsonValue and sends the JSON
-// string `"subscribed"`, quotes included — a value the server cannot match. A form field is text, so
+// A multipart form field typed by a shared enum schema (importCatalog's former `catalogType` was
+// one; none is left, and the patch stays for the next) reaches the part as the enum itself, and
+// Spring writes a non-String part with the first converter that takes it: Jackson, which honours
+// the enum's @JsonValue and sends the JSON string with its quotes — a value the server cannot match. A form field is text, so
 // the generated ApiClient is patched to send an enum part as its wire value (`toString()` returns
 // it on every generated enum). Fails the build if the generator's output stops matching.
 tasks.openApiGenerate {

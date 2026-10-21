@@ -145,7 +145,19 @@ catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.RELEASE_D
 }
 ```
 
-Listing or installing the releases a subscribed catalog's source offers fails with
+Any write to a catalog that cannot be changed in this installation (`CatalogDto.Editable` is false)
+is a `catalog-read-only` problem. `ReadOnlyReason` says why, as the string the server sent:
+`editing-disabled` (the installation only receives and runs releases) or `supplied-by-epistola`
+(the server supplies the catalog):
+
+```csharp
+catch (ProblemDetailException e) when (e.TypeSlug == KnownProblemSlugs.CATALOG_READ_ONLY)
+{
+    Console.WriteLine($"catalog cannot be changed here: {e.ReadOnlyReason}");
+}
+```
+
+Listing or installing the releases a catalog's source offers fails with
 `catalog-source-unavailable` when that source cannot be used: 503 when it could not be reached or
 timed out (a `Retry-After` header may say when to try again), 502 when it answered badly. Nothing
 is installed:

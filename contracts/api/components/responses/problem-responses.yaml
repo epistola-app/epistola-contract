@@ -55,6 +55,24 @@ ConflictError:
         status: 409
         detail: The request conflicts with the current state of the resource
 
+CatalogReadOnlyError:
+  description: >-
+    The request conflicts with the current state of the resource. When the catalog cannot be
+    changed in this installation (`CatalogDto.editable` is false), the problem is
+    `catalog-read-only` and `readOnlyReason` says why: the installation only receives and runs
+    releases (`editing-disabled`), or the server supplies the catalog itself
+    (`supplied-by-epistola`). Other conflicts use `conflict`.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './errors.yaml#/CatalogReadOnlyProblemDetail'
+      example:
+        type: https://epistola.app/errors/catalog-read-only
+        title: Catalog Read Only
+        status: 409
+        detail: "exchange.epistola.app/epistola/system is supplied by Epistola and cannot be changed"
+        readOnlyReason: supplied-by-epistola
+
 ResourceModifiedError:
   description: >-
     The resource changed since the `ETag` sent as `If-Match` was read, so the update was refused and
@@ -98,8 +116,10 @@ ReleaseDependenciesUnreleasedError:
     The request conflicts with the current state of the resource. When the draft's dependency
     declarations name drafts of other catalogs and the request does not release them along
     (`releaseDependencies`), the problem is `release-dependencies-unreleased` and
-    `unreleasedDependencies` lists each such draft. Other conflicts (a draft that is behind releases
-    not acknowledged, a draft taken along that cannot be released) use `conflict`.
+    `unreleasedDependencies` lists each such draft. When the catalog cannot be changed in this
+    installation, the problem is `catalog-read-only` (`readOnlyReason`). Other conflicts (a draft
+    that is behind releases not acknowledged, a draft taken along that cannot be released) use
+    `conflict`.
   content:
     application/problem+json:
       schema:

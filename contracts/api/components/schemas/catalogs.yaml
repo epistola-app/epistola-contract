@@ -1,14 +1,20 @@
 CatalogDto:
   type: object
   description: |
-    A catalog: its identity, type and highest release. It does not list the catalog's releases or
-    drafts; `listCatalogReleases` does, each with its `status` (`?status=draft` for the drafts only).
+    A catalog: its identity, whether it can be changed here, where its releases come from, and its
+    highest release. It does not list the catalog's releases or drafts; `listCatalogReleases` does,
+    each with its `status` (`?status=draft` for the drafts only).
+
+    Every catalog has releases and drafts; there are no catalog types. Whether a catalog can be
+    changed depends on the installation and on whether the server itself supplies it
+    (`editable`, `readOnlyReason`), not on where its releases come from (`source`).
   required:
     - registry
     - namespace
     - catalogKey
     - name
-    - type
+    - editable
+    - source
   properties:
     registry:
       $ref: './identifiers.yaml#/Registry'
@@ -31,15 +37,45 @@ CatalogDto:
     description:
       type: [string, "null"]
       description: Optional description
-    type:
-      $ref: '#/CatalogType'
+    editable:
+      type: boolean
+      description: |
+        Whether the catalog can be changed in this installation: drafts started, edited, discarded,
+        merged into and released. When false, every such write is refused with 409
+        `catalog-read-only`, `readOnlyReason` says why, and a client offers none of them. Receiving
+        releases (`importCatalog`, `installCatalogRelease`), deploying and undeploying them work
+        either way.
+      example: true
+    readOnlyReason:
+      # Inline and not required: the .NET generator types a required enum, or a nullable reference to
+      # one, as non-nullable, so null could not be read. The values are CatalogReadOnlyReason's.
+      type: [string, "null"]
+      enum: [editing-disabled, supplied-by-epistola, null]
+      description: |
+        Why the catalog cannot be changed, one of `CatalogReadOnlyReason`: `editing-disabled` (the
+        installation only receives and runs releases) or `supplied-by-epistola` (the server
+        supplies the catalog and replaces it on upgrade). Null or absent exactly when `editable` is
+        true.
+      example: null
+    source:
+      type: [string, "null"]
+      maxLength: 2048
+      description: |
+        Where the catalog's releases come from, as a URI: `exchange:acme-corp/letters` (an exchange,
+        the catalog's registry), `oci:registry.example.org/acme-corp/letters` (a container
+        registry), `https://catalogs.example.org/letters/catalog.json` (a manifest URL), or
+        `classpath:…` (supplied by the server itself). The scheme names the route; a client treats
+        an unknown one as opaque. Null when releases only arrive by import (`importCatalog`) or are
+        made in this installation. Listing and installing the releases a source offers
+        (`listAvailableCatalogReleases`, `installCatalogRelease`) need one.
+      example: exchange:acme-corp/letters
     highestVersion:
       oneOf:
         - $ref: './identifiers.yaml#/ReleaseVersion'
         - type: 'null'
       description: >-
-        The version of the catalog's highest release. For authored catalogs null until
-        first released. For subscribed catalogs the highest installed release.
+        The version of the catalog's highest release, wherever it was made or received from. Null
+        while the catalog has no release.
       example: "1.4.0"
     fingerprint:
       oneOf:
@@ -68,7 +104,7 @@ CatalogListResponse:
 AvailableCatalogReleases:
   type: object
   description: |
-    The releases the source of a subscribed catalog offers that the tenant has not installed, older
+    The releases a catalog's source offers that the tenant has not installed, older
     lines included, each with what it changed against the closest installed release below it and
     whether the releases it pins are present. Nothing is installed by reading it.
   required:
@@ -102,7 +138,7 @@ AvailableCatalogReleases:
 
 AvailableReleaseDto:
   type: object
-  description: A release the source of a subscribed catalog offers, which the tenant does not have
+  description: A release a catalog's source offers, which the tenant does not have
   required:
     - version
     - comparedTo
@@ -173,7 +209,7 @@ AvailableReleaseDependencyDto:
 InstallCatalogReleaseResponse:
   type: object
   description: |
-    Result of installing a release of a subscribed catalog from its source: the release it
+    Result of installing a release of a catalog from its source: the release it
     installed, or found already present, reported as `ImportCatalogResponse` reports an import.
     Nothing was updated in place or removed. A schema of its own rather than
     `ImportCatalogResponse`: it carries no `catalogName` (the catalog exists already), and its
@@ -364,8 +400,8 @@ CatalogDependencyRequirement:
         - $ref: './identifiers.yaml#/CatalogReleaseId'
         - type: 'null'
       description: |
-        A draft of the catalog depended on, by its `releaseId` (a `CatalogReleaseId`), an authored
-        catalog of this tenant, that this draft renders with live, unreleased changes included. A
+        A draft of the catalog depended on, by its `releaseId` (a `CatalogReleaseId`), in this
+        tenant, that this draft renders with live, unreleased changes included. A
         released release never pins a draft: releasing this draft is refused
         (`release-dependencies-unreleased`) unless the request releases the named draft along with
         it (`releaseDependencies`). Once the named draft is released on its own, the declaration
@@ -442,21 +478,19 @@ UpdateCatalogDependenciesRequest:
       items:
         $ref: '#/CatalogDependencyRequirement'
 
-CatalogType:
+CatalogReadOnlyReason:
   type: string
   enum:
-    - authored
-    - subscribed
+    - editing-disabled
+    - supplied-by-epistola
   description: |
-    Where a catalog's releases come from:
+    Why a catalog cannot be changed in this installation:
 
-    - `authored`: the tenant writes it. Drafts are started, edited and released here.
-    - `subscribed`: published elsewhere. The tenant only installs its releases, from an archive or
-      from its source (`installCatalogRelease`), and its resources are read-only: every write to
-      one is refused with 409.
-
-    The import that creates a catalog names its type, and nothing changes it afterwards.
-  example: authored
+    - `editing-disabled`: the installation only receives and runs releases (it is run-only); no
+      catalog can be changed in it.
+    - `supplied-by-epistola`: the server itself supplies the catalog (such as the bundled `system`
+      catalog) and replaces it on every upgrade, so changes would be lost.
+  example: editing-disabled
 
 CatalogReleaseStatus:
   type: string
@@ -623,7 +657,7 @@ ReleasedChangeDto:
   type: object
   description: |
     A resource a release added, modified or removed against another release: its base, for a release
-    a draft is behind; `comparedTo`, for a release the source of a subscribed catalog offers
+    a draft is behind; `comparedTo`, for a release a catalog's source offers
   required:
     - type
     - key
