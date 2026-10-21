@@ -94,6 +94,85 @@ class CatalogCanonicalizerTest {
     }
 
     @Test
+    fun `golden complete per-resource fingerprints match, and the older per-resource forms keep their values`() {
+        val archive = wireV8Archive()
+        val expected = resource("fingerprints.json").use(mapper::readTree)["completeWireV8ResourceFingerprints"]
+
+        assertEquals(
+            expected.propertyNames().associateWith { expected[it].asString() },
+            CatalogCanonicalizer.completePerResourceFingerprints(archive),
+        )
+        // Pinned before the complete form existed: adding it moves neither older form.
+        assertEquals(WIRE_V8_V1_RESOURCE_FINGERPRINTS, CatalogCanonicalizer.perResourceFingerprints(archive))
+        assertEquals(WIRE_V8_V3_RESOURCE_FINGERPRINTS, CatalogCanonicalizer.currentPerResourceFingerprints(archive))
+        assertEquals(
+            resource("fingerprints.json").use(mapper::readTree)["resourceFingerprints"]["theme/default"].asString(),
+            CatalogCanonicalizer.perResourceFingerprints(goldenArchive()).getValue("theme/default"),
+        )
+    }
+
+    @Test
+    fun `the complete per-resource form follows a change to only what wire v8 added, of that resource alone`() {
+        val original = wireV8Archive()
+        val template = original.resourceDetails.getValue("template/letter").resource as TemplateResource
+        val variant = template.variants.single()
+        val changes = mapOf(
+            "a template's description" to template.copy(description = "Another description."),
+            "a data example's key" to template.copy(dataExamples = template.dataExamples.orEmpty().map { it.copy(key = "other-key") }),
+            "a variant's metadata" to template.copy(
+                variants = listOf(variant.copy(metadata = mapOf("app.epistola.suite" to mapOf("renderingDefaultsVersion" to 7)))),
+            ),
+            "a variant's metadata removed" to template.copy(variants = listOf(variant.copy(metadata = null))),
+        )
+
+        changes.forEach { (what, changed) ->
+            // In memory, so that every form reads the bound model rather than the fixture files.
+            val before = inMemory(original, template)
+            val after = inMemory(original, changed)
+            val complete = CatalogCanonicalizer.completePerResourceFingerprints(before)
+            val completeAfter = CatalogCanonicalizer.completePerResourceFingerprints(after)
+
+            assertEquals(complete.keys, completeAfter.keys, what)
+            assertNotEquals(complete.getValue("template/letter"), completeAfter.getValue("template/letter"), what)
+            assertEquals(complete - "template/letter", completeAfter - "template/letter", "$what moves no other resource")
+            // The older forms do not see the change at all, which is why the complete form exists.
+            assertEquals(CatalogCanonicalizer.perResourceFingerprints(before), CatalogCanonicalizer.perResourceFingerprints(after), what)
+            assertEquals(CatalogCanonicalizer.currentPerResourceFingerprints(before), CatalogCanonicalizer.currentPerResourceFingerprints(after), what)
+        }
+    }
+
+    @Test
+    fun `the complete per-resource form ignores key order and number spelling, and never equals an older form`() {
+        val original = wireV8Archive()
+        val template = original.resourceDetails.getValue("template/letter").resource as TemplateResource
+        fun withMetadata(json: String) = inMemory(
+            original,
+            template.copy(
+                variants = listOf(
+                    template.variants.single().copy(
+                        metadata = mapper.readValue(json, Map::class.java).let {
+                            @Suppress("UNCHECKED_CAST")
+                            (it as Map<String, Map<String, Any?>>)
+                        },
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            CatalogCanonicalizer.completePerResourceFingerprints(withMetadata("""{"b.example":{"y":1,"x":[1,2]},"a.example":{"v":true}}""")),
+            CatalogCanonicalizer.completePerResourceFingerprints(withMetadata("""{"a.example":{"v":true},"b.example":{"x":[1,2],"y":1}}""")),
+        )
+        val complete = CatalogCanonicalizer.completePerResourceFingerprints(original)
+        val older = CatalogCanonicalizer.perResourceFingerprints(original).values + CatalogCanonicalizer.currentPerResourceFingerprints(original).values
+        assertEquals(setOf("template/letter", "theme/default"), complete.keys)
+        complete.values.forEach { value ->
+            assertTrue(Regex("[0-9a-f]{64}").matches(value), value)
+            assertTrue(value !in older, value)
+        }
+    }
+
+    @Test
     fun `variant metadata canonicalizes with sorted keys and Jackson-normalized numbers`() {
         val original = wireV8Archive()
         val template = original.resourceDetails.getValue("template/letter").resource as TemplateResource
@@ -195,7 +274,11 @@ class CatalogCanonicalizerTest {
             assertEquals(CatalogCanonicalizer.fingerprint(withoutBase, version), CatalogCanonicalizer.fingerprint(original, version), "$version")
             assertEquals(CatalogCanonicalizer.fingerprint(withoutBase, version), CatalogCanonicalizer.fingerprint(otherBase, version), "$version")
         }
-        listOf(CatalogCanonicalizer::perResourceFingerprints, CatalogCanonicalizer::currentPerResourceFingerprints).forEach { perResource ->
+        listOf(
+            CatalogCanonicalizer::perResourceFingerprints,
+            CatalogCanonicalizer::currentPerResourceFingerprints,
+            CatalogCanonicalizer::completePerResourceFingerprints,
+        ).forEach { perResource ->
             assertEquals(perResource(withoutBase), perResource(original), perResource.name)
             assertEquals(perResource(withoutBase), perResource(otherBase), perResource.name)
         }
@@ -210,6 +293,10 @@ class CatalogCanonicalizerTest {
         assertNotEquals(
             CatalogCanonicalizer.perResourceFingerprints(first),
             CatalogCanonicalizer.perResourceFingerprints(second),
+        )
+        assertNotEquals(
+            CatalogCanonicalizer.completePerResourceFingerprints(first),
+            CatalogCanonicalizer.completePerResourceFingerprints(second),
         )
     }
 
@@ -494,6 +581,20 @@ class CatalogCanonicalizerTest {
         paths = paths,
         content = content,
     )
+
+    private companion object {
+        /** [perResourceFingerprints][CatalogCanonicalizer.perResourceFingerprints] of the wire-v8 golden catalog. */
+        val WIRE_V8_V1_RESOURCE_FINGERPRINTS = mapOf(
+            "template/letter" to "3ccb2946462c5a73f1e4524617dca7018cf4d244da8939e66da3b88c56423715",
+            "theme/default" to "30edf3c18acf6882267ad37c7cddd60f12b2536c3517c618d36f9ce0610b3e95",
+        )
+
+        /** [currentPerResourceFingerprints][CatalogCanonicalizer.currentPerResourceFingerprints] of the wire-v8 golden catalog. */
+        val WIRE_V8_V3_RESOURCE_FINGERPRINTS = mapOf(
+            "template/letter" to "3ccb2946462c5a73f1e4524617dca7018cf4d244da8939e66da3b88c56423715",
+            "theme/default" to "30edf3c18acf6882267ad37c7cddd60f12b2536c3517c618d36f9ce0610b3e95",
+        )
+    }
 
     private fun resource(path: String) = requireNotNull(javaClass.getResourceAsStream("/META-INF/epistola-catalog/fixtures/v1/$path"))
 }

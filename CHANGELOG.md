@@ -11,6 +11,17 @@ libraries.
 
 ### Added
 
+- **A complete per-resource fingerprint** (catalog library).
+  `CatalogCanonicalizer.completePerResourceFingerprints` maps every `type/key` resource to a hash of
+  its complete wire-v8 content, as V5 covers it: the per-resource counterpart of
+  `currentFingerprint`, under the v8 member names, covering a template's `description`, a variant's
+  `metadata` and a data example's `key`, an image's bytes included, under its own domain prefix
+  (`resource sha256-v5`). It is what a consumer should use to tell resources apart when merging or
+  diffing; `perResourceFingerprints` (V1) and `currentPerResourceFingerprints` (V3) leave those
+  members out, so a change to only them did not show, and keep their values. ADR 0005 now names it
+  as what the merge compares. The published `fingerprints.json` pins it for the wire-v8 golden
+  catalog (`completeWireV8ResourceFingerprints`). Kotlin only: the npm package exports no
+  fingerprint functions.
 - **A missing merge base (alpha, `x-experimental`, ADR 0005).** A merge compares against the merge
   base, the closest release both the draft and the release descend from, so it needs that release
   installed. `previewCatalogDraftMerge` still answers without it: `CatalogDraftMergePreview` gains an

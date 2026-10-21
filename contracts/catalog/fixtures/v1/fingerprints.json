@@ -12,5 +12,9 @@
   "currentWireV8CatalogFingerprint": "b2fd4b585b81b0eee4776033c02c991f43393fb8d6c655d688f4f924a0c3e520",
   "resourceFingerprints": {
     "theme/default": "30edf3c18acf6882267ad37c7cddd60f12b2536c3517c618d36f9ce0610b3e95"
+  },
+  "completeWireV8ResourceFingerprints": {
+    "template/letter": "cbee031145e88408e65c6d0dcfe493277ca3c494787fd04f8414adc3334a0db5",
+    "theme/default": "2e5f86b774ffafabac9116a067dcef62d8eb246bda740c312c783a3132303766"
   }
 }
