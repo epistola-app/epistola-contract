@@ -5,7 +5,7 @@
 package app.epistola.template.model
 
 import com.fasterxml.jackson.annotation.JsonAlias
-import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
@@ -172,24 +172,22 @@ class ThemeRefInherit : ThemeRef() {
 }
 
 /**
- * Override with a specific theme by key, optionally from a specific catalog.
+ * Override with a specific theme by key, optionally from another catalog.
+ *
+ * An earlier draft of catalog wire v8 also named the theme's catalog by `namespace` and `registry`.
+ * They are ignored when binding, so that documents stored with them still bind; the catalog
+ * migrator's wire check refuses them in a v8 archive.
  *
  * @property themeKey Key of the theme: its public address within its catalog. Until catalog wire v8
  *   the member was called `themeId`; binding reads either name, so that documents stored under
  *   earlier versions still bind.
- * @property catalogKey Catalog containing the theme. Null means same catalog as the owning template.
- * @property namespace Namespace of the catalog containing the theme. Null means the owning
- *   template's catalog namespace.
- * @property registry Registry of the catalog containing the theme. Null means the owning
- *   template's catalog registry, never an installation default. Naming a registry requires naming
- *   a [namespace].
+ * @property catalogKey The alias of the catalog containing the theme, as the owning catalog's
+ *   dependency list declares it (catalog wire v8, contract ADR 0003). Null, or the owning catalog's own key,
+ *   means the same catalog as the owning template.
  */
+@JsonIgnoreProperties("namespace", "registry")
 data class ThemeRefOverride(
     @JsonAlias("themeId")
     val themeKey: String,
     val catalogKey: String? = null,
-    @get:JsonInclude(JsonInclude.Include.NON_NULL)
-    val namespace: String? = null,
-    @get:JsonInclude(JsonInclude.Include.NON_NULL)
-    val registry: String? = null,
 ) : ThemeRef()

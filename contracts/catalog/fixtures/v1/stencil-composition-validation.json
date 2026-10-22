@@ -9,7 +9,7 @@
     },
     {
       "scope": "template",
-      "scenario": "STENCIL_DEFINITION_REFERENCES_SAME_KEY_IN_ANOTHER_NAMESPACE"
+      "scenario": "STENCIL_DEFINITION_REFERENCES_SAME_KEY_IN_ANOTHER_CATALOG"
     },
     {
       "scope": "catalog",

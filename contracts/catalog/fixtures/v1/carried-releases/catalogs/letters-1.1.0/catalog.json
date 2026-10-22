@@ -24,6 +24,7 @@
   "dependencies": [],
   "catalogDependencies": [
     {
+      "alias": "shared",
       "registry": "exchange.epistola.app",
       "namespace": "acme",
       "catalogKey": "shared",
@@ -31,6 +32,7 @@
       "releaseFingerprint": "v5:750846c6a7abca5984e548ee1b64bfb14f6160f0ba0f94d050346bbaeb0afc3a"
     },
     {
+      "alias": "base",
       "registry": "exchange.epistola.app",
       "namespace": "acme",
       "catalogKey": "base",

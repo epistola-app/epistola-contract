@@ -23,28 +23,23 @@
   "dependencies": [
     {
       "type": "theme",
-      "registry": "exchange.epistola.app",
-      "namespace": "acme-corp",
       "catalogKey": "shared",
       "key": "corporate"
     },
     {
       "type": "stencil",
-      "registry": "exchange.epistola.app",
-      "namespace": "acme-corp",
       "catalogKey": "shared",
       "key": "address-block"
     },
     {
       "type": "image",
-      "registry": "exchange.epistola.app",
-      "namespace": "acme-corp",
       "catalogKey": "brand",
       "key": "logo"
     }
   ],
   "catalogDependencies": [
     {
+      "alias": "brand",
       "registry": "exchange.epistola.app",
       "namespace": "acme-corp",
       "catalogKey": "brand",
@@ -52,6 +47,7 @@
       "releaseFingerprint": null
     },
     {
+      "alias": "shared",
       "registry": "exchange.epistola.app",
       "namespace": "acme-corp",
       "catalogKey": "shared",

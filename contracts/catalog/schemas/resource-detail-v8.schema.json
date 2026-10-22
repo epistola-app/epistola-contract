@@ -68,7 +68,7 @@
           "maxLength": 2000
         },
         "themeKey": {
-          "description": "Key of the template's default theme. Qualified by themeCatalogKey, themeNamespace and themeRegistry when the theme lives in another catalog. Until wire v8 this member was called themeId.",
+          "description": "Key of the template's default theme. When the theme lives in another catalog, themeCatalogKey names that catalog's alias. Until wire v8 this member was called themeId.",
           "type": [
             "string",
             "null"
@@ -78,23 +78,14 @@
           "maxLength": 50
         },
         "themeCatalogKey": {
+          "description": "The alias of the catalog holding the template's theme, as the manifest's catalogDependencies declares it (contract ADR 0003). Null, omitted or the catalog's own key means the template's own catalog.",
           "type": [
             "string",
             "null"
-          ]
-        },
-        "themeNamespace": {
-          "description": "Namespace of the catalog holding the theme. Omitted means the template's own catalog namespace.",
-          "type": "string",
+          ],
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 3,
-          "maxLength": 63,
-          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
-        },
-        "themeRegistry": {
-          "description": "Registry of the catalog holding the theme. Omitted means the template's own catalog registry, never an installation default. Requires themeNamespace.",
-          "type": "string",
-          "maxLength": 253,
-          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
+          "maxLength": 50
         },
         "pdfaEnabled": {
           "type": "boolean",
@@ -136,11 +127,6 @@
         "templateModel",
         "variants"
       ],
-      "dependentRequired": {
-        "themeRegistry": [
-          "themeNamespace"
-        ]
-      },
       "additionalProperties": false
     },
     "ThemeResource": {
@@ -425,40 +411,26 @@
       "type": "object",
       "properties": {
         "catalogKey": {
+          "description": "The alias of the catalog holding the code list, as the manifest's catalogDependencies declares it (contract ADR 0003). Null, omitted or the catalog's own key means the attribute's own catalog.",
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
         },
         "key": {
-          "description": "Key of the code list within the catalog named by catalogKey, namespace and registry. Until wire v8 this member was called slug.",
+          "description": "Key of the code list within the catalog catalogKey names. Until wire v8 this member was called slug.",
           "type": "string",
           "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
           "minLength": 3,
           "maxLength": 50
-        },
-        "namespace": {
-          "description": "Namespace of the catalog holding the code list. Omitted means the attribute's own catalog namespace.",
-          "type": "string",
-          "minLength": 3,
-          "maxLength": 63,
-          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
-        },
-        "registry": {
-          "description": "Registry of the catalog holding the code list. Omitted means the attribute's own catalog registry, never an installation default. Requires namespace.",
-          "type": "string",
-          "maxLength": 253,
-          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
         }
       },
       "required": [
         "key"
       ],
-      "dependentRequired": {
-        "registry": [
-          "namespace"
-        ]
-      },
       "additionalProperties": false
     },
     "CodeListEntryEntry": {
@@ -558,7 +530,7 @@
         "attributes": {
           "oneOf": [
             {
-              "description": "The variant's attribute values, keyed by attribute key: the same rule as every resource key, qualified as <catalogKey>.<key> when the attribute is another catalog's (system.locale). Each part keeps its own bounds (3 to 50 characters).",
+              "description": "The variant's attribute values, keyed by attribute key: the same rule as every resource key, qualified as <alias>.<key> when the attribute is another catalog's (system.locale), by the alias the manifest's catalogDependencies declares for that catalog. Each part keeps its own bounds (3 to 50 characters).",
               "type": "object",
               "additionalProperties": {
                 "type": "string"

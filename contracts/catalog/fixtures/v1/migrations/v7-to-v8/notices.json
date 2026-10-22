@@ -10,43 +10,13 @@
     "message": "catalog was given the namespace 'acme-corp'"
   },
   {
-    "code": "CATALOG_DEPENDENCY_REGISTRY_ASSIGNED",
-    "path": "catalog.json.dependencies[0].registry",
-    "message": "dependency was given the catalog's registry 'exchange.epistola.app'"
-  },
-  {
-    "code": "CATALOG_DEPENDENCY_NAMESPACE_ASSIGNED",
-    "path": "catalog.json.dependencies[0].namespace",
-    "message": "dependency was given the catalog's namespace 'acme-corp'"
-  },
-  {
-    "code": "CATALOG_DEPENDENCY_REGISTRY_ASSIGNED",
-    "path": "catalog.json.dependencies[1].registry",
-    "message": "dependency was given the catalog's registry 'exchange.epistola.app'"
-  },
-  {
-    "code": "CATALOG_DEPENDENCY_NAMESPACE_ASSIGNED",
-    "path": "catalog.json.dependencies[1].namespace",
-    "message": "dependency was given the catalog's namespace 'acme-corp'"
-  },
-  {
-    "code": "CATALOG_DEPENDENCY_REGISTRY_ASSIGNED",
-    "path": "catalog.json.dependencies[2].registry",
-    "message": "dependency was given the catalog's registry 'exchange.epistola.app'"
-  },
-  {
-    "code": "CATALOG_DEPENDENCY_NAMESPACE_ASSIGNED",
-    "path": "catalog.json.dependencies[2].namespace",
-    "message": "dependency was given the catalog's namespace 'acme-corp'"
-  },
-  {
     "code": "CATALOG_DEPENDENCY_CATALOG_DECLARED",
     "path": "catalog.json.catalogDependencies[0]",
-    "message": "catalog 'brand' in namespace 'acme-corp' of registry 'exchange.epistola.app' was declared as a dependency that pins no release; pin the release this catalog renders with"
+    "message": "catalog 'brand' in namespace 'acme-corp' of registry 'exchange.epistola.app', which a resource dependency names, was declared under the alias 'brand' as a dependency that pins no release; pin the release this catalog renders with"
   },
   {
     "code": "CATALOG_DEPENDENCY_CATALOG_DECLARED",
     "path": "catalog.json.catalogDependencies[1]",
-    "message": "catalog 'shared' in namespace 'acme-corp' of registry 'exchange.epistola.app' was declared as a dependency that pins no release; pin the release this catalog renders with"
+    "message": "catalog 'shared' in namespace 'acme-corp' of registry 'exchange.epistola.app', which a resource dependency names, was declared under the alias 'shared' as a dependency that pins no release; pin the release this catalog renders with"
   }
 ]

@@ -34,17 +34,21 @@ versions catalogs as a whole:
   namespace is a slug within that registry (`acme-corp`); the same name in two registries is two
   namespaces. (This registry is part of a catalog's identity, unrelated to the component and style
   registries below.)
-- `catalogDependencies` declares each catalog the catalog depends on once, with its `registry`,
-  `namespace` and `catalogKey`, the exact `releaseVersion` it pins (the catalog renders with
-  that release and was cut with it; a declaration names no range), and that release's fingerprint,
-  `releaseFingerprint`, copied from its `release.fingerprint` in the form that names the algorithm
-  (`v5:<hex>`), so a copy fetched from any registry or mirror can be checked. Both are null
-  only for a catalog migrated from wire v7. Every catalog named by a resource dependency must be
-  declared there, and each resource dependency names its catalog's `registry` and `namespace`.
-- References inside resource content (a theme override, a stencil node, a code-list binding, a
-  template's theme, a font) may add an optional `registry` and `namespace`; each omitted one means
-  the owning catalog's, never an installation default. A `registry` without a `namespace` is
-  invalid.
+- `catalogDependencies` declares each catalog the catalog depends on once: under an **alias**
+  (`alias`, the catalog key rule, unique in the list, never the catalog's own key, and by default
+  the depended-on catalog's own key), by its name (`registry`, `namespace` and `catalogKey`, which
+  finds newer releases of it), and with the release it pins: `releaseFingerprint`, copied from that
+  release's `release.fingerprint` in the form that names the algorithm (`v5:<hex>`), so a copy
+  fetched from any registry or mirror can be checked, and `releaseVersion`, the number it had (the
+  catalog renders with that release and was cut with it; a declaration names no range). Both are
+  null only for a catalog migrated from wire v7.
+- Content names another catalog by that **alias**, never by registry or namespace (contract ADR
+  0003): a theme override's, a stencil or image node's, a font reference's and a code-list
+  binding's `catalogKey`, a template's `themeCatalogKey`, the catalog's `defaultTheme.catalogKey`,
+  the qualifier of a variant's attribute key (`system.locale`), and each resource dependency's
+  `catalogKey`. Every alias must be declared; a reference naming no alias, or the catalog's own
+  key, is to the catalog itself. Moving a dependency to another release changes one declaration,
+  and renaming or mirroring it changes no content (`CatalogAliases`, `CATALOG_ALIAS_PATTERN`).
 - Stencils carry no version: `StencilResource.version` is gone, and a stencil node carries no
   `version` or `draftVersion`. A stencil resolves through its catalog's dependency.
 - A resource's public address is its `key`; an `id` is only ever a generated identifier that is
@@ -82,14 +86,17 @@ versions catalogs as a whole:
 A v7 archive names no registry or namespace, so migrating one needs both from the importer: pass
 `CatalogMigrationOptions(namespace, registry)` to `CatalogSchemaMigrator.migrateManifest`,
 `CatalogArchiveReader.read`, or `CatalogValidationPolicy(migration = ...)`. Without them, migration
-fails with `CATALOG_REGISTRY_MISSING` or `CATALOG_NAMESPACE_MISSING`.
+fails with `CATALOG_REGISTRY_MISSING` or `CATALOG_NAMESPACE_MISSING`. Every other catalog a v7
+archive names, in its resource dependencies or (read whole) in its content, is declared in that
+registry and namespace under its key as the alias, so its references keep their values.
 
 Catalog keyword rules are defined once: `CatalogKeywords` in Kotlin (limits, pattern, and
 normalization) and `MAX_CATALOG_KEYWORD_LENGTH`, `MAX_CATALOG_KEYWORDS`, and
 `CATALOG_KEYWORD_PATTERN` in TypeScript, all pinned to the current schema. Registry and namespace
 rules are defined the same way: `CatalogNamespaces` in Kotlin, and `CATALOG_REGISTRY_PATTERN`,
 `MAX_CATALOG_REGISTRY_LENGTH`, `CATALOG_NAMESPACE_PATTERN`, `MIN_CATALOG_NAMESPACE_LENGTH`,
-and `MAX_CATALOG_NAMESPACE_LENGTH` in TypeScript.
+and `MAX_CATALOG_NAMESPACE_LENGTH` in TypeScript; and the alias rule, `CatalogAliases` and
+`CATALOG_ALIAS_PATTERN`, `MIN_CATALOG_ALIAS_LENGTH` and `MAX_CATALOG_ALIAS_LENGTH`.
 Paths into the catalog are `CatalogArchivePaths` and `CATALOG_ARCHIVE_PATH_PATTERN`; variant
 metadata is `CatalogVariantMetadata` and the `…VARIANT_METADATA…` constants, whose rules a
 release's `metadata` follows too; a release id is `CatalogReleaseIds` and

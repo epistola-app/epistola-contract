@@ -117,6 +117,17 @@ host on the way. Without either, a v7 or older archive is refused with `CATALOG_
 `CATALOG_NAMESPACE_MISSING`; an archive at v8 names its own and ignores the options. `CatalogValidator.validate(input, policy)` takes it as
 `CatalogValidationPolicy(migration = ...)`.
 
+Content names another catalog by an alias from wire v8 (see "Dependencies: an Alias, a Name and a
+Pin" below). A v7 catalog's content lived in one tenant, so every other catalog it named sat in the
+same registry and namespace, named by its key. The reader declares each such catalog in
+`catalogDependencies`, under its key as the alias and pinning no release, whether the manifest's
+resource dependencies name it or only the content does (`CATALOG_DEPENDENCY_CATALOG_DECLARED`), so
+every reference keeps its value. A key that cannot be an alias is not declared
+(`CATALOG_DEPENDENCY_ALIAS_INVALID`, at the reference). A reference qualified with a registry or
+namespace, which the template document schema shared with v5 to v7 allowed in a theme reference, is
+mapped to the alias of the catalog it names (`CATALOG_REFERENCE_ALIASED`); one naming a catalog in
+another namespace cannot be (`CATALOG_REFERENCE_ALIAS_UNRESOLVED`).
+
 The writer only emits the current wire version. Re-exporting a migrated catalog that carried a
 fingerprint replaces it with the current algorithm's, in the form that names it (`v5:<hex>`).
 
@@ -134,17 +145,47 @@ be checked with the algorithm that computed it. A verifier computes exactly the 
 algorithm covers less: V4 covers no identity and no dependencies, so a copy that differs only there
 would match it.
 
-## Dependency Release Fingerprints
+## Dependencies: an Alias, a Name and a Pin
 
-Each `catalogDependencies` entry pins the exact release of the dependency the catalog renders
-with, and that the archive's release was cut with, `releaseVersion`, and that release's fingerprint, `releaseFingerprint`, copied verbatim
-from that release's own `release.fingerprint` (`v5:<hex>`). An installation that fetches the
-dependency release from any registry or mirror checks the copy against it, with the algorithm it
-names. A `releaseFingerprint` naming an algorithm this library does not know is invalid. Both are null for a dependency of an archive migrated from wire v7,
-which never recorded a release; otherwise both are set. The migrator's wire check and
-`CatalogValidator` report any other pairing, or a malformed fingerprint, as
-`CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`. The Kotlin model binds either alone, so manifests
-stored without the member still load.
+Each `catalogDependencies` entry declares one catalog the catalog depends on (contract ADR 0003):
+
+```json
+{
+  "alias": "branding",
+  "registry": "registry.gemeente-x.nl", "namespace": "huisstijl", "catalogKey": "branding",
+  "releaseVersion": "1.4.2",
+  "releaseFingerprint": "v5:<fingerprint of that release>"
+}
+```
+
+- **The alias** is how the catalog's content names the dependency. Every reference into it names
+  the alias and a resource key ("theme `corporate` of `branding`"): a reference's `catalogKey`, a
+  template's `themeCatalogKey`, the catalog's `defaultTheme.catalogKey`, a variant attribute key's
+  qualifier, a resource dependency's `catalogKey`. A reference never names a registry or namespace;
+  within the catalog it names a key alone, as before. An alias follows the catalog key rule
+  (`CatalogAliases`), is unique in the list, is never the catalog's own key (content uses that for
+  the catalog itself), and is by default the depended-on catalog's own key: a producer chooses
+  another only when two catalogs it depends on share a key (`acme/letters` and `bureau/letters`).
+  The validator reports an alias content names that the list does not declare
+  (`CATALOG_DEPENDENCY_CATALOG_UNDECLARED`, at the reference), and a missing, malformed, own-key or
+  repeated alias (`CATALOG_DEPENDENCY_ALIAS_INVALID`, `CATALOG_DEPENDENCY_ALIAS_DUPLICATE`).
+- **The name**, `registry`, `namespace` and `catalogKey`, says which catalog the alias stands for,
+  so that an installation finds newer releases of it. Renaming the dependency, or receiving it from
+  a mirror under another name, changes the name here and nothing in the content.
+- **The pin** is `releaseFingerprint`: the fingerprint of the release the catalog renders with and
+  was cut with, copied verbatim from that release's own `release.fingerprint`. An installation that
+  fetches the dependency release from any registry, mirror or file checks the copy against it, with
+  the algorithm it names. `releaseVersion` is the number that release had when it was pinned: a
+  hint for people, and where a carried copy is found (below). A `releaseFingerprint` naming an
+  algorithm this library does not know is invalid. Both are null for a dependency of an archive
+  migrated from wire v7, which never recorded a release; otherwise both are set. The migrator's wire
+  check and `CatalogValidator` report any other pairing, or a malformed fingerprint, as
+  `CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`. The Kotlin model binds either alone, and defaults
+  the alias to the catalog key, so manifests stored without the members still load.
+
+The manifest's resource `dependencies` remain the index of the resources the content uses in other
+catalogs, by alias and key, derived from the content by the producer: a consumer can tell what a
+catalog needs without reading every resource.
 
 ## Dependencies Inside an Archive
 
@@ -157,8 +198,8 @@ pin, an ordinary catalog archive of the pinned release at a path derived from th
 dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip
 ```
 
-The manifest has no member for it: the pin (`registry`, `namespace`, `catalogKey`, `releaseVersion`,
-`releaseFingerprint`) says where to look. So a release's `catalog.json` and its fingerprint are the
+The manifest has no member for it: the declaration (`registry`, `namespace`, `catalogKey`,
+`releaseVersion`, `releaseFingerprint`) says where to look. So a release's `catalog.json` and its fingerprint are the
 same whether it is exported thin or with its dependencies; V5 covers the manifest and the resources,
 never `dependencies/`. `CatalogArchiveWriter` writes the releases in `CatalogArchive.dependencies`
 there and leaves `catalog.json` byte for byte as a thin export writes it.

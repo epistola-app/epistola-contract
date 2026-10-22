@@ -43,15 +43,13 @@ when a consumer is intentionally validating without the full catalog graph;
 only an explicit `MISSING` result produces a missing-reference finding.
 
 Stencil composition is part of the portable specification. From wire v8 a
-stencil node names its stencil by `stencilKey` (`stencilId` until wire v8), optionally qualified by
-`catalogKey`, `namespace` and `registry` (each omitted one means the owning
-catalog's; a `registry` requires a `namespace`), and carries no version: catalogs are versioned as a whole, so the
-stencil reached is the one in the release the catalog dependency pins,
+stencil node names its stencil by `stencilKey` (`stencilId` until wire v8), optionally with the
+`catalogKey` alias of another catalog the owning catalog depends on (contract ADR 0003; omitted, or
+the owning catalog's own key, means the owning catalog), and carries no version: catalogs are
+versioned as a whole, so the stencil reached is the one in the release the catalog dependency pins,
 or the one in the same catalog. The context resolver receives that identity as a
-`CatalogResourceReference`. A node's `version` or `draftVersion` is reported as
-an undeclared property (`TEMPLATE_NODE_PROPERTY_INVALID`), as is a leftover
-`isDraft`; a malformed `namespace` or `registry`, or a `registry` without a
-`namespace`, is `STENCIL_REFERENCE_INVALID`.
+`CatalogResourceReference`. A node's `version`, `draftVersion`, `namespace` or `registry` is
+reported as an undeclared property (`TEMPLATE_NODE_PROPERTY_INVALID`), as is a leftover `isDraft`.
 
 Standalone validation counts the containing stencil as nesting level one and
 rejects a repeated ancestor identity or a chain deeper than five. Consumers
@@ -129,11 +127,11 @@ missing resources, non-assets, non-image media types, and duplicate gallery entr
 stable finding codes. The icon may also appear in the gallery.
 
 From wire v8 (ADR 0007) a catalog may name a `defaultTheme` and declare `presets`. The default theme
-is a theme reference qualified like a template's theme: it resolves against the catalog's own theme
-resources (`CATALOG_RESOURCE_REFERENCE_MISSING`) or, when it names another catalog, through the
-dependency resolver, and that catalog must be declared in `catalogDependencies`
+is a theme reference like a template's theme: it resolves against the catalog's own theme resources
+(`CATALOG_RESOURCE_REFERENCE_MISSING`) or, when it names another catalog's alias, through the
+dependency resolver, and that alias must be declared in `catalogDependencies`
 (`CATALOG_DEPENDENCY_CATALOG_UNDECLARED`). Its key follows the resource key rule, its `catalogKey` the
-catalog key syntax, and a `registry` needs a `namespace`. A declared preset's key is a leading
+alias rule. A declared preset's key is a leading
 lowercase letter, then lowercase letters and digits in hyphen-separated parts, at most 50 characters
 (`CATALOG_PRESET_KEY_INVALID`), unique within the catalog (`CATALOG_PRESET_DUPLICATE`); its name is
 nonblank and at most 100 characters (`CATALOG_PRESET_NAME_INVALID`), its description at most 500
@@ -142,12 +140,15 @@ binding. An archive from wire v7 or earlier has neither member and reads as "no 
 "no declared presets".
 
 From wire v8 a catalog names its `registry`, in full, and its `namespace`, and so does every
-resource dependency and `catalogDependencies` entry (`CATALOG_REGISTRY_INVALID`,
-`CATALOG_NAMESPACE_INVALID`, also raised by the migrator's wire check).
-`catalogDependencies` declares each catalog at most once (`CATALOG_DEPENDENCY_CATALOG_DUPLICATE`),
-never the catalog itself (`CATALOG_DEPENDENCY_CATALOG_SELF`, which also applies to a resource
-dependency naming the catalog itself), pinning, unless migrated from wire v7, an exact
-`releaseVersion`, never a range (`CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`).
+`catalogDependencies` entry (`CATALOG_REGISTRY_INVALID`, `CATALOG_NAMESPACE_INVALID`, also raised by
+the migrator's wire check). `catalogDependencies` declares each catalog at most once
+(`CATALOG_DEPENDENCY_CATALOG_DUPLICATE`), never the catalog itself
+(`CATALOG_DEPENDENCY_CATALOG_SELF`, which also applies to a resource dependency naming the
+catalog's own key), under an `alias` that follows the catalog key rule and is not the catalog's own
+key (`CATALOG_DEPENDENCY_ALIAS_INVALID`, also raised by the migrator's wire check for a missing or
+malformed one) and is unique in the list (`CATALOG_DEPENDENCY_ALIAS_DUPLICATE`), pinning, unless
+migrated from wire v7, an exact `releaseVersion`, never a range
+(`CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`).
 From wire v8 every release number, `release.version` and a pinned `releaseVersion`, is
 `MAJOR.MINOR.PATCH` without leading zeros, pre-release or build part, at most 50 characters: the
 API's `ReleaseVersion` (`CatalogReleaseVersions`; `CATALOG_RELEASE_VERSION_INVALID` and
@@ -164,12 +165,14 @@ this one, is not checked: the base is kept as given.
 A recorded `releaseVersion` comes with the `releaseFingerprint` of that release, naming a known
 algorithm (`v5:<lowercase SHA-256 hex>`), and an unrecorded one with a null fingerprint
 (`CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID`, also raised by the migrator's wire check).
-Every (registry, namespace, catalog key) a resource dependency names must be declared there
-(`CATALOG_DEPENDENCY_CATALOG_UNDECLARED`); a declaration no resource dependency uses is allowed.
-A reference inside resource content (a code-list binding, a template's theme or theme override, a
-font reference) may omit its registry and namespace, each meaning the owning catalog's. What it
-names is checked with `CATALOG_REGISTRY_INVALID` and `CATALOG_NAMESPACE_INVALID`, and a registry
-without a namespace is `CATALOG_NAMESPACE_INVALID`.
+Every alias a reference names must be declared there (`CATALOG_DEPENDENCY_CATALOG_UNDECLARED`, at
+the reference): a resource dependency's, the default theme's, and every reference inside content
+-- a template's `themeCatalogKey`, a theme override's, a stencil or image node's, a `fontFamily`
+font reference's (in theme, preset, document or node styles) or a code-list binding's `catalogKey`,
+and the qualifier of a variant's attribute key (`system.locale`). A reference that names no alias,
+or the catalog's own key, is to the catalog itself; a declaration nothing uses is allowed. A
+reference never names a registry or namespace (contract ADR 0003): those are the declaration's, and
+the migrator's wire check refuses them in a v8 document.
 
 From wire v8 every resource key follows one rule, `^[a-z0-9]+(-[a-z0-9]+)*$` with 3 to 50
 characters (`CatalogKeys.RESOURCE`): a resource's key, a variant's key and attribute keys, a resource
@@ -203,9 +206,10 @@ Already-decoded catalogs can use `CatalogValidator.validate(catalog, policy)`, a
 need to validate one resource can use `ResourceValidator`. Cross-catalog resolution is supplied
 through `CatalogDependencyResolver`; returning `UNKNOWN` deliberately suppresses existence
 findings when the complete dependency graph is unavailable. A reference into another catalog
-reaches the resolver with the owning catalog's registry, namespace or key filled in wherever it
-omitted one, never an installation default. A `catalogDependencies` entry pins an exact release;
-whether the consumer has that release is for the consumer to check.
+reaches the resolver as the catalog its alias is declared for: that declaration's catalog key,
+namespace and registry, never the alias. An alias the dependency list does not declare is reported
+and never reaches the resolver. A `catalogDependencies` entry pins an exact release; whether the
+consumer has that release is for the consumer to check.
 
 The validator calls `TemplateValidator` for a template's primary model, each variant model, and
 stencil content. It rejects unsupported template `modelVersion` values, validates the parameter

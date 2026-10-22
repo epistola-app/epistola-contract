@@ -384,6 +384,48 @@ libraries.
 
 ### Changed
 
+- **BREAKING (catalog wire v8, unreleased, changed in place): content names another catalog by an
+  alias** (contract ADR 0003, amendment of 2026-10-22; Epistola Suite ADR 0034). A
+  `catalogDependencies` entry gains a required `alias` (the catalog key rule, `CatalogAliases`,
+  `CATALOG_ALIAS_PATTERN`; unique in the list, never the catalog's own key, by default the
+  depended-on catalog's key), and every reference into another catalog names that alias and a
+  resource key: a resource dependency's `catalogKey`, `catalog.defaultTheme.catalogKey`, a template's
+  `themeCatalogKey`, a theme override's, stencil or image node's, `fontFamily` reference's and
+  code-list binding's `catalogKey`, and a variant attribute key's qualifier (`system.locale`). The
+  `registry` and `namespace` that references gained earlier in v8 (and `themeRegistry` /
+  `themeNamespace`) are removed again: they are the declaration's, so renaming or mirroring a
+  dependency changes nothing in the content. `registry` and `namespace` stay on `catalog` and each
+  `catalogDependencies` entry.
+  - Validator: every alias a reference names must be declared (`CATALOG_DEPENDENCY_CATALOG_UNDECLARED`,
+    now also at each reference inside content, image nodes and variant attribute qualifiers
+    included); new `CATALOG_DEPENDENCY_ALIAS_INVALID` and `CATALOG_DEPENDENCY_ALIAS_DUPLICATE`. A
+    `CatalogDependencyResolver` receives the declared catalog's key, namespace and registry, never an
+    alias. `ResourceValidationContext` takes `catalogDependencies` in place of `namespace` and
+    `registry`.
+  - Migrator: the wire check requires an alias (`CATALOG_DEPENDENCY_ALIAS_INVALID`) and refuses a
+    `registry`, `namespace`, `themeRegistry` or `themeNamespace` left in a v8 reference
+    (`CATALOG_SCHEMA_UNKNOWN`). The v7-to-v8 migration declares each other catalog a v7 archive names
+    under its key as the alias, so references keep their values; the archive reader also declares
+    those only the content names. A reference qualified with a registry or namespace (the schema
+    shared with v5 to v7 allowed one in a theme reference) is mapped to the alias
+    (`CATALOG_REFERENCE_ALIASED`), or is `CATALOG_REFERENCE_ALIAS_UNRESOLVED` when it names a catalog
+    in another namespace. `CATALOG_DEPENDENCY_REGISTRY_ASSIGNED` and
+    `CATALOG_DEPENDENCY_NAMESPACE_ASSIGNED` are no longer emitted and removed.
+  - Kotlin: `CatalogDependency.alias` (defaults to `catalogKey`, so stored manifests bind);
+    `registry`/`namespace` removed from `DependencyRef`, `CatalogThemeRef`, `ThemeRefOverride`,
+    `CodeListBindingRef` and `FontRef`, `themeRegistry`/`themeNamespace` from `TemplateResource`, and
+    `currentNamespace`/`currentRegistry` from `TemplateValidationContext` (and from `forStencil`);
+    the model ignores the removed members when binding. TypeScript types follow.
+  - Fingerprints: V5 takes a resource dependency's registry and namespace from the declaration its
+    alias names, so the V5 values published for the golden catalogs, and a manifest stored before
+    aliases, are unchanged (pinned in `fingerprints.json` as `wireV8CatalogFingerprints`).
+  - API: the API embeds the catalog's `TemplateDocument`, so its `ThemeRef` loses `namespace` and
+    `registry` in every client (`normalize-bundle.mjs`), and "Catalog identity" in the API
+    description says a reference inside content names an alias; a dependency declared through the
+    API has its catalog key as its alias. The API's own DTOs (`CatalogThemeReference`,
+    `CatalogDependencyRequirement`/`Dto`, an attribute's code-list binding) are unchanged.
+  - Fixtures: `wire-v8`, `migrations/v7-to-v8`, `carried-releases` and the stencil composition
+    fixture (`STENCIL_DEFINITION_REFERENCES_SAME_KEY_IN_ANOTHER_CATALOG`) follow.
 - **One merge entry per catalog dependency (alpha, `x-experimental`, ADR 0005).** The single
   `catalog/dependencies` entry of `previewCatalogDraftMerge` and `mergeIntoCatalogDraft` is now one
   entry per catalog the release uses: `resourceType` `catalogDependency`, `resourceKey` the
@@ -644,20 +686,16 @@ libraries.
     New manifest member `catalogDependencies` declares each catalog depended on once, with the
     exact `releaseVersion` it pins (the release the catalog renders with and was cut with; no range),
     and that release's `releaseFingerprint`, so a copy fetched through any mirror can be checked (both
-    null only for archives migrated from v7). Each resource dependency gains a required `registry`
-    and `namespace`, and every catalog it names must be declared. References inside content
-    (`ThemeRef` override, stencil nodes, `CodeListBindingRef`, `TemplateResource.themeRegistry` /
-    `themeNamespace`, `FontRef`) gain an optional `registry` and `namespace`; each omitted one means
-    the owning catalog's, and a `registry` without a `namespace` is invalid. The API embeds the
-    catalog's `TemplateDocument`, so its `ThemeRef` gains them in every client too (the bundle
-    normalization in `normalize-bundle.mjs` carries it).
+    null only for archives migrated from v7). References into another catalog name it by the alias
+    its declaration gives it (see "content names another catalog by an alias" above, which replaced
+    the registry and namespace this entry first added to references).
   - Stencils carry no version: `StencilResource.version` is removed from the wire and the Kotlin
     model, and a stencil node no longer allows `version` or `draftVersion`.
   - `CatalogV7ToV8Migration` takes the registry and namespace from the caller
     (`CatalogMigrationOptions(namespace, registry)`, accepted by `CatalogSchemaMigrator.migrateManifest`,
     `CatalogArchiveReader.read` and `CatalogValidationPolicy`); without them a v7 archive is refused
-    with `CATALOG_REGISTRY_MISSING` / `CATALOG_NAMESPACE_MISSING`. It qualifies dependencies with
-    them, declares each referenced catalog pinning no release (`releaseVersion` and
+    with `CATALOG_REGISTRY_MISSING` / `CATALOG_NAMESPACE_MISSING`. It declares each referenced
+    catalog in them, under its key as the alias, pinning no release (`releaseVersion` and
     `releaseFingerprint` null, for the author to pin), and removes stencil versions, each with a
     notice.
   - Fingerprints: V5 (now `currentFingerprint`) also covers the registry, namespace and declared
@@ -689,8 +727,8 @@ libraries.
   - Kotlin API: `StencilResource.version`, `CatalogResourceReference.version`/`draftVersion`,
     `TemplateValidationContext.allowDraftStencilReferences` and the `version` parameter of
     `TemplateValidationContext.forStencil` are removed; `CatalogInfo.registry` and `namespace`,
-    `CatalogManifest.catalogDependencies` and `registry` and `namespace` on `DependencyRef`,
-    `CatalogResourceReference`, `ThemeRefOverride`, `CodeListBindingRef` and `FontRef` are added (nullable in the model so manifests stored under v7 still
+    `CatalogManifest.catalogDependencies` and `registry` and `namespace` on
+    `CatalogResourceReference` are added (nullable in the model so manifests stored under v7 still
     bind). `templateModelVersion` stays 1.
 
 - **BREAKING: catalog content is edited and read per release, not in one working copy.**

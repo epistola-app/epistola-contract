@@ -85,20 +85,17 @@
     {
       "type": "theme",
       "catalogKey": "shared",
-      "key": "cs0",
-      "registry": "exchange.epistola.app",
-      "namespace": "acme-corp"
+      "key": "cs0"
     },
     {
       "type": "stencil",
       "catalogKey": "shared",
-      "key": "address-block",
-      "registry": "exchange.epistola.app",
-      "namespace": "acme-corp"
+      "key": "address-block"
     }
   ],
   "catalogDependencies": [
     {
+      "alias": "shared",
       "registry": "exchange.epistola.app",
       "namespace": "acme-corp",
       "catalogKey": "shared",

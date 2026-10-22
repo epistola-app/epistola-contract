@@ -12,9 +12,11 @@ import app.epistola.catalog.protocol.StencilResource
 import app.epistola.catalog.protocol.TemplateResource
 import app.epistola.catalog.validation.CatalogDependencyResolver
 import app.epistola.catalog.validation.CatalogResourceReference
+import app.epistola.catalog.validation.CatalogValidationCodes
 import app.epistola.catalog.validation.CatalogValidationPolicy
 import app.epistola.catalog.validation.CatalogValidator
 import app.epistola.catalog.validation.ResourceResolution
+import app.epistola.template.model.ThemeRefOverride
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipEntry
@@ -43,8 +45,10 @@ class CatalogV7ArchiveCompatibilityTest {
             assertEquals(CatalogWireSchema.CURRENT_VERSION, manifest.schemaVersion)
             assertEquals(REGISTRY, manifest.catalog.registry)
             assertEquals(NAMESPACE, manifest.catalog.namespace)
-            assertEquals(listOf(CatalogDependency(REGISTRY, NAMESPACE, "shared", null)), manifest.catalogDependencies)
-            assertEquals(listOf(REGISTRY to NAMESPACE), manifest.dependencies.orEmpty().map { it.registry to it.namespace })
+            // The catalog the resource dependency names is declared under its key as the alias, in the
+            // catalog's own registry and namespace; the dependency keeps naming it by that key.
+            assertEquals(listOf(CatalogDependency(REGISTRY, NAMESPACE, "shared", null, alias = "shared")), manifest.catalogDependencies)
+            assertEquals(listOf("shared"), manifest.dependencies.orEmpty().map { it.catalogKey })
 
             // No stencil carries a version any more, and no reference pins one.
             val stencil = archive.resourceDetails.values.map { it.resource }.filterIsInstance<StencilResource>().single()
@@ -57,8 +61,6 @@ class CatalogV7ArchiveCompatibilityTest {
                 setOf(
                     CatalogMigrationCodes.REGISTRY_ASSIGNED,
                     CatalogMigrationCodes.NAMESPACE_ASSIGNED,
-                    CatalogMigrationCodes.DEPENDENCY_REGISTRY_ASSIGNED,
-                    CatalogMigrationCodes.DEPENDENCY_NAMESPACE_ASSIGNED,
                     CatalogMigrationCodes.DEPENDENCY_CATALOG_DECLARED,
                     CatalogMigrationCodes.STENCIL_VERSION_REMOVED,
                 ),
@@ -84,7 +86,83 @@ class CatalogV7ArchiveCompatibilityTest {
         assertTrue(CatalogResourceReference("stencil", "footer", "shared", NAMESPACE, REGISTRY) in resolved, resolved.toString())
     }
 
-    private fun v7Archive(): ByteArray {
+    @Test
+    fun `a catalog only the content of a v7 archive names is declared too, under its key as the alias`() {
+        // The theme's font is in `system`, which the v7 manifest's dependencies never listed.
+        val theme = """
+            {"schemaVersion":7,"resource":{"type":"theme","slug":"house","name":"House",
+             "documentStyles":{"fontFamily":{"catalogKey":"system","slug":"inter"}}}}
+        """.trimIndent()
+        val result = CatalogArchiveReader.read(ByteArrayInputStream(v7Archive("resources/theme/house.json" to theme)), migration = MIGRATION)
+        val archive = assertNotNull(result.archive, "findings: ${result.findings}")
+
+        archive.use {
+            assertEquals(emptyList(), result.findings)
+            assertEquals(
+                listOf(
+                    CatalogDependency(REGISTRY, NAMESPACE, "shared", null, alias = "shared"),
+                    CatalogDependency(REGISTRY, NAMESPACE, "system", null, alias = "system"),
+                ),
+                archive.manifest.catalogDependencies,
+            )
+            val declared = result.migrationNotices.single { it.path == "catalog.json.catalogDependencies[1]" }
+            assertEquals(CatalogMigrationCodes.DEPENDENCY_CATALOG_DECLARED, declared.code)
+            assertTrue("resources/theme/house.json.resource.documentStyles.fontFamily.catalogKey" in declared.message, declared.message)
+            assertEquals(emptyList(), CatalogValidator.validate(archive).findings.filter { it.code == CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED })
+        }
+    }
+
+    @Test
+    fun `a v7 theme reference qualified with the catalog's own namespace is mapped to the alias, and one in another namespace is a finding`() {
+        fun read(themeRef: String) = CatalogArchiveReader.read(
+            ByteArrayInputStream(
+                v7Archive(
+                    "resources/template/memo.json" to """
+                        {"schemaVersion":7,"resource":{"type":"template","slug":"memo","name":"Memo","pdfaEnabled":true,
+                         "templateModel":{"modelVersion":1,"root":"root","nodes":{"root":{"id":"root","type":"root","slots":[]}},
+                          "slots":{},"themeRef":$themeRef},"variants":[]}}
+                    """.trimIndent(),
+                ),
+            ),
+            migration = MIGRATION,
+        )
+
+        read("""{"type":"override","themeId":"corporate","catalogKey":"shared","namespace":"$NAMESPACE","registry":"$REGISTRY"}""").archive!!.use { archive ->
+            val memo = archive.resourceDetails.getValue("template/memo").resource as TemplateResource
+            assertEquals(ThemeRefOverride("corporate", "shared"), memo.templateModel.themeRef)
+        }
+        val aliased = read("""{"type":"override","themeId":"corporate","catalogKey":"shared","namespace":"$NAMESPACE"}""")
+        aliased.archive!!.close()
+        assertEquals(
+            listOf(CatalogMigrationCodes.REFERENCE_ALIASED to "resources/template/memo.json.resource.templateModel.themeRef"),
+            aliased.migrationNotices.filter { it.code == CatalogMigrationCodes.REFERENCE_ALIASED }.map { it.code to it.path },
+        )
+
+        val elsewhere = read("""{"type":"override","themeId":"corporate","catalogKey":"shared","namespace":"other-corp"}""")
+        elsewhere.archive?.close()
+        assertEquals(
+            listOf(CatalogMigrationCodes.REFERENCE_ALIAS_UNRESOLVED to "resources/template/memo.json.resource.templateModel.themeRef"),
+            elsewhere.findings.map { it.code to it.path },
+        )
+    }
+
+    @Test
+    fun `a catalog the v7 content names by a key that cannot be an alias is a finding, not a declaration`() {
+        val theme = """
+            {"schemaVersion":7,"resource":{"type":"theme","slug":"house","name":"House",
+             "documentStyles":{"fontFamily":{"catalogKey":"System","slug":"inter"}}}}
+        """.trimIndent()
+        val result = CatalogArchiveReader.read(ByteArrayInputStream(v7Archive("resources/theme/house.json" to theme)), migration = MIGRATION)
+        result.archive?.use { archive ->
+            assertEquals(listOf("shared"), archive.manifest.catalogDependencies.orEmpty().map { it.alias })
+        }
+        assertEquals(
+            listOf(CatalogMigrationCodes.DEPENDENCY_ALIAS_INVALID to "resources/theme/house.json.resource.documentStyles.fontFamily.catalogKey"),
+            result.findings.map { it.code to it.path },
+        )
+    }
+
+    private fun v7Archive(vararg extra: Pair<String, String>): ByteArray {
         val manifest = """
             {"schemaVersion":7,
              "catalog":{"slug":"letters","name":"Letters","description":null,"attributes":[],"keywords":["letters"],
@@ -95,7 +173,12 @@ class CatalogV7ArchiveCompatibilityTest {
              "dependencies":[{"type":"stencil","catalogKey":"shared","slug":"footer"}],
              "resources":[
                {"type":"stencil","slug":"address","name":"Address","detailUrl":"./resources/stencil/address.json"},
-               {"type":"template","slug":"letter","name":"Letter","detailUrl":"./resources/template/letter.json"}]}
+               {"type":"template","slug":"letter","name":"Letter","detailUrl":"./resources/template/letter.json"}${
+            extra.joinToString("") { (path, _) ->
+                val (type, key) = path.removePrefix("resources/").removeSuffix(".json").split('/')
+                """,{"type":"$type","slug":"$key","name":"${key.replaceFirstChar(Char::uppercase)}","detailUrl":"./$path"}"""
+            }
+        }]}
         """.trimIndent()
         val stencil = """
             {"schemaVersion":7,"resource":{"type":"stencil","slug":"address","name":"Address","version":4,"tags":[],
@@ -118,6 +201,7 @@ class CatalogV7ArchiveCompatibilityTest {
             put("catalog.json", manifest)
             put("resources/stencil/address.json", stencil)
             put("resources/template/letter.json", template)
+            extra.forEach { (path, body) -> put(path, body) }
         }
         return out.toByteArray()
     }

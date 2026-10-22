@@ -24,6 +24,7 @@
   "dependencies": [],
   "catalogDependencies": [
     {
+      "alias": "base",
       "registry": "exchange.epistola.app",
       "namespace": "acme",
       "catalogKey": "base",

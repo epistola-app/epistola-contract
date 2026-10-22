@@ -56,7 +56,10 @@ class CatalogWireParityTest {
 
         assertEquals("exchange.epistola.app", manifest.catalog.registry)
         assertEquals("epistola", manifest.catalog.namespace)
-        assertEquals(listOf(CatalogDependency("exchange.epistola.app", "epistola", "shared", "1.4.0", "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42")), manifest.catalogDependencies)
+        assertEquals(
+            listOf(CatalogDependency("exchange.epistola.app", "epistola", "shared", "1.4.0", "v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42", alias = "shared")),
+            manifest.catalogDependencies,
+        )
         assertEquals("k7m2x9qa", manifest.release.releaseId)
         assertEquals(mapOf("renderingDefaultsVersion" to 6), manifest.release.metadata?.get("app.epistola.suite"))
         assertEquals(ReleaseBase("0.9.0", "v5:3f1c9a7e5b2d4c6a8e0f1b3d5c7a9e1f2b4d6c8a0e2f4b6d8c0a2e4f6b8d0c2a"), manifest.release.base)
@@ -145,22 +148,48 @@ class CatalogWireParityTest {
         assertEquals(null, manifest.catalog.registry)
         assertEquals(null, manifest.catalog.namespace)
         assertEquals(null, manifest.catalogDependencies)
-        assertTrue(manifest.dependencies.orEmpty().all { it.registry == null && it.namespace == null })
+        assertEquals(listOf("shared", "shared", "brand"), manifest.dependencies.orEmpty().map { it.catalogKey })
         assertEquals("letter", stencil.resource.key)
     }
 
     @Test
-    fun `optional content registries and namespaces are omitted when absent so earlier fingerprints still reproduce`() {
+    fun `a reference names another catalog by alias alone, and one stored with a registry and namespace still binds without them`() {
         val binding = mapper.valueToTree<JsonNode>(CodeListBindingRef(key = "countries"))
         val font = mapper.valueToTree<JsonNode>(FontRef(key = "inter"))
-        val theme = mapper.valueToTree<JsonNode>(ThemeRefOverride("corporate"))
+        val theme = mapper.valueToTree<JsonNode>(ThemeRefOverride("corporate", "shared"))
+        val defaultTheme = mapper.valueToTree<JsonNode>(CatalogThemeRef("corporate", "shared"))
+        val dependency = mapper.valueToTree<JsonNode>(DependencyRef.Theme("shared", "corporate"))
 
-        listOf(binding, font, theme).forEach { node ->
+        listOf(binding, font, theme, defaultTheme, dependency).forEach { node ->
             assertTrue(!node.has("namespace") && !node.has("registry"), node.toString())
         }
-        val qualified = mapper.valueToTree<JsonNode>(CodeListBindingRef(key = "x", namespace = "acme", registry = "acme.com"))
-        assertEquals("acme", qualified["namespace"].asString())
-        assertEquals("acme.com", qualified["registry"].asString())
+        assertEquals(
+            CodeListBindingRef("shared", "x"),
+            mapper.readValue("""{"catalogKey":"shared","key":"x","namespace":"acme","registry":"acme.com"}""", CodeListBindingRef::class.java),
+        )
+        assertEquals(
+            CatalogThemeRef("corporate", "shared"),
+            mapper.readValue("""{"key":"corporate","catalogKey":"shared","namespace":"acme","registry":"acme.com"}""", CatalogThemeRef::class.java),
+        )
+        assertEquals(
+            DependencyRef.Font("shared", "inter"),
+            mapper.readValue("""{"type":"font","registry":"acme.com","namespace":"acme","catalogKey":"shared","key":"inter"}""", DependencyRef::class.java),
+        )
+    }
+
+    @Test
+    fun `a catalog dependency is declared under an alias, which defaults to its key for a manifest stored without one`() {
+        val declared = CatalogDependency("acme.com", "acme", "shared", "1.4.0", "v5:${"0".repeat(64)}", alias = "acme-shared")
+        val written = mapper.valueToTree<JsonNode>(declared)
+
+        assertEquals(listOf("alias", "registry", "namespace", "catalogKey", "releaseVersion", "releaseFingerprint"), written.propertyNames().toList())
+        assertEquals(declared, mapper.treeToValue(written, CatalogDependency::class.java))
+        val stored = mapper.readValue(
+            """{"registry":"acme.com","namespace":"acme","catalogKey":"shared","releaseVersion":null,"releaseFingerprint":null}""",
+            CatalogDependency::class.java,
+        )
+        assertEquals("shared", stored.alias)
+        assertEquals("shared", mapper.valueToTree<JsonNode>(stored)["alias"].asString())
     }
 
     @Test

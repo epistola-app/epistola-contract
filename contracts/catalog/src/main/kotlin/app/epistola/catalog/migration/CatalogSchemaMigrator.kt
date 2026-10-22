@@ -5,6 +5,7 @@
 package app.epistola.catalog.migration
 
 import app.epistola.catalog.archive.ArchiveContentProvider
+import app.epistola.catalog.protocol.CatalogAliases
 import app.epistola.catalog.protocol.CatalogArchivePaths
 import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogKeywords
@@ -198,8 +199,8 @@ object CatalogMigrationCodes {
 
     /**
      * A registry is not a DNS name written in full, whether the archive's own or the one the caller
-     * supplied for a catalog-v7 archive. Also raised when a catalog-v8 manifest or dependency names
-     * none.
+     * supplied for a catalog-v7 archive. Also raised when a catalog-v8 manifest's catalog or catalog
+     * dependency names none.
      */
     const val REGISTRY_INVALID = "CATALOG_REGISTRY_INVALID"
 
@@ -212,9 +213,25 @@ object CatalogMigrationCodes {
 
     /**
      * A namespace is not a valid slug, whether the archive's own or the one the caller supplied for
-     * a catalog-v7 archive. Also raised when a catalog-v8 manifest or dependency names none.
+     * a catalog-v7 archive. Also raised when a catalog-v8 manifest's catalog or catalog dependency
+     * names none.
      */
     const val NAMESPACE_INVALID = "CATALOG_NAMESPACE_INVALID"
+
+    /**
+     * A catalog-v8 catalog dependency names no `alias`, or one that is not a string following the
+     * alias rule ([app.epistola.catalog.protocol.CatalogAliases]: the catalog key rule). Also raised by
+     * the v7-to-v8 archive migration for a catalog its content names that cannot be declared, because
+     * its key cannot be an alias.
+     */
+    const val DEPENDENCY_ALIAS_INVALID = "CATALOG_DEPENDENCY_ALIAS_INVALID"
+
+    /**
+     * A reference migrated from before wire v8 names a catalog by registry and namespace that the
+     * catalog does not declare as a dependency, so it cannot be mapped to an alias (contract ADR 0003). Not
+     * repaired: the migration does not invent a dependency in another namespace.
+     */
+    const val REFERENCE_ALIAS_UNRESOLVED = "CATALOG_REFERENCE_ALIAS_UNRESOLVED"
 
     /**
      * A catalog-v8 catalog dependency's `releaseFingerprint` does not pair with its `releaseVersion`:
@@ -229,17 +246,19 @@ object CatalogMigrationCodes {
     /** Notice: a catalog-v7 catalog was given the namespace the caller supplied. */
     const val NAMESPACE_ASSIGNED = "CATALOG_NAMESPACE_ASSIGNED"
 
-    /** Notice: a catalog-v7 resource dependency was given the catalog's own registry. */
-    const val DEPENDENCY_REGISTRY_ASSIGNED = "CATALOG_DEPENDENCY_REGISTRY_ASSIGNED"
-
-    /** Notice: a catalog-v7 resource dependency was given the catalog's own namespace. */
-    const val DEPENDENCY_NAMESPACE_ASSIGNED = "CATALOG_DEPENDENCY_NAMESPACE_ASSIGNED"
-
     /**
-     * Notice: a catalog-v7 catalog named by a resource dependency was declared as a catalog
-     * dependency that pins no release, for the author to pin one.
+     * Notice: a catalog-v7 catalog named by a resource dependency, or by the content, was declared as
+     * a catalog dependency under its key as the alias, in the catalog's own registry and namespace,
+     * pinning no release, for the author to pin one.
      */
     const val DEPENDENCY_CATALOG_DECLARED = "CATALOG_DEPENDENCY_CATALOG_DECLARED"
+
+    /**
+     * Notice: a reference migrated from before wire v8 that named a catalog by registry and
+     * namespace now names it by alias, or names no catalog when it named the catalog itself (contract ADR
+     * 0003).
+     */
+    const val REFERENCE_ALIASED = "CATALOG_REFERENCE_ALIASED"
 
     /**
      * Notice: a catalog-v7 stencil version was removed -- a stencil resource's own `version`, or a
@@ -393,7 +412,11 @@ object CatalogSchemaMigrator {
         val migration = migrate(source) { step -> step.migrateResource(tree, path, context) }
         if (migration.findings.isNotEmpty()) return CatalogMigrationResult(null, source, migration.findings, migration.notices)
         val wireFindings = (tree["resource"] as? ObjectNode)
-            ?.let { renamedMemberFindings(CatalogKeyRenames.resourceSites(it, "$path.resource")) + contentUrlFindings(it, "$path.resource", source) }
+            ?.let {
+                renamedMemberFindings(CatalogKeyRenames.resourceSites(it, "$path.resource")) +
+                    CatalogReferenceQualifiers.findings(CatalogReferenceQualifiers.resourceSites(it, "$path.resource")) +
+                    contentUrlFindings(it, "$path.resource", source)
+            }
             .orEmpty()
         if (wireFindings.isNotEmpty()) return CatalogMigrationResult(null, source, wireFindings, migration.notices)
         return bind(tree, ResourceDetail::class.java, source, path, migration.notices)
@@ -413,7 +436,9 @@ object CatalogSchemaMigrator {
         tree: ObjectNode,
         source: Int,
     ): List<CatalogMigrationFinding> = renamedMemberFindings(CatalogKeyRenames.manifestSites(tree)) +
+        CatalogReferenceQualifiers.findings(CatalogReferenceQualifiers.manifestSites(tree)) +
         namespaceFindings(tree) +
+        aliasFindings(tree) +
         releaseVersionFindings(tree) +
         releaseIdFindings(tree) +
         releaseBaseFindings(tree) +
@@ -574,8 +599,8 @@ object CatalogSchemaMigrator {
 
     /**
      * Wire v8 requires a registry, written in full, and a namespace wherever the manifest names a
-     * catalog. The model binds missing ones, so that manifests stored under earlier versions still
-     * load; the wire check is where v8 enforces them.
+     * catalog: the catalog itself and each catalog dependency. The model binds missing ones, so that
+     * manifests stored under earlier versions still load; the wire check is where v8 enforces them.
      */
     private fun namespaceFindings(tree: ObjectNode): List<CatalogMigrationFinding> {
         val findings = mutableListOf<CatalogMigrationFinding>()
@@ -603,12 +628,34 @@ object CatalogSchemaMigrator {
             }
         }
         (tree["catalog"] as? ObjectNode)?.let { check(it, "catalog.json.catalog", "catalog") }
-        listOf("dependencies", "catalogDependencies").forEach { field ->
-            (tree[field] as? ArrayNode)?.forEachIndexed { index, entry ->
-                if (entry is ObjectNode) check(entry, "catalog.json.$field[$index]", "dependency")
-            }
+        (tree["catalogDependencies"] as? ArrayNode)?.forEachIndexed { index, entry ->
+            if (entry is ObjectNode) check(entry, "catalog.json.catalogDependencies[$index]", "dependency")
         }
         return findings
+    }
+
+    /**
+     * Wire v8 declares each catalog dependency under an alias (contract ADR 0003), which the model defaults to
+     * the catalog's key so that manifests stored before aliases existed still bind; the wire check is
+     * where v8 requires one, by [CatalogAliases]. Whether it is unique, and not the catalog's own key,
+     * is the validator's to check.
+     */
+    private fun aliasFindings(tree: ObjectNode): List<CatalogMigrationFinding> {
+        val dependencies = tree["catalogDependencies"] as? ArrayNode ?: return emptyList()
+        return dependencies.mapIndexedNotNull { index, entry ->
+            if (entry !is ObjectNode) return@mapIndexedNotNull null
+            val alias = entry["alias"]
+            if (alias != null && alias.isString && CatalogAliases.isValid(alias.asString())) return@mapIndexedNotNull null
+            CatalogMigrationFinding(
+                CatalogMigrationCodes.DEPENDENCY_ALIAS_INVALID,
+                "catalog.json.catalogDependencies[$index].alias",
+                if (alias == null || alias.isNull) {
+                    "dependency names no alias"
+                } else {
+                    "alias must be ${CatalogAliases.MIN_LENGTH} to ${CatalogAliases.MAX_LENGTH} characters matching ${CatalogAliases.PATTERN}"
+                },
+            )
+        }
     }
 
     private fun keywordFindings(tree: ObjectNode): List<CatalogMigrationFinding> {

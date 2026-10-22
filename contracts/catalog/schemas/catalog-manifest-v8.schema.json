@@ -284,7 +284,7 @@
       "additionalProperties": false
     },
     "CatalogThemeRef": {
-      "description": "A reference to a theme resource, qualified like every other cross-catalog reference: an omitted catalogKey, namespace or registry means this catalog's own.",
+      "description": "A reference to a theme resource: in this catalog, or in another catalog this catalog depends on, named by the alias catalogDependencies declares for it (contract ADR 0003), like every reference into another catalog.",
       "type": "object",
       "properties": {
         "key": {
@@ -295,29 +295,16 @@
           "maxLength": 50
         },
         "catalogKey": {
-          "description": "Key of the catalog holding the theme. Omitted means this catalog. A theme in another catalog is in a catalog this catalog depends on.",
+          "description": "The alias of the catalog holding the theme, as catalogDependencies declares it. Omitted, or this catalog's own key, means this catalog.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 3,
           "maxLength": 50
-        },
-        "namespace": {
-          "description": "Namespace of the catalog holding the theme. Omitted means this catalog's namespace.",
-          "$ref": "#/$defs/CatalogNamespace"
-        },
-        "registry": {
-          "description": "Registry of the catalog holding the theme. Omitted means this catalog's registry, never an installation default. Requires namespace.",
-          "$ref": "#/$defs/CatalogRegistry"
         }
       },
       "required": [
         "key"
       ],
-      "dependentRequired": {
-        "registry": [
-          "namespace"
-        ]
-      },
       "additionalProperties": false
     },
     "CatalogPresetDeclaration": {
@@ -519,7 +506,7 @@
       "additionalProperties": false
     },
     "DependencyRef": {
-      "description": "Every dependency names a catalog (registry, namespace and key) from wire v8, so this is exactly CatalogDependencyRef. A dependency carries no version; the catalog it names must be declared in catalogDependencies.",
+      "description": "A resource in another catalog that this catalog's content uses: the manifest's index of what the content uses elsewhere, derived from the content by the producer. It names the catalog by the alias catalogDependencies declares for it, so this is exactly CatalogDependencyRef. A dependency carries no version: it renders with the release the declaration pins.",
       "oneOf": [
         {
           "$ref": "#/$defs/CatalogDependencyRef"
@@ -538,20 +525,15 @@
             "image"
           ]
         },
-        "registry": {
-          "$ref": "#/$defs/CatalogRegistry"
-        },
-        "namespace": {
-          "$ref": "#/$defs/CatalogNamespace"
-        },
         "catalogKey": {
+          "description": "The alias of the catalog holding the resource, as catalogDependencies declares it (contract ADR 0003). Until aliases, it held the catalog's key, which is the alias a catalog is declared under unless the producer chose another.",
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
           "minLength": 3,
           "maxLength": 50
         },
         "key": {
-          "description": "Key of the resource within the catalog named by registry, namespace and catalogKey. Until wire v8 this member was called slug.",
+          "description": "Key of the resource within the catalog the alias names. Until wire v8 this member was called slug.",
           "type": "string",
           "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
           "minLength": 3,
@@ -560,17 +542,22 @@
       },
       "required": [
         "type",
-        "registry",
-        "namespace",
         "catalogKey",
         "key"
       ],
       "additionalProperties": false
     },
     "CatalogDependency": {
-      "description": "A catalog this catalog depends on, declared once with the exact release it pins. References from this catalog's resources into it carry no version: they render with the release this declaration pins.",
+      "description": "A catalog this catalog depends on, declared once: the alias its content names it by, its name (registry, namespace and catalogKey), which finds newer releases of it, and the release it pins, by content hash (releaseFingerprint), with the number that release had (releaseVersion). References from this catalog's content into it name the alias and carry no version: they render with the release this declaration pins. Renaming or mirroring the dependency changes the name here and nothing in the content (contract ADR 0003).",
       "type": "object",
       "properties": {
+        "alias": {
+          "description": "How this catalog's content names the dependency: every reference into it names this alias and a resource key. The catalog key rule; unique within catalogDependencies, and never this catalog's own key, which content uses for the catalog itself. A producer declares a catalog under its own key unless two catalogs it depends on share one.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+          "minLength": 3,
+          "maxLength": 50
+        },
         "registry": {
           "$ref": "#/$defs/CatalogRegistry"
         },
@@ -584,7 +571,7 @@
           "maxLength": 50
         },
         "releaseVersion": {
-          "description": "The exact release of the dependency this catalog renders with, and that this archive's release was cut with: an exact version, not a range. A release number as release.version has it: MAJOR.MINOR.PATCH, at most 50 characters. Null only for a catalog migrated from wire v7 or earlier, which pins no release, and then releaseFingerprint is null too.",
+          "description": "The number the pinned release had when it was pinned: a hint for people, and where a carried copy of it is found, while releaseFingerprint is the pin. A release number as release.version has it: MAJOR.MINOR.PATCH, at most 50 characters. Null only for a catalog migrated from wire v7 or earlier, which pins no release, and then releaseFingerprint is null too.",
           "type": [
             "string",
             "null"
@@ -593,7 +580,7 @@
           "maxLength": 50
         },
         "releaseFingerprint": {
-          "description": "The fingerprint of the release releaseVersion names, copied from that release's own release.fingerprint, in the form that names its algorithm (v5:<lowercase SHA-256 hex>), so a copy of that release fetched from any registry or mirror can be checked with exactly that algorithm. Null exactly when releaseVersion is null.",
+          "description": "The pin: the fingerprint of the release this catalog renders with and was cut with, copied from that release's own release.fingerprint, in the form that names its algorithm (v5:<lowercase SHA-256 hex>). A copy of that release fetched from any registry, mirror or file is checked with exactly that algorithm. Null exactly when releaseVersion is null.",
           "type": [
             "string",
             "null"
@@ -602,6 +589,7 @@
         }
       },
       "required": [
+        "alias",
         "registry",
         "namespace",
         "catalogKey",

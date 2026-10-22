@@ -163,7 +163,7 @@ class CatalogV8WireSchemaTest {
             "an empty preset list" to { it.putArray("presets") },
             "a default theme in the catalog itself" to { it.putObject("defaultTheme").put("key", "default") },
             "a default theme in another catalog" to {
-                it.putObject("defaultTheme").put("key", "corporate").put("catalogKey", "shared").put("namespace", "acme").put("registry", "acme.com")
+                it.putObject("defaultTheme").put("key", "corporate").put("catalogKey", "shared")
             },
             "presets" to { catalog ->
                 catalog.putArray("presets").apply {
@@ -176,7 +176,8 @@ class CatalogV8WireSchemaTest {
         valid.forEach { (what, edit) -> assertEquals(emptyList(), errors(edit), "v8 schema rejected $what") }
         val invalid = mapOf<String, (ObjectNode) -> Unit>(
             "a default theme without a key" to { it.putObject("defaultTheme").put("catalogKey", "shared") },
-            "a default theme naming a registry without a namespace" to { it.putObject("defaultTheme").put("key", "corporate").put("registry", "acme.com") },
+            "a default theme naming a registry" to { it.putObject("defaultTheme").put("key", "corporate").put("catalogKey", "shared").put("registry", "acme.com") },
+            "a default theme naming a namespace" to { it.putObject("defaultTheme").put("key", "corporate").put("catalogKey", "shared").put("namespace", "acme") },
             "a default theme with an unknown member" to { it.putObject("defaultTheme").put("key", "corporate").put("version", "1.0.0") },
             "a default theme given as a string" to { it.put("defaultTheme", "corporate") },
             "a preset without a name" to { it.putArray("presets").addObject().put("key", "muted") },

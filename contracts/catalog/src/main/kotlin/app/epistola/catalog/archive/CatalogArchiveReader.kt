@@ -22,6 +22,7 @@ import app.epistola.catalog.migration.CatalogMigrationCodes
 import app.epistola.catalog.migration.CatalogMigrationContext
 import app.epistola.catalog.migration.CatalogMigrationOptions
 import app.epistola.catalog.migration.CatalogSchemaMigrator
+import app.epistola.catalog.migration.CatalogV7ToV8Migration
 import app.epistola.catalog.protocol.CatalogDependencyArchivePaths
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipFile
@@ -188,6 +189,16 @@ object CatalogArchiveReader {
                         details["$declaredType/$key"] = detail
                     }
                 }
+            // Before wire v8 nothing required the manifest to list every catalog the content names;
+            // from v8 each needs a declaration, under the alias the content names it by.
+            val boundManifest = if (sourceVersion < ALIASES_SINCE_WIRE_VERSION) {
+                val contentFindings = mutableListOf<app.epistola.catalog.migration.CatalogMigrationFinding>()
+                CatalogV7ToV8Migration.declareContentDependencies(manifest, details, contentFindings, migrationNotices).also {
+                    findings += contentFindings.map { finding(it.code.archiveCode(), it.path, it.message) }
+                }
+            } else {
+                manifest
+            }
             val carriedReleases = if (!carried && sourceVersion >= CARRIED_RELEASES_SINCE_WIRE_VERSION) {
                 readCarried(manifest, extraction, expandedRoot, policy, findings, migrationNotices)
                     ?: run {
@@ -198,7 +209,7 @@ object CatalogArchiveReader {
                 emptyList()
             }
             val archive = CatalogArchive(
-                manifest = manifest,
+                manifest = boundManifest,
                 resourceDetails = details,
                 paths = extraction.paths,
                 content = ArchiveContentProvider { requested ->
@@ -550,6 +561,9 @@ object CatalogArchiveReader {
 
     /** The wire version from which an archive may carry the releases it pins. */
     private const val CARRIED_RELEASES_SINCE_WIRE_VERSION = 8
+
+    /** The wire version from which content names another catalog by an alias the manifest declares. */
+    private const val ALIASES_SINCE_WIRE_VERSION = 8
 
     private val DRIVE_PATH = Regex("^[A-Za-z]:.*")
 }
