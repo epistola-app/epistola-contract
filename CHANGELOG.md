@@ -405,12 +405,14 @@ libraries.
   one is now `CATALOG_RELEASE_FINGERPRINT_INVALID`). V6 covers every resource as V5 does (references
   to other catalogs by alias), the resource index, the content settings `defaultTheme`, `presets` and
   `license`, the resource dependencies by alias, each catalog dependency as its alias and pinned
-  `releaseFingerprint`, and `schemaVersion` and `compatibility`. It does not cover the catalog's
-  name (registry, namespace, key), a dependency's name or `releaseVersion`, the release block, or the
-  catalog's presentation (`name`, `description`, `keywords`, `presentation`, `attributes`,
-  `publisher`, `includes`): catalogs that differ only there have the same V6 fingerprint, so a
-  release under another name, from any registry, mirror or file, verifies as itself, and
-  presentation can change without a release (the most recently received wins). V1 to V5 stay
+  `releaseFingerprint`, and `compatibility` (the Epistola versions the content needs). It does not
+  cover the catalog's name (registry, namespace, key), a dependency's name or `releaseVersion`, the
+  release block, the catalog's presentation (`name`, `description`, `keywords`, `presentation`,
+  `attributes`, `publisher`, `includes`), or the wire version (`schemaVersion`): catalogs that differ
+  only there have the same V6 fingerprint, so a release under another name, from any registry,
+  mirror or file, verifies as itself, presentation can change without a release (the most recently
+  received wins), and a wire version that only re-encodes content keeps every V6 value (the
+  canonical form under the algorithm's domain prefix fixes the encoding). V1 to V5 stay
   verifiable with exactly the values they had; a pin or `release.base` may name any known
   algorithm. `release.base.fingerprint` is the base's content hash, and the schema and model say
   which catalog members are the name, which content and which presentation. A catalog archive's

@@ -89,7 +89,7 @@ V6 covers, under its own domain prefix (`algorithm sha256-v6`):
 | The resource index | each entry's `type`, `key`, `name` and `description`, as V5 |
 | The catalog's content settings | `catalog.defaultTheme` (`key`, `catalogKey` alias), `catalog.presets` (sorted by key) and `catalog.license` |
 | The dependencies | each resource dependency by type, alias and key; each `catalogDependencies` entry as its `alias` and the pinned `releaseFingerprint`, sorted by alias |
-| How the content is read | `schemaVersion` and `compatibility` |
+| What the content needs | `compatibility` (the Epistola versions it declares) |
 
 V6 does not cover:
 
@@ -102,7 +102,8 @@ V6 does not cover:
   hash ([the archive format](catalog-archive.md#bindings-a-name-at-a-number-is-a-hash));
 - **the catalog's presentation**: `catalog.name`, `description`, `keywords`, `presentation` (which
   images to show; the image resources themselves are content), `attributes` (discovery labels),
-  and the manifest's `publisher` and `includes`.
+  and the manifest's `publisher` and `includes`;
+- **the wire version**: `schemaVersion`.
 
 **Why** (Suite ADR 0034): when the name is the identity, giving a release another name -- a mirror
 under another name, a promotion from a provisional name, a channel, a rename -- makes it a new
@@ -117,11 +118,11 @@ recently received wins. A producer may therefore change a catalog's display name
 keywords or icon without minting a new release; two archives of the same release with different
 presentation verify against the same fingerprint.
 
-**The wire version.** V6 covers `schemaVersion` as the manifest states it, the wire version the
-content is to be read with. Archives are fingerprinted at the current wire version, after any
-migration. A later wire version that keeps V6 must therefore verify a V6 fingerprint against the
-wire version the archive was written at, as V4 is verified against the source content of a
-migrated archive (below); one that changes what V6 covers gets an algorithm of its own.
+**The wire version is not content.** The hash identifies a release across wire versions: the V6
+algorithm itself -- its domain prefix and its canonical form -- already fixes how the content is
+encoded, so the same content stated under another `schemaVersion` has the same V6 fingerprint, and
+a wire version that only re-encodes content keeps every release's V6 value, its pins and bases
+included. A wire version that changes what the content means gets an algorithm of its own.
 
 - V3 retains the semantic v5 resource projection.
 - V4 adds an algorithm domain prefix and includes qualified catalog attributes sorted by catalog

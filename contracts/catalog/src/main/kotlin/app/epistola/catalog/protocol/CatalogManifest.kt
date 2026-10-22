@@ -24,7 +24,9 @@ import java.util.TreeSet
  * portable contract state only; Exchange publication state and Suite install
  * state are not represented.
  *
- * @property schemaVersion portable catalog wire version. Content: the fingerprint (V6) covers it.
+ * @property schemaVersion portable catalog wire version. Not covered by the fingerprint (V6): the
+ *   algorithm's canonical form fixes how content is encoded, so the same content under another
+ *   wire version has the same V6 fingerprint.
  * @property catalog stable catalog identity and display metadata ([CatalogInfo] says which members
  *   are the name, which content and which presentation).
  * @property publisher descriptive publisher metadata, not publisher authority. Presentation: not
