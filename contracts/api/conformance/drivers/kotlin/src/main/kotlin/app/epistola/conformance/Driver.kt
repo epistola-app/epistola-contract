@@ -949,6 +949,8 @@ object Driver {
                     "${it.resourceType}/${it.resourceKey}:${it.outcome.value}:${it.draftChange?.value ?: "null"}:${it.releaseChange?.value ?: "null"}"
                 },
                 "resourceNames" to preview.resources.joinToString("|") { it.name ?: "null" },
+                "resourceNeeds" to preview.resources.filter { !it.needs.isNullOrEmpty() }
+                    .joinToString(";") { "${it.resourceType}/${it.resourceKey}=${it.needs.orEmpty().joinToString("+")}" },
                 "unchanged" to preview.unchanged.toString(),
                 "token" to preview.token,
                 "missingBase" to (preview.missingBase?.let { "${it.version}@${it.fingerprint}" } ?: "null"),

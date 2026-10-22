@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: install-registry-release-number-taken
+title: Installing a release from a registry under a version the tenant has with other content is refused as a number taken
+why: >
+  Release registries are alpha (ADR 0008). Installing from one is importing, with the same
+  refusals: the tenant has this version of the catalog with another fingerprint, so the install is
+  refused with 409 `release-number-taken` (one number names one release), as publishing to a
+  registry that holds the number is, and nothing is installed. A client surfaces the slug and the
+  status.
+
+action:
+  name: install-registry-release
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    name: acme
+    namespace: acme-corp
+    catalogKey: letters
+    version: 1.5.0
+
+script:
+  - status: 409
+    contentType: application/problem+json
+    body:
+      type: https://epistola.app/errors/release-number-taken
+      title: Release Number Taken
+      status: 409
+      detail: >-
+        This tenant has letters 1.5.0 with other content (fingerprint v5:9f3a1c2b, the archive's
+        v5:1c2b9f3a); one number names one release.
+
+expect:
+  requestCount: 1
+  requests:
+    - method: POST
+      path: /api/tenants/acme-corp/release-registries/acme/catalogs/acme-corp/letters/releases/1.5.0/install
+      query: ""
+  report:
+    problemTypeSlug: release-number-taken
+    problemStatus: 409

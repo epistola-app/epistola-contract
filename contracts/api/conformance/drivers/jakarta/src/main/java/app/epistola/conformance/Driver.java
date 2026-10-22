@@ -1074,6 +1074,12 @@ public final class Driver {
                                 resources.stream()
                                         .map(r -> String.valueOf(r.getName()))
                                         .collect(Collectors.joining("|")),
+                        "resourceNeeds",
+                                resources.stream()
+                                        .filter(r -> r.getNeeds() != null && !r.getNeeds().isEmpty())
+                                        .map(r -> r.getResourceType() + "/" + r.getResourceKey() + "="
+                                                + String.join("+", r.getNeeds()))
+                                        .collect(Collectors.joining(";")),
                         "unchanged", String.valueOf(preview.getUnchanged()),
                         "token", String.valueOf(preview.getToken()),
                         "missingBase",

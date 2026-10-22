@@ -129,7 +129,9 @@ catalog-available-release-install:
       - **The same version with the same fingerprint** is the release the tenant has already: nothing
         changes (`newlyInstalled: false`).
       - **The same version with a different fingerprint** is different content under one name: the
-        install is refused with 409 `conflict`, and nothing changes.
+        install is refused with 409 `release-number-taken`, and nothing changes. So is a release
+        whose id another release or a draft of the catalog has here: one number and one id name
+        one release.
 
       The releases of other catalogs the release pins (`catalogDependencies`), directly or through
       other pins, are installed first, each before every release that pins it, as an import
@@ -137,7 +139,7 @@ catalog-available-release-install:
       (`installedDependencies`), each in a catalog the install creates when the tenant does not
       have that catalog; those it has with the same fingerprint are left alone (`presentDependencies`). One
       the tenant has under the same version with a different fingerprint refuses the install with
-      409 `conflict`; one that cannot be fetched, or does not match its pin's
+      409 `release-number-taken`; one that cannot be fetched, or does not match its pin's
       `releaseFingerprint`, refuses it with 409 `release-dependencies-missing`, listing each
       (`unavailable`). A release whose `release.metadata` names rendering defaults this
       installation does not have, newer or unknown, is refused with 400
@@ -708,12 +710,16 @@ catalog-release-merge-preview:
       **Alpha** (`x-experimental`, ADR 0005): may still change in a minor release.
 
       What merging the release `version` into the draft would do, entry by entry, **without
-      merging it**. The entries are the resources, and the release's catalog settings: its default
-      theme, its presets and its dependency declarations, each one entry of `resourceType`
-      `catalog` (`catalog/defaultTheme`, `catalog/presets`, `catalog/dependencies`), resolved like
-      a resource. The catalog's name, description and other catalog-wide details are not a
-      release's and are not merged. Each entry is compared in three states by its fingerprint: the
-      **merge base** (see below), the draft (ours) and the release (theirs):
+      merging it**. The entries are the resources; the release's catalog settings, its default
+      theme and its presets, each one entry of `resourceType` `catalog` (`catalog/defaultTheme`,
+      `catalog/presets`); and each catalog it declares it uses, one entry of `resourceType`
+      `catalogDependency` keyed by that catalog's key (`catalogDependency/shared`), valued by its
+      declaration (the release it pins, or the draft it names). Each is resolved like a resource,
+      so adding, removing or re-pinning one dependency is a change of its own, and only both sides
+      changing the same catalog's declaration differently is a conflict. The catalog's name,
+      description and other catalog-wide details are not a release's and are not merged. Each
+      entry is compared in three states by its fingerprint: the **merge base** (see below), the
+      draft (ours) and the release (theirs):
 
       | Ours vs base | Theirs vs base | Outcome |
       | --- | --- | --- |
@@ -722,6 +728,11 @@ catalog-release-merge-preview:
       | same | changed | `theirs`: taken (added, modified or removed) |
       | changed | changed alike | not listed (`unchanged`) |
       | changed | changed differently | `conflict`: a resolution chooses a side |
+
+      Each listed entry names the other listed entries it goes with (`needs`): those its value
+      refers to, such as the theme or stencil a template uses, or the dependency entry through which
+      a reference into another catalog resolves. Choosing them apart can leave a reference that does
+      not resolve, which the merge refuses with 409 `merge-refused`.
 
       `alreadyMerged` says whether the draft already contains the release (its base, or merged
       before). `token` identifies what the preview was computed from (the draft, the release and
@@ -787,11 +798,14 @@ catalog-release-merge:
       classifies it: what only the release changed is taken (written as the release has it, or
       removed), what only the draft changed stays, and each conflict is resolved by `resolutions`
       (`resourceType/resourceKey` to `ours` or `theirs`). Taken resources are marked ready, since
-      they are released content. The release's catalog settings (its default theme, presets and
-      dependency declarations) are merged the same way, each as one entry (`catalog/defaultTheme`,
-      `catalog/presets`, `catalog/dependencies`): taken when only the release changed it, kept when
-      only the draft did, and resolved when both did. The catalog's name, description and other
-      catalog-wide details are not merged.
+      they are released content. The release's catalog settings (its default theme and presets)
+      are merged the same way, each as one entry (`catalog/defaultTheme`, `catalog/presets`), and
+      so is each catalog it declares it uses (`catalogDependency/<catalogKey>`): taken when only the
+      release changed it, kept when only the draft did, and resolved when both did. A dependency
+      the release added or re-pinned is declared as the release declares it, one it no longer
+      declares is removed, and one nothing refers to any more after the merge stays declared, as
+      editing keeps one. The catalog's name, description and other catalog-wide details are not
+      merged.
 
       Afterwards the draft **contains** the release: it is no longer behind it
       (`CatalogReleaseDto.behind`), and merging it again is refused. Its base does not move
@@ -802,8 +816,15 @@ catalog-release-merge:
 
       - 409 `merge-conflicts-unresolved` when a conflict has no resolution; `unresolvedConflicts`
         lists each;
-      - 409 `merge-refused` when the release removes a resource the draft still uses (keep it with
-        `ours`, or stop using it first);
+      - 409 `merge-refused` when the result would hold a reference that does not resolve: a
+        resource the release removes that the draft still uses, or a reference left without what
+        it refers to, within the catalog or into another catalog through a declared dependency,
+        checked against the release that declaration pins (or the draft it names), the catalog's
+        default theme included; a reference into a catalog the result does not declare does not
+        resolve either. Only what the merge leaves unresolved is refused: a reference that did not
+        resolve in the draft before is the draft's own. The problem's `detail` names what is
+        missing and what to choose (keep the draft's side with `ours`, or take the release's side of
+        what it needs too);
       - 409 `merge-preview-outdated` when the request sends `expectedToken`, the `token` of a
         preview, and the draft or the release changed since that preview (preview again);
       - 409 `merge-base-missing` when this installation does not have the merge base, the closest

@@ -325,8 +325,8 @@ try {
             println("install ${e.missingBaseVersion} (${e.missingBaseFingerprint}) first")
         KnownProblemSlugs.CATALOG_RENDERING_DEFAULTS_TOO_NEW -> // importCatalog, installCatalogRelease
             println("upgrade Epistola: the release renders with defaults ${e.extensions["renderingDefaultsVersion"]}, this has up to ${e.extensions["supportedVersion"]}")
-        KnownProblemSlugs.RELEASE_NUMBER_TAKEN ->        // publishReleaseToRegistry (alpha)
-            println("the registry has this version with other content: release under a new version")
+        KnownProblemSlugs.RELEASE_NUMBER_TAKEN ->        // publishReleaseToRegistry (alpha), importCatalog, install…Release
+            println("this version or release id names another release: release under a new version")
         KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE ->  // installCatalogRelease, listAvailableCatalogReleases
             // 503: the source could not be reached (Retry-After may say when to try again);
             // 502: it answered badly. Nothing was installed.

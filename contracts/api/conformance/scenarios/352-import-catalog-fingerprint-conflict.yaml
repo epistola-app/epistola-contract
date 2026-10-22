@@ -3,13 +3,14 @@
 # SPDX-License-Identifier: EUPL-1.2
 
 id: import-catalog-fingerprint-conflict
-title: A release with a version the tenant has, but other content, is refused with 409
+title: A release with a version the tenant has, but other content, is refused as a number taken
 why: >
   A release is immutable, and its version names one content. An archive that carries a release the
   tenant has under the same version but with a different fingerprint is different content under one
-  name, so the import is refused with 409 `conflict` and nothing changes: neither the release the
+  name, so the import is refused with 409 `release-number-taken` (one number names one release), as
+  publishing to a registry that holds the number is, and nothing changes: neither the release the
   tenant has nor any draft. The client must surface that as a problem with its slug and status, so
-  a caller can tell it from a failed upload and does not retry it.
+  a caller can tell it from a failed upload or another conflict and does not retry it.
 
 action:
   name: import-catalog
@@ -26,12 +27,12 @@ script:
   - status: 409
     contentType: application/problem+json
     body:
-      type: https://epistola.app/errors/conflict
-      title: Conflict
+      type: https://epistola.app/errors/release-number-taken
+      title: Release Number Taken
       status: 409
       detail: >-
-        The tenant has release 1.2.0 of exchange.epistola.app/acme-corp/letters with another
-        fingerprint
+        This tenant has letters 1.2.0 with other content (fingerprint v5:9f3a1c2b, the archive's
+        v5:1c2b9f3a); one number names one release.
 
 expect:
   requestCount: 1
@@ -48,5 +49,5 @@ expect:
           authoredMode:
             absent: true
   report:
-    problemTypeSlug: conflict
+    problemTypeSlug: release-number-taken
     problemStatus: 409

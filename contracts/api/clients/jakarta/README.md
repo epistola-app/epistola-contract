@@ -214,7 +214,9 @@ try {
         // installation does not have (renderingDefaultsVersion, supportedVersion in the body)
         log.warn("upgrade Epistola to receive this release");
     } else if (KnownProblemSlugs.RELEASE_NUMBER_TAKEN.equals(slug)) {
-        // publishReleaseToRegistry (alpha): the registry has this version with other content
+        // publishReleaseToRegistry (alpha): the registry has this version with other content;
+        // importCatalog / installCatalogRelease / installRegistryRelease: the tenant has this
+        // version with another fingerprint, or this release id as another release
         log.warn("release the changes under a new version");
     } else if (KnownProblemSlugs.CATALOG_SOURCE_UNAVAILABLE.equals(slug)) {
         // from installCatalogRelease / listAvailableCatalogReleases: 503 when the catalog's source

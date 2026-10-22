@@ -129,8 +129,9 @@ info:
       an author applied them by hand. `getCatalogRelease` lists them, and releasing a draft that is
       behind must acknowledge them.
     - **Merging a release into a draft** (alpha, `x-experimental`): `previewCatalogDraftMerge`
-      shows, per resource and per catalog setting (default theme, presets, dependency
-      declarations, as entries of type `catalog`), against the merge base (the closest release
+      shows, per resource, per catalog setting (default theme and presets, entries of type
+      `catalog`) and per catalog used (entries of type `catalogDependency`), each with the entries
+      it goes with (`needs`), against the merge base (the closest release
       both descend from), what only the draft changed (`ours`), what only the release changed
       (`theirs`) and what both changed differently (`conflict`); `mergeIntoCatalogDraft` takes
       theirs and applies a resolution, `ours` or `theirs`, per conflict. The draft then contains
@@ -431,7 +432,13 @@ x-problem-types:
       schema: ProblemDetail
       description: >-
         Merging a release into a draft (alpha) cannot be applied as asked: the
-        release removes a resource the draft still uses. Nothing changed.
+        result would leave a reference that does not resolve, within the
+        catalog (a resource the release removes that the draft still uses, or
+        one a taken or kept entry refers to that the result lacks) or into
+        another catalog through a declared dependency, checked against the
+        release it pins (the catalog's default theme included), or into a
+        catalog the result does not declare. The `detail` names what is
+        missing and what to choose. Nothing changed.
     - slug: merge-preview-outdated
       status: 409
       schema: ProblemDetail
@@ -451,10 +458,15 @@ x-problem-types:
       status: 409
       schema: ProblemDetail
       description: >-
-        Publishing a release to a release registry (alpha) was refused because
-        the registry holds a release of the catalog under this version with
-        other content: one number names one release. Nothing was sent; release
-        the changes under a new version.
+        A release could not be published or received because its number or id
+        names another release: publishing to a release registry (alpha), the
+        registry holds a release of the catalog under this version with other
+        content; receiving one (importCatalog, installCatalogRelease,
+        installRegistryRelease), the tenant has this version of the catalog, or
+        of a release it pins, with another fingerprint, or another release or
+        a draft of the catalog has its release id. One number and one id name
+        one release. Nothing was sent or installed; release the changes under
+        a new version.
     - slug: namespace-not-granted
       status: 409
       schema: ProblemDetail

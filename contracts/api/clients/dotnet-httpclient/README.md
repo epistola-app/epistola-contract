@@ -191,7 +191,11 @@ release renders with rendering defaults this installation does not have is refus
 Publishing a release to a release registry (`PublishReleaseToRegistry`, alpha) is refused with
 `release-number-taken` when the registry holds that version with other content, with
 `namespace-not-granted` when the registry (the Exchange) does not grant the catalog's namespace,
-and a registry the installation does not have is `release-registry-not-found`.
+and a registry the installation does not have is `release-registry-not-found`. Receiving a release
+(`ImportCatalog`, `InstallCatalogRelease`, `InstallRegistryRelease`) is refused with
+`release-number-taken` too when the tenant has that version, or one the release pins, with another
+fingerprint, or its release id names another release or a draft of the catalog: one number and one
+id name one release.
 
 Listing or installing the releases a catalog's source offers fails with
 `catalog-source-unavailable` when that source cannot be used: 503 when it could not be reached or
