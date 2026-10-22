@@ -1,12 +1,14 @@
 # ADR 0008: Release registries
 
 - **Status:** Accepted (alpha), 2026-10-21. The operations are `x-experimental` and may still
-  change in a minor release.
+  change in a minor release. Amended 2026-10-22 (see "Amendment: release registries for
+  content-addressed releases").
 - **Date:** 2026-10-21
 - **Scope:** API contract (`contracts/api`)
 - **Related:** [ADR 0003](0003-catalog-identity-and-distribution.md) (catalog identity, registries
   and mirrors), [ADR 0005](0005-merging-catalog-versions.md) (merging, the merge base),
-  Epistola Suite ADR 0032 (catalogs are drafts and releases, moved between installations and merged)
+  Epistola Suite ADR 0032 (catalogs are drafts and releases, moved between installations and merged),
+  Epistola Suite ADR 0034 (releases are content-addressed; names point at them)
 
 ## Context
 
@@ -101,8 +103,72 @@ and withdrawing a queued publication are the Exchange's own, and not part of the
 - Epistola Suite's MCP tools and UI already do this for container registries; its Exchange
   publication becomes the `exchange` kind of the same operations.
 
+## Amendment: release registries for content-addressed releases (2026-10-22)
+
+ADR 0003's amendment of the same day (Epistola Suite ADR 0034) separates four questions: which
+release is this (its **content hash**, the V6 fingerprint), what it is called (a name, authority /
+namespace / key, and a number), who may call it that (the holder of the namespace, by a
+**binding**), and where it is kept (a release registry, or a file). This ADR answered only the
+last, and assumed the others were one: a name and number that were the release. They are not any
+more, and four things follow for release registries.
+
+**The authority is part of a container repository path.** A container registry keeps a release at
+`<prefix>/<authority>/<namespace>/<key>:<version>`: the configured prefix, the catalog's full name
+(the authority is the `registry` of the name, a domain, ADR 0003) and the number as the tag. The
+earlier rule, a repository per namespace and key, is superseded, and with it the consequence that
+"two catalogs that differ only in the registry part of their names cannot share one": they can, as
+`<prefix>/acme.com/acme/letters` and `<prefix>/exchange.epistola.app/acme/letters`. The tag is the
+binding's number, "this name at this number"; it is not the release's identity.
+
+**A release resolves by digest and content hash.** The installation resolves a tag to a digest
+once and fetches the release by that digest, so what it verified is what it installs; the release
+then verifies itself by its content hash, recomputed from its content (what a registry says of a
+release stays a label). A registry records the release's content hash beside its fingerprint
+(`RegistryReleaseDto.contentHash`, and the base's, `base.contentHash`: lineage is by hash), and the
+API names a release by it wherever it describes one (`CatalogReleaseDto.contentHash`, found with
+`listCatalogReleases?contentHash=`). Receiving is decided by content hash: a release the tenant has
+with the same content hash is the release it has, whatever number or registry it came from; one
+whose number the tenant has with another content hash is refused (`release-number-taken`), since one
+number names one release in a catalog. A tag moved to other content is a new binding of that number,
+refused the same way.
+
+**Mirroring copies releases and their bindings unchanged.** A mirror is a release registry holding
+copies: releases and their bindings, the same content, name and number, at the same repository
+path under its own prefix. It adds nothing under a name, so it needs no namespace: the content hash
+proves the content, and the signature over a binding (a later phase) who named it. Publishing a
+release this installation received rather than released (`publishReleaseToRegistry`) is mirroring
+it: the release goes out exactly as it came in, and to a container registry it needs no namespace.
+The Exchange hosts names rather than copies, so publishing to it stays the holder's
+(`namespace-not-granted`). A patch release (`1.3.1-gemeente-x.1`, ADR 0003) is published under the
+name it patches, never under the holder's own numbers, and only its issuer publishes it as a new
+binding; anyone may mirror it.
+
+**A catalog's source is per tenant and changeable.** `CatalogDto.source` is where this tenant
+receives the catalog's new releases from: another tenant of the same installation may receive the
+same catalog from elsewhere (the Exchange in one, the organisation's own Harbor in another), and a
+tenant may change it ("from now on, from our Harbor"). Changing it changes where new releases come
+from, never which releases are installed or what they are: a release is its content hash, the same
+from any registry. A catalog installed from a release registry gets it as its source, as before;
+installing from a registry that is not its source is still refused, so receiving from a mirror is
+changing the source to it first.
+
+What does not change: the operations, the permissions, and installing as importing. The
+release-registry paths keep addressing a catalog by namespace and key: within a tenant, namespace
+and key name one catalog (Epistola Suite ADR 0034), whose authority the server knows; for a catalog
+the tenant does not have yet, the authority is the server's default registry, as `~` is in a
+catalog path.
+
 ## Open questions
 
+- Should the release-registry paths name the authority too (a `{registry}` segment, or a query
+  parameter), so a registry that holds two catalogs differing only in their authority can be
+  listed and installed from for a catalog the tenant does not have yet?
+- Should installing take a content hash instead of a number (`…/releases/by-hash/{contentHash}`),
+  for a registry that keeps releases by digest without a tag?
+- How a binding travels in a container registry: a signed statement beside the release (as cosign
+  does), or in its manifest (ADR 0003, open as there).
+- Changing a catalog's source has no operation in this contract yet (Epistola Suite ADR 0034 makes
+  it changeable in its phase 6). Should the API offer one?
 - Should installing fetch the dependency releases a release pins from the same release registry,
   as `installCatalogRelease` does from their sources?
 - Should a release registry's `queued` publication be readable (its state, its failure) through

@@ -67,7 +67,10 @@ CatalogDto:
         `classpath:…` (supplied by the server itself). The scheme names the route; a client treats
         an unknown one as opaque. Null when releases only arrive by import (`importCatalog`) or are
         made in this installation. Listing and installing the releases a source offers
-        (`listAvailableCatalogReleases`, `installCatalogRelease`) need one.
+        (`listAvailableCatalogReleases`, `installCatalogRelease`) need one. It is this tenant's:
+        another tenant may receive the same catalog from elsewhere, such as a mirror, and changing
+        it changes where new releases come from, never the releases installed, which are their
+        content hashes wherever they came from (ADR 0008, amendment of 2026-10-22).
       example: exchange:acme-corp/letters
     highestVersion:
       oneOf:
