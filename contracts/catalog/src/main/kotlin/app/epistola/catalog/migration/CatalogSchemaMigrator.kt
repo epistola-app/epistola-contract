@@ -145,10 +145,11 @@ object CatalogMigrationCodes {
 
     /**
      * `release.version` is not a wire-v8 release number ([CatalogReleaseVersions]:
-     * `MAJOR.MINOR.PATCH`). Raised for a catalog-v8 manifest, and by the v7 to v8 migration for a
-     * release numbered with a pre-release or build part (`1.0.0-beta.1`), which earlier wire versions
-     * accepted: the migrator never strips that part, because the number would then name another
-     * release.
+     * `MAJOR.MINOR.PATCH`, or `MAJOR.MINOR.PATCH-<namespace>.<N>` for a patch release). Raised for a
+     * catalog-v8 manifest, and by the v7 to v8 migration for a release numbered with any pre-release
+     * or build part (`1.0.0-beta.1`), which earlier wire versions accepted as a pre-release: the
+     * migrator never strips that part, because the number would then name another release, and
+     * never reads it as a patch release.
      */
     const val RELEASE_VERSION_INVALID = "CATALOG_RELEASE_VERSION_INVALID"
 
@@ -167,7 +168,7 @@ object CatalogMigrationCodes {
 
     /**
      * A catalog-v8 catalog dependency's `releaseVersion` is not a release number
-     * ([CatalogReleaseVersions]: `MAJOR.MINOR.PATCH`).
+     * ([CatalogReleaseVersions]: `MAJOR.MINOR.PATCH`, or `MAJOR.MINOR.PATCH-<namespace>.<N>` for a patch release).
      */
     const val DEPENDENCY_CATALOG_VERSION_INVALID = "CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID"
 
@@ -507,7 +508,8 @@ object CatalogSchemaMigrator {
     }
 
     /**
-     * Wire v8 numbers every release it names `MAJOR.MINOR.PATCH` ([CatalogReleaseVersions]): the
+     * Wire v8 numbers every release it names `MAJOR.MINOR.PATCH`, or with a patch label
+     * ([CatalogReleaseVersions]): the
      * catalog's own `release.version` and each catalog dependency's `releaseVersion`. The model binds
      * any string, so that manifests stored under earlier versions still load; the wire check is where
      * v8 enforces the rule.
@@ -519,7 +521,7 @@ object CatalogSchemaMigrator {
                 findings += CatalogMigrationFinding(
                     CatalogMigrationCodes.RELEASE_VERSION_INVALID,
                     "catalog.json.release.version",
-                    "release version '$version' must be MAJOR.MINOR.PATCH, without a pre-release or build part",
+                    "release version '$version' must be MAJOR.MINOR.PATCH, or MAJOR.MINOR.PATCH-<namespace>.<N> for a patch release, and nothing else",
                 )
             }
         }
@@ -529,7 +531,7 @@ object CatalogSchemaMigrator {
                 findings += CatalogMigrationFinding(
                     CatalogMigrationCodes.DEPENDENCY_CATALOG_VERSION_INVALID,
                     "catalog.json.catalogDependencies[$index].releaseVersion",
-                    "releaseVersion must be MAJOR.MINOR.PATCH, without a pre-release or build part",
+                    "releaseVersion must be MAJOR.MINOR.PATCH, or MAJOR.MINOR.PATCH-<namespace>.<N> for a patch release, and nothing else",
                 )
             }
         }
@@ -565,7 +567,7 @@ object CatalogSchemaMigrator {
         val findings = mutableListOf<CatalogMigrationFinding>()
         val version = base["version"]
         if (version == null || !version.isString || !CatalogReleaseVersions.isValid(version.asString())) {
-            findings += CatalogMigrationFinding(CatalogMigrationCodes.RELEASE_BASE_INVALID, "$path.version", "base version must be MAJOR.MINOR.PATCH, without a pre-release or build part")
+            findings += CatalogMigrationFinding(CatalogMigrationCodes.RELEASE_BASE_INVALID, "$path.version", "base version must be MAJOR.MINOR.PATCH, or MAJOR.MINOR.PATCH-<namespace>.<N> for a patch release, and nothing else")
         }
         val fingerprint = base["fingerprint"]
         if (fingerprint == null || !fingerprint.isString || !ReleaseBase.isValidFingerprint(fingerprint.asString())) {

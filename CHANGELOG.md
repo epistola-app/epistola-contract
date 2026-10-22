@@ -384,6 +384,20 @@ libraries.
 
 ### Changed
 
+- **Catalog wire v8 (unreleased, changed in place): patch release numbers** (contract ADR 0003,
+  amendment of 2026-10-22). A release number is `MAJOR.MINOR.PATCH`, as the holder of the catalog's
+  namespace issues it, or `MAJOR.MINOR.PATCH-<namespace>.<N>` for a patch release by someone who
+  does not hold it, labelled with a namespace they hold and a sequence number from 1
+  (`1.3.1-gemeente-x.1`, which sorts above `1.3.0` and below the holder's `1.3.1`), in
+  `release.version`, a dependency's `releaseVersion`, `release.base.version` and a carried release's
+  path (`CatalogDependencyArchivePaths.PATTERN`, `CATALOG_DEPENDENCY_ARCHIVE_PATH_PATTERN`). No other
+  pre-release or build part. `CatalogReleaseVersions` gains `CORE_PATTERN`, `isCore` and
+  `patchNamespace`; npm gains `CATALOG_RELEASE_VERSION_CORE_PATTERN`. The format checks the shape
+  only: who holds a namespace is the installation's and the registry's to know. A consumer that
+  stores or reports release numbers must accept the label. The v7-to-v8 migration still refuses a v7
+  pre-release (`1.0.0-beta.1`) rather than reading it as a patch release. The API's `ReleaseVersion`
+  stays the plain rule (a test now holds it to `CORE_PATTERN`), so the API cannot yet report a patch
+  release: an API follow-up.
 - **BREAKING (catalog wire v8, unreleased, changed in place): a release is identified by its
   content, a V6 fingerprint** (contract ADR 0003, amendment of 2026-10-22; Epistola Suite ADR 0034).
   `CatalogFingerprintVersion.V6` is the current algorithm (`currentFingerprint`,

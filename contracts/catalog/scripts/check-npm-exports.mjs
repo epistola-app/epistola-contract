@@ -66,7 +66,13 @@ assert.equal(
   'npm and schema release.fingerprint patterns must agree',
 );
 
-// One release number rule, the API's ReleaseVersion, wherever wire v8 names a release.
+// One release number rule wherever wire v8 names a release: the API's ReleaseVersion, or a patch release.
+const releaseNumber = new RegExp(catalog.CATALOG_RELEASE_VERSION_PATTERN);
+for (const valid of ['0.0.0', '1.4.0', '1.3.1-gemeente-x.1', '2.0.0-abc.12']) assert.ok(releaseNumber.test(valid), `${valid} is a release number`);
+for (const invalid of ['1.4', '1.4.0-rc.1', '1.4.0-beta', '1.4.0-gemeente-x.0', '1.4.0-gemeente-x.01', '1.4.0+5', '1.4.0-Gemeente.1', '1.4.0-gemeente-x.1+5']) {
+  assert.ok(!releaseNumber.test(invalid), `${invalid} is not a release number`);
+}
+assert.ok(catalog.CATALOG_RELEASE_VERSION_PATTERN.startsWith(catalog.CATALOG_RELEASE_VERSION_CORE_PATTERN.slice(0, -1)), 'a release number is its core and an optional patch label');
 for (const [where, property] of [
   ['release.version', manifestSchema.$defs.ReleaseInfo.properties.version],
   ['catalog dependency releaseVersion', manifestSchema.$defs.CatalogDependency.properties.releaseVersion],
@@ -100,7 +106,8 @@ const apiRule = (name) => {
   return { pattern: rule.match(/\n  pattern: '([^']+)'/)?.[1], minLength: number('minLength'), maxLength: number('maxLength') };
 };
 for (const [name, pattern, minLength, maxLength] of [
-  ['ReleaseVersion', catalog.CATALOG_RELEASE_VERSION_PATTERN, undefined, catalog.MAX_CATALOG_RELEASE_VERSION_LENGTH],
+  // The API reports releases by their plain number; a patch release's label is the archive's alone for now.
+  ['ReleaseVersion', catalog.CATALOG_RELEASE_VERSION_CORE_PATTERN, undefined, catalog.MAX_CATALOG_RELEASE_VERSION_LENGTH],
   ['ResourceKey', catalog.CATALOG_RESOURCE_KEY_PATTERN, catalog.MIN_CATALOG_RESOURCE_KEY_LENGTH, catalog.MAX_CATALOG_RESOURCE_KEY_LENGTH],
   ['Namespace', catalog.CATALOG_NAMESPACE_PATTERN, catalog.MIN_CATALOG_NAMESPACE_LENGTH, catalog.MAX_CATALOG_NAMESPACE_LENGTH],
   ['Registry', catalog.CATALOG_REGISTRY_PATTERN, undefined, catalog.MAX_CATALOG_REGISTRY_LENGTH],

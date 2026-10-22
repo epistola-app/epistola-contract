@@ -458,8 +458,9 @@ data class PublisherInfo(
 /**
  * Release metadata for a catalog.
  *
- * @param version the release's number. From wire v8 it is `MAJOR.MINOR.PATCH`, without a
- *   pre-release or build part ([CatalogReleaseVersions]); earlier wire versions accepted full
+ * @param version the release's number. From wire v8 it is `MAJOR.MINOR.PATCH`, or, for a patch
+ *   release by someone who does not hold the catalog's namespace, `MAJOR.MINOR.PATCH-<namespace>.<N>`
+ *   with a namespace they hold ([CatalogReleaseVersions]); earlier wire versions accepted full
  *   SemVer. The migrator's wire check and the validator enforce it, not this model, so that
  *   manifests stored under earlier versions still bind.
  * @param releasedAt ISO-8601 timestamp the version was cut, if known.
@@ -494,7 +495,9 @@ data class PublisherInfo(
  * The catalog's name ([CatalogInfo.registry], [CatalogInfo.namespace], [CatalogInfo.key]),
  * [version] and [fingerprint] together are the archive's **binding** (contract ADR 0003): "this
  * name at this number is the release with this content hash", issued by the holder of the
- * namespace.
+ * namespace. Someone who does not hold the namespace, patching another's catalog, numbers a release
+ * with a label of a namespace they hold (`1.3.1-gemeente-x.1`, [CatalogReleaseVersions]). The format
+ * cannot know who holds a namespace; the installation and the registry enforce it.
  */
 data class ReleaseInfo(
     val version: String,

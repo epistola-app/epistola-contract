@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "description": "Catalog archives that carry the releases they pin (wire v8). Build each case's archive as a ZIP of its catalog's files, with each carried release, itself a ZIP of its catalog's files (and of whatever it carries), at its path, and each extra file as UTF-8 text. Validate it with the policy's limits (defaults otherwise). 'findings' lists the code and path of every finding; 'installOrder' the carried releases a reader exposes, each before every release that pins it.",
-  "pathPattern": "^dependencies/([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/((?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*))\\.zip$",
+  "pathPattern": "^dependencies/([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/((?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?=[a-z0-9-]{3,63}\\.)[a-z][a-z0-9]*(?:-[a-z0-9]+)*\\.[1-9][0-9]*)?)\\.zip$",
   "defaultPolicy": {
     "maxDependencies": 50,
     "maxTotalCompressedBytes": 104857600,
@@ -41,15 +41,19 @@
   "pathCases": {
     "valid": [
       "dependencies/exchange.epistola.app/acme/base/1.0.0.zip",
-      "dependencies/registry.gemeente-x.nl/gemeente-x/letters-2027/10.20.30.zip"
+      "dependencies/registry.gemeente-x.nl/gemeente-x/letters-2027/10.20.30.zip",
+      "dependencies/exchange.epistola.app/acme/base/1.3.1-gemeente-x.1.zip"
     ],
     "invalid": [
       "dependencies/base/1.0.0.zip",
       "dependencies/exchange.epistola.app/acme/base/1.0.0",
       "dependencies/exchange.epistola.app/acme/base/1.0.zip",
       "dependencies/exchange.epistola.app/acme/base/01.0.0.zip",
-      "dependencies/exchange.epistola.app/acme/base/1.0.0-beta.1.zip",
       "dependencies/exchange.epistola.app/Acme/base/1.0.0.zip",
+      "dependencies/exchange.epistola.app/acme/base/1.0.0+5.zip",
+      "dependencies/exchange.epistola.app/acme/base/1.0.0-gemeente-x.0.zip",
+      "dependencies/exchange.epistola.app/acme/base/1.0.0-gemeente-x.zip",
+      "dependencies/exchange.epistola.app/acme/base/1.0.0-rc.1.zip",
       "dependencies/exchange.epistola.app/acme/1base/1.0.0.zip",
       "dependencies/localhost/acme/base/1.0.0.zip",
       "dependencies/exchange.epistola.app/acme/base/x/1.0.0.zip",

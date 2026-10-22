@@ -10,14 +10,53 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class CatalogReleaseVersionsTest {
     @Test
     fun `a release number is MAJOR_MINOR_PATCH without leading zeros, pre-release or build part`() {
-        listOf("0.0.0", "1.4.0", "10.20.30", "1.0.${"1".repeat(46)}").forEach { assertTrue(CatalogReleaseVersions.isValid(it), it) }
-        listOf("", "1.0", "1.0.0.0", "01.0.0", "1.01.0", "v1.0.0", "1.0.0-beta.1", "1.0.0+5", "^1.0.0", "1.x", "1.0.${"1".repeat(47)}")
-            .forEach { assertFalse(CatalogReleaseVersions.isValid(it), it) }
+        listOf("0.0.0", "1.4.0", "10.20.30", "1.0.${"1".repeat(46)}").forEach {
+            assertTrue(CatalogReleaseVersions.isValid(it), it)
+            assertTrue(CatalogReleaseVersions.isCore(it), it)
+            assertNull(CatalogReleaseVersions.patchNamespace(it), it)
+        }
+        listOf("", "1.0", "1.0.0.0", "01.0.0", "1.01.0", "v1.0.0", "1.0.0-rc.1", "1.0.0+5", "^1.0.0", "1.x", "1.0.${"1".repeat(47)}")
+            .forEach {
+                assertFalse(CatalogReleaseVersions.isValid(it), it)
+                assertFalse(CatalogReleaseVersions.isCore(it), it)
+            }
+    }
+
+    @Test
+    fun `a patch release is labelled with a namespace and a sequence number, and sorts below the next plain number`() {
+        mapOf(
+            "1.3.1-gemeente-x.1" to "gemeente-x",
+            "1.3.1-acme.12" to "acme",
+            "0.0.1-${"a".repeat(42)}.1" to "a".repeat(42),
+        ).forEach { (version, namespace) ->
+            assertTrue(CatalogReleaseVersions.isValid(version), version)
+            assertFalse(CatalogReleaseVersions.isCore(version), version)
+            assertEquals(namespace, CatalogReleaseVersions.patchNamespace(version), version)
+            assertTrue(CatalogNamespaces.isValid(namespace), namespace)
+        }
+        // The label names a namespace (3 to 63 characters, a leading letter) and a number from 1, and nothing more.
+        listOf(
+            "1.3.1-ab.1",
+            "1.3.1-gemeente-x",
+            "1.3.1-gemeente-x.0",
+            "1.3.1-gemeente-x.01",
+            "1.3.1-Gemeente.1",
+            "1.3.1-1gemeente.1",
+            "1.3.1-gemeente-.1",
+            "1.3.1-gemeente-x.1.2",
+            "1.3.1-gemeente-x.1+5",
+            "1.3.1-gemeente.x.1",
+            "0.0.1-${"a".repeat(43)}.1",
+        ).forEach {
+            assertFalse(CatalogReleaseVersions.isValid(it), it)
+            assertNull(CatalogReleaseVersions.patchNamespace(it), it)
+        }
     }
 
     @Test
@@ -28,6 +67,7 @@ class CatalogReleaseVersionsTest {
         listOf(
             schema["\$defs"]["ReleaseInfo"]["properties"]["version"],
             schema["\$defs"]["CatalogDependency"]["properties"]["releaseVersion"],
+            schema["\$defs"]["ReleaseBase"]["properties"]["version"],
         ).forEach { property ->
             assertEquals(CatalogReleaseVersions.PATTERN, property["pattern"].asString(), property.toString())
             assertEquals(CatalogReleaseVersions.MAX_LENGTH, property["maxLength"].asInt(), property.toString())
@@ -45,12 +85,12 @@ class CatalogReleaseVersionsTest {
     }
 
     /**
-     * The API reports every release an archive carries, so the archive's rule is the API's
-     * `ReleaseVersion`. The spec is read as text: this module has no YAML parser, and the schema is
-     * a flat block.
+     * The API reports a release by its plain number, so the core of the archive's rule is the API's
+     * `ReleaseVersion`; a patch release's label is the archive's alone until the API follows. The
+     * spec is read as text: this module has no YAML parser, and the schema is a flat block.
      */
     @Test
-    fun `the rule is the API's ReleaseVersion`() {
+    fun `the rule's core is the API's ReleaseVersion`() {
         val spec = File("../api/components/schemas/identifiers.yaml")
         assertTrue(spec.isFile, "the API spec must be next to the catalog module: ${spec.absolutePath}")
         val block = assertNotNull(
@@ -60,7 +100,8 @@ class CatalogReleaseVersionsTest {
         val pattern = assertNotNull(Regex("(?m)^ {2}pattern: '([^']+)'$").find(block)).groupValues[1]
         val maxLength = assertNotNull(Regex("(?m)^ {2}maxLength: (\\d+)$").find(block)).groupValues[1].toInt()
 
-        assertEquals(CatalogReleaseVersions.PATTERN, pattern)
+        assertEquals(CatalogReleaseVersions.CORE_PATTERN, pattern)
         assertEquals(CatalogReleaseVersions.MAX_LENGTH, maxLength)
+        assertTrue(CatalogReleaseVersions.PATTERN.startsWith(CatalogReleaseVersions.CORE_PATTERN.removeSuffix("$")))
     }
 }

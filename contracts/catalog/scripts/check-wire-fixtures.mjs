@@ -207,7 +207,9 @@ for (const [description, edit] of [
   ['catalog dependency with a short releaseFingerprint', (m) => { m.catalogDependencies[0].releaseFingerprint = m.catalogDependencies[0].releaseFingerprint.slice(1); }],
   ['catalog dependency with a prefixed releaseFingerprint', (m) => { m.catalogDependencies[0].releaseFingerprint = `sha256:${m.catalogDependencies[0].releaseFingerprint}`; }],
   ['catalog dependency with an unknown member', (m) => { m.catalogDependencies[0].range = '^1.0.0'; }],
-  ['a pre-release release version', (m) => { m.release.version = '1.0.0-beta.1'; }],
+  ['a pre-release release version', (m) => { m.release.version = '1.0.0-rc.1'; }],
+  ['a patch release without a sequence number', (m) => { m.release.version = '1.0.0-gemeente-x'; }],
+  ['a patch release numbered 0', (m) => { m.release.version = '1.0.0-gemeente-x.0'; }],
   ['a release version with build metadata', (m) => { m.release.version = '1.0.0+5'; }],
   ['a release version with a leading zero', (m) => { m.release.version = '1.01.0'; }],
   ['a release version that is too long', (m) => { m.release.version = `1.0.${'1'.repeat(48)}`; }],
@@ -221,6 +223,8 @@ for (const [description, edit] of [
   ['no catalog dependencies', (m) => { delete m.catalogDependencies; m.dependencies = []; }],
   ['null catalog dependencies', (m) => { m.catalogDependencies = null; m.dependencies = []; }],
   ['a migrated catalog dependency', (m) => { m.catalogDependencies[0].releaseVersion = null; m.catalogDependencies[0].releaseFingerprint = null; }],
+  ['a patch release', (m) => { m.release.version = '1.3.1-gemeente-x.1'; }],
+  ['a dependency pinned to a patch release', (m) => { m.catalogDependencies[0].releaseVersion = '1.4.1-gemeente-x.2'; }],
   ['an alias other than the catalog key', (m) => { m.catalogDependencies[0].alias = 'acme-shared'; m.dependencies[0].catalogKey = 'acme-shared'; }],
 ]) {
   const manifest = await v8Manifest(edit);
@@ -468,6 +472,7 @@ for (const [description, edit] of [
   ["the fixture's base", () => {}],
   ['no base', (r) => { delete r.base; }],
   ['a base under an older algorithm', (r) => { r.base.fingerprint = `v4:${zeroDigest}`; }],
+  ['a base that is a patch release', (r) => { r.base.version = '0.9.0-gemeente-x.1'; }],
 ]) {
   assert.equal(validateV8Manifest(await editRelease(edit)), true, `v8 manifest rejected ${description}: ${ajv.errorsText(validateV8Manifest.errors)}`);
 }
@@ -475,7 +480,7 @@ for (const [description, edit] of [
   ['a null base', (r) => { r.base = null; }],
   ['a base without a version', (r) => { delete r.base.version; }],
   ['a base without a fingerprint', (r) => { delete r.base.fingerprint; }],
-  ['a base version with a pre-release', (r) => { r.base.version = '1.0.0-beta.1'; }],
+  ['a base version with a pre-release', (r) => { r.base.version = '1.0.0-rc.1'; }],
   ['a bare-hex base fingerprint', (r) => { r.base.fingerprint = zeroDigest; }],
   ['a base with resource fingerprints', (r) => { r.base.resourceFingerprints = { algorithm: 'v3', resources: {} }; }],
   ['an unknown base member', (r) => { r.base.releaseId = 'k7m2x9qa'; }],

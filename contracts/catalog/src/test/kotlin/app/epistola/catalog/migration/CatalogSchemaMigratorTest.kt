@@ -448,7 +448,10 @@ class CatalogSchemaMigratorTest {
         fun dependency(tree: ObjectNode) = tree["catalogDependencies"][0] as ObjectNode
 
         assertEquals(emptyList(), findings { (it["release"] as ObjectNode).put("version", "10.20.30") })
-        listOf("1.0.0-beta.1", "1.0.0+5", "1.01.0", "v1.0.0", "1.0", "1.0.${"1".repeat(47)}").forEach { version ->
+        // A patch release, labelled with the namespace of whoever issued it (contract ADR 0003).
+        assertEquals(emptyList(), findings { (it["release"] as ObjectNode).put("version", "1.3.1-gemeente-x.1") })
+        assertEquals(emptyList(), findings { dependency(it).put("releaseVersion", "1.4.1-gemeente-x.2") })
+        listOf("1.0.0-rc.1", "1.0.0-gemeente-x", "1.0.0-gemeente-x.0", "1.0.0-gemeente-x.1+5", "1.0.0+5", "1.01.0", "v1.0.0", "1.0", "1.0.${"1".repeat(47)}").forEach { version ->
             assertEquals(release, findings { (it["release"] as ObjectNode).put("version", version) }, version)
         }
         listOf("1.4.0-rc.1", "^1.4.0", "1.4").forEach { version ->
@@ -496,7 +499,8 @@ class CatalogSchemaMigratorTest {
         val invalid = CatalogMigrationCodes.RELEASE_BASE_INVALID
         assertEquals(listOf(invalid to base), findings { it.put("base", "0.9.0") })
         assertEquals(listOf(invalid to "$base.version"), findings { it.base().remove("version") })
-        assertEquals(listOf(invalid to "$base.version"), findings { it.base().put("version", "0.9.0-beta.1") })
+        assertEquals(listOf(invalid to "$base.version"), findings { it.base().put("version", "0.9.0-rc.1") })
+        assertEquals(emptyList(), findings { it.base().put("version", "0.9.0-gemeente-x.1") }, "a patch release may be a base")
         assertEquals(listOf(invalid to "$base.version"), findings { it.base().put("version", 9) })
         assertEquals(listOf(invalid to "$base.fingerprint"), findings { it.base().remove("fingerprint") })
         assertEquals(listOf(invalid to "$base.fingerprint"), findings { it.base().put("fingerprint", digest) })
@@ -518,7 +522,8 @@ class CatalogSchemaMigratorTest {
         }
 
         listOf("migrations/v7-to-v8/manifest-input.json", "wire-v6/catalog.json").forEach { fixture ->
-            listOf("1.0.0-beta.1", "1.0.0+build.5").forEach { version ->
+            // A v7 pre-release was a pre-release: it is never read as a v8 patch release, whose label it may resemble.
+            listOf("1.0.0-beta.1", "1.0.0+build.5", "1.3.1-gemeente-x.1").forEach { version ->
                 val found = findings(fixture, version)
                 assertEquals(listOf(CatalogMigrationCodes.RELEASE_VERSION_INVALID to "catalog.json.release.version"), found.map { it.code to it.path }, "$fixture $version")
                 assertTrue(version in found.single().message, found.single().message)

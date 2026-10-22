@@ -161,8 +161,19 @@ receiver records the hash. A catalog dependency's declaration is a binding seen 
 the dependency's name and the number it had (`releaseVersion`), pointing at the hash it pins
 (`releaseFingerprint`).
 
+**The patch rule.** The holder of a catalog's namespace issues its plain numbers (`1.3.1`). Anyone
+else -- a municipality fixing a supplier's catalog -- may only issue a **patch release**, numbered
+with a pre-release label that names a namespace *they* hold and a sequence number from 1:
+`1.3.1-gemeente-x.1` (`CatalogReleaseVersions`, `CATALOG_RELEASE_VERSION_PATTERN`). As SemVer it
+sorts above `1.3.0` and below the holder's `1.3.1`, so the holder's next release supersedes it and
+merges it in, and the numbers cannot collide: the holder never uses a label, the patcher never
+issues a plain number. A patch binding is never published under the holder's authority. The label
+is the only pre-release form wire v8 accepts; a v7 pre-release (`1.0.0-beta.1`) is never read as
+one.
+
 The format carries the binding but cannot know who holds a namespace: whether the producer of an
-archive may issue a binding under its name is for the installation and the registry to decide.
+archive may issue a binding under its name, or a patch label for a namespace, is for the
+installation and the registry to decide. Channels (`stable`) and signed bindings are later work.
 
 ## Presentation Is Not Content
 
