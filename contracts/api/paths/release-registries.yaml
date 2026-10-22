@@ -63,7 +63,7 @@ registry-releases:
 
       The releases of the catalog `{namespace}/{catalogKey}` that the release registry `{name}`
       holds, highest version first, each with what the registry says of it: its fingerprint, and
-      its id and base when the registry records them. Best effort: what the registry can say, and
+      its content hash, id and base when the registry records them. Best effort: what the registry can say, and
       only a label, never trusted; installing checks the release itself. Nothing is installed by
       reading it.
 

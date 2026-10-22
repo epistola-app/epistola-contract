@@ -35,3 +35,16 @@ def test_a_fingerprint_the_contract_allows_parses_as_sent(fingerprint):
 def test_a_fingerprint_the_contract_does_not_allow_is_refused(fingerprint):
     with pytest.raises(ValueError, match="fingerprint"):
         CatalogReleaseDto.from_dict(_version(fingerprint))
+
+
+@pytest.mark.parametrize("content_hash", [f"v6:{HEX}", None])
+def test_a_content_hash_is_a_v6_fingerprint_whatever_the_recorded_one_is(content_hash):
+    release = CatalogReleaseDto.from_dict({**_version(f"v5:{HEX}"), "contentHash": content_hash})
+    assert release.content_hash == content_hash
+    assert release.fingerprint == f"v5:{HEX}"
+
+
+@pytest.mark.parametrize("content_hash", [HEX, f"v5:{HEX}", f"v7:{HEX}", f"v6:{HEX.upper()}", f"v6:{HEX[:-1]}"])
+def test_a_content_hash_that_is_not_v6_is_refused(content_hash):
+    with pytest.raises(ValueError, match="content_hash|contentHash"):
+        CatalogReleaseDto.from_dict({**_version(f"v5:{HEX}"), "contentHash": content_hash})

@@ -1,0 +1,76 @@
+# SPDX-FileCopyrightText: Epistola Nederland B.V.
+#
+# SPDX-License-Identifier: EUPL-1.2
+
+id: list-catalog-releases-by-content-hash
+title: A release is found by its content hash, and every number naming that content comes back
+why: >
+  A release is identified by its content (its `contentHash`, the V6 fingerprint), not by its
+  number, and several numbers can name one content (Epistola Suite ADR 0034): here `1.4.1`, whose
+  changes restore `1.3.0`'s content. So finding a release by its content is a filter on the
+  catalog's release list, `?contentHash=`, which answers with every release that has it, rather
+  than a path that would have to pick one. A client sends the hash as given, prefix and all
+  (`v6:`, a colon in a query value), and surfaces each release's number and content hash; a client
+  that strips the prefix or picks the first release loses what the filter is for.
+
+  `1.3.0` was recorded with an earlier algorithm (`v5:`), so its `fingerprint` and its
+  `contentHash` differ; for `1.4.1`, made under V6, they are the same.
+
+action:
+  name: list-catalog-releases
+  config:
+    nodeId: conformance-node-1
+    tenantKey: acme-corp
+    registry: "~"
+    namespace: acme-corp
+    catalogKey: letters
+    contentHash: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+
+script:
+  - status: 200
+    contentType: application/vnd.epistola.v2+json
+    body:
+      items:
+        - version: 1.4.1
+          releaseId: t5k8m3wq
+          name: Back to the 1.3 letterhead
+          status: released
+          base: 1.4.0
+          createdFrom: null
+          behind: []
+          releasedAt: "2026-10-20T12:00:00Z"
+          notes: null
+          fingerprint: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+          contentHash: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+          dependencies: []
+          deployedTo: []
+        - version: 1.3.0
+          releaseId: d2f6h9jr
+          name: null
+          status: released
+          base: 1.2.0
+          createdFrom: null
+          behind: []
+          releasedAt: "2026-06-01T12:00:00Z"
+          notes: null
+          fingerprint: v5:720855e3a1b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e
+          contentHash: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+          dependencies: []
+          deployedTo: [production]
+      page: { number: 0, size: 20, total: 2, totalPages: 1 }
+
+expect:
+  requestCount: 1
+  requests:
+    - method: GET
+      path: /api/tenants/acme-corp/catalogs/~/acme-corp/letters/releases
+      queryParams:
+        contentHash: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+        status: { absent: true }
+        page: { whenPresent: '0' }
+        size: { whenPresent: '20' }
+  report:
+    versions: 1.4.1,1.3.0
+    releaseIds: t5k8m3wq,d2f6h9jr
+    statuses: released,released
+    contentHashes: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb,v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb

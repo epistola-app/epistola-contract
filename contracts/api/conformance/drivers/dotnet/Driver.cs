@@ -714,6 +714,7 @@ public static class Driver
             ["catalogKeys"] = string.Join(",", items.Select(d => Show(d.CatalogKey))),
             ["versions"] = string.Join(",", items.Select(d => Show(d.Version))),
             ["releaseIds"] = string.Join(",", items.Select(d => Show(d.ReleaseId))),
+            ["contentHashes"] = string.Join(",", items.Select(d => Show(d.ContentHash))),
         };
         if (etag != null) values["etag"] = etag;
         Report(baseUrl, values);
@@ -752,7 +753,8 @@ public static class Driver
         var status = OptStr(config, "status");
         var items = new CatalogsApi(http, apiBase).ListCatalogReleases(
             Str(config, "tenantKey"), Str(config, "registry"), Str(config, "namespace"), Str(config, "catalogKey"),
-            status: status == null ? null : Parse<CatalogReleaseStatus>(status)).Items;
+            status: status == null ? null : Parse<CatalogReleaseStatus>(status),
+            contentHash: OptStr(config, "contentHash")).Items;
 
         Report(baseUrl, new Dictionary<string, object>
         {
@@ -763,6 +765,7 @@ public static class Driver
             ["bases"] = string.Join(",", items.Select(v => Show(v.Base))),
             ["createdFrom"] = string.Join(",", items.Select(v => Show(v.CreatedFrom))),
             ["behindCounts"] = string.Join(",", items.Select(v => (v.Behind ?? new List<BehindReleaseDto>()).Count)),
+            ["contentHashes"] = string.Join(",", items.Select(v => Show(v.ContentHash))),
         });
     }
 
@@ -780,9 +783,11 @@ public static class Driver
             ["status"] = Show(Wire(release.Status)),
             ["releasedAt"] = Show(Iso(release.ReleasedAt)),
             ["fingerprint"] = Show(release.Fingerprint),
+            ["contentHash"] = Show(release.ContentHash),
             ["dependencies"] = string.Join(",", (release.Dependencies ?? new List<ReleaseDependencyDto>())
                 .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.Version)}")),
             ["dependencyAliases"] = string.Join(",", (release.Dependencies ?? new List<ReleaseDependencyDto>()).Select(d => Show(d.Alias))),
+            ["dependencyContentHashes"] = string.Join(",", (release.Dependencies ?? new List<ReleaseDependencyDto>()).Select(d => Show(d.ContentHash))),
             ["deployedTo"] = string.Join(",", release.DeployedTo ?? new List<string>()),
             ["behind"] = string.Join(";", (release.Behind ?? new List<BehindReleaseDto>())
                 .Select(b => $"{Show(b.Version)}=" + string.Join("+", (b.Changes ?? new List<ReleasedChangeDto>())
@@ -915,6 +920,8 @@ public static class Driver
             ["version"] = Show(response.Release?.Version),
             ["status"] = Show(response.Release == null ? null : Wire(response.Release.Status)),
             ["releaseId"] = Show(response.Release?.ReleaseId),
+            ["contentHash"] = Show(response.Release?.ContentHash),
+            ["unchangedContent"] = response.UnchangedContent ? "true" : "false",
             ["draftsBehind"] = string.Join("|", response.DraftsBehind ?? new List<string>()),
             ["releasedDependencies"] = string.Join(",", (response.ReleasedDependencies ?? new List<ReleasedDependencyDto>())
                 .Select(d => $"{Show(d.Registry)}/{Show(d.Namespace)}/{Show(d.CatalogKey)}@{Show(d.Version)}")),
@@ -947,6 +954,7 @@ public static class Driver
             ["unchanged"] = Show(preview.Unchanged),
             ["token"] = Show(preview.Token),
             ["missingBase"] = preview.MissingBase is { } missingBase ? $"{missingBase.Version}@{missingBase.Fingerprint}" : "null",
+            ["missingBaseContentHash"] = Show(preview.MissingBase?.ContentHash),
         });
     }
 
@@ -1018,6 +1026,8 @@ public static class Driver
             ["releases"] = string.Join(",", releases.Items.Select(r =>
                 $"{Show(r.Version)}:{Show(r.Fingerprint)}:{Show(r.ReleaseId)}:" +
                 (r.Base == null ? "null" : $"{Show(r.Base.Version)}@{Show(r.Base.Fingerprint)}"))),
+            ["contentHashes"] = string.Join(",", releases.Items.Select(r => Show(r.ContentHash))),
+            ["baseContentHashes"] = string.Join(",", releases.Items.Select(r => Show(r.Base?.ContentHash))),
         });
     }
 

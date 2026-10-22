@@ -6,8 +6,9 @@ id: preview-catalog-draft-merge-base-missing
 title: A merge preview without the merge base still answers, and names the release to get first
 why: >
   The preview does not fail when this installation does not have the merge base (ADR 0005): it
-  answers with `missingBase`, the merge base's `version` and `fingerprint`, and classifies
-  nothing, so a client can offer to install that release and preview again. A client that drops
+  answers with `missingBase`, the merge base's `version`, `fingerprint` and content hash, and
+  classifies nothing, so a client can offer to install that release, found by its content hash,
+  and preview again. A client that drops
   the optional member shows an empty preview as a merge with nothing to do.
 
 action:
@@ -35,6 +36,7 @@ script:
       missingBase:
         version: 1.0.0
         fingerprint: v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+        contentHash: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
 
 expect:
   requestCount: 1
@@ -51,3 +53,5 @@ expect:
     unchanged: '0'
     token: m1.k7m2x9qa.7.1-0-1.base-missing
     missingBase: 1.0.0@v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70
+    # The merge base is found by its content hash, whatever its number (lineage is by hash).
+    missingBaseContentHash: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb

@@ -38,8 +38,9 @@ script:
       releasedAt: "2026-10-21T12:00:00Z"
       notes: The payment terms say 30 days.
       fingerprint: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+      contentHash: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
       dependencies:
-        - { alias: branding, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, version: 2.0.1-gemeente-x.3, direct: true }
+        - { alias: branding, registry: exchange.epistola.app, namespace: acme-corp, catalogKey: branding, version: 2.0.1-gemeente-x.3, contentHash: v6:332102ae9816ed0d53b0657b25f4b6a96ce09bb995b159c594154b49cd0b1818, direct: true }
       deployedTo: [production]
 
 expect:
@@ -54,6 +55,8 @@ expect:
     status: released
     releasedAt: "2026-10-21T12:00:00Z"
     fingerprint: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
+    contentHash: v6:4ef99d5bdefa57bcb76c8644383ad652d7223fdbe9f9818608a172017d475edb
     dependencies: exchange.epistola.app/acme-corp/branding@2.0.1-gemeente-x.3
+    dependencyContentHashes: v6:332102ae9816ed0d53b0657b25f4b6a96ce09bb995b159c594154b49cd0b1818
     deployedTo: production
     behind: ""

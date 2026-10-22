@@ -286,6 +286,23 @@ class ModelValidationTest {
         }
     }
 
+    @Test
+    void a_content_hash_is_a_v6_fingerprint() {
+        String hex = "0123456789abcdef".repeat(4);
+        CatalogDto catalog = catalogWithFingerprint("v5:" + hex);
+        catalog.setContentHash("v6:" + hex);
+        assertSame(catalog, ModelValidation.validate(catalog));
+        for (String contentHash : List.of(hex, "v5:" + hex, "v7:" + hex, "v6:" + hex.toUpperCase(), "v6:" + hex.substring(1))) {
+            catalog.setContentHash(contentHash);
+            assertTrue(assertThrows(
+                            IllegalArgumentException.class,
+                            () -> ModelValidation.validate(catalog),
+                            "expected the content hash '" + contentHash + "' to fail")
+                    .getMessage()
+                    .startsWith("contentHash: must match pattern"));
+        }
+    }
+
     private static CatalogDto catalogWithFingerprint(String fingerprint) {
         CatalogDto catalog = new CatalogDto();
         catalog.setRegistry("exchange.epistola.app");

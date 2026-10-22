@@ -40,8 +40,8 @@ script:
     contentType: application/vnd.epistola.v2+json
     body:
       items:
-        - { alias: system, registry: exchange.epistola.app, namespace: epistola, catalogKey: system, version: 1.3.0, releaseId: null }
-        - { alias: house, registry: acme.com, namespace: acme, catalogKey: house-style, version: 2.1.0, releaseId: null }
+        - { alias: system, registry: exchange.epistola.app, namespace: epistola, catalogKey: system, version: 1.3.0, releaseId: null, contentHash: v6:332102ae9816ed0d53b0657b25f4b6a96ce09bb995b159c594154b49cd0b1818 }
+        - { alias: house, registry: acme.com, namespace: acme, catalogKey: house-style, version: 2.1.0, releaseId: null, contentHash: null }
 
 expect:
   requestCount: 1
@@ -65,3 +65,5 @@ expect:
     catalogKeys: system,house-style
     versions: 1.3.0,2.1.0
     releaseIds: null,null
+    # The pin names a release by its content hash; null where the server has none for it.
+    contentHashes: v6:332102ae9816ed0d53b0657b25f4b6a96ce09bb995b159c594154b49cd0b1818,null

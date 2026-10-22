@@ -502,6 +502,7 @@ function dependencyFields(items) {
     catalogKeys: items.map((d) => show(d.catalogKey)).join(','),
     versions: items.map((d) => show(d.version)).join(','),
     releaseIds: items.map((d) => show(d.releaseId)).join(','),
+    contentHashes: items.map((d) => show(d.contentHash)).join(','),
   }
 }
 
@@ -533,6 +534,7 @@ async function createCatalogRelease(baseUrl, config) {
 async function listCatalogReleases(baseUrl, config) {
   const request = { tenantKey: config.tenantKey, registry: config.registry, namespace: config.namespace, catalogKey: config.catalogKey }
   if (config.status !== undefined) request.status = config.status
+  if (config.contentHash !== undefined) request.contentHash = config.contentHash
   const { items } = await new CatalogsApi(client(baseUrl, config)).listCatalogReleases(request)
   await report(baseUrl, {
     versions: items.map((v) => show(v.version)).join(','),
@@ -542,6 +544,7 @@ async function listCatalogReleases(baseUrl, config) {
     bases: items.map((v) => show(v.base)).join(','),
     createdFrom: items.map((v) => show(v.createdFrom)).join(','),
     behindCounts: items.map((v) => show(v.behind.length)).join(','),
+    contentHashes: items.map((v) => show(v.contentHash)).join(','),
   })
 }
 
@@ -561,8 +564,10 @@ async function getCatalogRelease(baseUrl, config) {
     status: show(release.status),
     releasedAt: showInstant(release.releasedAt),
     fingerprint: show(release.fingerprint),
+    contentHash: show(release.contentHash),
     dependencies: (release.dependencies ?? []).map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.version)}`).join(','),
     dependencyAliases: (release.dependencies ?? []).map((d) => show(d.alias)).join(','),
+    dependencyContentHashes: (release.dependencies ?? []).map((d) => show(d.contentHash)).join(','),
     deployedTo: (release.deployedTo ?? []).map(show).join(','),
     behind: release.behind
       .map((r) => `${show(r.version)}=${r.changes.map((c) => `${show(c.type)}/${show(c.key)}:${show(c.change)}`).join('+')}`)
@@ -696,6 +701,8 @@ async function releaseCatalogDraft(baseUrl, config) {
     version: show(response.release.version),
     status: show(response.release.status),
     releaseId: show(response.release.releaseId),
+    contentHash: show(response.release.contentHash),
+    unchangedContent: show(response.unchangedContent),
     draftsBehind: response.draftsBehind.map(show).join('|'),
     releasedDependencies: response.releasedDependencies
       .map((d) => `${show(d.registry)}/${show(d.namespace)}/${show(d.catalogKey)}@${show(d.version)}`)
@@ -732,6 +739,7 @@ async function previewCatalogDraftMerge(baseUrl, config) {
     unchanged: show(preview.unchanged),
     token: show(preview.token),
     missingBase: preview.missingBase ? `${preview.missingBase.version}@${preview.missingBase.fingerprint}` : 'null',
+    missingBaseContentHash: show(preview.missingBase?.contentHash),
   })
 }
 
@@ -794,6 +802,8 @@ async function listRegistryReleases(baseUrl, config) {
     releases: releases.items
       .map((r) => `${show(r.version)}:${show(r.fingerprint)}:${show(r.releaseId)}:${r.base == null ? 'null' : `${show(r.base.version)}@${show(r.base.fingerprint)}`}`)
       .join(','),
+    contentHashes: releases.items.map((r) => show(r.contentHash)).join(','),
+    baseContentHashes: releases.items.map((r) => show(r.base?.contentHash)).join(','),
   })
 }
 

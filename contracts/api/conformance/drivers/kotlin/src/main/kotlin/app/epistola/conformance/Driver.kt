@@ -724,6 +724,7 @@ object Driver {
             "catalogKeys" to dependencies.joinToString(",") { it.catalogKey },
             "versions" to dependencies.joinToString(",") { it.version ?: "null" },
             "releaseIds" to dependencies.joinToString(",") { it.releaseId ?: "null" },
+            "contentHashes" to dependencies.joinToString(",") { it.contentHash ?: "null" },
         )
         )
 
@@ -761,6 +762,7 @@ object Driver {
             config["namespace"].asText(),
             config["catalogKey"].asText(),
             status = config.optionalText("status")?.let { CatalogReleaseStatus.decode(it) },
+            contentHash = config.optionalText("contentHash"),
         ).items
         report(
             baseUrl,
@@ -772,6 +774,7 @@ object Driver {
                 "bases" to releases.joinToString(",") { it.base ?: "null" },
                 "createdFrom" to releases.joinToString(",") { it.createdFrom?.toString() ?: "null" },
                 "behindCounts" to releases.joinToString(",") { it.behind.size.toString() },
+                "contentHashes" to releases.joinToString(",") { it.contentHash ?: "null" },
             ),
         )
     }
@@ -794,10 +797,12 @@ object Driver {
                 "status" to release.status.value,
                 "releasedAt" to timestamp(release.releasedAt),
                 "fingerprint" to (release.fingerprint ?: "null"),
+                "contentHash" to (release.contentHash ?: "null"),
                 "dependencies" to release.dependencies.joinToString(",") {
                     "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version}"
                 },
                 "dependencyAliases" to release.dependencies.joinToString(",") { it.alias ?: "null" },
+                "dependencyContentHashes" to release.dependencies.joinToString(",") { it.contentHash ?: "null" },
                 "deployedTo" to release.deployedTo.joinToString(","),
                 "behind" to release.behind.joinToString(";") { behind ->
                     "${behind.version}=" + behind.changes.joinToString("+") { "${it.type}/${it.key}:${it.change.value}" }
@@ -930,6 +935,8 @@ object Driver {
                 "version" to (response.release.version ?: "null"),
                 "status" to response.release.status.value,
                 "releaseId" to response.release.releaseId,
+                "contentHash" to (response.release.contentHash ?: "null"),
+                "unchangedContent" to response.unchangedContent.toString(),
                 "draftsBehind" to response.draftsBehind.joinToString("|"),
                 "releasedDependencies" to response.releasedDependencies.joinToString(",") {
                     "${it.registry}/${it.namespace}/${it.catalogKey}@${it.version}"
@@ -964,6 +971,7 @@ object Driver {
                 "unchanged" to preview.unchanged.toString(),
                 "token" to preview.token,
                 "missingBase" to (preview.missingBase?.let { "${it.version}@${it.fingerprint}" } ?: "null"),
+                "missingBaseContentHash" to (preview.missingBase?.contentHash ?: "null"),
             ),
         )
     }
@@ -1025,6 +1033,8 @@ object Driver {
                 "releases" to releases.items.joinToString(",") {
                     "${it.version}:${it.fingerprint ?: "null"}:${it.releaseId ?: "null"}:${it.base?.let { b -> "${b.version}@${b.fingerprint}" } ?: "null"}"
                 },
+                "contentHashes" to releases.items.joinToString(",") { it.contentHash ?: "null" },
+                "baseContentHashes" to releases.items.joinToString(",") { it.base?.contentHash ?: "null" },
             ),
         )
     }

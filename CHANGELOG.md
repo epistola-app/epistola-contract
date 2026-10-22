@@ -11,6 +11,31 @@ libraries.
 
 ### Added
 
+- **A release carries its content hash, and is found by it** (contract ADR 0003, amendment of
+  2026-10-22; Epistola Suite ADR 0034). New identifier `ContentHash`, the V6 fingerprint (`v6:` and
+  64 lowercase hex digits), which identifies a release whatever its name or number.
+  `CatalogReleaseDto.contentHash` beside `fingerprint` (the recorded one, any algorithm), so also
+  in `listCatalogReleases`, `getCatalogRelease` and the release `releaseCatalogDraft` returns: the
+  same as `fingerprint` for a release made under V6, computed from the content for one recorded
+  with an earlier algorithm; null for a draft, for a release recorded before the server computed
+  content hashes until it has, and for one whose retained content no longer reproduces its
+  fingerprint. `CatalogDto.contentHash` (the highest release's), `RegistryReleaseDto.contentHash`
+  (what the registry records, a label), `CatalogMergeBaseRef.contentHash` (lineage is by hash; in
+  `missingBase` and a registry release's `base`) and, for pins, `CatalogDependencyDto.contentHash`
+  and `ReleaseDependencyDto.contentHash`, all optional and nullable. `unchangedContent` now says the
+  released content is another release's by content hash. **Finding a release by its content** is a
+  filter, `listCatalogReleases?contentHash=` (anything but a `ContentHash` is 400), rather than a
+  path: several numbers can name one content (a release whose changes restore an earlier one, one
+  received again under another number), so the answer is a list, empty rather than 404, with the
+  `status` filter and paging the list already has, and `…/releases/{release}` keeps addressing one
+  release by id or number. The clients' validation tests hold `contentHash` to `v6:`. Conformance:
+  `list-catalog-releases` sends `config.contentHash` and reports `contentHashes`;
+  `get-catalog-release` reports `contentHash` and `dependencyContentHashes`;
+  `release-catalog-draft` reports `contentHash` and `unchangedContent`; dependency reports carry
+  `contentHashes`; `list-registry-releases` reports `contentHashes` and `baseContentHashes`;
+  `preview-catalog-draft-merge` reports `missingBaseContentHash`; new scenario
+  `list-catalog-releases-by-content-hash`.
+
 - **Resolving a merge conflict with merged content (alpha, `x-experimental`, ADR 0005).** So that a
   person, an assistant or a tool can combine both sides of a conflict:
   `getCatalogDraftMergeSides` (`GET
