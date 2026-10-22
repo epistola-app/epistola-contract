@@ -415,7 +415,8 @@ had no number of its own to use, and "registry" read as a location.
   **patch release** labelled with a namespace they hold: `1.3.1-gemeente-x.1`, which sorts above
   `1.3.0` and below the holder's `1.3.1`, so the holder's next release supersedes it and merges it
   in, and the numbers never collide. Wire v8 accepts exactly that label and no other pre-release
-  (`CatalogReleaseVersions`). The format cannot know who holds a namespace; installations and
+  (`CatalogReleaseVersions`), and a release number of up to 128 characters, so that every valid
+  namespace (up to 63 characters) can label one. The format cannot know who holds a namespace; installations and
   registries enforce it.
 - **Catalogs refer to each other by alias.** A `catalogDependencies` entry is `{alias, registry,
   namespace, catalogKey, releaseVersion, releaseFingerprint}`: the alias content uses, the name (to

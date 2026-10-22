@@ -451,7 +451,8 @@ class CatalogSchemaMigratorTest {
         // A patch release, labelled with the namespace of whoever issued it (contract ADR 0003).
         assertEquals(emptyList(), findings { (it["release"] as ObjectNode).put("version", "1.3.1-gemeente-x.1") })
         assertEquals(emptyList(), findings { dependency(it).put("releaseVersion", "1.4.1-gemeente-x.2") })
-        listOf("1.0.0-rc.1", "1.0.0-gemeente-x", "1.0.0-gemeente-x.0", "1.0.0-gemeente-x.1+5", "1.0.0+5", "1.01.0", "v1.0.0", "1.0", "1.0.${"1".repeat(47)}").forEach { version ->
+        assertEquals(emptyList(), findings { (it["release"] as ObjectNode).put("version", "1.3.1-${"a".repeat(63)}.1") }, "a 63-character namespace")
+        listOf("1.0.0-rc.1", "1.0.0-gemeente-x", "1.0.0-gemeente-x.0", "1.0.0-gemeente-x.1+5", "1.0.0+5", "1.01.0", "v1.0.0", "1.0", "1.0.${"1".repeat(125)}").forEach { version ->
             assertEquals(release, findings { (it["release"] as ObjectNode).put("version", version) }, version)
         }
         listOf("1.4.0-rc.1", "^1.4.0", "1.4").forEach { version ->

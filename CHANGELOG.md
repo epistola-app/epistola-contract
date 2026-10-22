@@ -388,9 +388,12 @@ libraries.
   amendment of 2026-10-22). A release number is `MAJOR.MINOR.PATCH`, as the holder of the catalog's
   namespace issues it, or `MAJOR.MINOR.PATCH-<namespace>.<N>` for a patch release by someone who
   does not hold it, labelled with a namespace they hold and a sequence number from 1
-  (`1.3.1-gemeente-x.1`, which sorts above `1.3.0` and below the holder's `1.3.1`), in
-  `release.version`, a dependency's `releaseVersion`, `release.base.version` and a carried release's
-  path (`CatalogDependencyArchivePaths.PATTERN`, `CATALOG_DEPENDENCY_ARCHIVE_PATH_PATTERN`). No other
+  (`1.3.1-gemeente-x.1`, which sorts above `1.3.0` and below the holder's `1.3.1`), at most 128
+  characters (`CatalogReleaseVersions.MAX_LENGTH`, `MAX_CATALOG_RELEASE_VERSION_LENGTH`, the schemas'
+  `maxLength`), so that every valid namespace, up to 63 characters, can label one; the API's
+  `ReleaseVersion` and `CatalogReleaseRef` get the same `maxLength`, 128, keeping their patterns. The rule
+  applies to `release.version`, a dependency's `releaseVersion`, `release.base.version` and a carried
+  release's path (`CatalogDependencyArchivePaths.PATTERN`, `CATALOG_DEPENDENCY_ARCHIVE_PATH_PATTERN`). No other
   pre-release or build part. `CatalogReleaseVersions` gains `CORE_PATTERN`, `isCore` and
   `patchNamespace`; npm gains `CATALOG_RELEASE_VERSION_CORE_PATTERN`. The format checks the shape
   only: who holds a namespace is the installation's and the registry's to know. A consumer that
@@ -765,7 +768,7 @@ libraries.
     number). `CatalogNamespaces` (Kotlin) and the `CATALOG_REGISTRY_*`, `CATALOG_NAMESPACE_*` and
     `CATALOG_RELEASE_FINGERPRINT_PATTERN` constants (npm) publish the rules.
   - A release number is the API's `ReleaseVersion`: `release.version` and a pinned `releaseVersion`
-    are `MAJOR.MINOR.PATCH` without leading zeros, pre-release or build part, at most 50 characters
+    are `MAJOR.MINOR.PATCH` without leading zeros, pre-release or build part, at most 128 characters
     (wire v7 and earlier accepted full SemVer, `1.0.0-beta.1`). The validator and the migrator's
     wire check report `CATALOG_RELEASE_VERSION_INVALID` / `CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`;
     migrating a v7 (or earlier) release numbered with a pre-release or build part is a finding,
@@ -871,7 +874,7 @@ libraries.
 
 - **BREAKING: one schema for a version, `ReleaseVersion`.** Wherever the contract names one
   exact version of a release, it is a SemVer core version without leading zeros
-  (`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`), at most 50 characters: the
+  (`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`), at most 128 characters: the
   release request (`version`, `acknowledgedBehind`), a dependency declaration, and every
   response member that names a version (`CatalogDto.highestVersion`, which replaces
   `releasedVersion` and is the version of the catalog's highest release, `CatalogReleaseDto.version` and

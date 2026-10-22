@@ -173,7 +173,9 @@ Wire v8 also adds optional members, changed in place before v8 was released:
   issued by someone who does not hold the catalog's namespace (`CatalogReleaseVersions.PATTERN`,
   `isCore`, `patchNamespace`; `CATALOG_RELEASE_VERSION_PATTERN`, with the plain rule as
   `CORE_PATTERN` and `CATALOG_RELEASE_VERSION_CORE_PATTERN`). A carried release's path accepts it
-  too. The API's `ReleaseVersion` stays the plain rule until the API reports patch releases.
+  too. A release number is at most 128 characters, so that every valid namespace (up to 63) can
+  label one. The API's `ReleaseVersion` stays the plain rule until the API reports patch releases,
+  with the same 128-character limit.
 - `ReleaseInfo.metadata`: producer-specific facts about the release, under the rules of a variant's
   `metadata` (a reverse-DNS namespace per producer, one to sixteen of them, at most 8 KiB
   serialized; `CATALOG_RELEASE_METADATA_INVALID`, `CATALOG_RELEASE_METADATA_TOO_LARGE`). Epistola

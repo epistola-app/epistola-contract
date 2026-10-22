@@ -182,7 +182,7 @@ info:
     ## Versions and version ranges
 
     A version (`ReleaseVersion`) is a SemVer core version, `MAJOR.MINOR.PATCH` without leading
-    zeros, at most 50 characters. Wherever the contract names one exact version it has that form, and
+    zeros, at most 128 characters. Wherever the contract names one exact version it has that form, and
     is called `version`; every member called `version` is one.
 
     A request that selects a release to render or check (generation, preview, validation) takes a

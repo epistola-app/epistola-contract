@@ -164,7 +164,8 @@ the dependency's name and the number it had (`releaseVersion`), pointing at the 
 **The patch rule.** The holder of a catalog's namespace issues its plain numbers (`1.3.1`). Anyone
 else -- a municipality fixing a supplier's catalog -- may only issue a **patch release**, numbered
 with a pre-release label that names a namespace *they* hold and a sequence number from 1:
-`1.3.1-gemeente-x.1` (`CatalogReleaseVersions`, `CATALOG_RELEASE_VERSION_PATTERN`). As SemVer it
+`1.3.1-gemeente-x.1` (`CatalogReleaseVersions`, `CATALOG_RELEASE_VERSION_PATTERN`; at most 128
+characters, so every namespace can label one). As SemVer it
 sorts above `1.3.0` and below the holder's `1.3.1`, so the holder's next release supersedes it and
 merges it in, and the numbers cannot collide: the holder never uses a label, the patcher never
 issues a plain number. A patch binding is never published under the holder's authority. The label
