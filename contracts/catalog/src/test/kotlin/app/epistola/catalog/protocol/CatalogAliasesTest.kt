@@ -21,8 +21,7 @@ class CatalogAliasesTest {
     /**
      * The API's references name another catalog by the alias its content names it by, so the
      * archive's rule is the API's `CatalogAlias`. The spec is read as text: this module has no YAML
-     * parser, and the rule is a flat block. The API writes its groups capturing, as all its key
-     * patterns do, and the archive non-capturing; the two match the same values.
+     * parser, and the rule is a flat block.
      */
     @Test
     fun `the rule is the API's CatalogAlias`() {
@@ -36,9 +35,7 @@ class CatalogAliasesTest {
         val minLength = assertNotNull(Regex("(?m)^ {2}minLength: (\\d+)$").find(block)).groupValues[1].toInt()
         val maxLength = assertNotNull(Regex("(?m)^ {2}maxLength: (\\d+)$").find(block)).groupValues[1].toInt()
 
-        assertEquals(CatalogAliases.PATTERN.replace("(?:", "("), pattern)
-        listOf("system", "house-style", "a2b", "System", "house--style", "2shared")
-            .forEach { assertEquals(Regex(CatalogAliases.PATTERN).matches(it), Regex(pattern).matches(it), it) }
+        assertEquals(CatalogAliases.PATTERN, pattern)
         assertEquals(CatalogAliases.MIN_LENGTH, minLength)
         assertEquals(CatalogAliases.MAX_LENGTH, maxLength)
     }
