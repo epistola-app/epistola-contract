@@ -918,6 +918,12 @@ libraries.
 
 ### Fixed
 
+- **The `entry` parameter of `getCatalogDraftMergeSides` matched nothing in generated servers.** Its
+  pattern held a star followed by a slash, which the Kotlin generator rewrites so it does not end a
+  comment, changing the regular expression; every request was refused. The pattern now bounds the
+  repetition (`^[A-Za-z][A-Za-z0-9-]{0,63}/[^/]+$`), and a server-stub test refuses any pattern the
+  generator would change.
+
 - **No update request reads null as "remove" any more.** Several said "null clears", which no
   generated server or client can honour, since they cannot tell an omitted member from a null one.
   On every update an omitted or null member now keeps its value, and a value is removed this way
