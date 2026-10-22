@@ -112,6 +112,11 @@ public class ModelValidationTest
         new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: null).Validate();
         Assert.Throws<ArgumentException>(() =>
             new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: "").Validate());
+        // A range holds an exact release number of any valid length, up to 256 characters.
+        new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: "1.0." + new string('1', 124)).Validate();
+        new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: new string('x', 256)).Validate();
+        Assert.Throws<ArgumentException>(() =>
+            new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: new string('x', 257)).Validate());
 
         new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), environmentKey: null).Validate();
         Assert.Throws<ArgumentException>(() =>

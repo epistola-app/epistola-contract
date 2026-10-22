@@ -459,7 +459,8 @@ libraries.
   a patch release. A patch release sorts below its core and above every release below that
   (`1.3.0` < `1.3.1-gemeente-x.1` < `1.3.1`), "highest" means by that order, and a version range
   matches one as npm matches a pre-release: only when a comparator names a pre-release of the same
-  `MAJOR.MINOR.PATCH` (`^1.3.0` never does). `releaseCatalogDraft` takes one only where the tenant
+  `MAJOR.MINOR.PATCH` (`^1.3.0` never does); a `versionRange` may now be 256 characters (was 100),
+  so an exact release number of any valid length fits. `releaseCatalogDraft` takes one only where the tenant
   may issue it (a namespace it holds, for a catalog whose namespace it does not hold), else 400;
   which namespaces it holds is the installation's to know. A client that stores or compares
   versions must accept the label. `CatalogReleaseVersionsTest` now holds `ReleaseVersion` to

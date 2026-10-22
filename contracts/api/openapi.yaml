@@ -205,10 +205,11 @@ info:
     version range, `versionRange`, in the npm SemVer range grammar: an exact version (`1.4.0`), a caret
     (`^1.4.0`), a tilde (`~1.4.0`), comparators (`>=1.0.0 <2.0.0`), a hyphen range
     (`1.0.0 - 2.0.0`), or a `||` union of these. The highest release that satisfies it renders, and
-    responses name the exact release used. A range matches a patch release as npm matches a
-    pre-release: only when one of its comparators names a pre-release of the same
-    `MAJOR.MINOR.PATCH`, such as the exact number (`1.3.1-gemeente-x.1`) or
-    `>=1.3.1-gemeente-x.1 <1.4.0`; `^1.3.0` never selects one.
+    responses name the exact release used. A range is at most 256 characters, so an exact release
+    number (at most 128) always fits, and a comparator pair of patch release numbers usually does.
+    A range matches a patch release as npm matches a pre-release: only when one of its comparators
+    names a pre-release of the same `MAJOR.MINOR.PATCH`, such as the exact number
+    (`1.3.1-gemeente-x.1`) or `>=1.3.1-gemeente-x.1 <1.4.0`; `^1.3.0` never selects one.
 
     ## Catalog dependencies
 

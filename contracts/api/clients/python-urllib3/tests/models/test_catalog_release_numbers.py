@@ -14,6 +14,7 @@ import pytest
 from epistola_client import (
     CatalogDependencyRequirement,
     CreateCatalogReleaseRequest,
+    GenerateDocumentRequest,
     ReleaseCatalogDraftRequest,
 )
 
@@ -85,3 +86,16 @@ def test_a_dependency_declaration_in_a_draft_names_a_draft_alone():
 def test_a_dependency_declaration_refuses_a_range(release):
     with pytest.raises(ValueError):
         CatalogDependencyRequirement(namespace="epistola", catalogKey="system", version=release)
+
+
+@pytest.mark.parametrize("version_range", ["1.0." + "1" * 124, "x" * 256])
+def test_a_version_range_holds_an_exact_release_number_of_any_valid_length(version_range):
+    request = GenerateDocumentRequest(
+        namespace="acme-corp", catalogKey="letters", templateKey="invoice", data={}, versionRange=version_range
+    )
+    assert request.version_range == version_range
+
+
+def test_a_version_range_is_at_most_256_characters():
+    with pytest.raises(ValueError):
+        GenerateDocumentRequest(namespace="acme-corp", catalogKey="letters", templateKey="invoice", data={}, versionRange="x" * 257)
