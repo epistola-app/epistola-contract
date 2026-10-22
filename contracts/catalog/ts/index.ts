@@ -133,16 +133,26 @@ export const MIN_CATALOG_ALIAS_LENGTH = 3
 /** Longest alias (wire v8). */
 export const MAX_CATALOG_ALIAS_LENGTH = 50
 
-/** Longest release number (wire v8), the same limit as the API's `ReleaseVersion`. */
+/** Longest release number (wire v8), a patch label included; the same limit as the API's `ReleaseVersion`. */
 export const MAX_CATALOG_RELEASE_VERSION_LENGTH = 50
 
 /**
- * Pattern a release number must match in wire v8: `MAJOR.MINOR.PATCH` without leading zeros, and
- * without a pre-release or build part (`1.4.0`, never `1.4.0-beta.1`). It applies to
- * `release.version` and to a catalog dependency's `releaseVersion`, and is the same rule as the
- * API's `ReleaseVersion`. Wire v7 and earlier accepted full SemVer.
+ * Pattern a release number must match in wire v8: `MAJOR.MINOR.PATCH` without leading zeros, or, for
+ * a patch release by someone who does not hold the catalog's namespace, that core followed by a
+ * label naming a namespace they hold and a sequence number from 1: `1.3.1-gemeente-x.1` (which sorts
+ * above `1.3.0` and below the holder's `1.3.1`). No other pre-release or build part (`1.4.0-rc.1`,
+ * `1.4.0+5`). It applies to `release.version`, a catalog dependency's `releaseVersion`,
+ * `release.base.version` and a carried release's path. The format checks the shape only; who holds a
+ * namespace is not its to know. Wire v7 and earlier accepted full SemVer.
  */
-export const CATALOG_RELEASE_VERSION_PATTERN = '^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$'
+export const CATALOG_RELEASE_VERSION_PATTERN = '^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-(?=[a-z0-9-]{3,63}\\.)([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\\.([1-9][0-9]*))?$'
+
+/**
+ * Pattern of a release number without a patch label (wire v8): `MAJOR.MINOR.PATCH`, as the holder of
+ * the catalog's namespace issues it. The same rule as the API's `ReleaseVersion`, which does not yet
+ * report a patch release.
+ */
+export const CATALOG_RELEASE_VERSION_CORE_PATTERN = '^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$'
 
 /** Shortest release id (wire v8), the same limit as the API's `CatalogReleaseId`. */
 export const MIN_CATALOG_RELEASE_ID_LENGTH = 4
@@ -254,13 +264,13 @@ export const CATALOG_DEPENDENCY_ARCHIVE_DIRECTORY = 'dependencies/'
  * Pattern the path of a release a catalog archive carries must match in full (wire v8):
  * `dependencies/{registry}/{namespace}/{catalogKey}/{releaseVersion}.zip`, the pin's own values, each
  * segment by its own rule (and its length limits: a registry at most 253 characters, a namespace 3 to
- * 63, a catalog key 3 to 50, a release number at most 50). The groups are, in order, the registry,
+ * 63, a catalog key 3 to 50, a release number, a patch release's included, at most 50). The groups are, in order, the registry,
  * namespace, catalog key and release number. Anything else under `dependencies/` refuses the archive.
  * The manifest has no member for it: a release's manifest and fingerprint are the same whether it is
  * exported thin or with the releases it pins.
  */
 export const CATALOG_DEPENDENCY_ARCHIVE_PATH_PATTERN =
-  '^dependencies/([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/((?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*))\\.zip$'
+  '^dependencies/([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/([a-z][a-z0-9]*(?:-[a-z0-9]+)*)/((?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?=[a-z0-9-]{3,63}\\.)[a-z][a-z0-9]*(?:-[a-z0-9]+)*\\.[1-9][0-9]*)?)\\.zip$'
 
 /** Most releases one catalog archive carries by default; each is held to the per-archive limits on its own. */
 export const MAX_CATALOG_ARCHIVE_DEPENDENCIES = 50

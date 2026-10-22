@@ -30,7 +30,8 @@ object CatalogDependencyArchivePaths {
     private const val REGISTRY: String = "[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+"
     private const val NAMESPACE: String = "[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
     private const val CATALOG_KEY: String = "[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
-    private const val RELEASE: String = "(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)"
+    private const val RELEASE: String =
+        "(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?=[a-z0-9-]{3,63}\\.)[a-z][a-z0-9]*(?:-[a-z0-9]+)*\\.[1-9][0-9]*)?"
 
     /**
      * Regular expression an embedded archive's path must match in full. The groups are, in order,

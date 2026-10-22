@@ -53,10 +53,12 @@ import tools.jackson.databind.node.ObjectNode
  *   another ([CatalogKeyRewrites]). A rewrite that collides with another key of its scope is a
  *   finding; the migration never chooses another key.
  *
- * - **Release number.** Wire v8 numbers a release `MAJOR.MINOR.PATCH` ([CatalogReleaseVersions]);
- *   earlier versions accepted full SemVer. A `release.version` with a pre-release or build part
+ * - **Release number.** Wire v8 numbers a release `MAJOR.MINOR.PATCH`, or a patch release with a
+ *   namespace label ([CatalogReleaseVersions]); earlier versions accepted full SemVer, where a
+ *   pre-release meant a pre-release. A `release.version` with any pre-release or build part
  *   (`1.0.0-beta.1`, `1.0.0+5`) is a finding ([CatalogMigrationCodes.RELEASE_VERSION_INVALID]),
- *   never stripped: `1.0.0` would name another release. A v7 archive has no catalog dependencies,
+ *   never stripped (`1.0.0` would name another release) and never read as a patch release
+ *   ([CatalogReleaseVersions.isCore]). A v7 archive has no catalog dependencies,
  *   so the release is the only number it carries.
  *
  * Each repair is reported with a [CatalogMigrationNotice], except the key renames and the rewritten
@@ -208,7 +210,8 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
      */
     private fun releaseVersionFindings(tree: ObjectNode): List<CatalogMigrationFinding> {
         val version = tree["release"]?.get("version")?.takeIf { it.isString }?.asString() ?: return emptyList()
-        if (CatalogReleaseVersions.isValid(version)) return emptyList()
+        // A v7 pre-release was a pre-release, not a patch release by another namespace's holder.
+        if (CatalogReleaseVersions.isCore(version)) return emptyList()
         return listOf(
             CatalogMigrationFinding(
                 CatalogMigrationCodes.RELEASE_VERSION_INVALID,

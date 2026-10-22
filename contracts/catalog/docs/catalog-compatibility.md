@@ -168,6 +168,12 @@ Wire v8 also adds optional members, changed in place before v8 was released:
   `CATALOG_RELEASE_ID_INVALID`). It is unique among the releases of the catalog's name and kept when
   the release moves to another installation, through an exchange, a registry or a file, so the
   release has the same id everywhere. A receiver assigns one only when the archive carries none.
+- Patch release numbers (contract ADR 0003, amendment of 2026-10-22): a release number may carry a
+  pre-release label naming a namespace and a sequence number, `1.3.1-gemeente-x.1`, for a release
+  issued by someone who does not hold the catalog's namespace (`CatalogReleaseVersions.PATTERN`,
+  `isCore`, `patchNamespace`; `CATALOG_RELEASE_VERSION_PATTERN`, with the plain rule as
+  `CORE_PATTERN` and `CATALOG_RELEASE_VERSION_CORE_PATTERN`). A carried release's path accepts it
+  too. The API's `ReleaseVersion` stays the plain rule until the API reports patch releases.
 - `ReleaseInfo.metadata`: producer-specific facts about the release, under the rules of a variant's
   `metadata` (a reverse-DNS namespace per producer, one to sixteen of them, at most 8 KiB
   serialized; `CATALOG_RELEASE_METADATA_INVALID`, `CATALOG_RELEASE_METADATA_TOO_LARGE`). Epistola

@@ -232,7 +232,7 @@ class CatalogV8WireSchemaTest {
         val invalid = mapOf<String, (ObjectNode) -> Unit>(
             "a base without a version" to { it.base().remove("version") },
             "a base without a fingerprint" to { it.base().remove("fingerprint") },
-            "a base version with a pre-release" to { it.base().put("version", "1.0.0-beta.1") },
+            "a base version with a pre-release" to { it.base().put("version", "1.0.0-rc.1") },
             "a bare-hex base fingerprint" to { it.base().put("fingerprint", digest) },
             "a base with per-resource fingerprints" to {
                 it.base().putObject("resourceFingerprints").put("algorithm", "v3").putObject("resources")

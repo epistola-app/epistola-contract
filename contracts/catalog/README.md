@@ -49,6 +49,10 @@ versions catalogs as a whole:
   `catalogKey`. Every alias must be declared; a reference naming no alias, or the catalog's own
   key, is to the catalog itself. Moving a dependency to another release changes one declaration,
   and renaming or mirroring it changes no content (`CatalogAliases`, `CATALOG_ALIAS_PATTERN`).
+- A release is numbered `MAJOR.MINOR.PATCH` by the holder of the catalog's namespace; anyone else
+  issues only a patch release labelled with a namespace they hold, `1.3.1-gemeente-x.1`, which sorts
+  below the holder's next number (`CatalogReleaseVersions`, `CATALOG_RELEASE_VERSION_PATTERN`). The
+  format checks the shape, not who holds a namespace.
 - A release is identified by its content: `release.fingerprint` is V6 (`v6:<hex>`), which covers
   the resources, the content settings (`defaultTheme`, `presets`, `license`), the dependencies by
   alias and pinned hash, and `schemaVersion` and `compatibility`, but not the catalog's name, the

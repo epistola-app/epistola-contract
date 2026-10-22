@@ -187,7 +187,7 @@ object CatalogValidationCodes {
 
     /**
      * A catalog dependency's pinned release (`releaseVersion`) is not a release number
-     * ([CatalogReleaseVersions]: `MAJOR.MINOR.PATCH`).
+     * ([CatalogReleaseVersions]: `MAJOR.MINOR.PATCH`, or `MAJOR.MINOR.PATCH-<namespace>.<N>` for a patch release).
      */
     const val DEPENDENCY_CATALOG_VERSION_INVALID = "CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID"
 
@@ -198,7 +198,7 @@ object CatalogValidationCodes {
      */
     const val DEPENDENCY_CATALOG_FINGERPRINT_INVALID = "CATALOG_DEPENDENCY_CATALOG_FINGERPRINT_INVALID"
 
-    /** `release.version` is not a release number ([CatalogReleaseVersions]: `MAJOR.MINOR.PATCH`). */
+    /** `release.version` is not a release number ([CatalogReleaseVersions]: `MAJOR.MINOR.PATCH`, or `MAJOR.MINOR.PATCH-<namespace>.<N>` for a patch release). */
     const val RELEASE_VERSION_INVALID = "CATALOG_RELEASE_VERSION_INVALID"
 
     /** `release.releaseId` is not a release id ([CatalogReleaseIds]). */
@@ -1104,7 +1104,7 @@ object CatalogValidator {
             findings.error(
                 CatalogValidationCodes.RELEASE_VERSION_INVALID,
                 "catalog.json.release.version",
-                "release version must be MAJOR.MINOR.PATCH, without a pre-release or build part",
+                "release version must be MAJOR.MINOR.PATCH, or MAJOR.MINOR.PATCH-<namespace>.<N> for a patch release, and nothing else",
             )
         }
         release.releaseId?.let {
@@ -1185,7 +1185,7 @@ object CatalogValidator {
     ) {
         val path = "catalog.json.release.base"
         if (!CatalogReleaseVersions.isValid(base.version)) {
-            findings.error(CatalogValidationCodes.RELEASE_BASE_INVALID, "$path.version", "base version must be MAJOR.MINOR.PATCH, without a pre-release or build part")
+            findings.error(CatalogValidationCodes.RELEASE_BASE_INVALID, "$path.version", "base version must be MAJOR.MINOR.PATCH, or MAJOR.MINOR.PATCH-<namespace>.<N> for a patch release, and nothing else")
         }
         if (!ReleaseBase.isValidFingerprint(base.fingerprint)) {
             findings.error(CatalogValidationCodes.RELEASE_BASE_INVALID, "$path.fingerprint", "base fingerprint must name a known algorithm: v6:<lowercase SHA-256 hex>")
@@ -1413,7 +1413,7 @@ object CatalogValidator {
                     findings.error(
                         CatalogValidationCodes.DEPENDENCY_CATALOG_VERSION_INVALID,
                         "$path.releaseVersion",
-                        "releaseVersion must be MAJOR.MINOR.PATCH, without a pre-release or build part",
+                        "releaseVersion must be MAJOR.MINOR.PATCH, or MAJOR.MINOR.PATCH-<namespace>.<N> for a patch release, and nothing else",
                     )
                 }
             }

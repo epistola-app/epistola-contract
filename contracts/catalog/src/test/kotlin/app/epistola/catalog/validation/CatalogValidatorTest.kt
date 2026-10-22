@@ -721,12 +721,12 @@ class CatalogValidatorTest {
     }
 
     @Test
-    fun `a release is numbered MAJOR_MINOR_PATCH, without a pre-release or build part`() {
+    fun `a release is numbered MAJOR_MINOR_PATCH, or with a namespace's patch label, and nothing else`() {
         fun codes(version: String) = CatalogValidator.validate(archive(manifest(ReleaseInfo(version), emptyList()), emptyMap()))
             .findings.filter { it.path == "catalog.json.release.version" }.map { it.code }
 
-        listOf("0.0.0", "1.4.0", "10.20.30").forEach { assertEquals(emptyList(), codes(it), it) }
-        listOf("1.0.0-beta.1", "1.0.0+5", "1.01.0", "v1.0.0", "1.0", "1.0.${"1".repeat(47)}").forEach {
+        listOf("0.0.0", "1.4.0", "10.20.30", "1.3.1-gemeente-x.1", "1.3.1-acme.12").forEach { assertEquals(emptyList(), codes(it), it) }
+        listOf("1.0.0-rc.1", "1.0.0-gemeente-x", "1.0.0-gemeente-x.01", "1.0.0-Gemeente.1", "1.0.0+5", "1.01.0", "v1.0.0", "1.0", "1.0.${"1".repeat(47)}").forEach {
             assertEquals(listOf(CatalogValidationCodes.RELEASE_VERSION_INVALID), codes(it), it)
         }
     }
@@ -764,7 +764,8 @@ class CatalogValidatorTest {
         assertEquals(emptyList(), codes(ReleaseBase("1.0.0", "v5:$digest")))
         assertEquals(emptyList(), codes(ReleaseBase("1.0.0", "v4:$digest")), "any known algorithm, as a catalog dependency's pin")
         assertEquals(listOf(invalid to ".version"), codes(ReleaseBase("1.0", "v5:$digest")))
-        assertEquals(listOf(invalid to ".version"), codes(ReleaseBase("1.0.0-beta.1", "v5:$digest")))
+        assertEquals(listOf(invalid to ".version"), codes(ReleaseBase("1.0.0-rc.1", "v5:$digest")))
+        assertEquals(emptyList(), codes(ReleaseBase("1.0.0-gemeente-x.1", "v6:$digest")), "a patch release may be a base")
         assertEquals(listOf(invalid to ".fingerprint"), codes(ReleaseBase("1.0.0", digest)))
         assertEquals(listOf(invalid to ".fingerprint"), codes(ReleaseBase("1.0.0", "v9:$digest")))
         assertEquals(listOf(invalid to ".fingerprint"), codes(ReleaseBase("1.0.0", "v5:${"A".repeat(64)}")))

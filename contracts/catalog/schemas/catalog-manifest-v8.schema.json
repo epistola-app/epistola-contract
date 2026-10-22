@@ -375,9 +375,9 @@
       "type": "object",
       "properties": {
         "version": {
-          "description": "The release's number: MAJOR.MINOR.PATCH without leading zeros, and without a pre-release or build part, at most 50 characters; the same rule as the API's ReleaseVersion.",
+          "description": "The release's number: MAJOR.MINOR.PATCH without leading zeros, as the holder of the catalog's namespace issues it (the API's ReleaseVersion), or, for a patch release by someone who does not hold the namespace, MAJOR.MINOR.PATCH-<namespace>.<N> labelled with a namespace they hold and a sequence number from 1 (1.3.1-gemeente-x.1, which sorts above 1.3.0 and below 1.3.1). No other pre-release or build part; at most 50 characters. With the catalog's name and release.fingerprint it is the archive's binding of a name and number to a content hash. The format checks the shape only: who holds a namespace is the installation's and the registry's to know.",
           "type": "string",
-          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-(?=[a-z0-9-]{3,63}\\.)([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\\.([1-9][0-9]*))?$",
           "maxLength": 50
         },
         "releasedAt": {
@@ -432,7 +432,7 @@
         "version": {
           "description": "The base release's number, by the rule of release.version.",
           "type": "string",
-          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-(?=[a-z0-9-]{3,63}\\.)([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\\.([1-9][0-9]*))?$",
           "maxLength": 50
         },
         "fingerprint": {
@@ -586,12 +586,12 @@
           "maxLength": 50
         },
         "releaseVersion": {
-          "description": "The number the pinned release had when it was pinned: a hint for people, and where a carried copy of it is found, while releaseFingerprint is the pin. A release number as release.version has it: MAJOR.MINOR.PATCH, at most 50 characters. Null only for a catalog migrated from wire v7 or earlier, which pins no release, and then releaseFingerprint is null too.",
+          "description": "The number the pinned release had when it was pinned: a hint for people, and where a carried copy of it is found, while releaseFingerprint is the pin. A release number as release.version has it, a patch release's included, at most 50 characters. Null only for a catalog migrated from wire v7 or earlier, which pins no release, and then releaseFingerprint is null too.",
           "type": [
             "string",
             "null"
           ],
-          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-(?=[a-z0-9-]{3,63}\\.)([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\\.([1-9][0-9]*))?$",
           "maxLength": 50
         },
         "releaseFingerprint": {

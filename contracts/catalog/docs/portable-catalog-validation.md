@@ -149,12 +149,16 @@ key (`CATALOG_DEPENDENCY_ALIAS_INVALID`, also raised by the migrator's wire chec
 malformed one) and is unique in the list (`CATALOG_DEPENDENCY_ALIAS_DUPLICATE`), pinning, unless
 migrated from wire v7, an exact `releaseVersion`, never a range
 (`CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`).
-From wire v8 every release number, `release.version` and a pinned `releaseVersion`, is
-`MAJOR.MINOR.PATCH` without leading zeros, pre-release or build part, at most 50 characters: the
-API's `ReleaseVersion` (`CatalogReleaseVersions`; `CATALOG_RELEASE_VERSION_INVALID` and
-`CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`, also raised by the migrator's wire check). Earlier
-wire versions accepted full SemVer; migrating a release numbered `1.0.0-beta.1` or `1.0.0+5` to
-v8 is a finding (`CATALOG_RELEASE_VERSION_INVALID`), never a silent strip.
+From wire v8 every release number, `release.version`, a pinned `releaseVersion` and
+`release.base.version`, is `MAJOR.MINOR.PATCH` without leading zeros (the API's `ReleaseVersion`),
+or a patch release `MAJOR.MINOR.PATCH-<namespace>.<N>` labelled with a namespace and a sequence
+number from 1 (`1.3.1-gemeente-x.1`), and no other pre-release or build part, at most 50
+characters (`CatalogReleaseVersions`; `CATALOG_RELEASE_VERSION_INVALID` and
+`CATALOG_DEPENDENCY_CATALOG_VERSION_INVALID`, also raised by the migrator's wire check). Who may
+issue which number (the holder of the namespace the plain ones, anyone else only a patch release
+labelled with a namespace they hold) is not checked: the format cannot know. Earlier wire versions
+accepted full SemVer; migrating a release numbered `1.0.0-beta.1` or `1.0.0+5` to v8 is a finding
+(`CATALOG_RELEASE_VERSION_INVALID`), never a silent strip and never a patch release.
 A release's `releaseId`, when it carries one, is the API's `CatalogReleaseId` (`CatalogReleaseIds`;
 `CATALOG_RELEASE_ID_INVALID`, also raised by the migrator's wire check), and its `metadata` follows
 the rules of a variant's (`CATALOG_RELEASE_METADATA_INVALID`, `CATALOG_RELEASE_METADATA_TOO_LARGE`).
