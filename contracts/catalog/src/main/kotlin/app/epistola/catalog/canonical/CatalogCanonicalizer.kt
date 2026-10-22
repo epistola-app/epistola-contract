@@ -7,6 +7,7 @@ package app.epistola.catalog.canonical
 import app.epistola.catalog.archive.CatalogArchive
 import app.epistola.catalog.migration.CatalogKeyRenames
 import app.epistola.catalog.migration.CatalogV8Additions
+import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogManifest
@@ -219,10 +220,9 @@ object CatalogCanonicalizer {
      * - catalog v8 pads or cuts keys outside its bounds, and every reference to them, so the source
      *   keys are restored from the raw documents ([sourceKeyed]).
      *
-     * V4 never covered a registry, a namespace or a catalog dependency, so what catalog v8 adds to the
-     * manifest needs no undoing. The members catalog v8 renamed need none either: V4 canonicalizes
-     * them under their old names whatever the archive calls them. A reference inside content that
-     * names a registry or namespace is catalog-v8 content, so no migrated archive carries one.
+     * V4 never covered a registry, a namespace, an alias or a catalog dependency, so what catalog v8
+     * adds to the manifest needs no undoing. The members catalog v8 renamed need none either: V4
+     * canonicalizes them under their old names whatever the archive calls them.
      */
     internal fun matchesSourceV4Fingerprint(
         migrated: CatalogArchive,
@@ -461,7 +461,12 @@ object CatalogCanonicalizer {
                         "description" to resource.description,
                     ).also { if (includeResourceCompatibility) it["compatibility"] = null }
                 },
-            "dependencies" to canonicalDependenciesV2(manifest.dependencies, includeV8Identity, currentNames),
+            "dependencies" to canonicalDependenciesV2(
+                manifest.dependencies,
+                includeNamespace = includeV8Identity,
+                currentNames = currentNames,
+                declarations = manifest.catalogDependencies.orEmpty(),
+            ),
         )
         if (includeV8Identity) {
             canonical["catalogDependencies"] = manifest.catalogDependencies.orEmpty()
@@ -484,6 +489,10 @@ object CatalogCanonicalizer {
      * inheriting template renders with, and which presets content may name, are content. Each is
      * written only when present, so a catalog without them keeps the V5 bytes it had before they
      * existed. Presets are sorted by key: their order carries no meaning.
+     *
+     * V5 wrote a default theme's `namespace` and `registry`, null when absent. A reference names an
+     * alias and neither since contract ADR 0003, so they are written as the null they were for a default theme
+     * that left them out, which keeps its V5 value.
      */
     private fun putThemeSettings(
         catalog: MutableMap<String, Any?>,
@@ -493,8 +502,8 @@ object CatalogCanonicalizer {
             catalog["defaultTheme"] = linkedMapOf(
                 "key" to theme.key,
                 "catalogKey" to theme.catalogKey,
-                "namespace" to theme.namespace,
-                "registry" to theme.registry,
+                "namespace" to null,
+                "registry" to null,
             )
         }
         if (info.presets.isNotEmpty()) {
@@ -550,21 +559,31 @@ object CatalogCanonicalizer {
         }
     }
 
+    /**
+     * The resource dependencies as V2 to V5 cover them. V5 ([includeNamespace]) also covers each
+     * one's catalog by registry and namespace. A resource dependency names its catalog by alias since
+     * contract ADR 0003, so V5 takes the catalog's name from the declaration the alias names in
+     * [declarations]: a manifest whose dependencies named their catalog by key, registry and
+     * namespace, as wire v8 did before aliases, keeps its V5 value, since each such catalog had to be
+     * declared and is declared under its key.
+     */
     private fun canonicalDependenciesV2(
         dependencies: List<DependencyRef>?,
         includeNamespace: Boolean = false,
         currentNames: Boolean = false,
+        declarations: List<CatalogDependency> = emptyList(),
     ): List<Map<String, Any?>> = dependencies.orEmpty()
         .map { dependency ->
             val (type, catalogKey) = dependency.identity()
+            val declared = declarations.firstOrNull { it.alias == catalogKey }.takeIf { includeNamespace }
             linkedMapOf<String, Any?>(
                 "type" to type,
-                "catalogKey" to catalogKey.takeIf(String::isNotEmpty),
+                "catalogKey" to (declared?.catalogKey ?: catalogKey).takeIf(String::isNotEmpty),
                 "key" to dependency.key,
             ).also {
                 if (includeNamespace) {
-                    it["registry"] = dependency.registry
-                    it["namespace"] = dependency.namespace
+                    it["registry"] = declared?.registry
+                    it["namespace"] = declared?.namespace
                 }
             }
         }

@@ -93,27 +93,13 @@
             },
             "catalogKey": {
               "type": "string",
-              "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
               "minLength": 3,
               "maxLength": 50,
-              "description": "Key of the catalog containing the theme: the catalog key rule. Omitted means the same catalog as the owning template."
-            },
-            "namespace": {
-              "type": "string",
-              "minLength": 3,
-              "maxLength": 63,
-              "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
-              "description": "Namespace of the catalog containing the theme. Omitted means the owning template's catalog namespace."
-            },
-            "registry": {
-              "type": "string",
-              "maxLength": 253,
-              "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$",
-              "description": "Registry of the catalog containing the theme. Omitted means the owning template's catalog registry, never an installation default. Requires namespace."
+              "description": "The alias of the catalog containing the theme, as the owning catalog's dependency list (catalogDependencies) declares it: the catalog key rule. Omitted, or the owning catalog's own key, means the same catalog as the owning template."
             }
           },
           "required": ["type", "themeKey"],
-          "dependentRequired": { "registry": ["namespace"] },
           "additionalProperties": false
         }
       ]

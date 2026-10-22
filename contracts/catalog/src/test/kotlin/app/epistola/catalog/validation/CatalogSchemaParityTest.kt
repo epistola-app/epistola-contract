@@ -5,7 +5,9 @@
 package app.epistola.catalog.validation
 
 import app.epistola.catalog.canonical.QualifiedCatalogFingerprint
+import app.epistola.catalog.protocol.CatalogAliases
 import app.epistola.catalog.protocol.CatalogDependency
+import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogNamespaces
 import tools.jackson.module.kotlin.jsonMapper
 import kotlin.test.Test
@@ -14,16 +16,47 @@ import kotlin.test.assertTrue
 
 class CatalogSchemaParityTest {
     @Test
-    fun `theme override schema accepts the catalog key exposed by the Kotlin model`() {
+    fun `theme override schema names the theme's catalog by an alias alone, as the Kotlin model does`() {
         val schema = requireNotNull(
             javaClass.getResourceAsStream("/META-INF/epistola-catalog/schemas/template-shared.schema.json"),
         ).use(jsonMapper()::readTree)
         val overrideProperties = schema["\$defs"]["ThemeRef"]["oneOf"][1]["properties"]
 
-        assertTrue(overrideProperties.has("catalogKey"), overrideProperties.toString())
-        assertEquals(CatalogNamespaces.PATTERN, overrideProperties["namespace"]["pattern"].asString())
-        assertEquals(CatalogNamespaces.REGISTRY_PATTERN, overrideProperties["registry"]["pattern"].asString())
-        assertEquals("namespace", schema["\$defs"]["ThemeRef"]["oneOf"][1]["dependentRequired"]["registry"][0].asString())
+        assertEquals(listOf("type", "themeKey", "catalogKey"), overrideProperties.propertyNames().toList())
+        assertAlias(overrideProperties["catalogKey"])
+    }
+
+    @Test
+    fun `wherever wire v8 names another catalog, it names an alias by the alias rule`() {
+        val manifest = schema("catalog-manifest-v8.schema.json")["\$defs"]
+        val detail = schema("resource-detail-v8.schema.json")["\$defs"]
+        listOf(
+            manifest["CatalogDependency"]["properties"]["alias"],
+            manifest["CatalogDependencyRef"]["properties"]["catalogKey"],
+            manifest["CatalogThemeRef"]["properties"]["catalogKey"],
+            detail["TemplateResource"]["properties"]["themeCatalogKey"],
+            detail["CodeListBindingRef"]["properties"]["catalogKey"],
+        ).forEach(::assertAlias)
+        assertEquals(CatalogKeys.CATALOG_PATTERN, CatalogAliases.PATTERN)
+        // A reference never names a registry or namespace: those are the declaration's.
+        listOf(
+            manifest["CatalogDependencyRef"],
+            manifest["CatalogThemeRef"],
+            detail["CodeListBindingRef"],
+        ).forEach { definition ->
+            val properties = definition["properties"]
+            assertTrue(!properties.has("registry") && !properties.has("namespace") && !definition.has("dependentRequired"), definition.toString())
+        }
+        val template = detail["TemplateResource"]
+        assertTrue(!template["properties"].has("themeRegistry") && !template["properties"].has("themeNamespace") && !template.has("dependentRequired"))
+        val required = manifest["CatalogDependency"]["required"]
+        assertTrue("alias" in List(required.size()) { required[it].asString() }, required.toString())
+    }
+
+    private fun assertAlias(property: tools.jackson.databind.JsonNode) {
+        assertEquals(CatalogAliases.PATTERN, property["pattern"].asString(), property.toString())
+        assertEquals(CatalogAliases.MIN_LENGTH, property["minLength"].asInt(), property.toString())
+        assertEquals(CatalogAliases.MAX_LENGTH, property["maxLength"].asInt(), property.toString())
     }
 
     @Test
@@ -32,25 +65,14 @@ class CatalogSchemaParityTest {
         val detail = schema("resource-detail-v8.schema.json")
         val namespace = manifest["\$defs"]["CatalogNamespace"]
         val registry = manifest["\$defs"]["CatalogRegistry"]
-        val binding = detail["\$defs"]["CodeListBindingRef"]
-        val template = detail["\$defs"]["TemplateResource"]
 
         assertEquals(CatalogNamespaces.PATTERN, namespace["pattern"].asString())
         assertEquals(CatalogNamespaces.MIN_LENGTH, namespace["minLength"].asInt())
         assertEquals(CatalogNamespaces.MAX_LENGTH, namespace["maxLength"].asInt())
         assertEquals(CatalogNamespaces.REGISTRY_PATTERN, registry["pattern"].asString())
         assertEquals(CatalogNamespaces.REGISTRY_MAX_LENGTH, registry["maxLength"].asInt())
-        for (properties in listOf(binding["properties"])) {
-            assertEquals(CatalogNamespaces.PATTERN, properties["namespace"]["pattern"].asString())
-            assertEquals(CatalogNamespaces.MAX_LENGTH, properties["namespace"]["maxLength"].asInt())
-            assertEquals(CatalogNamespaces.REGISTRY_PATTERN, properties["registry"]["pattern"].asString())
-            assertEquals(CatalogNamespaces.REGISTRY_MAX_LENGTH, properties["registry"]["maxLength"].asInt())
-        }
-        assertEquals(CatalogNamespaces.PATTERN, template["properties"]["themeNamespace"]["pattern"].asString())
-        assertEquals(CatalogNamespaces.REGISTRY_PATTERN, template["properties"]["themeRegistry"]["pattern"].asString())
-        assertEquals("namespace", binding["dependentRequired"]["registry"][0].asString())
-        assertEquals("themeNamespace", template["dependentRequired"]["themeRegistry"][0].asString())
-        listOf("CatalogInfo", "CatalogDependencyRef", "CatalogDependency").forEach { name ->
+        // The manifest names a catalog by registry and namespace for the catalog itself and each declaration only.
+        listOf("CatalogInfo", "CatalogDependency").forEach { name ->
             val node = manifest["\$defs"][name]["required"]
             val required = List(node.size()) { node[it].asString() }
             assertTrue("registry" in required && "namespace" in required, "$name requires registry and namespace: $required")

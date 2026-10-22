@@ -16,6 +16,7 @@ import app.epistola.catalog.migration.CatalogMigrationOptions
 import app.epistola.catalog.migration.CatalogWireSchema
 import app.epistola.catalog.protocol.AttributeResource
 import app.epistola.catalog.protocol.BinaryRef
+import app.epistola.catalog.protocol.CatalogAliases
 import app.epistola.catalog.protocol.CatalogArchivePaths
 import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogDependencyArchivePaths
@@ -25,6 +26,7 @@ import app.epistola.catalog.protocol.CatalogKeywords
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogNamespaces
 import app.epistola.catalog.protocol.CatalogPresets
+import app.epistola.catalog.protocol.CatalogReferences
 import app.epistola.catalog.protocol.CatalogReleaseIds
 import app.epistola.catalog.protocol.CatalogReleaseVersions
 import app.epistola.catalog.protocol.CatalogResource
@@ -44,7 +46,6 @@ import app.epistola.catalog.protocol.TemplateResource
 import app.epistola.catalog.protocol.ThemeResource
 import app.epistola.template.model.Node
 import app.epistola.template.model.TemplateDocument
-import app.epistola.template.model.ThemeRefOverride
 import com.networknt.schema.InputFormat
 import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion
@@ -85,12 +86,17 @@ data class CatalogValidationReport(
 /**
  * Consumer boundary for references whose target lives outside the catalog.
  *
+ * Content names another catalog by alias (contract ADR 0003). The validator resolves the alias through the
+ * catalog's dependency list first, so a resolver receives the declared catalog's name -- its key,
+ * namespace and registry -- and never an alias; a reference whose alias the list does not declare is
+ * reported as such and never reaches it.
+ *
  * Implementations must not perform persistence or authorization changes.
  * Returning [ResourceResolution.UNKNOWN] leaves the reference unchecked;
  * returning [ResourceResolution.MISSING] produces a stable finding.
  */
 fun interface CatalogDependencyResolver {
-    /** Resolves one external resource identity. */
+    /** Resolves one external resource identity: a resource of the declared catalog [reference] names. */
     fun resolve(reference: CatalogResourceReference): ResourceResolution
 
     companion object {
@@ -144,20 +150,34 @@ object CatalogValidationCodes {
     const val DEPENDENCY_DUPLICATE = "CATALOG_DEPENDENCY_DUPLICATE"
 
     /**
-     * A namespace is missing or malformed: the catalog's own or a dependency's is missing or not a
-     * slug, a reference inside content names one that is not a slug, or a reference inside content
-     * names a registry without a namespace.
+     * A namespace is missing or malformed: the catalog's own or a catalog dependency's is missing or
+     * not a slug.
      */
     const val NAMESPACE_INVALID = "CATALOG_NAMESPACE_INVALID"
 
     /**
-     * A registry is missing or malformed: the catalog's own or a dependency's is missing or not a
-     * DNS name written in full, or a reference inside content names one that is not.
+     * A registry is missing or malformed: the catalog's own or a catalog dependency's is missing or
+     * not a DNS name written in full.
      */
     const val REGISTRY_INVALID = "CATALOG_REGISTRY_INVALID"
 
-    /** A resource dependency names a catalog that `catalogDependencies` does not declare. */
+    /**
+     * A reference names a catalog by an alias that `catalogDependencies` does not declare (contract ADR 0003):
+     * a resource dependency, the default theme, or a reference inside content (a theme, stencil,
+     * image or font, a code-list binding, a variant's qualified attribute key). Reported at the
+     * reference.
+     */
     const val DEPENDENCY_CATALOG_UNDECLARED = "CATALOG_DEPENDENCY_CATALOG_UNDECLARED"
+
+    /**
+     * A catalog dependency's `alias` is missing, breaks the alias rule
+     * ([app.epistola.catalog.protocol.CatalogAliases]: the catalog key rule), or is the catalog's own
+     * key, which content uses for the catalog itself (wire v8, contract ADR 0003).
+     */
+    const val DEPENDENCY_ALIAS_INVALID = "CATALOG_DEPENDENCY_ALIAS_INVALID"
+
+    /** Two catalog dependencies declare the same `alias` (wire v8, contract ADR 0003). */
+    const val DEPENDENCY_ALIAS_DUPLICATE = "CATALOG_DEPENDENCY_ALIAS_DUPLICATE"
 
     /** `catalogDependencies` declares the same catalog (registry, namespace and key) more than once. */
     const val DEPENDENCY_CATALOG_DUPLICATE = "CATALOG_DEPENDENCY_CATALOG_DUPLICATE"
@@ -285,14 +305,16 @@ object CatalogValidationCodes {
 /**
  * In-memory catalog graph supplied to [ResourceValidator].
  *
- * @property catalogKey identity used for same-catalog references.
+ * @property catalogKey identity used for same-catalog references: a reference naming no alias, or
+ *   this key, is to the catalog itself.
  * @property resources resources keyed by `type/key`.
- * @property namespace the catalog's namespace; a reference naming none, or this one, with no or this
- *   [catalogKey] and [registry], is a same-catalog reference. Null when the namespace is not known.
- * @property registry the catalog's registry; a reference that omits its registry means this one.
- *   Null when the registry is not known.
  * @property paths normalized archive paths available through the catalog.
  * @property dependencyResolver lookup boundary for other catalogs.
+ * @property catalogDependencies the catalog's dependency list, which every alias content names must
+ *   be declared in (contract ADR 0003), and through which an alias is resolved to the catalog a resolver
+ *   receives. Null when the list is not known, as when a resource is validated outside its catalog:
+ *   aliases are then not checked, and a reference reaches the resolver with its alias as the catalog
+ *   key.
  */
 data class ResourceValidationContext(
     val catalogKey: String,
@@ -307,8 +329,7 @@ data class ResourceValidationContext(
      * than failed -- an absent archive is not a wrong hash.
      */
     val content: ArchiveContentProvider? = null,
-    val namespace: String? = null,
-    val registry: String? = null,
+    val catalogDependencies: List<CatalogDependency>? = null,
     /**
      * The wire version the catalog was read at, before migration. Rules a later version introduced
      * apply only from that version, so that an archive written earlier stays acceptable: from wire v8
@@ -359,7 +380,31 @@ object ResourceValidator {
             is ImageResource -> validateImage(resource, context, "$path.resource", findings)
             is FontResource -> validateFont(resource, context, "$path.resource", findings)
         }
+        validateAliases(resource, context, "$path.resource", findings)
         return CatalogValidationReport(findings.sorted())
+    }
+
+    /**
+     * Every alias the resource's content names is declared in the catalog's dependency list (contract ADR
+     * 0003), unless it is the catalog's own key, which names the catalog itself. Skipped when the
+     * list is not known.
+     */
+    private fun validateAliases(
+        resource: CatalogResource,
+        context: ResourceValidationContext,
+        path: String,
+        findings: MutableList<CatalogValidationFinding>,
+    ) {
+        val declared = context.catalogDependencies?.mapTo(mutableSetOf()) { it.alias } ?: return
+        CatalogReferences.inResource(resource, path)
+            .filter { it.alias != context.catalogKey && it.alias !in declared }
+            .forEach { reference ->
+                findings.error(
+                    CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED,
+                    reference.path,
+                    "${reference.type} reference names the catalog alias '${reference.alias}', which catalogDependencies does not declare",
+                )
+            }
     }
 
     private fun validateTemplate(
@@ -370,13 +415,12 @@ object ResourceValidator {
     ) {
         resource.themeKey?.let { themeKey ->
             validateReference(
-                CatalogResourceReference("theme", themeKey, resource.themeCatalogKey, resource.themeNamespace, resource.themeRegistry),
+                CatalogResourceReference("theme", themeKey, resource.themeCatalogKey),
                 context,
                 "$path.themeKey",
                 findings,
             )
         }
-        validateContentIdentity(resource.themeRegistry, "$path.themeRegistry", resource.themeNamespace, "$path.themeNamespace", findings)
         validateDocument(resource.templateModel, context, "$path.templateModel", null, findings)
         val variantKeys = mutableSetOf<String>()
         resource.variants.forEachIndexed { index, variant ->
@@ -386,7 +430,7 @@ object ResourceValidator {
                     findings.error(
                         CatalogValidationCodes.RESOURCE_KEY_INVALID,
                         "$path.variants[$index].attributes.$attribute",
-                        "variant attribute key must be an attribute key, or <catalogKey>.<key> for another catalog's attribute, " +
+                        "variant attribute key must be an attribute key, or <alias>.<key> for another catalog's attribute, " +
                             "each part ${CatalogKeys.MIN_LENGTH} to ${CatalogKeys.MAX_LENGTH} characters",
                     )
                 }
@@ -514,19 +558,14 @@ object ResourceValidator {
         containingStencil: StencilResource?,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        (document.themeRef as? ThemeRefOverride)?.let { theme ->
-            validateContentIdentity(theme.registry, "$path.themeRef.registry", theme.namespace, "$path.themeRef.namespace", findings)
-        }
         val report = TemplateValidator.validate(
             document,
             object : TemplateValidationContext {
                 override val documentKind =
                     if (containingStencil == null) TemplateDocumentKind.TEMPLATE else TemplateDocumentKind.STENCIL
                 override val currentCatalogKey: String = context.catalogKey
-                override val currentNamespace: String? = context.namespace
-                override val currentRegistry: String? = context.registry
                 override val containingStencil: CatalogResourceReference? = containingStencil?.let {
-                    CatalogResourceReference("stencil", it.key, context.catalogKey, context.namespace, context.registry)
+                    CatalogResourceReference("stencil", it.key, context.catalogKey)
                 }
 
                 override fun resolveResource(reference: CatalogResourceReference): ResourceResolution = resolveReference(reference, context)
@@ -580,10 +619,7 @@ object ResourceValidator {
         val font = styles?.get("fontFamily") as? Map<*, *> ?: return
         val key = font["key"] as? String ?: return
         val catalogKey = font["catalogKey"] as? String
-        val namespace = font["namespace"] as? String
-        val registry = font["registry"] as? String
-        validateContentIdentity(registry, "$path.fontFamily.registry", namespace, "$path.fontFamily.namespace", findings)
-        validateReference(CatalogResourceReference("font", key, catalogKey, namespace, registry), context, "$path.fontFamily", findings)
+        validateReference(CatalogResourceReference("font", key, catalogKey), context, "$path.fontFamily", findings)
     }
 
     private fun validateAttribute(
@@ -600,9 +636,8 @@ object ResourceValidator {
             )
         }
         resource.codeListBinding?.let {
-            validateContentIdentity(it.registry, "$path.codeListBinding.registry", it.namespace, "$path.codeListBinding.namespace", findings)
             validateReference(
-                CatalogResourceReference("codeList", it.key, it.catalogKey, it.namespace, it.registry),
+                CatalogResourceReference("codeList", it.key, it.catalogKey),
                 context,
                 "$path.codeListBinding",
                 findings,
@@ -724,8 +759,8 @@ object ResourceValidator {
     }
 
     /**
-     * The catalog's default theme (wire v8, ADR 0007): a theme reference qualified like a template's,
-     * resolved in the catalog itself or, when it names another catalog, through the resolver.
+     * The catalog's default theme (wire v8, ADR 0007): a theme reference like a template's, resolved
+     * in the catalog itself or, when it names another catalog's alias, through the resolver.
      */
     internal fun validateDefaultTheme(
         theme: CatalogThemeRef,
@@ -734,16 +769,15 @@ object ResourceValidator {
         findings: MutableList<CatalogValidationFinding>,
     ) {
         theme.catalogKey?.let { catalogKey ->
-            if (!CatalogKeys.matches(CatalogKeys.CATALOG, catalogKey)) {
+            if (!CatalogAliases.isValid(catalogKey)) {
                 findings.error(
                     CatalogValidationCodes.RESOURCE_KEY_INVALID,
                     "$path.catalogKey",
-                    "catalogKey must be ${CatalogKeys.CATALOG.minLength} to ${CatalogKeys.CATALOG.maxLength} characters matching ${CatalogKeys.CATALOG.pattern}",
+                    "catalogKey must be an alias, ${CatalogAliases.MIN_LENGTH} to ${CatalogAliases.MAX_LENGTH} characters matching ${CatalogAliases.PATTERN}",
                 )
             }
         }
-        validateContentIdentity(theme.registry, "$path.registry", theme.namespace, "$path.namespace", findings)
-        validateReference(CatalogResourceReference("theme", theme.key, theme.catalogKey, theme.namespace, theme.registry), context, "$path.key", findings)
+        validateReference(CatalogResourceReference("theme", theme.key, theme.catalogKey), context, "$path.key", findings)
     }
 
     private fun validateReference(
@@ -767,52 +801,25 @@ object ResourceValidator {
     }
 
     /**
-     * A reference inside content may omit its registry and namespace, each meaning the owning
-     * catalog's. Whatever it names must be well-formed, and a registry needs a namespace: a
-     * namespace is only meaningful within a registry, so naming another registry with the owning
-     * catalog's namespace would be a coincidence of names, not a reference.
+     * Resolves within the catalog when the reference names no alias, or the catalog's own key, and
+     * otherwise through the consumer's resolver, with the alias resolved to the catalog the
+     * dependency list declares for it (contract ADR 0003). An alias the list does not declare resolves to
+     * [ResourceResolution.UNKNOWN]: it is reported once, as undeclared ([validateAliases]).
      */
-    private fun validateContentIdentity(
-        registry: String?,
-        registryPath: String,
-        namespace: String?,
-        namespacePath: String,
-        findings: MutableList<CatalogValidationFinding>,
-    ) {
-        if (registry != null && !CatalogNamespaces.isValidRegistry(registry)) {
-            findings.error(CatalogValidationCodes.REGISTRY_INVALID, registryPath, "registry '$registry' is not a DNS name written in full")
-        }
-        if (namespace != null && !CatalogNamespaces.isValid(namespace)) {
-            findings.error(CatalogValidationCodes.NAMESPACE_INVALID, namespacePath, "namespace '$namespace' is not a valid catalog namespace")
-        }
-        if (registry != null && namespace == null) {
-            findings.error(CatalogValidationCodes.NAMESPACE_INVALID, namespacePath, "a reference naming registry '$registry' must name a namespace too")
-        }
-    }
-
-    /**
-     * Resolves within the catalog when the reference names no other catalog, and otherwise through
-     * the consumer's resolver. A reference to another catalog reaches the resolver with the owning
-     * catalog's registry, namespace or key filled in wherever it omitted one.
-     */
-    private fun resolveReference(
+    internal fun resolveReference(
         reference: CatalogResourceReference,
         context: ResourceValidationContext,
     ): ResourceResolution {
-        val otherRegistry = reference.registry != null && reference.registry != context.registry
-        val otherNamespace = reference.namespace != null && reference.namespace != context.namespace
-        val otherCatalog = reference.catalogKey != null && reference.catalogKey != context.catalogKey
-        if (otherRegistry || otherNamespace || otherCatalog) {
-            return context.dependencyResolver.resolve(
-                reference.copy(
-                    catalogKey = reference.catalogKey ?: context.catalogKey,
-                    namespace = reference.namespace ?: context.namespace,
-                    registry = reference.registry ?: context.registry,
-                ),
-            )
+        val alias = reference.catalogKey
+        if (alias == null || alias == context.catalogKey) {
+            context.resources["${reference.type}/${reference.key}"] ?: return ResourceResolution.MISSING
+            return ResourceResolution.PRESENT
         }
-        context.resources["${reference.type}/${reference.key}"] ?: return ResourceResolution.MISSING
-        return ResourceResolution.PRESENT
+        val declared = context.catalogDependencies ?: return context.dependencyResolver.resolve(reference)
+        val dependency = declared.firstOrNull { it.alias == alias } ?: return ResourceResolution.UNKNOWN
+        return context.dependencyResolver.resolve(
+            reference.copy(catalogKey = dependency.catalogKey, namespace = dependency.namespace, registry = dependency.registry),
+        )
     }
 
     private val MEDIA_TYPE = Regex("^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$")
@@ -946,15 +953,14 @@ object CatalogValidator {
             resources = resources,
             paths = catalog.paths,
             dependencyResolver = policy.dependencyResolver,
-            namespace = manifest.catalog.namespace,
-            registry = manifest.catalog.registry,
+            catalogDependencies = manifest.catalogDependencies.orEmpty(),
             sourceSchemaVersion = catalog.sourceSchemaVersion,
         )
         manifest.catalog.defaultTheme?.let { validateDefaultTheme(manifest, it, context, findings) }
         catalog.resourceDetails.toSortedMap().forEach { (key, detail) ->
             findings += ResourceValidator.validate(detail, context, "resources/$key.json").findings
         }
-        validateStencilComposition(resources, manifest.catalog.key, manifest.catalog.namespace, manifest.catalog.registry, findings)
+        validateStencilComposition(resources, manifest.catalog.key, findings)
         validateCarriedReleases(catalog, policy, findings)
         return CatalogValidationReport(findings.distinct().sorted())
     }
@@ -1009,8 +1015,6 @@ object CatalogValidator {
     private fun validateStencilComposition(
         resources: Map<String, CatalogResource>,
         catalogKey: String,
-        namespace: String?,
-        registry: String?,
         findings: MutableList<CatalogValidationFinding>,
     ) {
         val stencils = resources.values
@@ -1037,12 +1041,9 @@ object CatalogValidator {
                 .sortedBy(Node::id)
                 .mapNotNull { node ->
                     val stencilKey = node.props?.get("stencilKey") as? String ?: return@mapNotNull null
+                    // A stencil of another catalog, by its alias, is outside this catalog's graph.
                     val referenceCatalog = node.props["catalogKey"] as? String ?: catalogKey
-                    val referenceNamespace = node.props["namespace"] as? String ?: namespace
-                    val referenceRegistry = node.props["registry"] as? String ?: registry
-                    if (referenceCatalog != catalogKey || referenceNamespace != namespace || referenceRegistry != registry) {
-                        return@mapNotNull null
-                    }
+                    if (referenceCatalog != catalogKey) return@mapNotNull null
                     StencilCompositionEdge(
                         target = StencilResourceIdentity(stencilKey),
                         path = "resources/stencil/${stencil.key}.json.resource.content.nodes.${node.id}.props.stencilKey",
@@ -1192,8 +1193,9 @@ object CatalogValidator {
     }
 
     /**
-     * A default theme in another catalog lives in a catalog this one depends on (ADR 0007), so that
-     * catalog must be declared in catalogDependencies, which pins the release it renders with.
+     * A default theme in another catalog lives in a catalog this one depends on (ADR 0007), so its
+     * alias must be declared in catalogDependencies, which pins the release it renders with (contract ADR
+     * 0003).
      */
     private fun validateDefaultTheme(
         manifest: CatalogManifest,
@@ -1203,14 +1205,12 @@ object CatalogValidator {
     ) {
         val path = "catalog.json.catalog.defaultTheme"
         ResourceValidator.validateDefaultTheme(theme, context, path, findings)
-        val own = CatalogIdentity(manifest.catalog.registry, manifest.catalog.namespace, manifest.catalog.key)
-        val named = CatalogIdentity(theme.registry ?: own.registry, theme.namespace ?: own.namespace, theme.catalogKey ?: own.catalogKey)
-        val declared = manifest.catalogDependencies.orEmpty().mapTo(mutableSetOf()) { CatalogIdentity(it.registry, it.namespace, it.catalogKey) }
-        if (named != own && named !in declared) {
+        val alias = theme.catalogKey ?: return
+        if (alias != manifest.catalog.key && manifest.catalogDependencies.orEmpty().none { it.alias == alias }) {
             findings.error(
                 CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED,
                 path,
-                "defaultTheme names catalog $named, which catalogDependencies does not declare",
+                "defaultTheme names the catalog alias '$alias', which catalogDependencies does not declare",
             )
         }
     }
@@ -1359,8 +1359,8 @@ object CatalogValidator {
 
     /**
      * Wire v8: the catalog names its registry in full and its namespace, and declares each catalog it
-     * depends on once, never itself, with, unless migrated, the exact release it pins and that
-     * release's fingerprint.
+     * depends on once, never itself, under an alias of its own (contract ADR 0003), with, unless migrated, the
+     * release it pins: its fingerprint, and the number it had.
      */
     private fun validateCatalogDependencies(
         manifest: CatalogManifest,
@@ -1369,9 +1369,27 @@ object CatalogValidator {
         val own = CatalogIdentity(manifest.catalog.registry, manifest.catalog.namespace, manifest.catalog.key)
         validateTopLevelIdentity(manifest.catalog.registry, manifest.catalog.namespace, "catalog.json.catalog", "catalog", findings)
         val seen = mutableSetOf<CatalogIdentity>()
+        val aliases = mutableSetOf<String>()
         manifest.catalogDependencies.orEmpty().forEachIndexed { index, dependency ->
             val path = "catalog.json.catalogDependencies[$index]"
             val identity = CatalogIdentity(dependency.registry, dependency.namespace, dependency.catalogKey)
+            when {
+                !CatalogAliases.isValid(dependency.alias) -> findings.error(
+                    CatalogValidationCodes.DEPENDENCY_ALIAS_INVALID,
+                    "$path.alias",
+                    "alias must be ${CatalogAliases.MIN_LENGTH} to ${CatalogAliases.MAX_LENGTH} characters matching ${CatalogAliases.PATTERN}",
+                )
+                dependency.alias == manifest.catalog.key -> findings.error(
+                    CatalogValidationCodes.DEPENDENCY_ALIAS_INVALID,
+                    "$path.alias",
+                    "alias '${dependency.alias}' is the catalog's own key, which content uses for the catalog itself",
+                )
+                !aliases.add(dependency.alias) -> findings.error(
+                    CatalogValidationCodes.DEPENDENCY_ALIAS_DUPLICATE,
+                    "$path.alias",
+                    "alias '${dependency.alias}' is declared more than once",
+                )
+            }
             validateTopLevelIdentity(dependency.registry, dependency.namespace, path, "catalog dependency", findings)
             if (!CatalogKeys.matches(CatalogKeys.CATALOG, dependency.catalogKey)) {
                 findings.error(
@@ -1447,13 +1465,17 @@ object CatalogValidator {
         override fun toString(): String = "'$catalogKey' in namespace '$namespace' of registry '$registry'"
     }
 
+    /**
+     * The manifest's index of what the content uses in other catalogs (`dependencies`): each entry
+     * names a declared alias (contract ADR 0003), never the catalog itself, at most once, and resolves through
+     * the consumer's resolver against the catalog the alias is declared for.
+     */
     private fun validateDependencies(
         manifest: CatalogManifest,
         policy: CatalogValidationPolicy,
         findings: MutableList<CatalogValidationFinding>,
     ) {
-        val own = CatalogIdentity(manifest.catalog.registry, manifest.catalog.namespace, manifest.catalog.key)
-        val declared = manifest.catalogDependencies.orEmpty().mapTo(mutableSetOf()) { CatalogIdentity(it.registry, it.namespace, it.catalogKey) }
+        val declared = manifest.catalogDependencies.orEmpty().associateBy { it.alias }
         val seen = mutableSetOf<String>()
         manifest.dependencies.orEmpty().forEachIndexed { index, dependency ->
             val path = "catalog.json.dependencies[$index]"
@@ -1464,8 +1486,8 @@ object CatalogValidator {
                 is DependencyRef.Font -> "font"
                 is DependencyRef.Image -> "image"
             }
-            val reference = CatalogResourceReference(type, dependency.key, dependency.catalogKey, dependency.namespace, dependency.registry)
-            val key = "${reference.type}|${reference.registry.orEmpty()}|${reference.namespace.orEmpty()}|${reference.catalogKey.orEmpty()}|${reference.key}"
+            val alias = dependency.catalogKey
+            val key = "$type|$alias|${dependency.key}"
             if (!seen.add(key)) {
                 findings.error(CatalogValidationCodes.DEPENDENCY_DUPLICATE, path, "dependency '$key' is duplicated")
             }
@@ -1476,22 +1498,21 @@ object CatalogValidator {
                     "dependency key must be ${CatalogKeys.MIN_LENGTH} to ${CatalogKeys.MAX_LENGTH} characters matching ${CatalogKeys.PATTERN}",
                 )
             }
-            validateTopLevelIdentity(dependency.registry, dependency.namespace, path, "dependency", findings)
-            val catalog = CatalogIdentity(dependency.registry, dependency.namespace, dependency.catalogKey)
+            val catalog = declared[alias]
             when {
-                dependency.registry == null || dependency.namespace == null -> Unit
-                catalog == own -> findings.error(
+                alias == manifest.catalog.key -> findings.error(
                     CatalogValidationCodes.DEPENDENCY_CATALOG_SELF,
                     path,
                     "dependency '$key' names the catalog itself",
                 )
-                catalog !in declared -> findings.error(
+                catalog == null -> findings.error(
                     CatalogValidationCodes.DEPENDENCY_CATALOG_UNDECLARED,
                     path,
-                    "dependency '$key' names catalog $catalog, which catalogDependencies does not declare",
+                    "dependency '$key' names the catalog alias '$alias', which catalogDependencies does not declare",
                 )
             }
-            if (policy.dependencyResolver.resolve(reference) == ResourceResolution.MISSING) {
+            val reference = CatalogResourceReference(type, dependency.key, catalog?.catalogKey ?: alias, catalog?.namespace, catalog?.registry)
+            if (catalog != null && policy.dependencyResolver.resolve(reference) == ResourceResolution.MISSING) {
                 findings.error(
                     CatalogValidationCodes.DEPENDENCY_REFERENCE_MISSING,
                     path,

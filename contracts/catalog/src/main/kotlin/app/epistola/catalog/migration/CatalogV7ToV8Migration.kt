@@ -4,9 +4,14 @@
 
 package app.epistola.catalog.migration
 
+import app.epistola.catalog.protocol.CatalogAliases
+import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogKeys
+import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogNamespaces
+import app.epistola.catalog.protocol.CatalogReferences
 import app.epistola.catalog.protocol.CatalogReleaseVersions
+import app.epistola.catalog.protocol.ResourceDetail
 import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 
@@ -19,11 +24,19 @@ import tools.jackson.databind.node.ObjectNode
  *   [CatalogMigrationOptions.namespace]). Without one the manifest fails with
  *   [CatalogMigrationCodes.REGISTRY_MISSING] or [CatalogMigrationCodes.NAMESPACE_MISSING]; the
  *   migrator never invents an identity.
- * - **Resource dependencies** take the catalog's own registry and namespace. A v7 catalog's content
- *   lived in one tenant, so every catalog it referenced sat next to it.
- * - **Catalog dependencies** are declared, one per catalog the resource dependencies name, pinning
- *   no release (`releaseVersion` and `releaseFingerprint` null): v7 never said which version was
- *   meant, and the author pins one rather than the migrator guessing one.
+ * - **References by alias** (contract ADR 0003). A v7 catalog's content lived in one tenant, so every catalog
+ *   it referenced sat next to it, in the catalog's own registry and namespace, and was named by its
+ *   key. Each such catalog is declared in `catalogDependencies` with that registry and namespace,
+ *   under its key as the alias, so that every reference -- a resource dependency, a reference inside
+ *   content -- keeps its value and now names the alias. A reference qualified with a registry or
+ *   namespace (which the template document schema shared with v5 to v7 allowed in a theme
+ *   reference) is mapped to the alias of the catalog it names ([CatalogReferenceQualifiers.toAliases]);
+ *   one naming a catalog in another namespace, which no v7 catalog declares, cannot be, and is a
+ *   finding.
+ * - **Catalog dependencies** are declared, one per other catalog the resource dependencies name (and,
+ *   when the archive is read whole, the content: [declareContentDependencies]), pinning no release
+ *   (`releaseVersion` and `releaseFingerprint` null): v7 never said which version was meant, and the
+ *   author pins one rather than the migrator guessing one.
  * - **Stencil versions** are removed, both a stencil's own `version` and a stencil reference's
  *   `version` and `draftVersion`. A stencil reference resolves through its catalog's dependency.
  * - **Keys.** A resource's public address is called its `key`, and so are references to one:
@@ -56,6 +69,61 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
     override val fromVersion: Int = 7
     override val toVersion: Int = 8
 
+    companion object {
+        /**
+         * Declares every other catalog the migrated content of a catalog read from before wire v8
+         * names by alias ([CatalogReferences]) that [manifest] does not declare yet: a v7 manifest
+         * listed the resources its content used in other catalogs (`dependencies`), but nothing
+         * required it to list all of them. Each is declared like those the manifest names, in the
+         * catalog's own registry and namespace under its key as the alias, pinning no release, with
+         * a [CatalogMigrationCodes.DEPENDENCY_CATALOG_DECLARED] notice. A key that cannot be an alias
+         * is not declared: it is a [CatalogMigrationCodes.DEPENDENCY_ALIAS_INVALID] finding at the
+         * first reference that names it. Returns [manifest] itself when nothing is added.
+         *
+         * The archive reader calls it once every resource is migrated, since a manifest migrated on
+         * its own cannot see the content.
+         */
+        fun declareContentDependencies(
+            manifest: CatalogManifest,
+            details: Map<String, ResourceDetail>,
+            findings: MutableList<CatalogMigrationFinding>,
+            notices: MutableList<CatalogMigrationNotice>,
+        ): CatalogManifest {
+            val own = manifest.catalog
+            val registry = own.registry ?: return manifest
+            val namespace = own.namespace ?: return manifest
+            val declared = manifest.catalogDependencies.orEmpty()
+            val aliases = declared.mapTo(mutableSetOf()) { it.alias }
+            val named = sortedMapOf<String, String>()
+            details.toSortedMap().forEach { (key, detail) ->
+                CatalogReferences.inResource(detail.resource, "resources/$key.json.resource")
+                    .filter { it.alias != own.key && it.alias !in aliases }
+                    .forEach { named.putIfAbsent(it.alias, it.path) }
+            }
+            if (named.isEmpty()) return manifest
+            val added = mutableListOf<CatalogDependency>()
+            named.forEach { (alias, path) ->
+                if (!CatalogAliases.isValid(alias)) {
+                    findings += CatalogMigrationFinding(
+                        CatalogMigrationCodes.DEPENDENCY_ALIAS_INVALID,
+                        path,
+                        "the content names catalog '$alias', which cannot be declared as a dependency: its key is not a valid alias " +
+                            "(${CatalogAliases.MIN_LENGTH} to ${CatalogAliases.MAX_LENGTH} characters matching ${CatalogAliases.PATTERN})",
+                    )
+                    return@forEach
+                }
+                notices += CatalogMigrationNotice(
+                    CatalogMigrationCodes.DEPENDENCY_CATALOG_DECLARED,
+                    "catalog.json.catalogDependencies[${declared.size + added.size}]",
+                    "catalog '$alias' in namespace '$namespace' of registry '$registry', which the content names at $path, was " +
+                        "declared under the alias '$alias' as a dependency that pins no release; pin the release this catalog renders with",
+                )
+                added += CatalogDependency(registry, namespace, alias, alias = alias)
+            }
+            return if (added.isEmpty()) manifest else manifest.copy(catalogDependencies = declared + added)
+        }
+    }
+
     override fun migrateManifest(
         tree: ObjectNode,
         options: CatalogMigrationOptions,
@@ -87,43 +155,19 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
             "catalog was given the namespace '$namespace'",
         )
 
+        // A resource dependency names its catalog by key, which becomes the alias the catalog is
+        // declared under: the value stays, and now means the alias.
         val referencedKeys = sortedSetOf<String>()
-        (tree["dependencies"] as? ArrayNode)?.forEachIndexed { index, dependency ->
-            val entry = dependency as? ObjectNode ?: return@forEachIndexed
-            if (!entry.has("registry")) {
-                entry.put("registry", registry)
-                notices += CatalogMigrationNotice(
-                    CatalogMigrationCodes.DEPENDENCY_REGISTRY_ASSIGNED,
-                    "catalog.json.dependencies[$index].registry",
-                    "dependency was given the catalog's registry '$registry'",
-                )
-            }
-            if (entry.has("namespace")) return@forEachIndexed
-            entry.put("namespace", namespace)
-            notices += CatalogMigrationNotice(
-                CatalogMigrationCodes.DEPENDENCY_NAMESPACE_ASSIGNED,
-                "catalog.json.dependencies[$index].namespace",
-                "dependency was given the catalog's namespace '$namespace'",
-            )
-            entry["catalogKey"]?.takeIf { it.isString }?.asString()
+        (tree["dependencies"] as? ArrayNode)?.forEach { dependency ->
+            (dependency as? ObjectNode)?.get("catalogKey")?.takeIf { it.isString }?.asString()
                 ?.takeIf { it != ownKey }
                 ?.let(referencedKeys::add)
         }
 
         val declared = tree.putArray("catalogDependencies")
         referencedKeys.forEachIndexed { index, catalogKey ->
-            declared.addObject()
-                .put("registry", registry)
-                .put("namespace", namespace)
-                .put("catalogKey", catalogKey)
-                .putNull("releaseVersion")
-                .putNull("releaseFingerprint")
-            notices += CatalogMigrationNotice(
-                CatalogMigrationCodes.DEPENDENCY_CATALOG_DECLARED,
-                "catalog.json.catalogDependencies[$index]",
-                "catalog '$catalogKey' in namespace '$namespace' of registry '$registry' was declared as a " +
-                    "dependency that pins no release; pin the release this catalog renders with",
-            )
+            declared.add(declaration(declared, registry, namespace, catalogKey))
+            notices += declaredNotice(index, catalogKey, namespace, registry, "a resource dependency")
         }
         return CatalogMigrationStepResult(notices = notices)
     }
@@ -175,6 +219,33 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
         )
     }
 
+    /** A catalog dependency on [catalogKey] in [registry] and [namespace], under its key as the alias, pinning no release. */
+    private fun declaration(
+        array: ArrayNode,
+        registry: String,
+        namespace: String,
+        catalogKey: String,
+    ): ObjectNode = array.objectNode()
+        .put("alias", catalogKey)
+        .put("registry", registry)
+        .put("namespace", namespace)
+        .put("catalogKey", catalogKey)
+        .putNull("releaseVersion")
+        .putNull("releaseFingerprint")
+
+    private fun declaredNotice(
+        index: Int,
+        catalogKey: String,
+        namespace: String?,
+        registry: String?,
+        namedBy: String,
+    ) = CatalogMigrationNotice(
+        CatalogMigrationCodes.DEPENDENCY_CATALOG_DECLARED,
+        "catalog.json.catalogDependencies[$index]",
+        "catalog '$catalogKey' in namespace '$namespace' of registry '$registry', which $namedBy names, was declared " +
+            "under the alias '$catalogKey' as a dependency that pins no release; pin the release this catalog renders with",
+    )
+
     /** The registry and namespace the caller supplied, each present and well-formed, or why not. */
     private fun identityFindings(options: CatalogMigrationOptions): List<CatalogMigrationFinding> = listOfNotNull(
         when (val registry = options.registry) {
@@ -223,6 +294,17 @@ internal class CatalogV7ToV8Migration : CatalogSchemaMigration {
         val notices = mutableListOf<CatalogMigrationNotice>()
         val keyFindings = mutableListOf<CatalogMigrationFinding>()
         rewriteResourceKeys(resource, sites, "$path.resource", keyFindings, notices)
+        if (keyFindings.isNotEmpty()) return CatalogMigrationStepResult(keyFindings, notices)
+        val catalog = context.manifest.catalog
+        CatalogReferenceQualifiers.toAliases(
+            CatalogReferenceQualifiers.resourceSites(resource, "$path.resource"),
+            catalog.key,
+            catalog.namespace,
+            catalog.registry,
+            context.manifest.catalogDependencies.orEmpty(),
+            keyFindings,
+            notices,
+        )
         if (keyFindings.isNotEmpty()) return CatalogMigrationStepResult(keyFindings, notices)
         if (resource["type"]?.asString() == "stencil" && resource.remove("version") != null) {
             notices += CatalogMigrationNotice(

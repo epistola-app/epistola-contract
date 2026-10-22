@@ -5,7 +5,6 @@
 package app.epistola.catalog.validation
 
 import app.epistola.catalog.protocol.CatalogKeys
-import app.epistola.catalog.protocol.CatalogNamespaces
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDINGS_INVALID_SHAPE
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDING_EMPTY
 import app.epistola.catalog.validation.TemplateValidationCodes.NODE_PARAMETER_BINDING_MISSING_REQUIRED
@@ -501,8 +500,6 @@ object TemplateValidator {
             allowedTopLevel += setOf(
                 "stencilKey",
                 "catalogKey",
-                "namespace",
-                "registry",
                 "parameterBindings",
                 "paramsAlias",
                 "parameterSchemaSnapshot",
@@ -556,39 +553,23 @@ object TemplateValidator {
         findings: MutableList<TemplateValidationFinding>,
     ) {
         (document.themeRef as? ThemeRefOverride)?.let { theme ->
-            val reference = CatalogResourceReference("theme", theme.themeKey, theme.catalogKey, theme.namespace, theme.registry)
+            val reference = CatalogResourceReference("theme", theme.themeKey, theme.catalogKey)
             if (context.resolveResource(reference) == ResourceResolution.MISSING) {
                 findings.error(TEMPLATE_THEME_NOT_FOUND, "themeRef.themeKey", "theme '${theme.themeKey}' does not exist in the catalog context")
             }
         }
         document.nodes.values.filter { it.type == "stencil" }.sortedBy(Node::id).forEach { node ->
             val stencilKey = stringValue(node.props?.get("stencilKey"))
+            // The alias of the catalog holding the stencil (contract ADR 0003); null means the document's own.
             val catalogKey = stringValue(node.props?.get("catalogKey"))
-            val namespace = node.props?.get("namespace")
-            val registry = node.props?.get("registry")
             when {
                 stencilKey == null || !CatalogKeys.isValid(stencilKey) -> findings.error(
                     STENCIL_REFERENCE_INVALID,
                     "nodes.${node.id}.props.stencilKey",
                     "stencil reference requires a valid stencilKey",
                 )
-                namespace != null && stringValue(namespace)?.let(CatalogNamespaces::isValid) != true -> findings.error(
-                    STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props.namespace",
-                    "stencil reference namespace must be a catalog namespace",
-                )
-                registry != null && stringValue(registry)?.let(CatalogNamespaces::isValidRegistry) != true -> findings.error(
-                    STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props.registry",
-                    "stencil reference registry must be a DNS name written in full",
-                )
-                registry != null && namespace == null -> findings.error(
-                    STENCIL_REFERENCE_INVALID,
-                    "nodes.${node.id}.props.namespace",
-                    "stencil reference names a registry but no namespace",
-                )
                 else -> {
-                    val reference = CatalogResourceReference("stencil", stencilKey, catalogKey, stringValue(namespace), stringValue(registry))
+                    val reference = CatalogResourceReference("stencil", stencilKey, catalogKey)
                     if (context.resolveResource(reference) == ResourceResolution.MISSING) {
                         findings.error(
                             STENCIL_REFERENCE_NOT_FOUND,
@@ -662,8 +643,6 @@ object TemplateValidator {
                 val id = node.props?.get("stencilKey") as? String
                 val identity = id?.let {
                     StencilIdentity(
-                        registry = node.props["registry"] as? String ?: context.currentRegistry,
-                        namespace = node.props["namespace"] as? String ?: context.currentNamespace,
                         catalogKey = node.props["catalogKey"] as? String ?: context.currentCatalogKey,
                         key = it,
                     )
@@ -687,22 +666,17 @@ object TemplateValidator {
         }
         val containingStencil = context.containingStencil
         val initialIdentities = containingStencil?.let {
-            setOf(
-                StencilIdentity(
-                    it.registry ?: context.currentRegistry,
-                    it.namespace ?: context.currentNamespace,
-                    it.catalogKey ?: context.currentCatalogKey,
-                    it.key,
-                ),
-            )
+            setOf(StencilIdentity(it.catalogKey ?: context.currentCatalogKey, it.key))
         }.orEmpty()
         val initialDepth = if (kind == TemplateDocumentKind.STENCIL) 1 else 0
         recurse(document.root, Scope(initialIdentities, initialDepth, outer = null))
     }
 
+    /**
+     * A stencil as a document names it: the alias of its catalog (the current catalog's key when it
+     * names none) and its key. Recursion is detected among the stencils one catalog's content names.
+     */
     private data class StencilIdentity(
-        val registry: String?,
-        val namespace: String?,
         val catalogKey: String?,
         val key: String,
     )

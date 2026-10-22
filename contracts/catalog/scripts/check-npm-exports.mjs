@@ -115,13 +115,35 @@ const detailSchema = JSON.parse(
 );
 const bindingSchema = detailSchema.$defs.CodeListBindingRef.properties;
 const templateSchema = detailSchema.$defs.TemplateResource.properties;
-for (const [where, namespace, registry] of [
-  ['code list binding', bindingSchema.namespace, bindingSchema.registry],
-  ['template theme', templateSchema.themeNamespace, templateSchema.themeRegistry],
+const sharedTemplateSchema = JSON.parse(
+  await readFile(new URL('../schemas/template-shared.schema.json', import.meta.url), 'utf8'),
+);
+// Wire v8 names another catalog by an alias (contract ADR 0003), one rule wherever it does, and never by
+// registry or namespace in a reference: those are the declaration's.
+for (const [where, alias] of [
+  ['catalog dependency alias', manifestSchema.$defs.CatalogDependency.properties.alias],
+  ['resource dependency catalogKey', manifestSchema.$defs.CatalogDependencyRef.properties.catalogKey],
+  ['default theme catalogKey', manifestSchema.$defs.CatalogThemeRef.properties.catalogKey],
+  ['template themeCatalogKey', templateSchema.themeCatalogKey],
+  ['code list binding catalogKey', bindingSchema.catalogKey],
+  ['theme reference catalogKey', sharedTemplateSchema.$defs.ThemeRef.oneOf[1].properties.catalogKey],
 ]) {
-  assert.equal(catalog.CATALOG_NAMESPACE_PATTERN, namespace.pattern, `npm and schema ${where} namespace patterns must agree`);
-  assert.equal(catalog.CATALOG_REGISTRY_PATTERN, registry.pattern, `npm and schema ${where} registry patterns must agree`);
+  assert.equal(catalog.CATALOG_ALIAS_PATTERN, alias.pattern, `npm and schema ${where} patterns must agree`);
+  assert.equal(catalog.MIN_CATALOG_ALIAS_LENGTH, alias.minLength, `npm and schema ${where} minimum lengths must agree`);
+  assert.equal(catalog.MAX_CATALOG_ALIAS_LENGTH, alias.maxLength, `npm and schema ${where} maximum lengths must agree`);
 }
+assert.ok(manifestSchema.$defs.CatalogDependency.required.includes('alias'), 'a catalog dependency is declared under an alias');
+for (const [where, properties] of [
+  ['resource dependency', manifestSchema.$defs.CatalogDependencyRef.properties],
+  ['default theme', manifestSchema.$defs.CatalogThemeRef.properties],
+  ['code list binding', bindingSchema],
+  ['theme reference', sharedTemplateSchema.$defs.ThemeRef.oneOf[1].properties],
+]) {
+  assert.equal(properties.registry, undefined, `a ${where} names no registry`);
+  assert.equal(properties.namespace, undefined, `a ${where} names no namespace`);
+}
+assert.equal(templateSchema.themeRegistry, undefined, 'a template names its theme\'s catalog by alias alone');
+assert.equal(templateSchema.themeNamespace, undefined, 'a template names its theme\'s catalog by alias alone');
 
 // Wire v8 (#95, #96, #97): paths into the catalog, data example keys, variant metadata, template descriptions.
 const manifestPaths = [['manifest detailUrl', manifestSchema.$defs.ResourceEntry.properties.detailUrl]];
@@ -133,9 +155,7 @@ for (const [where, property] of [...manifestPaths, ...detailPaths]) {
   assert.equal(catalog.CATALOG_ARCHIVE_PATH_PATTERN, property.pattern, `npm and schema ${where} patterns must agree`);
 }
 // One rule for every resource key, wherever wire v8 names one.
-const sharedSchema = JSON.parse(
-  await readFile(new URL('../schemas/template-shared.schema.json', import.meta.url), 'utf8'),
-);
+const sharedSchema = sharedTemplateSchema;
 const detailDefs = detailSchema.$defs;
 const manifestDefs = manifestSchema.$defs;
 const resourceKeys = [

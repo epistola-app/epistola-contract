@@ -30,14 +30,22 @@ The v7-to-v8 migration gives the catalog an identity and versions it as a whole:
   joined `exchange.epistola.app/acme-corp` as a namespace, or `~` as a registry) with
   `CATALOG_REGISTRY_INVALID` or `CATALOG_NAMESPACE_INVALID`. The migrator never invents an
   identity. The options are ignored for an archive at v8, which names its own.
-- **Resource dependencies** take the catalog's registry and namespace
-  (`CATALOG_DEPENDENCY_REGISTRY_ASSIGNED`, `CATALOG_DEPENDENCY_NAMESPACE_ASSIGNED`): a v7 catalog's
-  content lived in one tenant, so every catalog it referenced sat beside it.
+- **References by alias** (contract ADR 0003). A v7 catalog's content lived in one tenant, so every
+  catalog it referenced sat beside it, in the same registry and namespace, named by its key. Each
+  such catalog is declared under its key as the alias, so every reference -- a resource dependency,
+  a reference inside content -- keeps its value and now names that alias. A reference qualified
+  with a registry or namespace (the template document schema shared with v5 to v7 allowed one in a
+  theme reference) is mapped to the alias of the catalog it names (`CATALOG_REFERENCE_ALIASED`); one
+  naming a catalog in another namespace, which no v7 catalog declares, is a finding
+  (`CATALOG_REFERENCE_ALIAS_UNRESOLVED`).
 - **Catalog dependencies.** Each distinct other catalog the resource dependencies name is declared
-  in `catalogDependencies` with that registry and namespace, pinning no release:
-  `releaseVersion: null` and `releaseFingerprint: null` (`CATALOG_DEPENDENCY_CATALOG_DECLARED`). v7
-  never said which version was meant; the author pins a release rather than the migrator
-  guessing one. A dependency on the catalog itself is not declared.
+  in `catalogDependencies` under its key as the alias, with the catalog's registry and namespace,
+  pinning no release: `releaseVersion: null` and `releaseFingerprint: null`
+  (`CATALOG_DEPENDENCY_CATALOG_DECLARED`). v7 never said which version was meant; the author pins a
+  release rather than the migrator guessing one. A dependency on the catalog itself is not
+  declared. Nothing required a v7 manifest to list every catalog its content named, so the archive
+  reader, which sees the content, declares the others the same way, with the same notice; a key
+  that cannot be an alias is a finding at the reference (`CATALOG_DEPENDENCY_ALIAS_INVALID`).
 - **Stencil versions** are removed: a stencil's own `version`, and every stencil node's `version`
   and `draftVersion`, in template, variant, and stencil content (`CATALOG_STENCIL_VERSION_REMOVED`).
   A stencil node's `isDraft`, which v5 already rejected, is left in place and remains a validation
@@ -70,20 +78,24 @@ the stored value, not of what is hashed: V5's own domain prefix is unchanged. Se
   metadata. It was the current algorithm for wires v6 and v7.
 - V5, introduced with wire v8, is V4 under its own domain prefix (`algorithm sha256-v5`) plus the
   catalog's identity and declared dependencies: `catalog.registry` and `catalog.namespace`, each
-  resource dependency's `registry` and `namespace` (dependencies sort by type, registry, namespace,
-  catalog key, and key), and every `catalogDependencies` entry with its `registry`, `namespace`,
-  `releaseVersion` and `releaseFingerprint`, sorted by registry, namespace and catalog key.
+  resource dependency's catalog by registry, namespace and key (dependencies sort by type, registry,
+  namespace, catalog key, and key), and every `catalogDependencies` entry with its `registry`,
+  `namespace`, `releaseVersion` and `releaseFingerprint`, sorted by registry, namespace and catalog
+  key. A resource dependency names its catalog by alias since contract ADR 0003, so V5 takes that
+  catalog's registry, namespace and key from the declaration the alias names: a manifest written
+  before aliases, whose dependencies named their catalog in full and whose declarations had no alias
+  (and so the catalog key as theirs), keeps its V5 value. V5 does not cover an alias.
   Registry and namespace are separate members, never one joined string. They are identity, and a
   declaration's pinned release (`releaseVersion`) is exactly the release of the dependency the
   catalog renders with, so two releases differing only there are different content. That
   release's fingerprint is part of what the release was cut with, so V5 covers it too. Resource entries are V4's; a stencil carries no version at v8, so
-  V5 covers none. Optional content registries and namespaces (`ThemeRef.registry`/`.namespace`,
-  `CodeListBindingRef.registry`/`.namespace`, `FontRef.registry`/`.namespace`,
-  `TemplateResource.themeRegistry`/`.themeNamespace`) are omitted from the canonical resource JSON
-  when absent, so resources that do not use them hash exactly as before.
+  V5 covers none. A reference inside content names an alias and no registry or namespace (an
+  earlier draft of wire v8 allowed optional ones, which the model now drops when binding), so a
+  resource hashes as it did whenever its references named none.
 
-**The catalog's default theme and presets (ADR 0007).** V5 covers `catalog.defaultTheme` (its `key`,
-`catalogKey`, `namespace` and `registry`, absent qualifiers as null) and `catalog.presets` (each
+**The catalog's default theme and presets (ADR 0007).** V5 covers `catalog.defaultTheme` (its `key`
+and `catalogKey`, with the `namespace` and `registry` an earlier draft allowed written as null, as
+they were when absent) and `catalog.presets` (each
 `key`, `name` and `description`, sorted by key, so their order carries no meaning). Each is written
 into the canonical catalog section only when present: a catalog without a default theme and with no
 declared presets hashes exactly as it did before the members existed. V1 to V4 never cover them.

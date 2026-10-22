@@ -4,16 +4,20 @@
 
 package app.epistola.catalog.migration
 
+import app.epistola.catalog.protocol.AttributeResource
 import app.epistola.catalog.protocol.CatalogDependency
 import app.epistola.catalog.protocol.CatalogInfo
 import app.epistola.catalog.protocol.CatalogKeys
 import app.epistola.catalog.protocol.CatalogManifest
 import app.epistola.catalog.protocol.CatalogPresetDeclaration
 import app.epistola.catalog.protocol.CatalogThemeRef
+import app.epistola.catalog.protocol.CodeListBindingRef
 import app.epistola.catalog.protocol.PublisherInfo
 import app.epistola.catalog.protocol.ReleaseInfo
+import app.epistola.catalog.protocol.ResourceDetail
 import app.epistola.catalog.protocol.StencilResource
 import app.epistola.catalog.protocol.TemplateResource
+import app.epistola.template.model.ThemeRefOverride
 import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.module.kotlin.jsonMapper
@@ -53,11 +57,11 @@ class CatalogSchemaMigratorTest {
         assertEquals(REGISTRY, result.value.catalog.registry)
         assertEquals(NAMESPACE, result.value.catalog.namespace)
         assertEquals(
-            listOf(CatalogDependency(REGISTRY, NAMESPACE, "shared", "1.4.0", SHARED_FINGERPRINT)),
+            listOf(CatalogDependency(REGISTRY, NAMESPACE, "shared", "1.4.0", SHARED_FINGERPRINT, alias = "shared")),
             result.value.catalogDependencies,
         )
-        assertEquals(REGISTRY, result.value.dependencies.orEmpty().single().registry)
-        assertEquals(NAMESPACE, result.value.dependencies.orEmpty().single().namespace)
+        // The resource dependency names the catalog by the alias its declaration gives it.
+        assertEquals("shared", result.value.dependencies.orEmpty().single().catalogKey)
     }
 
     @Test
@@ -233,12 +237,14 @@ class CatalogSchemaMigratorTest {
         assertEquals(ACME, manifest.catalog.namespace)
         assertEquals(
             listOf(
-                CatalogDependency(REGISTRY, ACME, "brand", null),
-                CatalogDependency(REGISTRY, ACME, "shared", null),
+                CatalogDependency(REGISTRY, ACME, "brand", null, alias = "brand"),
+                CatalogDependency(REGISTRY, ACME, "shared", null, alias = "shared"),
             ),
             manifest.catalogDependencies,
         )
-        assertTrue(manifest.dependencies.orEmpty().all { it.registry == REGISTRY && it.namespace == ACME })
+        // Each resource dependency keeps its value, which now names the alias it is declared under.
+        val aliases = manifest.catalogDependencies.orEmpty().mapTo(mutableSetOf()) { it.alias }
+        assertTrue(manifest.dependencies.orEmpty().all { it.catalogKey in aliases })
     }
 
     @Test
@@ -276,7 +282,7 @@ class CatalogSchemaMigratorTest {
     }
 
     @Test
-    fun `a v7 dependency on its own catalog gets a registry and namespace but no catalog dependency`() {
+    fun `a v7 dependency on its own catalog is left as it is and declares no catalog dependency`() {
         val input = mapper.readTree(
             """{"schemaVersion":7,"catalog":{"slug":"letters","name":"Letters"},
                "dependencies":[{"type":"theme","catalogKey":"letters","slug":"base"}]}""",
@@ -284,8 +290,7 @@ class CatalogSchemaMigratorTest {
         val step = CatalogV7ToV8Migration().migrateManifest(input, OPTIONS_ACME)
 
         assertTrue(step.findings.isEmpty(), step.findings.toString())
-        assertEquals(REGISTRY, input["dependencies"][0]["registry"].asString())
-        assertEquals(ACME, input["dependencies"][0]["namespace"].asString())
+        assertEquals(listOf("type", "catalogKey", "key"), input["dependencies"][0].propertyNames().toList())
         assertEquals(0, input["catalogDependencies"].size())
     }
 
@@ -315,16 +320,8 @@ class CatalogSchemaMigratorTest {
             findings { (it["catalog"] as ObjectNode).put("registry", "~") },
         )
         assertEquals(
-            listOf(CatalogMigrationCodes.REGISTRY_INVALID to "catalog.json.dependencies[0].registry"),
-            findings { (it["dependencies"][0] as ObjectNode).put("registry", "exchange") },
-        )
-        assertEquals(
             listOf(CatalogMigrationCodes.REGISTRY_INVALID to "catalog.json.catalogDependencies[0].registry"),
             findings { (it["catalogDependencies"][0] as ObjectNode).remove("registry") },
-        )
-        assertEquals(
-            listOf(CatalogMigrationCodes.NAMESPACE_INVALID to "catalog.json.dependencies[0].namespace"),
-            findings { (it["dependencies"][0] as ObjectNode).remove("namespace") },
         )
         assertEquals(
             listOf(CatalogMigrationCodes.NAMESPACE_INVALID to "catalog.json.catalogDependencies[0].namespace"),
@@ -770,8 +767,8 @@ class CatalogSchemaMigratorTest {
               "presentation":{"iconAssetSlug":"logo","imageAssetSlugs":[]}},
              "publisher":{"name":"X"},"release":{"version":"1.0.0"},
              "resources":[{"type":"theme","slug":"base","name":"Base","detailUrl":"./resources/theme/base.json"}],
-             "dependencies":[{"type":"theme","registry":"$REGISTRY","namespace":"$NAMESPACE","catalogKey":"shared","slug":"corporate"}],
-             "catalogDependencies":[{"registry":"$REGISTRY","namespace":"$NAMESPACE","catalogKey":"shared","version":"*",
+             "dependencies":[{"type":"theme","catalogKey":"shared","slug":"corporate"}],
+             "catalogDependencies":[{"alias":"shared","registry":"$REGISTRY","namespace":"$NAMESPACE","catalogKey":"shared","version":"*",
               "releaseVersion":null,"releaseFingerprint":null}]}
         """.trimIndent()
 
@@ -814,6 +811,89 @@ class CatalogSchemaMigratorTest {
             result.findings.map { it.path },
         )
         assertTrue(result.findings.all { it.code == CatalogMigrationCodes.SCHEMA_UNKNOWN }, result.findings.toString())
+    }
+
+    @Test
+    fun `a v8 catalog dependency is declared under an alias, by the alias rule, before it binds`() {
+        fun findings(edit: (ObjectNode) -> Unit): List<Pair<String, String>> {
+            val tree = resource("wire-v8/catalog.json").use(mapper::readTree) as ObjectNode
+            edit(tree["catalogDependencies"][0] as ObjectNode)
+            return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(mapper.writeValueAsBytes(tree))).findings.map { it.code to it.path }
+        }
+        val invalid = listOf(CatalogMigrationCodes.DEPENDENCY_ALIAS_INVALID to "catalog.json.catalogDependencies[0].alias")
+
+        assertEquals(emptyList(), findings { })
+        assertEquals(emptyList(), findings { it.put("alias", "acme-shared") }, "an alias other than the catalog's key")
+        assertEquals(invalid, findings { it.remove("alias") }, "wire v8 requires one; only the model defaults it")
+        assertEquals(invalid, findings { it.putNull("alias") })
+        listOf("Shared", "ab", "1shared", "a".repeat(51), "shared.fonts", "acme.com/shared").forEach { alias ->
+            assertEquals(invalid, findings { it.put("alias", alias) }, alias)
+        }
+        assertEquals(invalid, findings { it.put("alias", 7) })
+    }
+
+    @Test
+    fun `a v8 manifest whose references still name a registry or namespace is not wire v8`() {
+        fun findings(edit: (ObjectNode) -> Unit): List<Pair<String, String>> {
+            val tree = resource("wire-v8/catalog.json").use(mapper::readTree) as ObjectNode
+            edit(tree)
+            return CatalogSchemaMigrator.migrateManifest(ByteArrayInputStream(mapper.writeValueAsBytes(tree))).findings.map { it.code to it.path }
+        }
+        val unknown = CatalogMigrationCodes.SCHEMA_UNKNOWN
+
+        assertEquals(
+            listOf(unknown to "catalog.json.dependencies[0].registry", unknown to "catalog.json.dependencies[0].namespace"),
+            findings { (it["dependencies"][0] as ObjectNode).put("registry", REGISTRY).put("namespace", NAMESPACE) },
+        )
+        assertEquals(
+            listOf(unknown to "catalog.json.catalog.defaultTheme.namespace"),
+            findings { (it["catalog"] as ObjectNode).putObject("defaultTheme").put("key", "corporate").put("catalogKey", "shared").put("namespace", NAMESPACE) },
+        )
+        assertEquals(
+            emptyList(),
+            findings { (it["catalog"] as ObjectNode).putObject("defaultTheme").put("key", "corporate").put("catalogKey", "shared") },
+        )
+    }
+
+    @Test
+    fun `a v8 resource detail whose references still name a registry or namespace is not wire v8, and the model ignores them`() {
+        val path = "resources/template/letter.json"
+        val document = """
+            {"modelVersion":1,"root":"root",
+             "nodes":{"root":{"id":"root","type":"root","slots":["children"],"styles":{"fontFamily":{"catalogKey":"system","key":"inter","registry":"$REGISTRY"}}},
+                      "box":{"id":"box","type":"stencil","slots":[],"props":{"stencilKey":"address","catalogKey":"shared","namespace":"$NAMESPACE"}}},
+             "slots":{"children":{"id":"children","nodeId":"root","name":"children","children":["box"]}},
+             "themeRef":{"type":"override","themeKey":"corporate","catalogKey":"shared","namespace":"$NAMESPACE","registry":"$REGISTRY"}}
+        """.trimIndent()
+        val json = """
+            {"schemaVersion":8,"resource":{"type":"template","key":"letter","name":"Letter","themeKey":"corporate",
+             "themeCatalogKey":"shared","themeNamespace":"$NAMESPACE","templateModel":$document,"variants":[]}}
+        """.trimIndent()
+
+        val result = CatalogSchemaMigrator.migrateResourceDetail("template", ByteArrayInputStream(json.toByteArray()), CatalogMigrationContext(8, emptyManifest()), path)
+
+        assertNull(result.value)
+        assertEquals(
+            listOf(
+                "$path.resource.themeNamespace",
+                "$path.resource.templateModel.themeRef.registry",
+                "$path.resource.templateModel.themeRef.namespace",
+                "$path.resource.templateModel.nodes.box.props.namespace",
+                "$path.resource.templateModel.nodes.root.styles.fontFamily.registry",
+            ),
+            result.findings.map { it.path },
+        )
+        assertTrue(result.findings.all { it.code == CatalogMigrationCodes.SCHEMA_UNKNOWN }, result.findings.toString())
+
+        // A document stored under that draft of wire v8 still binds: the qualifiers are dropped.
+        val bound = mapper.readValue(json, ResourceDetail::class.java).resource as TemplateResource
+        assertEquals("shared", bound.themeCatalogKey)
+        assertEquals(ThemeRefOverride("corporate", "shared"), bound.templateModel.themeRef)
+        val binding = mapper.readValue(
+            """{"schemaVersion":8,"resource":{"type":"attribute","key":"country","name":"Country","codeListBinding":{"catalogKey":"shared","key":"countries","namespace":"$NAMESPACE","registry":"$REGISTRY"}}}""",
+            ResourceDetail::class.java,
+        ).resource as AttributeResource
+        assertEquals(CodeListBindingRef("shared", "countries"), binding.codeListBinding)
     }
 
     @Test

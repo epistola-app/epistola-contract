@@ -217,9 +217,13 @@ info:
        may omit `registry`, or send null, for the default registry. (An import's `registry` defaults to
        the one the archive names.)
     2. **A reference relative to another catalog** (an attribute's code-list binding, an attribute
-       qualifier in variant selection, a reference inside catalog content) may omit `registry` and
-       `namespace`; each omitted one is that other catalog's own, never the default registry, so content
-       means the same in every installation. A `registry` without a `namespace` is invalid.
+       qualifier in variant selection) may omit `registry` and `namespace`; each omitted one is that
+       other catalog's own, never the default registry. A `registry` without a `namespace` is invalid.
+    3. **A reference inside catalog content** (a template model's `themeRef`, its stencil and image
+       nodes, a `fontFamily`) names another catalog by the alias the catalog's dependency declarations
+       give it (portable catalog wire v8, contract ADR 0003), never by registry or namespace, so content
+       means the same in every installation and under any name. A dependency declared through this
+       API has the catalog's key as its alias.
 
     Responses write every registry in full, by its name, never `~`, so a value read from one
     installation means the same catalog on another. Content documents are returned as stored.

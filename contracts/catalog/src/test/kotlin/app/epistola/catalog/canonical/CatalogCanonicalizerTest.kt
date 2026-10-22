@@ -371,7 +371,7 @@ class CatalogCanonicalizerTest {
             original.manifest.copy(
                 schemaVersion = CURRENT_VERSION,
                 catalog = original.manifest.catalog.withNamespace(registry, namespace),
-                dependencies = listOf(DependencyRef.Theme("shared", "corporate", namespace, registry)),
+                dependencies = listOf(DependencyRef.Theme("shared", "corporate")),
                 catalogDependencies = listOf(shared, brand),
             ),
         )
@@ -379,8 +379,8 @@ class CatalogCanonicalizerTest {
         val variants = mapOf(
             "namespace" to changed { it.copy(catalog = it.catalog.withNamespace(registry, "acme")) },
             "registry" to changed { it.copy(catalog = it.catalog.withNamespace("acme.com", namespace)) },
-            "dependency namespace" to changed { it.copy(dependencies = listOf(DependencyRef.Theme("shared", "corporate", "acme", registry))) },
-            "dependency registry" to changed { it.copy(dependencies = listOf(DependencyRef.Theme("shared", "corporate", namespace, "acme.com"))) },
+            // V5 covers a resource dependency's catalog by the name its alias is declared for.
+            "dependency namespace" to changed { it.copy(catalogDependencies = listOf(shared.copy(namespace = "acme"), brand)) },
             "declared registry" to changed { it.copy(catalogDependencies = listOf(shared.copy(registry = "acme.com"), brand)) },
             "pinned release" to changed { it.copy(catalogDependencies = listOf(shared.copy(releaseVersion = "1.5.0"), brand)) },
             "release fingerprint" to changed { it.copy(catalogDependencies = listOf(shared.copy(releaseFingerprint = "0".repeat(64)), brand)) },
@@ -400,6 +400,36 @@ class CatalogCanonicalizerTest {
             CatalogCanonicalizer.currentFingerprint(changed { it.copy(catalogDependencies = listOf(brand, shared)) }),
         )
         assertEquals(CatalogCanonicalizer.fingerprint(base, CatalogFingerprintVersion.V5), CatalogCanonicalizer.currentFingerprint(base))
+    }
+
+    @Test
+    fun `a manifest stored before aliases, its references qualified by registry and namespace, keeps its V5 fingerprint`() {
+        // The wire-v8 golden catalog as wire v8 wrote it before contract ADR 0003: the resource dependency names
+        // its catalog by registry, namespace and key, and the declaration has no alias.
+        val stored = """
+            {"schemaVersion":8,
+             "catalog":{"registry":"exchange.epistola.app","namespace":"epistola","key":"fixture","name":"Fixture Catalog",
+               "description":"Portable golden fixture","attributes":[{"catalogKey":"system","key":"locale","value":"nl-NL"}],
+               "keywords":["documents","government"],"presentation":null,
+               "license":{"name":"Creative Commons Attribution 4.0 International","spdxExpression":"CC-BY-4.0",
+                 "url":"https://creativecommons.org/licenses/by/4.0/","copyrightText":"Copyright 2026 Example Publisher"}},
+             "publisher":{"name":"Epistola"},
+             "release":{"version":"1.0.0"},
+             "resources":[
+               {"type":"theme","key":"default","name":"Default","detailUrl":"./resources/theme/default.json"},
+               {"type":"template","key":"letter","name":"Letter",
+                "description":"A one-page letter in the house style. The footer does not yet wrap long addresses.",
+                "detailUrl":"./resources/template/letter.json"}],
+             "dependencies":[{"type":"font","registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"shared","key":"inter"}],
+             "catalogDependencies":[{"registry":"exchange.epistola.app","namespace":"epistola","catalogKey":"shared",
+               "releaseVersion":"1.4.0","releaseFingerprint":"v5:69e540ae7bea571f81ff51919c8fd7d4dfca8d792da9fcc5a559034218feaa42"}]}
+        """.trimIndent()
+        val current = wireV8Archive()
+        val rebound = current.copyWithManifest(mapper.readValue(stored, CatalogManifest::class.java))
+        val pinned = resource("fingerprints.json").use(mapper::readTree)["wireV8CatalogFingerprints"]["V5"].asString()
+
+        assertEquals(pinned, CatalogCanonicalizer.fingerprint(rebound, CatalogFingerprintVersion.V5).value)
+        assertEquals(pinned, CatalogCanonicalizer.fingerprint(current, CatalogFingerprintVersion.V5).value, "the same catalog, by alias")
     }
 
     @Test

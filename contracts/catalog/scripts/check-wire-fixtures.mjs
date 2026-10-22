@@ -151,9 +151,9 @@ const v8Manifest = async (edit) => {
   return manifest;
 };
 
+// The manifest names a catalog by registry and namespace for the catalog itself and each declaration.
 const v8Targets = [
   ['catalog', (m) => m.catalog],
-  ['dependency', (m) => m.dependencies[0]],
   ['catalog dependency', (m) => m.catalogDependencies[0]],
 ];
 
@@ -190,8 +190,12 @@ for (const registry of ['~', 'acme', 'Acme.com', 'acme.com/', 'acme.com/acme', '
 for (const [description, edit] of [
   ['catalog without a namespace', (m) => { delete m.catalog.namespace; }],
   ['catalog without a registry', (m) => { delete m.catalog.registry; }],
-  ['dependency without a namespace', (m) => { delete m.dependencies[0].namespace; }],
-  ['dependency without a registry', (m) => { delete m.dependencies[0].registry; }],
+  ['a resource dependency naming a namespace', (m) => { m.dependencies[0].namespace = 'epistola'; }],
+  ['a resource dependency naming a registry', (m) => { m.dependencies[0].registry = 'exchange.epistola.app'; }],
+  ['catalog dependency without an alias', (m) => { delete m.catalogDependencies[0].alias; }],
+  ['catalog dependency with an uppercase alias', (m) => { m.catalogDependencies[0].alias = 'Shared'; }],
+  ['catalog dependency with a two-character alias', (m) => { m.catalogDependencies[0].alias = 'sh'; }],
+  ['catalog dependency with a dotted alias', (m) => { m.catalogDependencies[0].alias = 'acme.shared'; }],
   ['catalog dependency without a namespace', (m) => { delete m.catalogDependencies[0].namespace; }],
   ['catalog dependency without a registry', (m) => { delete m.catalogDependencies[0].registry; }],
   ['catalog dependency with a version selector', (m) => { m.catalogDependencies[0].version = '^1.2.0'; }],
@@ -217,6 +221,7 @@ for (const [description, edit] of [
   ['no catalog dependencies', (m) => { delete m.catalogDependencies; m.dependencies = []; }],
   ['null catalog dependencies', (m) => { m.catalogDependencies = null; m.dependencies = []; }],
   ['a migrated catalog dependency', (m) => { m.catalogDependencies[0].releaseVersion = null; m.catalogDependencies[0].releaseFingerprint = null; }],
+  ['an alias other than the catalog key', (m) => { m.catalogDependencies[0].alias = 'acme-shared'; m.dependencies[0].catalogKey = 'acme-shared'; }],
 ]) {
   const manifest = await v8Manifest(edit);
   assert.equal(validateV8Manifest(manifest), true, `v8 manifest rejected ${description}: ${ajv.errorsText(validateV8Manifest.errors)}`);
@@ -273,6 +278,21 @@ for (const [description, detail] of [
 ]) {
   assert.equal(validateV8Detail(detail), false, `v8 template accepted the old name: ${description}`);
 }
+// A reference names another catalog by alias alone (contract ADR 0003): no registry or namespace in v8 content.
+assert.equal(
+  validateV8Detail(v8Template({ themeKey: 'corporate', themeCatalogKey: 'shared' }, { themeRef: { type: 'override', themeKey: 'corporate', catalogKey: 'shared' } })),
+  true,
+  `v8 template rejected a theme by alias: ${ajv.errorsText(validateV8Detail.errors)}`,
+);
+for (const [description, detail] of [
+  ['template themeNamespace', v8Template({ themeKey: 'corporate', themeCatalogKey: 'shared', themeNamespace: 'acme' })],
+  ['template themeRegistry', v8Template({ themeKey: 'corporate', themeCatalogKey: 'shared', themeRegistry: 'acme.com' })],
+  ['theme reference namespace', v8Template({}, { themeRef: { type: 'override', themeKey: 'corporate', catalogKey: 'shared', namespace: 'acme' } })],
+  ['theme reference registry', v8Template({}, { themeRef: { type: 'override', themeKey: 'corporate', catalogKey: 'shared', registry: 'acme.com' } })],
+  ['an uppercase theme alias', v8Template({}, { themeRef: { type: 'override', themeKey: 'corporate', catalogKey: 'Shared' } })],
+]) {
+  assert.equal(validateV8Detail(detail), false, `v8 template accepted ${description}`);
+}
 // Wire v5 to v7 keep naming a theme reference's theme themeId.
 const validateV7Detail = ajv.getSchema('https://epistola.app/schemas/resource-detail-v7.schema.json');
 const v7Template = v8Template({ slug: 'letter', variants: [{ slug: 'default' }] }, { themeRef: { type: 'override', themeId: 'corporate' } });
@@ -280,7 +300,7 @@ v7Template.schemaVersion = 7;
 delete v7Template.resource.key;
 assert.equal(validateV7Detail(v7Template), true, `v7 template rejected themeId: ${ajv.errorsText(validateV7Detail.errors)}`);
 
-// Stencils carry no version from v8; content references may omit registry and namespace.
+// Stencils carry no version from v8; content names another catalog by alias alone.
 const v8Stencil = await readJson('fixtures/v1/migrations/v7-to-v8/stencil-expected.json');
 assert.equal(validateV8Detail({ ...v8Stencil, resource: { ...v8Stencil.resource, version: 3 } }), false, 'v8 stencil accepted a version');
 const v7Stencil = await readJson('fixtures/v1/migrations/v7-to-v8/stencil-input.json');
@@ -291,20 +311,16 @@ const withBinding = (binding) => ({ ...attribute, resource: { ...attribute.resou
 for (const binding of [
   {},
   { catalogKey: 'shared' },
-  { catalogKey: 'shared', namespace: 'acme-corp' },
-  { catalogKey: 'shared', namespace: 'acme', registry: 'acme.com' },
+  { catalogKey: null },
 ]) {
   assert.equal(validateV8Detail(withBinding(binding)), true, `valid content reference was rejected: ${JSON.stringify(binding)}: ${ajv.errorsText(validateV8Detail.errors)}`);
 }
 for (const binding of [
-  { namespace: 'Acme' },
-  { namespace: 'acme.com' },
-  { namespace: 'exchange.epistola.app/acme-corp' },
-  { namespace: 'ab' },
-  { namespace: 'acme', registry: '~' },
-  { namespace: 'acme', registry: 'acme' },
-  // A registry without a namespace names no catalog.
+  { catalogKey: 'shared', namespace: 'acme-corp' },
+  { catalogKey: 'shared', namespace: 'acme', registry: 'acme.com' },
   { registry: 'acme.com' },
+  { catalogKey: 'Shared' },
+  { catalogKey: 'sh' },
 ]) {
   assert.equal(validateV8Detail(withBinding(binding)), false, `invalid content reference was accepted: ${JSON.stringify(binding)}`);
 }
@@ -423,7 +439,7 @@ const editCatalog = async (edit) => {
 for (const [description, edit] of [
   ['a null default theme', (c) => { c.defaultTheme = null; }],
   ['a default theme in the catalog itself', (c) => { c.defaultTheme = { key: 'default' }; }],
-  ['a default theme in another catalog', (c) => { c.defaultTheme = { key: 'corporate', catalogKey: 'shared', namespace: 'acme', registry: 'acme.com' }; }],
+  ['a default theme in another catalog', (c) => { c.defaultTheme = { key: 'corporate', catalogKey: 'shared' }; }],
   ['an empty preset list', (c) => { c.presets = []; }],
   ['presets', (c) => { c.presets = [{ key: 'muted', name: 'Muted' }, { key: 'h1', name: 'Heading', description: null }]; }],
 ]) {
@@ -431,7 +447,8 @@ for (const [description, edit] of [
 }
 for (const [description, edit] of [
   ['a default theme without a key', (c) => { c.defaultTheme = { catalogKey: 'shared' }; }],
-  ['a default theme naming a registry without a namespace', (c) => { c.defaultTheme = { key: 'corporate', registry: 'acme.com' }; }],
+  ['a default theme naming a registry', (c) => { c.defaultTheme = { key: 'corporate', catalogKey: 'shared', registry: 'acme.com' }; }],
+  ['a default theme naming a namespace', (c) => { c.defaultTheme = { key: 'corporate', catalogKey: 'shared', namespace: 'acme' }; }],
   ['a preset without a name', (c) => { c.presets = [{ key: 'muted' }]; }],
   ['an uppercase preset key', (c) => { c.presets = [{ key: 'Muted', name: 'Muted' }]; }],
   ['null presets', (c) => { c.presets = null; }],

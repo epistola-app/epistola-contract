@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.JsonPropertyOrder
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import java.util.Collections
@@ -30,9 +31,11 @@ import java.util.TreeSet
  * @property compatibility optional consumer compatibility declaration.
  * @property includes optional linked catalog documents retained by the format.
  * @property resources complete resource-detail index.
- * @property dependencies explicit references to resources outside this catalog.
- * @property catalogDependencies the catalogs this catalog depends on, each declared once with the
- *   exact release it pins (wire v8). Every catalog named by [dependencies] must be declared here.
+ * @property dependencies the index of the resources in other catalogs that the content uses, each by
+ *   alias and key ([DependencyRef]), derived from the content by the producer.
+ * @property catalogDependencies the catalogs this catalog depends on, each declared once under the
+ *   alias its content names it by, with its name and the release it pins (wire v8,
+ *   [CatalogDependency]). Every alias that [dependencies] or the content names must be declared here.
  */
 data class CatalogManifest(
     val schemaVersion: Int,
@@ -47,13 +50,21 @@ data class CatalogManifest(
 )
 
 /**
- * A catalog this catalog depends on, declared once for the whole catalog (wire v8).
+ * A catalog this catalog depends on, declared once for the whole catalog (wire v8): an [alias] that
+ * content names it by, its name, and the release it pins (contract ADR 0003).
  *
- * Catalogs are versioned as a whole, so the version lives here and nowhere else: a reference from
- * this catalog's resources into the dependency names the catalog ([registry], [namespace] and
- * [catalogKey]) but never a version. The catalog renders with exactly the release
- * [releaseVersion] pins. A declaration names an exact release, not a range; ranges may come in a
- * later wire version, as an addition.
+ * - **The alias** is what the catalog's content uses. A reference into this dependency names the
+ *   alias and a resource key (its `catalogKey` member holds the alias), never a registry, a
+ *   namespace or a version. The rules are [CatalogAliases]: the catalog key rule, unique within the
+ *   list, never the catalog's own key.
+ * - **The name** ([registry], [namespace], [catalogKey]) says which catalog the alias stands for,
+ *   so that an installation can find newer releases of it. Renaming or mirroring the dependency
+ *   changes the name here and nothing in the content.
+ * - **The pin** is [releaseFingerprint]: the content hash of the release the catalog renders with
+ *   and was cut with. [releaseVersion] is the number that release had when it was pinned, a hint for
+ *   people and the path a carried copy is found at; when the number and the hash disagree, the hash
+ *   is the release. A declaration names an exact release, not a range; ranges may come in a later
+ *   wire version, as an addition.
  *
  * An earlier draft of wire v8 also carried a version selector, `version`. It is ignored when
  * binding, so that manifests stored with it still bind.
@@ -61,24 +72,29 @@ data class CatalogManifest(
  * @property registry the dependency's registry, written in full ([CatalogNamespaces.REGISTRY_PATTERN]).
  * @property namespace the dependency's namespace within [registry] ([CatalogNamespaces.PATTERN]).
  * @property catalogKey the dependency's key within [namespace].
- * @property releaseVersion the exact release of the dependency that this catalog renders with, and
- *   that this archive's release was cut with, a release number ([CatalogReleaseVersions]). Null only for a catalog migrated from wire v7 or
+ * @property releaseVersion the number of the release [releaseFingerprint] pins, as it was pinned, a
+ *   release number ([CatalogReleaseVersions]). Null only for a catalog migrated from wire v7 or
  *   earlier, which never recorded one: the author pins one before the catalog is released again.
- * @property releaseFingerprint the fingerprint of the [releaseVersion] release, copied from that
- *   release's own `release.fingerprint`, in the form that names its algorithm (`v5:<hex>`,
- *   [QualifiedCatalogFingerprint]). It lets an installation check a copy of that release fetched
+ * @property releaseFingerprint the pin: the fingerprint of the release this catalog renders with,
+ *   copied from that release's own `release.fingerprint`, in the form that names its algorithm
+ *   (`v5:<hex>`, [QualifiedCatalogFingerprint]). An installation checks a copy of that release,
  *   from any registry or mirror, with exactly the algorithm it names, after the current algorithm
- *   has moved on. Null exactly when [releaseVersion] is null. The wire requires the pairing; the
- *   migrator's wire check and the validator enforce it, not this model, so that manifests stored
- *   without it still bind.
+ *   has moved on. Null exactly when [releaseVersion] is null. The wire requires
+ *   the pairing; the migrator's wire check and the validator enforce it, not this model, so that
+ *   manifests stored without it still bind.
+ * @property alias how this catalog's content names the dependency ([CatalogAliases]). Defaults to
+ *   [catalogKey], so that a manifest stored before aliases existed binds with the alias its content
+ *   already used; the wire requires it from wire v8.
  */
 @JsonIgnoreProperties("version")
+@JsonPropertyOrder("alias", "registry", "namespace", "catalogKey", "releaseVersion", "releaseFingerprint")
 data class CatalogDependency(
     val registry: String,
     val namespace: String,
     val catalogKey: String,
     val releaseVersion: String? = null,
     val releaseFingerprint: String? = null,
+    val alias: String = catalogKey,
 ) {
     companion object {
         /** The shape of a [releaseFingerprint]: [QualifiedCatalogFingerprint.PATTERN], `v5:<hex>`. */
@@ -94,18 +110,22 @@ data class CatalogDependency(
 }
 
 /**
- * A reference to a resource that this catalog depends on.
- * Sealed hierarchy ensures type-safe construction:
- * - Every kind is catalog-scoped and requires catalogKey (assets too, from wire v7)
- * - Every kind names the catalog's registry and namespace from wire v8, the registry in full
+ * A resource in another catalog that this catalog's content uses: the manifest's index of the
+ * references its content makes into other catalogs (`dependencies`), one entry per resource.
  *
- * A reference carries no version: catalogs are versioned as a whole, so the version is declared
- * once per catalog in [CatalogManifest.catalogDependencies], which must declare every
- * (registry, namespace, catalogKey) named here.
+ * Producers derive it from the content, so that a consumer can tell what a catalog needs from other
+ * catalogs without reading every resource; the validator holds every entry to the catalog's
+ * dependency list. Sealed hierarchy ensures type-safe construction:
+ * - Every kind names the catalog holding the resource (assets too, from wire v7) by the **alias**
+ *   the catalog's dependency list declares for it ([catalogKey], contract ADR 0003), never by registry or
+ *   namespace: those are the declaration's ([CatalogDependency]).
  *
- * `registry` and `namespace` are nullable in the model only so that manifests stored under wire v7
- * or earlier, which name neither, still bind. The wire requires both from v8; the migrator's wire
- * check and the validator enforce that.
+ * A reference carries no version: catalogs are versioned as a whole, so the release is pinned once
+ * per catalog in [CatalogManifest.catalogDependencies], which must declare every alias named here.
+ *
+ * An earlier draft of wire v8 named the catalog's `registry` and `namespace` here. They are ignored
+ * when binding, so that manifests stored with them still bind; the migrator's wire check refuses
+ * them in a v8 archive.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(
@@ -122,31 +142,27 @@ sealed class DependencyRef {
      */
     abstract val key: String
 
-    /** Key of the catalog holding the resource. */
+    /**
+     * The alias of the catalog holding the resource, as [CatalogManifest.catalogDependencies]
+     * declares it ([CatalogAliases]). The member keeps its name: until wire v8 it held the catalog's
+     * key, which is the alias a catalog is declared under unless the producer chose another.
+     */
     abstract val catalogKey: String
 
-    /** Namespace of the catalog holding the resource, within [registry] (wire v8). */
-    abstract val namespace: String?
-
-    /** Registry of the catalog holding the resource, written in full (wire v8). */
-    abstract val registry: String?
-
     /** Theme in another catalog. */
+    @JsonIgnoreProperties("namespace", "registry")
     data class Theme(
         override val catalogKey: String,
         @JsonAlias("slug")
         override val key: String,
-        override val namespace: String? = null,
-        override val registry: String? = null,
     ) : DependencyRef()
 
     /** Stencil in another catalog. */
+    @JsonIgnoreProperties("namespace", "registry")
     data class Stencil(
         override val catalogKey: String,
         @JsonAlias("slug")
         override val key: String,
-        override val namespace: String? = null,
-        override val registry: String? = null,
     ) : DependencyRef()
 
     /**
@@ -157,30 +173,27 @@ sealed class DependencyRef {
      * holds; a readable key is not, so two catalogs may each hold a `logo` and an unqualified
      * reference to one of them means nothing.
      */
+    @JsonIgnoreProperties("namespace", "registry")
     data class Image(
         override val catalogKey: String,
         @JsonAlias("slug")
         override val key: String,
-        override val namespace: String? = null,
-        override val registry: String? = null,
     ) : DependencyRef()
 
     /** Code list in another catalog. */
+    @JsonIgnoreProperties("namespace", "registry")
     data class CodeList(
         override val catalogKey: String,
         @JsonAlias("slug")
         override val key: String,
-        override val namespace: String? = null,
-        override val registry: String? = null,
     ) : DependencyRef()
 
     /** Font family in another catalog. */
+    @JsonIgnoreProperties("namespace", "registry")
     data class Font(
         override val catalogKey: String,
         @JsonAlias("slug")
         override val key: String,
-        override val namespace: String? = null,
-        override val registry: String? = null,
     ) : DependencyRef()
 }
 
@@ -340,25 +353,23 @@ class CatalogInfo private constructor(
  * A reference to a theme resource from the catalog manifest: a catalog's [CatalogInfo.defaultTheme]
  * (wire v8, ADR 0007).
  *
- * Qualified like every other cross-catalog reference: an omitted [catalogKey], [namespace] or
- * [registry] means the owning catalog's own. A theme in another catalog lives in a catalog the
- * owning catalog depends on. Absent qualifiers are omitted from the JSON.
+ * Like every reference into another catalog, it names the catalog by the alias the dependency list
+ * declares ([CatalogAliases], contract ADR 0003): an omitted [catalogKey], or the catalog's own key, means the
+ * owning catalog. A theme in another catalog lives in a catalog the owning catalog depends on. An
+ * absent [catalogKey] is omitted from the JSON.
+ *
+ * An earlier draft of wire v8 also named the catalog's `namespace` and `registry` here. They are
+ * ignored when binding, so that manifests stored with them still bind; the migrator's wire check
+ * refuses them in a v8 archive.
  *
  * @property key key of the theme resource ([CatalogKeys.RESOURCE]).
- * @property catalogKey key of the catalog holding the theme; null means the owning catalog.
- * @property namespace namespace of that catalog ([CatalogNamespaces.PATTERN]); null means the owning
- *   catalog's.
- * @property registry registry of that catalog, written in full ([CatalogNamespaces.REGISTRY_PATTERN]);
- *   null means the owning catalog's, never an installation default. Naming one requires [namespace].
+ * @property catalogKey the alias of the catalog holding the theme; null means the owning catalog.
  */
+@JsonIgnoreProperties("namespace", "registry")
 data class CatalogThemeRef(
     val key: String,
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     val catalogKey: String? = null,
-    @get:JsonInclude(JsonInclude.Include.NON_NULL)
-    val namespace: String? = null,
-    @get:JsonInclude(JsonInclude.Include.NON_NULL)
-    val registry: String? = null,
 )
 
 /**

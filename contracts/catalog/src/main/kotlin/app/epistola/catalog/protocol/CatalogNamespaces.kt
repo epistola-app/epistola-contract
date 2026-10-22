@@ -13,15 +13,18 @@ package app.epistola.catalog.protocol
  * A namespace is a slug (`acme-corp`); the same namespace name in two registries names two
  * different namespaces.
  *
- * The two positions an archive names a catalog in differ:
- * - Where an archive names a catalog at the top level -- `catalog`, a resource dependency, a
- *   `catalogDependencies` entry -- both `registry` and `namespace` are required, and the registry is
- *   written in full. An archive has no default registry: which registry an installation treats as
- *   its default is configuration, and an archive read on another installation must mean the same
- *   catalog.
- * - A reference inside resource content may omit either: an omitted `registry` or `namespace` means
- *   the **owning catalog's**, never an installation default, so content means the same thing
- *   wherever it is installed. A reference naming a `registry` without a `namespace` is invalid.
+ * An archive names a catalog by registry and namespace in two places only: the catalog itself
+ * (`catalog`) and each `catalogDependencies` entry. Both members are required there, and the
+ * registry is written in full. An archive has no default registry: which registry an installation
+ * treats as its default is configuration, and an archive read on another installation must mean the
+ * same catalog. Content, and the manifest's index of what the content uses (`dependencies`), name
+ * another catalog by the alias its declaration gives it ([CatalogAliases], contract ADR 0003), never by
+ * registry or namespace, so that renaming or mirroring that catalog changes no content.
+ *
+ * The registry is the **authority** of a catalog's name (contract ADR 0003): the domain under which its
+ * namespace was granted, by an exchange for the namespaces it grants (`exchange.epistola.app`) or by
+ * an organisation for its own (`gemeente-x.nl`). It never says where a release is fetched from. A
+ * namespace is flat: an organisation may hold several (`acme`, `acme-hr`), and a name never nests.
  *
  * Models deliberately do not enforce these rules; consumers rebind manifests stored under earlier
  * wire versions, which name neither. The migrator's wire check and the catalog validator enforce

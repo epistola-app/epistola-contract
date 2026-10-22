@@ -61,14 +61,13 @@
   "dependencies": [
     {
       "type": "font",
-      "registry": "exchange.epistola.app",
-      "namespace": "epistola",
       "catalogKey": "shared",
       "key": "inter"
     }
   ],
   "catalogDependencies": [
     {
+      "alias": "shared",
       "registry": "exchange.epistola.app",
       "namespace": "epistola",
       "catalogKey": "shared",

@@ -67,13 +67,19 @@ enum class ResourceResolution {
 /**
  * Product-neutral identity of a resource referenced by template content.
  *
+ * Content names another catalog by an alias ([app.epistola.catalog.protocol.CatalogAliases], contract ADR
+ * 0003), so a reference made from content carries the alias as [catalogKey] and no [namespace] or
+ * [registry]. [CatalogValidator] resolves the alias through the catalog's dependency list before it
+ * asks a [CatalogDependencyResolver]: the resolver receives the declared catalog's name, its
+ * [catalogKey], [namespace] and [registry].
+ *
  * @property type portable resource discriminator such as `stencil` or `theme`.
  * @property key resource key within its catalog: its public address there.
- * @property catalogKey owning catalog; null means the current catalog.
- * @property namespace namespace of the owning catalog; null means the current catalog's namespace
- *   (wire v8).
- * @property registry registry of the owning catalog; null means the current catalog's registry
- *   (wire v8), never an installation default. Naming a registry requires naming a [namespace].
+ * @property catalogKey the catalog holding the resource: in content its alias, null (or the current
+ *   catalog's own key) meaning the current catalog; when handed to a resolver, the declared catalog's
+ *   key.
+ * @property namespace the declared catalog's namespace, when handed to a resolver; null in content.
+ * @property registry the declared catalog's registry, when handed to a resolver; null in content.
  *
  * A reference carries no version. Catalogs are versioned as a whole from wire v8, so the resource a
  * reference reaches is the one in the release its catalog dependency pins, or the one in
@@ -101,21 +107,9 @@ interface TemplateValidationContext {
 
     /**
      * Catalog that owns the document being validated. A null stencil-node
-     * catalogKey resolves to this catalog when comparing reference identity.
+     * catalogKey (alias) resolves to this catalog when comparing reference identity.
      */
     val currentCatalogKey: String? get() = null
-
-    /**
-     * Namespace of the catalog that owns the document being validated. A null stencil-node
-     * namespace resolves to this namespace when comparing reference identity.
-     */
-    val currentNamespace: String? get() = null
-
-    /**
-     * Registry of the catalog that owns the document being validated. A null stencil-node registry
-     * resolves to this registry when comparing reference identity.
-     */
-    val currentRegistry: String? get() = null
 
     /**
      * Stencil resource whose content is being validated, when applicable.
@@ -159,22 +153,18 @@ interface TemplateValidationContext {
         /**
          * Creates a standalone stencil context.
          *
-         * Supplying [stencilKey] seeds self-reference detection. Catalog,
-         * namespace and registry are optional when validating content that has
-         * not yet been assigned a portable identity.
+         * Supplying [stencilKey] seeds self-reference detection. The catalog is
+         * optional when validating content that has not yet been assigned a
+         * portable identity.
          */
         fun forStencil(
             stencilKey: String? = null,
             catalogKey: String? = null,
-            namespace: String? = null,
-            registry: String? = null,
         ): TemplateValidationContext = object : TemplateValidationContext {
             override val documentKind: TemplateDocumentKind = TemplateDocumentKind.STENCIL
             override val currentCatalogKey: String? = catalogKey
-            override val currentNamespace: String? = namespace
-            override val currentRegistry: String? = registry
             override val containingStencil: CatalogResourceReference? = stencilKey?.let {
-                CatalogResourceReference("stencil", it, catalogKey, namespace, registry)
+                CatalogResourceReference("stencil", it, catalogKey)
             }
         }
     }

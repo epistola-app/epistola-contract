@@ -71,19 +71,12 @@ export interface ThemeRefOverride {
   type: 'override'
   /** Key of the theme: its public address within its catalog. Called `themeId` until catalog wire v8. */
   themeKey: string
-  /** Catalog containing the theme. Omitted means the owning template's catalog. */
+  /**
+   * The alias of the catalog containing the theme, as the owning catalog's `catalogDependencies`
+   * declares it (wire v8, contract ADR 0003). Omitted, or the owning catalog's own key, means the owning
+   * template's catalog. A reference never names a registry or namespace: those are the declaration's.
+   */
   catalogKey?: string
-  /**
-   * Namespace of the catalog containing the theme. Omitted means the owning template's catalog
-   * namespace (wire v8).
-   */
-  namespace?: string
-  /**
-   * Registry of the catalog containing the theme. Omitted means the owning template's catalog
-   * registry, never an installation default. Naming a registry requires naming a `namespace`
-   * (wire v8).
-   */
-  registry?: string
 }
 
 // ---------------------------------------------------------------------------

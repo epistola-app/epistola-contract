@@ -66,16 +66,18 @@ sealed interface CatalogResource {
  * `contracts/catalog/docs/catalog-compatibility.md`).
  *
  * [themeKey] names the template's default theme; until wire v8 the member was called `themeId`, and
- * binding reads either name. [themeCatalogKey], [themeNamespace] and [themeRegistry] qualify it when
- * the theme lives in another catalog; each null one means the template's own catalog's (wire v8). A
- * [themeRegistry] without a [themeNamespace] is invalid.
-
+ * binding reads either name. [themeCatalogKey] names the alias of the catalog holding it when that is
+ * another catalog the template's catalog depends on ([CatalogAliases], contract ADR 0003); null, or the
+ * catalog's own key, means the template's own catalog. An earlier draft of wire v8 also named the
+ * theme's catalog by `themeNamespace` and `themeRegistry`; they are ignored when binding, so that
+ * details stored with them still bind, and the migrator's wire check refuses them in a v8 archive.
  *
  * [description] (wire v8) is plain text for the template's authors and readers -- what it is for,
  * design decisions, known gaps -- at most [MAX_DESCRIPTION_LENGTH] characters, and is not rendered.
  * It is the source of the manifest resource entry's `description`: when both are present they must
  * be equal. Omitted when null, so a template without one canonicalizes as before.
  */
+@JsonIgnoreProperties("themeNamespace", "themeRegistry")
 data class TemplateResource(
     @JsonAlias("slug")
     override val key: String,
@@ -88,10 +90,6 @@ data class TemplateResource(
     val dataExamples: List<DataExampleEntry>? = null,
     val templateModel: TemplateDocument,
     val variants: List<VariantEntry>,
-    @get:JsonInclude(JsonInclude.Include.NON_NULL)
-    val themeNamespace: String? = null,
-    @get:JsonInclude(JsonInclude.Include.NON_NULL)
-    val themeRegistry: String? = null,
     @get:JsonInclude(JsonInclude.Include.NON_NULL)
     val description: String? = null,
 ) : CatalogResource {
@@ -138,7 +136,7 @@ data class ThemeResource(
  * binding to those parameters stay bound after an import.
  *
  * [content] may embed nodes that reference other stencils by `stencilKey` (`stencilId` until wire
- * v8), optionally qualified with `catalogKey`, `namespace` and `registry`. These references form a portable composition graph: validation
+ * v8), optionally with the `catalogKey` alias of another catalog ([CatalogAliases]). These references form a portable composition graph: validation
  * requires them to resolve, rejects direct and transitive recursion, and limits the complete chain
  * to five stencil levels.
  */
@@ -182,10 +180,11 @@ data class AttributeResource(
  * Points a variant-attribute definition at a code list that constrains its
  * allowed values. `catalogKey = null` means "the same catalog as the
  * attribute" (the typical case for catalogs that author both an attribute
- * and the list it binds to). `namespace = null` and `registry = null` mean
- * the owning catalog's namespace and registry (wire v8), never an
- * installation default: content means the same thing wherever it is
- * installed. A `registry` without a `namespace` is invalid.
+ * and the list it binds to); otherwise it is the alias of another catalog the
+ * attribute's catalog depends on ([CatalogAliases], contract ADR 0003), so content means
+ * the same thing wherever it is installed and whatever the catalog it names
+ * is called there. An earlier draft of wire v8 also named that catalog's
+ * `namespace` and `registry`; they are ignored when binding.
  *
  * [key] names the code list; until wire v8 the member was called `slug`, and binding reads either
  * name.
@@ -195,36 +194,30 @@ data class AttributeResource(
  * importer (`CreateAttributeDefinition`) to reject mixed input, where the
  * error message is friendlier than a `oneOf` schema rejection.
  */
+@JsonIgnoreProperties("namespace", "registry")
 data class CodeListBindingRef(
     val catalogKey: String? = null,
     @JsonAlias("slug")
     val key: String,
-    @get:JsonInclude(JsonInclude.Include.NON_NULL)
-    val namespace: String? = null,
-    @get:JsonInclude(JsonInclude.Include.NON_NULL)
-    val registry: String? = null,
 )
 
 /**
  * Points a style's `fontFamily` value at a font family. `catalogKey = null`
  * means "the same catalog as the referencing theme/template" (the typical
- * case); a non-null `catalogKey` references another catalog in the same
- * tenant — most notably the bundled `system` catalog. Mirrors
- * [CodeListBindingRef]; this is the shape stored in `documentStyles`,
- * block-style presets, and inline node styles under the `fontFamily` key.
- * `namespace = null` and `registry = null` mean the referencing catalog's
- * namespace and registry (wire v8); a `registry` without a `namespace` is
- * invalid. [key] names the font family; until wire v8 the member was called
- * `slug`, and binding reads either name.
+ * case); a non-null `catalogKey` is the alias of another catalog the
+ * referencing catalog depends on ([CatalogAliases], contract ADR 0003) — most notably
+ * the bundled `system` catalog. Mirrors [CodeListBindingRef]; this is the
+ * shape stored in `documentStyles`, block-style presets, and inline node
+ * styles under the `fontFamily` key. An earlier draft of wire v8 also named
+ * that catalog's `namespace` and `registry`; they are ignored when binding.
+ * [key] names the font family; until wire v8 the member was called `slug`,
+ * and binding reads either name.
  */
+@JsonIgnoreProperties("namespace", "registry")
 data class FontRef(
     val catalogKey: String? = null,
     @JsonAlias("slug")
     val key: String,
-    @get:JsonInclude(JsonInclude.Include.NON_NULL)
-    val namespace: String? = null,
-    @get:JsonInclude(JsonInclude.Include.NON_NULL)
-    val registry: String? = null,
 )
 
 /**
@@ -382,6 +375,10 @@ data class DataExampleEntry(
  *
  * [key] is the variant's public address within its template. Until wire v8 the member was called
  * `slug` (and `id` until wire v7); binding reads `slug` too.
+ *
+ * [attributes] maps an attribute's key to the variant's value for it. An attribute another catalog
+ * defines is keyed `<alias>.<key>` (`system.locale`), by the alias the dependency list declares for
+ * that catalog ([CatalogAliases], contract ADR 0003), like every other reference into another catalog.
  *
  * [metadata] (wire v8) is producer-specific data the contract carries but does not define, keyed by
  * a reverse-DNS namespace the producer owns (`app.epistola.suite`), each value a JSON object

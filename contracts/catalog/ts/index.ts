@@ -101,7 +101,8 @@ export const MAX_CATALOG_NAMESPACE_LENGTH = 63
 
 /**
  * Pattern a catalog namespace must match: a lowercase kebab-case slug, within its registry
- * (wire v8). The same pattern applies wherever a namespace appears, in the manifest or in content.
+ * (wire v8). A namespace is flat; an organisation may hold several. It appears where the manifest
+ * names a catalog: the catalog itself and each catalog dependency.
  */
 export const CATALOG_NAMESPACE_PATTERN = '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
 
@@ -110,11 +111,27 @@ export const MAX_CATALOG_REGISTRY_LENGTH = 253
 
 /**
  * Pattern a catalog registry must match: a lowercase DNS name with at least one dot, in normal
- * order (`exchange.epistola.app`, `acme.com`) (wire v8). An archive always writes it in full; a
- * reference inside content may omit it to mean the owning catalog's registry, but never names one
- * without a namespace.
+ * order (`exchange.epistola.app`, `acme.com`) (wire v8). It is the authority of a catalog's name, the
+ * domain its namespace was granted under, never where a release is fetched from (contract ADR 0003). An
+ * archive always writes it in full, for the catalog itself and each catalog dependency; content
+ * never names one.
  */
 export const CATALOG_REGISTRY_PATTERN = '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+
+/**
+ * Pattern an alias must match (wire v8, contract ADR 0003): the catalog key rule. A catalog's content names
+ * another catalog by the alias its `catalogDependencies` declares for it (a reference's
+ * `catalogKey`, a template's `themeCatalogKey`, the qualifier of a variant attribute key), never by
+ * registry or namespace. Unique within the list, never the catalog's own key, and by default the
+ * depended-on catalog's own key.
+ */
+export const CATALOG_ALIAS_PATTERN = '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$'
+
+/** Shortest alias (wire v8). */
+export const MIN_CATALOG_ALIAS_LENGTH = 3
+
+/** Longest alias (wire v8). */
+export const MAX_CATALOG_ALIAS_LENGTH = 50
 
 /** Longest release number (wire v8), the same limit as the API's `ReleaseVersion`. */
 export const MAX_CATALOG_RELEASE_VERSION_LENGTH = 50
@@ -184,9 +201,9 @@ export const MIN_CATALOG_RESOURCE_KEY_LENGTH = 3
 export const MAX_CATALOG_RESOURCE_KEY_LENGTH = 50
 
 /**
- * Pattern of a variant's attribute key (wire v8): an attribute key, optionally qualified by the key of
- * the catalog that defines the attribute (`system.locale`). Each part follows its own rule: the
- * catalog part the catalog key's, the attribute part the resource key's.
+ * Pattern of a variant's attribute key (wire v8): an attribute key, optionally qualified by the alias
+ * of the catalog that defines the attribute (`system.locale`). Each part follows its own rule: the
+ * catalog part the alias's, the attribute part the resource key's.
  */
 export const CATALOG_ATTRIBUTE_KEY_PATTERN = '^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\\.)?[a-z0-9]+(-[a-z0-9]+)*$'
 
