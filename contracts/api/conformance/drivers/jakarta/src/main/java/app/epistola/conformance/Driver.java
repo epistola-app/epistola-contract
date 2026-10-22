@@ -1166,6 +1166,7 @@ public final class Driver {
                     .listRegistryReleases(
                             config.getString("tenantKey"),
                             config.getString("name"),
+                            config.getString("registry"),
                             config.getString("namespace"),
                             config.getString("catalogKey"));
         } catch (ProblemDetailException e) {
@@ -1175,6 +1176,7 @@ public final class Driver {
         report(
                 baseUrl,
                 Map.of(
+                        "releaseRegistry", String.valueOf(releases.getReleaseRegistry()),
                         "registry", String.valueOf(releases.getRegistry()),
                         "namespace", String.valueOf(releases.getNamespace()),
                         "catalogKey", String.valueOf(releases.getCatalogKey()),
@@ -1199,6 +1201,7 @@ public final class Driver {
                     .installRegistryRelease(
                             config.getString("tenantKey"),
                             config.getString("name"),
+                            config.getString("registry"),
                             config.getString("namespace"),
                             config.getString("catalogKey"),
                             config.getString("version"));
@@ -1238,7 +1241,7 @@ public final class Driver {
                 baseUrl,
                 Map.of(
                         "status", String.valueOf(published.getStatus()),
-                        "registry", String.valueOf(published.getRegistry()),
+                        "releaseRegistry", String.valueOf(published.getReleaseRegistry()),
                         "version", String.valueOf(published.getVersion()),
                         "digest", String.valueOf(published.getDigest())));
     }

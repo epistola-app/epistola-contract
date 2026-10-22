@@ -1017,6 +1017,7 @@ object Driver {
             CatalogsApi(restClient(baseUrl, config)).listRegistryReleases(
                 config["tenantKey"].asText(),
                 config["name"].asText(),
+                config["registry"].asText(),
                 config["namespace"].asText(),
                 config["catalogKey"].asText(),
             )
@@ -1027,6 +1028,7 @@ object Driver {
         report(
             baseUrl,
             mapOf(
+                "releaseRegistry" to releases.releaseRegistry,
                 "registry" to releases.registry,
                 "namespace" to releases.namespace,
                 "catalogKey" to releases.catalogKey,
@@ -1045,6 +1047,7 @@ object Driver {
             CatalogsApi(restClient(baseUrl, config)).installRegistryRelease(
                 config["tenantKey"].asText(),
                 config["name"].asText(),
+                config["registry"].asText(),
                 config["namespace"].asText(),
                 config["catalogKey"].asText(),
                 config["version"].asText(),
@@ -1085,7 +1088,7 @@ object Driver {
             baseUrl,
             mapOf(
                 "status" to published.status.value,
-                "registry" to published.registry,
+                "releaseRegistry" to published.releaseRegistry,
                 "version" to published.version,
                 "digest" to (published.digest ?: "null"),
             ),

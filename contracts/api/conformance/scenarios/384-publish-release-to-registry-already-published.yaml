@@ -26,7 +26,7 @@ script:
     contentType: application/vnd.epistola.v2+json
     body:
       status: already-published
-      registry: exchange
+      releaseRegistry: exchange
       version: 1.4.0
 
 expect:
@@ -39,6 +39,6 @@ expect:
           to: { equals: exchange }
   report:
     status: already-published
-    registry: exchange
+    releaseRegistry: exchange
     version: 1.4.0
     digest: 'null'

@@ -788,6 +788,7 @@ async function listRegistryReleases(baseUrl, config) {
     releases = await new CatalogsApi(client(baseUrl, config)).listRegistryReleases({
       tenantKey: config.tenantKey,
       name: config.name,
+      registry: config.registry,
       namespace: config.namespace,
       catalogKey: config.catalogKey,
     })
@@ -796,6 +797,7 @@ async function listRegistryReleases(baseUrl, config) {
     return
   }
   await report(baseUrl, {
+    releaseRegistry: show(releases.releaseRegistry),
     registry: show(releases.registry),
     namespace: show(releases.namespace),
     catalogKey: show(releases.catalogKey),
@@ -814,6 +816,7 @@ async function installRegistryRelease(baseUrl, config) {
     installed = await new CatalogsApi(client(baseUrl, config)).installRegistryRelease({
       tenantKey: config.tenantKey,
       name: config.name,
+      registry: config.registry,
       namespace: config.namespace,
       catalogKey: config.catalogKey,
       version: config.version,
@@ -850,7 +853,7 @@ async function publishReleaseToRegistry(baseUrl, config) {
   }
   await report(baseUrl, {
     status: show(published.status),
-    registry: show(published.registry),
+    releaseRegistry: show(published.releaseRegistry),
     version: show(published.version),
     digest: show(published.digest),
   })

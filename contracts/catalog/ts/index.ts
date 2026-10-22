@@ -312,3 +312,63 @@ export function catalogDependencyArchivePath(release: CatalogDependencyArchiveCo
   if (!parseCatalogDependencyArchivePath(path)) throw new Error(`not a valid carried catalog release path: ${path}`)
   return path
 }
+
+/**
+ * How a catalog release is kept in a container registry (OCI distribution), the `container` kind of
+ * release registry (contract ADR 0008, amendment of 2026-10-22): the repository is
+ * `<prefix>/<authority>/<namespace>/<catalogKey>`, the tag is the release number, and a receiver
+ * resolves the tag to the manifest's digest once and fetches by digest. The same layout as the
+ * Kotlin `CatalogContainerLayout`.
+ */
+export const CATALOG_CONTAINER_MANIFEST_MEDIA_TYPE = 'application/vnd.oci.image.manifest.v1+json'
+export const CATALOG_CONTAINER_ARTIFACT_TYPE = 'application/vnd.epistola.catalog.release.v1'
+export const CATALOG_CONTAINER_CONFIG_MEDIA_TYPE = 'application/vnd.epistola.catalog.release.config.v1+json'
+export const CATALOG_CONTAINER_ARCHIVE_MEDIA_TYPE = 'application/vnd.epistola.catalog.archive.v1+zip'
+
+/** The annotations a release's manifest carries: labels for listings, never evidence. */
+export const CATALOG_CONTAINER_ANNOTATIONS = {
+  version: 'app.epistola.catalog.version',
+  fingerprint: 'app.epistola.catalog.fingerprint',
+  contentHash: 'app.epistola.catalog.contentHash',
+  registry: 'app.epistola.catalog.registry',
+  namespace: 'app.epistola.catalog.namespace',
+  catalogKey: 'app.epistola.catalog.catalogKey',
+  imageVersion: 'org.opencontainers.image.version',
+  imageTitle: 'org.opencontainers.image.title',
+} as const
+
+/** A repository path component, as the OCI distribution specification names it. */
+export const CATALOG_CONTAINER_PATH_COMPONENT_PATTERN = '^[a-z0-9]+((\\.|_|__|-+)[a-z0-9]+)*$'
+
+/** A tag, as the OCI distribution specification names it; every release number is one. */
+export const CATALOG_CONTAINER_TAG_PATTERN = '^[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}$'
+
+/** Longest repository name, prefix included, that registries are required to accept. */
+export const MAX_CATALOG_CONTAINER_REPOSITORY_LENGTH = 255
+
+/** The catalog a container repository keeps the releases of. */
+export interface CatalogContainerCoordinates {
+  registry: string
+  namespace: string
+  catalogKey: string
+}
+
+/**
+ * The repository that keeps the releases of `catalog` under `prefix` (empty, or path components
+ * joined by `/`): `<prefix>/<authority>/<namespace>/<catalogKey>`. Throws when a part breaks its rule.
+ */
+export function catalogContainerRepository(prefix: string, catalog: CatalogContainerCoordinates): string {
+  const component = new RegExp(CATALOG_CONTAINER_PATH_COMPONENT_PATTERN)
+  if (prefix !== '' && !prefix.split('/').every((part) => component.test(part))) throw new Error(`'${prefix}' is not a repository prefix`)
+  if (catalog.registry.length > MAX_CATALOG_REGISTRY_LENGTH || !new RegExp(CATALOG_REGISTRY_PATTERN).test(catalog.registry)) {
+    throw new Error(`'${catalog.registry}' is not a registry`)
+  }
+  const { namespace, catalogKey } = catalog
+  if (namespace.length < MIN_CATALOG_NAMESPACE_LENGTH || namespace.length > MAX_CATALOG_NAMESPACE_LENGTH || !new RegExp(CATALOG_NAMESPACE_PATTERN).test(namespace)) {
+    throw new Error(`'${namespace}' is not a namespace`)
+  }
+  if (catalogKey.length < 3 || catalogKey.length > 50 || !new RegExp(CATALOG_ALIAS_PATTERN).test(catalogKey)) throw new Error(`'${catalogKey}' is not a catalog key`)
+  const name = [prefix, catalog.registry, namespace, catalogKey].filter((part) => part !== '').join('/')
+  if (name.length > MAX_CATALOG_CONTAINER_REPOSITORY_LENGTH) throw new Error(`repository name '${name}' is longer than ${MAX_CATALOG_CONTAINER_REPOSITORY_LENGTH} characters`)
+  return name
+}

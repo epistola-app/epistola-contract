@@ -36,9 +36,9 @@ operations for all of them, so a client moves a release the same way whatever ca
 | Operation | Request | Notes |
 | --- | --- | --- |
 | `listReleaseRegistries` | `GET /tenants/{tenantKey}/release-registries` | `{items: [{name, kind}]}`: the registries this installation has configured or is connected to; no credentials, no addresses |
-| `listRegistryReleases` | `GET …/release-registries/{name}/catalogs/{namespace}/{catalogKey}/releases` | `[{version, fingerprint, releaseId?, base?}]`, highest first, best effort |
-| `installRegistryRelease` | `POST …/release-registries/{name}/catalogs/{namespace}/{catalogKey}/releases/{version}/install` | as `importCatalog`, with its response (`ImportCatalogResponse`) |
-| `publishReleaseToRegistry` | `POST /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/publish` `{to}` | `{status, registry, version, digest?}` |
+| `listRegistryReleases` | `GET …/release-registries/{name}/catalogs/{registry}/{namespace}/{catalogKey}/releases` (amended 2026-10-22: `{registry}` added) | `[{version, fingerprint, releaseId?, base?}]`, highest first, best effort |
+| `installRegistryRelease` | `POST …/release-registries/{name}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{version}/install` | as `importCatalog`, with its response (`ImportCatalogResponse`) |
+| `publishReleaseToRegistry` | `POST /tenants/{tenantKey}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{release}/publish` `{to}` | `{status, releaseRegistry, version, digest?}` (amended 2026-10-22: was `registry`) |
 
 Permissions are those of the matching catalog operations: `CATALOG_VIEW` to list,
 `CATALOG_MANAGE` to install (as importing), `CATALOG_PUBLISH` to publish (as sending a release to
@@ -56,7 +56,9 @@ the catalogs published on it, and it is a release registry to the installations 
 
 So the release-registry paths address a catalog by namespace and key only, inside the registry
 named by `{name}`. A consequence: one container registry holds one catalog per namespace and key,
-so two catalogs that differ only in the registry part of their names cannot share one.
+so two catalogs that differ only in the registry part of their names cannot share one. (Superseded
+2026-10-22: the paths name `{registry}` too, and a repository includes the authority; see the
+amendment.)
 
 ### Installing is importing
 
@@ -152,17 +154,23 @@ from any registry. A catalog installed from a release registry gets it as its so
 installing from a registry that is not its source is still refused, so receiving from a mirror is
 changing the source to it first.
 
-What does not change: the operations, the permissions, and installing as importing. The
-release-registry paths keep addressing a catalog by namespace and key: within a tenant, namespace
-and key name one catalog (Epistola Suite ADR 0034), whose authority the server knows; for a catalog
-the tenant does not have yet, the authority is the server's default registry, as `~` is in a
-catalog path.
+What does not change: the operations, the permissions, and installing as importing.
+
+**Follow-up, the same day: the layout is the contract's, and the API names the authority.** The
+container layout is defined once in the catalog library (`CatalogContainerLayout`;
+`catalogContainerRepository` and `CATALOG_CONTAINER_*` in npm, documented in "In a Container
+Registry" of `catalog-archive.md`): the repository above, the release number as the tag (every valid
+release number is a valid OCI tag), the media types and the manifest annotations Epistola Suite
+already wrote, plus `app.epistola.catalog.contentHash`. The release-registry API paths name the
+catalog in full, `…/release-registries/{name}/catalogs/{registry}/{namespace}/{catalogKey}/releases`
+(and `…/{version}/install`), because addressing by namespace and key could not tell two catalogs of
+one registry apart that differ only in their authority, and adding the segment after 2.0 would be a
+breaking change. In those operations and in publishing, `registry` always means the authority: the
+release registry's name is `releaseRegistry` (`RegistryReleaseListResponse`,
+`ReleasePublicationDto`), and the listing names the catalog's authority in `registry`.
 
 ## Open questions
 
-- Should the release-registry paths name the authority too (a `{registry}` segment, or a query
-  parameter), so a registry that holds two catalogs differing only in their authority can be
-  listed and installed from for a catalog the tenant does not have yet?
 - Should installing take a content hash instead of a number (`…/releases/by-hash/{contentHash}`),
   for a registry that keeps releases by digest without a tag?
 - How a binding travels in a container registry: a signed statement beside the release (as cosign

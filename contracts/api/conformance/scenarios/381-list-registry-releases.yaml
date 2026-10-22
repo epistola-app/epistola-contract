@@ -6,8 +6,11 @@ id: list-registry-releases
 title: The releases of a catalog in a release registry are listed with what the registry says of them
 why: >
   Release registries are alpha (ADR 0008). A catalog in a release registry is addressed by the
-  registry's name, the catalog's namespace and its key: the registry's name is the installation's,
-  not part of the catalog's name. Each release comes with what the registry records of it, which
+  release registry's name and the catalog's full name, its authority (`registry`, here
+  `acme.com`) included: the release registry's name is the installation's, not part of the
+  catalog's name, and a container registry keeps catalogs that differ only in their authority in
+  different repositories (amendment of 2026-10-22). The response names both, the release registry
+  as `releaseRegistry` and the authority as `registry`. Each release comes with what the registry records of it, which
   may be little: a fingerprint, a content hash, an id and a base when it has them, null when it
   does not. A client that drops a null, or reads the base's members as the release's, misreports
   what is there.
@@ -18,6 +21,7 @@ action:
     nodeId: conformance-node-1
     tenantKey: acme-corp
     name: acme
+    registry: acme.com
     namespace: acme-corp
     catalogKey: letters
 
@@ -25,7 +29,8 @@ script:
   - status: 200
     contentType: application/vnd.epistola.v2+json
     body:
-      registry: acme
+      releaseRegistry: acme
+      registry: acme.com
       namespace: acme-corp
       catalogKey: letters
       items:
@@ -47,10 +52,11 @@ expect:
   requestCount: 1
   requests:
     - method: GET
-      path: /api/tenants/acme-corp/release-registries/acme/catalogs/acme-corp/letters/releases
+      path: /api/tenants/acme-corp/release-registries/acme/catalogs/acme.com/acme-corp/letters/releases
       query: ""
   report:
-    registry: acme
+    releaseRegistry: acme
+    registry: acme.com
     namespace: acme-corp
     catalogKey: letters
     releases: 1.5.0:v5:9f3a1c2b4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70819a2b3c4d5e6f70:k7m2x9qa:1.4.0@v5:1111111111111111111111111111111111111111111111111111111111111111,1.4.0:null:null:null

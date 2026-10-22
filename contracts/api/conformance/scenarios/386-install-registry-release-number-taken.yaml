@@ -17,6 +17,7 @@ action:
     nodeId: conformance-node-1
     tenantKey: acme-corp
     name: acme
+    registry: exchange.epistola.app
     namespace: acme-corp
     catalogKey: letters
     version: 1.5.0
@@ -36,7 +37,7 @@ expect:
   requestCount: 1
   requests:
     - method: POST
-      path: /api/tenants/acme-corp/release-registries/acme/catalogs/acme-corp/letters/releases/1.5.0/install
+      path: /api/tenants/acme-corp/release-registries/acme/catalogs/exchange.epistola.app/acme-corp/letters/releases/1.5.0/install
       query: ""
   report:
     problemTypeSlug: release-number-taken

@@ -808,9 +808,9 @@ paths:
   # Release registries (alpha)
   /tenants/{tenantKey}/release-registries:
     $ref: './paths/release-registries.yaml#/release-registries'
-  /tenants/{tenantKey}/release-registries/{name}/catalogs/{namespace}/{catalogKey}/releases:
+  /tenants/{tenantKey}/release-registries/{name}/catalogs/{registry}/{namespace}/{catalogKey}/releases:
     $ref: './paths/release-registries.yaml#/registry-releases'
-  /tenants/{tenantKey}/release-registries/{name}/catalogs/{namespace}/{catalogKey}/releases/{version}/install:
+  /tenants/{tenantKey}/release-registries/{name}/catalogs/{registry}/{namespace}/{catalogKey}/releases/{version}/install:
     $ref: './paths/release-registries.yaml#/registry-release-install'
 
   # Catalog Import
