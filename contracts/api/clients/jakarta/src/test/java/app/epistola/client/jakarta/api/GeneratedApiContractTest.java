@@ -287,6 +287,9 @@ class GeneratedApiContractTest {
                 if (at < 0) {
                     continue; // not under a catalog, such as a deployment naming a release
                 }
+                if (fullPath.contains("/release-registries/{name}/")) {
+                    continue; // a catalog's releases in a release registry, not this tenant's content
+                }
                 String rest = fullPath.substring(at + catalog.length());
                 String where = api.getSimpleName() + "." + method.getName() + " (" + fullPath + ")";
                 if (rest.isEmpty() || catalogLevel.contains(rest) || method.getName().equals("validateTemplateData")) {
