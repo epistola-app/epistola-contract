@@ -409,6 +409,17 @@ libraries.
 
 ### Changed
 
+- **The `local` authority** (contract ADR 0003, amendment of 2026-10-22; Epistola Suite ADR 0034).
+  A registry is `local` or a DNS name with at least one dot: `local` names catalogs that never leave
+  the organisation (`local/acme-hr/letters`), valid within its own installations and refused by an
+  Exchange (`namespace-not-granted` on `publishReleaseToRegistry`). It is the only registry without
+  a dot; `localhost`, `Local` and `locals` stay invalid. Catalog wire v8 (unreleased, changed in
+  place): `CatalogNamespaces.REGISTRY_PATTERN`, new `LOCAL_REGISTRY` and `isLocalRegistry`;
+  `CATALOG_REGISTRY_PATTERN`, new `CATALOG_LOCAL_REGISTRY`; the manifest schema's `CatalogRegistry`;
+  a carried release's path (`CatalogDependencyArchivePaths.PATTERN`,
+  `CATALOG_DEPENDENCY_ARCHIVE_PATH_PATTERN`, the carried-release path cases). API: `Registry` and
+  `RegistryOrDefault` accept it. Wire v7 keeps its rule. The clients' validation tests and the
+  catalog's tests hold the boundary; conformance scenario `get-local-catalog-release`.
 - **BREAKING (API 2.0, unreleased, changed in place): a draft's changes include its catalog-level
   content, and releasing needs a change** (Epistola Suite ADR 0034). `CatalogChangesDto` gains
   `catalogChanges` (required): what the content hash covers outside the resources, each as a new

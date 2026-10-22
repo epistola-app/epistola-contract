@@ -45,6 +45,11 @@ assert.equal(catalog.MAX_CATALOG_NAMESPACE_LENGTH, namespaceSchema.maxLength, 'n
 const registrySchema = manifestSchema.$defs.CatalogRegistry;
 assert.equal(catalog.CATALOG_REGISTRY_PATTERN, registrySchema.pattern, 'npm and schema registry patterns must agree');
 assert.equal(catalog.MAX_CATALOG_REGISTRY_LENGTH, registrySchema.maxLength, 'npm and schema registry maximum lengths must agree');
+// `local` is the one registry without a dot: the authority of names that never leave the organisation.
+const registryRule = new RegExp(catalog.CATALOG_REGISTRY_PATTERN);
+assert.equal(catalog.CATALOG_LOCAL_REGISTRY, 'local');
+for (const valid of ['local', 'acme.com', 'local.acme.com']) assert.ok(registryRule.test(valid), `${valid} is a registry`);
+for (const invalid of ['localhost', 'Local', 'locals', 'acme', 'local/hr']) assert.ok(!registryRule.test(invalid), `${invalid} is not a registry`);
 assert.equal(
   catalog.MAX_CATALOG_DEPENDENCY_VERSION_LENGTH,
   undefined,

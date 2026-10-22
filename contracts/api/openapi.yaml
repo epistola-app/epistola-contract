@@ -14,7 +14,8 @@ info:
       named by three parts together: a **registry**, the DNS name of where it is published
       (`exchange.epistola.app`, or a domain that publishes its own, `acme.com`); a **namespace**, its
       publisher within that registry (`acme-corp`); and its key (`letters`). In a path, `~` stands
-      for the server's default registry.
+      for the server's default registry. The registry `local` names catalogs that never leave the
+      organisation: valid within its own installations, refused by an Exchange.
     - **Release**: the catalog as a whole at one point, in one of two statuses. A **draft release**,
       or **draft**, is editable and has no version; a **released** release is immutable and has a
       version. "Release `1.4.0`" means the released one.

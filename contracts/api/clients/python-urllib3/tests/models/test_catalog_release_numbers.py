@@ -99,3 +99,14 @@ def test_a_version_range_holds_an_exact_release_number_of_any_valid_length(versi
 def test_a_version_range_is_at_most_256_characters():
     with pytest.raises(ValueError):
         GenerateDocumentRequest(namespace="acme-corp", catalogKey="letters", templateKey="invoice", data={}, versionRange="x" * 257)
+
+
+def test_local_is_the_one_registry_without_a_dot():
+    request = GenerateDocumentRequest(registry="local", namespace="acme-hr", catalogKey="letters", templateKey="invoice", data={})
+    assert request.registry == "local"
+
+
+@pytest.mark.parametrize("registry", ["localhost", "Local", "locals"])
+def test_a_single_label_other_than_local_is_no_registry(registry):
+    with pytest.raises(ValueError):
+        GenerateDocumentRequest(registry=registry, namespace="acme-hr", catalogKey="letters", templateKey="invoice", data={})

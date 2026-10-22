@@ -101,17 +101,20 @@ PresetKey:
 
 Registry:
   type: string
-  pattern: '^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+  pattern: '^(local|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)$'
   maxLength: 253
   description: |
-    A registry, the DNS name of where a catalog is published (`exchange.epistola.app`, or a domain
-    that publishes its own, `acme.com`): lowercase labels of letters, digits and inner hyphens,
-    joined by at least one dot, at most 253 characters.
+    A registry, the authority of a catalog's name: the DNS name of where it is published
+    (`exchange.epistola.app`, or a domain that publishes its own, `acme.com`), lowercase labels of
+    letters, digits and inner hyphens joined by at least one dot, at most 253 characters; or
+    `local`, the authority of names that never leave the organisation (`local/acme-hr/letters`), valid
+    within its own installations and refused by an Exchange (contract ADR 0003). `local` is the only
+    registry without a dot: `localhost` is not one. The same rule as the catalog archive's.
   example: exchange.epistola.app
 
 RegistryOrDefault:
   type: string
-  pattern: '^(~|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)$'
+  pattern: '^(~|local|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)$'
   minLength: 1
   maxLength: 253
   description: |

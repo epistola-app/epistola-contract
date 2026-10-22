@@ -1,7 +1,8 @@
 # ADR 0003: Catalog identity, registries and mirrors
 
 - **Status:** Accepted; amended 2026-10-21 (see "Amendment: a catalog's name never changes on the
-  way") and 2026-10-22 (see "Amendment: releases are content-addressed; names point at them")
+  way") and 2026-10-22 (see "Amendment: releases are content-addressed; names point at them" and
+  "Amendment: the `local` authority")
 - **Date:** 2026-10-16
 - **Scope:** API contract (`contracts/api`) and portable catalog contract (`contracts/catalog`, wire
   v8), contract 2.0
@@ -323,7 +324,8 @@ The second option, and "the tenant's key by default" above, are withdrawn by the
 - Moving a catalog to another registry renames it. A "move" operation that rewrites references and
   redirects the old name is needed eventually, not in 2.0.
 - A registry must be a DNS name with a dot. A local test setup uses something like
-  `exchange.localhost`, not `localhost`.
+  `exchange.localhost`, not `localhost`. (Amended 2026-10-22: `local` is the one registry without
+  a dot, see "Amendment: the `local` authority".)
 - **Wire v8** (unreleased, changed in place): `catalog.registry` and `catalog.namespace`; the same two
   members on catalog dependencies, resource dependencies and content references; `releaseFingerprint`
   on catalog dependencies; the V5 fingerprint covers all of them. Every fingerprint names its
@@ -453,7 +455,30 @@ holds for a copy under another name.
   code-list binding, an attribute criterion) name another catalog by alias, and a draft's changes
   include its catalog-level content. ADR 0008 is amended for release registries. Still to come:
   showing which names point at a release, granting namespaces and verifying an Exchange domain.
-- Channels (`stable`), signed bindings and a `local` authority are later phases.
+- Channels (`stable`) and signed bindings are later phases. The `local` authority is not: see the
+  next amendment.
+
+## Amendment: the `local` authority (2026-10-22)
+
+Epistola Suite's ADR 0034 gives every installation the authority `local`, for names that never leave
+the organisation: `local/acme-hr/letters` while a catalog has no real name yet, or for good when it never
+will. It was listed above as a later phase; it is part of the format now, because a name an
+archive carries cannot be widened later without every consumer that validates it refusing the
+archive.
+
+- **`local` is a registry.** The registry rule is `local`, or a DNS name with at least one dot as
+  before (`CatalogNamespaces.REGISTRY_PATTERN`, `LOCAL_REGISTRY`, `isLocalRegistry`;
+  `CATALOG_REGISTRY_PATTERN`, `CATALOG_LOCAL_REGISTRY`; the manifest schema's `CatalogRegistry`; a
+  carried release's path; the API's `Registry` and `RegistryOrDefault`). It is the only registry
+  without a dot: `localhost`, `Local` and `locals` stay invalid.
+- **A `local` name never leaves the organisation.** It is valid within the organisation's own
+  installations, moved by file or by its own release registry (a container registry, ADR 0008). An
+  Exchange grants no namespace under `local` and refuses to publish such a release
+  (`namespace-not-granted`). Two organisations may both use `local/acme-hr/letters`; the names mean
+  nothing to each other, which is why they must not meet.
+- **Promotion** to a real name adds bindings under the new name to the same content hashes; since
+  content names other catalogs by alias, no release changes (ADR 0034). The contract has no
+  operation for it yet.
 
 ## Hotfix releases
 

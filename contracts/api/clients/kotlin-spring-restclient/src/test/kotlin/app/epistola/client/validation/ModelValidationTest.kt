@@ -320,6 +320,13 @@ class ModelValidationTest {
         assertEquals(longest, longest.validate())
         assertFailsWith<IllegalArgumentException> { exact.copy(versionRange = "x".repeat(257)).validate() }
 
+        // `local` is the one registry without a dot; `localhost` is none
+        val local = exact.copy(registry = "local")
+        assertEquals(local, local.validate())
+        for (registry in listOf("localhost", "Local", "locals")) {
+            assertFailsWith<IllegalArgumentException>("Expected '$registry' to fail") { exact.copy(registry = registry).validate() }
+        }
+
         // null environmentKey: skipped
         GenerateDocumentRequest(
             namespace = "acme-corp",

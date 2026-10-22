@@ -191,10 +191,10 @@
       "additionalProperties": false
     },
     "CatalogRegistry": {
-      "description": "The registry a catalog's namespace lives in: an exchange (exchange.epistola.app) or a domain that publishes its own catalogs (acme.com), as a lowercase DNS name in normal order. Always written in full: an archive has no default registry, which is installation configuration.",
+      "description": "The registry a catalog's namespace lives in, the authority of its name: an exchange (exchange.epistola.app) or a domain that publishes its own catalogs (acme.com), as a lowercase DNS name in normal order, or local, for names that never leave the organisation and that an Exchange refuses. Always written in full: an archive has no default registry, which is installation configuration.",
       "type": "string",
       "maxLength": 253,
-      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
+      "pattern": "^(local|[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)$"
     },
     "CatalogNamespace": {
       "description": "A catalog namespace within its registry, as a lowercase kebab-case slug (acme-corp). The same name in two registries is two different namespaces.",

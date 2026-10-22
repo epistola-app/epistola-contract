@@ -117,6 +117,13 @@ public class ModelValidationTest
         new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: new string('x', 256)).Validate();
         Assert.Throws<ArgumentException>(() =>
             new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), versionRange: new string('x', 257)).Validate());
+        // `local` is the one registry without a dot; `localhost` is none.
+        new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), registry: "local").Validate();
+        foreach (var registry in new[] { "localhost", "Local", "locals" })
+        {
+            Assert.Throws<ArgumentException>(() =>
+                new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), registry: registry).Validate());
+        }
 
         new GenerateDocumentRequest(@namespace: "acme-corp", catalogKey: "default", templateKey: "invoice", variantKey: "english", data: new Dictionary<string, object>(), environmentKey: null).Validate();
         Assert.Throws<ArgumentException>(() =>
