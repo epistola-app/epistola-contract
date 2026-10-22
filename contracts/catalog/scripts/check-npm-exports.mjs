@@ -108,8 +108,10 @@ const apiRule = (name) => {
   return { pattern: rule.match(/\n  pattern: '([^']+)'/)?.[1], minLength: number('minLength'), maxLength: number('maxLength') };
 };
 for (const [name, pattern, minLength, maxLength] of [
-  // The API reports releases by their plain number; a patch release's label is the archive's alone for now.
-  ['ReleaseVersion', catalog.CATALOG_RELEASE_VERSION_CORE_PATTERN, undefined, catalog.MAX_CATALOG_RELEASE_VERSION_LENGTH],
+  // The API names a release by the archive's rule, patch releases included.
+  ['ReleaseVersion', catalog.CATALOG_RELEASE_VERSION_PATTERN, undefined, catalog.MAX_CATALOG_RELEASE_VERSION_LENGTH],
+  // The API's references name another catalog by the alias the archive's content names it by.
+  ['CatalogAlias', catalog.CATALOG_ALIAS_PATTERN, catalog.MIN_CATALOG_ALIAS_LENGTH, catalog.MAX_CATALOG_ALIAS_LENGTH],
   ['ResourceKey', catalog.CATALOG_RESOURCE_KEY_PATTERN, catalog.MIN_CATALOG_RESOURCE_KEY_LENGTH, catalog.MAX_CATALOG_RESOURCE_KEY_LENGTH],
   ['Namespace', catalog.CATALOG_NAMESPACE_PATTERN, catalog.MIN_CATALOG_NAMESPACE_LENGTH, catalog.MAX_CATALOG_NAMESPACE_LENGTH],
   ['Registry', catalog.CATALOG_REGISTRY_PATTERN, undefined, catalog.MAX_CATALOG_REGISTRY_LENGTH],
