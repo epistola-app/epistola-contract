@@ -446,11 +446,13 @@ holds for a copy under another name.
 - Wire v8 changes in place (it is not released): `alias` on catalog dependencies, references by
   alias, V6, patch numbers. A v7 archive migrates with each catalog it names declared under its key
   as the alias, so its references keep their values.
-- The API is not yet changed: it does not address releases by hash, show which names point at a
-  release, declare an alias (a dependency declared through the API has its key as its alias), report
-  a patch release, grant namespaces or verify an Exchange domain. Its own references
-  (`CatalogThemeReference`, an attribute's code-list binding) still name registry and namespace.
-  Those follow as API changes, with ADR 0008.
+- The API follows the same day (contract 2.0, unreleased, changed in place): a release carries its
+  content hash (`ContentHash`, `CatalogReleaseDto.contentHash`) and is found by it
+  (`listCatalogReleases?contentHash=`), `ReleaseVersion` accepts patch release numbers, dependency
+  declarations carry their alias, the API's own references (`CatalogThemeReference`, an attribute's
+  code-list binding, an attribute criterion) name another catalog by alias, and a draft's changes
+  include its catalog-level content. ADR 0008 is amended for release registries. Still to come:
+  showing which names point at a release, granting namespaces and verifying an Exchange domain.
 - Channels (`stable`), signed bindings and a `local` authority are later phases.
 
 ## Hotfix releases

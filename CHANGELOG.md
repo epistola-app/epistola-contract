@@ -575,6 +575,18 @@ libraries.
   Conformance: `import-catalog-fingerprint-conflict` now expects it, and new scenarios
   `install-catalog-release-number-taken` and `install-registry-release-number-taken`.
 
+- **ADR 0008 is amended (2026-10-22): release registries for content-addressed releases**
+  (Epistola Suite ADR 0034). A container registry keeps a release at
+  `<prefix>/<authority>/<namespace>/<key>:<version>`, the authority (the `registry` of the
+  catalog's name) included, so catalogs that differ only in it can share one registry; the tag is a
+  binding's number, and a release resolves by digest and verifies itself by its content hash,
+  which decides receiving. Mirroring copies releases and their bindings unchanged and needs no
+  namespace; publishing a received release is mirroring it, and the Exchange, which hosts names,
+  stays the holder's. A catalog's source is per tenant and changeable, which changes where new
+  releases come from, never what they are (`CatalogDto.source` says so). The release-registry
+  paths keep addressing a catalog by namespace and key; naming the authority there, installing by
+  content hash, how a binding travels and an operation to change a source are open questions. ADR
+  0003's consequences now list what the API did the same day and what is still to come.
 - **ADR 0003 is amended (2026-10-22): releases are content-addressed; names point at them**
   (Epistola Suite ADR 0034, phase 1 for the catalog format). The `registry` of a catalog's name is
   its authority, a domain, never a location; namespaces are flat; a release is identified by its
