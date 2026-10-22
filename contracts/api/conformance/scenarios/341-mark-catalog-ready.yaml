@@ -10,7 +10,8 @@ why: >
   draft's changes afterwards: every resource is `ready` and the draft is now releasable.
 
   This draft has never been released, so it has no base: `base` is null. A client must read that as
-  a missing value, not refuse the response or report an empty string.
+  a missing value, not refuse the response or report an empty string. Against no base, its
+  declared presets are catalog-level content `added`; marking ready leaves them as they are.
 
 action:
   name: mark-catalog-ready
@@ -32,6 +33,8 @@ script:
       changes:
         - { type: template, key: invoice, change: ready }
         - { type: theme, key: house-style, change: ready }
+      catalogChanges:
+        - { type: catalog, key: presets, change: added }
 
 expect:
   requestCount: 1
@@ -47,3 +50,5 @@ expect:
     releasable: "true"
     dependenciesChanged: "false"
     changes: template/invoice:ready,theme/house-style:ready
+    mergedForReview: ""
+    catalogChanges: catalog/presets:added

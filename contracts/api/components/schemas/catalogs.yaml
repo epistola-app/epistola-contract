@@ -333,11 +333,15 @@ ReleaseDependencyDto:
 
 CatalogChangesDto:
   type: object
-  description: How a release differs from its base
+  description: |
+    How a release differs from its base: its resources (`changes`), and its catalog-level content
+    outside them (`catalogChanges`), together what its content hash covers. The catalog's
+    presentation (its name, description and the like) is not content and is never a change here.
   required:
     - releasable
     - dependenciesChanged
     - changes
+    - catalogChanges
   properties:
     base:
       oneOf:
@@ -350,19 +354,38 @@ CatalogChangesDto:
     releasable:
       type: boolean
       description: |
-        True when the release is a draft, no resource is `new` or `modified`, every stencil instance
-        fits its stencil, every catalog a resource references is a declared dependency that pins a
-        release the tenant has or names a draft (released along with it, `releaseDependencies`),
-        and something changed
+        True when releasing the release now would be accepted, as far as its content tells: it is a
+        draft; something changed (`changes` or `catalogChanges` lists an entry; without a base, the
+        draft has a resource or catalog-level content), since releasing it unchanged would only give
+        its base's content another number; no resource is `new` or `modified`, merged content
+        included (`mergedForReview`); every stencil instance fits its stencil; and every catalog a
+        resource references is a declared dependency that pins a release the tenant has or names a
+        draft (released along with it, `releaseDependencies`). Releasing can still be refused for
+        what this does not cover, such as a draft that is behind releases not acknowledged.
       example: false
     dependenciesChanged:
       type: boolean
-      description: True when the declared dependencies differ from the base's
+      description: |
+        True when the declared dependencies differ from the base's: exactly when `catalogChanges`
+        lists a `catalogDependency` entry
       example: false
     changes:
       type: array
+      description: |
+        The resources that differ from the base: each of the release's that is `new`, `modified`
+        or `ready`, and each of the base's that is `removed`, by type and key
       items:
         $ref: '#/ResourceChangeDto'
+    catalogChanges:
+      type: array
+      description: |
+        The release's catalog-level content that differs from the base, beside its resources: each
+        dependency declaration added, removed or changed (re-pinned, or naming a draft or another
+        catalog under its alias), and its default theme, presets and license when they changed.
+        Named as the entries of a merge are (`catalog/defaultTheme`, `catalogDependency/shared`).
+        Empty when none changed, and once the release is released.
+      items:
+        $ref: '#/CatalogLevelChangeDto'
 
 ResourceChangeDto:
   type: object
@@ -388,6 +411,58 @@ ResourceChangeDto:
       description: |
         `new`, `modified` and `ready` as in ResourceStatus; `removed` for a resource in the base
         that is no longer in this release.
+      example: modified
+    mergedForReview:
+      type: boolean
+      default: false
+      description: |
+        True when the resource holds content combined from both sides of a merge conflict
+        (`mergedContent` of `mergeIntoCatalogDraft`, alpha) that no one has marked ready since: it
+        was written as given, so review it before the draft is released. Its `change` is then
+        `new` or `modified`, which keeps the draft from being releasable until it is marked ready.
+        False or absent otherwise.
+      example: false
+
+CatalogLevelChangeDto:
+  type: object
+  description: |
+    One part of a release's catalog-level content, outside its resources, that differs from its
+    base: what its content hash covers beside the resources (contract ADR 0003), never the
+    catalog's presentation. Named by `type` and `key` as the entries of a merge are.
+  required:
+    - type
+    - key
+    - change
+  properties:
+    type:
+      type: string
+      minLength: 1
+      maxLength: 64
+      description: |
+        `catalog` for a setting of the release, `catalogDependency` for a catalog it declares it
+        uses. A string, not an enum: a client keeps a type it does not know.
+      example: catalogDependency
+    key:
+      type: string
+      minLength: 1
+      maxLength: 50
+      description: |
+        For `catalog`, the setting: `defaultTheme`, `presets` or `license`. For
+        `catalogDependency`, the declaration's alias (`CatalogAlias`).
+      example: shared
+    change:
+      type: string
+      enum:
+        - added
+        - modified
+        - removed
+      description: |
+        - `added`: the base has none (no default theme, presets or license, or no declaration
+          under this alias) and the release has one;
+        - `modified`: both have one, and it differs: another default theme, other presets, another
+          license; for a declaration, another release pinned (re-pinned), a draft named instead,
+          or another catalog under the same alias;
+        - `removed`: the base has one and the release does not.
       example: modified
 
 CatalogDependencyRequirement:
